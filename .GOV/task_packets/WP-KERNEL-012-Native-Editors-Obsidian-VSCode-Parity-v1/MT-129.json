@@ -1,0 +1,87 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-129",
+  "title": "E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe",
+  "group": "E11-Argus",
+  "created_at_utc": "2026-08-13T09:40:00Z",
+  "updated_at_utc": "2026-08-13T09:40:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "scope": {
+    "summary": "mcp/binding.rs::atomic_replace publishes the discovery binding with a hand-rolled MoveFileExW that receives raw encode_wide() paths - no verbatim prefix, no GetFullPathNameW - while every neighbouring operation on the SAME path goes through Rust std::fs, which normalizes. At a CWD-relative length of 260 the rename fails with ERROR_PATH_NOT_FOUND after the temp file has already been created, hardened, written and fsynced.",
+    "defect_detail": {
+      "site": "src/frontend/handshake_native/src/mcp/binding.rs, atomic_replace Windows branch lines 424-449; error surfaced at 454-458; wrapped into \"MCP discovery binding was not safely published\" at mcp/server.rs:163-168.",
+      "measured_empirically": "A purpose-built non-longPathAware Win32 probe (GetFileAttributesW) measured the exact boundary with CWD set to the crate root: 259 chars resolves, 260 and 261 return err=3. The temp name is swarm_mcp_binding.{pid}.{19-digit-nanos}.tmp, so a 5-digit PID lands on exactly 260.",
+      "reproduced_from_the_real_failing_run": "The failing run left its PID in an artifact path: handshake-test/native_gui/pid-69592/frames/block_collection_view_screenshot-pid69592-1.png, mtime 2026-08-13 00:21:34, matching the lock created at 00:21:54. PID 69592 is five digits; reconstructing its exact temp filename and probing it returns err=3, while the 235-char destination .json resolves fine. The reported os error 3 was reproduced exactly, from the real PID.",
+      "why_the_message_misleads": "The error names the 235-char DESTINATION, which is perfectly valid. The 260-char SOURCE is what Win32 rejected. Anyone reading the message looks at the wrong path.",
+      "manifest_checked_not_assumed": "The test binary carries NO embedded manifest at all - searched for manifestVersion / longPathAware / RT_MANIFEST in ASCII and UTF-16, all absent, with pwsh.exe as a positive control. Machine-wide LongPathsEnabled=1 therefore cannot rescue it.",
+      "the_stale_lock_theory_is_REFUTED": "A repo-wide census of Handshake_Artifacts found ~48 binding roots, 42 of which carry a .lock with no .json. That is the by-design resting state: binding.rs:294-296 declares the lock persistent and remove_binding (:582-586) deletes only the .json. The lock carries ZERO diagnostic signal. A swarm_mcp_binding.lock.stale-preserved-20260812 file exists in exactly one root - evidence an earlier agent chased this red herring. The advisory OS lock is released automatically when its process dies, so no age or PID breaker is missing.",
+      "why_only_this_one_binary_fails": "Every other Argus test installs ScopedArgusAppData (canonical_argus_driver.rs:49-58), which CANONICALIZES the root to absolute - 196 chars, always safe. test_block_collection_view.rs:2491 deliberately passes app_data: None and keeps the ../../../../ relative fallback root from :2080-2083. That single difference is why it is the only red binary of its class."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/mcp/binding.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": {
+      "AC-129-1": "Both MoveFileExW operands are resolved through GetFullPathNameW and given the Win32 verbatim prefix before the call, so the publish path tolerates any length std::fs tolerates.",
+      "AC-129-2": "Proven RED first: a test that publishes a binding under a root long enough to exceed 260 fails before the fix and passes after. A fix with no RED is not accepted.",
+      "AC-129-3": "The failure message names the operand that actually failed. Naming the valid destination while the source is what Win32 rejected cost this packet a full diagnostic cycle.",
+      "AC-129-4": "test_block_collection_view passes WITHOUT HANDSHAKE_ARGUS_BINDING_ROOT set - i.e. on the relative fallback root that currently breaks it. That is the real acceptance surface; the env var is a workaround, not a fix."
+    },
+    "proof_targets": {
+      "PT-129-1": "The RED run for AC-129-2, output retained.",
+      "PT-129-2": "test_block_collection_view green with HANDSHAKE_ARGUS_BINDING_ROOT UNSET."
+    },
+    "risk_if_missed": "This is not test-only. binding_path() resolves under %LOCALAPPDATA%; any operator whose profile path is deep enough hits the same failure in the shipped app, and the published error blames a path that is fine.",
+    "secondary_risk_found_in_passing": "test_block_collection_view.rs:2089 sets the process-global LOCALAPPDATA with no guard and no mutex, while pg_proof_support/mod.rs:3989-3991 documents that this variable requires NATIVE_BINDING_ENV_LOCK because two suites in one binary would otherwise authenticate against each other binding root. It is safe only under --test-threads=1. Under default parallelism it will race ScopedArgusAppData install/drop - which recursively removes its root - and produce a GENUINE missing-directory os error 3 with a message identical to this defect."
+  },
+  "lifecycle": {
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "status": "NOT_STARTED",
+    "depends_on": [],
+    "blocks": [
+      "MT-116",
+      "MT-108"
+    ],
+    "creation_reason": "Isolated while unblocking MT-116 AC-116-3. MT-116 own recorded hypothesis (a creation race in the binding publisher) is wrong, and so is the stale-lock theory. Confirmed by reproducing the exact os error 3 from the real failing run PID. Unrelated to MT-116 chip-rendering change, so filed separately rather than absorbed."
+  },
+  "hbr_obligations": {
+    "MAN": "UserManual must record that the discovery binding root should be absolute and short until this is fixed.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (local file publish); internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

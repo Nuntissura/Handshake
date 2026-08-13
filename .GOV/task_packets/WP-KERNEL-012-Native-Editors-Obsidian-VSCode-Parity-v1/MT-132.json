@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-132",
+  "title": "E1-MT-132-Stop-The-Editor-Context-Surface-Shadowing-The-Sticky-Header-Click",
+  "group": "E1-Code-Editor",
+  "created_at_utc": "2026-08-13T09:45:00Z",
+  "updated_at_utc": "2026-08-13T09:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-132.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "scope": {
+    "summary": "test_sticky_scroll::clicking_sticky_header_scrolls_to_its_line fails with the viewport unchanged (60..73 before and after). The sticky header never reports clicked(), because the editor-body context-menu interaction surface covers the sticky band and is registered AFTER it, so egui last-widget-wins hit resolution routes the click to the context surface.",
+    "defect_detail": {
+      "site": "code_editor/panel.rs:8423-8427 builds editor_body_context_rect from full_rect.top(). full_rect is captured at :8186 BEFORE the gutter SidePanel (:8208) and BEFORE render_sticky_band (:8244), so it spans the band. render_editor_context_menu (:9122-9128) registers it with a FULL egui::Sense::click(), not secondary-only.",
+      "hit_resolution": "egui-0.33.3 hit_test.rs:436-440 - on a tie the LAST widget in the layer wins. The thin-widget escape hatch does not apply: should_prioritize_hits_on_back returns false when front.contains_rect(back) (hit_test.rs:453-456) and the context rect fully contains the header label. Both are in the same layer, so the cross-layer filter (hit_test.rs:141-149) does not apply either.",
+      "consequence": "panel.rs:9990-10002 never takes the resp.clicked() branch, click_line stays None, and :10038-10042 (record_jump_origin -> buffer_line_to_visible_line -> scroll_to_line) never runs.",
+      "the_scroll_plumbing_is_NOT_the_bug": "Checked so this is not misattributed: scroll_to_line (:7805-7822) stores pending_scroll_offset and the scroll area consumes it in the SAME frame at :8262-8274 (band renders at :8244, scroll scope at :8249). The request is not computed-then-discarded and not applied to the wrong area - it is never created.",
+      "the_line_0_in_the_panic_is_literal_text": "The message \"scrolled the viewport to its line 0\" comes from a format string in tests/test_sticky_scroll.rs:323-326; only before/after are interpolated. There is no computed target-line value, so any \"lookup returned a default\" theory is false."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": {
+      "AC-132-1": "The context rect excludes the sticky band on the Y axis, the same way it already excludes the gutter on X via gutter_rect.right() (:8228). render_sticky_band should return its rect (TopBottomPanel::show_inside yields an InnerResponse) and the context rect should start at its bottom.",
+      "AC-132-2": "The context menu still opens everywhere it did outside the band. Narrowing the rect must not silently delete the right-click surface.",
+      "AC-132-3": "test_sticky_scroll green with the viewport range actually changing.",
+      "AC-132-4": "Add the systemic guard: for a given author_id, assert its AccessKit bounds centre resolves to THAT widget under Context::widget_at / layer_id_at. Node presence and role are exactly what let this ship."
+    },
+    "proof_targets": {
+      "PT-132-1": "test_sticky_scroll green.",
+      "PT-132-2": "The AC-132-4 reachability guard, shown RED against the pre-fix shadowing."
+    },
+    "risk_if_missed": "A real operator cannot click a sticky header to navigate, and the failure is invisible to every proof that checks only node presence."
+  },
+  "lifecycle": {
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "status": "NOT_STARTED",
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "creation_reason": "Routed from the MT-108 AC-108-3 sweep and root-caused to same-layer hit shadowing, with the egui resolution rule quoted. Previously UNROUTED in the MT-127 table."
+  },
+  "hbr_obligations": {
+    "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (UI addressability); internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

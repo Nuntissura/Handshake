@@ -1,0 +1,87 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-130",
+  "title": "E10-MT-130-Resolve-The-Calendar-Chip-Value-Contract-Two-Readers-Cannot-Both-Be-Satisfied",
+  "group": "E10-Interop",
+  "created_at_utc": "2026-08-13T09:40:00Z",
+  "updated_at_utc": "2026-08-13T09:40:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-130.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "scope": {
+    "summary": "The daily-journal calendar-event chip publishes a domain JSON object as its AccessKit value. MT-117 must publish a handshake.click-completion/v1 declaration as that SAME value. ClickCompletionToken carries deny_unknown_fields and the driver parses the WHOLE node value as that closed token. No single value satisfies both readers. This is a contract decision, not an implementation choice, so it is escalated rather than settled by a builder.",
+    "measured_evidence": {
+      "census_at_head": "MT-074 canonical Argus matrix, run MT117-PT1-20260813-02 at commit ac4c2fd7: 13 observations, 11 applied / 2 indeterminate. Every remaining indeterminate is daily-journal-calendar-event-chip, 4 action receipts, all rejecting with \"click target disappeared before its effect could be observed\". The Stage half of MT-117 is fixed and is now 3x APPLIED.",
+      "why_that_rejection_string_is_the_proof": "It is emitted ONLY from mcp/action.rs:1379-1384, the generic no-completion Click arm. Reaching it proves pending_click_completion returned None at action.rs:1736 - the declaration never parsed. It is not a timing or visibility problem."
+    },
+    "the_conflict": {
+      "reader_a": "mcp/action.rs:1736 parses the ENTIRE target value as ClickCompletionToken; deny_unknown_fields at action.rs:177 rejects any foreign key.",
+      "reader_b": "tests/test_calendar_interop.rs:1988-1997 and :2020-2025 read TOP-LEVEL calendar_event_id / daily_note_doc_id off that same node value; :3541-3546 asserts the raw string contains the calendar_event_id pair - which also fails if the field survives only escaped inside semantic_value.",
+      "writer": "graph/daily_journal_panel.rs:613-623 sets the domain object; app.rs:12543 MERGES the MT-117 declaration into it via mt117_merge_node_value (app.rs:3399-3419) instead of clobbering, because clobbering would break reader B."
+    },
+    "options_with_costs": {
+      "a_relax_deny_unknown_fields": "Product-wide schema weakening. Breaks the unit test that exists to enforce it (action.rs:4012-4024) and weakens the parse for roughly 30 declaration sites across app.rs, find_in_files.rs, canvas_board.rs, block_collection_view.rs, loom_search_v2.rs and more, plus every suite gating on those receipts. NOT RECOMMENDED.",
+      "b_move_the_domain_fields": "Edit test_calendar_interop.rs, which is MT-067 owning proof surface. Path-permitted under MT-117 allowed_paths but proof-weakening by judgement: rewriting another microtask terminal predicate so your own proof passes is exactly the move this packet must not make. Requires operator authority.",
+      "c_exclude_the_target_with_a_typed_reason": "Changes PT-117-1 as literally written (13/13 applied). Honest and cheap, but it is a contract change and therefore an operator call.",
+      "d_sibling_node_RULED_OUT": "The reader resolves the CHIP node itself (test_calendar_interop.rs:859), so the MT-042 sibling-node workaround is unavailable.",
+      "e_nesting_or_conditional_publish_RULED_OUT": "action.rs:1736 parses the whole value, and revalidate_pending (action.rs:1951-1953) rejects an action whose target value changed between enqueue and dispatch."
+    },
+    "allowed_paths": [
+      "DECISION_ONLY_UNTIL_OPERATOR_SELECTS_AN_OPTION"
+    ],
+    "acceptance_criteria": {
+      "AC-130-1": "The operator selects option (a), (b) or (c). Recorded with rationale in this contract before any code moves.",
+      "AC-130-2": "The selected option is implemented and MT-074 shows zero indeterminate, or PT-117-1 is formally amended to the agreed count with the excluded target and its typed reason named.",
+      "AC-130-3": "Whichever option is chosen, no OTHER microtask terminal predicate is weakened as a side effect. If (b) is chosen, MT-067 must re-verify its own proof explicitly."
+    },
+    "proof_targets": {
+      "PT-130-1": "MT-074 canonical Argus receipt matrix showing the agreed applied/indeterminate counts."
+    },
+    "risk_if_missed": "PT-117-1 cannot close. MT-117 sits at 11/13 with a fully understood, fully evidenced blocker, and the temptation on each future pass is to relax deny_unknown_fields - which would silently weaken roughly 30 unrelated observers."
+  },
+  "lifecycle": {
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "status": "BLOCKED_NEEDS_OPERATOR_DECISION",
+    "depends_on": [
+      "MT-117"
+    ],
+    "blocks": [
+      "MT-117",
+      "MT-108"
+    ],
+    "creation_reason": "Isolated by direct source inspection plus a runtime receipt census while re-proving MT-117. Both readers of one AccessKit node value are provably mutually exclusive. A builder must not pick the winner: option (a) weakens a product-wide schema and option (b) rewrites another microtask proof."
+  },
+  "hbr_obligations": {
+    "MAN": "If the chip value contract changes, the UserManual agent-addressable surface reference must change with it.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE; internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

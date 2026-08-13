@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-131",
+  "title": "E4-MT-131-Name-Or-Desense-The-Slash-Menu-Framework-Container-Nodes",
+  "group": "E4-Rich-Editor",
+  "created_at_utc": "2026-08-13T09:45:00Z",
+  "updated_at_utc": "2026-08-13T09:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-131.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "scope": {
+    "summary": "test_slash_commands::no_unnamed_interactive_nodes_with_menu_open panics from PRODUCT source at accessibility/registry.rs:705 - an interactive widget with role Unknown carries no stable author_id. Two egui framework containers in the slash-menu frame produce such nodes.",
+    "defect_detail": {
+      "gate": "accessibility/registry.rs:697-714 walks every node and panics where is_interactive(node) && author_id().is_none(). is_interactive (:674-679) is true for role Unknown when the node supports Action::Click.",
+      "cause_1_the_area": "rich_editor/slash_commands/menu.rs:150-153 mounts the popup on an egui::Area with .fixed_pos(..). egui-0.33.3 area.rs:277-281 sets movable=false while interactable stays true, so area.rs:504-514 gives the Area move-response Sense::click(); context.rs:1208-1212 then auto-builds an AccessKit node and response.rs:832-848 fills bounds + Action::Click but never a role, leaving role Unknown with no author_id. menu.rs:196-201 names the FRAME response (resp.id), not the Area move id.",
+      "cause_2_the_scrollbar": "menu.rs:163-167 caps the ScrollArea at SLASH_MENU_MAX_VISIBLE (20, registry.rs:260) while the catalog holds 21 commands plus category headers, so the bar shows and scroll_area.rs:1318-1323 builds it with Sense::click_and_drag() - same shape, same result.",
+      "which_node_is_UNVERIFIED": "The reported NodeId cannot be attributed to one of the two without running code, because egui drains its node map in arbitrary order (context.rs:2504-2512). BOTH must be fixed or the gate simply moves to the other.",
+      "corroboration": "tests/test_visual_interaction_proof.rs:253-278 already documents this exact framework-container class and EXCLUDES it from the overlay invariant. The slash-commands test calls the raw product gate on a frame that contains one."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/slash_commands/**",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": {
+      "AC-131-1": "Both nodes are addressed: name them with accessibility::emit_interactive_node (the pattern at menu.rs:324-325 and app.rs:34333-34338) or make them non-interactive (Sense::hover() on the Area, precedent app.rs:34394-34396; ScrollBarVisibility::AlwaysHidden for the bar).",
+      "AC-131-2": "Prefer NAMING over de-sensing where the surface is genuinely addressable, so an agent can reach the popup and its scrollbar rather than having them silently vanish from the tree.",
+      "AC-131-3": "test_slash_commands green, and the fix is shown to address BOTH nodes - not just whichever one the gate happened to report first.",
+      "AC-131-4": "The adjacent latent instance is closed too: menu.rs:308-315 uses egui::Window::anchor(..), and Area::anchor calls movable(false) (area.rs:334-337), so the prompt modal carries the same unnamed clickable node. No test currently runs the gate on that frame - fix it before one does."
+    },
+    "proof_targets": {
+      "PT-131-1": "test_slash_commands green.",
+      "PT-131-2": "The gate run against the prompt-modal frame for AC-131-4."
+    },
+    "risk_if_missed": "The HBR-SWARM gate panics from product code, so this is not merely a failing test - the slash menu is unusable for any proof that opens it."
+  },
+  "lifecycle": {
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "status": "NOT_STARTED",
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "creation_reason": "Routed from the MT-108 AC-108-3 sweep, then root-caused to egui framework containers with file:line evidence in both product and egui source. Previously UNROUTED in the MT-127 table."
+  },
+  "hbr_obligations": {
+    "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (UI addressability); internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

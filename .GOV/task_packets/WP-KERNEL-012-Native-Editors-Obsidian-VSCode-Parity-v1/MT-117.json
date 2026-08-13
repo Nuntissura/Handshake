@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-13T00:20:00Z",
+  "updated_at_utc": "2026-08-13T09:50:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -117,7 +117,38 @@
       }
     },
     "claimed_at_utc": "2026-08-12T14:12:00Z",
-    "status_rationale": "PT-117-2 and PT-117-3 are GREEN and the HBR-MAN manual obligation is closed. PT-117-1 (13/13 receipts applied, zero indeterminate) remains BLOCKED on a durable-contract conflict recorded in pt_117_1_blocked_by_a_real_contract_conflict: ClickCompletionToken is deny_unknown_fields, so the calendar chip value cannot simultaneously carry a parseable declaration and the domain fields test_calendar_interop reads off that same node. Resolving it needs an authority decision, so MT-117 is held at CLAIMED rather than advanced on two of three proof targets."
+    "status_rationale": "PT-117-2 and PT-117-3 are GREEN and the HBR-MAN manual obligation is closed. PT-117-1 (13/13 receipts applied, zero indeterminate) remains BLOCKED on a durable-contract conflict recorded in pt_117_1_blocked_by_a_real_contract_conflict: ClickCompletionToken is deny_unknown_fields, so the calendar chip value cannot simultaneously carry a parseable declaration and the domain fields test_calendar_interop reads off that same node. Resolving it needs an authority decision, so MT-117 is held at CLAIMED rather than advanced on two of three proof targets.",
+    "progress_2026_08_13": {
+      "schema_id": "hsk.mt_progress@1",
+      "recorded_at_utc": "2026-08-13T09:50:00Z",
+      "recorded_by": "KERNEL_BUILDER-20260812-113007",
+      "headline": "The Stage half of MT-117 is FIXED and proven at runtime. PT-117-1 moved from 9/13 applied to 11/13. The only remaining indeterminate target is the calendar chip, which is a genuine contract conflict escalated as MT-130.",
+      "first_real_measurement_of_PT_117_1": {
+        "why_it_matters": "The packet previously carried a receipt census (51 receipts, 38 applied / 13 indeterminate) that no artifact corroborated. That figure is superseded. The matrix is emitted only when HANDSHAKE_ARGUS_MATRIX_RUN_ID and five sibling variables are set (canonical_argus_driver.rs:1112-1120); without them the suite runs and writes NOTHING, which is why the census had never actually been read.",
+        "command_shape": "cargo test --test test_other_pillar_interop_proofs -- --test-threads=1, with an owned current-source backend, a WP-scoped PostgreSQL database, isolated absolute stage and Argus binding roots, and the six HANDSHAKE_ARGUS_MATRIX_* / HANDSHAKE_PROOF_* variables set so canonical-argus-matrix.jsonl is written.",
+        "before_fix_run_MT117_PT1_20260813_01": {
+          "observations": "13 total: 9 applied, 4 indeterminate.",
+          "action_receipts": "applied: menu-editors 7x, menu.editors.route-to-stage 5x, calendar-event-tab-activity 2x, editor.rich.save 1x, locus-ref-chip 2x. indeterminate: daily-journal-calendar-event-chip 4x (\"click target disappeared before its effect could be observed\"), stage-capture-embed-back 3x (\"persistent observer target identity or action capability drifted\")."
+        },
+        "after_fix_run_MT117_PT1_20260813_02": {
+          "observations": "13 total: 11 applied, 2 indeterminate.",
+          "action_receipts": "stage-capture-embed-back is now 3x APPLIED. editor.rich.save and calendar-event-tab-activity remain applied. Only daily-journal-calendar-event-chip 4x remains indeterminate.",
+          "suite": "test_other_pillar_interop_proofs 27 passed / 0 failed on both runs."
+        }
+      },
+      "stage_target_root_caused_and_fixed": {
+        "commit": "ac4c2fd7",
+        "the_packet_hypothesis_was_WRONG": "MT-117 recorded \"the button is disabled mid-capture\". The captured AccessKit trees show disabled=false in BOTH the before and after tree. Refuted by runtime evidence, not by argument.",
+        "a_second_recorded_note_was_ALSO_WRONG": "mt117_target_mode carried \"its node is byte-identical before and after its own click - node_id 2126558061106822000\". That cites the AFTER id for both. Measured: BEFORE 16574821470522857000, AFTER 2126558061106822000. Role, disabled and actions were identical; ONLY node_id moved, so the failing clause of post_render_target_identity_matches is node_id.",
+        "why_the_id_moved": "egui derives unique_id = parent.with(salt).with(next_auto_id_salt) (egui-0.33.3 ui.rs:309-311), so a scope id depends on how many siblings PRECEDE it. A successful embed-back swaps stage-route-status for stage-embed-back-status directly above the button, so the button identity changed exactly when the action it observed succeeded.",
+        "the_decisive_measurement": "Across the same before/after pair, 156 of 159 author_ids held their node_id steady. Only stage-routed-content and stage-capture-embed-back moved. That ruled out the parent chain and localised the defect to those two scopes.",
+        "fix": "Both now use UiBuilder::id(..) (= id_salt + global_scope), which egui documents as \"an id of the new Ui that is independent of the parent Ui\" (ui_builder.rs:48-56) and which takes the id from ui.rs:307 instead of :309. Its precondition - the subtree renders in exactly one place per frame - holds.",
+        "why_neither_existing_mode_could_have_worked": "Persistent failed on node_id drift. Flexible was tried previously and failed differently, because that contract requires the target to be GONE on success and this button stays present. Neither mode fits an unstable-identity-but-persistent target; the identity had to be stabilised.",
+        "broader_than_MT_117": "This is an addressability defect in its own right. Any agent resolving the embed-back button by node id lost it the moment it was used."
+      },
+      "regression_checks": "test_ckc_embed 26/0. test_stage_interop 31/0 on a dedicated database.",
+      "remaining_blocker": "daily-journal-calendar-event-chip only. Escalated as MT-130 with the full conflict, three costed options, and two options ruled out by source. MT-117 is NOT advanced and stays CLAIMED."
+    }
   },
   "scope": {
     "summary": "Add durable product-side completion observers for the Stage embed-back, rich-document save, and Calendar event/activity actions so their canonical Argus receipts terminalize applied instead of indeterminate.",

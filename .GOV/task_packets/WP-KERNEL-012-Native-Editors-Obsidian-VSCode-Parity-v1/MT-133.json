@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-133",
+  "title": "E1-MT-133-Keep-The-Rename-Preview-Apply-Row-Inside-The-Viewport-So-It-Can-Be-Clicked",
+  "group": "E1-Code-Editor",
+  "created_at_utc": "2026-08-13T09:45:00Z",
+  "updated_at_utc": "2026-08-13T09:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-133.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "scope": {
+    "summary": "test_rename_inline_input::rename_accesskit_nodes_present_with_correct_roles fails: an AccessKit click on the stable Apply id does not apply the preview. The click never reaches the handler - the Apply row falls outside the window clip rect, so its interact_rect is empty and nothing is hittable there, while its AccessKit node still advertises UNCLIPPED bounds.",
+    "defect_detail": {
+      "site": "code_editor/rename.rs:977-1027 adds a ScrollArea with .max_height(360.0).auto_shrink([false, false]) BEFORE the Apply/Cancel row, and it never shrinks: egui scroll_area.rs:717-720 keeps min(available, 360) regardless of content. The test harness viewport is 900x320 (tests/test_rename_inline_input.rs:175-176).",
+      "why_the_window_overflows": "area.rs:667 stores state.size = content_ui.min_size() unclamped every frame; only the initial default is clamped (area.rs:481). Window(constrain: true) clamps the TOP (area.rs:559) and lets the bottom overflow.",
+      "why_the_click_dies": "area.rs:630 sets the clip rect. ui.rs:1140 registers interact_rect = clip_rect.intersect(rect), and hit_test.rs:421-422 skips a widget whose interact_rect is negative. But response.rs:836-841 sets AccessKit bounds from the UNCLIPPED rect - which is exactly why the node-present and Role::Button assertions pass while the click silently no-ops. egui_kittest node.rs:66-76 clicks the bounding-box CENTRE with a real pointer event.",
+      "alternative_ruled_out": "The apply path itself is sound: single_file_fallback(.., is_open_buffer = true) (rename.rs:295-323) takes the in-memory branch (:565-573), and apply_rename_preview (panel.rs:5514-5518) derives self_uri via lsp_uri() (:4416-4431), which falls back to a file URI when canonicalize fails - matching the preview URI, so the buffer WOULD contain the new text if the handler ran.",
+      "honest_limit": "The MECHANISM (clip -> empty interact_rect -> unhittable, AccessKit bounds unclipped) is certain from source. That this specific button lands outside the 320px viewport is derived from layout code, not measured at runtime. Cheapest confirmation: print the node bounding_box before the click, or re-run with a 900x700 harness."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/rename.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": {
+      "AC-133-1": "The diff list is clamped to what the viewport can give, reserving room for the action row - the pattern slash_commands/menu.rs:121,134-141 already uses against ctx.content_rect().",
+      "AC-133-2": "Apply and Cancel are reachable at a 320px-tall viewport. This is a real product defect: an operator with a short editor area cannot reach them either.",
+      "AC-133-3": "test_rename_inline_input green.",
+      "AC-133-4": "Confirm the mechanism at runtime before claiming the fix - print the Apply node bounding_box and show it inside the clip rect - so the diagnosis is proven, not just the symptom cleared."
+    },
+    "proof_targets": {
+      "PT-133-1": "test_rename_inline_input green.",
+      "PT-133-2": "The AC-133-4 bounds readout, before and after."
+    },
+    "risk_if_missed": "Rename is unusable on a short viewport, and the AccessKit tree actively lies about it - the node is present, correctly roled, and unclickable."
+  },
+  "lifecycle": {
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "status": "NOT_STARTED",
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "creation_reason": "Routed from the MT-108 AC-108-3 sweep and root-caused to clip-vs-AccessKit-bounds divergence. Previously UNROUTED in the MT-127 table."
+  },
+  "hbr_obligations": {
+    "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (UI addressability); internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

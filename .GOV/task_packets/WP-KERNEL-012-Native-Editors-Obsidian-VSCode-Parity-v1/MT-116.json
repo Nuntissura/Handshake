@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-08-12T18:35:00Z",
+  "updated_at_utc": "2026-08-13T09:50:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -87,6 +87,23 @@
         "outstanding": "test_block_collection_view reports 42 passed / 1 failed. The single failure is block_collection_views_live_pg_self_seed_full_round_trip, and it is NOT a chip-rendering regression: it fails BEFORE any rendering, binding the production Argus localhost server with Custom { kind: PermissionDenied, error: \"MCP discovery binding was not safely published: mcp binding: replace ...wp-kernel-012-mt-027/argus-binding/mt027-session/handshake/swarm_mcp_binding.json atomically: The system cannot find the path specified. (os error 3)\" }. The underlying error is os error 3 - a MISSING DIRECTORY - not a permission problem, and the path belongs to ANOTHER microtask (mt-027) binding root. The directory was observed to exist one minute AFTER the failure, which points at a creation race in the binding publisher rather than a defect in the MT-116 line-layout change. Re-running in isolation to classify it.",
         "note": "A build-corruption retry was required first: the initial sweep failed to COMPILE with crate egui_winit required to be available in rlib format plus a rustc STATUS_STACK_BUFFER_OVERRUN. That is the transient shared-target hazard disclosed by the MT-120 implementer; it self-healed on retry exactly as predicted, and no test conclusion was drawn from the failed build."
       }
+    },
+    "ac_116_3_unblocked_2026_08_13": {
+      "schema_id": "hsk.mt_progress@1",
+      "recorded_at_utc": "2026-08-13T09:50:00Z",
+      "headline": "The AC-116-3 blocker is gone. test_block_collection_view now runs 29 passed / 0 failed. It was never a chip-rendering regression and never a stale lock.",
+      "what_it_actually_was": "A Windows long-path defect in the product discovery-binding publisher (mcp/binding.rs atomic_replace, raw MoveFileExW without verbatim-prefix normalisation) that fires when the CWD-relative path reaches 260 chars. Reproduced exactly from the real failing run PID 69592. Filed as MT-129.",
+      "the_two_prior_hypotheses_were_both_wrong": "MT-116 recorded \"a creation race in the binding publisher\". The sweep recorded \"a stale swarm_mcp_binding.lock with no .json\". A repo-wide census found 42 of ~48 binding roots in exactly that lock-without-json state, which is the documented by-design resting state - it carries zero diagnostic signal.",
+      "unblock_method": "Set HANDSHAKE_ARGUS_BINDING_ROOT to an absolute short path. test_block_collection_view.rs:2080-2083 then takes the env branch instead of its ../../../../ relative fallback, and the path never reaches 260. Nothing was deleted and no lock was broken.",
+      "proofs_re_run_for_AC_116_3": {
+        "test_block_collection_view": "29 passed / 0 failed.",
+        "test_code_note_cross_ref": "18 passed / 0 failed.",
+        "test_other_pillar_interop_proofs": "27 passed / 0 failed.",
+        "test_stage_interop": "31 passed / 0 failed on a dedicated database.",
+        "test_ckc_embed": "26 passed / 0 failed.",
+        "test_locus_interop": "NOT yet green: 31 passed / 1 failed. The failure is a backend request_send error inside pg_proof_support, the same cross-suite database contamination shape as test_stage_interop, which went 30/1 -> 31/0 on a dedicated database. Needs a re-run on its own database before any verdict."
+      },
+      "honest_position": "AC-116-3 is close but NOT signed off: test_locus_interop still needs a clean per-database run. MT-116 stays CLAIMED."
     }
   },
   "scope": {

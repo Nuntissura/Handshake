@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-13T00:30:00Z",
+  "updated_at_utc": "2026-08-13T09:50:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -779,5 +779,41 @@
       "relationship_to_the_v4_verdict": "The V4 verdict recorded that current-head focused binaries already returned nonzero for context menus, other-pillar interop, app-host mount, backend-down audit and Runtime Chat coverage, and that 31 MTs carried FAIL verdicts. The failures above are consistent with that pre-existing surface rather than newly introduced: app-host mount and other-pillar interop are now GREEN (55/0, 51/0 and 27/0), and backend-down remains red. No claim is made here that any specific one is pre-existing without its own per-MT evidence.",
       "honest_position": "AC-108-1 is disposed and AC-108-2 is green, but AC-108-3 is NOT met at 25 failing binaries. MT-108 therefore stays NEEDS_REIMPLEMENTATION_V4 and is NOT advanced. The capstone must not close over a red full suite - that is precisely what its own V4 report failed it for."
     }
+  },
+  "ac_108_3_rerun_at_head_2026_08_13": {
+    "schema_id": "hsk.mt108_rerun@1",
+    "recorded_at_utc": "2026-08-13T09:50:00Z",
+    "why": "The 2026-08-13T00:30 sweep is a SNAPSHOT, not current state. Re-running its 25 failing binaries at HEAD shows the snapshot overstates the failure count, and that the sweep methodology itself manufactured some of it.",
+    "binaries_that_are_simply_GREEN_at_head_with_no_code_change": [
+      "test_module_switcher 6/0",
+      "test_project_tabs 7/0",
+      "test_folder_tree 15/0",
+      "test_loom_address 16/0 (needed HANDSHAKE_GPU_SCREENSHOT=1)",
+      "test_block_collection_view 29/0 (needed an absolute HANDSHAKE_ARGUS_BINDING_ROOT - see MT-129)"
+    ],
+    "three_methodology_defects_in_the_sweep_itself": {
+      "missing_gpu_env": "Several binaries carry typed DEFERRED screenshot outcomes that hard-fail without HANDSHAKE_GPU_SCREENSHOT=1 (test_properties PT-2/PT-3, test_code_editor_panel scroll_mid_virtualizes, test_loom_address). The sweep did not set it, so it counted host-gate deferrals as product failures.",
+      "single_shared_database": "DECISIVE: test_stage_interop returns 30 passed / 1 failed when it shares a database and 31 passed / 0 failed on a dedicated one, with no code change. test_locus_interop shows the same request_send shape. A sweep on one shared database manufactures failures, exactly as running without --test-threads=1 does. Per-binary scoped databases are REQUIRED.",
+      "missing_matrix_env": "The canonical Argus receipt matrix is written only when six HANDSHAKE_ARGUS_MATRIX_* / HANDSHAKE_PROOF_* variables are set (canonical_argus_driver.rs:1112-1120). Without them a suite passes and records NOTHING, which is how the packet carried an uncorroborated receipt census for so long."
+    },
+    "real_product_defects_fixed_this_pass": {
+      "commit": "9fe1d89b",
+      "binary": "test_menu_wireup 35 passed / 6 failed at clean HEAD -> 38 passed / 3 failed.",
+      "fixed": [
+        "no_todo_unimplemented_or_panic_on_wired_handlers - PT-005 was 7/7 false positives, all inside #[cfg(test)] modules. Scan now skips top-level test modules and asserts it did not end inside one. Proven non-vacuous by injecting a production panic!( and observing RED at that exact line.",
+        "palette_edit_copy_then_paste_inserts_into_focused_editor_buffer and keyboard_ctrl_v_with_stale_code_selection_targets_focused_rich_pane - clipboard routed by shell bookkeeping instead of the caret, so a code pane with a stale selection swallowed Ctrl+V and mutated a buffer the caret had left."
+      ],
+      "remaining_3_are_pre_existing": "file_export_click_yields_export_bytes_not_save_manager_state, file_save_dispatches_editor_save_path, palette_save_live_row_click_reaches_active_rich_save_manager all fail at clean HEAD with this work stashed. Verified by stashing and re-running, not asserted."
+    },
+    "newly_routed_with_root_causes": [
+      "MT-129 - MCP binding publish long-path defect (was test_block_collection_view).",
+      "MT-130 - calendar chip value contract conflict (blocks PT-117-1).",
+      "MT-131 - slash-menu framework container nodes (was test_slash_commands).",
+      "MT-132 - editor context surface shadows the sticky header click (was test_sticky_scroll).",
+      "MT-133 - rename Apply row clipped out of hit-testing (was test_rename_inline_input).",
+      "MT-128 - MT-043 live-child wall-clock budget 1.4s from reaping itself."
+    ],
+    "systemic_finding_worth_a_guard": "MT-132 and MT-133 are different defects with one shape: a widget can be AccessKit-discoverable at bounds X while not pointer-hittable at X - shadowed by a later same-layer widget (hit_test.rs:437) or clipped to an empty interact_rect (ui.rs:1140), while AccessKit bounds stay unclipped (response.rs:836-841). Any proof asserting only node presence, role and label is blind to both. A helper asserting that a node bounds centre resolves back to that same widget would have caught both.",
+    "ac_108_3_status": "STILL NOT MET, and not claimed. The failure count is materially lower than the snapshot and every remaining item now has a named owner and a root cause, but the full suite is not green."
   }
 }
