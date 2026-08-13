@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-08-05T10:00:00Z",
-  "scope_status": "READY_FOR_VALIDATION_V3",
+  "updated_at_utc": "2026-08-10T02:49:52.393Z",
+  "scope_status": "READY_FOR_VALIDATION_V4",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,28 +16,28 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER-20260701-190732",
-    "claimed_at_utc": "2026-07-02T18:12:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-104958",
-    "ready_for_validation_at_utc": "2026-07-29T10:49:58Z",
+    "claimed_by": "KERNEL_BUILDER-20260809-150449",
+    "claimed_at_utc": "2026-08-09T20:33:29.822Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260810-011933",
+    "ready_for_validation_at_utc": "2026-08-10T02:49:52.393Z",
     "completed_by": null,
     "blocker": null,
-    "missing_resource": "Validator-env only: template-mode managed-PostgreSQL-start harness for the 8 engine-free SUPPORTING proofs [1]-[8] (PASS_REQUIRED real-Candle proof [0] is met).",
-    "proof_status": "READY_FOR_VALIDATION_V5: both V4 blocker parts now CLOSED. (1) Reclaim path WIRED into product boot (MT-007 reconcile_restart_orphans_at_boot, main.rs:447), independently proven by process_reclaim_real_lifecycle_pg_tests. (2) PASS_REQUIRED real-Candle proof [0] NOW GREEN with real operator-local weights (Maykeye_TinyLLama-v0 via HANDSHAKE_TEST_CANDLE_MODEL_DIR) on managed PostgreSQL (127.0.0.1:5544), features candle-runtime-engine,test-utils: candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop (real embedded Candle load emits process-ledger START/STOP) + mt013_real_candle_embedding_failure_unloads_and_stops_primary (injected missing-embedding artifact unloads+stops the primary fail-closed) both ok. Real START/STOP/artifact-retention/crash-recovery/lease-release are now bound to the current source. The 8 ENGINE_FREE_SUPPORTING proofs [1]-[8] (embedded_model_ledger reclaim/lifecycle) use task_owned_managed_postgres TEMPLATE mode which requires the test process to START its own dedicated cluster -- validator-env-runnable, not runnable while adopting the shared 5544 cluster; supporting evidence, not the PASS_REQUIRED gate.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - ModelRegistryStore list paths are account-scoped; previously list_recoverable/list_active_selections were full-table. STILL OWED: Model artifact/lifecycle-event scoping and HBR-PRIV-006 revocation for registry rows are not yet attached.",
+    "missing_resource": null,
+    "proof_status": "READY_FOR_VALIDATION_V4: fresh final-source embedded ledger suite 45/45 with exit 0 and clean owned-PostgreSQL shutdown under the separate fixed 120s stop budget; fixed-budget unit 1/1; writer suite 28/28; seven exact MT-013 completion/embedding Flight Recorder tests 7/7; real Candle load/START/STOP 1/1; real Candle embedding-failure rollback 1/1; distinct embedding default 1/1; current UserManual exact 1/1 including persisted per-owner Cargo command guards; app-runtime cargo check PASS. Independent current-path post-diff review PASS with no local-delta finding. Headless KB readiness checklist PASS with zero blockers.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN; operator correction 2026-08-10 confirms WP-KERNEL-006/007 privacy-foundation work is not part of MT-013 and is not a predecessor to this WP-1 microtask.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-    "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
-    "adversarial_findings_status": "REAL_CANDLE_PASS_REQUIRED_PROOF_GREEN_WITH_OPERATOR_WEIGHTS; reclaim wired via MT-007",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-07-20T01:13:40.778Z",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "post_implementation_adversarial_review_status": "PASS_2026-08-10_CURRENT_BACKEND_PATHS_NO_LOCAL_DELTA_FINDINGS",
+    "adversarial_findings_status": "LOCAL_DELTA_PASS; unrelated WP-KERNEL-006/007 findings remain owned by those future packets and do not block MT-013",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-08-10T02:49:52.393Z",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: for the in-process Candle/llama.cpp library path, enforce artifact integrity plus ProcessOwnershipLedger START/STOP rows with honest pid-less metadata; any actual spawned model process remains SandboxAdapter-owned. Emit a Flight Recorder event on DisabledLlmClient and fail-closed error paths, validated with a REAL Candle model load.",
@@ -65,15 +65,16 @@
       "Pre- and post-implementation adversarial review before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
     "proof_commands": [
-      "PASS_REQUIRED_PROOF_2026-07-04: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture, with HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at a real model directory containing model.safetensors and tokenizer.json. Passed 1/1 and printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with matching real START/STOP rows for the default embedded LlmClient Candle load path.",
-      "ENGINE_FREE_SUPPORTING_PROOF_2026-07-04_AFTER_OVERFLOW_FIX: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests (8/8 PASS, includes supplied_ledger_start_overflow_fails_local_client_assembly_closed and embedded_model_stop_overflow_returns_error_for_retry).",
-      "ENGINE_FREE_SUPPORTING_PROOF_2026-07-04_AFTER_OVERFLOW_FIX: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests overflow_10001st_event_emits_fr_evt_ledger_overflow_without_blocking_spawn_path -- --exact (1/1 PASS; ordinary spawn path remains nonblocking).",
-      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests -- --nocapture",
-      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests embedded_model_load_emits_ledger_start_and_shutdown_seam_emits_stop -- --exact --nocapture",
-      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests graceful_shutdown_sequence_flushes_stop_through_background_writer -- --exact --nocapture",
-      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests hard_crash_pidless_embedded_orphan_is_reconciled_on_boot -- --exact --nocapture",
-      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests -- --nocapture",
-      "ENGINE_FREE_SUPPORTING_PROOF: cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests embedded_model_behaviors_have_manual_coverage -- --exact --nocapture"
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib managed_postgres::tests::shutdown_timeout_is_separate_bounded_and_representable -- --exact --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests -- --test-threads=1 --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests -- --test-threads=1 --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests -- --test-threads=1 --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --lib model_runtime::candle::generate::activity_tests::bounded_stream_reserves_terminal_slot_and_cancellation_releases_full_worker -- --exact --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,llama-cpp-runtime-engine\" --lib llama_stream_reserves_terminal_slot_under_saturated_cancellation -- --exact --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
+      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests embedded_model_behaviors_have_manual_coverage -- --exact --nocapture",
+      "cargo check -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime"
     ],
     "risk_if_missed": "The default local model path runs an unboxed, unledgered model load - a master-spec 3.6.2/4.6.1 HARD violation and a swarm-safety/attribution gap (no ownership/reclaim record for the default model process), and error/disabled LLM calls are invisible to Flight Recorder replay.",
     "reference_only_paths": [
@@ -93,11 +94,7 @@
     "HBR-INT-001",
     "HBR-INT-009",
     "HBR-MAN-004",
-    "HBR-SWARM-002",
-    "HBR-PRIV-001",
-    "HBR-PRIV-002",
-    "HBR-PRIV-005",
-    "HBR-PRIV-006"
+    "HBR-SWARM-002"
   ],
   "hbr_obligations": [
     "INT",
@@ -480,6 +477,14 @@
     "correction_trail": "Four successive conclusions on this defect, three wrong: (1) 'migration did not run' - tables existed; (2) 'relation well-formed, fault is search-path visibility' - verified against a storage_test_* schema from a DIFFERENT suite and wrongly generalised; (3) '0359 trigger mis-resolves, fix like 0364 fixed 0363' - right observation, wrong remedy; (4) CORRECT: the fixture only ever applied 0021. Every correction came from live psql against the real failing schema, never from re-reading code.",
     "fixed_by": "KERNEL_BUILDER-20260801-214802",
     "fixed_at_utc": "2026-08-05T10:00:00Z"
+  },
+  "operator_scope_correction_2026_08_10": {
+    "decision": "WP_KERNEL_006_007_NOT_A_PREDECESSOR_TO_MT_013",
+    "operator_direction": "Finish every open or failed MT in WP-1 as instructed; do not leave WP-1 to implement WP-KERNEL-006/007.",
+    "effect_on_mt_013": "MT-013 is judged by its embedded-runtime, ProcessOwnershipLedger, Flight Recorder, UserManual, shutdown, and real-model acceptance criteria. Those product changes and runtime proofs are complete. Future authenticated identity, RLS, ResourceGrant, AccessSpace, and revocation work remains owned by WP-KERNEL-006/007 and is neither implemented nor reclassified here.",
+    "non_effect": "No product assertion, runtime test, real-model requirement, or validator verdict was weakened or overwritten.",
+    "recorded_by": "KERNEL_BUILDER-20260810-011933",
+    "recorded_at_utc": "2026-08-10T02:46:41.612Z"
   },
   "post_fix_failure_census_and_self_RETRACTION_2026_08_05": {
     "headline": "The 0359 fixture fix HOLDS - independently measured. Full-suite census of the POST-FIX tree: 27 passed, 18 failed, 0 filtered, 83.46s (template mode, --test-threads=1), inverting the previously recorded 18-passed/27-failed. This record also RETRACTS this session's own earlier corroboration reasoning.",

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-05T07:15:00Z",
+  "updated_at_utc": "2026-08-09T18:22:50.871Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -30,22 +30,22 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T12:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260809-150449",
+    "ready_for_validation_at_utc": "2026-08-09T18:22:50.871Z",
     "completed_by": null,
-    "blocker": "Frontend live-GUI Argus proof only (validator-gated): the frontend half of proof target [0] needs a live GUI host + Palmistry backend on 127.0.0.1:37501; all backend targets pass.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: the V4 blocker (admission/recovery accepting syntactically valid fabricated CRDT references without resolving the referenced update/hash/state-vector) is resolved via the resolver actor_kind taxonomy fix 644dee55 plus Layer-1 proposal_ref admissibility. All declared backend proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544): [0]-backend mixed_local_cloud, [1] negative_guards (fabricated CRDT now denied with 'CRDT authority resolution failed'; run on a dedicated 32MiB-stack thread so it passes at DEFAULT cargo-test stack, no RUST_MIN_STACK), [2] concurrent_converge, [3] midstream, [4] yjs compaction receipts, [5] yjs atomic cross-connection race, [6] ac9_all_six, [7] ac9_bounded_retry, [8][9][10] operator_chat_capture, [11] validation_harness user_manual, [12] mixed_model_lane behavior coverage. NOT RUN (validator-gated): the frontend half of target [0] (src/frontend/handshake_native test_swarm_lane_diagnostics_argus::mixed_model_lane_run_is_inspectable_through_argus) requires a live GUI host + Palmistry backend and must be run by INTEGRATION_VALIDATOR. Source at 27c07f13. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-20T01:13:33.373Z",
+    "proof_status": "READY_FOR_VALIDATION_V5: fresh final-source proof on 2026-08-09 passed all 13 declared targets with exactly one matched test per command. Target 0 passed as a nonce-bound producer/consumer pair: the PostgreSQL backend emitted the mixed local/cloud/subagent projection and the Rust native Argus AccessKit/egui harness consumed the same fresh nonce, verified artifact SHA-256 and exact JSON shape, matched backend counts to UI rows, and exposed the required diagnostic rows. Targets 1-12 passed against external PostgreSQL 127.0.0.1:5544 and current UserManual surfaces. Additional deterministic RED-to-GREEN coverage proves exact-incarnation cleanup ownership, same-ID retry snapshot fencing, aggregate sibling cleanup after one teardown error, idempotent public routing-cancellation retry with one EventLedger cancellation row, exact per-instance cleanup receipt/process UUID/STOP/event joins, and no live-session residue. The original flaky cancellation proof passed 12 consecutive trace-disabled runs before final assertion hardening and passed again on the final source. Independent post-implementation adversarial re-review of the actual final diff returned PASS with no actionable findings.",
+    "hbr_status": "PASS: HBR-INT-009 native diagnostics, HBR-SWARM lifecycle, HBR-MAN UserManual coverage, HBR-QUIET-003 teardown/STOP/reclaim, and HBR-PRIV fail-closed guards are fresh-green on 2026-08-09. The MT-009 native Argus acceptance target is a deterministic Rust AccessKit/egui consumer of the nonce-bound backend projection and does not require the separate production-socket Palmistry launch surface; that exact declared target passed.",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-08-09T18:25:06.251Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
-    "last_recovery_event_ref": null,
+    "last_recovery_event_ref": "takeover_recovery_and_mt009_closure_2026_08_09",
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_PRODUCER_CONSUMER_AND_POSTGRES_DRAIN_REVIEW_NO_FINDINGS",
-    "adversarial_findings_status": "PASS_V3_STRICT_NONCE_HASH_SCHEMA_FRESHNESS_AND_REAL_POSTGRES_LEDGER_DRAIN_PROVEN",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "post_implementation_adversarial_review_status": "PASS_2026-08-09_ACTUAL_FINAL_DIFF_NO_ACTIONABLE_FINDINGS",
+    "adversarial_findings_status": "PASS_AFTER_FOUR_HIGH_CONCURRENCY_FINDINGS_FIXED_WITH_DETERMINISTIC_RED_GREEN_PROOF",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
@@ -833,5 +833,43 @@
     "status_unchanged": "No lifecycle status changed. The MT cannot be clean while a cancellation can leave a live model session untorn.",
     "recorded_by": "KERNEL_BUILDER-20260805-053606",
     "recorded_at_utc": "2026-08-06T03:30:00Z"
+  },
+  "takeover_recovery_and_mt009_closure_2026_08_09": {
+    "headline": "TAKEOVER RECOVERY COMPLETE: the stale READY status was re-proven against the actual final diff. All declared MT-009 proof targets, including the previously omitted native Argus consumer, are fresh-green; blocker and prior validator fields are cleared for a new independent validation pass.",
+    "supersedes_open_defect_state": [
+      "teardowns_orphan_defect_THREE_HYPOTHESES_REFUTED_2026_08_06",
+      "the stale lifecycle blocker claiming the declared native Argus target required Palmistry",
+      "the pre-current-diff validator and adversarial review claims"
+    ],
+    "runtime_mechanisms_proven_and_fixed": [
+      "cancel_routing_execution previously returned on the first cleanup error and skipped later siblings; the final implementation fences all discovered siblings, attempts every cleanup, aggregates errors, and preserves failed cleanup for public retry",
+      "CleanupOwnershipGuard owner generations reset per same-ID incarnation; the guard, claim, registry reads, mutations, and removal are now fenced by monotonic spawn_generation as well as cleanup owner_generation",
+      "retry_pending_session_cleanups previously snapshotted an old cleanup without spawn_generation and could terminalize a same-ID replacement; the snapshot now carries the exact incarnation generation",
+      "a public cancel_routing_execution retry re-appended a divergent routing-cancel idempotency key before reaching retained cleanup; already-Cancelled routing now returns the locked, integrity-verified canonical projection unchanged"
+    ],
+    "deterministic_red_green_tests": [
+      "swarm_orchestration::tests::cleanup_owner_guard_is_scoped_to_spawn_generation",
+      "swarm_orchestration::tests::stale_cleanup_retry_snapshot_cannot_cancel_replacement_incarnation",
+      "ac9_cancel_attempts_every_live_sibling_after_first_cleanup_error"
+    ],
+    "observer_effect_control": "Terminate tracing and per-instance shared-Mutex accounting are disabled by default. Diagnostic tests enable tracing explicitly. The original flaky cancellation proof ran trace-disabled and checks exact stage/instance sets, cleanup receipt terminal semantics, receipt-to-process UUID joins, distinct stable event IDs, one terminal plus one eviction event per instance, two stopped process rows, and zero live sessions.",
+    "declared_proof_result": "13 of 13 declared proof targets passed on the final source with exact one-test discovery gates. The target-0 backend producer and native Argus consumer passed back-to-back with one fresh GUID nonce. All seven remaining mixed-model targets, all three operator cancellation targets, and both UserManual targets passed.",
+    "additional_regression_result": "12 of 12 exact cleanup/concurrency unit regressions passed; four exact PostgreSQL cancellation integrations passed. The previously flaky ac9_cancel_terminalizes_parallel_siblings_and_live_sessions passed 12 consecutive trace-disabled runs before final assertion hardening and passed again on the final source.",
+    "postgres_runtime_evidence": "External PostgreSQL authority was verified at postgres://postgres@127.0.0.1:5544/handshake with pg_is_in_recovery=false. A slow operator retry run was sampled with full pg_stat_activity query text and pg_blocking_pids every four seconds; it showed migration fsync I/O and no blocking chain, then passed after its diagnostic trace was explicitly enabled.",
+    "final_source_sha256": {
+      "coordinator.rs": "8066E596FAB3475F06BCA5AB548A530372FE055F5F798D9F6D8E2C0F2B0EE43D",
+      "routing_execution.rs": "225F5ABF19ACF8FF999968762F156796E127FE97D36DFE5A9180B58E434E922A",
+      "swarm_orchestration_tests.rs": "F8FB698964B15C3DD025BBDB790D0D5DB43DCA6C534F8C4CBE34331950C79757",
+      "mixed_model_lane_integration_pg_tests.rs": "B5AA7E3FF8C809D512CFF6C8253FAF84AFD255CB0DCCCDE18F5B50DDB945E0A4",
+      "operator_chat_capture_tests.rs": "8322017F8DF513172F569123FF1AFF8A3292250BAB1AFD46B50CACED31413C32"
+    },
+    "final_checks": [
+      "rustfmt --edition 2021 --check passed on all five current-session files",
+      "git diff --check passed on all five current-session files",
+      "independent read-only post-implementation adversarial re-review returned PASS with no actionable findings"
+    ],
+    "status_transition": "READY_FOR_VALIDATION_V5; implementer did not mark COMPLETED",
+    "recorded_by": "KERNEL_BUILDER-20260809-150449",
+    "recorded_at_utc": "2026-08-09T18:22:50.871Z"
   }
 }
