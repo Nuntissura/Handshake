@@ -31,7 +31,7 @@ use super::{
     slash_item_author_id, SlashMenuState, SLASH_ITEM_ROLE, SLASH_MENU_AUTHOR_ID, SLASH_MENU_ROLE,
     SLASH_MENU_SCROLLBAR_H_AUTHOR_ID, SLASH_MENU_SCROLLBAR_V_AUTHOR_ID,
     SLASH_PROMPT_CANCEL_AUTHOR_ID, SLASH_PROMPT_DIALOG_AUTHOR_ID, SLASH_PROMPT_INPUT_AUTHOR_ID,
-    SLASH_PROMPT_OK_AUTHOR_ID,
+    SLASH_PROMPT_OK_AUTHOR_ID, SLASH_PROMPT_SURFACE_AUTHOR_ID,
 };
 
 /// What the slash menu wants the host to do after a frame. The host (`rich_editor_widget`)
@@ -384,6 +384,21 @@ pub fn render_slash_prompt(
         ));
         node.set_modal();
     });
+
+    // AC-131-4: the modal carries the SAME latent defect the slash-menu Area did. `Window::anchor`
+    // calls `Area::movable(false)` (egui-0.33.3 area.rs:334-337) while leaving `interactable = true`,
+    // so the Area's move-response senses click (area.rs:504-514) and egui auto-builds an interactive
+    // node with role `Unknown` and no author_id — a HBR-SWARM gate violation waiting for the first
+    // proof that runs the gate on this frame. Its id is `layer_id.id.with("move")` (area.rs:505), and
+    // the layer id here IS `dialog_egui_id` because the Window was given `.id(dialog_egui_id)`.
+    //
+    // NAMED rather than de-sensed: the click is meaningful (it brings the modal to front), and a
+    // modal surface an agent can address is better than one that silently vanishes from the tree.
+    crate::accessibility::emit_interactive_node(
+        ctx,
+        dialog_egui_id.with("move"),
+        &crate::rich_editor::scoped_author_id(SLASH_PROMPT_SURFACE_AUTHOR_ID),
+    );
 
     outcome
 }

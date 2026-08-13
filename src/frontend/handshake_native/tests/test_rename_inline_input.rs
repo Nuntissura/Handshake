@@ -22,6 +22,8 @@ use std::sync::Arc;
 use egui_kittest::kittest::NodeT;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[path = "native_gui_support/hit_reachability.rs"]
+mod hit_reachability;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::keymap::CodeEditorAction;
@@ -235,12 +237,14 @@ fn rename_accesskit_nodes_present_with_correct_roles() {
 
     // The stable ids must be attached to the real egui buttons, not detached discoverability-only
     // nodes. Drive Apply and Cancel through the consumer-side AccessKit nodes and prove handlers run.
-    harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_RENAME_APPLY_AUTHOR_ID))
-        .expect("live Apply button")
-        .click();
+    // AC-133-4: click through the reachability guard, which asserts egui delivered the click to
+    // THIS node and not to whatever covers or clips it. The original defect was exactly that: the
+    // node was present with Role::Button while the Apply row sat outside the window clip rect, so
+    // its interact_rect was empty and the click silently reached nothing.
+    hit_reachability::click_author_id_asserting_it_receives_the_click(
+        &mut harness,
+        CODE_EDITOR_RENAME_APPLY_AUTHOR_ID,
+    );
     harness.run();
     harness.run();
     assert!(

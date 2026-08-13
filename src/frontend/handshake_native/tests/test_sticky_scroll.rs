@@ -19,6 +19,8 @@ use std::sync::Arc;
 use egui_kittest::kittest::{NodeT, Queryable};
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[path = "native_gui_support/hit_reachability.rs"]
+mod hit_reachability;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{
@@ -314,9 +316,13 @@ fn clicking_sticky_header_scrolls_to_its_line() {
     // The outermost pinned header is the fn decl on line 0 (`fn outer_fn() {`). CLICK it through the live
     // AccessKit tree (egui_kittest dispatches the real click on the addressable button), which runs the
     // panel's header-click -> fold-aware scroll-to-line(0) path. Assert line 0 comes back on screen.
-    harness
-        .get_by_label("Sticky header: fn outer_fn() {")
-        .click();
+    // AC-132-4: prove the header is REACHABLE at its own advertised bounds before clicking it.
+    // Without this, a shadowed header still passes every presence/role assertion and the click
+    // silently lands on whatever covers it - which is exactly how this defect shipped.
+    hit_reachability::click_label_asserting_it_receives_the_click(
+        &mut harness,
+        "Sticky header: fn outer_fn() {",
+    );
     harness.run();
     harness.run();
     let after = panel.last_visible_range();

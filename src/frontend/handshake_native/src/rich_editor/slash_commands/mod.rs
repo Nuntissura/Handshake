@@ -65,6 +65,11 @@ pub const SLASH_MENU_AUTHOR_ID: &str = "slash-menu";
 pub const SLASH_MENU_SCROLLBAR_H_AUTHOR_ID: &str = "slash-menu-scrollbar-h";
 pub const SLASH_MENU_SCROLLBAR_V_AUTHOR_ID: &str = "slash-menu-scrollbar-v";
 
+/// The AccessKit author_id of the prompt modal surface (the Area move-response behind the
+/// dialog). Named because Window::anchor leaves the Area interactable, so egui builds a clickable
+/// node for it that would otherwise carry no author_id.
+pub const SLASH_PROMPT_SURFACE_AUTHOR_ID: &str = "slash-prompt-surface";
+
 /// The author_id PREFIX for each menu item row (`slash-item-{id}`, AC-7 / MT scope:
 /// Role::MenuItem). The full id is `{SLASH_ITEM_AUTHOR_ID_PREFIX}{cmd.id}`.
 pub const SLASH_ITEM_AUTHOR_ID_PREFIX: &str = "slash-item-";
