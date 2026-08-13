@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-08-13T09:50:00Z",
+  "updated_at_utc": "2026-08-13T10:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -101,9 +101,16 @@
         "test_other_pillar_interop_proofs": "27 passed / 0 failed.",
         "test_stage_interop": "31 passed / 0 failed on a dedicated database.",
         "test_ckc_embed": "26 passed / 0 failed.",
-        "test_locus_interop": "NOT yet green: 31 passed / 1 failed. The failure is a backend request_send error inside pg_proof_support, the same cross-suite database contamination shape as test_stage_interop, which went 30/1 -> 31/0 on a dedicated database. Needs a re-run on its own database before any verdict."
+        "test_locus_interop": "32 passed / 0 failed / 1 ignored on a DEDICATED database - an exact match to the figure PT-116-2 records. The earlier 31/1 was cross-suite database contamination, which is now confirmed twice (test_stage_interop showed the same 30/1 -> 31/0 transition with no code change)."
       },
-      "honest_position": "AC-116-3 is close but NOT signed off: test_locus_interop still needs a clean per-database run. MT-116 stays CLAIMED."
+      "honest_position": "AC-116-3 is close but NOT signed off: test_locus_interop still needs a clean per-database run. MT-116 stays CLAIMED.",
+      "test_e7_knowledge_accesskit_argus_mt042": {
+        "result": "11 passed / 1 failed, with --features integration,wgpu_screenshots on a dedicated database.",
+        "failure": "mt042_v4_canonical_argus_complete_runtime_proof at :225 - \"FEMS contaminated proof tree\".",
+        "is_it_a_regression_from_MT_116": "NO. It is pre-existing and was already routed to MT-042 in the MT-127 table before any of this work, with the note that it is ONLY visible with those features - which is why the plain sweep recorded this binary as ZERO_TESTS instead. AC-116-3 asks for no REGRESSION to those surfaces, and this is not one.",
+        "honesty_note": "This is recorded rather than omitted. The binary is not green, and MT-116 must not be read as having proven MT-042 healthy."
+      },
+      "ac_116_3_verdict": "AC-116-3 is MET on its own terms: every chip surface it names re-runs without regression - MT-034 test_code_note_cross_ref 18/0, MT-068 test_locus_interop 32/0/1, MT-074 test_other_pillar_interop_proofs 27/0, plus test_stage_interop 31/0, test_ckc_embed 26/0 and test_block_collection_view 29/0. MT-042 test_e7_knowledge_accesskit_argus carries ONE pre-existing failure of its own, already owned by MT-042, which is disclosed rather than counted as a pass."
     }
   },
   "scope": {

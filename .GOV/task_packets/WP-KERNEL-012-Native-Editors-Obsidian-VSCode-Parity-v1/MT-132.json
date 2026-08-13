@@ -22,7 +22,7 @@
   "title": "E1-MT-132-Stop-The-Editor-Context-Surface-Shadowing-The-Sticky-Header-Click",
   "group": "E1-Code-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-08-13T09:45:00Z",
+  "updated_at_utc": "2026-08-13T10:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-132.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -63,15 +63,32 @@
   "lifecycle": {
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "NOT_STARTED",
+    "status": "PARTIAL_AC_132_4_OPEN",
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "creation_reason": "Routed from the MT-108 AC-108-3 sweep and root-caused to same-layer hit shadowing, with the egui resolution rule quoted. Previously UNROUTED in the MT-127 table."
+    "creation_reason": "Routed from the MT-108 AC-108-3 sweep and root-caused to same-layer hit shadowing, with the egui resolution rule quoted. Previously UNROUTED in the MT-127 table.",
+    "claimed_at_utc": "2026-08-13T10:30:00Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "recorded_at_utc": "2026-08-13T10:30:00Z",
+      "commit": "689976e9",
+      "result": "test_sticky_scroll 5 passed / 1 failed -> 6 passed / 0 failed.",
+      "what_changed": "render_sticky_band now returns Option<Rect>, and the editor-body context surface starts at the band bottom instead of full_rect.top() - the Y analogue of the gutter exclusion already present on the X axis.",
+      "ac_132_1": "MET.",
+      "ac_132_2": "MET by construction: the rect was NARROWED by exactly the band strip, so the context menu still covers everything it covered outside the band. test_code_editor_panel 8/0 and the menu suites are unchanged.",
+      "ac_132_3": "MET - the viewport range now actually changes.",
+      "ac_132_4": "NOT DONE. The systemic bounds-centre-resolves-to-this-widget guard is not written. It is the highest-value item left on this MT because it is what would have caught both this and MT-133 before either shipped.",
+      "correction_to_the_original_diagnosis": "The \"line 0\" in the old panic message is LITERAL TEXT in the test format string (test_sticky_scroll.rs:323-326); only before/after are interpolated. Any theory about a target-line lookup returning a default was false, and is recorded here so it is not re-investigated.",
+      "status_note": "AC-132-4 is open, so this is NOT complete.",
+      "status": "PARTIAL_AC_132_4_OPEN",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    }
   },
   "hbr_obligations": {
     "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",

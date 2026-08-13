@@ -22,7 +22,7 @@
   "title": "E1-MT-133-Keep-The-Rename-Preview-Apply-Row-Inside-The-Viewport-So-It-Can-Be-Clicked",
   "group": "E1-Code-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-08-13T09:45:00Z",
+  "updated_at_utc": "2026-08-13T10:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-133.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -63,15 +63,31 @@
   "lifecycle": {
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "NOT_STARTED",
+    "status": "PARTIAL_AC_133_4_OPEN",
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "creation_reason": "Routed from the MT-108 AC-108-3 sweep and root-caused to clip-vs-AccessKit-bounds divergence. Previously UNROUTED in the MT-127 table."
+    "creation_reason": "Routed from the MT-108 AC-108-3 sweep and root-caused to clip-vs-AccessKit-bounds divergence. Previously UNROUTED in the MT-127 table.",
+    "claimed_at_utc": "2026-08-13T10:30:00Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "recorded_at_utc": "2026-08-13T10:30:00Z",
+      "commit": "689976e9",
+      "result": "test_rename_inline_input 3 passed / 1 failed -> 4 passed / 0 failed.",
+      "what_changed": "The rename-preview diff list is clamped against ctx.content_rect() with room reserved for the action row, instead of a flat max_height(360.0) claimed before the Apply/Cancel row is laid out.",
+      "ac_133_1": "MET - same defence slash_commands/menu.rs already uses.",
+      "ac_133_2": "MET - Apply and Cancel are reachable at the 320px-tall harness viewport.",
+      "ac_133_3": "MET.",
+      "ac_133_4": "NOT DONE as specified. The test passing shows the click now lands, which is strong evidence, but the contract asked for the Apply node bounding_box to be printed and shown inside the clip rect so the MECHANISM is confirmed rather than the symptom cleared. Not claimed as met.",
+      "status_note": "AC-133-4 is open, so this is NOT complete.",
+      "status": "PARTIAL_AC_133_4_OPEN",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    }
   },
   "hbr_obligations": {
     "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",

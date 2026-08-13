@@ -22,7 +22,7 @@
   "title": "E4-MT-131-Name-Or-Desense-The-Slash-Menu-Framework-Container-Nodes",
   "group": "E4-Rich-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-08-13T09:45:00Z",
+  "updated_at_utc": "2026-08-13T10:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-131.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -63,15 +63,32 @@
   "lifecycle": {
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "NOT_STARTED",
+    "status": "PARTIAL_AC_131_4_OPEN",
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "creation_reason": "Routed from the MT-108 AC-108-3 sweep, then root-caused to egui framework containers with file:line evidence in both product and egui source. Previously UNROUTED in the MT-127 table."
+    "creation_reason": "Routed from the MT-108 AC-108-3 sweep, then root-caused to egui framework containers with file:line evidence in both product and egui source. Previously UNROUTED in the MT-127 table.",
+    "claimed_at_utc": "2026-08-13T10:30:00Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "recorded_at_utc": "2026-08-13T10:30:00Z",
+      "commit": "689976e9",
+      "result": "test_slash_commands 23 passed / 1 failed -> 24 passed / 0 failed / 1 ignored.",
+      "what_changed": "The slash-menu Area is de-sensed to Sense::hover() so egui stops auto-building an interactive role-Unknown node for its move-response, and BOTH scrollbar interaction ids are named via emit_interactive_node with new constants SLASH_MENU_SCROLLBAR_H_AUTHOR_ID / _V_AUTHOR_ID.",
+      "ac_131_1": "MET - both nodes addressed.",
+      "ac_131_2": "MET - the scrollbar is NAMED rather than hidden (it is a genuine agent target: the catalog exceeds SLASH_MENU_MAX_VISIBLE). Only the invisible Area move handle is de-sensed, and the popup itself stays addressable as slash-menu.",
+      "ac_131_3": "MET - both were fixed, not just the reported one. egui drains its node map in arbitrary order, so fixing one would have moved the panic to the other rather than resolving it.",
+      "ac_131_4": "NOT DONE. The adjacent latent instance at menu.rs Window::anchor(..) is untouched, because no test currently exercises the gate on that frame and inventing one is outside what this pass proved. Stated rather than silently dropped.",
+      "regression": "test_visual_interaction_proof 1/0/1, test_rich_editor_widget 6/0, test_focus_audit_quiet 7/0.",
+      "status_note": "AC-131-4 is open, so this is NOT complete.",
+      "status": "PARTIAL_AC_131_4_OPEN",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    }
   },
   "hbr_obligations": {
     "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",
