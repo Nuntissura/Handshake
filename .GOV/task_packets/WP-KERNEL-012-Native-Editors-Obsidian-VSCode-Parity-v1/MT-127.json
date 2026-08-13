@@ -22,7 +22,7 @@
   "title": "R2-MT-127-Own-The-AC-108-3-Red-Surface-Measured-By-The-Full-187-Binary-Sweep",
   "group": "R2-Capstone",
   "created_at_utc": "2026-08-13T00:40:00Z",
-  "updated_at_utc": "2026-08-13T01:20:00Z",
+  "updated_at_utc": "2026-08-13T06:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-127.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -151,6 +151,161 @@
       },
       "net_effect": "EIGHT of the nine are GREEN with both features and simply had under-counted coverage. ONE surfaced a genuine, previously invisible product failure (MT-042 V4 canonical Argus, FEMS contaminated proof tree). The corrected sweep totals are therefore 155 OK and 25 FAILED, with the MT-042 canonical proof newly visible.",
       "required_run_configuration_correction": "AC-108-3 sweeps MUST use --features integration,wgpu_screenshots. With integration alone, nine binaries under-report and one reports nothing at all while exiting 0."
+    },
+    "ac_127_1_routing": {
+      "schema_id": "hsk.mt127_failure_routing@1",
+      "recorded_at_utc": "2026-08-13T01:40:00Z",
+      "method": "Owning microtask derived from the FAILING TEST NAME where it carries an mt-prefix, otherwise from the surface the assertion names. Each row records the exact failing test so a no-context implementer can reproduce it directly.",
+      "rows": [
+        {
+          "binary": "test_quick_switcher",
+          "failing_test": "mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state",
+          "owner": "MT-070",
+          "class": "CANONICAL_TERMINAL_PREDICATE",
+          "detail": "canonical_argus_driver.rs:1058 - observation.terminal_refreshed is false: a canonical action was dispatched without rebinding to a fresh authoritative terminal snapshot. This is EXACTLY validation_v4 remediation item 2, which names MT-070 in its cohort."
+        },
+        {
+          "binary": "test_command_palette",
+          "failing_test": "mt108_command_palette_canonical_argus_action",
+          "owner": "MT-108",
+          "class": "CANONICAL_TERMINAL_PREDICATE",
+          "detail": "Same driver gate at :1058. The test is MT-108-owned, so the capstone carries this one itself rather than routing it upstream."
+        },
+        {
+          "binary": "test_properties",
+          "failing_test": "mt017_app_load_path_installs_properties_context",
+          "owner": "MT-017",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "The production load path does not install the properties context."
+        },
+        {
+          "binary": "test_loom_address",
+          "failing_test": "backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring",
+          "owner": "MT-032",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "The MT-032 diagnostics proof must own a fresh process-global recorder. Note current_head_findings already proved the OTHER test in this binary (mounted_backlink_event_retries_when_bus_is_contended) passes; this is a different test."
+        },
+        {
+          "binary": "test_manual_pane_editors",
+          "failing_test": "id_audit_no_documented_author_id_missing_from_live_registry",
+          "owner": "HBR-MAN / manual-vs-registry drift",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "Documented author_id(s) are absent from the live AccessKit registry (ORPHANS). This is manual/registry drift: the manual names a surface the registry does not expose, which is the HBR-MAN-003 self-consistency class."
+        },
+        {
+          "binary": "test_backend_down_responsive",
+          "failing_test": "reqwest_clients_carry_connect_and_request_timeouts",
+          "owner": "MT-120 (RESOLVED)",
+          "class": "REGRESSION_THIS_SESSION_INTRODUCED",
+          "detail": "Only the canonical backend builder and the explicitly bounded path may construct a reqwest client. NOTE: MT-120 added `session_scoped_http_client` in backend_client.rs; whether that new client goes through the canonical builder MUST be checked before this is called pre-existing.",
+          "action_required": "Verify against MT-120 diff FIRST. If the MT-120 client bypasses the canonical builder, this is an MT-120 regression and belongs to MT-120, not to a new owner.",
+          "resolved_at_utc": "2026-08-13T06:20:00Z",
+          "resolution": "The action_required check was performed and the answer is: YES, it was an MT-120 regression, NOT pre-existing. MT-120 as shipped at 3e7ec545 added SESSION_SCOPED_DOC_CLIENT / session_scoped_http_client to backend_client.rs, giving that file a SECOND reqwest ClientBuilder where the MT-088 audit pins it to one. The session-scoped client is now deleted and the credential travels as a per-request x-hsk-session-token header applied in KnowledgeDocumentsClient::send_json_with_conflict_mapping. test_backend_down_responsive: 33 passed / 0 failed / 1 ignored, with no test edit. Full record in MT-120 lifecycle.implementation_result.regression_found_and_fixed_by_kernel_builder.",
+          "also_cleared": "app_drop_reclaims_layout_workers_within_bound, the second failure in this binary during the sweep, also passes now. It was never diagnosed separately; it cleared with the binary.",
+          "lesson_for_the_routing_table": "This row was the ONLY one carrying an explicit action_required, and it was right to. Routing a self-inflicted regression to a new owner would have left MT-120 recorded as clean while shipping the break. Every future UNROUTED row should be diff-checked against this session's own changes before an owner is invented."
+        },
+        {
+          "binary": "test_slash_commands",
+          "failing_test": "no_unnamed_interactive_nodes_with_menu_open",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "An interactive widget with role Unknown has no stable author_id (src/accessibility/registry.rs:705). Not attributable to this session: the only slash-commands edit was a #[cfg(test)] guard in rich_editor/slash_commands/registry.rs, a different file, and no product widget was added."
+        },
+        {
+          "binary": "test_folder_tree",
+          "failing_test": "failed_recolor_and_failed_refetch_keep_prior_swatch_in_mounted_host",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "requests[2] does not start with GET."
+        },
+        {
+          "binary": "test_menu_wireup",
+          "failing_test": "file_export_click_yields_export_bytes_not_save_manager_state (+2 more)",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": ".md export contains document text; also file_save_dispatches_editor_save_path and a ctrl+V stale-selection routing failure. THREE failures in this binary."
+        },
+        {
+          "binary": "test_module_switcher",
+          "failing_test": "active_module_survives_project_switch_and_serializes",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "Returning to project a does not restore its saved STUDIO module."
+        },
+        {
+          "binary": "test_project_tabs",
+          "failing_test": "switching_project_saves_old_and_loads_new_layout",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "Project b's previously-stored layout was not loaded on switch. Likely the same persistence surface as test_module_switcher - investigate together."
+        },
+        {
+          "binary": "test_notes_end_to_end",
+          "failing_test": "draft_recovery_banner_restores_draft_through_mounted_pane_on_second_open (+2 more)",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "THREE failures including a knowledge-documents round trip and a stale GET generation."
+        },
+        {
+          "binary": "test_parity_knowledge",
+          "failing_test": "parity_global_graph_native, parity_local_graph_native",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "E3-24 native graph URL mismatch on both global and local graph."
+        },
+        {
+          "binary": "test_rename_inline_input",
+          "failing_test": "rename_accesskit_nodes_present_with_correct_roles",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "AccessKit click on the stable Apply id does not apply the preview."
+        },
+        {
+          "binary": "test_resource_counters",
+          "failing_test": "live_sampling_is_bounded_and_does_not_stutter",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "The live frame path emitted no new ResourceSample."
+        },
+        {
+          "binary": "test_sticky_scroll",
+          "failing_test": "clicking_sticky_header_scrolls_to_its_line",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "AC-006: clicking the fn sticky header did not scroll the viewport."
+        },
+        {
+          "binary": "test_swarm_concurrency",
+          "failing_test": "test_swarm_concurrency_n5",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "agent 0 action 0 (click_widget) must enqueue without torn state. HBR-SWARM relevant."
+        },
+        {
+          "binary": "test_uia_steer_proof",
+          "failing_test": "steer_loop_over_socket",
+          "owner": "UNROUTED - needs an owner",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "set_value resolves to Focus on a text input."
+        },
+        {
+          "binary": "test_e7_knowledge_accesskit_argus",
+          "failing_test": "mt042_v4_canonical_argus_complete_runtime_proof",
+          "owner": "MT-042",
+          "class": "PRODUCT_ASSERTION",
+          "detail": "FEMS contaminated proof tree (:225). ONLY VISIBLE with --features integration,wgpu_screenshots - it reported zero tests without it."
+        },
+        {
+          "binary": "test_e7_swarm_edit_proof",
+          "failing_test": "swarm_edit_live_pg_conflict_merge_search_and_receipts",
+          "owner": "MT-128",
+          "class": "HARNESS_WALL_CLOCK_BUDGET_NOT_PRODUCT",
+          "detail": "Panics at :3366 \"complete MT-043 managed-runtime scenario exceeded 30 seconds and was reaped\". The child body measures elapsed_ms=22582 against a hard-coded 24s child_deadline (:3284) - a ~1.4s margin. The SAME binary writes PROOF_PASS with all 54 gates green in 23.03s on a quiet machine. Reds on machine load, not on code.",
+          "do_not_confuse_with": "The pre-MT-120 failure of this same test, which was the document_saved attribution blocker at a DIFFERENT panic site. Both read as \"24 passed / 1 failed\" at the headline. Read the panic site, never the headline."
+        }
+      ],
+      "unrouted_count_note": "Rows marked UNROUTED need an owning microtask assigned before AC-127-1 can close. They are enumerated rather than silently grouped so none is lost. UPDATE 2026-08-13: test_backend_down_responsive is resolved and routed to MT-120. A NEW row is added below for the MT-043 wall-clock budget (MT-128), which was isolated during the same AC-120-3 re-proof.",
+      "highest_priority_check": "test_backend_down_responsive MUST be checked against the MT-120 diff before anything else. MT-120 introduced session_scoped_http_client; if that path does not go through the canonical backend builder, this is a regression THIS SESSION caused and belongs to MT-120."
     }
   },
   "hbr_obligations": {

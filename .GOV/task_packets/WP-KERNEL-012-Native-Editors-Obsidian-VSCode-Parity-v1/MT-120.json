@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-08-12T15:45:00Z",
+  "updated_at_utc": "2026-08-13T06:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -103,6 +103,46 @@
         "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_flight_recorder_authz -- --test-threads=1",
         "result": "AUTHZ_CARGO_EXIT=0, running 12 tests, test result: ok. 12 passed; 0 failed; 0 ignored; 0 filtered out; 13.24s.",
         "meaning": "The MT-109 authorization negative suite still passes at exactly 12 tests with no edit, so the 401/403 boundary MT-109 established did not regress while its receipt-ownership clause was made enforceable."
+      },
+      "regression_found_and_fixed_by_kernel_builder": {
+        "schema_id": "hsk.mt_regression_record@1",
+        "recorded_at_utc": "2026-08-13T09:10:00Z",
+        "found_by": "The MT-108 AC-108-3 full 187-binary sweep, which is the ONLY reason it was caught. The MT-120 targeted proofs were all green and would never have surfaced it: none of them scans backend_client.rs for ClientBuilder count.",
+        "defect": "MT-120 as shipped at 3e7ec545 added SESSION_SCOPED_DOC_CLIENT + session_scoped_http_client to backend_client.rs, memoizing a token-keyed reqwest::Client with default_headers. That is a second ClientBuilder in a file the MT-088 timeout audit pins to exactly one.",
+        "honesty_note": "This was recorded in the MT-127 routing table as \"UNROUTED - needs an owner\" with an explicit action_required to check it against the MT-120 diff FIRST before calling it pre-existing. It was checked, and it is NOT pre-existing: this session caused it. It belongs to MT-120.",
+        "first_fix_attempt_rejected": "Extracting the builder into build_backend_client_with_optional_headers so both paths shared one ClientBuilder. That made the ClientBuilder COUNT pass but broke a second assertion in the same test: the audit extracts `fn build_backend_client_with_request_timeout(request_timeout: Duration)` BY EXACT SIGNATURE and source-scans its body for connect_timeout / .timeout(. Delegating hollowed that body out. Reverted rather than reshaping the audit to fit the code.",
+        "fix_shipped": "The session-scoped client is DELETED. build_backend_client_with_request_timeout is byte-identical to its pre-MT-120 form. The credential is now a plain Option<String> field on KnowledgeDocumentsClient, applied as x-hsk-session-token inside send_json_with_conflict_mapping — the one function all twenty document routes funnel through, so a route added later cannot silently drop the credential. KnowledgeDocumentsClient::with_session_token CLONES the shared pool and sets a field; it constructs no client.",
+        "why_the_fix_is_strictly_better_not_merely_equivalent": "Per-request removes the memoized credential entirely. The old design cached a token in a process-wide Mutex keyed by that token; the new one holds it only for the duration of one derived transport value. Rebind latency is unchanged (flight_recorder_session_token never cached either way). An empty or whitespace token now normalizes to None rather than presenting a blank credential.",
+        "proof": {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_backend_down_responsive -- --test-threads=1",
+          "result": "test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.22s.",
+          "both_assertions_pass": "reqwest_clients_carry_connect_and_request_timeouts is GREEN — both the ClientBuilder census AND the canonical-builder body scan. No test file was edited; git diff HEAD for tests/test_backend_down_responsive.rs is empty.",
+          "second_failure_also_cleared": "app_drop_reclaims_layout_workers_within_bound, which also red-ed in the sweep run of this binary, passes here. It was never diagnosed separately; it cleared with the binary.",
+          "compile": "cargo check --manifest-path src/frontend/handshake_native/Cargo.toml --tests => EXIT 0. Warnings are pre-existing and in untouched files (test_find_in_files, test_sidebar_panel_argus, test_block_collection_view unused imports)."
+        },
+        "ac_reproof_status": "COMPLETE. Both credential-carrying ACs re-run against the post-fix binary and both are GREEN."
+      },
+      "ac_reproof_after_per_request_credential": {
+        "schema_id": "hsk.mt_reproof@1",
+        "recorded_at_utc": "2026-08-13T06:05:00Z",
+        "why": "The mechanism that carries the session credential CHANGED (token-keyed client -> per-request header). Every earlier green run certified the old mechanism and no longer certifies the shipped code, so AC-120-3 and AC-120-6 were re-run rather than carried forward.",
+        "binary_freshness_checked": "test_e7_swarm_edit_proof-42ee1b2f7f0bc113.exe built 2026-08-13 05:51:35; the two edited sources are 05:17:10 and 05:17:25. The proof ran against post-edit code, verified by mtime rather than assumed from a cargo run.",
+        "ac_120_6": {
+          "status": "GREEN",
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_event_emitter -j 2 --no-fail-fast -- --test-threads=1",
+          "result": "test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 115.09s.",
+          "meaning": "event_emitter_native_editor_round_trip requires THREE mirrored emissions including document_saved, which only lands when the save authenticates. It passes on the per-request credential, so the token demonstrably reaches the backend and is verified there.",
+          "first_attempt_was_an_ENVIRONMENT_gap_not_a_product_red": "The first run returned 32 passed / 1 failed at pg_proof_support/mod.rs:4016 - \"HANDSHAKE_TEST_STAGE_BINDING_ROOT is required: a proof must never publish a native-MCP binding into the operator's live app-data\". That is the isolated per-run binding root this MT record already names in its environment line; it was missing from the invocation, not from the product. Recorded so the next runner does not read it as MT-120 breaking."
+        },
+        "ac_120_3": {
+          "status": "GREEN AT THE PRODUCT LEVEL, PROVEN BY THE CANONICAL PROOF ARTIFACT",
+          "decisive_evidence": "The MT-043 live child ran to completion and wrote PROOF_PASS. All 54 gates T0001..T0054 PASS, including T0040 \"both actors have distinct exact-one canonical EventLedger receipts and automatic attributed Flight Recorder rows\" - the MT-120 attribution gate - and T0053 FINAL_PERSISTED doc_version=3 with exact-one counts. test result: ok. 1 passed; 0 failed; finished in 23.03s.",
+          "attribution_observed_in_the_artifact": "T0041 shows both actors' Flight Recorder rows carrying actor_id handshake-native:10256:66de014c09ef3f9256c31e5f045ee72a2f32ed0c6671e2418c568cdae4d53051 - the SERVER-DERIVED principal - with save_receipt_event_id, correlation_id, kernel_task_run_id and session_run_id present in the native_payload. This is the property AC-120-3 exists to protect and it survived the mechanism change.",
+          "no_test_edit": "test_e7_swarm_edit_proof.rs was NOT edited. git diff HEAD for that file is empty.",
+          "under_cargo_it_still_reds_and_that_is_a_SEPARATE_defect": "Two consecutive `cargo test --test test_e7_swarm_edit_proof` runs returned 24 passed / 1 failed. The panic site is test_e7_swarm_edit_proof.rs:3366 \"complete MT-043 managed-runtime scenario exceeded 30 seconds and was reaped\" - a WALL-CLOCK reap, at a DIFFERENT panic site from the pre-MT-120 failure, which was the document_saved attribution blocker. No assertion about attribution fails.",
+          "root_cause_measured_not_guessed": "The child body self-reports elapsed_ms=22582 and the harness reports 23.03s. The parent sets child_deadline = wall_started + 24s (test_e7_swarm_edit_proof.rs:3284) and hard_deadline = +30s (:3283), both hard-coded with no env override. The margin is roughly 1.4 seconds. Any concurrent load - and the Operator has parallel work-packet builds running - pushes the child past 24s and it is reaped before it can write PROOF_PASS. A mid-load standalone run took 57.43s and died after T0050.",
+          "honest_position": "AC-120-3 is met on product behaviour and is NOT claimed green under cargo. The residual red is an infrastructure budget defect that predates this session (the budget is not something MT-120 touched) and it is filed as its own microtask rather than absorbed into MT-120 or narrated away."
+        }
       }
     },
     "ready_for_validation_at_utc": "2026-08-12T15:45:00Z",
@@ -124,7 +164,8 @@
       "src/backend/handshake_core/tests/**",
       "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/tests/**",
-      "src/backend/handshake_core/src/user_manual/seed.rs"
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/frontend/handshake_native/src/backend/knowledge_documents.rs"
     ],
     "forbidden_paths": [
       ".GOV/**",
@@ -159,7 +200,17 @@
       "reason": "MT-120 carries hbr_obligations.MAN (\"Update the internal manual: the documented attribution contract changes\"), and CX-982-002 requires that update in the SAME implementation change. The manual entry for this route lives at user_manual/seed.rs:1035-1052, which the original allowed_paths omitted. The implementing sub-agent correctly REFUSED to edit it and reported the block rather than reaching outside scope.",
       "authority": "Operator standing rule for this work packet: address a discovered gap inside the current MT when it directly relates to that MT. The manual obligation IS MT-120 own obligation, so it is closed here rather than deferred.",
       "bounded_to": "The knowledge-document save-receipt manual entry only."
-    }
+    },
+    "allowed_paths_amendments": [
+      {
+        "path": "src/frontend/handshake_native/src/backend/knowledge_documents.rs",
+        "amended_at_utc": "2026-08-13T09:10:00Z",
+        "amended_by": "KERNEL_BUILDER-20260812-113007",
+        "reason": "Required to REMOVE a regression MT-120 itself introduced, not to add scope. The first implementation carried the session credential on a token-keyed reqwest::Client built inside backend_client.rs. That made backend_client.rs own a SECOND ClientBuilder, which test_backend_down_responsive::reqwest_clients_carry_connect_and_request_timeouts forbids (left {backend_client.rs: 2, asset_resolver.rs: 1}, right {backend_client.rs: 1, asset_resolver.rs: 1}). The credential had to move to a PER-REQUEST header, and the only choke point every /knowledge/documents/* call funnels through (KnowledgeDocumentsClient::send_json_with_conflict_mapping) lives in this file.",
+        "alternative_rejected": "Adding a session_token field to HskDocumentHeaders instead. Rejected on blast radius: 13 struct-literal construction sites across 6 files, 4 of them outside allowed_paths (knowledge_code_nav.rs, journal_store.rs, metadata_client.rs, test_e7_swarm_edit_proof.rs). The client-field approach touches ONE additional file and breaks no construction site.",
+        "precedent": "Same amendment pattern already used in this MT for src/backend/handshake_core/src/user_manual/seed.rs."
+      }
+    ]
   },
   "hbr_obligations": {
     "PRIV": "Do not surface the derived process identity more widely than the save path requires.",
