@@ -9,34 +9,33 @@ use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneLocusBinding,
     ModelLaneRecoveryState, ModelLaneStore, NewModelLaneDiagnosticTierStatus, NewModelLaneRun,
 };
-use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
-use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
-use handshake_core::user_manual::store::{
-    NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualStore,
-};
 use handshake_core::swarm_orchestration::resource_scope::{
     stored_resource_scope_from_row, ActorPrincipalId, OwnerAccountId, ResourceAccessContext,
     ResourceScope, ResourceScopeQuery, SystemScopeAuthority, WorkspaceScopeRef,
     RESOURCE_SCOPE_SELECT_COLUMNS,
 };
+use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
+use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
+use handshake_core::user_manual::store::{
+    NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualStore,
+};
 use handshake_core::user_manual::{
     cloud_model_access_behavior_coverage_matrix,
-    dedicated_embedding_model_behavior_coverage_matrix,
-    diagnostic_tier_owning_evidence_uri_scheme, embedded_model_behavior_coverage_matrix,
-    manual_literal_claims, model_lane_behavior_coverage_matrix,
-    model_runtime_registry_behavior_coverage_matrix, operator_chat_launch_behavior_coverage_matrix,
-    user_manual_behavior_coverage_matrix, verify_cloud_model_access_behavior_coverage,
-    verify_diagnostic_tier_evidence_uri, verify_embedded_model_behavior_coverage,
-    verify_manual_literal_claims, verify_manual_named_surface_existence,
-    verify_model_lane_behavior_coverage, verify_model_lane_behavior_evidence,
-    verify_model_runtime_registry_behavior_coverage, verify_user_manual_behavior_coverage_matrix,
-    BehaviorCoverageError, BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation,
-    DiagnosticTierPosture, ManualClaimClass, ModelRuntimeProofExecutionStatus,
-    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
-    MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
-    USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID, USER_MANUAL_VERSION,
+    dedicated_embedding_model_behavior_coverage_matrix, diagnostic_tier_owning_evidence_uri_scheme,
+    embedded_model_behavior_coverage_matrix, manual_literal_claims,
+    model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
+    operator_chat_launch_behavior_coverage_matrix, user_manual_behavior_coverage_matrix,
+    verify_cloud_model_access_behavior_coverage, verify_diagnostic_tier_evidence_uri,
+    verify_embedded_model_behavior_coverage, verify_manual_literal_claims,
+    verify_manual_named_surface_existence, verify_model_lane_behavior_coverage,
+    verify_model_lane_behavior_evidence, verify_model_runtime_registry_behavior_coverage,
+    verify_user_manual_behavior_coverage_matrix, BehaviorCoverageError,
+    BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation, DiagnosticTierPosture,
+    ManualClaimClass, ModelRuntimeProofExecutionStatus, DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING,
+    MANUAL_NAMED_SURFACE_BEHAVIOR_ID, MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE,
+    MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID, USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID,
+    USER_MANUAL_VERSION,
 };
-use serde_json::json;
 use handshake_core::{
     api::model_runtime_registry::{
         MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE, MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
@@ -47,6 +46,7 @@ use handshake_core::{
     kernel::KernelEventType,
     model_runtime::MODEL_RUNTIME_REGISTRY_SCHEMA_ID,
 };
+use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use std::collections::BTreeSet;
 
@@ -482,6 +482,32 @@ async fn embedded_model_behaviors_have_manual_coverage() {
         tool_ids.contains("llm_client_local_routing_tests"),
         "FR behaviors must point at the llm_client_local_routing_tests proof suite"
     );
+    for tool_id in [
+        "embedded_model_ledger_tests",
+        "candle_e2e_smoke::mt013_real_candle_default_load_emits_process_ledger_start_stop",
+        "llm_client_local_routing_tests",
+    ] {
+        let tool = tools
+            .iter()
+            .find(|tool| tool.tool_id == tool_id)
+            .unwrap_or_else(|| panic!("missing MT-013 UserManual tool entry {tool_id}"));
+        let cli_flag = tool
+            .cli_flag
+            .as_deref()
+            .unwrap_or_else(|| panic!("MT-013 UserManual tool entry {tool_id} has no CLI command"));
+        assert!(
+            !cli_flag.contains("--target-dir"),
+            "MT-013 UserManual tool entry {tool_id} must honor the configured per-owner CARGO_TARGET_DIR: {cli_flag}"
+        );
+        assert!(
+            cli_flag.contains("-j 4"),
+            "MT-013 UserManual tool entry {tool_id} must retain the bounded build job count: {cli_flag}"
+        );
+        assert!(
+            tool.expected_input.contains("per-owner"),
+            "MT-013 UserManual tool entry {tool_id} must explain the per-owner CARGO_TARGET_DIR prerequisite"
+        );
+    }
     verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
         panic!(
             "embedded-model behavior coverage gaps:\n{}",
@@ -1336,7 +1362,9 @@ async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_i
         .await
         .expect_err("absent run-level HBR-INT-009 evidence must fail closed");
     assert!(
-        errors.iter().any(|error| error.behavior_id == "HBR-INT-009"),
+        errors
+            .iter()
+            .any(|error| error.behavior_id == "HBR-INT-009"),
         "absent evidence must fail on the HBR-INT-009 run-level envelope, got {errors:?}"
     );
 
@@ -1361,7 +1389,9 @@ async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_i
         .await
         .expect_err("Flight-Recorder-only run-level evidence must fail closed");
     assert!(
-        errors.iter().any(|error| error.behavior_id == "HBR-INT-009"),
+        errors
+            .iter()
+            .any(|error| error.behavior_id == "HBR-INT-009"),
         "incomplete evidence must fail on the HBR-INT-009 run-level envelope, got {errors:?}"
     );
 
@@ -1491,9 +1521,15 @@ fn product_source_text() -> String {
                 *skipped += 1;
                 continue;
             }
-            let is_source = path.extension().and_then(|e| e.to_str()).is_some_and(|ext| {
-                matches!(ext, "rs" | "sql" | "ts" | "tsx" | "js" | "jsx" | "toml" | "json")
-            });
+            let is_source = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|ext| {
+                    matches!(
+                        ext,
+                        "rs" | "sql" | "ts" | "tsx" | "js" | "jsx" | "toml" | "json"
+                    )
+                });
             if !is_source {
                 continue;
             }
@@ -1765,9 +1801,180 @@ fn external_compat_engine_import_lane_is_documented_and_toc_reachable() {
         .expect("manual-toc page");
     assert!(
         toc.anchors.iter().any(|anchor| {
-            anchor.anchor_kind == "page_link" && anchor.anchor_value == "external-compat-engine-import"
+            anchor.anchor_kind == "page_link"
+                && anchor.anchor_value == "external-compat-engine-import"
         }),
         "the new page must be reachable from the UserManual table of contents"
+    );
+}
+
+#[test]
+fn worktree_microvm_model_lane_is_documented_and_toc_reachable() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "microvm-sandbox-kvm");
+
+    for required in [
+        "ModelLaneStore -> SwarmCoordinator",
+        "ProductionModelSessionFactory -> WorktreeVmRegistry",
+        "CloudHypervisorAdapter -> hsk-warm-agent -> llama-server",
+        "Tier3Microvm",
+        "with_warm_vm_execution()",
+        "worktree_id",
+        "real token frames",
+        "ProcessOwnershipLedger START/STOP",
+        "owner_account_id",
+        "actor_principal_id",
+        "workspace_id",
+        "cross-account",
+        "Tier 1 durable lane and lifecycle evidence: WIRED",
+        "Tier 2 internal_diagnostics: DEFERRED-with-reason",
+        "Tier 3 Palmistry: DEFERRED-with-reason",
+        "WorktreeVmRegistry::teardown_worktree_vm",
+        "--manifest-path src/backend/handshake_core/Cargo.toml",
+        "-j 4",
+        "per-owner external `CARGO_TARGET_DIR`",
+        "mutually exclusive modes",
+        "HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1",
+        "HANDSHAKE_MANAGED_PG_DATA_DIR",
+        "HANDSHAKE_MANAGED_PG_PORT",
+        "Never combine template and URL modes",
+    ] {
+        assert!(
+            body.contains(required),
+            "microvm-sandbox-kvm must document `{required}`"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc page");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link" && anchor.anchor_value == "microvm-sandbox-kvm"
+        }),
+        "the microVM sandbox page must be reachable from the UserManual table of contents"
+    );
+}
+
+#[test]
+fn product_local_scope_manual_matches_server_owned_exact_authority() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "backend-navigation-and-identity");
+
+    for required in [
+        "server-owned product-local scope",
+        "Normal native requests send no scope headers",
+        "optional equality assertions only",
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
+        "workspace_id",
+        "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE",
+        "RESOURCE_SCOPE_MISMATCH",
+        "does not implement `WP-KERNEL-006` or `WP-KERNEL-007`",
+    ] {
+        assert!(
+            body.contains(required),
+            "backend-navigation-and-identity must document `{required}`"
+        );
+    }
+
+    for stale in [
+        "trusts the caller's claimed account",
+        "x-handshake-owner-account` — REQUIRED",
+        "resend with a well-formed `x-handshake-owner-account`",
+        "a_request_with_no_scope_header_is_denied_not_widened",
+    ] {
+        assert!(
+            !body.contains(stale),
+            "backend-navigation-and-identity must not retain stale authority text `{stale}`"
+        );
+    }
+}
+
+#[test]
+fn wp1_console_manual_matches_scoped_stream_privacy() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "wp1-orchestration-console");
+
+    for required in [
+        "contiguous, subscriber-local visible sequence",
+        "never a global producer count",
+        "Global lag counts are deliberately suppressed",
+        "bounded scoped replay",
+        "Flight Recorder/EventLedger",
+    ] {
+        assert!(
+            body.contains(required),
+            "wp1-orchestration-console must document `{required}`"
+        );
+    }
+
+    for stale in [
+        "monotonic, stable row identity",
+        "console_lagged",
+        "number of dropped entries",
+    ] {
+        assert!(
+            !body.contains(stale),
+            "wp1-orchestration-console must not retain stale stream text `{stale}`"
+        );
+    }
+}
+
+fn missing_manual_surface_ids(body: &str, required: &[&str]) -> Vec<String> {
+    required
+        .iter()
+        .filter(|id| !body.contains(**id))
+        .map(|id| (*id).to_owned())
+        .collect()
+}
+
+/// MT-021 inverse gate: start from shipped native surface identifiers and require the canonical
+/// UserManual to name every one. The counterfactual proves this gate rejects a page after any required
+/// identifier is removed, instead of passing because adjacent prose happens to mention Settings.
+#[test]
+fn wp1_native_menu_settings_and_cloud_posture_have_inverse_manual_coverage() {
+    let corpus = seed_corpus();
+    let console = scanned_body(&corpus, "wp1-orchestration-console");
+    let launch = scanned_body(&corpus, "operator-chat-launch");
+    let cloud = scanned_body(&corpus, "cloud-model-access");
+    let combined = format!("{console}\n{launch}\n{cloud}");
+    let required = [
+        "menu.models.wp1-orchestration-console",
+        "settings.swarm-max-actions-per-frame",
+        "swarm_max_actions_per_frame",
+        "settings.swarm-model-sessions-max-concurrent",
+        "settings.swarm-model-sessions-max-concurrent.status",
+        "swarm_model_sessions_max_concurrent",
+        "settings.cloud.consent.status",
+        "settings.cloud.consent.{provider}.posture",
+        "NOT WIRED",
+        "requested",
+        "max_concurrent",
+        "fully_applied",
+        "live_sessions",
+    ];
+    assert_eq!(
+        missing_manual_surface_ids(&combined, &required),
+        Vec::<String>::new(),
+        "every shipped WP-1 menu/settings/status identifier must be discoverable in UserManual"
+    );
+
+    let without_model_control = combined.replace(
+        "settings.swarm-model-sessions-max-concurrent",
+        "REMOVED_BY_COUNTERFACTUAL",
+    );
+    assert_eq!(
+        missing_manual_surface_ids(
+            &without_model_control,
+            &["settings.swarm-model-sessions-max-concurrent"]
+        ),
+        vec!["settings.swarm-model-sessions-max-concurrent".to_owned()],
+        "counterfactual removal must fail the inverse surface-to-manual gate"
     );
 }
 
@@ -2046,7 +2253,9 @@ async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme
                     &evidence_ref,
                 ))
                 .await
-                .unwrap_or_else(|error| panic!("record {} tier for {run_id}: {error}", tier.as_str()));
+                .unwrap_or_else(|error| {
+                    panic!("record {} tier for {run_id}: {error}", tier.as_str())
+                });
         }
 
         let errors = verify_model_lane_behavior_evidence(&store, run_id, &matrix)
@@ -2140,9 +2349,9 @@ async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme
         .await
         .expect_err("a DEFERRED tier must not satisfy RUN_LEVEL_WIRED coverage");
     assert!(
-        errors
-            .iter()
-            .any(|error| error.reason.contains("requires a live WIRED `palmistry` tier record")),
+        errors.iter().any(|error| error
+            .reason
+            .contains("requires a live WIRED `palmistry` tier record")),
         "the failure must name the deferred Palmistry tier, got {errors:?}"
     );
 }
@@ -2254,17 +2463,18 @@ async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_a
 
     // NEGATIVE, one per required column. Each tamper is applied to a fresh copy
     // of the proven matrix, so a failure can only come from that column.
-    let expect_gap = |mutate: &dyn Fn(&mut handshake_core::user_manual::UserManualBehaviorCoverageMatrix),
-                      needle: &str| {
-        let mut tampered = matrix.clone();
-        mutate(&mut tampered);
-        let errors = verify_user_manual_behavior_coverage_matrix(&tampered)
-            .expect_err(&format!("tampering `{needle}` must fail the coverage gate"));
-        assert!(
-            errors.iter().any(|error| error.reason.contains(needle)),
-            "expected a coverage error containing `{needle}`, got {errors:?}"
-        );
-    };
+    let expect_gap =
+        |mutate: &dyn Fn(&mut handshake_core::user_manual::UserManualBehaviorCoverageMatrix),
+         needle: &str| {
+            let mut tampered = matrix.clone();
+            mutate(&mut tampered);
+            let errors = verify_user_manual_behavior_coverage_matrix(&tampered)
+                .expect_err(&format!("tampering `{needle}` must fail the coverage gate"));
+            assert!(
+                errors.iter().any(|error| error.reason.contains(needle)),
+                "expected a coverage error containing `{needle}`, got {errors:?}"
+            );
+        };
 
     expect_gap(
         &|m| m.rows[0].user_manual_slug = "",
@@ -2311,7 +2521,10 @@ async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_a
         },
         "inconsistent with no stated reason",
     );
-    expect_gap(&|m| m.rows.clear(), "matrix that covers nothing is not proof");
+    expect_gap(
+        &|m| m.rows.clear(),
+        "matrix that covers nothing is not proof",
+    );
     expect_gap(
         &|m| m.diagnostic_tier_evidence_uri_binding.clear(),
         "does not match the compiled binding",
@@ -2332,7 +2545,9 @@ async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_a
     let broken_matrix =
         user_manual_behavior_coverage_matrix(&broken, &schema_registry, &pages, &tools);
     assert!(
-        !broken_matrix.rows[0].self_consistency_result.is_consistent(),
+        !broken_matrix.rows[0]
+            .self_consistency_result
+            .is_consistent(),
         "a behavior with no UserManual page must project an inconsistent self-consistency result"
     );
     verify_user_manual_behavior_coverage_matrix(&broken_matrix)
@@ -2379,7 +2594,9 @@ async fn seed_scoped_diagnostic_envelope(store: &ModelLaneStore, run_id: &str) {
                 &evidence_ref,
             ))
             .await
-            .unwrap_or_else(|error| panic!("seed scoped {} tier for {run_id}: {error}", tier.as_str()));
+            .unwrap_or_else(|error| {
+                panic!("seed scoped {} tier for {run_id}: {error}", tier.as_str())
+            });
     }
 }
 
@@ -2415,8 +2632,10 @@ async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_sid
         pool.clone(),
         ResourceScope::new(alice, ActorPrincipalId::mint()),
     );
-    let bob_store =
-        ModelLaneStore::new_scoped(pool.clone(), ResourceScope::new(bob, ActorPrincipalId::mint()));
+    let bob_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(bob, ActorPrincipalId::mint()),
+    );
 
     let alice_run = "run-mt011-priv-alice";
     let bob_run = "run-mt011-priv-bob";

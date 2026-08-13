@@ -1912,6 +1912,12 @@ pub async fn reclaim_pidless_embedded_orphans(
                 Ok(address) if address.is_loopback() => address,
                 _ => {
                     report.deferred_instances = report.deferred_instances.saturating_add(1);
+                    tracing::error!(
+                        target: "handshake_core::process_ledger",
+                        process_uuid = %process_uuid,
+                        lease_address = %runtime_owner.lease_address,
+                        "pid-less embedded row lease address is not a parseable loopback IP; skipping independently"
+                    );
                     continue;
                 }
             },
@@ -2002,6 +2008,12 @@ pub async fn reclaim_pidless_embedded_orphans(
             tx.rollback().await?;
             if is_pidless_reclaim_process_error_timeout(&error) {
                 report.deferred_instances = report.deferred_instances.saturating_add(1);
+                tracing::error!(
+                    target: "handshake_core::process_ledger",
+                    runtime_instance_id = %descriptor.instance_id,
+                    error = %error,
+                    "pid-less reclaim transaction preparation exceeded its bounded deadline; deferring instance"
+                );
                 continue;
             }
             return Err(error);
@@ -2013,6 +2025,11 @@ pub async fn reclaim_pidless_embedded_orphans(
         if !acquired {
             tx.rollback().await?;
             report.deferred_instances = report.deferred_instances.saturating_add(1);
+            tracing::error!(
+                target: "handshake_core::process_ledger",
+                runtime_instance_id = %descriptor.instance_id,
+                "embedded runtime reclaim mutex is held by another reconciler; deferring instance"
+            );
             continue;
         }
 
@@ -2695,7 +2712,7 @@ impl ProductionSandboxKill {
 
     async fn identity(&self, process_uuid: Uuid) -> Result<ProductionKillIdentity, KillError> {
         tokio::time::timeout(
-            Duration::from_secs(5),
+            RECLAIM_KILL_TIMEOUT,
             load_production_kill_identity(&self.pool, process_uuid),
         )
         .await
@@ -2844,17 +2861,7 @@ impl SandboxKill for ProductionSandboxKill {
         process_uuid: Uuid,
         kill_operation_uuid: Uuid,
     ) -> Result<ReclaimKillOperationStatus, KillError> {
-        let identity = tokio::time::timeout(
-            Duration::from_secs(5),
-            load_production_kill_identity(&self.pool, process_uuid),
-        )
-        .await
-        .map_err(|_| {
-            KillError::new(format!(
-                "production reclaim identity lookup timed out for process {process_uuid}"
-            ))
-        })?
-        .map_err(|error| KillError::new(error.to_string()))?;
+        let identity = self.identity(process_uuid).await?;
         if identity.stopped {
             return Ok(ReclaimKillOperationStatus::Succeeded);
         }
@@ -3468,7 +3475,7 @@ impl PostgresProcessLedgerStore {
         kill_operation_uuid: Uuid,
         status: ReclaimKillOperationStatus,
     ) -> Result<(), ProcessLedgerError> {
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let sql = format!(
             r#"
             UPDATE ONLY {}
@@ -3559,7 +3566,7 @@ impl PostgresProcessLedgerStore {
         // row-decode failure rolls the claim back rather than leaving rows marked
         // claimed but never returned to the caller (which would orphan them:
         // claimed yet never killed). Commit only after every row decodes cleanly.
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let mut tx = self.pool().begin().await?;
         prepare_pidless_reclaim_transaction(
             &mut tx,
@@ -3769,7 +3776,7 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
         process_uuid: Uuid,
         claim: &ReclaimClaim,
     ) -> Result<(), ProcessLedgerError> {
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let sql = format!(
             r#"
             UPDATE ONLY {}
@@ -3825,7 +3832,7 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
         process_uuid: Uuid,
         claim: &ReclaimClaim,
     ) -> Result<ReclaimClaim, ProcessLedgerError> {
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let sql = format!(
             r#"
             UPDATE ONLY {}
@@ -3882,7 +3889,7 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
         stop: &ProcessStop,
         claim: &ReclaimClaim,
     ) -> Result<(), ProcessLedgerError> {
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let mut tx = self.pool().begin().await?;
         prepare_pidless_reclaim_transaction(
             &mut tx,
@@ -3945,7 +3952,7 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
         process_uuid: Uuid,
         claim: &ReclaimClaim,
     ) -> Result<(), ProcessLedgerError> {
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let sql = format!(
             r#"
             UPDATE ONLY {}
@@ -4032,7 +4039,7 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
                 "in-progress reclaim recovery limit must be 1..={RECLAIM_IN_PROGRESS_RECOVERY_LIMIT}"
             )));
         }
-        let authority = resolve_process_ledger_authority_relation(self.pool()).await?;
+        let authority = self.authority().await?.clone();
         let sql = format!(
             r#"
             SELECT process_uuid::text,

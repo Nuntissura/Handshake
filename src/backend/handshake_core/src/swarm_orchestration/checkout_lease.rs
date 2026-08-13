@@ -13,9 +13,9 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::error::{SwarmError, SwarmResult};
-use super::ids::{CheckoutLeaseRef, SpawnRequest};
 #[cfg(test)]
 use super::ids::ModelInstanceId;
+use super::ids::{CheckoutLeaseRef, SpawnRequest};
 
 #[derive(Debug)]
 pub(crate) struct CheckoutLeaseGuard {

@@ -7,10 +7,10 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::api::account_scope::RequestAccountScope;
 use crate::swarm_orchestration::model_lane::{
     ModelLaneError, ModelLaneNavigationLookup, ModelLaneNavigationProjection, ModelLaneStore,
 };
-use crate::api::account_scope::RequestAccountScope;
 use crate::AppState;
 
 #[derive(Debug, Deserialize, Default)]
@@ -37,13 +37,10 @@ pub struct DiagnosticNavigationQuery {
     pub mt_id: Option<String>,
 }
 
-/// Build a store that can only read the caller-declared account scope.
-///
-/// This is the pre-KERNEL-006 seam described in [`crate::api::account_scope`].
-/// Note the constructor: `new_for_owner` yields a READ-ONLY scoped store, so a
-/// navigation route cannot mint ownership from a header even by accident.
+/// Build a store from the server-owned exact scope, retaining all five durable
+/// attribution dimensions through SQL and post-decode authorization.
 fn store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
-    ModelLaneStore::new_for_owner(state.postgres_pool.clone(), scope.query().clone())
+    ModelLaneStore::new_scoped(state.postgres_pool.clone(), scope.resource_scope())
 }
 
 type ApiError = (StatusCode, Json<Value>);
@@ -54,10 +51,7 @@ fn model_lane_api_error(err: ModelLaneError) -> ApiError {
             StatusCode::BAD_REQUEST,
             Json(json!({"error": "bad_request", "detail": detail})),
         ),
-        ModelLaneError::NotFound(detail) => (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "not_found", "detail": detail})),
-        ),
+        ModelLaneError::NotFound(_) => (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"}))),
         ModelLaneError::AmbiguousLookup(detail) => (
             StatusCode::CONFLICT,
             Json(json!({"error": "ambiguous_lookup", "detail": detail})),
@@ -68,10 +62,15 @@ fn model_lane_api_error(err: ModelLaneError) -> ApiError {
         // caught something the predicate did not, so it is reported explicitly —
         // as the stable reason code only, with no identifiers and no row
         // contents, so the denial cannot become a metadata side channel.
-        ModelLaneError::ScopeDenied(denied) => (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error": "resource_scope_denied", "detail": denied.reason_code()})),
-        ),
+        ModelLaneError::ScopeDenied(_) => {
+            (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"})))
+        }
+        ModelLaneError::AuthorityDenied(detail)
+            if detail == "ModelLane navigation authority unavailable" =>
+        {
+            tracing::error!(target: "handshake_core::model_lane_navigation", error = %detail, "model_lane_navigation_integrity_failure");
+            (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"})))
+        }
         other => {
             tracing::error!(target: "handshake_core::model_lane_navigation", error = %other, "model_lane_navigation_api_error");
             (

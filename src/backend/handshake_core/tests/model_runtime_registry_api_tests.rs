@@ -5,15 +5,22 @@ mod knowledge_pg_support;
 
 use std::{
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    time::Duration,
 };
 
 use async_trait::async_trait;
 use futures::stream;
 use handshake_core::{
-    api::model_runtime_registry::{
-        self, ModelRuntimeRegistryProjection, ModelRuntimeRegistryRowState,
-        MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
+    api::{
+        account_scope::ProductLocalResourceScope,
+        model_runtime_registry::{
+            self, ModelRuntimeRegistryProjection, ModelRuntimeRegistryRowState,
+            MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
+        },
     },
     capabilities::CapabilityRegistry,
     diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup},
@@ -22,7 +29,8 @@ use handshake_core::{
     llm::{
         local_router::{LocalModelRuntimeLlmClient, LocalRouter},
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile,
-        ModelRuntimeValue, TokenUsage,
+        ModelRuntimeControlAction, ModelRuntimeControlReceipt, ModelRuntimeControlRequest,
+        ModelRuntimeValue, TokenUsage, MODEL_RUNTIME_CONTROL_SCHEMA_VERSION,
     },
     model_runtime::{
         BaseModelTag, CancellationToken, CaptureResult, CaptureSpec, Embedding,
@@ -34,7 +42,20 @@ use handshake_core::{
         RuntimePerfRecorder, RuntimePerfSnapshot, Score, SteeringHookHandle, SteeringHookOps,
         SteeringVector, SteeringVectorId, SteeringVectorMeta, TokenStream,
     },
+    process_ledger::{
+        drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
+        NoopOverflowSink, PostgresProcessLedgerStore, StopRecordOutcome,
+    },
     storage::postgres::PostgresDatabase,
+    swarm_orchestration::{
+        model_lane::ModelLaneStore,
+        resource_scope::{
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+            ExactResourceScopeAttribution, OwnerAccountId, ResourceScope, WorkspaceScopeRef,
+        },
+        CloudLaneFactoryConfig, CloudLiveRuntime, CloudRuntimeBuilder, ModelInstanceId,
+        ModelSessionFactory, ProductionModelSessionFactory, SpawnRequest,
+    },
     workflows::{ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig},
     AppState,
 };
@@ -99,6 +120,47 @@ impl DiagnosticsStore for NoopRecorder {
 struct CatalogLlmClient {
     profile: ModelProfile,
     catalog: Arc<ModelCatalog>,
+}
+
+struct CountingControlClient {
+    profile: ModelProfile,
+    calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl LlmClient for CountingControlClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Err(LlmError::ProviderError(
+            "not used by control proof".to_owned(),
+        ))
+    }
+
+    async fn control_model_runtime(
+        &self,
+        request: ModelRuntimeControlRequest,
+    ) -> Result<ModelRuntimeControlReceipt, LlmError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Ok(ModelRuntimeControlReceipt {
+            schema_version: MODEL_RUNTIME_CONTROL_SCHEMA_VERSION,
+            request_id: request.request_id,
+            model_id: request.model_id,
+            result_model_id: None,
+            action: request.action,
+            runtime_adapter: "counting-control-proof".to_owned(),
+            quiesced: true,
+            unloaded: false,
+            process_stop_committed: false,
+            registry_updated: false,
+            selection_rebound: false,
+            catalog_revision: None,
+            reconciliation_required: false,
+            reconciliation_reason: None,
+        })
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
 }
 
 #[derive(Default)]
@@ -305,12 +367,12 @@ impl ModelRuntime for ReadyRuntime {
     }
 
     fn engine_internals(&self, _id: ModelId) -> Result<Value, ModelRuntimeError> {
-        self.engine_internals.clone().ok_or_else(|| {
-            ModelRuntimeError::CapabilityNotSupported {
+        self.engine_internals
+            .clone()
+            .ok_or_else(|| ModelRuntimeError::CapabilityNotSupported {
                 capability: "engine_internals".to_owned(),
                 adapter: self.adapter_name().to_owned(),
-            }
-        })
+            })
     }
 
     fn cancel(&self, token: CancellationToken) {
@@ -500,6 +562,29 @@ async fn start_server(state: AppState) -> (String, tokio::task::JoinHandle<()>) 
     (format!("http://{address}"), server)
 }
 
+async fn start_scoped_server(
+    state: AppState,
+    scope: ExactResourceScopeAttribution,
+) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind exactly scoped ModelRuntime registry proof server");
+    let address = listener
+        .local_addr()
+        .expect("scoped registry proof server address");
+    let server_scope =
+        ProductLocalResourceScope::from_exact(scope).expect("valid server-owned exact scope");
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            model_runtime_registry::routes(state).layer(axum::Extension(server_scope)),
+        )
+        .await
+        .expect("serve exactly scoped ModelRuntime registry route");
+    });
+    (format!("http://{address}"), server)
+}
+
 fn pg_required(
     value: Option<knowledge_pg_support::KnowledgePg>,
 ) -> knowledge_pg_support::KnowledgePg {
@@ -508,6 +593,493 @@ fn pg_required(
             "PostgreSQL unavailable: MT-014 registry API proof requires the real Handshake-managed PostgreSQL authority"
         )
     })
+}
+
+#[tokio::test]
+async fn mt023_runtime_control_requires_server_scope_before_client_side_effect() {
+    let pg = pg_required(knowledge_pg_support::knowledge_pg().await);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let client: Arc<dyn LlmClient> = Arc::new(CountingControlClient {
+        profile: ModelProfile::new("control-scope-proof".to_owned(), 4096),
+        calls: calls.clone(),
+    });
+    let state = app_state_for_client(&pg.schema_url, client).await;
+    let exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!("control-scope-{}", Uuid::now_v7()))
+            .expect("valid control workspace"),
+    };
+    let request = json!({
+        "schema_version": MODEL_RUNTIME_CONTROL_SCHEMA_VERSION,
+        "request_id": Uuid::now_v7(),
+        "model_id": "control-scope-proof",
+        "action": { "action": "quiesce" },
+        "timeout_ms": 1000,
+        "expected_catalog_revision": null,
+        "expected_selection_revision": null
+    });
+    let (missing_base, missing_server) = start_server(state.clone()).await;
+    let missing = reqwest::Client::new()
+        .post(format!("{missing_base}/model-runtime/control"))
+        .json(&request)
+        .send()
+        .await
+        .expect("missing-scope control request");
+    assert_eq!(missing.status(), reqwest::StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    missing_server.abort();
+
+    let (scoped_base, scoped_server) = start_scoped_server(state, exact).await;
+    let mismatched = reqwest::Client::new()
+        .post(format!("{scoped_base}/model-runtime/control"))
+        .header(
+            "x-handshake-owner-account",
+            OwnerAccountId::mint().to_string(),
+        )
+        .json(&request)
+        .send()
+        .await
+        .expect("mismatched-assertion control request");
+    assert_eq!(mismatched.status(), reqwest::StatusCode::FORBIDDEN);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+    let authorized = reqwest::Client::new()
+        .post(format!("{scoped_base}/model-runtime/control"))
+        .json(&request)
+        .send()
+        .await
+        .expect("server-scoped control request");
+    assert_eq!(authorized.status(), reqwest::StatusCode::OK);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    scoped_server.abort();
+}
+
+#[tokio::test]
+async fn mt023_process_ownership_route_enforces_exact_account_workspace_scope_without_leaks() {
+    let pg = pg_required(knowledge_pg_support::knowledge_pg().await);
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect process-ownership scope proof store");
+    let owner = OwnerAccountId::mint();
+    let other_owner = OwnerAccountId::mint();
+    let actor = ActorPrincipalId::mint();
+    let session = AuthenticatedSessionRef::mint();
+    let access_space = AccessSpaceRef::mint();
+    let workspace = format!("process-private-{}", Uuid::now_v7());
+    let exact_scope = ExactResourceScopeAttribution {
+        owner_account_id: owner,
+        actor_principal_id: actor,
+        authenticated_session_id: session,
+        access_space_id: access_space,
+        workspace_id: WorkspaceScopeRef::new(&workspace).expect("valid process workspace"),
+    };
+    let process_uuid = Uuid::now_v7();
+    let artifact_sha = hex::encode([0xabu8; 32]);
+    let metadata = json!({
+        "owner_account_id": owner,
+        "actor_principal_id": actor,
+        "authenticated_session_id": session,
+        "access_space_id": access_space,
+        "workspace_id": workspace,
+    });
+    sqlx::query(
+        "INSERT INTO kernel_process_lifecycle \
+         (process_uuid, engine_kind, started_at, owner_role, owner_wp, \
+          model_artifact_sha256, metadata_jsonb) \
+         VALUES ($1, 'llama_cpp', now(), 'KERNEL_BUILDER', 'MT-023', $2, $3)",
+    )
+    .bind(process_uuid)
+    .bind(&artifact_sha)
+    .bind(metadata)
+    .execute(&pool)
+    .await
+    .expect("insert exactly scoped process ownership row");
+
+    let malformed_uuid = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO kernel_process_lifecycle \
+         (process_uuid, engine_kind, started_at, owner_role, owner_wp, metadata_jsonb) \
+         VALUES ($1, 'llama_cpp', now(), 'KERNEL_BUILDER', 'MT-023', $2)",
+    )
+    .bind(malformed_uuid)
+    .bind(json!({
+        "owner_account_id": owner,
+        "workspace_id": workspace,
+        "restricted_identifier": "must-never-leak",
+    }))
+    .execute(&pool)
+    .await
+    .expect("insert partial-attribution decoy row");
+
+    let catalog = ModelCatalog::from_registry(Arc::new(ModelRegistry::default()));
+    let state = app_state_for(&pg.schema_url, catalog).await;
+    let (base_url, server) = start_scoped_server(state.clone(), exact_scope).await;
+    let http = reqwest::Client::new();
+    let route = |id| format!("{base_url}/model-runtime/process-ownership/{id}");
+
+    let owner_response = http
+        .get(route(process_uuid))
+        .header("x-handshake-owner-account", owner.to_string())
+        .header("x-handshake-workspace", &workspace)
+        .send()
+        .await
+        .expect("GET owner process ownership record");
+    assert_eq!(owner_response.status(), reqwest::StatusCode::OK);
+    let owner_record: Value = owner_response.json().await.expect("owner process JSON");
+    assert_eq!(
+        owner_record.get("process_uuid").and_then(Value::as_str),
+        Some(process_uuid.to_string().as_str())
+    );
+
+    let assertion_denied = [
+        http.get(route(process_uuid))
+            .header("x-handshake-owner-account", other_owner.to_string())
+            .header("x-handshake-workspace", &workspace)
+            .send()
+            .await
+            .expect("GET cross-account process record"),
+        http.get(route(process_uuid))
+            .header("x-handshake-owner-account", owner.to_string())
+            .header("x-handshake-workspace", format!("{workspace}-other"))
+            .send()
+            .await
+            .expect("GET wrong-workspace process record"),
+    ];
+    for response in assertion_denied {
+        assert_eq!(response.status(), reqwest::StatusCode::FORBIDDEN);
+        let body = response.text().await.expect("denial response body");
+        assert!(!body.contains(&process_uuid.to_string()));
+        assert!(!body.contains(&malformed_uuid.to_string()));
+        assert!(!body.contains(&artifact_sha));
+        assert!(!body.contains("must-never-leak"));
+    }
+
+    let malformed = http
+        .get(route(malformed_uuid))
+        .header("x-handshake-owner-account", owner.to_string())
+        .header("x-handshake-workspace", &workspace)
+        .send()
+        .await
+        .expect("GET partial-attribution process decoy");
+    assert_eq!(malformed.status(), reqwest::StatusCode::NOT_FOUND);
+    let malformed_body = malformed.text().await.expect("malformed denial body");
+    assert!(!malformed_body.contains(&malformed_uuid.to_string()));
+    assert!(!malformed_body.contains("must-never-leak"));
+
+    let without_assertion_headers = http
+        .get(route(process_uuid))
+        .send()
+        .await
+        .expect("GET process record using only server-owned exact scope");
+    assert_eq!(without_assertion_headers.status(), reqwest::StatusCode::OK);
+    let without_assertion_headers_body = without_assertion_headers
+        .text()
+        .await
+        .expect("server-scoped body without optional assertion headers");
+    assert!(without_assertion_headers_body.contains(&process_uuid.to_string()));
+    assert!(without_assertion_headers_body.contains(&artifact_sha));
+
+    let missing_workspace = http
+        .get(route(process_uuid))
+        .header("x-handshake-owner-account", owner.to_string())
+        .send()
+        .await
+        .expect("GET process record without optional workspace assertion");
+    assert_eq!(missing_workspace.status(), reqwest::StatusCode::OK);
+    let missing_workspace_body = missing_workspace
+        .text()
+        .await
+        .expect("server-scoped body without optional workspace assertion");
+    assert!(missing_workspace_body.contains(&process_uuid.to_string()));
+
+    let (unscoped_base, unscoped_server) = start_server(state).await;
+    let missing_server_scope = http
+        .get(format!(
+            "{unscoped_base}/model-runtime/process-ownership/{process_uuid}"
+        ))
+        .header("x-handshake-owner-account", owner.to_string())
+        .header("x-handshake-workspace", &workspace)
+        .send()
+        .await
+        .expect("GET process record without server scope authority");
+    assert_eq!(
+        missing_server_scope.status(),
+        reqwest::StatusCode::SERVICE_UNAVAILABLE
+    );
+    let missing_server_body = missing_server_scope
+        .text()
+        .await
+        .expect("missing server scope body");
+    assert!(!missing_server_body.contains(&process_uuid.to_string()));
+    assert!(!missing_server_body.contains(&artifact_sha));
+    unscoped_server.abort();
+    server.abort();
+}
+
+#[tokio::test]
+async fn mt023_registry_projection_resolves_same_sha_processes_inside_exact_scope() {
+    let pg = pg_required(knowledge_pg_support::knowledge_pg().await);
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect same-SHA projection collision proof store");
+
+    let owner_a = OwnerAccountId::mint();
+    let owner_b = OwnerAccountId::mint();
+    let actor_a = ActorPrincipalId::mint();
+    let actor_b = ActorPrincipalId::mint();
+    let session_a = AuthenticatedSessionRef::mint();
+    let session_b = AuthenticatedSessionRef::mint();
+    let access_a = AccessSpaceRef::mint();
+    let access_b = AccessSpaceRef::mint();
+    let workspace_a = format!("registry-collision-a-{}", Uuid::now_v7());
+    let workspace_b = format!("registry-collision-b-{}", Uuid::now_v7());
+    let exact_a = ExactResourceScopeAttribution {
+        owner_account_id: owner_a,
+        actor_principal_id: actor_a,
+        authenticated_session_id: session_a,
+        access_space_id: access_a,
+        workspace_id: WorkspaceScopeRef::new(&workspace_a).expect("valid owner-A workspace"),
+    };
+    let exact_b = ExactResourceScopeAttribution {
+        owner_account_id: owner_b,
+        actor_principal_id: actor_b,
+        authenticated_session_id: session_b,
+        access_space_id: access_b,
+        workspace_id: WorkspaceScopeRef::new(&workspace_b).expect("valid owner-B workspace"),
+    };
+    let sha256 = [0xacu8; 32];
+    let artifact_sha = hex::encode(sha256);
+    let model_id = ModelId::new_v7();
+    let durable_registration = registration(
+        model_id,
+        sha256,
+        RuntimeBinding::LlamaCpp,
+        "MT-023 Scoped Process Collision",
+    );
+    let store = ModelRegistryStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(owner_a, actor_a)
+            .with_session(session_a)
+            .with_access_space(access_a)
+            .with_workspace(WorkspaceScopeRef::new(&workspace_a).expect("valid owner-A workspace")),
+    );
+    store
+        .persist_and_read_back(&durable_registration)
+        .await
+        .expect("persist owner-A durable registry row");
+    store
+        .ensure_active_defaults(&[(ModelRuntimeSelectionPurpose::ApplicationDefault, sha256)])
+        .await
+        .expect("persist owner-A default selection");
+
+    let process_a = Uuid::now_v7();
+    let process_b = Uuid::now_v7();
+    let wrong_workspace_process = Uuid::now_v7();
+    let wrong_actor_process = Uuid::now_v7();
+    let wrong_session_process = Uuid::now_v7();
+    let wrong_access_process = Uuid::now_v7();
+    let malformed_process = Uuid::now_v7();
+    let exact_metadata = |owner, actor, session, access, workspace: &str| {
+        json!({
+            "owner_account_id": owner,
+            "actor_principal_id": actor,
+            "authenticated_session_id": session,
+            "access_space_id": access,
+            "workspace_id": workspace,
+        })
+    };
+    for (process_uuid, seconds_ago, metadata) in [
+        (
+            process_a,
+            8_i64,
+            exact_metadata(owner_a, actor_a, session_a, access_a, &workspace_a),
+        ),
+        (
+            process_b,
+            7_i64,
+            exact_metadata(owner_b, actor_b, session_b, access_b, &workspace_b),
+        ),
+        (
+            wrong_workspace_process,
+            6_i64,
+            exact_metadata(
+                owner_a,
+                actor_a,
+                session_a,
+                access_a,
+                &format!("{workspace_a}-wrong"),
+            ),
+        ),
+        (
+            wrong_actor_process,
+            5_i64,
+            exact_metadata(
+                owner_a,
+                ActorPrincipalId::mint(),
+                session_a,
+                access_a,
+                &workspace_a,
+            ),
+        ),
+        (
+            wrong_session_process,
+            4_i64,
+            exact_metadata(
+                owner_a,
+                actor_a,
+                AuthenticatedSessionRef::mint(),
+                access_a,
+                &workspace_a,
+            ),
+        ),
+        (
+            wrong_access_process,
+            3_i64,
+            exact_metadata(
+                owner_a,
+                actor_a,
+                session_a,
+                AccessSpaceRef::mint(),
+                &workspace_a,
+            ),
+        ),
+        (
+            malformed_process,
+            1_i64,
+            json!({
+                "owner_account_id": owner_a,
+                "workspace_id": workspace_a,
+                "restricted_identifier": "malformed-newest-must-not-shadow",
+            }),
+        ),
+    ] {
+        sqlx::query(
+            "INSERT INTO kernel_process_lifecycle \
+             (process_uuid, engine_kind, started_at, owner_role, owner_wp, \
+              model_artifact_sha256, metadata_jsonb) \
+             VALUES ($1, 'llama_cpp', now() - ($2 * interval '1 second'), \
+                     'KERNEL_BUILDER', 'MT-023', $3, $4)",
+        )
+        .bind(process_uuid)
+        .bind(seconds_ago)
+        .bind(&artifact_sha)
+        .bind(metadata)
+        .execute(&pool)
+        .await
+        .expect("insert same-artifact process collision candidate");
+    }
+
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(durable_registration)
+        .expect("register owner-A current-boot model");
+    registry
+        .mark_loaded(model_id)
+        .expect("mark owner-A current-boot model READY");
+    let state = app_state_for(
+        &pg.schema_url,
+        ModelCatalog::from_registry(Arc::new(registry)),
+    )
+    .await;
+    let (base_url, server) = start_scoped_server(state.clone(), exact_a).await;
+    let (base_url_b, server_b) = start_scoped_server(state, exact_b).await;
+    let http = reqwest::Client::new();
+
+    let projection_response = http
+        .get(format!("{base_url}/model-runtime/registry"))
+        .header("x-handshake-owner-account", owner_a.to_string())
+        .header("x-handshake-workspace", &workspace_a)
+        .send()
+        .await
+        .expect("GET owner-A scoped registry projection");
+    assert_eq!(projection_response.status(), reqwest::StatusCode::OK);
+    let projection_body = projection_response
+        .text()
+        .await
+        .expect("owner-A projection body");
+    let projection: ModelRuntimeRegistryProjection =
+        serde_json::from_str(&projection_body).expect("owner-A projection JSON");
+    assert_eq!(projection.rows.len(), 1);
+    assert_eq!(
+        projection.rows[0].process_ownership_ledger_link,
+        ModelRuntimeValue::available(format!(
+            "process-ownership-ledger://process/{process_a}"
+        )),
+        "the newest foreign, wrong-workspace, and malformed rows must not shadow owner A's exact authorized process"
+    );
+    for hidden in [
+        process_b,
+        wrong_workspace_process,
+        wrong_actor_process,
+        wrong_session_process,
+        wrong_access_process,
+        malformed_process,
+    ] {
+        assert!(
+            !projection_body.contains(&hidden.to_string()),
+            "the projection leaked a denied process UUID {hidden}"
+        );
+    }
+    assert!(!projection_body.contains("malformed-newest-must-not-shadow"));
+
+    let detail_route =
+        |process_uuid| format!("{base_url}/model-runtime/process-ownership/{process_uuid}");
+    let detail_a = http
+        .get(detail_route(process_a))
+        .header("x-handshake-owner-account", owner_a.to_string())
+        .header("x-handshake-workspace", &workspace_a)
+        .send()
+        .await
+        .expect("GET owner-A process detail");
+    assert_eq!(detail_a.status(), reqwest::StatusCode::OK);
+    let detail_a_body = detail_a.text().await.expect("owner-A detail body");
+    assert!(detail_a_body.contains(&process_a.to_string()));
+
+    let detail_b = http
+        .get(format!(
+            "{base_url_b}/model-runtime/process-ownership/{process_b}"
+        ))
+        .header("x-handshake-owner-account", owner_b.to_string())
+        .header("x-handshake-workspace", &workspace_b)
+        .send()
+        .await
+        .expect("GET owner-B process detail");
+    assert_eq!(detail_b.status(), reqwest::StatusCode::OK);
+    let detail_b_body = detail_b.text().await.expect("owner-B detail body");
+    assert!(detail_b_body.contains(&process_b.to_string()));
+    assert!(!detail_b_body.contains(&process_a.to_string()));
+
+    for hidden in [
+        process_b,
+        wrong_workspace_process,
+        wrong_actor_process,
+        wrong_session_process,
+        wrong_access_process,
+        malformed_process,
+    ] {
+        let denied = http
+            .get(detail_route(hidden))
+            .header("x-handshake-owner-account", owner_a.to_string())
+            .header("x-handshake-workspace", &workspace_a)
+            .send()
+            .await
+            .expect("GET denied owner-A process detail");
+        assert_eq!(denied.status(), reqwest::StatusCode::NOT_FOUND);
+        let body = denied.text().await.expect("denied detail body");
+        assert!(!body.contains(&hidden.to_string()));
+        assert!(!body.contains(&artifact_sha));
+        assert!(!body.contains("malformed-newest-must-not-shadow"));
+    }
+
+    server.abort();
+    server_b.abort();
 }
 
 #[tokio::test]
@@ -1702,8 +2274,10 @@ async fn mt014_registry_projection_surfaces_live_runtime_telemetry_through_backe
         .await
         .expect("GET telemetry projection");
     assert_eq!(response.status(), reqwest::StatusCode::OK);
-    let projection: ModelRuntimeRegistryProjection =
-        response.json().await.expect("deserialize telemetry projection");
+    let projection: ModelRuntimeRegistryProjection = response
+        .json()
+        .await
+        .expect("deserialize telemetry projection");
     let row = projection
         .rows
         .iter()
@@ -1734,8 +2308,7 @@ async fn mt014_registry_projection_surfaces_live_runtime_telemetry_through_backe
     ));
     match &row.last_call_at_utc {
         ModelRuntimeValue::Available { value } => {
-            chrono::DateTime::parse_from_rfc3339(value)
-                .expect("last-call timestamp is RFC3339");
+            chrono::DateTime::parse_from_rfc3339(value).expect("last-call timestamp is RFC3339");
         }
         other => panic!("last-call time must be available: {other:?}"),
     }
@@ -1753,4 +2326,299 @@ async fn mt014_registry_projection_surfaces_live_runtime_telemetry_through_backe
     );
 
     server.abort();
+}
+
+// MT-006 follow-up: production cloud ProcessLedger receipt -> fresh account API replay.
+// This deliberately lives in the account-facing route suite rather than the provider
+// suite so the proof crosses the storage/API boundary instead of re-reading SQL directly.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt006_cloud_stop_process_ownership_route_replays_exact_scope_without_identifier_leaks() {
+    const CLOUD_MODEL_NAME: &str = "mt006-route-proof-cloud-model";
+    const PARENT_SESSION_ID: &str = "mt006-route-proof-parent-session";
+    const STOP_REASON: &str = "mt006-route-proof-complete";
+
+    let pg = pg_required(knowledge_pg_support::knowledge_pg().await);
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect MT-006 process-ownership route proof store");
+
+    let owner = OwnerAccountId::mint();
+    let actor = ActorPrincipalId::mint();
+    let session = AuthenticatedSessionRef::mint();
+    let access_space = AccessSpaceRef::mint();
+    let workspace = WorkspaceScopeRef::new(format!("mt006-route-proof-{}", Uuid::now_v7()))
+        .expect("valid MT-006 route proof workspace");
+    let exact_scope = ExactResourceScopeAttribution {
+        owner_account_id: owner,
+        actor_principal_id: actor,
+        authenticated_session_id: session,
+        access_space_id: access_space,
+        workspace_id: workspace.clone(),
+    };
+    let write_scope = ResourceScope::new(owner, actor)
+        .with_session(session)
+        .with_access_space(access_space)
+        .with_workspace(workspace.clone());
+    let lane_store = ModelLaneStore::new_scoped(pool.clone(), write_scope);
+
+    let process_store = Arc::new(PostgresProcessLedgerStore::new(pool));
+    process_store
+        .apply_migration()
+        .await
+        .expect("real PostgreSQL ProcessLedger authority is ready");
+    let (ledger, writer) = LedgerBatcher::spawn(
+        process_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig {
+            capacity: 8,
+            batch_size: 1,
+            flush_interval: Duration::from_millis(1),
+        },
+    );
+
+    let builder_model_id = ModelId::new_v7();
+    let factory = ProductionModelSessionFactory::new(
+        ledger.clone(),
+        CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: Some(Arc::new(Mt006OwnershipCloudBuilder {
+                model_id: builder_model_id,
+            })),
+            official_cli: None,
+            official_cli_by_provider: Default::default(),
+        },
+        None,
+    )
+    .with_durable_worktree_vm_store(&lane_store);
+    let mut request = SpawnRequest::new(
+        ModelInstanceId::new(ModelId::new_v7(), 6),
+        RuntimeBinding::Candle,
+        "KERNEL_BUILDER-MT006",
+        PARENT_SESSION_ID,
+    )
+    .with_cloud_provider(ProviderKind::ByokCloud, CLOUD_MODEL_NAME);
+    request.owner_wp = Some("MT-006".to_owned());
+    request.mt_id = Some("MT-006".to_owned());
+
+    let live = factory
+        .create(&request)
+        .await
+        .expect("actual scoped production factory creates the BYOK cloud receipt");
+    assert_eq!(
+        live.model_id, builder_model_id,
+        "the proof must retain the concrete provider model identifier"
+    );
+    let process_uuid = live.process_record_id.as_uuid();
+    let stop = live
+        .ledger_lifecycle
+        .as_ref()
+        .expect("pidless cloud session owns its complete ProcessLedger lifecycle")
+        .stop_with_durable_ack(Some(0), STOP_REASON, Duration::from_secs(5))
+        .await
+        .expect("cloud STOP reaches durable acknowledgement");
+    assert!(
+        matches!(stop, StopRecordOutcome::Recorded),
+        "the first cloud STOP must be newly recorded, not replayed: {stop:?}"
+    );
+    ledger.begin_close();
+    let drain = drain_and_join_ledger_writer(&ledger, writer, Duration::from_secs(5)).await;
+    assert!(
+        matches!(drain, LedgerDrainJoinOutcome::Flushed),
+        "the fresh API consumer must start only after the ledger writer flushes: {drain:?}"
+    );
+
+    // Construct the API state only after the terminal write and writer drain. This is a
+    // clean replay through a new pool/server, not visibility through the producer handle.
+    let catalog = ModelCatalog::from_registry(Arc::new(ModelRegistry::default()));
+    let state = app_state_for(&pg.schema_url, catalog).await;
+    let http = reqwest::Client::new();
+    let (owner_base, owner_server) = start_scoped_server(state.clone(), exact_scope.clone()).await;
+    let owner_response = http
+        .get(format!(
+            "{owner_base}/model-runtime/process-ownership/{process_uuid}"
+        ))
+        .send()
+        .await
+        .expect("fresh owner server replays the terminal cloud receipt");
+    assert_eq!(owner_response.status(), reqwest::StatusCode::OK);
+    let owner_record: Value = owner_response
+        .json()
+        .await
+        .expect("deserialize owner-visible terminal cloud receipt");
+    assert_eq!(owner_record["process_uuid"], process_uuid.to_string());
+    assert!(
+        owner_record["stopped_at_utc"].as_str().is_some(),
+        "fresh route replay must expose the final STOP timestamp: {owner_record}"
+    );
+    assert_eq!(owner_record["exit_code"], 0);
+    assert_eq!(owner_record["stop_reason"], STOP_REASON);
+    assert_eq!(owner_record["owner_role"], "KERNEL_BUILDER-MT006");
+    assert_eq!(owner_record["owner_wp"], "MT-006");
+    owner_server.abort();
+
+    let wrong_scopes = [
+        (
+            "owner",
+            ExactResourceScopeAttribution {
+                owner_account_id: OwnerAccountId::mint(),
+                ..exact_scope.clone()
+            },
+        ),
+        (
+            "actor",
+            ExactResourceScopeAttribution {
+                actor_principal_id: ActorPrincipalId::mint(),
+                ..exact_scope.clone()
+            },
+        ),
+        (
+            "session",
+            ExactResourceScopeAttribution {
+                authenticated_session_id: AuthenticatedSessionRef::mint(),
+                ..exact_scope.clone()
+            },
+        ),
+        (
+            "access-space",
+            ExactResourceScopeAttribution {
+                access_space_id: AccessSpaceRef::mint(),
+                ..exact_scope.clone()
+            },
+        ),
+        (
+            "workspace",
+            ExactResourceScopeAttribution {
+                workspace_id: WorkspaceScopeRef::new(format!(
+                    "mt006-route-proof-wrong-{}",
+                    Uuid::now_v7()
+                ))
+                .expect("valid wrong workspace"),
+                ..exact_scope
+            },
+        ),
+    ];
+    let forbidden_identifiers = [
+        process_uuid.to_string(),
+        builder_model_id.to_string(),
+        owner.to_string(),
+        CLOUD_MODEL_NAME.to_owned(),
+        PARENT_SESSION_ID.to_owned(),
+    ];
+    for (dimension, wrong_scope) in wrong_scopes {
+        let (wrong_base, wrong_server) = start_scoped_server(state.clone(), wrong_scope).await;
+        let denied = http
+            .get(format!(
+                "{wrong_base}/model-runtime/process-ownership/{process_uuid}"
+            ))
+            .send()
+            .await
+            .unwrap_or_else(|error| panic!("query fresh wrong-{dimension} server: {error}"));
+        assert_eq!(
+            denied.status(),
+            reqwest::StatusCode::NOT_FOUND,
+            "same-record lookup under wrong {dimension} must be absent-shaped"
+        );
+        let denied_body = denied
+            .text()
+            .await
+            .unwrap_or_else(|error| panic!("read wrong-{dimension} denial body: {error}"));
+        assert_eq!(
+            serde_json::from_str::<Value>(&denied_body).expect("denial is JSON"),
+            json!({
+                "error": "MODEL_RUNTIME_REGISTRY_UNAVAILABLE",
+                "detail": "the requested process ownership record is unavailable",
+            }),
+            "wrong {dimension} must receive only the canonical absent shape"
+        );
+        for identifier in &forbidden_identifiers {
+            assert!(
+                !denied_body.contains(identifier),
+                "wrong {dimension} response leaked identifier {identifier}: {denied_body}"
+            );
+        }
+        wrong_server.abort();
+    }
+}
+
+struct Mt006OwnershipCloudBuilder {
+    model_id: ModelId,
+}
+
+#[async_trait]
+impl CloudRuntimeBuilder for Mt006OwnershipCloudBuilder {
+    fn provider(&self) -> ProviderKind {
+        ProviderKind::ByokCloud
+    }
+
+    async fn build_loaded(
+        &self,
+        _model_name: &str,
+        _invocation_context: Option<handshake_core::model_runtime::cloud::CliInvocationContext>,
+        _working_dir: Option<&str>,
+    ) -> Result<CloudLiveRuntime, String> {
+        Ok(CloudLiveRuntime {
+            runtime: Arc::new(Mt006OwnershipCloudRuntime),
+            model_id: self.model_id,
+        })
+    }
+}
+
+struct Mt006OwnershipCloudRuntime;
+
+#[async_trait]
+impl ModelRuntime for Mt006OwnershipCloudRuntime {
+    async fn load(
+        &mut self,
+        _spec: handshake_core::model_runtime::LoadSpec,
+    ) -> Result<ModelId, ModelRuntimeError> {
+        Ok(ModelId::new_v7())
+    }
+
+    async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn generate(&self, _request: GenerateRequest) -> TokenStream {
+        Box::pin(stream::empty())
+    }
+
+    async fn score(&self, _id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        Ok(Score {
+            token_logprobs: Vec::new(),
+            mean_logprob: 0.0,
+        })
+    }
+
+    async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
+        Ok(Embedding { vector: Vec::new() })
+    }
+
+    fn capabilities(&self, _id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "mt006-route-proof".into(),
+            adapter: "mt006-route-proof-runtime".into(),
+        })
+    }
+
+    fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
+        Err(ModelRuntimeError::KvCacheError("mt006-route-proof".into()))
+    }
+
+    fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
+        Err(ModelRuntimeError::LoraStackError(
+            "mt006-route-proof".into(),
+        ))
+    }
+
+    fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
+        Err(ModelRuntimeError::SteeringHookError(
+            "mt006-route-proof".into(),
+        ))
+    }
+
+    fn cancel(&self, token: CancellationToken) {
+        token.cancel();
+    }
 }

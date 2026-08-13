@@ -37,6 +37,10 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneContextBundleArtifactBinding, NewModelLaneContextBundleHandoff,
     NewModelLaneMessage, NewModelLaneRun, RuntimeBinding,
 };
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
+    ResourceScopeQuery, WorkspaceScopeRef,
+};
 use handshake_core::swarm_orchestration::{
     LiveSession, ModelSessionFactory, RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig,
     SwarmCoordinator, SwarmError, SwarmResult,
@@ -45,6 +49,781 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use yrs::updates::{decoder::Decode, encoder::Encode};
 use yrs::{Doc, ReadTxn, StateVector, Text, Transact, Update};
+
+#[tokio::test]
+async fn context_bundle_record_and_consume_share_one_canonical_lock_order() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL is required for ContextBundle lock-order proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(8)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated ContextBundle lock-order schema");
+    let store = ModelLaneStore::new_scoped(
+        pool,
+        exact_context_bundle_scope("workspace-mt005-lock-order"),
+    );
+    seed_run_with_messages(&store).await;
+    let mut initial = sample_handoff(
+        "handoff-lock-order-initial",
+        "idem-handoff-lock-order-initial",
+        "msg-proposal-001",
+        "lane-local",
+        ModelLaneHandoffSourceKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        ModelLaneHandoffSelectionState::Selected,
+    );
+    initial.context_bundle_id = model_lane_context_bundle_id_for_handoff(&initial)
+        .expect("derive initial lock-order ContextBundle id");
+    let context_bundle_id = initial.context_bundle_id.clone();
+    store
+        .record_context_bundle_handoff(initial)
+        .await
+        .expect("record initial consumable ContextBundle");
+
+    for round in 0..12 {
+        let barrier = Arc::new(tokio::sync::Barrier::new(3));
+        let writer_store = store.clone();
+        let writer_barrier = barrier.clone();
+        let writer = tokio::spawn(async move {
+            let handoff_id = format!("handoff-lock-order-{round}");
+            let mut handoff = sample_handoff(
+                &handoff_id,
+                &format!("idem-{handoff_id}"),
+                "msg-proposal-001",
+                "lane-local",
+                ModelLaneHandoffSourceKind::Proposal,
+                artifact_payload_hash("msg-proposal-001"),
+                ModelLaneHandoffSelectionState::Selected,
+            );
+            handoff.context_bundle_id = model_lane_context_bundle_id_for_handoff(&handoff)
+                .expect("derive concurrent ContextBundle id");
+            writer_barrier.wait().await;
+            writer_store.record_context_bundle_handoff(handoff).await
+        });
+        let consumer_store = store.clone();
+        let consumer_barrier = barrier.clone();
+        let consumer_context = context_bundle_id.clone();
+        let consumer = tokio::spawn(async move {
+            consumer_barrier.wait().await;
+            consumer_store
+                .consume_context_bundle_for_downstream("run-mt005", &consumer_context, "lane-cloud")
+                .await
+        });
+        barrier.wait().await;
+        let (writer, consumer) = tokio::time::timeout(Duration::from_secs(10), async {
+            tokio::join!(writer, consumer)
+        })
+        .await
+        .unwrap_or_else(|_| panic!("record/consume lock-order deadlock in round {round}"));
+        writer
+            .expect("writer task joins")
+            .expect("concurrent handoff records");
+        consumer
+            .expect("consumer task joins")
+            .expect("concurrent ContextBundle consumes");
+    }
+}
+
+#[tokio::test]
+async fn context_bundle_consumer_blocks_on_run_before_acquiring_downstream_lane() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL is required for forced ContextBundle lock-order proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(8)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated forced lock-order schema");
+    let store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        exact_context_bundle_scope("workspace-mt005-forced-lock-order"),
+    );
+    seed_run_with_messages(&store).await;
+    let mut initial = sample_handoff(
+        "handoff-forced-lock-order",
+        "idem-handoff-forced-lock-order",
+        "msg-proposal-001",
+        "lane-local",
+        ModelLaneHandoffSourceKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        ModelLaneHandoffSelectionState::Selected,
+    );
+    initial.context_bundle_id = model_lane_context_bundle_id_for_handoff(&initial)
+        .expect("derive forced lock-order ContextBundle id");
+    let context_bundle_id = initial.context_bundle_id.clone();
+    store
+        .record_context_bundle_handoff(initial)
+        .await
+        .expect("record forced lock-order ContextBundle");
+
+    let mut blocker = pool.begin().await.expect("begin run-row blocker");
+    sqlx::query("SELECT run_id FROM model_lane_runs WHERE run_id = $1 FOR UPDATE")
+        .bind("run-mt005")
+        .fetch_one(&mut *blocker)
+        .await
+        .expect("hold canonical run row");
+    let consumer_store = store.clone();
+    let consumer = tokio::spawn(async move {
+        consumer_store
+            .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+            .await
+    });
+
+    let blocked_pid = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let pid: Option<i32> = sqlx::query_scalar(
+                "SELECT pid FROM pg_stat_activity \
+                 WHERE application_name = 'hsk:cb:consume:run-mt005' \
+                   AND cardinality(pg_blocking_pids(pid)) > 0 \
+                 ORDER BY pid LIMIT 1",
+            )
+            .fetch_optional(&pool)
+            .await
+            .expect("sample blocked ContextBundle consumer");
+            if let Some(pid) = pid {
+                break pid;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("consumer must visibly block on the held run row");
+    assert!(blocked_pid > 0);
+
+    // This NOWAIT is the decisive ordering probe. If the consumer acquired the
+    // lane before attempting the run row, this statement would fail or form the
+    // historical run/lane cycle. Canonical run-first ordering leaves it free.
+    sqlx::query("SELECT lane_id FROM model_lanes WHERE lane_id = $1 FOR UPDATE NOWAIT")
+        .bind("lane-cloud")
+        .fetch_one(&mut *blocker)
+        .await
+        .expect("blocked consumer must not hold downstream lane before run");
+    blocker
+        .commit()
+        .await
+        .expect("release forced run-row blocker");
+    tokio::time::timeout(Duration::from_secs(10), consumer)
+        .await
+        .expect("consumer completes after canonical run lock release")
+        .expect("consumer task joins")
+        .expect("consumer succeeds after forced contention");
+}
+
+#[tokio::test]
+async fn context_bundle_derivation_rejects_run_lane_and_non_crdt_message_ledger_drift() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL/EventLedger is required for ContextBundle source-authority proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated ContextBundle source-authority schema");
+    let owner_scope = exact_context_bundle_scope("workspace-mt005-source-authority");
+    let owner_store = ModelLaneStore::new_scoped(pool.clone(), owner_scope.clone());
+    seed_run_with_messages(&owner_store).await;
+
+    // Counterfactual: a forged projection scope must not manufacture authority
+    // to derive a new ArtifactStore/EventLedger binding from a run whose
+    // immutable EventLedger authority still belongs to another exact reader.
+    let forged_actor = ActorPrincipalId::mint();
+    sqlx::query("UPDATE model_lane_runs SET actor_principal_id = $2 WHERE run_id = $1")
+        .bind("run-mt005")
+        .bind(forged_actor.as_uuid())
+        .execute(&pool)
+        .await
+        .expect("forge run projection exact scope for artifact derivation");
+    let forged_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope {
+            actor_principal_id: forged_actor,
+            ..owner_scope.clone()
+        },
+    );
+    let mut forged_binding = sample_artifact_binding_for_message(&advisory_message(
+        "msg-proposal-001",
+        "idem-unused-forged-run-artifact-source",
+        "lane-local",
+        ModelLaneMessageKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        "forged run scope must not authorize an artifact derivative",
+    ));
+    forged_binding.artifact_binding_id = "artifact-binding-forged-run-authority".into();
+    forged_binding.idempotency_key = "idem-artifact-binding-forged-run-authority".into();
+    assert!(
+        forged_store
+            .record_context_bundle_artifact_binding(forged_binding.clone())
+            .await
+            .is_err(),
+        "forged run projection scope manufactured artifact authority"
+    );
+    sqlx::query("UPDATE model_lane_runs SET actor_principal_id = $2 WHERE run_id = $1")
+        .bind("run-mt005")
+        .bind(owner_scope.actor_principal_id.as_uuid())
+        .execute(&pool)
+        .await
+        .expect("restore run projection scope after artifact negative");
+    let forged_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_binding_id = $1",
+    )
+    .bind(&forged_binding.artifact_binding_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count forged artifact projection rows");
+    let forged_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'model_lane_context_bundle_artifact' AND aggregate_id = $1",
+    )
+    .bind(&forged_binding.artifact_binding_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count forged artifact EventLedger rows");
+    assert_eq!((forged_rows, forged_events), (0, 0));
+
+    // Counterfactual: the idempotent-return branch must reconcile the stored
+    // artifact projection with its immutable exact-scoped EventLedger row.
+    let artifact_id = "artifact-binding-msg-proposal-001";
+    let artifact_event_id: String = sqlx::query_scalar(
+        "SELECT event_ledger_event_id FROM model_lane_context_bundle_artifacts WHERE artifact_binding_id = $1",
+    )
+    .bind(artifact_id)
+    .fetch_one(&pool)
+    .await
+    .expect("read artifact EventLedger id");
+    let artifact_payload: serde_json::Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&artifact_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("read artifact EventLedger payload");
+    sqlx::query(
+        "UPDATE kernel_event_ledger SET payload = jsonb_set(payload, '{resource_scope,actor_principal_id}', to_jsonb($2::uuid)) WHERE event_id = $1",
+    )
+    .bind(&artifact_event_id)
+    .bind(ActorPrincipalId::mint().as_uuid())
+    .execute(&pool)
+    .await
+    .expect("tamper artifact EventLedger scope");
+    let retry_binding = sample_artifact_binding_for_message(&advisory_message(
+        "msg-proposal-001",
+        "idem-unused-artifact-retry-source",
+        "lane-local",
+        ModelLaneMessageKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        "idempotent artifact retry must revalidate EventLedger authority",
+    ));
+    let retry = owner_store
+        .record_context_bundle_artifact_binding(retry_binding)
+        .await;
+    sqlx::query("UPDATE kernel_event_ledger SET payload = $2 WHERE event_id = $1")
+        .bind(&artifact_event_id)
+        .bind(artifact_payload)
+        .execute(&pool)
+        .await
+        .expect("restore artifact EventLedger payload");
+    assert!(
+        retry.is_err(),
+        "idempotent artifact retry accepted EventLedger scope drift"
+    );
+
+    let source_events = [
+        (
+            "run",
+            sqlx::query_scalar::<_, String>(
+                "SELECT event_ledger_event_id FROM model_lane_runs WHERE run_id = 'run-mt005'",
+            )
+            .fetch_one(&pool)
+            .await
+            .expect("read source run EventLedger id"),
+        ),
+        (
+            "lane",
+            sqlx::query_scalar::<_, String>(
+                "SELECT event_ledger_event_id FROM model_lanes WHERE lane_id = 'lane-local'",
+            )
+            .fetch_one(&pool)
+            .await
+            .expect("read source lane EventLedger id"),
+        ),
+        (
+            "message",
+            sqlx::query_scalar::<_, String>(
+                "SELECT event_ledger_event_id FROM model_lane_messages WHERE message_id = 'msg-proposal-001'",
+            )
+            .fetch_one(&pool)
+            .await
+            .expect("read non-CRDT source message EventLedger id"),
+        ),
+    ];
+
+    for (source_kind, event_id) in source_events {
+        let original_payload: serde_json::Value =
+            sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+                .bind(&event_id)
+                .fetch_one(&pool)
+                .await
+                .expect("read source authority payload before tamper");
+        let forged_actor = ActorPrincipalId::mint();
+        assert_ne!(
+            original_payload["actor_principal_id"],
+            json!(forged_actor),
+            "counterfactual actor must differ from the source authority",
+        );
+        sqlx::query(
+            "UPDATE kernel_event_ledger \
+             SET payload = jsonb_set(payload, '{actor_principal_id}', to_jsonb($2::uuid)) \
+             WHERE event_id = $1",
+        )
+        .bind(&event_id)
+        .bind(forged_actor.as_uuid())
+        .execute(&pool)
+        .await
+        .expect("tamper source EventLedger exact scope");
+        let tampered_payload: serde_json::Value =
+            sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+                .bind(&event_id)
+                .fetch_one(&pool)
+                .await
+                .expect("read source authority payload after tamper");
+        assert_ne!(
+            tampered_payload, original_payload,
+            "{source_kind} EventLedger counterfactual did not alter the payload"
+        );
+
+        let handoff_id = format!("handoff-source-{source_kind}-ledger-drift");
+        let mut handoff = sample_handoff(
+            &handoff_id,
+            &format!("idem-{handoff_id}"),
+            "msg-proposal-001",
+            "lane-local",
+            ModelLaneHandoffSourceKind::Proposal,
+            artifact_payload_hash("msg-proposal-001"),
+            ModelLaneHandoffSelectionState::Selected,
+        );
+        handoff.context_bundle_id = model_lane_context_bundle_id_for_handoff(&handoff)
+            .expect("derive source-authority ContextBundle id");
+        let result = owner_store.record_context_bundle_handoff(handoff).await;
+
+        sqlx::query("UPDATE kernel_event_ledger SET payload = $2 WHERE event_id = $1")
+            .bind(&event_id)
+            .bind(original_payload)
+            .execute(&pool)
+            .await
+            .expect("restore source authority payload after negative proof");
+
+        assert!(
+            result.is_err(),
+            "ContextBundle handoff accepted {source_kind} projection/EventLedger authority drift"
+        );
+        let handoff_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_context_bundle_handoffs WHERE handoff_id = $1",
+        )
+        .bind(&handoff_id)
+        .fetch_one(&pool)
+        .await
+        .expect("count rejected ContextBundle handoff rows");
+        let ledger_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM kernel_event_ledger \
+             WHERE aggregate_type = 'model_lane_context_bundle_handoff' AND aggregate_id = $1",
+        )
+        .bind(&handoff_id)
+        .fetch_one(&pool)
+        .await
+        .expect("count rejected ContextBundle ledger rows");
+        assert_eq!(handoff_rows, 0, "rejected handoff left a projection row");
+        assert_eq!(
+            ledger_rows, 0,
+            "rejected handoff appended an EventLedger row"
+        );
+    }
+}
+
+#[tokio::test]
+async fn context_bundle_and_derived_refs_retain_exact_scope_and_deny_context_switches() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL/EventLedger is required for MT-005 exact-scope proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated MT-005 exact-scope schema");
+
+    let owner_scope = exact_context_bundle_scope("workspace-mt005");
+    let owner_store = ModelLaneStore::new_scoped(pool.clone(), owner_scope.clone());
+    seed_run_with_messages(&owner_store).await;
+
+    // A derived handoff may not borrow an owner-scoped source and then stamp
+    // itself under a different actor/session/AccessSpace. This is the write-
+    // boundary half of HBR-PRIV-004 non-widening.
+    let mut foreign_derivative = sample_handoff(
+        "handoff-foreign-derivative",
+        "idem-handoff-foreign-derivative",
+        "msg-proposal-001",
+        "lane-local",
+        ModelLaneHandoffSourceKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        ModelLaneHandoffSelectionState::Selected,
+    );
+    foreign_derivative.context_bundle_id =
+        model_lane_context_bundle_id_for_handoff(&foreign_derivative)
+            .expect("derive foreign ContextBundle id");
+    let wrong_actor_scope = ResourceScope {
+        actor_principal_id: ActorPrincipalId::mint(),
+        ..owner_scope.clone()
+    };
+    let wrong_actor_store = ModelLaneStore::new_scoped(pool.clone(), wrong_actor_scope.clone());
+    let mut foreign_binding = sample_artifact_binding_for_message(&advisory_message(
+        "msg-proposal-001",
+        "idem-unused-foreign-binding-source",
+        "lane-local",
+        ModelLaneMessageKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        "foreign binding must not retarget the owner's source run",
+    ));
+    foreign_binding.artifact_binding_id = "artifact-binding-foreign-derivative".into();
+    foreign_binding.idempotency_key = "idem-artifact-binding-foreign-derivative".into();
+    let foreign_binding_write = wrong_actor_store
+        .record_context_bundle_artifact_binding(foreign_binding.clone())
+        .await;
+    assert!(
+        foreign_binding_write.is_err(),
+        "an ArtifactStore derivative must not widen or retarget its source scope"
+    );
+    let foreign_binding_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_binding_id = $1",
+    )
+    .bind(&foreign_binding.artifact_binding_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count rejected foreign artifact-binding rows");
+    assert_eq!(
+        foreign_binding_rows, 0,
+        "scope-denied artifact derivation must leave no PostgreSQL or EventLedger projection row"
+    );
+    let foreign_write = wrong_actor_store
+        .record_context_bundle_handoff(foreign_derivative.clone())
+        .await;
+    assert!(
+        foreign_write.is_err(),
+        "a ContextBundle derivative must not widen or retarget its source scope"
+    );
+    let foreign_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_handoffs WHERE handoff_id = $1",
+    )
+    .bind(&foreign_derivative.handoff_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count rejected foreign derivative rows");
+    assert_eq!(
+        foreign_rows, 0,
+        "scope-denied derivation must leave no PostgreSQL or EventLedger projection row"
+    );
+
+    let mut handoff = sample_handoff(
+        "handoff-exact-scope",
+        "idem-handoff-exact-scope",
+        "msg-proposal-001",
+        "lane-local",
+        ModelLaneHandoffSourceKind::Proposal,
+        artifact_payload_hash("msg-proposal-001"),
+        ModelLaneHandoffSelectionState::Selected,
+    );
+    handoff.context_bundle_id = model_lane_context_bundle_id_for_handoff(&handoff)
+        .expect("derive exact-scope ContextBundle id");
+    let context_bundle_id = handoff.context_bundle_id.clone();
+    let stored = owner_store
+        .record_context_bundle_handoff(handoff)
+        .await
+        .expect("owner records exact-scoped ContextBundle handoff");
+
+    // Positive control: the exact owner context can replay and consume its
+    // own PostgreSQL/EventLedger/ArtifactStore-backed ContextBundle.
+    assert_eq!(
+        owner_store
+            .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+            .await
+            .expect("exact owner replays ContextBundle")
+            .len(),
+        1
+    );
+    assert_eq!(
+        owner_store
+            .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+            .await
+            .expect("exact owner consumes ContextBundle")
+            .records
+            .len(),
+        1
+    );
+
+    let wrong_scopes = [
+        (
+            "owner",
+            ResourceScope {
+                owner_account_id: OwnerAccountId::mint(),
+                ..owner_scope.clone()
+            },
+        ),
+        ("actor", wrong_actor_scope),
+        (
+            "session",
+            ResourceScope {
+                authenticated_session: Some(AuthenticatedSessionRef::mint()),
+                ..owner_scope.clone()
+            },
+        ),
+        (
+            "access-space",
+            ResourceScope {
+                access_space: Some(AccessSpaceRef::mint()),
+                ..owner_scope.clone()
+            },
+        ),
+        (
+            "workspace",
+            ResourceScope {
+                workspace: Some(WorkspaceScopeRef::new("workspace-foreign").unwrap()),
+                ..owner_scope.clone()
+            },
+        ),
+    ];
+    for (dimension, wrong_scope) in wrong_scopes {
+        let reader = ModelLaneStore::new_scoped(pool.clone(), wrong_scope);
+        let replay = reader
+            .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+            .await
+            .expect("a complete mismatched scope must produce an explicit empty replay");
+        assert!(
+            replay.is_empty(),
+            "{dimension} mismatch disclosed ContextBundle records: {replay:?}"
+        );
+        let consume = reader
+            .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+            .await;
+        assert!(
+            consume.is_err(),
+            "{dimension} mismatch consumed an exact-scoped ContextBundle"
+        );
+        let denial = consume
+            .expect_err("mismatched context must fail closed")
+            .to_string();
+        assert!(
+            !denial.contains(&stored.handoff_id)
+                && !denial.contains(&stored.artifact_ref)
+                && !denial.contains(&owner_scope.actor_principal_id.to_string())
+                && !denial.contains(
+                    &owner_scope
+                        .authenticated_session
+                        .expect("exact owner session")
+                        .to_string(),
+                ),
+            "scope denial must not disclose foreign identifiers: {denial}"
+        );
+    }
+
+    let incomplete_readers = [
+        (
+            "actor",
+            ModelLaneStore::new_for_owner(
+                pool.clone(),
+                ResourceScopeQuery::for_owner(owner_scope.owner_account_id).within_workspace(
+                    owner_scope
+                        .workspace
+                        .clone()
+                        .expect("exact owner workspace"),
+                ),
+            ),
+        ),
+        (
+            "session",
+            ModelLaneStore::new_scoped(
+                pool.clone(),
+                ResourceScope {
+                    authenticated_session: None,
+                    ..owner_scope.clone()
+                },
+            ),
+        ),
+        (
+            "access-space",
+            ModelLaneStore::new_scoped(
+                pool.clone(),
+                ResourceScope {
+                    access_space: None,
+                    ..owner_scope.clone()
+                },
+            ),
+        ),
+        (
+            "workspace",
+            ModelLaneStore::new_scoped(
+                pool.clone(),
+                ResourceScope {
+                    workspace: None,
+                    ..owner_scope.clone()
+                },
+            ),
+        ),
+    ];
+    for (dimension, reader) in incomplete_readers {
+        let replay = reader
+            .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+            .await
+            .expect_err("incomplete ContextBundle read authority must fail closed");
+        assert!(
+            replay.to_string().contains(
+                "exact owner, Principal, authenticated session, AccessSpace, and workspace"
+            ),
+            "missing {dimension} authority must be explicit: {replay}"
+        );
+        let consume = reader
+            .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+            .await
+            .expect_err("incomplete ContextBundle consume authority must fail closed");
+        assert!(
+            consume.to_string().contains(
+                "exact owner, Principal, authenticated session, AccessSpace, and workspace"
+            ),
+            "missing {dimension} consume authority must be explicit: {consume}"
+        );
+    }
+
+    let expected_scope = (
+        owner_scope.owner_account_id.to_string(),
+        owner_scope.actor_principal_id.to_string(),
+        owner_scope
+            .authenticated_session
+            .expect("exact owner session")
+            .to_string(),
+        owner_scope
+            .access_space
+            .expect("exact owner AccessSpace")
+            .to_string(),
+        owner_scope
+            .workspace
+            .as_ref()
+            .expect("exact owner workspace")
+            .as_str()
+            .to_owned(),
+    );
+    let handoff_scope: (String, String, String, String, String) = sqlx::query_as(
+        "SELECT owner_account_id::text, actor_principal_id::text, \
+                authenticated_session_id::text, access_space_id::text, workspace_id \
+         FROM model_lane_context_bundle_handoffs WHERE handoff_id = $1",
+    )
+    .bind(&stored.handoff_id)
+    .fetch_one(&pool)
+    .await
+    .expect("read persisted ContextBundle exact scope");
+    assert_eq!(handoff_scope, expected_scope);
+
+    let artifact_scope: (String, String, String, String, String) = sqlx::query_as(
+        "SELECT owner_account_id::text, actor_principal_id::text, \
+                authenticated_session_id::text, access_space_id::text, workspace_id \
+         FROM model_lane_context_bundle_artifacts \
+         WHERE run_id = 'run-mt005' AND artifact_ref = $1",
+    )
+    .bind(&stored.artifact_ref)
+    .fetch_one(&pool)
+    .await
+    .expect("read derived ArtifactStore reference exact scope");
+    assert_eq!(
+        artifact_scope, expected_scope,
+        "derived artifact ref must retain the source ContextBundle scope"
+    );
+
+    let event_scope: serde_json::Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&stored.event_ledger_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("read exact-scoped ContextBundle EventLedger payload");
+    assert_eq!(
+        event_scope["resource_scope"]["owner_account_id"],
+        json!(owner_scope.owner_account_id),
+        "EventLedger authority must retain the ContextBundle owner scope"
+    );
+    assert_eq!(
+        event_scope["resource_scope"]["actor_principal_id"],
+        json!(owner_scope.actor_principal_id),
+        "EventLedger authority must retain the ContextBundle acting Principal"
+    );
+    assert_eq!(
+        event_scope["resource_scope"]["authenticated_session_id"],
+        json!(owner_scope
+            .authenticated_session
+            .expect("exact owner session")),
+        "EventLedger authority must retain the ContextBundle authenticated session"
+    );
+    assert_eq!(
+        event_scope["resource_scope"]["access_space_id"],
+        json!(owner_scope.access_space.expect("exact owner AccessSpace")),
+        "EventLedger authority must retain the ContextBundle AccessSpace"
+    );
+    assert_eq!(
+        event_scope["resource_scope"]["workspace_id"],
+        json!(owner_scope.workspace.expect("exact owner workspace")),
+        "EventLedger authority must retain the ContextBundle workspace"
+    );
+
+    let forged_actor = ActorPrincipalId::mint();
+    let (artifact_event_id, artifact_event_payload): (String, serde_json::Value) = sqlx::query_as(
+        "SELECT artifacts.event_ledger_event_id, ledger.payload \
+             FROM model_lane_context_bundle_artifacts artifacts \
+             JOIN kernel_event_ledger ledger ON ledger.event_id = artifacts.event_ledger_event_id \
+             WHERE artifacts.run_id = 'run-mt005' AND artifacts.artifact_ref = $1",
+    )
+    .bind(&stored.artifact_ref)
+    .fetch_one(&pool)
+    .await
+    .expect("read ARTIFACT_STORED authority for scope-tamper proof");
+    sqlx::query(
+        "UPDATE kernel_event_ledger \
+         SET payload = jsonb_set(payload, '{resource_scope,actor_principal_id}', to_jsonb($2::uuid)) \
+         WHERE event_id = $1",
+    )
+    .bind(&artifact_event_id)
+    .bind(forged_actor.as_uuid())
+    .execute(&pool)
+    .await
+    .expect("tamper ARTIFACT_STORED EventLedger resource_scope for negative proof");
+    let artifact_tamper = owner_store
+        .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+        .await;
+    sqlx::query("UPDATE kernel_event_ledger SET payload = $2 WHERE event_id = $1")
+        .bind(&artifact_event_id)
+        .bind(artifact_event_payload)
+        .execute(&pool)
+        .await
+        .expect("restore ARTIFACT_STORED authority after scope-tamper proof");
+    let artifact_tamper =
+        artifact_tamper.expect_err("ARTIFACT_STORED resource_scope drift must fail closed");
+    assert!(
+        artifact_tamper.to_string().contains("resource_scope"),
+        "artifact scope-authority tamper denial must identify the mismatched surface: {artifact_tamper}"
+    );
+
+    sqlx::query(
+        "UPDATE kernel_event_ledger \
+         SET payload = jsonb_set(payload, '{resource_scope,actor_principal_id}', to_jsonb($2::uuid)) \
+         WHERE event_id = $1",
+    )
+    .bind(&stored.event_ledger_event_id)
+    .bind(forged_actor.as_uuid())
+    .execute(&pool)
+    .await
+    .expect("tamper ContextBundle EventLedger resource_scope for negative proof");
+    let tampered = owner_store
+        .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+        .await
+        .expect_err("EventLedger resource_scope drift must fail closed");
+    assert!(
+        tampered.to_string().contains("resource_scope"),
+        "scope-authority tamper denial must identify the mismatched surface: {tampered}"
+    );
+}
 
 #[tokio::test]
 async fn model_lane_context_bundle_persists_selection_state_and_replays() {
@@ -656,7 +1435,8 @@ async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayabl
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated MT-005 CRDT schema");
-    let store = ModelLaneStore::new(pool.clone());
+    let resource_scope = exact_context_bundle_scope(&workspace_id);
+    let store = ModelLaneStore::new_scoped(pool.clone(), resource_scope.clone());
     seed_run_with_messages(&store).await;
 
     let document_id = format!("doc-mt005-{workspace_id}");
@@ -1424,7 +2204,7 @@ async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayabl
         .await
         .expect("persist authoritative CRDT ContextBundle handoff");
 
-    let restarted = ModelLaneStore::new(pool.clone());
+    let restarted = ModelLaneStore::new_scoped(pool.clone(), resource_scope);
     let replay = restarted
         .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
         .await
@@ -1580,6 +2360,13 @@ fn assert_replay_order_matches_eventledger(replay: &[ModelLaneContextBundleHando
     }
 }
 
+fn exact_context_bundle_scope(workspace: &str) -> ResourceScope {
+    ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new(workspace).expect("nonblank workspace scope"))
+}
+
 async fn model_lane_store() -> (sqlx::PgPool, ModelLaneStore) {
     let kpg = knowledge_pg_support::knowledge_pg()
         .await
@@ -1589,7 +2376,8 @@ async fn model_lane_store() -> (sqlx::PgPool, ModelLaneStore) {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated model-lane ContextBundle schema");
-    let store = ModelLaneStore::new(pool.clone());
+    let store =
+        ModelLaneStore::new_scoped(pool.clone(), exact_context_bundle_scope("workspace-mt005"));
     (pool, store)
 }
 

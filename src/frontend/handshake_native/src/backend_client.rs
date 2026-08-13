@@ -482,6 +482,21 @@ pub struct OperatorChatClient {
     runtime: tokio::runtime::Handle,
 }
 
+/// Truth returned by the production SwarmCoordinator concurrency authority. `max_concurrent` is the
+/// cap currently in force; while a cooperative lowering drains existing sessions it can differ from
+/// `requested`, and the native Settings surface must expose that difference rather than inventing an
+/// optimistic value.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct SwarmConcurrencySnapshot {
+    pub requested: usize,
+    pub max_concurrent: usize,
+    pub fully_applied: bool,
+    pub live_sessions: usize,
+}
+
+/// Off-thread delivery queue for GET/PUT `/operator-chat/swarm/max-concurrent` results.
+pub type SwarmConcurrencyCell = Arc<Mutex<Vec<Result<SwarmConcurrencySnapshot, String>>>>;
+
 impl OperatorChatClient {
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
@@ -501,6 +516,60 @@ impl OperatorChatClient {
             url: format!("{}/operator-chat/models", self.base_url),
             body: None,
         }
+    }
+
+    pub fn swarm_concurrency_get_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/operator-chat/swarm/max-concurrent", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn swarm_concurrency_put_request(&self, max_concurrent: usize) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Put,
+            url: format!("{}/operator-chat/swarm/max-concurrent", self.base_url),
+            body: Some(serde_json::json!({ "max_concurrent": max_concurrent })),
+        }
+    }
+
+    /// Read the coordinator's actual requested/in-force/live truth off the egui thread.
+    pub fn fetch_swarm_concurrency(&self, cell: SwarmConcurrencyCell) {
+        let spec = self.swarm_concurrency_get_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut queue) = cell.lock() {
+                queue.push(result);
+            }
+        });
+    }
+
+    /// Change the real coordinator cap through its existing authority and deliver only its returned
+    /// truth. The caller never synthesizes `fully_applied` or the in-force value.
+    pub fn set_swarm_concurrency(&self, max_concurrent: usize, cell: SwarmConcurrencyCell) {
+        let spec = self.swarm_concurrency_put_request(max_concurrent.max(1));
+        let client = self.client.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = put_json(&client, &spec.url, &body)
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut queue) = cell.lock() {
+                queue.push(result);
+            }
+        });
     }
 
     pub fn launch_request(
@@ -801,6 +870,36 @@ async fn post_json(
             .or_else(|| value.get("error").and_then(|d| d.as_str()))
             .unwrap_or("launch failed")
             .to_string();
+        return Err(AppError::Http(format!("{status}: {detail}")));
+    }
+    Ok(value)
+}
+
+/// PUT `body` and return the parsed JSON response. Used by the live SwarmCoordinator cap control;
+/// non-success responses remain visible errors and are never converted into an optimistic snapshot.
+async fn put_json(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .put(url)
+        .timeout(Duration::from_secs(15))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    let value: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    if !status.is_success() {
+        let detail = value
+            .get("detail")
+            .and_then(|d| d.as_str())
+            .or_else(|| value.get("error").and_then(|d| d.as_str()))
+            .unwrap_or("request failed");
         return Err(AppError::Http(format!("{status}: {detail}")));
     }
     Ok(value)

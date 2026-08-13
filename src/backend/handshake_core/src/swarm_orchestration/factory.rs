@@ -208,4 +208,13 @@ pub trait ModelSessionFactory: Send + Sync + 'static {
     /// an orphan ledger START row: if it recorded a START before failing, it
     /// must record the matching STOP before returning the error.
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession>;
+
+    /// Compensate an abandoned [`Self::create`] future after coordinator
+    /// cancellation. The default is intentionally a no-op because most
+    /// factories do not cross an external process boundary before returning a
+    /// [`LiveSession`]. Factories that do MUST use the request's exact instance
+    /// identity and clean only resources created by that pending attempt.
+    async fn cancel_pending_create(&self, _request: &SpawnRequest) -> SwarmResult<()> {
+        Ok(())
+    }
 }

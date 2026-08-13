@@ -341,6 +341,15 @@ pub struct HandshakeApp {
     settings_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// The last transient settings persistence error, surfaced on the dialog status row (HBR: visible).
     settings_persist_error: Option<String>,
+    /// WP-1 MT-021: live client/state for the SwarmCoordinator model-session cap. Kept separate from
+    /// the persisted per-frame Argus action budget because they constrain different runtime paths.
+    swarm_concurrency_client: Option<crate::backend_client::OperatorChatClient>,
+    swarm_concurrency_cell: crate::backend_client::SwarmConcurrencyCell,
+    swarm_concurrency_refresh_pending: bool,
+    swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState,
+    /// Last requested value, retained only as an observable test seam; actual status always comes from
+    /// the coordinator response in `swarm_model_sessions.snapshot`.
+    last_swarm_concurrency_request: Option<usize>,
     /// MT-015: shell-owned Cloud Models UI state (enumeration snapshot + per-provider key buffers). A
     /// BYOK key never enters `DialogState` or the persisted egui snapshot — it lives only here, in a
     /// zeroizing buffer the shell clears immediately after a Save is dispatched.
@@ -901,6 +910,14 @@ impl HandshakeApp {
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
+            swarm_concurrency_client: Some(crate::backend_client::OperatorChatClient::production(
+                rt_handle.clone(),
+            )),
+            swarm_concurrency_cell: Arc::new(Mutex::new(Vec::new())),
+            swarm_concurrency_refresh_pending: false,
+            swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(
+            ),
+            last_swarm_concurrency_request: None,
             cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
             cloud_access_client: Some(crate::backend_client::CloudAccessClient::production()),
             cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
@@ -1263,6 +1280,12 @@ impl HandshakeApp {
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
+            swarm_concurrency_client: None,
+            swarm_concurrency_cell: Arc::new(Mutex::new(Vec::new())),
+            swarm_concurrency_refresh_pending: false,
+            swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(
+            ),
+            last_swarm_concurrency_request: None,
             cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
             // Headless/test shell: no runtime to bridge a live cloud-access client onto. A test seeds the
             // enumeration snapshot directly via `set_cloud_snapshot_for_test`; without a client the shell
@@ -2824,6 +2847,10 @@ impl HandshakeApp {
             // MT-015: fetch the (non-secret) cloud-access enumeration so the Cloud Models section shows
             // each provider's configured/unavailable status on open.
             self.cloud_access_refresh_pending = true;
+            // The model-session cap is refreshed after the project settings load: a persisted desired
+            // value is PUT, while an unset value performs a read-only GET. This ordering avoids a stale
+            // GET racing and overwriting the response to the persisted PUT.
+            self.swarm_concurrency_refresh_pending = false;
         }
     }
 
@@ -2907,6 +2934,24 @@ impl HandshakeApp {
     /// The last transient settings persistence error, if any (MT-018), for tests + the status row.
     pub fn settings_persist_error(&self) -> Option<&str> {
         self.settings_persist_error.as_deref()
+    }
+
+    /// WP-1 MT-021 test seam: seed a response shaped exactly like the coordinator route so the real
+    /// Settings/AccessKit surface can prove requested/in-force/draining rendering without a server.
+    #[doc(hidden)]
+    pub fn set_swarm_concurrency_snapshot_for_test(
+        &mut self,
+        snapshot: crate::backend_client::SwarmConcurrencySnapshot,
+    ) {
+        self.swarm_model_sessions.snapshot = Some(snapshot);
+        self.swarm_model_sessions.error = None;
+        self.swarm_model_sessions.updating = false;
+        self.swarm_concurrency_refresh_pending = false;
+    }
+
+    #[doc(hidden)]
+    pub fn last_swarm_concurrency_request_for_test(&self) -> Option<usize> {
+        self.last_swarm_concurrency_request
     }
 
     /// MT-015 accessor: the live Cloud Models UI state (enumeration snapshot + key-buffer status).
@@ -3070,6 +3115,11 @@ impl HandshakeApp {
     fn apply_workspace_settings_runtime_defaults(&mut self) {
         // WP-1 MT-021: a loaded budget must reach the live drain path, not only the settings struct.
         self.apply_swarm_admission_budget();
+        if let Some(desired) = self.workspace_settings.swarm_model_sessions_max_concurrent {
+            self.request_swarm_model_session_limit(desired);
+        } else {
+            self.swarm_concurrency_refresh_pending = true;
+        }
         let mut changed = false;
         if self.workspace_settings.swarm_board_default_open {
             changed |= self.navigate_to_tab("swarm");
@@ -3082,6 +3132,22 @@ impl HandshakeApp {
         }
         if changed {
             self.signal_layout_changed();
+        }
+    }
+
+    /// Dispatch a coordinator cap change without claiming success before the route returns. In a
+    /// headless shell the desired value and exact request intent remain testable, but the status stays
+    /// explicitly unavailable rather than being synthesized.
+    fn request_swarm_model_session_limit(&mut self, value: usize) {
+        let value = value.max(1);
+        self.last_swarm_concurrency_request = Some(value);
+        self.swarm_model_sessions.updating = true;
+        self.swarm_model_sessions.error = None;
+        if let Some(client) = self.swarm_concurrency_client.clone() {
+            client.set_swarm_concurrency(value, self.swarm_concurrency_cell.clone());
+        } else {
+            self.swarm_model_sessions.updating = false;
+            self.swarm_model_sessions.error = Some("backend unavailable".to_owned());
         }
     }
 
@@ -3235,6 +3301,13 @@ impl HandshakeApp {
                 self.workspace_settings.swarm_max_actions_per_frame = clamped;
                 self.apply_swarm_admission_budget();
                 self.schedule_settings_save();
+                true
+            }
+            O::SwarmModelSessionsMaxConcurrentChanged(value) => {
+                let desired = value.max(1);
+                self.workspace_settings.swarm_model_sessions_max_concurrent = Some(desired);
+                self.schedule_settings_save();
+                self.request_swarm_model_session_limit(desired);
                 true
             }
             O::ResetLayout => {
@@ -3586,6 +3659,7 @@ impl HandshakeApp {
             persist_error: self.settings_persist_error.as_deref(),
             cloud: &mut self.cloud_models,
             diagnostics: diagnostics_view,
+            swarm_model_sessions: &self.swarm_model_sessions,
         };
         let outcome = crate::settings_dialog::show(ctx, view);
         if self.apply_settings_outcome(outcome) {
@@ -3642,6 +3716,7 @@ impl HandshakeApp {
             let settings = &self.workspace_settings;
             let persist_error = self.settings_persist_error.as_deref();
             let cloud = &mut self.cloud_models;
+            let swarm_model_sessions = &self.swarm_model_sessions;
             let title_for_window = &title;
             let window_id_for_capture = &window_id;
             ctx.show_viewport_immediate(viewport_id, builder, |ctx, _class| {
@@ -3676,6 +3751,7 @@ impl HandshakeApp {
                     persist_error,
                     cloud: &mut *cloud,
                     diagnostics: diagnostics_view,
+                    swarm_model_sessions,
                 };
                 outcome = crate::settings_dialog::show_detached(ctx, view);
                 // Record THIS window's OS handle under its stable Argus window_id so a later screenshot
@@ -3755,6 +3831,25 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
+        // Coordinator replies are the only source of requested/in-force/fully-applied/live truth.
+        let concurrency_deliveries = self
+            .swarm_concurrency_cell
+            .try_lock()
+            .ok()
+            .map(|mut queue| std::mem::take(&mut *queue))
+            .unwrap_or_default();
+        for result in concurrency_deliveries {
+            self.swarm_model_sessions.updating = false;
+            match result {
+                Ok(snapshot) => {
+                    self.swarm_model_sessions.snapshot = Some(snapshot);
+                    self.swarm_model_sessions.error = None;
+                }
+                Err(error) => self.swarm_model_sessions.error = Some(error),
+            }
+            ctx.request_repaint();
+        }
+
         // 3. Fire the one-shot settings LOAD on open (red-team: load on open, not per-frame). Guard on a
         //    workspace + transport + runtime; spawn OFF the egui thread.
         if self.settings_load_pending {
@@ -3783,6 +3878,8 @@ impl HandshakeApp {
                         // I/O busy: re-arm the load for the next frame.
                         self.settings_load_pending = true;
                     }
+                } else {
+                    self.swarm_concurrency_refresh_pending = true;
                 }
             }
             self.settings_loaded_project_id = Some(workspace);
@@ -3876,6 +3973,19 @@ impl HandshakeApp {
                     }
                 });
                 ctx.request_repaint();
+            }
+        }
+
+        if self.swarm_concurrency_refresh_pending {
+            self.swarm_concurrency_refresh_pending = false;
+            self.swarm_model_sessions.updating = true;
+            self.swarm_model_sessions.error = None;
+            if let Some(client) = self.swarm_concurrency_client.clone() {
+                client.fetch_swarm_concurrency(self.swarm_concurrency_cell.clone());
+                ctx.request_repaint();
+            } else {
+                self.swarm_model_sessions.updating = false;
+                self.swarm_model_sessions.error = Some("backend unavailable".to_owned());
             }
         }
     }

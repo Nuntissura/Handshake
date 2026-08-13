@@ -32,7 +32,7 @@ use crate::process_ledger::{
 use super::breaker::BreakerConfig;
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
 use super::error::SwarmError;
-use super::events::{RecordingSwarmSink, SwarmEvent, SwarmFrEventId};
+use super::events::{RecordingSwarmSink, SwarmEvent, SwarmEventSink, SwarmFrEventId};
 use super::factory::{LiveSession, ModelSessionFactory};
 use super::ids::{ModelInstanceId, RunBudget, SpawnRequest};
 use super::state::ModelSessionState;
@@ -70,6 +70,52 @@ struct CountingLlmClient {
 struct ProviderErrorLlmClient {
     profile: ModelProfile,
     message: String,
+}
+
+#[derive(Clone)]
+enum GatedProviderTerminal {
+    Eof,
+    Error(String),
+}
+
+#[derive(Clone)]
+struct GatedProviderTerminalConfig {
+    arrived: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+    terminal: GatedProviderTerminal,
+}
+
+struct GatedProviderTerminalLlmClient {
+    profile: ModelProfile,
+    config: GatedProviderTerminalConfig,
+}
+
+#[async_trait]
+impl LlmClient for GatedProviderTerminalLlmClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Err(LlmError::ProviderError(
+            "gated terminal client supports streaming only".into(),
+        ))
+    }
+
+    fn stream_completion(self: Arc<Self>, _req: GenerateRequest) -> TokenStream {
+        let config = self.config.clone();
+        Box::pin(stream::unfold(Some(config), |state| async move {
+            let config = state?;
+            config.arrived.notify_one();
+            config.release.notified().await;
+            match config.terminal {
+                GatedProviderTerminal::Eof => None,
+                GatedProviderTerminal::Error(message) => {
+                    Some((Err(ModelRuntimeError::GenerateError(message)), None))
+                }
+            }
+        }))
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
 }
 
 #[async_trait]
@@ -240,6 +286,7 @@ struct ControllableFactory {
     fail_message: String,
     llm_stream_calls: Arc<AtomicUsize>,
     provider_stream_error: Option<String>,
+    provider_terminal_gate: Option<GatedProviderTerminalConfig>,
 }
 
 impl ControllableFactory {
@@ -260,11 +307,17 @@ impl ControllableFactory {
             fail_message: "controllable factory deterministic failure".to_string(),
             llm_stream_calls: Arc::new(AtomicUsize::new(0)),
             provider_stream_error: None,
+            provider_terminal_gate: None,
         }
     }
 
     fn with_provider_stream_error(mut self, message: impl Into<String>) -> Self {
         self.provider_stream_error = Some(message.into());
+        self
+    }
+
+    fn with_provider_terminal_gate(mut self, config: GatedProviderTerminalConfig) -> Self {
+        self.provider_terminal_gate = Some(config);
         self
     }
 }
@@ -356,12 +409,19 @@ impl ModelSessionFactory for ControllableFactory {
                 });
 
                 let live = LiveSession::new(shared, model_id, cancel, teardown, record_id, os_pid);
-                let inner_client: Arc<dyn LlmClient> = match self.provider_stream_error.as_ref() {
-                    Some(message) => Arc::new(ProviderErrorLlmClient {
+                let inner_client: Arc<dyn LlmClient> = match (
+                    self.provider_terminal_gate.as_ref(),
+                    self.provider_stream_error.as_ref(),
+                ) {
+                    (Some(config), _) => Arc::new(GatedProviderTerminalLlmClient {
+                        profile: ModelProfile::new(model_id.to_string(), 4_096),
+                        config: config.clone(),
+                    }),
+                    (None, Some(message)) => Arc::new(ProviderErrorLlmClient {
                         profile: ModelProfile::new(model_id.to_string(), 4_096),
                         message: message.clone(),
                     }),
-                    None => Arc::clone(&live.llm_client),
+                    (None, None) => Arc::clone(&live.llm_client),
                 };
                 let counted_client: Arc<dyn LlmClient> = Arc::new(CountingLlmClient {
                     inner: inner_client,
@@ -618,6 +678,224 @@ async fn managed_generation_provider_error_records_failed_terminal_without_ready
     )));
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cancellation_evicted_generation_then_late_eof_emits_only_cancelled_invocation() {
+    use futures::StreamExt;
+
+    let (ledger, _drain) = ledger_pair();
+    let arrived = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let factory = Arc::new(
+        ControllableFactory::new(
+            FactoryBehavior::Succeed,
+            Duration::from_millis(1),
+            ledger.clone(),
+        )
+        .with_provider_terminal_gate(GatedProviderTerminalConfig {
+            arrived: Arc::clone(&arrived),
+            release: Arc::clone(&release),
+            terminal: GatedProviderTerminal::Eof,
+        }),
+    );
+    let sink = Arc::new(RecordingSwarmSink::new());
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1).with_concurrency(1)),
+        factory,
+        sink.clone(),
+        ledger,
+    ));
+    let instance_id = instance(405);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .expect("spawn late-EOF managed session");
+    let stream = coordinator
+        .generate_session_managed(instance_id, managed_generate_request(1))
+        .expect("start gated late-EOF generation");
+    let stream_task = tokio::spawn(async move { stream.collect::<Vec<_>>().await });
+    tokio::time::timeout(Duration::from_secs(2), arrived.notified())
+        .await
+        .expect("provider reaches gated EOF");
+
+    coordinator
+        .cancel_session(instance_id, "operator cancellation before delayed EOF")
+        .await
+        .expect("exact generation cancellation evicts before EOF");
+    assert_eq!(coordinator.session_state(instance_id), None);
+    release.notify_one();
+    let tokens = stream_task.await.expect("late-EOF stream joins");
+    assert!(tokens.is_empty());
+
+    let outcomes = sink
+        .events()
+        .into_iter()
+        .filter_map(|event| match event {
+            SwarmEvent::ModelInvocationFinished {
+                instance_id: observed,
+                outcome,
+                ..
+            } if observed == instance_id => Some(outcome),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes, ["cancelled"]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn drain_all_emits_cancelled_invocation_before_sink_close_and_late_eof() {
+    use futures::StreamExt;
+
+    let (ledger, _drain) = ledger_pair();
+    let arrived = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let factory = Arc::new(
+        ControllableFactory::new(
+            FactoryBehavior::Succeed,
+            Duration::from_millis(1),
+            ledger.clone(),
+        )
+        .with_provider_terminal_gate(GatedProviderTerminalConfig {
+            arrived: Arc::clone(&arrived),
+            release: Arc::clone(&release),
+            terminal: GatedProviderTerminal::Eof,
+        }),
+    );
+    let sink = Arc::new(CloseRejectingSwarmSink::default());
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1).with_concurrency(1)),
+        factory,
+        sink.clone(),
+        ledger,
+    ));
+    let instance_id = instance(407);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .expect("spawn drain-owned managed session");
+    let mut stream = coordinator
+        .generate_session_managed(instance_id, managed_generate_request(1))
+        .expect("start gated managed generation");
+    let stream_task = tokio::spawn(async move {
+        let terminal = stream.next().await;
+        drop(stream);
+        terminal
+    });
+    tokio::time::timeout(Duration::from_secs(2), arrived.notified())
+        .await
+        .expect("provider reaches gated EOF");
+
+    coordinator
+        .drain_all()
+        .await
+        .expect("drain persists the active invocation terminal before returning");
+    assert_eq!(coordinator.session_state(instance_id), None);
+    let terminal_events = sink
+        .events()
+        .into_iter()
+        .filter_map(|event| match event {
+            SwarmEvent::ModelInvocationFinished {
+                instance_id: observed,
+                outcome,
+                ..
+            } if observed == instance_id => Some(outcome),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(terminal_events, ["cancelled"]);
+
+    sink.close();
+    release.notify_one();
+    assert!(stream_task.await.expect("late-EOF stream joins").is_none());
+    assert_eq!(
+        sink.rejections.load(Ordering::SeqCst),
+        0,
+        "late EOF/Drop must observe the drain-owned emission state and not touch the closed sink"
+    );
+    let outcomes = sink
+        .events()
+        .into_iter()
+        .filter_map(|event| match event {
+            SwarmEvent::ModelInvocationFinished {
+                instance_id: observed,
+                outcome,
+                ..
+            } if observed == instance_id => Some(outcome),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes, ["cancelled"]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cancellation_evicted_generation_then_late_error_emits_only_cancelled_invocation() {
+    use futures::StreamExt;
+
+    let (ledger, _drain) = ledger_pair();
+    let arrived = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let factory = Arc::new(
+        ControllableFactory::new(
+            FactoryBehavior::Succeed,
+            Duration::from_millis(1),
+            ledger.clone(),
+        )
+        .with_provider_terminal_gate(GatedProviderTerminalConfig {
+            arrived: Arc::clone(&arrived),
+            release: Arc::clone(&release),
+            terminal: GatedProviderTerminal::Error("late generic provider error".into()),
+        }),
+    );
+    let sink = Arc::new(RecordingSwarmSink::new());
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1).with_concurrency(1)),
+        factory,
+        sink.clone(),
+        ledger,
+    ));
+    let instance_id = instance(406);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .expect("spawn late-error managed session");
+    let mut stream = coordinator
+        .generate_session_managed(instance_id, managed_generate_request(1))
+        .expect("start gated late-error generation");
+    let stream_task = tokio::spawn(async move { stream.next().await });
+    tokio::time::timeout(Duration::from_secs(2), arrived.notified())
+        .await
+        .expect("provider reaches gated generic error");
+
+    coordinator
+        .cancel_session(
+            instance_id,
+            "operator cancellation before delayed provider error",
+        )
+        .await
+        .expect("exact generation cancellation evicts before provider error");
+    assert_eq!(coordinator.session_state(instance_id), None);
+    release.notify_one();
+    let error = stream_task
+        .await
+        .expect("late-error stream joins")
+        .expect("provider emits one terminal error")
+        .expect_err("late provider result remains an error");
+    assert!(error.to_string().contains("late generic provider error"));
+
+    let outcomes = sink
+        .events()
+        .into_iter()
+        .filter_map(|event| match event {
+            SwarmEvent::ModelInvocationFinished {
+                instance_id: observed,
+                outcome,
+                ..
+            } if observed == instance_id => Some(outcome),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes, ["cancelled"]);
+}
+
 #[tokio::test]
 async fn managed_generation_drop_records_terminal_and_cancels_session() {
     let (ledger, _drain) = ledger_pair();
@@ -834,6 +1112,58 @@ struct InMemoryStore {
 }
 
 struct FailingOverflowSink;
+
+#[derive(Default)]
+struct CloseRejectingSwarmSink {
+    events: Mutex<Vec<SwarmEvent>>,
+    closed: AtomicBool,
+    rejections: AtomicUsize,
+}
+
+impl CloseRejectingSwarmSink {
+    fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+    }
+
+    fn events(&self) -> Vec<SwarmEvent> {
+        self.events
+            .lock()
+            .expect("close-rejecting sink poisoned")
+            .clone()
+    }
+}
+
+impl SwarmEventSink for CloseRejectingSwarmSink {
+    fn emit(&self, event: SwarmEvent) -> Result<(), String> {
+        if self.closed.load(Ordering::SeqCst) {
+            self.rejections.fetch_add(1, Ordering::SeqCst);
+            return Err("sink closed after coordinator drain".to_string());
+        }
+        self.events
+            .lock()
+            .expect("close-rejecting sink poisoned")
+            .push(event);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct FailResourceAllocatedSink {
+    events: Mutex<Vec<SwarmEvent>>,
+}
+
+impl SwarmEventSink for FailResourceAllocatedSink {
+    fn emit(&self, event: SwarmEvent) -> Result<(), String> {
+        if matches!(event, SwarmEvent::ResourceAllocated { .. }) {
+            return Err("injected ResourceAllocated persistence failure".to_string());
+        }
+        self.events
+            .lock()
+            .expect("resource-allocation failure sink poisoned")
+            .push(event);
+        Ok(())
+    }
+}
 
 impl ProcessLedgerOverflowSink for FailingOverflowSink {
     fn emit_overflow(&self, _event: LedgerOverflowEvent) -> Result<(), ProcessLedgerError> {
@@ -2912,13 +3242,13 @@ async fn concurrent_cancel_and_cleanup_retry_have_one_owner_one_teardown_and_one
         SwarmEvent::SessionCancelled { instance_id: observed, .. } if *observed == instance_id
     )));
 
-    let overlap_error = coordinator
-        .retry_pending_session_cleanups()
-        .await
-        .expect_err("concurrent retry must not acquire the active cleanup generation");
-    assert!(overlap_error
-        .to_string()
-        .contains("cleanup is already in progress"));
+    tokio::time::timeout(
+        Duration::from_millis(250),
+        coordinator.retry_pending_session_cleanups(),
+    )
+    .await
+    .expect("concurrent retry must skip instead of waiting on the active cleanup owner")
+    .expect("a busy cleanup is not an error for unrelated retry work");
     assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
 
     factory.hold_teardown.store(false, Ordering::SeqCst);
@@ -2945,6 +3275,894 @@ async fn concurrent_cancel_and_cleanup_retry_have_one_owner_one_teardown_and_one
         1,
         "cleanup ownership fence must emit exactly one lossless STOP"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cleanup_retry_skips_busy_owner_and_completes_other_pending_session() {
+    let (ledger, drain_handle) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 1,
+            batch_size: 1,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(FailingOverflowSink),
+    )
+    .expect("manual ledger");
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let teardown_calls = factory.teardown_invocations.clone();
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let idle_pending = instance(98);
+    let busy = instance(99);
+
+    coordinator
+        .spawn_session(spawn_req(idle_pending))
+        .await
+        .unwrap();
+    coordinator
+        .cancel_session(idle_pending, "idle_pending_original")
+        .await
+        .expect_err("full queue leaves teardown-complete cleanup pending");
+    assert_eq!(
+        coordinator.session_state(idle_pending),
+        Some(ModelSessionState::Cancelling)
+    );
+    drain_handle
+        .drain_available_to(Arc::new(InMemoryStore::default()))
+        .await
+        .unwrap();
+
+    coordinator.spawn_session(spawn_req(busy)).await.unwrap();
+    drain_handle
+        .drain_available_to(Arc::new(InMemoryStore::default()))
+        .await
+        .unwrap();
+    factory.hold_teardown.store(true, Ordering::SeqCst);
+    let busy_owner = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move { coordinator.cancel_session(busy, "busy_owner").await })
+    };
+    for _ in 0..200 {
+        if teardown_calls.load(Ordering::SeqCst) == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 2);
+
+    coordinator
+        .retry_pending_session_cleanups()
+        .await
+        .expect("busy owner is skipped while the idle cleanup completes");
+    assert_eq!(coordinator.session_state(idle_pending), None);
+    assert_eq!(
+        coordinator.session_state(busy),
+        Some(ModelSessionState::Cancelling)
+    );
+    assert_eq!(
+        teardown_calls.load(Ordering::SeqCst),
+        2,
+        "idle retry must not repeat its already-successful teardown"
+    );
+    drain_handle
+        .drain_available_to(Arc::new(InMemoryStore::default()))
+        .await
+        .unwrap();
+
+    factory.hold_teardown.store(false, Ordering::SeqCst);
+    busy_owner
+        .await
+        .expect("join busy owner")
+        .expect("busy owner completes after release");
+    assert_eq!(coordinator.live_session_count(), 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stale_spawn_generation_cannot_cancel_replacement_session_with_same_instance_id() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let teardown_calls = factory.teardown_invocations.clone();
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2)),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+    let instance_id = instance(100);
+
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    let stale_generation = coordinator
+        .session_spawn_generation_for_test(instance_id)
+        .expect("first registry incarnation");
+    coordinator
+        .cancel_session(instance_id, "replace first incarnation")
+        .await
+        .unwrap();
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    let replacement_generation = coordinator
+        .session_spawn_generation_for_test(instance_id)
+        .expect("replacement registry incarnation");
+    assert_ne!(stale_generation, replacement_generation);
+
+    coordinator
+        .cancel_session_generation_for_test(
+            instance_id,
+            stale_generation,
+            "stale generation finalizer",
+        )
+        .await
+        .expect("stale generation cleanup is an idempotent no-op");
+    assert_eq!(
+        coordinator.session_state(instance_id),
+        Some(ModelSessionState::Ready)
+    );
+    assert_eq!(coordinator.live_session_count(), 1);
+    assert_eq!(
+        teardown_calls.load(Ordering::SeqCst),
+        1,
+        "stale generation must not tear down the replacement session"
+    );
+
+    coordinator
+        .cancel_session(instance_id, "cleanup replacement")
+        .await
+        .unwrap();
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stale_cleanup_retry_snapshot_cannot_cancel_replacement_incarnation() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    factory.fail_teardown_remaining.store(1, Ordering::SeqCst);
+    let teardown_calls = factory.teardown_invocations.clone();
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2)),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let instance_id = instance(102);
+
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    let stale_spawn_generation = coordinator
+        .session_spawn_generation_for_test(instance_id)
+        .expect("first registry incarnation");
+    coordinator
+        .cancel_session(instance_id, "old cleanup intent")
+        .await
+        .expect_err("first teardown must leave cleanup pending");
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+
+    let snapshot_arrived = Arc::new(tokio::sync::Notify::new());
+    let release_snapshot = Arc::new(tokio::sync::Notify::new());
+    coordinator.set_cleanup_retry_after_snapshot_pause_for_test(
+        snapshot_arrived.clone(),
+        release_snapshot.clone(),
+    );
+    let stale_retry = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move { coordinator.retry_pending_session_cleanups().await })
+    };
+    tokio::time::timeout(Duration::from_secs(5), snapshot_arrived.notified())
+        .await
+        .expect("cleanup retry must pause after snapshotting the old incarnation");
+
+    coordinator
+        .cancel_session(instance_id, "finish original cleanup")
+        .await
+        .expect("another owner completes and removes the original incarnation");
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 2);
+    assert_eq!(coordinator.live_session_count(), 0);
+
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    let replacement_spawn_generation = coordinator
+        .session_spawn_generation_for_test(instance_id)
+        .expect("replacement registry incarnation");
+    assert_ne!(stale_spawn_generation, replacement_spawn_generation);
+    assert_eq!(
+        coordinator.session_state(instance_id),
+        Some(ModelSessionState::Ready)
+    );
+
+    release_snapshot.notify_one();
+    stale_retry
+        .await
+        .expect("join stale cleanup retry")
+        .expect("stale-generation cleanup retry must be an idempotent no-op");
+
+    assert_eq!(
+        coordinator.session_spawn_generation_for_test(instance_id),
+        Some(replacement_spawn_generation),
+        "an old cleanup snapshot must not remove a same-ID replacement"
+    );
+    assert_eq!(
+        coordinator.session_state(instance_id),
+        Some(ModelSessionState::Ready),
+        "an old cleanup snapshot must not terminalize a same-ID replacement"
+    );
+    assert_eq!(coordinator.live_session_count(), 1);
+    assert_eq!(
+        teardown_calls.load(Ordering::SeqCst),
+        2,
+        "stale cleanup retry must not invoke the replacement teardown"
+    );
+
+    coordinator
+        .cancel_session(instance_id, "cleanup replacement")
+        .await
+        .unwrap();
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 3);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cleanup_owner_guard_is_scoped_to_spawn_generation() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let teardown_calls = factory.teardown_invocations.clone();
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let instance_id = instance(101);
+
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    let stale_spawn_generation = coordinator
+        .session_spawn_generation_for_test(instance_id)
+        .expect("first registry incarnation");
+    coordinator
+        .cancel_session(instance_id, "retire first incarnation")
+        .await
+        .unwrap();
+
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    let replacement_spawn_generation = coordinator
+        .session_spawn_generation_for_test(instance_id)
+        .expect("replacement registry incarnation");
+    assert_ne!(stale_spawn_generation, replacement_spawn_generation);
+
+    factory.hold_teardown.store(true, Ordering::SeqCst);
+    let replacement_owner = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "replacement cleanup owner")
+                .await
+        })
+    };
+    for _ in 0..200 {
+        if teardown_calls.load(Ordering::SeqCst) == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 2);
+
+    // Recreate the exact late-Drop boundary: the old incarnation's owner has
+    // already removed its handle, a same-ID replacement now owns cleanup
+    // generation 1, and only the stale owner's guard remains to be dropped.
+    coordinator.drop_cleanup_owner_guard_for_test(instance_id, stale_spawn_generation, 1);
+
+    let (replacement_still_owned, replacement_outcome_in_progress) = coordinator
+        .cleanup_owner_state_for_test(instance_id)
+        .expect("replacement cleanup state");
+    let replacement_waiter = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "replacement cleanup waiter")
+                .await
+        })
+    };
+    tokio::time::sleep(Duration::from_millis(75)).await;
+    let overlap_teardown_calls = teardown_calls.load(Ordering::SeqCst);
+
+    factory.hold_teardown.store(false, Ordering::SeqCst);
+    let owner_result = replacement_owner.await.expect("join replacement owner");
+    let waiter_result = replacement_waiter.await.expect("join replacement waiter");
+
+    assert!(
+        replacement_still_owned,
+        "a stale incarnation guard must not clear replacement cleanup ownership"
+    );
+    assert!(
+        replacement_outcome_in_progress,
+        "a stale incarnation guard must not publish Idle to replacement waiters"
+    );
+    assert_eq!(
+        overlap_teardown_calls, 2,
+        "a stale guard must not let a second replacement owner invoke teardown"
+    );
+    owner_result.expect("replacement cleanup owner succeeds");
+    waiter_result.expect("replacement cleanup waiter receives owner success");
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_terminalizer_waits_for_the_single_owner_result() {
+    let (ledger, drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    factory.hold_teardown.store(true, Ordering::SeqCst);
+    let teardown_calls = factory.teardown_invocations.clone();
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let instance_id = instance(96);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+
+    let owner = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "single_flight_owner")
+                .await
+        })
+    };
+    for _ in 0..200 {
+        if teardown_calls.load(Ordering::SeqCst) == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+
+    let mut waiter = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "single_flight_waiter")
+                .await
+        })
+    };
+    tokio::select! {
+        result = &mut waiter => panic!("concurrent terminalizer returned before its owner completed: {result:?}"),
+        _ = tokio::time::sleep(Duration::from_millis(50)) => {}
+    }
+
+    factory.hold_teardown.store(false, Ordering::SeqCst);
+    owner
+        .await
+        .expect("join cleanup owner")
+        .expect("cleanup owner succeeds");
+    waiter
+        .await
+        .expect("join cleanup waiter")
+        .expect("cleanup waiter receives owner success");
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+
+    let rows = drain(&drain_handle, Arc::new(InMemoryStore::default())).await;
+    assert_eq!(
+        rows.iter()
+            .filter(|event| matches!(event, LedgerEvent::Stop(_)))
+            .count(),
+        1,
+        "single-flight owner must emit exactly one STOP"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_terminalizer_receives_the_owner_failure() {
+    let (ledger, drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    factory.hold_teardown.store(true, Ordering::SeqCst);
+    factory.fail_teardown_remaining.store(1, Ordering::SeqCst);
+    let teardown_calls = factory.teardown_invocations.clone();
+    let sink = Arc::new(RecordingSwarmSink::new());
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1)),
+        factory.clone(),
+        sink.clone(),
+        ledger,
+    ));
+    let instance_id = instance(97);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+
+    let owner = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "single_flight_failure_owner")
+                .await
+        })
+    };
+    for _ in 0..200 {
+        if teardown_calls.load(Ordering::SeqCst) == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let waiter = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "single_flight_failure_waiter")
+                .await
+        })
+    };
+    factory.hold_teardown.store(false, Ordering::SeqCst);
+
+    let owner_error = owner
+        .await
+        .expect("join failing cleanup owner")
+        .expect_err("teardown failure without a reclaimer must fail the owner");
+    let waiter_error = waiter
+        .await
+        .expect("join cleanup waiter")
+        .expect_err("waiter must not report success when its owner failed");
+    assert!(owner_error.to_string().contains("teardown"));
+    assert!(waiter_error
+        .to_string()
+        .contains("concurrent cleanup owner failed"));
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(coordinator.live_session_count(), 1);
+
+    // A later caller with a different requested terminal state may adopt the
+    // abandoned generation, but first-writer-wins means it must retry the
+    // original Cancelled intent instead of silently replacing it with Completed.
+    coordinator
+        .complete_session(instance_id)
+        .await
+        .expect("adopter retries the original pending terminal intent");
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        sink.events()
+            .iter()
+            .filter(|event| matches!(
+                event,
+                SwarmEvent::SessionCancelled {
+                    instance_id: observed,
+                    reason,
+                    ..
+                } if *observed == instance_id && reason == "single_flight_failure_owner"
+            ))
+            .count(),
+        1
+    );
+    assert!(!sink.events().iter().any(|event| matches!(
+        event,
+        SwarmEvent::SessionCompleted {
+            instance_id: observed,
+            ..
+        } if *observed == instance_id
+    )));
+    let rows = drain(&drain_handle, Arc::new(InMemoryStore::default())).await;
+    assert_eq!(
+        rows.iter()
+            .filter(|event| matches!(event, LedgerEvent::Stop(_)))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn terminal_cleanup_outlives_an_aborted_caller_without_duplicate_teardown() {
+    let (ledger, drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    factory.hold_teardown.store(true, Ordering::SeqCst);
+    let teardown_calls = factory.teardown_invocations.clone();
+    let unload_calls = factory.unload_invocations.clone();
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let instance_id = instance(93);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+
+    let caller = {
+        let coordinator = coordinator.clone();
+        tokio::spawn(async move {
+            coordinator
+                .cancel_session(instance_id, "aborted_caller_cleanup_probe")
+                .await
+        })
+    };
+    for _ in 0..200 {
+        if teardown_calls.load(Ordering::SeqCst) == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(coordinator.live_session_count(), 1);
+
+    caller.abort();
+    caller
+        .await
+        .expect_err("the requesting caller is deliberately aborted");
+    factory.hold_teardown.store(false, Ordering::SeqCst);
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while coordinator.live_session_count() != 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("owned terminal cleanup must survive caller cancellation and evict the session");
+    assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(unload_calls.load(Ordering::SeqCst), 1);
+
+    let rows = drain(&drain_handle, Arc::new(InMemoryStore::default())).await;
+    assert_eq!(
+        rows.iter()
+            .filter(|event| matches!(event, LedgerEvent::Stop(_)))
+            .count(),
+        1,
+        "detached owner must still record exactly one lossless STOP"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn terminal_cleanup_clone_does_not_abort_the_shared_lease_reaper() {
+    let (ledger, _drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let teardown_calls = factory.teardown_invocations.clone();
+    let config = SwarmConfig::new(RunBudget::defaulted(2).with_concurrency(2))
+        .with_lease_ttl(Duration::from_millis(80))
+        .with_reaper_scan_interval(Duration::from_millis(10));
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    coordinator.start_reaper();
+    let explicitly_cancelled = instance(94);
+    coordinator
+        .spawn_session(spawn_req(explicitly_cancelled))
+        .await
+        .unwrap();
+    coordinator
+        .cancel_session(explicitly_cancelled, "reaper_lifetime_probe")
+        .await
+        .unwrap();
+
+    let lease_expired = instance(95);
+    coordinator
+        .spawn_session(spawn_req(lease_expired))
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while coordinator.live_session_count() != 0 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("terminal cleanup must not abort the shared reaper before the next lease expires");
+    coordinator.stop_reaper();
+    assert_eq!(
+        teardown_calls.load(Ordering::SeqCst),
+        2,
+        "explicit cancellation and later lease expiry each own one teardown"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stale_reaper_snapshot_cannot_cancel_replacement_incarnation() {
+    let (ledger, _drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(
+            RunBudget::defaulted(2)
+                .with_concurrency(1)
+                .with_lifetime_spawns(2),
+        )
+        .with_lease_ttl(Duration::from_millis(40))
+        .with_reaper_scan_interval(Duration::from_millis(10)),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+    let instance_id = instance(96);
+    coordinator
+        .spawn_session(spawn_req(instance_id))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(60)).await;
+
+    let snapshot_arrived = Arc::new(tokio::sync::Notify::new());
+    let release_snapshot = Arc::new(tokio::sync::Notify::new());
+    coordinator.set_reaper_after_snapshot_pause_for_test(
+        Arc::clone(&snapshot_arrived),
+        Arc::clone(&release_snapshot),
+    );
+    coordinator.start_reaper();
+    tokio::time::timeout(Duration::from_secs(2), snapshot_arrived.notified())
+        .await
+        .expect("reaper must capture the expired first incarnation");
+
+    coordinator
+        .cancel_session(
+            instance_id,
+            "replace expired incarnation under paused reaper",
+        )
+        .await
+        .unwrap();
+    coordinator
+        .spawn_session(spawn_req(instance_id).with_time_box(Duration::from_secs(5)))
+        .await
+        .expect("replacement incarnation spawns while old reaper snapshot is paused");
+    release_snapshot.notify_one();
+    tokio::time::sleep(Duration::from_millis(80)).await;
+    assert_eq!(
+        coordinator.session_state(instance_id),
+        Some(ModelSessionState::Ready),
+        "stale reaper work must be generation-fenced from the replacement"
+    );
+    coordinator.stop_reaper();
+    coordinator
+        .cancel_session(instance_id, "replacement cleanup")
+        .await
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn drain_all_fences_pending_create_and_closes_future_admission() {
+    let (ledger, _drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(200),
+        ledger.clone(),
+    ));
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2).with_concurrency(2)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let instance_id = instance(97);
+    let spawn = {
+        let coordinator = Arc::clone(&coordinator);
+        tokio::spawn(async move { coordinator.spawn_session(spawn_req(instance_id)).await })
+    };
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while factory.in_flight.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("factory create must enter before orderly drain");
+
+    coordinator
+        .drain_all()
+        .await
+        .expect("drain waits for pending-create compensation");
+    spawn
+        .await
+        .expect("pending spawn task joins")
+        .expect_err("drain cancellation prevents the pending spawn from succeeding");
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert!(coordinator
+        .spawn_session(spawn_req(instance(98)))
+        .await
+        .expect_err("orderly drain permanently closes coordinator admission")
+        .to_string()
+        .contains("coordinator is draining"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn drain_all_attempts_every_live_session_and_retries_transient_cleanup_failure() {
+    let (ledger, _drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    factory.fail_teardown_remaining.store(1, Ordering::SeqCst);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2).with_concurrency(2)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+    coordinator
+        .spawn_session(spawn_req(instance(101)))
+        .await
+        .expect("first live session");
+    coordinator
+        .spawn_session(spawn_req(instance(102)))
+        .await
+        .expect("second live session");
+
+    coordinator
+        .drain_all()
+        .await
+        .expect("late drain pass retries the one transient teardown failure");
+
+    assert_eq!(
+        factory.teardown_invocations.load(Ordering::SeqCst),
+        3,
+        "both live sessions must be attempted on the first pass and the failed one retried"
+    );
+    assert_eq!(
+        factory.unload_invocations.load(Ordering::SeqCst),
+        2,
+        "both owned model runtimes must be unloaded"
+    );
+    assert_eq!(coordinator.live_session_count(), 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn duplicate_pending_spawn_preserves_incumbent_cancellation_owner() {
+    let (ledger, _drain_handle) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(250),
+        ledger.clone(),
+    ));
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(2).with_concurrency(2)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let instance_id = instance(99);
+    let incumbent = {
+        let coordinator = Arc::clone(&coordinator);
+        tokio::spawn(async move { coordinator.spawn_session(spawn_req(instance_id)).await })
+    };
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while factory.in_flight.load(Ordering::SeqCst) == 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("incumbent factory create must start");
+    assert_eq!(coordinator.pending_spawn_count_for_test(), 1);
+
+    assert!(matches!(
+        coordinator.spawn_session(spawn_req(instance_id)).await,
+        Err(SwarmError::DuplicateInstance(duplicate)) if duplicate == instance_id
+    ));
+    assert_eq!(
+        factory.create_calls.load(Ordering::SeqCst),
+        1,
+        "a duplicate must not replace the incumbent pending owner or enter the factory"
+    );
+    assert_eq!(coordinator.pending_spawn_count_for_test(), 1);
+
+    coordinator
+        .drain_all()
+        .await
+        .expect("drain must fence the incumbent pending owner");
+    incumbent
+        .await
+        .expect("incumbent spawn task joins")
+        .expect_err("drain cancellation must stop the incumbent create");
+    assert_eq!(coordinator.pending_spawn_count_for_test(), 0);
+    assert_eq!(coordinator.live_session_count(), 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn resource_allocated_event_failure_exactly_reclaims_spawned_session() {
+    let (ledger, drain_handle) = ledger_pair();
+    let store = Arc::new(InMemoryStore::default());
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(FailResourceAllocatedSink::default());
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(1).with_concurrency(1)),
+        factory.clone(),
+        sink.clone(),
+        ledger,
+    );
+    let instance_id = instance(100);
+
+    assert!(matches!(
+        coordinator.spawn_session(spawn_req(instance_id)).await,
+        Err(SwarmError::EventSinkFailed(message))
+            if message.contains("injected ResourceAllocated persistence failure")
+    ));
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(factory.teardown_invocations.load(Ordering::SeqCst), 1);
+    assert_eq!(factory.unload_invocations.load(Ordering::SeqCst), 1);
+
+    let rows = drain(&drain_handle, store).await;
+    assert_eq!(
+        count_start_stop(&rows),
+        (1, 1),
+        "event persistence failure must still close the exact process lifecycle"
+    );
+    let events = sink
+        .events
+        .lock()
+        .expect("resource-allocation failure sink poisoned");
+    assert!(events.iter().any(|event| matches!(
+        event,
+        SwarmEvent::SessionCancelled {
+            instance_id: cancelled,
+            ..
+        } if *cancelled == instance_id
+    )));
+    assert!(events.iter().any(|event| matches!(
+        event,
+        SwarmEvent::ResourceEvicted {
+            instance_id: evicted,
+            ..
+        } if *evicted == instance_id
+    )));
 }
 
 // ===========================================================================

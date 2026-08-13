@@ -187,6 +187,11 @@ pub struct WorkspaceSettingsState {
     /// `MIN_ACTIONS_PER_BURST..=MAX_ACTIONS_PER_BURST`, so the setting can only TIGHTEN the compiled-in
     /// flood control, never widen it. Default is the compiled-in ceiling (no extra throttle).
     pub swarm_max_actions_per_frame: usize,
+    /// WP-1 MT-021: the operator's desired cap for concurrently running model sessions. `None` means
+    /// this workspace has never chosen a value, so opening Settings reads the coordinator's live cap
+    /// without overwriting it. `Some` is persisted as project settings and re-applied through the
+    /// coordinator's existing GET/PUT authority; it is not treated as the cap actually in force.
+    pub swarm_model_sessions_max_concurrent: Option<usize>,
 }
 
 impl WorkspaceSettingsState {
@@ -237,6 +242,7 @@ impl WorkspaceSettingsState {
                 "operator_chat_default_open": self.operator_chat_default_open,
                 "resource_sampling_enabled": self.resource_sampling_enabled,
                 "swarm_max_actions_per_frame": self.swarm_max_actions_per_frame,
+                "swarm_model_sessions_max_concurrent": self.swarm_model_sessions_max_concurrent,
             },
         })
     }
@@ -262,6 +268,7 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
         operator_chat_default_open: false,
         resource_sampling_enabled: true,
         swarm_max_actions_per_frame: DEFAULT_SWARM_MAX_ACTIONS_PER_FRAME,
+        swarm_model_sessions_max_concurrent: None,
     }
 }
 
@@ -460,6 +467,12 @@ pub fn normalize_workspace_settings_state(
         .and_then(Value::as_u64)
         .map(|v| crate::mcp::clamp_admission_budget(v as usize))
         .unwrap_or(fallback.swarm_max_actions_per_frame);
+    let swarm_model_sessions_max_concurrent = raw_settings
+        .and_then(|m| m.get("swarm_model_sessions_max_concurrent"))
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .map(|value| value.max(1))
+        .or(fallback.swarm_model_sessions_max_concurrent);
 
     WorkspaceSettingsState {
         theme,
@@ -470,6 +483,7 @@ pub fn normalize_workspace_settings_state(
         operator_chat_default_open,
         resource_sampling_enabled,
         swarm_max_actions_per_frame,
+        swarm_model_sessions_max_concurrent,
     }
 }
 
@@ -893,6 +907,38 @@ mod tests {
             normalize_workspace_settings_state(&absent, &default).swarm_max_actions_per_frame,
             default.swarm_max_actions_per_frame,
             "an absent budget falls back per-field"
+        );
+    }
+
+    #[test]
+    fn model_session_concurrency_persists_only_an_explicit_desired_value() {
+        let default = default_workspace_settings_state();
+        assert_eq!(
+            default.swarm_model_sessions_max_concurrent, None,
+            "an untouched workspace must read the runtime cap, not overwrite it"
+        );
+
+        let mut configured = default.clone();
+        configured.swarm_model_sessions_max_concurrent = Some(6);
+        let json = configured.to_settings_state();
+        assert_eq!(
+            json.pointer("/settings/swarm_model_sessions_max_concurrent")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            normalize_workspace_settings_state(&json, &default),
+            configured
+        );
+
+        let zero = serde_json::json!({
+            "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
+            "settings": { "swarm_model_sessions_max_concurrent": 0 },
+        });
+        assert_eq!(
+            normalize_workspace_settings_state(&zero, &default).swarm_model_sessions_max_concurrent,
+            Some(1),
+            "zero is normalized to the coordinator's non-wedging minimum"
         );
     }
 

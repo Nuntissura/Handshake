@@ -15,8 +15,8 @@ mod model_lane_crdt_support;
 use model_lane_crdt_support::{
     append_yjs_text_update as mt009_append_yjs_text_update, apply_crdt_posture,
     build_admissible_crdt_posture, push_yjs_update_for_test as mt009_push_yjs_update,
-    seed_real_crdt_document as mt009_seed_real_crdt_document,
-    yjs_envelope as mt009_yjs_envelope, yjs_materialize_doc as mt009_yjs_materialize_doc,
+    seed_real_crdt_document as mt009_seed_real_crdt_document, yjs_envelope as mt009_yjs_envelope,
+    yjs_materialize_doc as mt009_yjs_materialize_doc,
     yjs_materialize_updates as mt009_yjs_materialize_updates, AdmissibleCrdtPosture,
     CrdtProposalAnchoring, RealCrdtReceipts as Mt009RealCrdtReceipts,
 };
@@ -55,24 +55,29 @@ use handshake_core::process_ledger::{
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::Database;
 use handshake_core::swarm_orchestration::model_lane::{
-    build_successful_launch_records, dexterity_spawn_model_session_id, DexterityLaunchAdapterKind,
-    DexterityLaunchAdapterRequest, DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
-    ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
-    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier,
-    ModelLaneDiagnosticTierState, ModelLaneDiagnosticsLane, ModelLaneDiagnosticsProjection,
-    ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneLocusBinding,
-    ModelLaneMessageKind, ModelLaneMessageRecord, ModelLaneMtRuntimeStatus,
-    ModelLanePromotionDenialReason, ModelLanePromotionOutcome, ModelLaneProviderKind,
-    ModelLaneRecord, ModelLaneRecoveryEventKind, ModelLaneRecoveryFailureKind,
-    ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneRoutingMetadata,
-    ModelLaneRoutingPolicy, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
-    CloudExportDelegation, NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
-    NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus, NewModelLaneLease,
-    NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLanePromotionDecision,
-    NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
+    build_successful_launch_records, dexterity_spawn_model_session_id, CloudExportDelegation,
+    DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest, DexterityLaunchContract,
+    LaunchAuthority, ModelLaneAuthority, ModelLaneCloudConsentReceiptStatus,
+    ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
+    ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
+    ModelLaneDiagnosticsLane, ModelLaneDiagnosticsProjection, ModelLaneKind, ModelLaneLeaseScope,
+    ModelLaneLeaseState, ModelLaneLocusBinding, ModelLaneMessageKind, ModelLaneMessageRecord,
+    ModelLaneMtRuntimeStatus, ModelLanePromotionDenialReason, ModelLanePromotionOutcome,
+    ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryEventKind,
+    ModelLaneRecoveryFailureKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus,
+    ModelLaneRoutingMetadata, ModelLaneRoutingPolicy, ModelLaneStatus, ModelLaneStore,
+    ModelLaneTarget, NewModelLane, NewModelLaneCloudConsentReceipt,
+    NewModelLaneCloudProjectionPlan, NewModelLaneContextBundleArtifactBinding,
+    NewModelLaneDiagnosticTierStatus, NewModelLaneLease, NewModelLaneMessage,
+    NewModelLaneMtRuntimeStatus, NewModelLanePromotionDecision, NewModelLaneRecoveryCheckpoint,
+    NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::production_factory::{
     execute_production_routing_lifecycle, execute_production_routing_wave,
+};
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, AccountBoundAuthority, ActorPrincipalId, AuthenticatedSessionRef,
+    OwnerAccountId, ResourceScope, WorkspaceScopeRef,
 };
 use handshake_core::swarm_orchestration::routing::{
     ModelLaneRoutingAuthority, ModelLaneRoutingDispatchTarget,
@@ -83,8 +88,9 @@ use handshake_core::swarm_orchestration::routing_execution::{
 };
 use handshake_core::swarm_orchestration::ModelLaneRoutingGraph;
 use handshake_core::swarm_orchestration::{
-    ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink,
-    RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
+    ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
+    RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
+    SwarmEvent,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -361,8 +367,7 @@ async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects()
                 sample_message(SUBAGENT_MESSAGE_ID, RUN_ID, SUBAGENT_LANE_ID, "subagent", 3);
             local.proposal_ref = Some(format!("proposal://mt009/mixed/{}", LOCAL_MESSAGE_ID));
             cloud.proposal_ref = Some(format!("proposal://mt009/mixed/{}", CLOUD_MESSAGE_ID));
-            subagent.proposal_ref =
-                Some(format!("proposal://mt009/mixed/{}", SUBAGENT_MESSAGE_ID));
+            subagent.proposal_ref = Some(format!("proposal://mt009/mixed/{}", SUBAGENT_MESSAGE_ID));
             vec![local, cloud, subagent]
         };
         for message in messages.iter().take(2) {
@@ -661,8 +666,7 @@ async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects()
         // proposal_ref so this post-cancel output fails at the durable
         // terminal-source-lane guard (asserted below), not on the synchronous
         // proposal_ref pre-check. No `crdt_*` struct field is set.
-        late_subagent_message.proposal_ref =
-            Some("proposal://mt009/mixed/late-subagent".into());
+        late_subagent_message.proposal_ref = Some("proposal://mt009/mixed/late-subagent".into());
         let late_binding = sample_artifact_binding_for_message(&late_subagent_message);
         let late_binding_id = late_binding.artifact_binding_id.clone();
         active_phase.store(11, Ordering::SeqCst);
@@ -1475,7 +1479,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         .connect(&schema_url)
         .await
         .expect("connect isolated schema for ModelLane CRDT receipts");
-    let store = ModelLaneStore::new(pool.clone());
+    let store = ModelLaneStore::new_scoped(pool.clone(), mt009_exact_resource_scope());
     let document_id = format!("doc-mt009-yjs-{workspace_id}");
     let crdt_document_id = format!("crdt-mt009-yjs-{workspace_id}");
 
@@ -2281,6 +2285,28 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         .crdt_state_vector
         .clone()
         .expect("linked Yjs message has derived state vector");
+    let promoted_artifact_ref = "artifact://promoted/mt009/yjs/current";
+    let promoted_artifact_payload = json!({
+        "schema_id": "hsk.model_lane_promoted_artifact@1",
+        "artifact_version": "1",
+        "body": "current persisted Yjs promotion artifact",
+    });
+    let promoted_artifact_sha256 = sha256_hex(&canonical_json_bytes(&promoted_artifact_payload));
+    let mut promoted_artifact_binding = sample_artifact_binding_for_message(selected_message);
+    promoted_artifact_binding.artifact_binding_id =
+        "artifact-binding-promoted-mt009-yjs-current".into();
+    promoted_artifact_binding.artifact_ref = promoted_artifact_ref.into();
+    promoted_artifact_binding.artifact_sha256 = promoted_artifact_sha256.clone();
+    promoted_artifact_binding.content_hash = promoted_artifact_sha256.clone();
+    promoted_artifact_binding.artifact_kind = "promoted_model_lane_artifact".into();
+    promoted_artifact_binding.artifact_payload_ref = promoted_artifact_ref.into();
+    promoted_artifact_binding.payload_json = promoted_artifact_payload;
+    promoted_artifact_binding.idempotency_key =
+        "idem-artifact-binding-promoted-mt009-yjs-current".into();
+    store
+        .record_context_bundle_artifact_binding(promoted_artifact_binding)
+        .await
+        .expect("persist scoped ArtifactStore authority for the current Yjs promotion");
     let promotion_input = NewModelLanePromotionDecision {
         decision_id: "promotion-mt009-yjs-current".into(),
         run_id: RUN_ID.into(),
@@ -2307,8 +2333,8 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         deterministic_tie_break_rule: "event_ledger_seq_then_message_id".into(),
         promotion_gate_ref: "promotion-gate://mt009/yjs/current".into(),
         promotion_receipt_ref: Some("promotion-receipt://mt009/yjs/current".into()),
-        promoted_artifact_ref: Some("artifact://promoted/mt009/yjs/current".into()),
-        promoted_artifact_sha256: Some(sample_sha256()),
+        promoted_artifact_ref: Some(promoted_artifact_ref.into()),
+        promoted_artifact_sha256: Some(promoted_artifact_sha256),
         promoted_artifact_version: Some("1".into()),
         direct_authority_mutation_attempt_ref: None,
         event_ledger_stream_id: event_stream_id(RUN_ID),
@@ -2712,7 +2738,9 @@ async fn mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admi
     let stored = store
         .record_message(admissible.message.clone())
         .await
-        .expect("a Proposal-kind CRDT message backed by an approved applied proposal must be ADMITTED");
+        .expect(
+            "a Proposal-kind CRDT message backed by an approved applied proposal must be ADMITTED",
+        );
     assert_eq!(stored.kind, ModelLaneMessageKind::Proposal);
     assert_eq!(
         stored.crdt_proposal_ref.as_deref(),
@@ -3111,7 +3139,9 @@ async fn mt018_unapproved_and_fabricated_proposal_refs_fail_closed() {
     .await;
 
     let mut unapproved = sample_message(UNAPPROVED_MESSAGE_ID, &run_id, &lane_id, "local", 2);
-    unapproved.proposal_ref = Some(format!("proposal://mt018/unapproved/{UNAPPROVED_MESSAGE_ID}"));
+    unapproved.proposal_ref = Some(format!(
+        "proposal://mt018/unapproved/{UNAPPROVED_MESSAGE_ID}"
+    ));
     apply_crdt_posture(&mut unapproved, &posture, ModelLaneMessageKind::Proposal);
     let unapproved_error = store
         .record_message(unapproved)
@@ -3129,8 +3159,9 @@ async fn mt018_unapproved_and_fabricated_proposal_refs_fail_closed() {
     );
 
     let mut fabricated = sample_message(FABRICATED_MESSAGE_ID, &run_id, &lane_id, "local", 2);
-    fabricated.proposal_ref =
-        Some(format!("proposal://mt018/fabricated/{FABRICATED_MESSAGE_ID}"));
+    fabricated.proposal_ref = Some(format!(
+        "proposal://mt018/fabricated/{FABRICATED_MESSAGE_ID}"
+    ));
     apply_crdt_posture(&mut fabricated, &posture, ModelLaneMessageKind::Proposal);
     // ULID-shaped but never persisted.
     fabricated.crdt_proposal_ref = Some("crdt-proposal://01ARZ3NDEKTSV4RRFFQ69G5FAV".into());
@@ -3183,7 +3214,9 @@ async fn mt009_crdt_update_bytes_hash_mismatch_fails_closed() {
     const LABEL: &str = "mt009-uhash";
 
     let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
-        eprintln!("SKIP mt009_crdt_update_bytes_hash_mismatch_fails_closed: PostgreSQL binaries absent");
+        eprintln!(
+            "SKIP mt009_crdt_update_bytes_hash_mismatch_fails_closed: PostgreSQL binaries absent"
+        );
         return;
     };
     let schema_url = kpg.schema_url.clone();
@@ -3199,7 +3232,8 @@ async fn mt009_crdt_update_bytes_hash_mismatch_fails_closed() {
     let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
 
     let receipts =
-        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL).await;
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL)
+            .await;
     seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
 
     // INSERT a canonical clone of the real post-snapshot update, corrupting only
@@ -3249,10 +3283,9 @@ async fn mt009_crdt_update_bytes_hash_mismatch_fails_closed() {
     message.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
     message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
     message.crdt_proposal_ref = Some("crdt-proposal://mt009-update-hash-mismatch".into());
-    let error = store
-        .record_message(message.clone())
-        .await
-        .expect_err("a CRDT update whose stored bytes hash mismatches update_sha256 must fail closed");
+    let error = store.record_message(message.clone()).await.expect_err(
+        "a CRDT update whose stored bytes hash mismatches update_sha256 must fail closed",
+    );
     assert_error_contains(&error, "CRDT authority resolution failed");
     assert_error_contains(&error, "does not match persisted update_sha256");
 
@@ -3278,7 +3311,9 @@ async fn mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed() {
     const LABEL: &str = "mt009-shash";
 
     let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
-        eprintln!("SKIP mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed: PostgreSQL binaries absent");
+        eprintln!(
+            "SKIP mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed: PostgreSQL binaries absent"
+        );
         return;
     };
     let schema_url = kpg.schema_url.clone();
@@ -3294,7 +3329,8 @@ async fn mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed() {
     let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
 
     let receipts =
-        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL).await;
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL)
+            .await;
     seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
 
     // Canonical clone of the real snapshot with only snapshot_sha256 corrupted.
@@ -3345,10 +3381,9 @@ async fn mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed() {
     message.crdt_base_snapshot_ref = Some(tampered_snapshot_ref);
     message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
     message.crdt_proposal_ref = Some("crdt-proposal://mt009-snapshot-hash-mismatch".into());
-    let error = store
-        .record_message(message.clone())
-        .await
-        .expect_err("a base snapshot whose stored bytes hash mismatches snapshot_sha256 must fail closed");
+    let error = store.record_message(message.clone()).await.expect_err(
+        "a base snapshot whose stored bytes hash mismatches snapshot_sha256 must fail closed",
+    );
     assert_error_contains(&error, "CRDT authority resolution failed");
     assert_error_contains(&error, "does not match persisted snapshot_sha256");
 
@@ -3392,12 +3427,14 @@ async fn mt009_crdt_unrelated_document_state_vector_fails_closed() {
     let document_a = format!("doc-{LABEL_A}-{workspace_id}");
     let crdt_document_a = format!("crdt-{LABEL_A}-{workspace_id}");
     let receipts_a =
-        mt009_seed_real_crdt_document(&db, &workspace_id, &document_a, &crdt_document_a, LABEL_A).await;
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_a, &crdt_document_a, LABEL_A)
+            .await;
 
     let document_b = format!("doc-{LABEL_B}-{workspace_id}");
     let crdt_document_b = format!("crdt-{LABEL_B}-{workspace_id}");
     let receipts_b =
-        mt009_seed_real_crdt_document(&db, &workspace_id, &document_b, &crdt_document_b, LABEL_B).await;
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_b, &crdt_document_b, LABEL_B)
+            .await;
 
     // Two distinct documents derive distinct site ids, so their server-derived
     // state vectors are genuinely different -- the negative is real, not a
@@ -3589,14 +3626,7 @@ async fn mt004_case_fixture(
     let receipts =
         mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, label)
             .await;
-    Some((
-        pool,
-        store,
-        db,
-        workspace_id,
-        crdt_document_id,
-        receipts,
-    ))
+    Some((pool, store, db, workspace_id, crdt_document_id, receipts))
 }
 
 /// MT-004 class 1/5 -- MISSING ROWS, all six routing policies.
@@ -3933,12 +3963,9 @@ async fn mt004_all_six_policies_reject_duplicate_idempotency_keys() {
             conflicting.payload_sha256, baseline.payload_sha256,
             "the conflicting retry must carry a genuinely different payload hash"
         );
-        let error = store
-            .record_message(conflicting)
-            .await
-            .expect_err(&format!(
-                "policy {policy} must reject a duplicate idempotency_key with a different payload"
-            ));
+        let error = store.record_message(conflicting).await.expect_err(&format!(
+            "policy {policy} must reject a duplicate idempotency_key with a different payload"
+        ));
         assert_error_contains(&error, "idempotency conflict");
         assert_error_contains(&error, "already belongs to payload_sha256");
         assert_no_message_row(&pool, &conflicting_id).await;
@@ -3958,13 +3985,11 @@ async fn mt004_all_six_policies_reject_duplicate_idempotency_keys() {
         ));
         smuggling.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
         smuggling.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
-        smuggling.crdt_proposal_ref = Some(format!("crdt-proposal://mt004-{CASE}-smuggled-{policy}"));
-        let error = store
-            .record_message(smuggling)
-            .await
-            .expect_err(&format!(
-                "policy {policy} must not let an idempotent replay attach CRDT authority"
-            ));
+        smuggling.crdt_proposal_ref =
+            Some(format!("crdt-proposal://mt004-{CASE}-smuggled-{policy}"));
+        let error = store.record_message(smuggling).await.expect_err(&format!(
+            "policy {policy} must not let an idempotent replay attach CRDT authority"
+        ));
         assert_error_contains(&error, "idempotency conflict");
         assert_error_contains(&error, "already belongs to semantic_hash");
 
@@ -4073,7 +4098,9 @@ async fn mt004_all_six_policies_reject_crdt_replay_order_violations() {
     .bind(&receipts.post_update_bytes_ref)
     .bind(format!("{LABEL}-nonreplayable"))
     .bind(&non_replayable_update_ref)
-    .bind(format!("knowledge-crdt-mt004-nonreplayable:{crdt_document_id}"))
+    .bind(format!(
+        "knowledge-crdt-mt004-nonreplayable:{crdt_document_id}"
+    ))
     .execute(&pool)
     .await
     .expect("INSERT non-replayable kernel_crdt_updates clone");
@@ -4204,8 +4231,7 @@ async fn mt004_every_routing_policy_stage_output_routes_through_shared_crdt_admi
             // completeness check (~15137) and the Proposal-kind precondition
             // (~13737) are both satisfied, so every stage of every policy fails
             // at the same durable resolution gate for the same reason.
-            message.proposal_ref =
-                Some(format!("proposal://mt004/{CASE}/{policy}/{stage_id}"));
+            message.proposal_ref = Some(format!("proposal://mt004/{CASE}/{policy}/{stage_id}"));
             message.crdt_update_ref = Some(format!(
                 "postgres://kernel_crdt_updates/{crdt_document_id}/{policy}-{stage_id}-fabricated"
             ));
@@ -6121,8 +6147,18 @@ async fn model_lane_store() -> (PgPool, ModelLaneStore) {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated Dexterity mixed ModelLane schema");
-    let store = ModelLaneStore::new(pool.clone());
+    let store = ModelLaneStore::new_scoped(pool.clone(), mt009_exact_resource_scope());
     (pool, store)
+}
+
+fn mt009_exact_resource_scope() -> ResourceScope {
+    ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new("workspace-mt009-mixed-model-lane")
+                .expect("nonblank MT-009 workspace scope"),
+        )
 }
 
 async fn seed_cloud_authority(store: &ModelLaneStore, run_id: &str, lane_id: &str) {
@@ -6143,7 +6179,7 @@ async fn seed_cloud_authority_for_model_session(
     model_session_id: &str,
     requested_model_id: &str,
 ) {
-    let mut projection_plan = sample_projection_plan(run_id, lane_id);
+    let mut projection_plan = sample_projection_plan(store, run_id, lane_id);
     projection_plan.model_session_id = Some(model_session_id.to_string());
     projection_plan.requested_model_id = Some(requested_model_id.to_string());
     let plan = store
@@ -6151,6 +6187,7 @@ async fn seed_cloud_authority_for_model_session(
         .await
         .expect("record cloud ProjectionPlan authority");
     let mut consent_receipt = sample_consent_receipt(
+        store,
         run_id,
         lane_id,
         &plan.projection_plan_id,
@@ -6825,7 +6862,11 @@ fn sample_artifact_binding_for_message(
     }
 }
 
-fn sample_projection_plan(run_id: &str, lane_id: &str) -> NewModelLaneCloudProjectionPlan {
+fn sample_projection_plan(
+    store: &ModelLaneStore,
+    run_id: &str,
+    lane_id: &str,
+) -> NewModelLaneCloudProjectionPlan {
     NewModelLaneCloudProjectionPlan {
         projection_plan_id: projection_plan_id(run_id, lane_id),
         run_id: run_id.into(),
@@ -6847,13 +6888,9 @@ fn sample_projection_plan(run_id: &str, lane_id: &str) -> NewModelLaneCloudProje
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         provider_profile_ref: "provider-profile://mt009/openai".into(),
         fan_out_targets: vec!["provider://openai/byok".into()],
-        // Seeded through an unscoped store: only an explicitly unattributed
-        // source scope may be stamped (see `ensure_authority_matches_write_scope`).
         export_delegation: CloudExportDelegation {
             audience_refs: vec!["provider://openai/byok".into()],
-            source_scope: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
-                "MT009_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
-            ),
+            source_scope: AccountBoundAuthority::from_access(store.access()),
             authorization_receipt_ref: None,
         },
         consent_scope: ModelLaneCloudConsentScope::SingleLane,
@@ -6877,6 +6914,7 @@ fn sample_projection_plan(run_id: &str, lane_id: &str) -> NewModelLaneCloudProje
 }
 
 fn sample_consent_receipt(
+    store: &ModelLaneStore,
     run_id: &str,
     lane_id: &str,
     projection_plan_id: &str,
@@ -6899,9 +6937,7 @@ fn sample_consent_receipt(
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         fan_out_targets: vec!["provider://openai/byok".into()],
         approved: true,
-        approver: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
-            "MT009_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
-        ),
+        approver: AccountBoundAuthority::from_access(store.access()),
         approved_by_ref: "operator://mt009/approval".into(),
         approved_at_utc: "2026-07-01T00:00:10Z".into(),
         valid_from_utc: "2026-01-01T00:00:00Z".into(),
@@ -7097,12 +7133,14 @@ struct Ac9ProductionRuntime {
     lora: LoraStackHandle,
     steering: SteeringHookHandle,
     hold_generation: Arc<AtomicBool>,
+    hold_cancel_observation: Arc<AtomicBool>,
     model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
 }
 
 impl Ac9ProductionRuntime {
     fn new(
         hold_generation: Arc<AtomicBool>,
+        hold_cancel_observation: Arc<AtomicBool>,
         model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
     ) -> Self {
         Self {
@@ -7111,6 +7149,7 @@ impl Ac9ProductionRuntime {
             lora: LoraStackHandle::new("ac9-production-lora"),
             steering: SteeringHookHandle::new("ac9-production-steering"),
             hold_generation,
+            hold_cancel_observation,
             model_outputs,
         }
     }
@@ -7129,16 +7168,21 @@ impl ModelRuntime for Ac9ProductionRuntime {
     fn generate(&self, req: GenerateRequest) -> TokenStream {
         if self.hold_generation.load(Ordering::SeqCst) {
             return Box::pin(stream::unfold(
-                (req.cancel, self.hold_generation.clone(), false),
-                |(cancel, hold_generation, terminal_emitted)| async move {
+                (
+                    req.cancel,
+                    self.hold_generation.clone(),
+                    self.hold_cancel_observation.clone(),
+                    false,
+                ),
+                |(cancel, hold_generation, hold_cancel_observation, terminal_emitted)| async move {
                     if terminal_emitted {
                         return None;
                     }
                     tokio::time::sleep(Duration::from_millis(25)).await;
-                    if cancel.is_cancelled() {
+                    if cancel.is_cancelled() && !hold_cancel_observation.load(Ordering::SeqCst) {
                         Some((
                             Err(ModelRuntimeError::Cancelled),
-                            (cancel, hold_generation, true),
+                            (cancel, hold_generation, hold_cancel_observation, true),
                         ))
                     } else if !hold_generation.load(Ordering::SeqCst) {
                         Some((
@@ -7148,7 +7192,7 @@ impl ModelRuntime for Ac9ProductionRuntime {
                                 logprob: None,
                                 finish_reason: None,
                             }),
-                            (cancel, hold_generation, true),
+                            (cancel, hold_generation, hold_cancel_observation, true),
                         ))
                     } else {
                         Some((
@@ -7158,7 +7202,7 @@ impl ModelRuntime for Ac9ProductionRuntime {
                                 logprob: None,
                                 finish_reason: None,
                             }),
-                            (cancel, hold_generation, false),
+                            (cancel, hold_generation, hold_cancel_observation, false),
                         ))
                     }
                 },
@@ -7221,7 +7265,16 @@ struct Ac9ProductionFactory {
     ledger: LedgerBatcher,
     creates: Arc<AtomicUsize>,
     teardowns: Arc<AtomicUsize>,
+    // Per-instance accounting so a teardown-count mismatch can name WHICH
+    // instance missed teardown instead of only how many ran (MT-009
+    // teardowns==1 diagnosis).
+    created_instances: Arc<Mutex<Vec<ModelInstanceId>>>,
+    teardown_instances: Arc<Mutex<Vec<ModelInstanceId>>>,
+    record_instance_accounting: Arc<AtomicBool>,
+    hold_teardown: Arc<AtomicBool>,
     hold_generation: Arc<AtomicBool>,
+    hold_cancel_observation: Arc<AtomicBool>,
+    fail_teardown_remaining: Arc<AtomicUsize>,
     hold_create: Arc<AtomicBool>,
     fail_model: Arc<Mutex<Option<ModelId>>>,
     model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
@@ -7232,6 +7285,12 @@ struct Ac9ProductionFactory {
 impl ModelSessionFactory for Ac9ProductionFactory {
     async fn create(&self, request: &SpawnRequest) -> Result<LiveSession, SwarmError> {
         self.creates.fetch_add(1, Ordering::SeqCst);
+        if self.record_instance_accounting.load(Ordering::SeqCst) {
+            self.created_instances
+                .lock()
+                .expect("AC-9 created-instance lock")
+                .push(request.instance_id);
+        }
         while self.hold_create.load(Ordering::SeqCst)
             || self
                 .held_models
@@ -7270,16 +7329,45 @@ impl ModelSessionFactory for Ac9ProductionFactory {
             .record_start(start.clone())
             .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
         let teardown_count = self.teardowns.clone();
+        let teardown_instances = self.teardown_instances.clone();
+        let record_instance_accounting = self.record_instance_accounting.clone();
+        let hold_teardown = self.hold_teardown.clone();
+        let fail_teardown_remaining = self.fail_teardown_remaining.clone();
+        let teardown_instance_id = request.instance_id;
         let teardown: handshake_core::swarm_orchestration::SessionTeardown = Arc::new(move || {
             let teardown_count = teardown_count.clone();
+            let teardown_instances = teardown_instances.clone();
+            let record_instance_accounting = record_instance_accounting.clone();
+            let hold_teardown = hold_teardown.clone();
+            let fail_teardown_remaining = fail_teardown_remaining.clone();
             Box::pin(async move {
                 teardown_count.fetch_add(1, Ordering::SeqCst);
+                if record_instance_accounting.load(Ordering::SeqCst) {
+                    teardown_instances
+                        .lock()
+                        .expect("AC-9 teardown-instance lock")
+                        .push(teardown_instance_id);
+                }
+                while hold_teardown.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+                if fail_teardown_remaining
+                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |remaining| {
+                        (remaining > 0).then(|| remaining - 1)
+                    })
+                    .is_ok()
+                {
+                    return Err(SwarmError::Internal(
+                        "injected AC-9 retryable teardown failure".into(),
+                    ));
+                }
                 Ok(())
             })
         });
         Ok(LiveSession::new(
             Arc::new(Ac9ProductionRuntime::new(
                 self.hold_generation.clone(),
+                self.hold_cancel_observation.clone(),
                 self.model_outputs.clone(),
             )),
             request.instance_id.model_id,
@@ -7313,11 +7401,18 @@ struct Ac9ProductionFixture {
     specs: Vec<Ac9StageSpec>,
     creates: Arc<AtomicUsize>,
     teardowns: Arc<AtomicUsize>,
+    created_instances: Arc<Mutex<Vec<ModelInstanceId>>>,
+    teardown_instances: Arc<Mutex<Vec<ModelInstanceId>>>,
+    record_instance_accounting: Arc<AtomicBool>,
+    hold_teardown: Arc<AtomicBool>,
     hold_generation: Arc<AtomicBool>,
+    hold_cancel_observation: Arc<AtomicBool>,
+    fail_teardown_remaining: Arc<AtomicUsize>,
     hold_create: Arc<AtomicBool>,
     fail_model: Arc<Mutex<Option<ModelId>>>,
     model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
     held_models: Arc<Mutex<HashSet<ModelId>>>,
+    event_sink: Arc<RecordingSwarmSink>,
     ledger_drain: ProcessLedgerDrain,
 }
 
@@ -7651,6 +7746,28 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
     if let Some(receipt) = cloud_receipt_ref.as_ref() {
         diagnostic_payload["cloud_consent_receipt_ref"] = json!(receipt);
     }
+    let promoted_artifact_ref = format!("artifact://promoted/ac9/{suffix}");
+    let promoted_artifact_payload = json!({
+        "schema_id": "hsk.model_lane_promoted_artifact@1",
+        "artifact_version": "1",
+        "body": format!("AC-9 promoted artifact for {suffix}"),
+    });
+    let promoted_artifact_sha256 = sha256_hex(&canonical_json_bytes(&promoted_artifact_payload));
+    let mut promoted_artifact_binding = sample_artifact_binding_for_message(&source_message);
+    promoted_artifact_binding.artifact_binding_id =
+        format!("artifact-binding-promoted-ac9-{suffix}");
+    promoted_artifact_binding.artifact_ref = promoted_artifact_ref.clone();
+    promoted_artifact_binding.artifact_sha256 = promoted_artifact_sha256.clone();
+    promoted_artifact_binding.content_hash = promoted_artifact_sha256.clone();
+    promoted_artifact_binding.artifact_kind = "promoted_model_lane_artifact".into();
+    promoted_artifact_binding.artifact_payload_ref = promoted_artifact_ref.clone();
+    promoted_artifact_binding.payload_json = promoted_artifact_payload;
+    promoted_artifact_binding.idempotency_key =
+        format!("idem-artifact-binding-promoted-ac9-{suffix}");
+    store
+        .record_context_bundle_artifact_binding(promoted_artifact_binding)
+        .await
+        .expect("persist scoped ArtifactStore authority for AC-9 promotion");
     let decision = store
         .record_promotion_decision(NewModelLanePromotionDecision {
             decision_id: decision_id.clone(),
@@ -7705,8 +7822,8 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
             deterministic_tie_break_rule: "event_ledger_seq_then_message_id".into(),
             promotion_gate_ref: format!("promotion-gate://ac9/{suffix}"),
             promotion_receipt_ref: Some(format!("promotion-receipt://ac9/{suffix}")),
-            promoted_artifact_ref: Some(format!("artifact://promoted/ac9/{suffix}")),
-            promoted_artifact_sha256: Some(sample_sha256()),
+            promoted_artifact_ref: Some(promoted_artifact_ref),
+            promoted_artifact_sha256: Some(promoted_artifact_sha256),
             promoted_artifact_version: Some("1".into()),
             direct_authority_mutation_attempt_ref: None,
             event_ledger_stream_id: event_stream_id(&run_id),
@@ -7722,7 +7839,12 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
         })
         .await
         .expect("record approved AC-9 selecting promotion decision");
-    assert_eq!(decision.outcome, ModelLanePromotionOutcome::Approved);
+    assert_eq!(
+        decision.outcome,
+        ModelLanePromotionOutcome::Approved,
+        "AC-9 fixture promotion denial before run-extension proof: {:?}",
+        decision.denial_reason
+    );
     let locus_ref = format!("locus://wp1/mt009/{run_id}/coordinator-{run_id}");
     let context = ModelLaneRoutingExecutionContext {
         run_id: run_id.clone(),
@@ -7752,27 +7874,44 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
     .expect("manual AC-9 process ledger");
     let creates = Arc::new(AtomicUsize::new(0));
     let teardowns = Arc::new(AtomicUsize::new(0));
+    let created_instances = Arc::new(Mutex::new(Vec::new()));
+    let teardown_instances = Arc::new(Mutex::new(Vec::new()));
+    let diagnostics_enabled = std::env::var_os("HANDSHAKE_TERMINATE_TRACE").is_some();
+    let record_instance_accounting = Arc::new(AtomicBool::new(diagnostics_enabled));
+    let hold_teardown = Arc::new(AtomicBool::new(false));
     let hold_generation = Arc::new(AtomicBool::new(false));
+    let hold_cancel_observation = Arc::new(AtomicBool::new(false));
+    let fail_teardown_remaining = Arc::new(AtomicUsize::new(0));
     let hold_create = Arc::new(AtomicBool::new(false));
     let fail_model = Arc::new(Mutex::new(None));
     let model_outputs = Arc::new(Mutex::new(HashMap::new()));
     let held_models = Arc::new(Mutex::new(HashSet::new()));
+    let event_sink = Arc::new(RecordingSwarmSink::new());
     let coordinator = SwarmCoordinator::new_with_model_lane_store(
         SwarmConfig::new(RunBudget::defaulted(8)),
         Arc::new(Ac9ProductionFactory {
             ledger: ledger.clone(),
             creates: creates.clone(),
             teardowns: teardowns.clone(),
+            created_instances: created_instances.clone(),
+            teardown_instances: teardown_instances.clone(),
+            record_instance_accounting: record_instance_accounting.clone(),
+            hold_teardown: hold_teardown.clone(),
             hold_generation: hold_generation.clone(),
+            hold_cancel_observation: hold_cancel_observation.clone(),
+            fail_teardown_remaining: fail_teardown_remaining.clone(),
             hold_create: hold_create.clone(),
             fail_model: fail_model.clone(),
             model_outputs: model_outputs.clone(),
             held_models: held_models.clone(),
         }),
-        Arc::new(RecordingSwarmSink::new()),
+        event_sink.clone(),
         ledger,
         store.clone(),
     );
+    if diagnostics_enabled {
+        coordinator.set_terminate_trace_enabled_for_test(true);
+    }
     Ac9ProductionFixture {
         pool,
         store,
@@ -7785,11 +7924,18 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
         specs,
         creates,
         teardowns,
+        created_instances,
+        teardown_instances,
+        record_instance_accounting,
+        hold_teardown,
         hold_generation,
+        hold_cancel_observation,
+        fail_teardown_remaining,
         hold_create,
         fail_model,
         model_outputs,
         held_models,
+        event_sink,
         ledger_drain,
     }
 }
@@ -7829,6 +7975,7 @@ async fn ac9_wait_for_stage_attempt_state(
     expected_attempt: u64,
     expected_state: &str,
 ) -> Value {
+    let mut latest = None;
     for _ in 0..200 {
         if let Some(record) = sqlx::query_scalar::<_, Value>(
             "SELECT record_json FROM model_lane_routing_executions WHERE execution_id = $1",
@@ -7844,10 +7991,41 @@ async fn ac9_wait_for_stage_attempt_state(
             {
                 return record;
             }
+            latest = Some(record);
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    panic!("stage {stage_id} attempt {expected_attempt} did not reach {expected_state}");
+    panic!(
+        "stage {stage_id} attempt {expected_attempt} did not reach {expected_state}; latest={latest:?}"
+    );
+}
+
+async fn ac9_wait_for_durable_lane_generation(
+    pool: &PgPool,
+    lane_id: &str,
+    expected_generation: i64,
+    expected_status: &str,
+) -> Value {
+    let mut latest = None;
+    for _ in 0..400 {
+        latest =
+            sqlx::query_scalar::<_, Value>("SELECT record_json FROM model_lanes WHERE lane_id=$1")
+                .bind(lane_id)
+                .fetch_optional(pool)
+                .await
+                .expect("poll AC-9 durable lane generation");
+        if let Some(record) = latest.as_ref() {
+            if record["restart_generation"].as_i64() == Some(expected_generation)
+                && record["status"].as_str() == Some(expected_status)
+            {
+                return record.clone();
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!(
+        "lane {lane_id} did not reach durable restart_generation={expected_generation} status={expected_status}; latest={latest:#?}"
+    );
 }
 
 async fn ac9_force_expired_lease(pool: &PgPool, execution_id: &str, stage_id: &str) {
@@ -8480,6 +8658,7 @@ async fn ac9_concurrent_exact_run_extension_replays_one_canonical_lane() {
     let live = LiveSession::new(
         Arc::new(Ac9ProductionRuntime::new(
             Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
             Arc::new(Mutex::new(HashMap::new())),
         )),
         request.instance_id.model_id,
@@ -8522,6 +8701,43 @@ async fn ac9_concurrent_exact_run_extension_replays_one_canonical_lane() {
             .filter(|lane| lane.lane_id == right_lane.lane_id)
             .count(),
         1
+    );
+
+    // Counterfactual: an extension event cannot prove its own delta merely by
+    // naming any lane already present in the final run projection. Rewriting
+    // attached_lane_id and recomputing the canonical hash must still fail
+    // because the validator reconstructs the one-lane delta from the preceding
+    // immutable run event.
+    let alternate_lane = right_run
+        .lane_ids
+        .iter()
+        .find(|lane_id| *lane_id != &right_lane.lane_id)
+        .cloned()
+        .expect("extended run has a distinct pre-existing lane");
+    let mut extension_payload: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&right_run.event_ledger_event_id)
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("read run extension EventLedger payload");
+    extension_payload["attached_lane_id"] = json!(alternate_lane);
+    let forged_hash = sha256_hex(&canonical_json_bytes(&extension_payload));
+    sqlx::query(
+        "UPDATE kernel_event_ledger SET payload = $2, payload_hash = $3 WHERE event_id = $1",
+    )
+    .bind(&right_run.event_ledger_event_id)
+    .bind(extension_payload)
+    .bind(forged_hash)
+    .execute(&fixture.pool)
+    .await
+    .expect("rewrite attached lane and recompute canonical hash");
+    assert!(
+        fixture
+            .store
+            .replay_run(&fixture.context.run_id)
+            .await
+            .is_err(),
+        "run extension accepted a self-claimed attached lane without reconstructing the prior delta"
     );
 }
 
@@ -8572,6 +8788,7 @@ async fn ac9_parallel_peer_failure_immediately_cancels_live_sibling() {
     let fixture =
         Arc::new(ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, "peer-failure").await);
     fixture.hold_generation.store(true, Ordering::SeqCst);
+    fixture.hold_teardown.store(true, Ordering::SeqCst);
     let cloud_model = fixture
         .specs
         .iter()
@@ -8580,10 +8797,20 @@ async fn ac9_parallel_peer_failure_immediately_cancels_live_sibling() {
         .expect("debate-cloud model")
         .model_id;
     *fixture.fail_model.lock().expect("set cloud peer failure") = Some(cloud_model);
-    let result = fixture.wave().await;
-    assert!(
-        result.is_err(),
-        "cancelled sibling worker reports its stale terminal write"
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    for _ in 0..400 {
+        if fixture.teardowns.load(Ordering::SeqCst) == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(
+        fixture.teardowns.load(Ordering::SeqCst),
+        1,
+        "live sibling teardown enters the deterministic barrier"
     );
     let record: Value = sqlx::query_scalar(
         "SELECT record_json FROM model_lane_routing_executions WHERE execution_id=$1",
@@ -8598,6 +8825,82 @@ async fn ac9_parallel_peer_failure_immediately_cancels_live_sibling() {
         record["stages"]["debate-local"]["state"],
         json!("cancelled")
     );
+    assert!(
+        !worker.is_finished(),
+        "routing lifecycle remains held in sibling teardown after the durable Cancelled fence"
+    );
+    fixture.hold_teardown.store(false, Ordering::SeqCst);
+    let result = worker
+        .await
+        .expect("join peer-failure routing worker")
+        .expect("canonical failed execution survives the cancelled sibling worker race");
+    assert_eq!(
+        result.execution.status,
+        ModelLaneRoutingExecutionStatus::Failed
+    );
+    assert_eq!(
+        result.execution.stages["debate-local"].state,
+        ModelLaneRoutingStageStateKind::Cancelled
+    );
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn ac9_sibling_persistence_failure_still_fences_and_reclaims_live_runtime() {
+    let fixture = Arc::new(
+        ac9_fixture(
+            ModelLaneRoutingPolicy::ParallelDebate,
+            "sibling-persistence-failure",
+        )
+        .await,
+    );
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    fixture.hold_teardown.store(true, Ordering::SeqCst);
+    let cloud_model = fixture
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "debate-cloud")
+        .and_then(|spec| spec.instance_id)
+        .expect("debate-cloud model")
+        .model_id;
+    *fixture.fail_model.lock().expect("set cloud peer failure") = Some(cloud_model);
+    fixture
+        .coordinator
+        .fail_next_sibling_cancellation_persistence_for_test();
+
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    for _ in 0..400 {
+        if fixture.teardowns.load(Ordering::SeqCst) == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(
+        fixture.teardowns.load(Ordering::SeqCst),
+        1,
+        "a failed durable sibling transition must not block the local cancellation fence"
+    );
+    assert!(
+        !worker.is_finished(),
+        "the routing worker remains held in the exact sibling teardown"
+    );
+
+    fixture.hold_teardown.store(false, Ordering::SeqCst);
+    let error = worker
+        .await
+        .expect("join sibling-persistence failure worker")
+        .expect_err("the injected persistence failure must remain visible");
+    assert!(
+        error
+            .to_string()
+            .contains("injected sibling cancellation persistence failure"),
+        "unexpected sibling persistence error: {error}"
+    );
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
     assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 1);
 }
 
@@ -8676,7 +8979,21 @@ async fn ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_comp
         .expect("persisted pre-spawn fence")
         .to_string();
     assert!(before_crash["stages"]["cloud-plan"]["instance_id"].is_string());
+    let planned_lane_id = fixture
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "cloud-plan")
+        .and_then(|spec| spec.lane_id.as_deref())
+        .expect("planned crash-recovery cloud lane");
+    ac9_wait_for_durable_lane_generation(&fixture.pool, planned_lane_id, 0, "ready").await;
     worker.abort();
+    let abort_error = worker
+        .await
+        .expect_err("persisted-spawn crash boundary must cancel the routing worker");
+    assert!(
+        abort_error.is_cancelled(),
+        "persisted-spawn crash boundary ended for an unexpected reason: {abort_error}"
+    );
     ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "cloud-plan").await;
     fixture.hold_generation.store(false, Ordering::SeqCst);
     let recovered = fixture
@@ -8686,7 +9003,33 @@ async fn ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_comp
         .expect("recover and redispatch expired production stage");
     let stage = &recovered.execution.stages["cloud-plan"];
     assert_eq!(stage.attempt, 2);
-    assert_eq!(stage.state, ModelLaneRoutingStageStateKind::Succeeded);
+    if stage.state != ModelLaneRoutingStageStateKind::Succeeded {
+        let created = fixture
+            .created_instances
+            .lock()
+            .expect("AC-9 created-instance lock")
+            .clone();
+        let torn_down = fixture
+            .teardown_instances
+            .lock()
+            .expect("AC-9 teardown-instance lock")
+            .clone();
+        let trace = fixture.coordinator.terminate_trace_events();
+        let trace_lines = trace
+            .iter()
+            .map(|event| format!("  {} | {}", event.instance_id, event.step))
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!(
+            "AC-9 persisted-spawn recovery attempt 2 did not succeed: stage={stage:#?}\n\
+             creates={} created_instances={created:?}\n\
+             teardowns={} teardown_instances={torn_down:?}\n\
+             terminate() decision trace ({} events, global order):\n{trace_lines}",
+            fixture.creates.load(Ordering::SeqCst),
+            fixture.teardowns.load(Ordering::SeqCst),
+            trace.len()
+        );
+    }
     let retry_fence: String = sqlx::query_scalar(
         "SELECT ledger.payload->>'fencing_token' FROM model_lane_routing_stage_attempts attempt JOIN kernel_event_ledger ledger ON ledger.event_id=attempt.event_ledger_event_id AND ledger.event_sequence=attempt.event_ledger_seq WHERE attempt.execution_id=$1 AND attempt.stage_id='cloud-plan' AND attempt.attempt=2",
     )
@@ -8719,8 +9062,55 @@ async fn ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_comp
         format!("{}:cloud-plan:1", fixture.execution_id)
     );
     assert_eq!(compensated_payload["state"], json!("compensated"));
-    assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
-    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 2);
+    let durable_restart_generation: i64 = sqlx::query_scalar(
+        "SELECT (record_json->>'restart_generation')::bigint FROM model_lanes WHERE lane_id=$1",
+    )
+    .bind(planned_lane_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read recovered lane restart generation");
+    assert_eq!(
+        durable_restart_generation, 1,
+        "routing attempt 2 must persist as restart generation 1 on the stable canonical lane"
+    );
+    let durable_launch_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type='model_lane' AND aggregate_id=$1",
+    )
+    .bind(planned_lane_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count generation-specific durable lane launch events");
+    assert_eq!(
+        durable_launch_events, 2,
+        "the stable lane must retain distinct EventLedger launch authority for generations 0 and 1"
+    );
+    let creates = fixture.creates.load(Ordering::SeqCst);
+    let teardowns = fixture.teardowns.load(Ordering::SeqCst);
+    if creates != 2 || teardowns != 2 {
+        let created = fixture
+            .created_instances
+            .lock()
+            .expect("AC-9 created-instance lock")
+            .clone();
+        let torn_down = fixture
+            .teardown_instances
+            .lock()
+            .expect("AC-9 teardown-instance lock")
+            .clone();
+        let trace = fixture.coordinator.terminate_trace_events();
+        let trace_lines = trace
+            .iter()
+            .map(|event| format!("  {} | {}", event.instance_id, event.step))
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!(
+            "AC-9 persisted-spawn recovery accounting failed: creates={creates} (expected 2) teardowns={teardowns} (expected 2)\n\
+             created_instances={created:?}\n\
+             teardown_instances={torn_down:?}\n\
+             terminate() decision trace ({} events, global order):\n{trace_lines}",
+            trace.len()
+        );
+    }
 }
 
 #[tokio::test]
@@ -8823,6 +9213,14 @@ async fn ac9_redispatch_rejects_the_live_prior_attempt_stale_fence() {
         .as_str()
         .expect("attempt-1 fence")
         .to_string();
+    let stale_error_arrived = Arc::new(tokio::sync::Notify::new());
+    let release_stale_error = Arc::new(tokio::sync::Notify::new());
+    fixture
+        .coordinator
+        .set_routing_before_dispatch_error_cleanup_pause_for_test(
+            Arc::clone(&stale_error_arrived),
+            Arc::clone(&release_stale_error),
+        );
     ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "cloud-plan").await;
     let recovery_worker = {
         let fixture = fixture.clone();
@@ -8845,6 +9243,39 @@ async fn ac9_redispatch_rejects_the_live_prior_attempt_stale_fence() {
         retry["stages"]["cloud-plan"]["fencing_token"].as_str(),
         Some(prior_fence.as_str())
     );
+    tokio::time::timeout(Duration::from_secs(30), stale_error_arrived.notified())
+        .await
+        .expect("attempt 1 must reach outer dispatch-error cleanup after attempt 2 is current");
+    release_stale_error.notify_one();
+    let stale = tokio::time::timeout(Duration::from_secs(30), prior_worker)
+        .await
+        .expect("stale attempt worker must finish after releasing its outer error")
+        .expect("join prior worker")
+        .expect_err("attempt 1 cannot commit after attempt 2 owns the stage");
+    assert!(
+        stale.to_string().contains("stale routing claim")
+            || stale.to_string().contains("integrity failure"),
+        "attempt 1 must fail through the stale durable fence: {stale}"
+    );
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let after_stale_drop = ac9_wait_for_stage_attempt_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "cloud-plan",
+        2,
+        "in_flight",
+    )
+    .await;
+    assert_eq!(
+        after_stale_drop["stages"]["cloud-plan"]["attempt"].as_u64(),
+        Some(2),
+        "stale attempt-1 finalization cannot replace or terminalize attempt 2"
+    );
+    assert_eq!(
+        fixture.coordinator.live_session_count(),
+        1,
+        "attempt 2 remains live after the stale attempt-1 finalizer runs"
+    );
     fixture.hold_generation.store(false, Ordering::SeqCst);
     let recovered = recovery_worker
         .await
@@ -8854,11 +9285,6 @@ async fn ac9_redispatch_rejects_the_live_prior_attempt_stale_fence() {
         recovered.execution.stages["cloud-plan"].state,
         ModelLaneRoutingStageStateKind::Succeeded
     );
-    let stale = prior_worker
-        .await
-        .expect("join prior worker")
-        .expect_err("attempt 1 cannot commit after attempt 2 owns the stage");
-    assert!(stale.to_string().contains("stale routing claim"));
     let stale_artifacts: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_ref LIKE $1",
     )
@@ -8909,19 +9335,666 @@ async fn ac9_cancel_terminalizes_parallel_siblings_and_live_sessions() {
             .coordinator
             .cancel_routing_execution(&fixture.execution_id, "operator AC-9 cancellation"),
     )
-    .await
-    .expect("cancel_routing_execution must not hang while siblings are live")
-    .expect("cancel production routing execution");
+    .await;
+    let cancelled = match cancelled {
+        Ok(Ok(cancelled)) => cancelled,
+        Ok(Err(error)) => {
+            let trace = fixture.coordinator.terminate_trace_events();
+            let trace_lines = trace
+                .iter()
+                .map(|event| format!("  {} | {}", event.instance_id, event.step))
+                .collect::<Vec<_>>()
+                .join("\n");
+            panic!(
+                "cancel production routing execution: {error}\n\
+                 terminate() decision trace ({} events, global order):\n{trace_lines}",
+                trace.len()
+            );
+        }
+        Err(error) => {
+            let trace = fixture.coordinator.terminate_trace_events();
+            let trace_lines = trace
+                .iter()
+                .map(|event| format!("  {} | {}", event.instance_id, event.step))
+                .collect::<Vec<_>>()
+                .join("\n");
+            panic!(
+                "cancel_routing_execution timed out while siblings were live: {error}\n\
+                 terminate() decision trace ({} events, global order):\n{trace_lines}",
+                trace.len()
+            );
+        }
+    };
     assert_eq!(cancelled.status, ModelLaneRoutingExecutionStatus::Cancelled);
-    assert!(cancelled.stages.values().all(|stage| {
-        stage.state == ModelLaneRoutingStageStateKind::Cancelled
-            || ac9_stage_is_terminal(stage.state)
-    }));
-    let _ = tokio::time::timeout(Duration::from_secs(60), worker)
+    assert_eq!(
+        cancelled.cancel_reason.as_deref(),
+        Some("operator AC-9 cancellation"),
+        "durable execution cancellation must retain the exact operator reason"
+    );
+    let expected_stage_ids = fixture
+        .specs
+        .iter()
+        .filter(|spec| spec.instance_id.is_some())
+        .map(|spec| spec.stage_id.clone())
+        .collect::<BTreeSet<_>>();
+    let cancelled_stage_ids = cancelled.stages.keys().cloned().collect::<BTreeSet<_>>();
+    assert_eq!(
+        cancelled_stage_ids, expected_stage_ids,
+        "cancelled projection must contain the exact routing graph stage set"
+    );
+    assert!(cancelled
+        .stages
+        .values()
+        .all(|stage| stage.state == ModelLaneRoutingStageStateKind::Cancelled));
+    for spec in fixture
+        .specs
+        .iter()
+        .filter(|spec| spec.instance_id.is_some())
+    {
+        let stage = cancelled
+            .stages
+            .get(&spec.stage_id)
+            .expect("exact cancelled stage set was asserted");
+        let expected_instance_id = spec.instance_id.map(|instance_id| instance_id.to_string());
+        assert_eq!(
+            stage.instance_id.as_deref(),
+            expected_instance_id.as_deref(),
+            "cancelled stage {} must retain its exact launched instance identity",
+            spec.stage_id
+        );
+    }
+    let worker_result = match tokio::time::timeout(Duration::from_secs(60), worker).await {
+        Ok(joined) => joined.expect("routing worker task must not panic"),
+        Err(error) => {
+            let trace = fixture.coordinator.terminate_trace_events();
+            let trace_lines = trace
+                .iter()
+                .map(|event| format!("  {} | {}", event.instance_id, event.step))
+                .collect::<Vec<_>>()
+                .join("\n");
+            panic!(
+                "routing worker did not end after cancellation: {error}\n\
+                 terminate() decision trace ({} events, global order):\n{trace_lines}",
+                trace.len()
+            );
+        }
+    };
+    let worker_result = worker_result.unwrap_or_else(|error| {
+        let trace = fixture.coordinator.terminate_trace_events();
+        let trace_lines = trace
+            .iter()
+            .map(|event| format!("  {} | {}", event.instance_id, event.step))
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!(
+            "routing worker must reconcile the cancelled execution without error: {error}\n\
+             terminate() decision trace ({} events, global order):\n{trace_lines}",
+            trace.len()
+        );
+    });
+    assert_eq!(
+        worker_result.execution.status,
+        ModelLaneRoutingExecutionStatus::Cancelled
+    );
+    assert_eq!(
+        worker_result.execution.cancel_reason.as_deref(),
+        Some("operator AC-9 cancellation"),
+        "worker reconciliation must preserve the canonical operator cancellation reason"
+    );
+    let worker_stage_ids = worker_result
+        .execution
+        .stages
+        .keys()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        worker_stage_ids, expected_stage_ids,
+        "worker reconciliation must preserve the exact cancelled routing graph stage set"
+    );
+    assert!(worker_result
+        .execution
+        .stages
+        .values()
+        .all(|stage| stage.state == ModelLaneRoutingStageStateKind::Cancelled));
+    for spec in fixture
+        .specs
+        .iter()
+        .filter(|spec| spec.instance_id.is_some())
+    {
+        let stage = worker_result
+            .execution
+            .stages
+            .get(&spec.stage_id)
+            .expect("exact worker stage set was asserted");
+        let expected_instance_id = spec.instance_id.map(|instance_id| instance_id.to_string());
+        assert_eq!(
+            stage.instance_id.as_deref(),
+            expected_instance_id.as_deref(),
+            "worker stage {} must retain its exact launched instance identity",
+            spec.stage_id
+        );
+    }
+    // Same assertions as before (creates==2, teardowns==2), but a mismatch now
+    // reports WHICH instance missed teardown and every terminate() decision
+    // point, so the ~30% teardowns==1 failure names its own branch instead of
+    // requiring another round of hypothesis fixes (MT-009 required next step).
+    let creates = fixture.creates.load(Ordering::SeqCst);
+    let teardowns = fixture.teardowns.load(Ordering::SeqCst);
+    let instance_accounting_enabled = fixture.record_instance_accounting.load(Ordering::SeqCst);
+    let mut created = if instance_accounting_enabled {
+        fixture
+            .created_instances
+            .lock()
+            .expect("AC-9 created-instance lock")
+            .clone()
+    } else {
+        fixture
+            .specs
+            .iter()
+            .filter_map(|spec| spec.instance_id)
+            .collect()
+    };
+    let mut torn_down = if instance_accounting_enabled {
+        fixture
+            .teardown_instances
+            .lock()
+            .expect("AC-9 teardown-instance lock")
+            .clone()
+    } else {
+        Vec::new()
+    };
+    created.sort_by_key(ToString::to_string);
+    torn_down.sort_by_key(ToString::to_string);
+    if creates != 2 || teardowns != 2 || (instance_accounting_enabled && created != torn_down) {
+        let trace = fixture.coordinator.terminate_trace_events();
+        let trace_lines = trace
+            .iter()
+            .map(|event| format!("  {} | {}", event.instance_id, event.step))
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!(
+            "AC-9 teardown accounting failed: creates={creates} (expected 2) teardowns={teardowns} (expected 2)\n\
+             created_instances={created:?}\n\
+             teardown_instances={torn_down:?}\n\
+             terminate() decision trace ({} events, global order):\n{trace_lines}",
+             trace.len()
+        );
+    }
+    assert_eq!(
+        fixture.coordinator.live_session_count(),
+        0,
+        "both cancelled siblings must be evicted after teardown and durable STOP"
+    );
+    fixture
+        .ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(
+            fixture.pool.clone(),
+        )))
         .await
-        .expect("cancellation must terminalize live sibling sessions and end the worker");
+        .expect("cancelled siblings drain production-shaped START/STOP rows");
+    let events = fixture.event_sink.events();
+    for instance_id in &created {
+        let instance_id_text = instance_id.to_string();
+        let spec = fixture
+            .specs
+            .iter()
+            .find(|spec| spec.instance_id == Some(*instance_id))
+            .expect("every created instance must belong to one exact routing stage");
+        let cleanup = sqlx::query(
+            r#"
+            SELECT status, terminal_state, reason, exit_code, last_error, record_json
+            FROM swarm_session_cleanup_receipts
+            WHERE instance_id=$1
+            "#,
+        )
+        .bind(&instance_id_text)
+        .fetch_optional(&fixture.pool)
+        .await
+        .expect("read final per-instance cleanup receipt")
+        .expect("every cancelled live instance must have a cleanup receipt");
+        assert_eq!(cleanup.get::<String, _>("status"), "completed");
+        assert_eq!(cleanup.get::<String, _>("terminal_state"), "Cancelled");
+        let cleanup_reason = cleanup.get::<String, _>("reason");
+        assert!(
+            matches!(
+                cleanup_reason.as_str(),
+                "routing execution cancelled"
+                    | "routing in-flight persistence rejected after spawn"
+            ),
+            "cleanup must retain one of the two exact cancellation-race terminalizer reasons: {cleanup_reason}"
+        );
+        assert_eq!(cleanup.get::<i32, _>("exit_code"), -1);
+        assert_eq!(cleanup.get::<Option<String>, _>("last_error"), None);
+        let record: Value = cleanup.get("record_json");
+        assert_eq!(
+            record.get("instance_id").and_then(Value::as_str),
+            Some(instance_id_text.as_str())
+        );
+        assert_eq!(
+            record.get("lane_id").and_then(Value::as_str),
+            spec.lane_id.as_deref(),
+            "cleanup receipt must retain the exact stage lane identity"
+        );
+        assert_eq!(
+            record.get("terminal_state").and_then(Value::as_str),
+            Some("Cancelled")
+        );
+        assert_eq!(
+            record.get("reason").and_then(Value::as_str),
+            Some(cleanup_reason.as_str()),
+            "receipt columns and record_json must agree on the exact cleanup reason"
+        );
+        assert_eq!(record.get("exit_code").and_then(Value::as_i64), Some(-1));
+        let process_uuid = uuid::Uuid::parse_str(
+            record
+                .get("process_uuid")
+                .and_then(Value::as_str)
+                .expect("cleanup receipt process_uuid"),
+        )
+        .expect("cleanup receipt process_uuid must be a UUID");
+        let terminal_event_id = uuid::Uuid::parse_str(
+            record
+                .get("terminal_event_id")
+                .and_then(Value::as_str)
+                .expect("cleanup receipt terminal_event_id"),
+        )
+        .expect("cleanup terminal event id must be a UUID");
+        let resource_evicted_event_id = uuid::Uuid::parse_str(
+            record
+                .get("resource_evicted_event_id")
+                .and_then(Value::as_str)
+                .expect("cleanup receipt resource_evicted_event_id"),
+        )
+        .expect("cleanup resource-evicted event id must be a UUID");
+        assert_ne!(
+            terminal_event_id, resource_evicted_event_id,
+            "terminal and resource-evicted events must have distinct stable identities"
+        );
+        let lifecycle: Option<(bool, Option<i32>, Option<String>, Option<String>)> =
+            sqlx::query_as(
+                r#"
+                SELECT stopped_at IS NOT NULL, exit_code, stop_reason, parent_session_id
+                FROM kernel_process_lifecycle
+                WHERE process_uuid=$1
+                "#,
+            )
+            .bind(process_uuid)
+            .fetch_optional(&fixture.pool)
+            .await
+            .expect("join cleanup receipt process_uuid to process lifecycle");
+        assert_eq!(
+            lifecycle,
+            Some((
+                true,
+                Some(-1),
+                Some(cleanup_reason.clone()),
+                Some(fixture.context.coordinator_session_id.clone()),
+            )),
+            "cleanup receipt must join to its exact durably stopped process lifecycle"
+        );
+        let terminal_events = events
+            .iter()
+            .filter_map(|event| match event {
+                SwarmEvent::SessionCancelled {
+                    instance_id: observed,
+                    reason,
+                    event_id,
+                } if observed == instance_id => Some((reason, event_id)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            terminal_events.len(),
+            1,
+            "each instance must emit exactly one stable-ID cancellation event"
+        );
+        assert_eq!(terminal_events[0].0, &cleanup_reason);
+        assert_eq!(*terminal_events[0].1, Some(terminal_event_id));
+        let evicted_events = events
+            .iter()
+            .filter_map(|event| match event {
+                SwarmEvent::ResourceEvicted {
+                    instance_id: observed,
+                    terminal_state,
+                    event_id,
+                } if observed == instance_id => Some((terminal_state, event_id)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            evicted_events.len(),
+            1,
+            "each instance must emit exactly one stable-ID cancelled resource eviction"
+        );
+        assert_eq!(*evicted_events[0].0, ModelSessionState::Cancelled);
+        assert_eq!(*evicted_events[0].1, Some(resource_evicted_event_id));
+    }
+    let ledger_counts: (i64, i64) = sqlx::query_as(
+        r#"
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL)
+        FROM kernel_process_lifecycle
+        WHERE parent_session_id = $1
+        "#,
+    )
+    .bind(&fixture.context.coordinator_session_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read cancelled sibling process-lifecycle proof");
+    assert_eq!(ledger_counts, (2, 2));
+}
+
+#[tokio::test]
+async fn ac9_cancel_attempts_every_live_sibling_after_first_cleanup_error() {
+    let fixture = Arc::new(
+        ac9_fixture(
+            ModelLaneRoutingPolicy::ParallelDebate,
+            "cancel-first-cleanup-error",
+        )
+        .await,
+    );
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    fixture
+        .hold_cancel_observation
+        .store(true, Ordering::SeqCst);
+    fixture
+        .record_instance_accounting
+        .store(true, Ordering::SeqCst);
+    fixture.fail_teardown_remaining.store(1, Ordering::SeqCst);
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "debate-local",
+        "in_flight",
+    )
+    .await;
+    ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "debate-cloud",
+        "in_flight",
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(30), async {
+        while fixture.creates.load(Ordering::SeqCst) != 2
+            || fixture.coordinator.live_session_count() != 2
+        {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("both in-flight routing stages must publish live runtime handles");
     assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
-    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.coordinator.live_session_count(), 2);
+
+    let cancellation_reason = "operator AC-9 cancellation with one cleanup failure";
+    let first_error = tokio::time::timeout(
+        Duration::from_secs(60),
+        fixture
+            .coordinator
+            .cancel_routing_execution(&fixture.execution_id, cancellation_reason),
+    )
+    .await
+    .expect("the first cancellation pass must remain bounded")
+    .expect_err("one failed cleanup keeps cancellation observably incomplete");
+    assert!(
+        first_error
+            .to_string()
+            .contains("injected AC-9 retryable teardown failure"),
+        "the returned error must retain the cleanup failure: {first_error}"
+    );
+    let first_attempted_instances = fixture
+        .teardown_instances
+        .lock()
+        .expect("AC-9 teardown-instance lock")
+        .clone();
+    let live_after_first_pass = fixture.coordinator.live_session_count();
+    let expected_live_instances: HashSet<ModelInstanceId> = fixture
+        .specs
+        .iter()
+        .filter_map(|spec| spec.instance_id)
+        .collect();
+    let first_cancel_record: Value = sqlx::query_scalar(
+        "SELECT record_json FROM model_lane_routing_executions WHERE execution_id=$1",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("re-read first canonical cancellation before retry");
+    let retry = tokio::time::timeout(
+        Duration::from_secs(60),
+        fixture.coordinator.cancel_routing_execution(
+            &fixture.execution_id,
+            "operator retry must not rewrite the first cancellation intent",
+        ),
+    )
+    .await;
+    let retried = match retry {
+        Ok(Ok(retried)) => retried,
+        failed => {
+            // Preserve a clean RED: the public retry is the behavior under
+            // test, but a failing assertion must not strand the deliberately
+            // retained fake runtime or its process-ledger START.
+            for instance_id in &expected_live_instances {
+                match tokio::time::timeout(
+                    Duration::from_secs(60),
+                    fixture
+                        .coordinator
+                        .cancel_session(*instance_id, cancellation_reason),
+                )
+                .await
+                .expect("fallback direct cleanup must remain bounded")
+                {
+                    Ok(()) => {}
+                    Err(SwarmError::UnknownInstance(missing)) if missing == *instance_id => {}
+                    Err(error) => {
+                        panic!(
+                            "fallback cleanup for {instance_id} failed after {failed:?}: {error}"
+                        )
+                    }
+                }
+            }
+            fixture
+                .hold_cancel_observation
+                .store(false, Ordering::SeqCst);
+            let _ = tokio::time::timeout(Duration::from_secs(60), worker).await;
+            panic!("public routing cancellation retry must reclaim retained cleanup: {failed:?}");
+        }
+    };
+    assert_eq!(
+        retried.cancel_reason.as_deref(),
+        Some(cancellation_reason),
+        "first-writer cancellation intent must remain canonical on retry"
+    );
+    fixture
+        .hold_cancel_observation
+        .store(false, Ordering::SeqCst);
+    let _worker_result = tokio::time::timeout(Duration::from_secs(60), worker)
+        .await
+        .expect("routing worker must observe the canonical cancellation after release")
+        .expect("routing worker task must not panic");
+
+    let first_attempted_set: HashSet<ModelInstanceId> =
+        first_attempted_instances.iter().copied().collect();
+    assert_eq!(
+        first_attempted_instances.len(),
+        expected_live_instances.len(),
+        "the first cancellation pass must invoke teardown once for every live sibling"
+    );
+    assert_eq!(
+        first_attempted_set, expected_live_instances,
+        "a cleanup error for one sibling must not skip a later sibling"
+    );
+    assert_eq!(
+        live_after_first_pass, 1,
+        "only the failed cleanup owner may remain live after the first pass"
+    );
+
+    let durable_record: Value = sqlx::query_scalar(
+        "SELECT record_json FROM model_lane_routing_executions WHERE execution_id=$1",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("re-read canonical cancellation after worker termination");
+    assert_eq!(
+        durable_record, first_cancel_record,
+        "idempotent public retry must not revise the canonical cancellation projection"
+    );
+    assert_eq!(durable_record["status"], json!("cancelled"));
+    for stage_id in ["debate-local", "debate-cloud"] {
+        assert_eq!(
+            durable_record["stages"][stage_id]["state"],
+            json!("cancelled"),
+            "the exact live stage must remain durably cancelled"
+        );
+    }
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 3);
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
+    let cancellation_events: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key=$1")
+            .bind(format!("routing-cancel:{}", fixture.execution_id))
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("count canonical routing cancellation events");
+    assert_eq!(
+        cancellation_events, 1,
+        "public cleanup retry must not append a second routing cancellation event"
+    );
+
+    fixture
+        .ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(
+            fixture.pool.clone(),
+        )))
+        .await
+        .expect("cleanup retry drains both production-shaped STOP rows");
+    let ledger_counts: (i64, i64) = sqlx::query_as(
+        r#"
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL)
+        FROM kernel_process_lifecycle
+        WHERE parent_session_id = $1
+        "#,
+    )
+    .bind(&fixture.context.coordinator_session_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read cancellation cleanup retry lifecycle proof");
+    assert_eq!(ledger_counts, (2, 2));
+}
+
+#[tokio::test]
+async fn ac9_cancel_between_launch_intent_and_pending_registration_never_creates_runtime() {
+    let fixture = Arc::new(
+        ac9_fixture(
+            ModelLaneRoutingPolicy::LocalFirst,
+            "cancel-post-intent-pre-pending",
+        )
+        .await,
+    );
+    let launch_intent_arrived = Arc::new(tokio::sync::Notify::new());
+    let release_launch = Arc::new(tokio::sync::Notify::new());
+    fixture
+        .coordinator
+        .set_routing_after_launch_intent_pause_for_test(
+            Arc::clone(&launch_intent_arrived),
+            Arc::clone(&release_launch),
+        );
+    let worker = {
+        let fixture = Arc::clone(&fixture);
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    tokio::time::timeout(Duration::from_secs(30), launch_intent_arrived.notified())
+        .await
+        .expect("routing worker must pause after durable launch intent");
+    assert_eq!(
+        fixture.creates.load(Ordering::SeqCst),
+        0,
+        "the deterministic barrier is before PendingSpawn/factory creation"
+    );
+
+    let cancelled = fixture
+        .coordinator
+        .cancel_routing_execution(
+            &fixture.execution_id,
+            "operator cancellation in post-intent/pre-pending window",
+        )
+        .await
+        .expect("durable cancellation succeeds while no local token exists yet");
+    assert_eq!(cancelled.status, ModelLaneRoutingExecutionStatus::Cancelled);
+    release_launch.notify_one();
+    let worker_result = tokio::time::timeout(Duration::from_secs(30), worker)
+        .await
+        .expect("paused routing worker must finish after release")
+        .expect("routing worker task must not panic")
+        .expect("worker reconciles canonical pre-spawn cancellation");
+    assert_eq!(
+        worker_result.execution.status,
+        ModelLaneRoutingExecutionStatus::Cancelled
+    );
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
+}
+
+#[tokio::test]
+async fn ac9_cancel_after_canonical_read_before_pending_registration_never_creates_runtime() {
+    let fixture = Arc::new(
+        ac9_fixture(
+            ModelLaneRoutingPolicy::LocalFirst,
+            "cancel-post-canonical-pre-pending",
+        )
+        .await,
+    );
+    let registration_arrived = Arc::new(tokio::sync::Notify::new());
+    let release_registration = Arc::new(tokio::sync::Notify::new());
+    fixture
+        .coordinator
+        .set_routing_before_pending_registration_pause_for_test(
+            Arc::clone(&registration_arrived),
+            Arc::clone(&release_registration),
+        );
+    let worker = {
+        let fixture = Arc::clone(&fixture);
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    tokio::time::timeout(Duration::from_secs(30), registration_arrived.notified())
+        .await
+        .expect("routing worker must pause after its final canonical cancellation read");
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.coordinator.pending_spawn_count_for_test(), 0);
+
+    let cancelled = fixture
+        .coordinator
+        .cancel_routing_execution(
+            &fixture.execution_id,
+            "operator cancellation after canonical read and before pending publication",
+        )
+        .await
+        .expect("durable cancellation must mark the unpublished routing admission");
+    assert_eq!(cancelled.status, ModelLaneRoutingExecutionStatus::Cancelled);
+    release_registration.notify_one();
+    let worker_result = tokio::time::timeout(Duration::from_secs(30), worker)
+        .await
+        .expect("paused routing worker must finish after release")
+        .expect("routing worker task must not panic")
+        .expect("worker must reconcile cancellation after its admission is marked");
+    assert_eq!(
+        worker_result.execution.status,
+        ModelLaneRoutingExecutionStatus::Cancelled
+    );
+    assert!(worker_result
+        .execution
+        .stages
+        .values()
+        .all(|stage| stage.state == ModelLaneRoutingStageStateKind::Cancelled));
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.coordinator.pending_spawn_count_for_test(), 0);
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
 }
 
 #[tokio::test]
@@ -8971,7 +10044,14 @@ async fn ac9_inflight_heartbeat_renews_lease_and_eventledger_pointer() {
         .cancel_routing_execution(&fixture.execution_id, "heartbeat proof complete")
         .await
         .expect("cancel heartbeat proof execution");
-    let _ = worker.await;
+    let cancelled_worker = worker
+        .await
+        .expect("heartbeat worker joins after cancellation")
+        .expect("heartbeat worker reconciles authoritative cancellation");
+    assert_eq!(
+        cancelled_worker.execution.status,
+        ModelLaneRoutingExecutionStatus::Cancelled
+    );
 }
 
 #[tokio::test]
@@ -9169,6 +10249,138 @@ async fn ac9_authority_retry_rejects_late_prior_attempt_ack_and_uses_new_fence()
         format!("{}:validator-verdict:1", fixture.execution_id)
     );
     assert_eq!(attempt_one_payload["state"], json!("compensated"));
+}
+
+#[tokio::test]
+async fn ac9_cancel_before_authority_request_commit_leaves_no_post_terminal_side_effects() {
+    let fixture = Arc::new(
+        ac9_fixture(
+            ModelLaneRoutingPolicy::ValidatorLane,
+            "authority-cancel-before-commit",
+        )
+        .await,
+    );
+    fixture
+        .wave()
+        .await
+        .expect("produce the validator candidate and retain its source runtime");
+    let authority_arrived = Arc::new(tokio::sync::Notify::new());
+    let release_authority = Arc::new(tokio::sync::Notify::new());
+    fixture
+        .coordinator
+        .set_routing_before_authority_request_commit_pause_for_test(
+            Arc::clone(&authority_arrived),
+            Arc::clone(&release_authority),
+        );
+    let worker = {
+        let fixture = Arc::clone(&fixture);
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    tokio::time::timeout(Duration::from_secs(30), authority_arrived.notified())
+        .await
+        .expect("authority worker must pause immediately before its atomic request commit");
+    let request_message_id = format!(
+        "routing-authority-request:{}:validator-verdict:1",
+        fixture.execution_id
+    );
+    let rows_before_cancel: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_messages WHERE message_id=$1")
+            .bind(&request_message_id)
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("count authority request rows before cancellation");
+    assert_eq!(rows_before_cancel, 0);
+
+    let cancelled = fixture
+        .coordinator
+        .cancel_routing_execution(
+            &fixture.execution_id,
+            "operator cancellation before authority request commit",
+        )
+        .await
+        .expect("operator cancellation commits before the paused authority request");
+    assert_eq!(cancelled.status, ModelLaneRoutingExecutionStatus::Cancelled);
+    release_authority.notify_one();
+    let worker_result = tokio::time::timeout(Duration::from_secs(30), worker)
+        .await
+        .expect("authority worker must reconcile the committed cancellation")
+        .expect("authority worker task joins")
+        .expect("stale authority worker returns canonical Cancelled");
+    assert_eq!(
+        worker_result.execution.status,
+        ModelLaneRoutingExecutionStatus::Cancelled
+    );
+
+    let message_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_messages WHERE message_id=$1")
+            .bind(&request_message_id)
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("count forbidden post-cancellation authority messages");
+    let event_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type='model_lane_message' AND aggregate_id=$1",
+    )
+    .bind(&request_message_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count forbidden post-cancellation authority EventLedger rows");
+    let outbox_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_routing_outbox WHERE execution_id=$1 AND command_json::text LIKE $2",
+    )
+    .bind(&fixture.execution_id)
+    .bind(format!("%{request_message_id}%"))
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count forbidden authority request refs in routing outbox");
+    let artifact_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE run_id=$1 AND record_json::text LIKE $2",
+    )
+    .bind(&fixture.context.run_id)
+    .bind(format!("%{request_message_id}%"))
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count forbidden authority request artifact refs");
+    assert_eq!(
+        (message_rows, event_rows, outbox_rows, artifact_rows),
+        (0, 0, 0, 0)
+    );
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 1);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 1);
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
+
+    let created = fixture
+        .created_instances
+        .lock()
+        .expect("authority cancellation created-instance lock")
+        .clone();
+    assert_eq!(created.len(), 1);
+    let cleanup_status: Option<String> = sqlx::query_scalar(
+        "SELECT status FROM swarm_session_cleanup_receipts WHERE instance_id=$1",
+    )
+    .bind(created[0].to_string())
+    .fetch_optional(&fixture.pool)
+    .await
+    .expect("read authority cancellation cleanup receipt");
+    assert_eq!(cleanup_status.as_deref(), Some("completed"));
+    fixture
+        .ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(
+            fixture.pool.clone(),
+        )))
+        .await
+        .expect("drain authority cancellation START/STOP rows");
+    let ledger_counts: (i64, i64) = sqlx::query_as(
+        r#"
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL)
+        FROM kernel_process_lifecycle
+        WHERE parent_session_id = $1
+        "#,
+    )
+    .bind(&fixture.context.coordinator_session_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read authority cancellation process-lifecycle proof");
+    assert_eq!(ledger_counts, (1, 1));
 }
 
 #[tokio::test]
@@ -9411,7 +10623,18 @@ async fn ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create() {
     let worker_result = tokio::time::timeout(Duration::from_secs(60), worker)
         .await
         .expect("cancellation must propagate INTO the blocked factory create and end the worker");
-    assert!(worker_result.expect("join cancelled create worker").is_err());
+    let cancelled_worker = worker_result
+        .expect("join cancelled create worker")
+        .expect("blocked create worker reconciles the authoritative cancellation");
+    assert_eq!(
+        cancelled_worker.execution.status,
+        ModelLaneRoutingExecutionStatus::Cancelled
+    );
+    assert!(cancelled_worker
+        .execution
+        .stages
+        .values()
+        .all(|stage| stage.state == ModelLaneRoutingStageStateKind::Cancelled));
     assert_eq!(cancelled.teardowns.load(Ordering::SeqCst), 0);
 
     let peer = Arc::new(ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, "peer-create").await);
@@ -9434,7 +10657,22 @@ async fn ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create() {
         .expect("hold local create")
         .insert(local_model);
     *peer.fail_model.lock().expect("fail cloud create") = Some(cloud_model);
-    assert!(peer.lifecycle().await.is_err());
+    let peer_batch = peer
+        .lifecycle()
+        .await
+        .expect("peer failure returns the canonical failed execution after sibling cancellation");
+    assert_eq!(
+        peer_batch.execution.status,
+        ModelLaneRoutingExecutionStatus::Failed
+    );
+    assert_eq!(
+        peer_batch.execution.stages["debate-cloud"].state,
+        ModelLaneRoutingStageStateKind::Failed
+    );
+    assert_eq!(
+        peer_batch.execution.stages["debate-local"].state,
+        ModelLaneRoutingStageStateKind::Cancelled
+    );
     assert_eq!(peer.coordinator.live_session_count(), 0);
 }
 
@@ -9603,4 +10841,33 @@ async fn ac9_reassignment_cannot_cross_post_validation_output_barrier_or_create_
         (message_rows, artifact_rows, reassigned_attempt_rows),
         (1, 1, 0)
     );
+}
+
+#[tokio::test]
+async fn ac9_output_persistence_failure_exactly_reclaims_the_ready_runtime() {
+    let fixture = ac9_fixture(
+        ModelLaneRoutingPolicy::LocalFirst,
+        "output-persistence-failure",
+    )
+    .await;
+    fixture
+        .coordinator
+        .fail_next_routing_output_persistence_for_test();
+    let error = fixture
+        .wave()
+        .await
+        .expect_err("injected output persistence failure must stay visible");
+    assert!(
+        error
+            .to_string()
+            .contains("injected routing output persistence failure"),
+        "unexpected output failure: {error}"
+    );
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        fixture.teardowns.load(Ordering::SeqCst),
+        1,
+        "the output failure path must reclaim the exact spawn generation"
+    );
+    assert_eq!(fixture.coordinator.live_session_count(), 0);
 }

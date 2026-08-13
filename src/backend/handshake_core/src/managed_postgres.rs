@@ -51,6 +51,12 @@ pub const DEFAULT_DATABASE: &str = "handshake";
 pub const DEFAULT_SUPERUSER: &str = "postgres";
 /// Default time to wait for the cluster to begin accepting connections.
 pub const DEFAULT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
+/// Default time to wait for an owned cluster to finish its shutdown checkpoint.
+///
+/// Shutdown is intentionally budgeted separately from startup: a dirty cluster
+/// can require substantially longer to fsync its final checkpoint than a clean
+/// cluster requires to begin accepting connections.
+pub const DEFAULT_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Errors raised while managing the embedded PostgreSQL lifecycle.
 #[derive(Debug, Error)]
@@ -845,6 +851,7 @@ async fn stop_owned_cluster(
     config: &ManagedPostgresConfig,
     launch_identity: Option<&ManagedPostgresLaunchIdentity>,
 ) -> Result<(), ManagedPostgresError> {
+    let shutdown_timeout = DEFAULT_SHUTDOWN_TIMEOUT;
     let pg_ctl = match resolve_bin(&config.bin_dir, "pg_ctl") {
         Ok(path) => path,
         Err(err) => {
@@ -863,8 +870,10 @@ async fn stop_owned_cluster(
 
     let pg_isready = resolve_bin(&config.bin_dir, "pg_isready")?;
 
-    let timeout = config.startup_timeout;
-    let deadline = Instant::now() + timeout;
+    let timeout = shutdown_timeout;
+    let deadline = Instant::now()
+        .checked_add(timeout)
+        .ok_or(ManagedPostgresError::StopTimeout(timeout))?;
 
     // `pg_ctl stop` can retain a Windows process handle even after it has
     // successfully asked the postmaster to shut down.  Its exit status is
@@ -1693,6 +1702,14 @@ mod tests {
         assert!(pg.is_managed());
         assert!(pg.is_enabled());
         assert_eq!(pg.os_pid(), Some(1234));
+    }
+
+    #[test]
+    fn shutdown_timeout_is_separate_bounded_and_representable() {
+        assert_eq!(DEFAULT_STARTUP_TIMEOUT, Duration::from_secs(30));
+        assert_eq!(DEFAULT_SHUTDOWN_TIMEOUT, Duration::from_secs(120));
+        assert!(DEFAULT_SHUTDOWN_TIMEOUT > DEFAULT_STARTUP_TIMEOUT);
+        assert!(Instant::now().checked_add(DEFAULT_SHUTDOWN_TIMEOUT).is_some());
     }
 
     #[test]

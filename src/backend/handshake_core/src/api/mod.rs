@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::{routing::get, Extension, Router};
 
 use crate::AppState;
+use account_scope::ProductLocalResourceScope;
 
 #[allow(dead_code)]
 fn assert_axum_route_states_are_clone_send_sync_static() {
@@ -43,6 +44,14 @@ pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
     let ApiRoutes { router, runtime } = routes_with_runtime(state);
+    router.layer(Extension(runtime))
+}
+
+pub fn routes_with_product_local_scope(
+    state: AppState,
+    product_scope: ProductLocalResourceScope,
+) -> Router {
+    let ApiRoutes { router, runtime } = routes_with_runtime_and_scope(state, Some(product_scope));
     router.layer(Extension(runtime))
 }
 
@@ -92,6 +101,13 @@ impl ApiRouteRuntime {
 }
 
 pub fn routes_with_runtime(state: AppState) -> ApiRoutes {
+    routes_with_runtime_and_scope(state, None)
+}
+
+fn routes_with_runtime_and_scope(
+    state: AppState,
+    product_scope: Option<ProductLocalResourceScope>,
+) -> ApiRoutes {
     // One process-wide owner registry is shared by launch and crash recovery;
     // reclaim must dispatch through the same SandboxAdapter authority that
     // created an official-CLI child.
@@ -140,6 +156,7 @@ pub fn routes_with_runtime(state: AppState) -> ApiRoutes {
         operator_chat_process_ledger.clone(),
         Arc::clone(&reclaim),
         cli_sandbox_registry,
+        product_scope,
     );
     ApiRoutes {
         router,
@@ -155,6 +172,7 @@ pub fn routes_with_runtime(state: AppState) -> ApiRoutes {
 pub fn routes_with_process_reclaim_runtime(
     state: AppState,
     process_runtime: crate::process_ledger::ProcessReclaimRuntime,
+    product_scope: ProductLocalResourceScope,
 ) -> ApiRoutes {
     let operator_chat_process_ledger = process_runtime.ledger();
     let router = routes_with_operator_chat_runtime(
@@ -162,6 +180,7 @@ pub fn routes_with_process_reclaim_runtime(
         operator_chat_process_ledger,
         process_runtime.reclaim(),
         process_runtime.sandbox_registry(),
+        Some(product_scope),
     );
     ApiRoutes {
         router,
@@ -179,6 +198,7 @@ fn routes_with_operator_chat_runtime(
     operator_chat_process_ledger: crate::process_ledger::RetainedLedgerBatcher,
     reclaim: Arc<crate::process_ledger::Reclaim>,
     cli_sandbox_registry: Arc<crate::sandbox::SandboxAdapterRegistry>,
+    product_scope: Option<ProductLocalResourceScope>,
 ) -> Router {
     let workspace_routes = workspaces::routes(state.clone());
     let canvas_routes = canvases::routes(state.clone());
@@ -203,7 +223,7 @@ fn routes_with_operator_chat_runtime(
     let operator_chat_cloud_wiring = operator_chat_cloud_wiring(
         state.flight_recorder.clone(),
         operator_chat_process_ledger.ledger(),
-        cli_sandbox_registry,
+        Arc::clone(&cli_sandbox_registry),
         Arc::clone(&reclaim),
     );
     // MT-015: Settings and the picker share the exact canonical, pinned CLI
@@ -218,16 +238,29 @@ fn routes_with_operator_chat_runtime(
             cli_auth_probe.clone(),
             cli_login_launcher,
         ));
-    let operator_chat_launch_service =
-        crate::swarm_orchestration::production_factory::build_operator_chat_launch_service(
+    let operator_chat_launch_service = match product_scope.as_ref() {
+        Some(scope) => crate::swarm_orchestration::production_factory::build_scoped_operator_chat_launch_service_with_sandbox_registry(
             state.postgres_pool.clone(),
             state.flight_recorder.clone(),
             operator_chat_catalog.clone(),
             operator_chat_process_ledger.clone(),
             Arc::clone(&reclaim),
             operator_chat_cloud_wiring.factory,
+            Some(cli_sandbox_registry),
+            scope.resource_scope(),
             uuid::Uuid::new_v4(),
-        );
+        ),
+        None => crate::swarm_orchestration::production_factory::build_operator_chat_launch_service_with_sandbox_registry(
+            state.postgres_pool.clone(),
+            state.flight_recorder.clone(),
+            operator_chat_catalog.clone(),
+            operator_chat_process_ledger.clone(),
+            Arc::clone(&reclaim),
+            operator_chat_cloud_wiring.factory,
+            Some(cli_sandbox_registry),
+            uuid::Uuid::new_v4(),
+        ),
+    };
     let operator_chat_cloud_registry = operator_chat_cloud_registry();
     let operator_chat_state = operator_chat::OperatorChatState::production()
         .with_launch_service(operator_chat_launch_service)
@@ -237,7 +270,10 @@ fn routes_with_operator_chat_runtime(
         .with_recorder(state.flight_recorder.clone())
         .with_cli_bridge_auth_probe(cli_auth_probe)
         .with_cli_bridge_launchable_providers(operator_chat_cloud_wiring.launchable_providers);
-    let operator_chat_routes = operator_chat::routes(operator_chat_state);
+    let operator_chat_routes = match product_scope.as_ref() {
+        Some(_) => operator_chat::scoped_routes(operator_chat_state),
+        None => operator_chat::routes(operator_chat_state),
+    };
     let palmistry_routes = palmistry::routes(palmistry::PalmistryLaunchState::new(
         operator_chat_process_ledger.ledger(),
         state.flight_recorder.clone(),
@@ -269,7 +305,7 @@ fn routes_with_operator_chat_runtime(
         .route("/logs/tail", get(logs::tail_logs))
         .with_state(state.clone());
 
-    workspace_routes
+    let router = workspace_routes
         .merge(canvas_routes)
         .merge(log_routes)
         .merge(job_routes)
@@ -295,7 +331,11 @@ fn routes_with_operator_chat_runtime(
         .merge(atelier_routes)
         .merge(source_control_routes)
         .merge(debug_adapter_routes)
-        .merge(console_stream_routes)
+        .merge(console_stream_routes);
+    match product_scope {
+        Some(scope) => router.layer(Extension(scope)),
+        None => router,
+    }
 }
 
 fn operator_chat_cloud_registry() -> Arc<dyn crate::model_runtime::cloud::ProviderAccessRegistry> {

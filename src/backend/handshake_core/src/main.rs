@@ -56,6 +56,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     logging::init_logging();
 
+    // The desktop host owns the persisted product-local identity. Parse its
+    // strict five-dimensional handoff before opening account-facing services;
+    // a missing or corrupt scope aborts boot instead of falling back to caller
+    // headers or an unscoped node-global view.
+    let product_local_scope = api::account_scope::ProductLocalResourceScope::from_env()?;
+    std::env::remove_var(api::account_scope::PRODUCT_LOCAL_RESOURCE_SCOPE_ENV);
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
@@ -288,7 +295,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     control_plane.postgres_pool.clone(),
                 )),
                 None,
-                handshake_core::process_ledger::production_process_sandbox_registry(),
+                handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
                 runtime_host_scope_id.to_string(),
                 Duration::from_secs(30),
             )
@@ -502,13 +509,16 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         control_plane.postgres_pool.clone(),
         process_ledger_store,
         None,
-        handshake_core::process_ledger::production_process_sandbox_registry(),
+        handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
         process_runtime_lease,
         Duration::from_secs(30),
     )
     .await?;
     runtime_instance = Some(process_runtime.runtime_instance().clone());
-    let model_registry_store = ModelRegistryStore::new(control_plane.postgres_pool.clone());
+    let model_registry_store = ModelRegistryStore::new_scoped(
+        control_plane.postgres_pool.clone(),
+        product_local_scope.resource_scope(),
+    );
     let llm_client = init_llm_client(
         flight_recorder.clone(),
         Some(process_runtime.ledger().ledger()),
@@ -567,7 +577,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let api::ApiRoutes {
         router: api_routes,
         runtime: api_runtime,
-    } = api::routes_with_process_reclaim_runtime(state.clone(), process_runtime);
+    } = api::routes_with_process_reclaim_runtime(
+        state.clone(),
+        process_runtime,
+        product_local_scope,
+    );
     let app = Router::new()
         .route("/health", get(health))
         .with_state(state.clone())

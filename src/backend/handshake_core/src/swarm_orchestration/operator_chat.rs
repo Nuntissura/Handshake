@@ -1556,8 +1556,11 @@ impl OperatorChatLaunchService {
         // targets. Deriving it here (rather than trusting the caller's list)
         // means a broadcast grant cannot name an endpoint that is not one of the
         // lanes actually being launched under it.
-        request.grant.projection_plan.export_delegation.audience_refs =
-            request.grant.projection_plan.fan_out_targets.clone();
+        request
+            .grant
+            .projection_plan
+            .export_delegation
+            .audience_refs = request.grant.projection_plan.fan_out_targets.clone();
         let (plan, receipt) = self.grant_single_run_cloud_consent(request.grant).await?;
         for spawn in &mut spawn_requests {
             let contract = spawn.dexterity_launch.as_mut().ok_or_else(|| {

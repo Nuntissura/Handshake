@@ -76,7 +76,8 @@ pub use events::{
 };
 pub use factory::{LiveSession, ModelSessionFactory, SessionReadyHook, SessionTeardown};
 pub use ids::{
-    BudgetRemaining, ByokCloudProvider, CheckoutLeaseRef, ModelInstanceId, RunBudget, SpawnRequest,
+    BudgetRemaining, ByokCloudProvider, CheckoutLeaseRef, ModelInstanceId, RoutingAttemptIdentity,
+    RunBudget, SpawnRequest,
 };
 pub use operator_chat::{
     build_spawn_request as build_operator_chat_spawn_request, force_json_stream_output,
@@ -86,9 +87,9 @@ pub use operator_chat::{
     OPERATOR_CHAT_CLI_ADAPTER, OPERATOR_CHAT_SURFACE_ID,
 };
 pub use production_factory::{
-    build_production_swarm_coordinator, default_swarm_concurrency, CloudLaneFactoryConfig,
-    CloudLiveRuntime, CloudProviderFlavor, CloudRuntimeBuilder, ProductionModelSessionFactory,
-    VaultCloudRuntimeBuilder,
+    build_production_swarm_coordinator, build_production_swarm_coordinator_with_sandbox_registry,
+    default_swarm_concurrency, CloudLaneFactoryConfig, CloudLiveRuntime, CloudProviderFlavor,
+    CloudRuntimeBuilder, ProductionModelSessionFactory, VaultCloudRuntimeBuilder,
 };
 pub use routing::{
     ModelLaneRoutingAuthority, ModelLaneRoutingAuthorityGate, ModelLaneRoutingDispatchTarget,
@@ -100,6 +101,8 @@ pub use schedule::{
     schedules_to_ics, ScheduledAction, ScheduledFire, SwarmSchedule, SwarmScheduler,
 };
 pub use state::ModelSessionState;
-pub use worktree_vm_registry::{WorktreeVmError, WorktreeVmRegistry};
+pub use worktree_vm_registry::{
+    WorktreeVmBindingRecord, WorktreeVmBindingState, WorktreeVmError, WorktreeVmRegistry,
+};
 
 pub mod routing_execution;

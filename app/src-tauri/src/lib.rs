@@ -12,6 +12,7 @@ mod foreground_exception_window;
 mod foreground_warning;
 mod inspector;
 mod manual;
+mod product_local_scope;
 mod quiet_window;
 mod session_chat_log;
 mod swarm;
@@ -430,7 +431,7 @@ impl ManagedPostgresState {
 }
 
 impl OrchestratorState {
-    fn spawn(&self, workdir: PathBuf) -> std::io::Result<()> {
+    fn spawn(&self, workdir: PathBuf, product_local_scope_json: &str) -> std::io::Result<()> {
         let mut guard = self.child.lock().expect("orchestrator mutex poisoned");
         if guard.is_some() {
             return Ok(());
@@ -453,6 +454,10 @@ impl OrchestratorState {
         .current_dir(workdir)
         .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
         .env("DATABASE_URL", database_url)
+        .env(
+            product_local_scope::HANDSHAKE_PRODUCT_LOCAL_RESOURCE_SCOPE_JSON_ENV,
+            product_local_scope_json,
+        )
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
 
@@ -1115,6 +1120,12 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|e| std::io::Error::other(e.to_string()))?;
+            let product_local_scope =
+                product_local_scope::load_or_init_product_local_scope(&app_data_root)
+                    .map_err(std::io::Error::other)?;
+            let product_local_scope_json =
+                product_local_scope::serialize_product_local_scope_handoff(&product_local_scope)
+                    .map_err(std::io::Error::other)?;
             // rank-3: a DuckDB Flight Recorder for the swarm, so deployed
             // swarm/VM lifecycle events persist + are queryable (board drill-down
             // + audit). Best-effort: on init failure the swarm falls back to the
@@ -1155,7 +1166,10 @@ pub fn run() {
             app.manage(commands::cli_bridge_config::CliBridgeConfigState::new(
                 &schedule_store_root,
             ));
-            app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
+            app.manage(session_chat_log::SessionChatLogState::new(
+                app_data_root,
+                product_local_scope.clone(),
+            ));
             app.manage(distillation_jobs_state);
 
             // MT-204: the production multi-model SWARM coordinator. Built inside
@@ -1198,8 +1212,9 @@ pub fn run() {
             });
             let dexterity_model_lane_store = match &control_plane_storage_result {
                 Ok(control_plane) => {
-                    handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new(
+                    handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new_scoped(
                         control_plane.postgres_pool.clone(),
+                        product_local_scope::resource_scope_from_exact(&product_local_scope),
                     )
                 }
                 Err(error) => {
@@ -1244,7 +1259,11 @@ pub fn run() {
                         };
                     let capabilities =
                         Arc::new(handshake_core::capabilities::CapabilityRegistry::new());
-                    handshake_core::terminal::TerminalRuntime::new(capabilities, recorder)
+                    commands::terminal::production_terminal_runtime(
+                        capabilities,
+                        recorder,
+                        product_local_scope.clone(),
+                    )
                 });
             // UNIFIED PER-SESSION RECORD (governance glue #1): the transcript
             // aggregator reads the SAME durable recorder (both FR seams) +
@@ -1261,6 +1280,7 @@ pub fn run() {
                 transcript_recorder,
                 transcript_app_data_root,
                 transcript_terminal,
+                product_local_scope.clone(),
             ));
             // WP-KERNEL-004 wave 1 Integrate: hand the production swarm factory the
             // SAME sandbox adapter registry that was managed into app state above
@@ -1404,7 +1424,7 @@ pub fn run() {
             }
 
             let state = OrchestratorState::default();
-            state.spawn(orchestrator_workdir())?;
+            state.spawn(orchestrator_workdir(), &product_local_scope_json)?;
             app.manage(state);
             Ok(())
         })

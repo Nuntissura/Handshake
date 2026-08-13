@@ -176,6 +176,14 @@ impl Default for WriterConfig {
 
 #[async_trait]
 pub trait ProcessLedgerStore: Send + Sync + 'static {
+    /// Resolve any durable store authority needed by the first lifecycle write.
+    ///
+    /// Production composition calls this before spawning the background writer
+    /// so catalog validation is not charged to a START/STOP durability deadline.
+    async fn preflight(&self) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError>;
 }
 
@@ -1473,7 +1481,9 @@ impl PostgresProcessLedgerStore {
         &self.pool
     }
 
-    async fn authority(&self) -> Result<&ProcessLedgerAuthorityRelation, ProcessLedgerError> {
+    pub(super) async fn authority(
+        &self,
+    ) -> Result<&ProcessLedgerAuthorityRelation, ProcessLedgerError> {
         self.authority
             .get_or_try_init(|| resolve_process_ledger_authority_relation(&self.pool))
             .await
@@ -1498,6 +1508,11 @@ impl PostgresProcessLedgerStore {
 
 #[async_trait]
 impl ProcessLedgerStore for PostgresProcessLedgerStore {
+    async fn preflight(&self) -> Result<(), ProcessLedgerError> {
+        self.authority().await?;
+        Ok(())
+    }
+
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
         if events.is_empty() {
             return Ok(());

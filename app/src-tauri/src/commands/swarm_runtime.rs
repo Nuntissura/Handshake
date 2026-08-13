@@ -56,6 +56,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
+use handshake_core::console_stream::{ConsoleBroadcast, ConsoleSwarmSink};
 use handshake_core::distillation::swarm_trace::{
     prepare_distillation_swarm_trace_queue_entry, DistillationSwarmTraceQueueEntry,
     SwarmTraceCandidate, SwarmTraceRouteMetadata, SwarmTraceRouteOutcome,
@@ -84,6 +85,7 @@ use handshake_core::swarm_orchestration::operator_chat::{
     OperatorChatRoutingCancelRequest, OperatorChatRoutingLifecycleRequest,
     OperatorChatRoutingStageRequest,
 };
+use handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use handshake_core::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, CloudAssistanceOutputKind,
     CloudAssistanceRequest, CloudFallbackBasisRequest, CloudFallbackReason, LocalCloudAttribution,
@@ -358,7 +360,6 @@ pub enum SwarmShutdownDrainOutcome {
     Completed {
         process_ledger: handshake_core::process_ledger::LedgerDrainJoinOutcome,
     },
-    CoordinatorTimedOut,
     CoordinatorFailed(String),
 }
 
@@ -482,6 +483,15 @@ impl SwarmRuntimeState {
         process_ledger_store: PostgresProcessLedgerStore,
         host_scope_id: String,
     ) -> Result<Self, String> {
+        let durable_projection_scope = model_lane_store
+            .write_scope()
+            .ok_or_else(|| {
+                "Tauri durable swarm bootstrap requires a scoped ModelLaneStore".to_string()
+            })
+            .and_then(|scope| {
+                ExactResourceScopeAttribution::try_from_resource_scope(scope)
+                    .map_err(|error| format!("Tauri durable swarm bootstrap requires an exact five-field ModelLaneStore scope: {error}"))
+            })?;
         let sandbox_registry = sandbox_registry
             .unwrap_or_else(handshake_core::process_ledger::production_process_sandbox_registry);
         let pool = process_ledger_store.pool().clone();
@@ -519,7 +529,7 @@ impl SwarmRuntimeState {
             .unwrap_or_else(|| "openai".to_string());
         let cloud =
             CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
-        Ok(Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+        let state = Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
             cloud,
             recorder,
             app_data_root,
@@ -529,7 +539,17 @@ impl SwarmRuntimeState {
             None,
             true,
             Some((shared_process_runtime, mirror, pool)),
-        ))
+        );
+        debug_assert_eq!(
+            state.spawn_template_store.resource_scope(),
+            Some(&durable_projection_scope)
+        );
+        state
+            .coordinator
+            .reconcile_durable_cleanup_receipts_after_boot()
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(state)
     }
 
     fn production_with_registry_internal(
@@ -754,6 +774,15 @@ impl SwarmRuntimeState {
             sqlx::PgPool,
         )>,
     ) -> Self {
+        let projection_scope = model_lane_store.as_ref().and_then(|store| {
+            store.write_scope().map(|scope| {
+                ExactResourceScopeAttribution::try_from_resource_scope(scope).unwrap_or_else(
+                    |error| {
+                        panic!("production ModelLaneStore has incomplete projection scope: {error}")
+                    },
+                )
+            })
+        });
         let operator_chat_recorder = recorder.clone();
         let (process_reclaim_runtime, process_ledger_runtime, store, terminal_outbox_pool) =
             match prebuilt_process_runtime {
@@ -861,52 +890,76 @@ impl SwarmRuntimeState {
                 let (bridge, drain) =
                     DurableSwarmFrBridge::spawn_with_postgres_outbox(rec, pool, 1024);
                 let sink_bridge = bridge.clone();
-                let sink: Arc<dyn SwarmEventSink> =
-                    Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                    Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
+                        trace_id,
+                        scope,
+                        move |fr_event| sink_bridge.emit(fr_event),
+                    )),
+                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
                         sink_bridge.emit(fr_event)
-                    }));
+                    })),
+                };
                 (sink, Some(bridge), Some(drain))
             }
             (Some(_), None) => {
                 // A deployed recorder without PostgreSQL outbox authority is
                 // fail-closed. The old recorder-only bridge could acknowledge
                 // a terminal event without a recoverable outbox row.
-                let sink: Arc<dyn SwarmEventSink> = Arc::new(FlightRecorderSwarmSink::new(
-                    trace_id,
-                    |_fr_event| {
-                        Err("durable swarm terminal outbox unavailable: PostgreSQL authority is required".to_string())
-                    },
-                ));
+                let emit = |_fr_event| {
+                    Err("durable swarm terminal outbox unavailable: PostgreSQL authority is required".to_string())
+                };
+                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                    Some(scope) => {
+                        Arc::new(FlightRecorderSwarmSink::new_scoped(trace_id, scope, emit))
+                    }
+                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit)),
+                };
                 (sink, None, None)
             }
             (None, Some(pool)) => {
                 let (bridge, drain) = DurableSwarmFrBridge::spawn_outbox_only(pool, 1024);
                 let sink_bridge = bridge.clone();
-                let sink: Arc<dyn SwarmEventSink> =
-                    Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                    Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
+                        trace_id,
+                        scope,
+                        move |fr_event| sink_bridge.emit(fr_event),
+                    )),
+                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
                         sink_bridge.emit(fr_event)
-                    }));
+                    })),
+                };
                 (sink, Some(bridge), Some(drain))
             }
             (None, None) => {
-                let sink: Arc<dyn SwarmEventSink> =
-                    Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
-                        eprintln!(
-                            "{FR_EVT_SWARM_LIFECYCLE}: {}",
-                            serde_json::to_string(&event.payload).unwrap_or_default()
-                        );
-                        Ok(())
-                    }));
+                let emit = |event: handshake_core::flight_recorder::FlightRecorderEvent| {
+                    eprintln!(
+                        "{FR_EVT_SWARM_LIFECYCLE}: {}",
+                        serde_json::to_string(&event.payload).unwrap_or_default()
+                    );
+                    Ok(())
+                };
+                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                    Some(scope) => {
+                        Arc::new(FlightRecorderSwarmSink::new_scoped(trace_id, scope, emit))
+                    }
+                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit)),
+                };
                 (sink, None, None)
             }
         };
         // rank-4: fan out to BOTH the FR sink and the live board broadcast, so one
         // coordinator drives durable capture + the live operator board.
         let board_events = Arc::new(BroadcastSwarmSink::new(1024));
-        let sink: Arc<dyn SwarmEventSink> = Arc::new(FanoutSwarmSink::new(vec![
-            fr_sink,
-            board_events.clone() as Arc<dyn SwarmEventSink>,
-        ]));
+        let mut sinks = vec![fr_sink, board_events.clone() as Arc<dyn SwarmEventSink>];
+        if let Some(scope) = projection_scope.clone() {
+            sinks.push(Arc::new(ConsoleSwarmSink::new_scoped(
+                ConsoleBroadcast::shared(),
+                scope,
+            )) as Arc<dyn SwarmEventSink>);
+        }
+        let sink: Arc<dyn SwarmEventSink> = Arc::new(FanoutSwarmSink::new(sinks));
 
         let coordinator = match (model_lane_store, dexterity_launch_required) {
             (Some(model_lane_store), true) => SwarmCoordinator::new_with_model_lane_store(
@@ -956,7 +1009,10 @@ impl SwarmRuntimeState {
         // every other durable store uses (cli-bridge config, schedules). An empty
         // path resolves to the never-present default in `load` (the explicit-cloud
         // test seam) so templates simply never persist there — honest.
-        let spawn_template_store = SpawnTemplateStore::new(app_data_root);
+        let spawn_template_store = match projection_scope {
+            Some(scope) => SpawnTemplateStore::new_scoped(app_data_root, scope),
+            None => SpawnTemplateStore::new(app_data_root),
+        };
 
         Self {
             coordinator,
@@ -1149,23 +1205,22 @@ impl SwarmRuntimeState {
         self.process_ledger_runtime.drain_and_join(timeout).await
     }
 
-    /// Orderly app shutdown is two-phase: first terminate every coordinator
-    /// session so each live START can enqueue its matching STOP, then close and
-    /// flush the retained durable writer. The writer is deliberately left open
-    /// when coordinator cleanup fails or times out; closing it first would make
-    /// a later STOP impossible and manufacture a durable orphan.
-    pub async fn shutdown_drain(&self, timeout: std::time::Duration) -> SwarmShutdownDrainOutcome {
-        let started = std::time::Instant::now();
-        let coordinator_error =
-            match tokio::time::timeout(timeout, self.coordinator.drain_all()).await {
-                Err(_) => Some(SwarmShutdownDrainOutcome::CoordinatorTimedOut),
-                Ok(Err(error)) => Some(SwarmShutdownDrainOutcome::CoordinatorFailed(
-                    error.to_string(),
-                )),
-                Ok(Ok(())) => None,
-            };
-        let mut remaining = timeout.saturating_sub(started.elapsed());
-        let fr_error = if let Some(bridge) = &self.fr_bridge {
+    /// Orderly app shutdown first lets the coordinator finish its internally
+    /// bounded cleanup of every published session, then closes terminal-event
+    /// delivery and the retained process-ledger writer. `infrastructure_timeout`
+    /// applies independently to each background drain; it must never truncate
+    /// coordinator cleanup because a valid set of sessions can take longer than
+    /// one session's teardown budget in aggregate.
+    pub async fn shutdown_drain(
+        &self,
+        infrastructure_timeout: std::time::Duration,
+    ) -> SwarmShutdownDrainOutcome {
+        let mut errors = Vec::new();
+        if let Err(error) = self.coordinator.drain_all().await {
+            errors.push(format!("swarm coordinator shutdown drain failed: {error}"));
+        }
+
+        if let Some(bridge) = &self.fr_bridge {
             bridge.begin_shutdown();
             let drain = self
                 .fr_drain_task
@@ -1173,58 +1228,52 @@ impl SwarmRuntimeState {
                 .expect("Flight Recorder drain task mutex poisoned")
                 .take();
             if let Some(mut drain) = drain {
-                match tokio::time::timeout(remaining, &mut drain).await {
-                    Ok(Ok(())) => None,
+                match tokio::time::timeout(infrastructure_timeout, &mut drain).await {
+                    Ok(Ok(())) => {}
                     Ok(Err(error)) => {
-                        Some(format!("swarm Flight Recorder bridge join failed: {error}"))
+                        errors.push(format!("swarm Flight Recorder bridge join failed: {error}"));
                     }
                     Err(_) => {
                         drain.abort();
                         let _ = drain.await;
-                        Some(format!(
+                        errors.push(format!(
                             "swarm Flight Recorder bridge drain timed out with {} terminal retries and {} rejected events",
                             bridge.terminal_retry_count(),
                             bridge.dropped_count()
-                        ))
+                        ));
                     }
                 }
-            } else {
-                None
             }
-        } else {
-            None
-        };
-        if let Some(coordinator_error) = coordinator_error {
-            if let Some(fr_error) = fr_error {
-                tracing::error!(
-                    target: "handshake_app::swarm_runtime",
-                    %fr_error,
-                    "Flight Recorder bridge also failed while closing after coordinator shutdown failure"
-                );
-            }
-            return coordinator_error;
         }
-        remaining = timeout.saturating_sub(started.elapsed());
-        if let Some(runtime) = &self.process_reclaim_runtime {
-            let report = runtime.shutdown_and_drain(remaining).await;
+
+        let process_ledger = if let Some(runtime) = &self.process_reclaim_runtime {
+            let report = runtime.shutdown_and_drain(infrastructure_timeout).await;
             if !report.reclaim_task_quiesced || !report.lease_released {
-                return SwarmShutdownDrainOutcome::CoordinatorFailed(format!(
+                errors.push(format!(
                     "process reclaim shutdown incomplete: reclaim_task_quiesced={}, lease_released={}, ledger={:?}",
                     report.reclaim_task_quiesced, report.lease_released, report.ledger
                 ));
             }
-            if let Some(error) = fr_error {
-                return SwarmShutdownDrainOutcome::CoordinatorFailed(error);
-            }
-            return SwarmShutdownDrainOutcome::Completed {
-                process_ledger: report.ledger,
-            };
-        }
-        let process_ledger = self.process_ledger_runtime.drain_and_join(remaining).await;
-        if let Some(error) = fr_error {
-            SwarmShutdownDrainOutcome::CoordinatorFailed(error)
+            report.ledger
         } else {
+            self.process_ledger_runtime
+                .drain_and_join(infrastructure_timeout)
+                .await
+        };
+        if !matches!(
+            &process_ledger,
+            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+                | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+        ) {
+            errors.push(format!(
+                "process-ledger writer did not flush cleanly: {process_ledger:?}"
+            ));
+        }
+
+        if errors.is_empty() {
             SwarmShutdownDrainOutcome::Completed { process_ledger }
+        } else {
+            SwarmShutdownDrainOutcome::CoordinatorFailed(errors.join(" | "))
         }
     }
 
@@ -1652,6 +1701,7 @@ pub(crate) fn template_from_ipc(
 ) -> SessionSpawnTemplate {
     let is_local = matches!(request.provider, SwarmProviderIpc::Local);
     SessionSpawnTemplate {
+        resource_scope: None,
         provider: request.provider.to_template_provider(),
         artifact_path: if is_local {
             trimmed_opt(&request.artifact_path)
@@ -2542,20 +2592,27 @@ pub async fn kernel_swarm_resume_session(
     state: State<'_, SwarmRuntimeState>,
 ) -> Result<SwarmInstanceIdIpc, String> {
     let _ = KERNEL_SWARM_RESUME_SESSION_IPC_CHANNEL;
+    let request = resume_request_from_store(&session_id, &state.spawn_template_store)?;
+    kernel_swarm_spawn_session(request, state).await
+}
+
+fn resume_request_from_store(
+    session_id: &str,
+    store: &SpawnTemplateStore,
+) -> Result<SwarmSpawnRequestIpc, String> {
     let origin = session_id.trim();
     if origin.is_empty() {
         return Err("session_id must not be empty".to_string());
     }
-    let template = state
-        .spawn_template_store
+    let template = store
         .get(origin)?
         .ok_or_else(|| format!("SESSION_NOT_RESUMABLE: no spawn template stored for {origin}"))?;
     // Rebuild a fresh request (new model id, lineage parent = origin) and drive
-    // the SINGLE validated spawn path. `origin` is owned by `session_id`; clone
-    // into a String so the borrow does not outlive `state` being moved.
+    // the SINGLE validated spawn path. The returned request owns the lineage
+    // value, so the command never retains a borrow while moving its Tauri state.
     let origin = origin.to_string();
     let request = template_to_request_ipc(&template, &origin);
-    kernel_swarm_spawn_session(request, state).await
+    Ok(request)
 }
 
 /// ROI#3: fetch the stored resume template for a session (camelCase IPC DTO), or
@@ -3121,14 +3178,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                     });
                 }
             };
-        return match chat_generate_resolved_inner(
-            local_iid,
-            local_model_id,
-            &prompt,
-            state,
-        )
-        .await
-        {
+        return match chat_generate_resolved_inner(local_iid, local_model_id, &prompt, state).await {
             Ok(local) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
                 selected: Some("local".to_string()),
                 escalated: false,
@@ -3195,8 +3245,7 @@ async fn chat_generate_with_cloud_escalation_inner(
             }
         };
 
-    match chat_generate_resolved_inner(local_iid, local_model_id, &prompt, state).await
-    {
+    match chat_generate_resolved_inner(local_iid, local_model_id, &prompt, state).await {
         Ok(local) => {
             if let Some(escalation_reason) = low_confidence_escalation_reason(&request) {
                 if request.cloud.provider == SwarmProviderIpc::Local {
@@ -4633,6 +4682,140 @@ mod tests {
             result.is_err(),
             "production Tauri boot must not launch model work without bounded reclaim reconciliation"
         );
+        assert!(result
+            .expect_err("unscoped durable bootstrap must fail")
+            .contains("requires a scoped ModelLaneStore"));
+    }
+
+    #[tokio::test]
+    async fn tauri_durable_bootstrap_rejects_incomplete_projection_scope_before_io() {
+        use handshake_core::swarm_orchestration::resource_scope::{
+            ActorPrincipalId, OwnerAccountId, ResourceScope,
+        };
+        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
+            .acquire_timeout(std::time::Duration::from_millis(100))
+            .connect_lazy("postgresql://127.0.0.1:1/handshake_ac10_unavailable")
+            .expect("create deterministic unavailable PostgreSQL pool");
+        let store = ModelLaneStore::new_scoped(
+            unavailable_pool.clone(),
+            ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint()),
+        );
+        let error = SwarmRuntimeState::production_bootstrap_with_model_lane_store(
+            None,
+            std::path::Path::new(""),
+            None,
+            store,
+            PostgresProcessLedgerStore::new(unavailable_pool),
+            "test-unavailable-host-scope".to_string(),
+        )
+        .await
+        .expect_err("incomplete scope must fail before database IO");
+        assert!(error.contains("exact five-field"), "{error}");
+        assert!(error.contains("authenticated_session_id"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn tauri_scoped_runtime_stamps_emitted_console_event_with_exact_scope() {
+        use handshake_core::swarm_orchestration::resource_scope::{
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            ResourceScope, WorkspaceScopeRef,
+        };
+
+        let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(AccessSpaceRef::mint())
+            .with_workspace(WorkspaceScopeRef::new("tauri-event-workspace").expect("workspace"));
+        let exact_scope = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+            .expect("complete exact scope");
+        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgresql://127.0.0.1:1/tauri_event_scope")
+            .expect("create lazy PostgreSQL pool");
+        let console = ConsoleBroadcast::shared();
+        let mut console_rx = console.subscribe();
+        let temp = tempfile::tempdir().expect("app data root");
+        let state = SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+            CloudLaneFactoryConfig::unconfigured(),
+            None,
+            temp.path(),
+            None,
+            Some(1),
+            Some(ModelLaneStore::new_scoped(unavailable_pool, scope)),
+            None,
+            true,
+            None,
+        );
+        let mut request = local_request("not-read-before-budget-rejection.safetensors");
+        request.committed_memory_bytes = Some(2);
+        let spawn = build_spawn_request(&request).expect("valid bounded spawn request");
+        let expected_subject = spawn.instance_id.to_string();
+
+        let error = state
+            .coordinator()
+            .spawn_session(spawn)
+            .await
+            .expect_err("memory ceiling must reject before model or PostgreSQL IO");
+        assert!(matches!(error, SwarmError::BudgetExhausted { .. }));
+
+        let emitted = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            loop {
+                let entry = console_rx.recv().await.expect("scoped console event");
+                if entry.subject == expected_subject {
+                    break entry;
+                }
+            }
+        })
+        .await
+        .expect("Tauri runtime must emit the scoped rejection event");
+        assert_eq!(emitted.resource_scope, Some(exact_scope));
+    }
+
+    #[test]
+    fn resume_lookup_uses_exact_scope_and_hides_foreign_legacy_and_missing() {
+        use handshake_core::swarm_orchestration::resource_scope::{
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            WorkspaceScopeRef,
+        };
+
+        let exact_scope = |workspace: &str| ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::mint(),
+            actor_principal_id: ActorPrincipalId::mint(),
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            access_space_id: AccessSpaceRef::mint(),
+            workspace_id: WorkspaceScopeRef::new(workspace).expect("workspace"),
+        };
+        let root = tempfile::tempdir().expect("app data root");
+        let owner_scope = exact_scope("owner-workspace");
+        let mut foreign_scope = owner_scope.clone();
+        foreign_scope.owner_account_id = OwnerAccountId::mint();
+        let mut wrong_workspace_scope = owner_scope.clone();
+        wrong_workspace_scope.workspace_id =
+            WorkspaceScopeRef::new("foreign-workspace").expect("workspace");
+        let template = |origin: &str| template_from_ipc(&cloud_request("gpt-4o"), origin);
+
+        SpawnTemplateStore::new_scoped(root.path(), owner_scope.clone())
+            .upsert("owner#0", template("owner#0"))
+            .expect("owner template");
+        SpawnTemplateStore::new_scoped(root.path(), foreign_scope)
+            .upsert("foreign#0", template("foreign#0"))
+            .expect("foreign template");
+        SpawnTemplateStore::new_scoped(root.path(), wrong_workspace_scope)
+            .upsert("wrong-workspace#0", template("wrong-workspace#0"))
+            .expect("wrong-workspace template");
+        SpawnTemplateStore::new(root.path())
+            .upsert("legacy#0", template("legacy#0"))
+            .expect("legacy template");
+
+        let owner_store = SpawnTemplateStore::new_scoped(root.path(), owner_scope);
+        let owner_request =
+            resume_request_from_store("owner#0", &owner_store).expect("owner resume request");
+        assert_eq!(owner_request.parent_session_id.as_deref(), Some("owner#0"));
+
+        for denied in ["foreign#0", "wrong-workspace#0", "legacy#0", "missing#0"] {
+            assert_eq!(
+                resume_request_from_store(denied, &owner_store).expect_err("denied resume lookup"),
+                format!("SESSION_NOT_RESUMABLE: no spawn template stored for {denied}")
+            );
+        }
     }
 
     #[test]
@@ -5015,6 +5198,8 @@ mod tests {
         provider: ProviderKind,
         builds: Arc<Mutex<Vec<Option<String>>>>,
         generations: Arc<Mutex<usize>>,
+        unloads: Arc<Mutex<usize>>,
+        unload_delay: std::time::Duration,
         responses: Arc<Mutex<VecDeque<StaticGenerateResponse>>>,
         fallback: StaticGenerateResponse,
     }
@@ -5026,6 +5211,8 @@ mod tests {
                 provider: ProviderKind::ByokCloud,
                 builds: Arc::new(Mutex::new(Vec::new())),
                 generations: Arc::new(Mutex::new(0)),
+                unloads: Arc::new(Mutex::new(0)),
+                unload_delay: std::time::Duration::ZERO,
                 responses: Arc::new(Mutex::new(VecDeque::new())),
                 fallback: response,
             }
@@ -5040,9 +5227,16 @@ mod tests {
                 provider: ProviderKind::ByokCloud,
                 builds: Arc::new(Mutex::new(Vec::new())),
                 generations: Arc::new(Mutex::new(0)),
+                unloads: Arc::new(Mutex::new(0)),
+                unload_delay: std::time::Duration::ZERO,
                 responses: Arc::new(Mutex::new(VecDeque::from(responses))),
                 fallback,
             }
+        }
+
+        fn with_unload_delay(mut self, unload_delay: std::time::Duration) -> Self {
+            self.unload_delay = unload_delay;
+            self
         }
 
         fn build_count(&self) -> usize {
@@ -5051,6 +5245,10 @@ mod tests {
 
         fn generation_count(&self) -> usize {
             *self.generations.lock().expect("static builder lock")
+        }
+
+        fn unload_count(&self) -> usize {
+            *self.unloads.lock().expect("static builder lock")
         }
 
         fn next_response(&self) -> StaticGenerateResponse {
@@ -5082,6 +5280,8 @@ mod tests {
                 runtime: Arc::new(StaticTokenRuntime {
                     response: self.next_response(),
                     generations: Arc::clone(&self.generations),
+                    unloads: Arc::clone(&self.unloads),
+                    unload_delay: self.unload_delay,
                 }),
                 model_id: ModelId::new_v7(),
             })
@@ -5091,6 +5291,8 @@ mod tests {
     struct StaticTokenRuntime {
         response: StaticGenerateResponse,
         generations: Arc<Mutex<usize>>,
+        unloads: Arc<Mutex<usize>>,
+        unload_delay: std::time::Duration,
     }
 
     #[async_trait]
@@ -5104,6 +5306,8 @@ mod tests {
         }
 
         async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+            tokio::time::sleep(self.unload_delay).await;
+            *self.unloads.lock().expect("static runtime lock") += 1;
             Ok(())
         }
 
@@ -5380,6 +5584,40 @@ mod tests {
         let rows = state.ledger_rows();
         assert!(matches!(
             rows.as_slice(),
+            [LedgerEvent::Start(_), LedgerEvent::Stop(_)]
+        ));
+    }
+
+    #[tokio::test]
+    async fn shutdown_drain_infrastructure_timeout_does_not_truncate_session_cleanup() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(
+            StaticCloudBuilder::openai("shutdown-slow-cleanup")
+                .with_unload_delay(std::time::Duration::from_millis(1_200)),
+        );
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let coordinator = state.coordinator();
+        let mut request = cloud_request("gpt-4o");
+        request.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        coordinator
+            .spawn_session(build_spawn_request(&request).expect("valid cloud request"))
+            .await
+            .expect("live cloud session");
+
+        let outcome = state
+            .shutdown_drain(std::time::Duration::from_secs(1))
+            .await;
+
+        assert!(matches!(
+            outcome,
+            SwarmShutdownDrainOutcome::Completed {
+                process_ledger: handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+            }
+        ));
+        assert_eq!(builder.unload_count(), 1);
+        assert_eq!(coordinator.live_session_count(), 0);
+        assert!(matches!(
+            state.ledger_rows().as_slice(),
             [LedgerEvent::Start(_), LedgerEvent::Stop(_)]
         ));
     }

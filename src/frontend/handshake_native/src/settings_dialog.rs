@@ -126,6 +126,14 @@ pub const SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID: &str =
 /// settings, and pushed into the live [`crate::mcp::ActionChannel`] the running MCP/Argus transport
 /// drains, so the very next frame honours it.
 pub const SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID: &str = "settings.swarm-max-actions-per-frame";
+/// WP-1 MT-021: stable author_id for the distinct SwarmCoordinator model-session cap. Unlike the
+/// per-frame action budget above, this control calls the coordinator's GET/PUT authority and displays
+/// both requested and currently-in-force values during cooperative lowering.
+pub const SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID: &str =
+    "settings.swarm-model-sessions-max-concurrent";
+/// Stable status node for the coordinator values returned by the backend.
+pub const SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID: &str =
+    "settings.swarm-model-sessions-max-concurrent.status";
 /// Stable author_id for the Reset panes & drawers button.
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
 /// Stable author_id for opening the production Model Runtime registry pane.
@@ -686,6 +694,10 @@ pub enum SettingsOutcome {
     /// the shell clamps it, persists it, and pushes it into the live [`crate::mcp::ActionChannel`] the
     /// running MCP/Argus transport drains, so concurrent-agent admission changes on the next frame.
     SwarmMaxActionsPerFrameChanged(usize),
+    /// WP-1 MT-021: request a new cap for concurrently running model sessions. The shell persists the
+    /// desired value and sends it through `PUT /operator-chat/swarm/max-concurrent`; it does not claim
+    /// the value is in force until the coordinator returns its snapshot.
+    SwarmModelSessionsMaxConcurrentChanged(usize),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
     /// Open the production Model Runtime registry pane through the same route as RUN > Open Model
@@ -748,6 +760,15 @@ pub struct DiagnosticsSettingsView {
     pub recovered_survivor_count: usize,
 }
 
+/// Live coordinator truth rendered beside the model-session concurrency control. `snapshot == None`
+/// is an explicit loading/unavailable state, never a fabricated default.
+#[derive(Debug, Clone, Default)]
+pub struct SwarmModelSessionsSettingsState {
+    pub snapshot: Option<crate::backend_client::SwarmConcurrencySnapshot>,
+    pub updating: bool,
+    pub error: Option<String>,
+}
+
 /// Read-only inputs the dialog renders from (the live settings + the open generation). The dialog never
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
@@ -762,6 +783,8 @@ pub struct SettingsView<'a> {
     pub cloud: &'a mut CloudModelsSettingsState,
     /// WP-1 (c): live internal-diagnostics status for the Diagnostics section (display-only, real state).
     pub diagnostics: DiagnosticsSettingsView,
+    /// WP-1 MT-021: live SwarmCoordinator cap state, separate from the per-frame action budget.
+    pub swarm_model_sessions: &'a SwarmModelSessionsSettingsState,
 }
 
 /// Transient per-open dialog UI state: the search query + the in-progress draft keybinding text per
@@ -831,6 +854,7 @@ impl DialogState {
             operator_chat_default_open: live.operator_chat_default_open,
             resource_sampling_enabled: live.resource_sampling_enabled,
             swarm_max_actions_per_frame: live.swarm_max_actions_per_frame,
+            swarm_model_sessions_max_concurrent: live.swarm_model_sessions_max_concurrent,
         }
     }
 }
@@ -959,6 +983,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                 view.persist_error,
                 &mut *view.cloud,
                 view.diagnostics,
+                view.swarm_model_sessions,
                 search_egui_id,
                 list_egui_id,
                 440.0,
@@ -1051,6 +1076,7 @@ pub fn show_detached(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOut
             view.persist_error,
             &mut *view.cloud,
             view.diagnostics,
+            view.swarm_model_sessions,
             search_egui_id,
             list_egui_id,
             body_height,
@@ -1128,6 +1154,7 @@ fn render_search_and_sections(
     persist_error: Option<&str>,
     cloud: &mut CloudModelsSettingsState,
     diagnostics: DiagnosticsSettingsView,
+    swarm_model_sessions: &SwarmModelSessionsSettingsState,
     search_egui_id: egui::Id,
     list_egui_id: egui::Id,
     max_body_height: f32,
@@ -1172,6 +1199,7 @@ fn render_search_and_sections(
                     settings,
                     cloud,
                     diagnostics,
+                    swarm_model_sessions,
                     outcome.clone(),
                 );
             });
@@ -1225,6 +1253,7 @@ fn render_sections(
     settings: &WorkspaceSettingsState,
     cloud: &mut CloudModelsSettingsState,
     diagnostics: DiagnosticsSettingsView,
+    swarm_model_sessions: &SwarmModelSessionsSettingsState,
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
     // ── [1] Appearance (theme + view mode — both WIRED) ────────────────────────────────────────────
@@ -1444,15 +1473,32 @@ fn render_sections(
             "budget",
             "agents",
             "throttle",
+            "model",
+            "session",
         ],
     );
     if show_swarm {
+        let concurrency_query = !query.is_empty()
+            && [
+                "concurrency",
+                "concurrent",
+                "admission",
+                "budget",
+                "agents",
+                "throttle",
+                "model",
+                "session",
+            ]
+            .iter()
+            .any(|term| term.contains(query) || query.contains(term));
+        let model_session_query = query.contains("model") || query.contains("session");
         let swarm_header = egui::CollapsingHeader::new("Swarm")
             .default_open(true)
             .show(ui, |ui| {
-                not_yet_wired_row(ui, &SWARM_RECONCILE_INTERVAL_SETTING);
-                not_yet_wired_row(ui, &SWARM_RESOURCE_POLL_INTERVAL_SETTING);
-                ui.horizontal(|ui| {
+                if !concurrency_query {
+                    not_yet_wired_row(ui, &SWARM_RECONCILE_INTERVAL_SETTING);
+                    not_yet_wired_row(ui, &SWARM_RESOURCE_POLL_INTERVAL_SETTING);
+                    ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Open Swarm Board on launch");
                         ui.label(
@@ -1474,8 +1520,8 @@ fn render_sections(
                         );
                         outcome = SettingsOutcome::SwarmBoardDefaultOpenChanged(checked);
                     }
-                });
-                ui.horizontal(|ui| {
+                    });
+                    ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Open Lane Diagnostics from Swarm defaults");
                         ui.label(
@@ -1498,8 +1544,8 @@ fn render_sections(
                         outcome =
                             SettingsOutcome::SwarmLaneDiagnosticsDefaultOpenChanged(checked);
                     }
-                });
-                ui.horizontal(|ui| {
+                    });
+                    ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Open Operator Chat from Swarm defaults");
                         ui.label(
@@ -1521,8 +1567,9 @@ fn render_sections(
                         );
                         outcome = SettingsOutcome::OperatorChatDefaultOpenChanged(checked);
                     }
-                });
-                // ── WP-1 MT-021 (AC-3): the REAL concurrency control. ───────────────────────────────
+                    });
+                }
+                // ── WP-1 MT-021 (AC-3): distinct live concurrency controls. ────────────────────────
                 // Before this, the Swarm section had NO concurrency/lease control at all — only two
                 // read-only backend-owned interval literals. This row is bound to live runtime
                 // behaviour: the selected value is clamped, persisted, and pushed into the
@@ -1535,20 +1582,16 @@ fn render_sections(
                 // knob, the other admits real processes, and a single "concurrency" slider driving both
                 // would be the misleading control AC-3 exists to remove.
                 //
-                // That backend budget is no longer unreachable — MT-021 added
-                // `GET`/`PUT /operator-chat/swarm/max-concurrent` (`api::operator_chat`), where lowering
-                // is cooperative and converges rather than killing running sessions. It has no Settings
-                // row yet: a second control also labelled "concurrency" needs its own Argus author_id and
-                // before/after proof under AC-4/AC-6, so it is recorded as a follow-up rather than added
-                // here untested. The two fixed interval rows above still say why they cannot be
-                // controlled at all, instead of only that they are "not yet wired".
+                // The coordinator's model-session cap is rendered immediately below with its own stable
+                // ID and backend truth, so neither quantity can be mistaken for the other.
                 //
                 // APPENDED at the END of the section body deliberately: inserting it above the existing
                 // rows would push every later widget (and the Terminal / Layout sections) down in the
                 // scroll body, the same coordinate-viewport regression the Layout-section rule at the
                 // Cloud Models block guards against.
-                ui.separator();
-                ui.horizontal(|ui| {
+                if !model_session_query {
+                    ui.separator();
+                    ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Concurrent swarm action budget");
                         ui.label(
@@ -1566,11 +1609,13 @@ fn render_sections(
                         .selected_text(admission_budget_label(current))
                         .show_ui(ui, |ui| {
                             for option in crate::mcp::SWARM_ADMISSION_BUDGET_OPTIONS {
-                                ui.selectable_value(
+                                let response = ui.selectable_value(
                                     &mut selected,
                                     option,
                                     admission_budget_label(option),
                                 );
+                                let option_id = swarm_action_budget_option_author_id(option);
+                                set_author_id_ack_click(ui, &response, &option_id);
                             }
                         });
                     // The visible row label above is the accessible name; the combo carries only the
@@ -1579,6 +1624,82 @@ fn render_sections(
                     set_author_id_ack_click(ui, &combo.response, SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID);
                     if selected != current && outcome == SettingsOutcome::None {
                         outcome = SettingsOutcome::SwarmMaxActionsPerFrameChanged(selected);
+                    }
+                    });
+                }
+
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Concurrent model sessions");
+                        ui.label(
+                            egui::RichText::new(
+                                "Project-persisted desired cap, applied through the live SwarmCoordinator. Lowering is cooperative: running model sessions are never killed to make the number converge.",
+                            )
+                            .small()
+                            .weak(),
+                        );
+                        let status_text = match (&swarm_model_sessions.snapshot, &swarm_model_sessions.error) {
+                            (Some(snapshot), error) => format!(
+                                "Requested: {} · In force: {} · Fully applied: {} · Live sessions: {}{}{}",
+                                snapshot.requested,
+                                snapshot.max_concurrent,
+                                snapshot.fully_applied,
+                                snapshot.live_sessions,
+                                if swarm_model_sessions.updating { " · Applying…" } else { "" },
+                                error
+                                    .as_ref()
+                                    .map(|message| format!(" · Update failed: {message}"))
+                                    .unwrap_or_default(),
+                            ),
+                            (None, Some(error)) => format!("Coordinator status unavailable: {error}"),
+                            (None, None) if swarm_model_sessions.updating => {
+                                "Coordinator status: applying request…".to_owned()
+                            }
+                            (None, None) => "Coordinator status: loading…".to_owned(),
+                        };
+                        let status = ui.label(egui::RichText::new(&status_text).small().weak());
+                        set_author_id_and_label(
+                            ui,
+                            status.id,
+                            SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
+                            &status_text,
+                        );
+                    });
+
+                    let current = settings
+                        .swarm_model_sessions_max_concurrent
+                        .or_else(|| swarm_model_sessions.snapshot.as_ref().map(|s| s.requested))
+                        .unwrap_or(1)
+                        .max(1);
+                    let mut selected = current;
+                    let mut options = vec![1usize, 2, 4, 8, 16, 32, 64, current];
+                    options.sort_unstable();
+                    options.dedup();
+                    ui.add_enabled_ui(!swarm_model_sessions.updating, |ui| {
+                        let combo = egui::ComboBox::from_id_salt(
+                            "settings.swarm-model-sessions-max-concurrent.combo",
+                        )
+                        .selected_text(current.to_string())
+                        .show_ui(ui, |ui| {
+                            for option in options {
+                                let response = ui.selectable_value(
+                                    &mut selected,
+                                    option,
+                                    option.to_string(),
+                                );
+                                let option_id = swarm_model_session_option_author_id(option);
+                                set_author_id_ack_click(ui, &response, &option_id);
+                            }
+                        });
+                        set_author_id_ack_click(
+                            ui,
+                            &combo.response,
+                            SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID,
+                        );
+                    });
+                    if selected != current && outcome == SettingsOutcome::None {
+                        outcome = SettingsOutcome::SwarmModelSessionsMaxConcurrentChanged(selected);
                     }
                 });
             });
@@ -2235,6 +2356,17 @@ fn admission_budget_label(budget: usize) -> String {
     } else {
         budget.to_string()
     }
+}
+
+/// Stable child id for a per-frame action-budget option, enabling a real AccessKit popup selection.
+pub fn swarm_action_budget_option_author_id(value: usize) -> String {
+    format!("{SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID}.option.{value}")
+}
+
+/// Stable child id for a model-session cap option, so Argus can open the ComboBox and choose a value
+/// through the real AccessKit action path instead of injecting a SettingsOutcome.
+pub fn swarm_model_session_option_author_id(value: usize) -> String {
+    format!("{SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID}.option.{value}")
 }
 
 /// Render the per-lane cloud consent / export posture rows (WP-1 MT-021 AC-2).

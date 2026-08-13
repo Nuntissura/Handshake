@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use uuid::Uuid;
 
+use crate::api::account_scope::RequestAccountScope;
 use crate::diagnostics::{
     DiagFilter, Diagnostic, DiagnosticInput, DiagnosticSeverity, DiagnosticSurface, ProblemGroup,
 };
-use crate::api::account_scope::RequestAccountScope;
 use crate::swarm_orchestration::model_lane::{ModelLaneDiagnosticsProjection, ModelLaneStore};
 use crate::AppState;
 
@@ -122,10 +122,10 @@ async fn create_diagnostic(
     Ok(Json(diagnostic))
 }
 
-/// Scoped store for a diagnostics read. `new_for_owner` is read-only by
-/// construction, so a header can never mint ownership.
+/// Server-authoritative exact scope retains actor, session, AccessSpace, and
+/// required workspace through both SQL and post-decode authorization.
 fn model_lane_store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
-    ModelLaneStore::new_for_owner(state.postgres_pool.clone(), scope.query().clone())
+    ModelLaneStore::new_scoped(state.postgres_pool.clone(), scope.resource_scope())
 }
 
 async fn latest_model_lane_diagnostics(

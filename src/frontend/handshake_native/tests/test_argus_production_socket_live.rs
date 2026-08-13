@@ -18,14 +18,76 @@ use std::time::{Duration, Instant};
 use base64::Engine as _;
 use sha2::{Digest, Sha256};
 
+use handshake_native::pane_registry::PaneType;
+use handshake_native::swarm_lane_diagnostics::{scoped_author_id, SURFACE_AUTHOR_ID};
+
 #[path = "argus_socket_support/live_socket.rs"]
 mod live_socket;
 
 use live_socket::{
     assert_success, assert_visual_png, contains_author_id, discover_binding, list_has_window,
-    proof_dir, request_child_close, require_palmistry_ready_backend, wait_for_window, ArgusClient,
-    ChildGuard,
+    pane_id_hosting, proof_dir, request_child_close, require_palmistry_ready_backend,
+    wait_for_author_id_between, wait_for_window, ArgusClient, ChildGuard, LiveApp, SURFACE_TIMEOUT,
 };
+
+const PRIVACY_OWNER_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.owner-account";
+const PRIVACY_PRINCIPAL_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.actor-principal";
+const PRIVACY_SESSION_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.authenticated-session";
+const PRIVACY_ACCESS_SPACE_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.access-space";
+const PRIVACY_WORKSPACE_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.workspace";
+
+#[ignore = "LIVE production socket MT-008 E2E: opens a native diagnostics pane/pop-out and requires \
+            managed PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+            HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, HANDSHAKE_MT008_ARGUS_PROOF_NONCE, and a shared \
+            HANDSHAKE_DIAGNOSTICS_DIR"]
+#[test]
+fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
+    let proof_nonce = std::env::var("HANDSHAKE_MT008_ARGUS_PROOF_NONCE")
+        .expect("MT-008 live proof requires a fresh HANDSHAKE_MT008_ARGUS_PROOF_NONCE");
+    assert!(
+        !proof_nonce.trim().is_empty(),
+        "MT-008 live proof nonce must not be blank"
+    );
+
+    let mut app = LiveApp::start("mt008_diagnostics");
+    app.open_models_menu_leaf("menu.models.swarm-lane-diagnostics");
+    let discovered_surface = wait_for_author_id_between(
+        &mut app.client,
+        "main",
+        &format!("{SURFACE_AUTHOR_ID}.pane."),
+        "",
+        SURFACE_TIMEOUT,
+    );
+    let opened = app.client.inspect("main");
+    let pane_id = pane_id_hosting(
+        &opened["snapshot"]["root"],
+        &PaneType::SwarmLaneDiagnostics.label(),
+    );
+    assert_eq!(
+        discovered_surface,
+        scoped_author_id(&pane_id, SURFACE_AUTHOR_ID),
+        "the live diagnostics surface must belong to its actual pane"
+    );
+
+    for author_id in [
+        PRIVACY_OWNER_AUTHOR_ID,
+        PRIVACY_PRINCIPAL_AUTHOR_ID,
+        PRIVACY_SESSION_AUTHOR_ID,
+        PRIVACY_ACCESS_SPACE_AUTHOR_ID,
+        PRIVACY_WORKSPACE_AUTHOR_ID,
+    ] {
+        let scoped = scoped_author_id(&pane_id, author_id);
+        assert!(
+            contains_author_id(&opened["snapshot"]["root"], &scoped),
+            "live diagnostics omitted exact server-owned privacy landmark {scoped}"
+        );
+    }
+
+    // The remainder of the live detached-window/artifact proof is intentionally added only after
+    // this privacy-boundary RED is attributed. Keeping the first failure here makes it impossible
+    // for generic pane/pop-out pixels to masquerade as MT-008 diagnostics evidence.
+    drop(app);
+}
 
 #[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
             PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \

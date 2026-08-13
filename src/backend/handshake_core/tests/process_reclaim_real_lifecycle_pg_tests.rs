@@ -50,8 +50,9 @@ use handshake_core::process_ledger::{
     reconcile_restart_orphans_at_boot, set_dead_owner_confirmation_gap_override_for_test,
     spawn_managed_staleness_reclaim_task_after_boot, KillOutcome, LedgerBatcher,
     LedgerBatcherConfig, NoopOverflowSink, PostgresModelLaneStaleSessionSource,
-    PostgresProcessLedgerStore, ProcessLedgerStore, ProcessReclaimRuntime, Reclaim, ReclaimTrigger,
-    StaleSessionSource, StalenessReclaimConfig, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
+    PostgresProcessLedgerStore, ProcessLedgerStore, ProcessReclaimRuntime, ProductionSandboxKill,
+    Reclaim, ReclaimKillOperationStatus, ReclaimProcessStore, ReclaimTrigger, StaleSessionSource,
+    StalenessReclaimConfig, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
     EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
 };
 use handshake_core::sandbox::{
@@ -60,11 +61,14 @@ use handshake_core::sandbox::{
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use sqlx::PgPool;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::{Ipv4Addr, UdpSocket};
 use uuid::Uuid;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const IDENTITY_POOL_HOLD: Duration = Duration::from_millis(5_500);
+const IDENTITY_PATH_COMPLETION_BOUND: Duration = Duration::from_secs(20);
+const AUTHORITATIVE_RECLAIM_KILL_BOUND: Duration = Duration::from_secs(30);
 
 /// Kill-on-drop guard so a spawned child never leaks, even if an assertion
 /// panics mid-test. Only ever kills the process THIS test spawned.
@@ -225,18 +229,89 @@ fn build_reclaim(
     LedgerBatcher,
     tokio::task::JoinHandle<Result<(), handshake_core::process_ledger::ProcessLedgerError>>,
 ) {
+    build_reclaim_with_kill_pool(pool, pool)
+}
+
+/// Build the production stack with a separately constrained identity-query pool.
+/// The store and STOP writer keep using `store_pool`, so exhausting `kill_pool`
+/// isolates the exact identity-read boundary rather than blocking claim/STOP SQL.
+fn build_reclaim_with_kill_pool(
+    store_pool: &PgPool,
+    kill_pool: &PgPool,
+) -> (
+    Reclaim,
+    LedgerBatcher,
+    tokio::task::JoinHandle<Result<(), handshake_core::process_ledger::ProcessLedgerError>>,
+) {
     let store: Arc<dyn ProcessLedgerStore> =
-        Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+        Arc::new(PostgresProcessLedgerStore::new(store_pool.clone()));
     let (ledger, join) = LedgerBatcher::spawn(store, Arc::new(NoopOverflowSink), batcher_config());
-    let reclaim_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    let killer = Arc::new(
-        handshake_core::process_ledger::ProductionSandboxKill::new(
-            pool.clone(),
-            tokio::runtime::Handle::current(),
-        ),
-    );
+    let reclaim_store = Arc::new(PostgresProcessLedgerStore::new(store_pool.clone()));
+    let killer = Arc::new(ProductionSandboxKill::new(
+        kill_pool.clone(),
+        tokio::runtime::Handle::current(),
+    ));
     let reclaim = Reclaim::new(reclaim_store, killer, Arc::new(ledger.clone()));
     (reclaim, ledger, join)
+}
+
+/// Mirror the production composition root's store-authority preflight before
+/// the writer starts, keeping the first reclaim STOP's five-second budget for
+/// the mutation and durable acknowledgement rather than catalog discovery.
+async fn build_preflighted_reclaim(
+    pool: &PgPool,
+) -> (
+    Reclaim,
+    LedgerBatcher,
+    tokio::task::JoinHandle<Result<(), handshake_core::process_ledger::ProcessLedgerError>>,
+) {
+    let store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    store
+        .preflight()
+        .await
+        .expect("preflight process-ledger writer authority");
+    let store: Arc<dyn ProcessLedgerStore> = store;
+    let (ledger, join) = LedgerBatcher::spawn(store, Arc::new(NoopOverflowSink), batcher_config());
+    let reclaim_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    reclaim_store
+        .preflight()
+        .await
+        .expect("preflight process-ledger reclaim authority");
+    let killer = Arc::new(ProductionSandboxKill::new(
+        pool.clone(),
+        tokio::runtime::Handle::current(),
+    ));
+    let reclaim = Reclaim::new(reclaim_store, killer, Arc::new(ledger.clone()));
+    (reclaim, ledger, join)
+}
+
+async fn single_connection_identity_pool(schema_url: &str) -> PgPool {
+    PgPoolOptions::new()
+        .max_connections(1)
+        .connect(schema_url)
+        .await
+        .expect("connect one-slot identity-query pool")
+}
+
+async fn wait_for_stop_reason(pool: &PgPool, process_uuid: Uuid, expected: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let reason: Option<String> = sqlx::query_scalar(
+            "SELECT stop_reason FROM kernel_process_lifecycle WHERE process_uuid = $1",
+        )
+        .bind(process_uuid)
+        .fetch_one(pool)
+        .await
+        .expect("read reclaim stop_reason while synchronizing the proof");
+        if reason.as_deref() == Some(expected) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "process {process_uuid} did not reach stop_reason={expected}; observed {reason:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
 }
 
 async fn stopped_at(pool: &PgPool, process_uuid: Uuid) -> Option<DateTime<Utc>> {
@@ -255,6 +330,16 @@ async fn open_row_count(pool: &PgPool, process_uuid: Uuid) -> i64 {
     .fetch_one(pool)
     .await
     .expect("count open rows")
+}
+
+async fn stopped_row_count(pool: &PgPool, process_uuid: Uuid) -> i64 {
+    sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_process_lifecycle WHERE process_uuid = $1 AND stopped_at IS NOT NULL",
+    )
+    .bind(process_uuid)
+    .fetch_one(pool)
+    .await
+    .expect("count stopped rows")
 }
 
 async fn drain(
@@ -332,6 +417,218 @@ async fn real_process_reclaim_kills_child_and_writes_durable_stop() {
         stopped_at(&pool, process_uuid).await.is_some(),
         "reclaim must write a durable STOP row"
     );
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// MT-019: a production identity read may wait beyond the obsolete five-second
+// sub-budget, but remains inside the authoritative 30-second reclaim bound.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget() {
+    let Some((kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget: PowerShell not found");
+        return;
+    };
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    seed_real_process_start(
+        &pool,
+        &session_run_id,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+    )
+    .await;
+
+    let identity_pool = single_connection_identity_pool(&kp.schema_url).await;
+    let held_identity_connection = identity_pool
+        .acquire()
+        .await
+        .expect("exhaust the exact production identity pool");
+    let (reclaim, ledger, join) = build_reclaim_with_kill_pool(&pool, &identity_pool);
+    let task_session = session_run_id.clone();
+    let mut reclaim_task =
+        tokio::spawn(async move { reclaim.run(&task_session, ReclaimTrigger::Restart).await });
+
+    // This durable transition occurs immediately before `SandboxKill::kill`, so
+    // it proves the task reached the identity-read boundary before the clock.
+    wait_for_stop_reason(&pool, process_uuid, "reclaim_kill_in_progress").await;
+    let identity_wait_started = Instant::now();
+    tokio::time::sleep(IDENTITY_POOL_HOLD).await;
+    assert!(
+        !reclaim_task.is_finished(),
+        "production kill returned while its exact identity pool remained exhausted for {IDENTITY_POOL_HOLD:?}; the obsolete five-second identity sub-budget is still active"
+    );
+
+    drop(held_identity_connection);
+    let report = tokio::time::timeout(IDENTITY_PATH_COMPLETION_BOUND, &mut reclaim_task)
+        .await
+        .expect("production kill completes after the identity connection is released")
+        .expect("production kill task must not panic")
+        .expect("production reclaim succeeds after a >5s identity wait");
+    let identity_path_elapsed = identity_wait_started.elapsed();
+    assert!(identity_path_elapsed >= IDENTITY_POOL_HOLD);
+    assert!(
+        identity_path_elapsed < AUTHORITATIVE_RECLAIM_KILL_BOUND,
+        "identity wait must remain inside the authoritative reclaim kill bound: {identity_path_elapsed:?}"
+    );
+    assert_eq!(report.processes_reclaimed.len(), 1);
+    assert!(matches!(
+        report.processes_reclaimed[0].kill_result,
+        KillOutcome::Killed
+    ));
+    assert!(
+        spawned.guard.wait_exited(Duration::from_secs(10)),
+        "the production adapter must kill the owned real child"
+    );
+
+    drain(ledger, join).await;
+    assert_eq!(open_row_count(&pool, process_uuid).await, 0);
+    assert_eq!(
+        stopped_row_count(&pool, process_uuid).await,
+        1,
+        "the delayed identity read must still produce exactly one durable STOP"
+    );
+    eprintln!(
+        "MT019_NON_SKIP kill_identity_wait_ms={} child_pid={} durable_stops=1",
+        identity_path_elapsed.as_millis(),
+        spawned.pid
+    );
+    identity_pool.close().await;
+    pool.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget() {
+    let Some((kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget: PowerShell not found");
+        return;
+    };
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    seed_real_process_start(
+        &pool,
+        &session_run_id,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+    )
+    .await;
+
+    // Simulate a crash after the durable kill-start fence but before the adapter
+    // call. The fresh boot must query that crash-left operation without turning
+    // open/in-progress evidence into a false STOP.
+    let prior_boot_store = PostgresProcessLedgerStore::new(pool.clone());
+    let mut claimed = prior_boot_store
+        .active_processes_for_session(&session_run_id)
+        .await
+        .expect("claim the real process before the simulated crash");
+    assert_eq!(claimed.len(), 1);
+    let claimed_process = claimed.pop().expect("one claimed process");
+    prior_boot_store
+        .mark_reclaim_kill_started(process_uuid, &claimed_process.reclaim_claim)
+        .await
+        .expect("persist the crash-left kill-operation fence");
+    assert!(spawned.guard.is_still_running());
+    assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+    assert!(stopped_at(&pool, process_uuid).await.is_none());
+
+    let identity_pool = single_connection_identity_pool(&kp.schema_url).await;
+    let held_identity_connection = identity_pool
+        .acquire()
+        .await
+        .expect("exhaust the crash-recovery identity pool");
+    let (reclaim, ledger, join) = build_reclaim_with_kill_pool(&pool, &identity_pool);
+    let reclaim = Arc::new(reclaim);
+    let status_reclaim = Arc::clone(&reclaim);
+    let kill_operation_uuid = claimed_process.reclaim_claim.kill_operation_uuid;
+    let mut status_task = tokio::spawn(async move {
+        status_reclaim
+            .reconcile_kill_operation(process_uuid, kill_operation_uuid)
+            .await
+    });
+
+    let identity_wait_started = Instant::now();
+    tokio::time::sleep(IDENTITY_POOL_HOLD).await;
+    assert!(
+        !status_task.is_finished(),
+        "crash-left status returned while its exact identity pool remained exhausted for {IDENTITY_POOL_HOLD:?}; the obsolete five-second identity sub-budget is still active"
+    );
+    drop(held_identity_connection);
+    let status = tokio::time::timeout(IDENTITY_PATH_COMPLETION_BOUND, &mut status_task)
+        .await
+        .expect("crash-left status completes after the identity connection is released")
+        .expect("crash-left status task must not panic")
+        .expect("crash-left status succeeds after a >5s identity wait");
+    let identity_path_elapsed = identity_wait_started.elapsed();
+    assert_eq!(status, ReclaimKillOperationStatus::InProgress);
+    assert!(identity_path_elapsed >= IDENTITY_POOL_HOLD);
+    assert!(
+        identity_path_elapsed < AUTHORITATIVE_RECLAIM_KILL_BOUND,
+        "crash-left identity wait must remain inside the authoritative reclaim kill bound: {identity_path_elapsed:?}"
+    );
+    assert!(
+        spawned.guard.is_still_running(),
+        "an in-progress status observation must not kill outside the retry path"
+    );
+    assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+    assert!(
+        stopped_at(&pool, process_uuid).await.is_none(),
+        "in-progress crash recovery evidence must not fabricate STOP"
+    );
+
+    // The test knows the simulated prior boot crashed before calling its
+    // adapter, so NotStarted is the truthful authoritative terminal evidence.
+    // Apply it through the production store transition, then prove the normal
+    // retry path owns the eventual real kill and STOP.
+    prior_boot_store
+        .resolve_reclaim_kill_operation(
+            process_uuid,
+            kill_operation_uuid,
+            ReclaimKillOperationStatus::NotStarted,
+        )
+        .await
+        .expect("release the crash-left claim from truthful not-started evidence");
+
+    let report = reclaim
+        .run(&session_run_id, ReclaimTrigger::Restart)
+        .await
+        .expect("retry the crash-left in-progress operation after lease expiry");
+    assert_eq!(report.processes_reclaimed.len(), 1);
+    assert!(matches!(
+        report.processes_reclaimed[0].kill_result,
+        KillOutcome::Killed
+    ));
+    assert!(
+        spawned.guard.wait_exited(Duration::from_secs(10)),
+        "the production retry must kill the owned real child"
+    );
+    drain(ledger, join).await;
+    assert_eq!(open_row_count(&pool, process_uuid).await, 0);
+    assert_eq!(
+        stopped_row_count(&pool, process_uuid).await,
+        1,
+        "crash-left recovery must produce exactly one durable STOP"
+    );
+    eprintln!(
+        "MT019_NON_SKIP crash_status_identity_wait_ms={} child_pid={} durable_stops=1",
+        identity_path_elapsed.as_millis(),
+        spawned.pid
+    );
+    identity_pool.close().await;
     pool.close().await;
 }
 
@@ -719,7 +1016,7 @@ async fn boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan() {
     let stale_source =
         PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor.clone())
             .with_dead_owner_confirmation_gap(Duration::from_millis(50));
-    let (reclaim, ledger, join) = build_reclaim(&pool);
+    let (reclaim, ledger, join) = build_preflighted_reclaim(&pool).await;
     let first_pass = reconcile_restart_orphans_at_boot(&reclaim, &stale_source)
         .await
         .expect("first composed boot restart-reconcile pass");

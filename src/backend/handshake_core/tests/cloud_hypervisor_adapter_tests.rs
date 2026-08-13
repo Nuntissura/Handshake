@@ -10,11 +10,13 @@
 use std::collections::BTreeMap;
 
 use bytes::Bytes;
+use handshake_core::process_ledger::production_process_sandbox_registry_async;
+use handshake_core::sandbox::palmistry_watcher::PALMISTRY_WATCHER_ADAPTER_ID;
 use handshake_core::sandbox::{
-    AdapterId, CloudHypervisorAdapter, CloudHypervisorConfig, Command, ImageRef, IsolationTier,
-    NetPolicy, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_MODE_METADATA_KEY,
-    SANDBOX_MODE_PERSISTENT,
+    AdapterId, CloudHypervisorAdapter, CloudHypervisorConfig, Command, DetachedProcessIdentity,
+    ImageRef, IsolationTier, NetPolicy, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter,
+    SandboxAdapterError, Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID,
+    HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID, SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
 };
 
 fn skip_message(error: &SandboxAdapterError) -> String {
@@ -63,6 +65,93 @@ fn persistent_spec() -> ProcessSpec {
         SANDBOX_MODE_PERSISTENT.to_string(),
     );
     spec
+}
+
+/// The application composition root must expose Tier-3 through the same
+/// registry shared by operator-chat launch and ProcessLedger reclaim. The
+/// bootstrap is allowed to omit unavailable host runtimes in ordinary CI, but
+/// HANDSHAKE_CH_REQUIRE turns that omission into a hard live-proof failure.
+#[tokio::test]
+async fn production_registry_exposes_cloud_hypervisor_to_shipped_runtime() {
+    let registry = production_process_sandbox_registry_async()
+        .await
+        .expect("construct the shipped async sandbox registry");
+
+    assert!(
+        registry
+            .get(&AdapterId::new(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID))
+            .is_some(),
+        "shipped registry must retain the native official-CLI owner"
+    );
+    assert!(
+        registry
+            .get(&AdapterId::new(PALMISTRY_WATCHER_ADAPTER_ID))
+            .is_some(),
+        "shipped registry must retain the Palmistry host-process owner"
+    );
+
+    let cloud_hypervisor = registry.get(&AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID));
+    if std::env::var("HANDSHAKE_CH_REQUIRE").is_ok() {
+        assert!(
+            cloud_hypervisor.is_some(),
+            "HANDSHAKE_CH_REQUIRE is set but the shipped runtime registry omitted cloud_hypervisor"
+        );
+    } else if cloud_hypervisor.is_none() {
+        eprintln!(
+            "SKIP shipped Cloud Hypervisor registry assertion: runtime unavailable and HANDSHAKE_CH_REQUIRE is unset"
+        );
+    }
+}
+
+/// A durable process handle must remain inspectable and reclaimable after the
+/// owning adapter instance is reconstructed. This is the exact crash/restart
+/// boundary used by ProcessLedger reclaim; an in-memory-only handle lookup
+/// leaves a live microVM unreachable after an app restart.
+#[tokio::test]
+async fn cloud_hypervisor_fresh_adapter_reclaims_detached_persistent_vm() {
+    let owner = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+    let handle = owner
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM owned by adapter A");
+    let identity = DetachedProcessIdentity {
+        process_uuid: uuid::Uuid::now_v7(),
+        handle: handle.clone(),
+        executable_sha256: None,
+        os_creation_time_100ns: None,
+    };
+
+    let restarted = CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default())
+        .await
+        .expect("construct fresh adapter B against the same WSL/KVM host");
+    let detached_status = restarted.detached_status(&identity).await;
+    let detached_reclaim = restarted.reclaim_detached(&identity, Signal::Kill).await;
+    let detached_status_after = restarted.detached_status(&identity).await;
+
+    // Always clean through the original owner before making the RED assertions,
+    // so a failed detached-reclaim implementation cannot leak the live VM.
+    owner
+        .kill(&handle, Signal::Kill)
+        .await
+        .expect("cleanup persistent microVM through adapter A");
+
+    assert_eq!(
+        detached_status.expect("fresh adapter B must inspect the durable handle"),
+        ProcessStatus::Running,
+        "fresh adapter B must prove the exact durable VM is still live"
+    );
+    detached_reclaim.expect("fresh adapter B must reclaim the exact durable VM");
+    assert_eq!(
+        detached_status_after.expect("fresh adapter B must verify detached reclaim"),
+        ProcessStatus::Orphaned,
+        "fresh adapter B must independently prove the durable VM is no longer live"
+    );
 }
 
 fn last_tick(serial: &str) -> Option<u64> {
@@ -515,19 +604,28 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
             "-e",
             "sh",
             "-c",
-            &format!("mkdir -p '{orphan}' && : > '{orphan}/ch.sock'"),
+            &format!(
+                "mkdir -p '{orphan}' && : > '{orphan}/ch.sock' && printf '%s\\n' {} > '{orphan}/.hsk-owner-pid'",
+                std::process::id()
+            ),
         ])
         .status()
         .expect("create orphan dir");
     assert!(mk.success(), "fabricating orphan dir must succeed");
 
-    let found = adapter.discover_orphan_vm_dirs().await;
+    let found = adapter
+        .discover_orphan_vm_dirs()
+        .await
+        .expect("discover fabricated orphan");
     assert!(
         found.iter().any(|d| d == &orphan),
         "fabricated orphan must be discovered; got {found:?}"
     );
 
-    let reclaimed = adapter.reclaim_orphan_vm_dirs().await;
+    let reclaimed = adapter
+        .reclaim_orphan_vm_dirs()
+        .await
+        .expect("reclaim fabricated orphan");
     assert!(
         reclaimed >= 1,
         "must reclaim at least the fabricated orphan"
@@ -536,6 +634,7 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
         !adapter
             .discover_orphan_vm_dirs()
             .await
+            .expect("verify orphan removal")
             .iter()
             .any(|d| d == &orphan),
         "orphan must be gone after reclaim"

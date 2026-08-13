@@ -1,4 +1,5 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::sandbox::SnapshotRef;
 
@@ -104,6 +105,16 @@ pub enum WarmAgentGuestFrame {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct WarmVmSnapshotResourceScope {
+    pub owner_account_id: Uuid,
+    pub actor_principal_id: Uuid,
+    pub authenticated_session_id: Option<Uuid>,
+    pub access_space_id: Option<Uuid>,
+    pub workspace_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WarmVmSnapshotManifest {
     pub protocol_id: String,
     pub protocol_version: u16,
@@ -112,6 +123,16 @@ pub struct WarmVmSnapshotManifest {
     pub model_guest_path: String,
     pub ready_nonce: String,
     pub snapshot: SnapshotRef,
+    /// Canonical durable binding that produced this derived snapshot. Durable
+    /// restore refuses manifests without this provenance instead of accepting a
+    /// caller-supplied absolute snapshot path as authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_binding_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_binding_generation: Option<i64>,
+    /// HBR-PRIV-004 non-widening scope inherited from the source binding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_scope: Option<WarmVmSnapshotResourceScope>,
 }
 
 impl WarmVmSnapshotManifest {
@@ -130,7 +151,22 @@ impl WarmVmSnapshotManifest {
             model_guest_path: model_guest_path.into(),
             ready_nonce: ready_nonce.into(),
             snapshot,
+            source_binding_id: None,
+            source_binding_generation: None,
+            resource_scope: None,
         }
+    }
+
+    pub fn with_durable_source(
+        mut self,
+        binding_id: Uuid,
+        binding_generation: i64,
+        resource_scope: WarmVmSnapshotResourceScope,
+    ) -> Self {
+        self.source_binding_id = Some(binding_id);
+        self.source_binding_generation = Some(binding_generation);
+        self.resource_scope = Some(resource_scope);
+        self
     }
 
     pub fn validate_for_restore(

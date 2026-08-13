@@ -112,7 +112,9 @@ fn register_test_schema_for_cleanup(base_url: &str, schema: &str) {
     let registry = OWNED_TEST_SCHEMAS.get_or_init(|| StdMutex::new(Vec::new()));
     match registry.lock() {
         Ok(mut owned) => owned.push((base_url.to_string(), schema.to_string())),
-        Err(poisoned) => poisoned.into_inner().push((base_url.to_string(), schema.to_string())),
+        Err(poisoned) => poisoned
+            .into_inner()
+            .push((base_url.to_string(), schema.to_string())),
     }
     SCHEMA_CLEANUP_REGISTERED.get_or_init(|| {
         // SAFETY: the callback has C ABI, never unwinds (it catches), captures

@@ -21,6 +21,7 @@ use std::{
     time::Duration,
 };
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use eventsource_stream::Eventsource;
 use futures_util::StreamExt;
 use handshake_core::model_runtime::{
@@ -168,8 +169,19 @@ struct ActiveGeneration {
     cancel: CancelFlag,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct LegacyExecRequest {
+    request_id: String,
+    command: String,
+    stdin: Option<Vec<u8>>,
+}
+
 enum AgentEvent {
     HostFrame(Result<WarmAgentHostFrame, AgentError>),
+    LegacyExec {
+        request_id: String,
+        request: Result<LegacyExecRequest, AgentError>,
+    },
     HostInputClosed,
     GenerationDone {
         request_id: String,
@@ -225,6 +237,16 @@ impl WarmAgent {
                     self.emit_error(None, "decode_error", &error.to_string())
                         .await?;
                 }
+                AgentEvent::LegacyExec {
+                    request_id,
+                    request,
+                } => match request {
+                    Ok(request) => self.execute_legacy_exec(request).await?,
+                    Err(error) => {
+                        emit_legacy_exec_error(&self.output, &request_id, &error.to_string())
+                            .await?
+                    }
+                },
                 AgentEvent::HostInputClosed => {
                     if exit_on_input_close {
                         for active in self.active.values() {
@@ -301,6 +323,42 @@ impl WarmAgent {
                 .await
             }
         }
+    }
+
+    async fn execute_legacy_exec(&self, request: LegacyExecRequest) -> Result<(), AgentError> {
+        let mut command = Command::new("/bin/sh");
+        command
+            .arg("-c")
+            .arg(&request.command)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(if request.stdin.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            });
+        let mut child = command.spawn().map_err(|error| {
+            AgentError::Io(std::io::Error::new(
+                error.kind(),
+                format!("legacy guest exec spawn failed: {error}"),
+            ))
+        })?;
+        if let Some(stdin) = request.stdin.as_deref() {
+            let mut child_stdin = child.stdin.take().ok_or_else(|| {
+                AgentError::Protocol("legacy guest exec stdin pipe missing".to_string())
+            })?;
+            child_stdin.write_all(stdin).await?;
+            child_stdin.shutdown().await?;
+        }
+        let result = child.wait_with_output().await?;
+        emit_legacy_exec_done(
+            &self.output,
+            &request.request_id,
+            result.status.code().unwrap_or(1),
+            &result.stdout,
+            &result.stderr,
+        )
+        .await
     }
 
     async fn load_model(
@@ -519,8 +577,21 @@ async fn read_stdin_frames(sender: mpsc::UnboundedSender<AgentEvent>, persistent
     loop {
         match lines.next_line().await {
             Ok(Some(line)) => {
-                let decoded = decode_warm_agent_frame::<WarmAgentHostFrame>(&line)
-                    .map_err(|error| AgentError::Protocol(error.to_string()));
+                let serial_line = line.trim_start_matches('\0');
+                if serial_line.starts_with("HSK-EXEC ") {
+                    let request_id = serial_line
+                        .split_whitespace()
+                        .nth(1)
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let request = parse_legacy_exec_request(serial_line);
+                    let _ = sender.send(AgentEvent::LegacyExec {
+                        request_id,
+                        request,
+                    });
+                    continue;
+                }
+                let decoded = decode_host_json_line(&line);
                 let _ = sender.send(AgentEvent::HostFrame(decoded));
             }
             Ok(None) => {
@@ -542,6 +613,103 @@ async fn read_stdin_frames(sender: mpsc::UnboundedSender<AgentEvent>, persistent
             }
         }
     }
+}
+
+fn decode_host_json_line(line: &str) -> Result<WarmAgentHostFrame, AgentError> {
+    let serial_line = line.trim_start_matches('\0');
+    decode_warm_agent_frame::<WarmAgentHostFrame>(serial_line).map_err(|error| {
+        let prefix_len = line.len().min(128);
+        AgentError::Protocol(format!(
+            "{error}; input_len={}; leading_nul_bytes={}; input_prefix_b64={}",
+            line.len(),
+            line.len().saturating_sub(serial_line.len()),
+            BASE64.encode(&line.as_bytes()[..prefix_len])
+        ))
+    })
+}
+
+fn parse_legacy_exec_request(line: &str) -> Result<LegacyExecRequest, AgentError> {
+    let mut fields = line.split_whitespace();
+    if fields.next() != Some("HSK-EXEC") {
+        return Err(AgentError::Protocol(
+            "legacy guest exec frame is missing HSK-EXEC prefix".to_string(),
+        ));
+    }
+    let request_id = fields
+        .next()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| AgentError::Protocol("legacy guest exec request id missing".to_string()))?
+        .to_string();
+    let command_b64 = fields.next().ok_or_else(|| {
+        AgentError::Protocol("legacy guest exec command payload missing".to_string())
+    })?;
+    let stdin_b64 = fields.next().ok_or_else(|| {
+        AgentError::Protocol("legacy guest exec stdin payload missing".to_string())
+    })?;
+    if fields.next().is_some() {
+        return Err(AgentError::Protocol(
+            "legacy guest exec frame contains trailing fields".to_string(),
+        ));
+    }
+    let command = String::from_utf8(BASE64.decode(command_b64).map_err(|error| {
+        AgentError::Protocol(format!("legacy guest exec command base64 error: {error}"))
+    })?)
+    .map_err(|error| {
+        AgentError::Protocol(format!("legacy guest exec command UTF-8 error: {error}"))
+    })?;
+    let stdin = if stdin_b64 == "-" {
+        None
+    } else {
+        Some(BASE64.decode(stdin_b64).map_err(|error| {
+            AgentError::Protocol(format!("legacy guest exec stdin base64 error: {error}"))
+        })?)
+    };
+    Ok(LegacyExecRequest {
+        request_id,
+        command,
+        stdin,
+    })
+}
+
+fn legacy_exec_payload(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        "-".to_string()
+    } else {
+        BASE64.encode(bytes)
+    }
+}
+
+async fn emit_legacy_exec_done(
+    output: &Arc<Mutex<Stdout>>,
+    request_id: &str,
+    exit_code: i32,
+    stdout: &[u8],
+    stderr: &[u8],
+) -> Result<(), AgentError> {
+    let line = format!(
+        "HSK-EXEC-DONE {request_id} {exit_code} {} {}\n",
+        legacy_exec_payload(stdout),
+        legacy_exec_payload(stderr)
+    );
+    let mut guard = output.lock().await;
+    guard.write_all(line.as_bytes()).await?;
+    guard.flush().await?;
+    Ok(())
+}
+
+async fn emit_legacy_exec_error(
+    output: &Arc<Mutex<Stdout>>,
+    request_id: &str,
+    message: &str,
+) -> Result<(), AgentError> {
+    let line = format!(
+        "HSK-AGENT-ERROR {request_id} EXEC {}\n",
+        legacy_exec_payload(message.as_bytes())
+    );
+    let mut guard = output.lock().await;
+    guard.write_all(line.as_bytes()).await?;
+    guard.flush().await?;
+    Ok(())
 }
 
 async fn stream_completion(
@@ -904,6 +1072,69 @@ mod tests {
         assert!(validate_model_path("models/model.gguf").is_err());
         assert!(validate_model_path("/tmp/model.gguf").is_err());
         assert!(validate_model_path("/models/with space.gguf").is_err());
+    }
+
+    #[test]
+    fn legacy_guest_exec_frame_decodes_for_warm_serial_multiplexing() {
+        let command = "sha256sum /worktree/AGENTS.md && cat /worktree/.git";
+        let stdin = b"probe-input";
+        let line = format!(
+            "HSK-EXEC req-1 {} {}",
+            BASE64.encode(command),
+            BASE64.encode(stdin)
+        );
+        assert_eq!(
+            parse_legacy_exec_request(&line).expect("decode legacy exec"),
+            LegacyExecRequest {
+                request_id: "req-1".to_string(),
+                command: command.to_string(),
+                stdin: Some(stdin.to_vec()),
+            }
+        );
+        assert_eq!(
+            parse_legacy_exec_request(&format!("HSK-EXEC req-2 {} -", BASE64.encode("true")))
+                .expect("decode no-stdin exec")
+                .stdin,
+            None
+        );
+    }
+
+    #[test]
+    fn legacy_guest_exec_frame_rejects_malformed_payloads() {
+        assert!(parse_legacy_exec_request("HSK-EXEC req bad-base64 -").is_err());
+        assert!(parse_legacy_exec_request("HSK-EXEC req dHJ1ZQ== - trailing").is_err());
+        assert_eq!(legacy_exec_payload(b""), "-");
+        assert_eq!(legacy_exec_payload(b"ok"), "b2s=");
+    }
+
+    #[test]
+    fn warm_json_decode_error_reports_bounded_input_evidence() {
+        let invalid = "HSK-EXEC-DONE req 0 - -";
+        let error = decode_host_json_line(invalid).expect_err("non-JSON frame must fail");
+        let message = error.to_string();
+        assert!(message.contains(&format!("input_len={}", invalid.len())));
+        assert!(message.contains("leading_nul_bytes=0"));
+        assert!(message.contains(&format!(
+            "input_prefix_b64={}",
+            BASE64.encode(invalid.as_bytes())
+        )));
+    }
+
+    #[test]
+    fn warm_json_decoder_accepts_only_leading_serial_nul_padding() {
+        assert_eq!(
+            decode_host_json_line(
+                "\0{\"type\":\"ping\",\"request_id\":\"__hsk_bridge_keepalive__\"}"
+            )
+            .expect("leading serial NUL is transport padding"),
+            WarmAgentHostFrame::Ping {
+                request_id: "__hsk_bridge_keepalive__".to_string(),
+            }
+        );
+        assert!(decode_host_json_line(
+            "{\"type\":\"ping\",\"request_id\":\"bad\\u0000interior\"}\0"
+        )
+        .is_err());
     }
 
     #[test]

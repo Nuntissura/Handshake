@@ -2762,6 +2762,11 @@ fn validate_runtime_chat_message_appended_payload(payload: &Value) -> Result<(),
             "wsid",
             "model_role",
             "ans001_sha256",
+            "owner_account_id",
+            "actor_principal_id",
+            "authenticated_session_id",
+            "access_space_id",
+            "workspace_id",
         ],
     )?;
 
@@ -2808,7 +2813,17 @@ fn validate_runtime_chat_ans001_validation_payload(payload: &Value) -> Result<()
             "body_sha256",
             "ans001_sha256",
         ],
-        &["job_id", "work_packet_id", "spec_id", "wsid"],
+        &[
+            "job_id",
+            "work_packet_id",
+            "spec_id",
+            "wsid",
+            "owner_account_id",
+            "actor_principal_id",
+            "authenticated_session_id",
+            "access_space_id",
+            "workspace_id",
+        ],
     )?;
 
     require_fixed_string(map, "schema_version", RUNTIME_CHAT_SCHEMA_VERSION_V0_1)?;
@@ -2846,7 +2861,17 @@ fn validate_runtime_chat_session_closed_payload(payload: &Value) -> Result<(), R
     require_allowed_keys(
         map,
         &["schema_version", "event_id", "ts_utc", "session_id", "type"],
-        &["job_id", "work_packet_id", "spec_id", "wsid"],
+        &[
+            "job_id",
+            "work_packet_id",
+            "spec_id",
+            "wsid",
+            "owner_account_id",
+            "actor_principal_id",
+            "authenticated_session_id",
+            "access_space_id",
+            "workspace_id",
+        ],
     )?;
 
     require_fixed_string(map, "schema_version", RUNTIME_CHAT_SCHEMA_VERSION_V0_1)?;
@@ -6038,6 +6063,24 @@ pub struct EventFilter {
     pub trace_id: Option<Uuid>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
+    /// Required for account-facing reads. `None` is the explicit system-only
+    /// raw path used by retention, reclaim, and internal diagnostics.
+    pub resource_scope: Option<crate::swarm_orchestration::resource_scope::ResourceScopeQuery>,
+}
+
+impl EventFilter {
+    pub fn for_resource_scope(
+        query: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Self {
+        Self {
+            resource_scope: Some(query),
+            ..Self::default()
+        }
+    }
+
+    pub fn system_raw() -> Self {
+        Self::default()
+    }
 }
 
 #[async_trait]
@@ -6081,6 +6124,46 @@ pub trait FlightRecorder: Send + Sync {
         _to: Option<DateTime<Utc>>,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         Ok(Vec::new())
+    }
+
+    /// Account-facing no-cap session replay. Implementations must apply the
+    /// supplied scope before returning rows and must reject malformed or
+    /// unattributed payloads after decoding.
+    async fn list_session_events_for_scope(
+        &self,
+        session_id: &str,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        let events = self
+            .list_events(EventFilter {
+                from,
+                to,
+                resource_scope: Some(scope),
+                ..EventFilter::default()
+            })
+            .await?;
+        Ok(events
+            .into_iter()
+            .filter(|event| {
+                event.session_span_id.as_deref() == Some(session_id)
+                    || event.payload.get("instance_id").and_then(Value::as_str) == Some(session_id)
+                    || event.model_session_id.as_deref() == Some(session_id)
+            })
+            .collect())
+    }
+
+    /// Account-facing no-cap discovery seam. Unlike `list_events`, this is not
+    /// capped at 200 rows because a session index must not silently omit older
+    /// authorized sessions. Storage implementations must filter before decode
+    /// and reauthorize decoded attribution.
+    async fn list_resource_scoped_events(
+        &self,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.list_events(EventFilter::for_resource_scope(scope))
+            .await
     }
 }
 

@@ -17,6 +17,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -26,6 +27,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::api::account_scope::RequestAccountScope;
 use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError};
 use crate::model_runtime::catalog::ModelCatalog;
 use crate::model_runtime::cloud::{
@@ -41,6 +43,7 @@ use crate::swarm_orchestration::operator_chat::{
     OperatorChatSingleRunCloudLaunchRequest, OperatorChatSingleRunCloudRevokeRequest,
     OperatorChatSubagentRow,
 };
+use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
 
 type ApiError = (StatusCode, Json<Value>);
@@ -190,6 +193,186 @@ pub fn routes(state: OperatorChatState) -> Router {
             get(get_swarm_max_concurrent).put(set_swarm_max_concurrent),
         )
         .with_state(state)
+}
+
+/// Product router: every resource-bearing operation first extracts the exact
+/// server-owned scope. Optional HTTP scope headers can only assert equality;
+/// missing server authority and mismatches fail before handler side effects.
+pub fn scoped_routes(state: OperatorChatState) -> Router {
+    Router::new()
+        .route("/operator-chat/models", get(enumerate_models))
+        .route("/operator-chat/selection", post(scoped_record_selection))
+        .route("/operator-chat/launch", post(scoped_launch_session))
+        .route(
+            "/operator-chat/cloud/single-run/grant-launch",
+            post(scoped_launch_single_run_cloud_consent),
+        )
+        .route(
+            "/operator-chat/cloud/single-run/revoke",
+            post(scoped_revoke_single_run_cloud_consent),
+        )
+        .route(
+            "/operator-chat/transcript/:run_id",
+            get(scoped_fetch_transcript),
+        )
+        .route(
+            "/operator-chat/routing/lifecycle",
+            post(scoped_execute_routing_lifecycle),
+        )
+        .route(
+            "/operator-chat/routing/recover",
+            post(scoped_recover_routing_lifecycle),
+        )
+        .route(
+            "/operator-chat/routing/authority",
+            post(scoped_complete_routing_authority),
+        )
+        .route(
+            "/operator-chat/routing/cancel",
+            post(scoped_cancel_routing_lifecycle),
+        )
+        .route(
+            "/operator-chat/swarm/max-concurrent",
+            get(scoped_get_swarm_max_concurrent).put(scoped_set_swarm_max_concurrent),
+        )
+        .with_state(state)
+}
+
+async fn scoped_get_swarm_max_concurrent(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+) -> Result<Json<Value>, ApiError> {
+    get_swarm_max_concurrent(state).await
+}
+
+async fn scoped_set_swarm_max_concurrent(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    body: Json<SetMaxConcurrentBody>,
+) -> Result<Json<Value>, ApiError> {
+    set_swarm_max_concurrent(state, body).await
+}
+
+async fn scoped_execute_routing_lifecycle(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatRoutingLifecycleRequest>,
+) -> Result<Json<Value>, ApiError> {
+    execute_routing_lifecycle(state, request).await
+}
+
+async fn scoped_recover_routing_lifecycle(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatRoutingLifecycleRequest>,
+) -> Result<Json<Value>, ApiError> {
+    recover_routing_lifecycle(state, request).await
+}
+
+async fn scoped_complete_routing_authority(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatRoutingAuthorityRequest>,
+) -> Result<Json<Value>, ApiError> {
+    complete_routing_authority(state, request).await
+}
+
+async fn scoped_cancel_routing_lifecycle(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatRoutingCancelRequest>,
+) -> Result<Json<Value>, ApiError> {
+    cancel_routing_lifecycle(state, request).await
+}
+
+async fn scoped_record_selection(
+    State(state): State<OperatorChatState>,
+    scope: RequestAccountScope,
+    Json(request): Json<SelectionDecisionRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let context = selection_context(&request);
+    let scoped_recorder = ExactSelectionRecorder {
+        inner: state.recorder.as_ref(),
+        scope: scope.exact(),
+    };
+    state
+        .catalog
+        .record_selection_decision_with_context(
+            &scoped_recorder,
+            &request.selected_model_id,
+            &request.actor,
+            &request.reason,
+            context,
+        )
+        .await
+        .map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "selection_audit_failed", "detail": error.to_string()})),
+            )
+        })?;
+    Ok(Json(json!({
+        "status": "recorded",
+        "selected_model_id": request.selected_model_id,
+    })))
+}
+
+struct ExactSelectionRecorder<'a> {
+    inner: &'a dyn FlightRecorder,
+    scope: &'a ExactResourceScopeAttribution,
+}
+
+#[async_trait]
+impl FlightRecorder for ExactSelectionRecorder<'_> {
+    async fn record_event(&self, mut event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        self.scope
+            .stamp_json_object(&mut event.payload)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        self.inner.record_event(event).await
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        self.inner.enforce_retention().await
+    }
+
+    async fn list_events(
+        &self,
+        filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.inner.list_events(filter).await
+    }
+}
+
+async fn scoped_launch_session(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatLaunchRequest>,
+) -> Result<Json<Value>, ApiError> {
+    launch_session(state, request).await
+}
+
+async fn scoped_launch_single_run_cloud_consent(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatSingleRunCloudLaunchRequest>,
+) -> Result<Json<Value>, ApiError> {
+    launch_single_run_cloud_consent(state, request).await
+}
+
+async fn scoped_revoke_single_run_cloud_consent(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    request: Json<OperatorChatSingleRunCloudRevokeRequest>,
+) -> Result<Json<Value>, ApiError> {
+    revoke_single_run_cloud_consent(state, request).await
+}
+
+async fn scoped_fetch_transcript(
+    state: State<OperatorChatState>,
+    _scope: RequestAccountScope,
+    run_id: Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    fetch_transcript(state, run_id).await
 }
 
 /// Body for `PUT /operator-chat/swarm/max-concurrent`.

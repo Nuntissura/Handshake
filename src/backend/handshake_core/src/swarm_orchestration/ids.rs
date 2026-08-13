@@ -71,6 +71,16 @@ pub struct CheckoutLeaseRef {
     pub canonical_working_dir: Option<String>,
 }
 
+/// Exact routing-stage incarnation that owns a spawned runtime. Stable model
+/// instance IDs are intentionally reusable across routing retries, so they are
+/// not sufficient authority for cancellation or completion on their own.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RoutingAttemptIdentity {
+    pub execution_id: String,
+    pub stage_id: String,
+    pub attempt: u32,
+}
+
 /// A request to spawn a single model session into the swarm. The factory turns
 /// this into a live session; the coordinator enforces the bounds before the
 /// factory is ever called.
@@ -129,10 +139,11 @@ pub struct SpawnRequest {
     /// disk-agnostic). For CLI-bridge lanes (`ProviderKind::OfficialCli`) this is
     /// LOAD-BEARING as of WP-1 MT-012: the production factory plumbs it into
     /// `CliBridgeConfig.working_dir`, which `LiveCliSpawner` applies as the real
-    /// subprocess cwd (`cmd.current_dir`). For in-process local/BYOK lanes it
-    /// remains RECORDED ATTRIBUTION ONLY (carried into the ledger / side-table /
-    /// transcript for "where does this session live" answers and as the bridge to
-    /// future VM-execution routing), because those lanes have no local subprocess.
+    /// subprocess cwd (`cmd.current_dir`). For warm Tier-3 local model lanes it
+    /// is also LOAD-BEARING: the coordinator canonicalizes and fences it, then
+    /// the production factory binds that exact checkout read-only at `/worktree`
+    /// inside the microVM. For other in-process local/BYOK lanes it remains
+    /// RECORDED ATTRIBUTION ONLY because those lanes have no local subprocess.
     /// `None` for a session with no assigned disk location.
     pub working_dir: Option<String>,
     /// Coordinator-minted authority. Callers cannot supply this; spawn_session
@@ -187,6 +198,11 @@ pub struct SpawnRequest {
     /// must persist the model-lane run/lane rows after the factory creates a
     /// real LiveSession and before returning spawn success.
     pub dexterity_launch: Option<DexterityLaunchContract>,
+    /// Exact routing attempt that owns this spawn. Non-routing callers leave
+    /// this unset. The coordinator copies it into pending and live registries
+    /// so stale routing workers cannot act on a replacement with the same
+    /// stable [`ModelInstanceId`].
+    pub routing_attempt: Option<RoutingAttemptIdentity>,
 }
 
 impl SpawnRequest {
@@ -225,6 +241,7 @@ impl SpawnRequest {
             local_execution_mode: None,
             warm_vm_restore_manifest: None,
             dexterity_launch: None,
+            routing_attempt: None,
         }
     }
 
@@ -293,8 +310,9 @@ impl SpawnRequest {
     }
 
     /// Record the operator-assigned on-disk place for this session. Official-CLI
-    /// production dispatch uses it as the validated attached-process cwd; other
-    /// lanes follow the field documentation above.
+    /// production dispatch uses it as the validated attached-process cwd; warm
+    /// Tier-3 local dispatch binds its coordinator-canonicalized form at
+    /// `/worktree`; other lanes follow the field documentation above.
     pub fn with_working_dir(mut self, working_dir: impl Into<String>) -> Self {
         self.working_dir = Some(working_dir.into());
         self
@@ -358,6 +376,11 @@ impl SpawnRequest {
 
     pub fn with_dexterity_launch(mut self, launch: DexterityLaunchContract) -> Self {
         self.dexterity_launch = Some(launch);
+        self
+    }
+
+    pub fn with_routing_attempt(mut self, routing_attempt: RoutingAttemptIdentity) -> Self {
+        self.routing_attempt = Some(routing_attempt);
         self
     }
 

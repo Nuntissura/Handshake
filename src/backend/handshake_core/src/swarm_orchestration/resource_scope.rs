@@ -182,10 +182,14 @@ impl ResourceScope {
     ///
     /// HBR-PRIV-004: a derivative must inherit an access scope **no broader
     /// than all contributing sources**. Rather than trying to compute a union
-    /// (which would widen), this refuses to derive across mixed owners at all
-    /// and forces the caller to handle the mixed-scope case explicitly. That is
-    /// the conservative direction: a refusal is recoverable, a silent widening
-    /// is a leak.
+    /// (which would widen), this refuses to derive across mixed owners, actor
+    /// Principals, authenticated sessions, AccessSpaces, or workspaces and
+    /// forces the caller to handle the mixed-scope case explicitly. The
+    /// requested actor must equal the source actor because this seam carries no
+    /// delegation chain or grant intersection capable of authorizing a
+    /// retarget. AccessSpace semantics are intentionally opaque in this WP-1
+    /// seam, so refusing mismatches is the only safe local operation. A refusal
+    /// is recoverable; a silent widening is a leak.
     pub fn derive_from_sources<'a>(
         sources: impl IntoIterator<Item = &'a ResourceScope>,
         actor_principal_id: ActorPrincipalId,
@@ -193,9 +197,11 @@ impl ResourceScope {
         let mut iter = sources.into_iter();
         let first = iter.next().ok_or(ResourceScopeError::NoDerivationSources)?;
 
-        let mut derived = Self::new(first.owner_account_id, actor_principal_id);
-        derived.access_space = first.access_space;
-        derived.workspace = first.workspace.clone();
+        if actor_principal_id != first.actor_principal_id {
+            return Err(ResourceScopeError::DerivativeActorRetargetDenied);
+        }
+
+        let derived = first.clone();
 
         for source in iter {
             if source.owner_account_id != derived.owner_account_id {
@@ -204,18 +210,94 @@ impl ResourceScope {
                     conflicting: source.owner_account_id,
                 });
             }
-            // A narrower (absent) value on any source narrows the result: an
-            // AccessSpace or workspace that is not common to every source
-            // cannot be claimed by the derivative.
+            if source.actor_principal_id != derived.actor_principal_id {
+                return Err(ResourceScopeError::MixedActorPrincipalDerivation);
+            }
+            if source.authenticated_session != derived.authenticated_session {
+                return Err(ResourceScopeError::MixedAuthenticatedSessionDerivation);
+            }
             if source.access_space != derived.access_space {
-                derived.access_space = None;
+                return Err(ResourceScopeError::MixedAccessSpaceDerivation);
             }
             if source.workspace != derived.workspace {
-                derived.workspace = None;
+                return Err(ResourceScopeError::MixedWorkspaceDerivation);
             }
         }
 
         Ok(derived)
+    }
+}
+
+/// Complete five-dimensional attribution carried by account-facing runtime
+/// projections. Unlike [`ResourceScope`], none of the projection dimensions
+/// are optional: emitting an identifier-bearing diagnostic without one of
+/// these fields would make the projection impossible to authorize exactly.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExactResourceScopeAttribution {
+    pub owner_account_id: OwnerAccountId,
+    pub actor_principal_id: ActorPrincipalId,
+    pub authenticated_session_id: AuthenticatedSessionRef,
+    pub access_space_id: AccessSpaceRef,
+    pub workspace_id: WorkspaceScopeRef,
+}
+
+impl ExactResourceScopeAttribution {
+    /// Freeze the exact scope of a durable resource into a projection-safe
+    /// value. Missing dimensions are rejected rather than silently omitted.
+    pub fn try_from_resource_scope(scope: &ResourceScope) -> Result<Self, ResourceScopeError> {
+        Ok(Self {
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session.ok_or(
+                ResourceScopeError::IncompleteProjectionAttribution {
+                    dimension: "authenticated_session_id",
+                },
+            )?,
+            access_space_id: scope.access_space.ok_or(
+                ResourceScopeError::IncompleteProjectionAttribution {
+                    dimension: "access_space_id",
+                },
+            )?,
+            workspace_id: scope.workspace.clone().ok_or(
+                ResourceScopeError::IncompleteProjectionAttribution {
+                    dimension: "workspace_id",
+                },
+            )?,
+        })
+    }
+
+    pub fn as_stored_scope(&self) -> StoredResourceScope {
+        StoredResourceScope {
+            owner_account_id: Some(self.owner_account_id),
+            actor_principal_id: Some(self.actor_principal_id),
+            authenticated_session: Some(self.authenticated_session_id),
+            access_space: Some(self.access_space_id),
+            workspace: Some(self.workspace_id.clone()),
+        }
+    }
+
+    pub fn authorize(&self, query: &ResourceScopeQuery) -> Result<(), ScopeDenied> {
+        query.authorize_row(&self.as_stored_scope())
+    }
+
+    /// Stamp the five flat field names used by PostgreSQL metadata and Flight
+    /// Recorder JSON. A non-object payload is rejected instead of replaced.
+    pub fn stamp_json_object(
+        &self,
+        payload: &mut serde_json::Value,
+    ) -> Result<(), ResourceScopeError> {
+        let object = payload
+            .as_object_mut()
+            .ok_or(ResourceScopeError::ProjectionPayloadNotObject)?;
+        let fields = serde_json::to_value(self)
+            .map_err(|_| ResourceScopeError::ProjectionAttributionSerialization)?;
+        let fields = fields
+            .as_object()
+            .ok_or(ResourceScopeError::ProjectionAttributionSerialization)?;
+        for (key, value) in fields {
+            object.insert(key.clone(), value.clone());
+        }
+        Ok(())
     }
 }
 
@@ -333,6 +415,8 @@ pub enum ScopeDenied {
         requested: WorkspaceScopeRef,
         stored: Option<WorkspaceScopeRef>,
     },
+    #[error("resource attribution does not match the exact server scope")]
+    ExactAttributionMismatch,
 }
 
 impl ScopeDenied {
@@ -344,6 +428,7 @@ impl ScopeDenied {
             Self::UnattributedResource => "RESOURCE_SCOPE_UNATTRIBUTED",
             Self::OwnerMismatch { .. } => "RESOURCE_SCOPE_OWNER_MISMATCH",
             Self::WorkspaceMismatch { .. } => "RESOURCE_SCOPE_WORKSPACE_MISMATCH",
+            Self::ExactAttributionMismatch => "RESOURCE_SCOPE_EXACT_ATTRIBUTION_MISMATCH",
         }
     }
 }
@@ -507,6 +592,22 @@ pub enum ResourceScopeError {
         first: OwnerAccountId,
         conflicting: OwnerAccountId,
     },
+    #[error("cannot retarget a derived resource to an actor without delegation authority")]
+    DerivativeActorRetargetDenied,
+    #[error("cannot derive one resource across mixed actor Principals")]
+    MixedActorPrincipalDerivation,
+    #[error("cannot derive one resource across mixed authenticated sessions")]
+    MixedAuthenticatedSessionDerivation,
+    #[error("cannot derive one resource across mixed AccessSpaces")]
+    MixedAccessSpaceDerivation,
+    #[error("cannot derive one resource across mixed workspaces")]
+    MixedWorkspaceDerivation,
+    #[error("runtime projection scope is missing required dimension {dimension}")]
+    IncompleteProjectionAttribution { dimension: &'static str },
+    #[error("runtime projection payload must be a JSON object")]
+    ProjectionPayloadNotObject,
+    #[error("runtime projection scope could not be serialized")]
+    ProjectionAttributionSerialization,
 }
 
 // ---------------------------------------------------------------------------
@@ -573,6 +674,7 @@ impl fmt::Display for SystemScopeAuthority {
 pub struct AccountAccessContext {
     query: ResourceScopeQuery,
     write: Option<ResourceScope>,
+    exact_read: Option<ExactResourceScopeAttribution>,
 }
 
 impl AccountAccessContext {
@@ -599,6 +701,7 @@ impl ResourceAccessContext {
     /// Read+write context. Writes are stamped with `scope`; reads are filtered
     /// to `scope`'s owning account and (when set) its workspace.
     pub fn for_account(scope: ResourceScope) -> Self {
+        let exact_read = ExactResourceScopeAttribution::try_from_resource_scope(&scope).ok();
         let mut query = ResourceScopeQuery::for_owner(scope.owner_account_id);
         if let Some(workspace) = scope.workspace.clone() {
             query = query.within_workspace(workspace);
@@ -606,13 +709,30 @@ impl ResourceAccessContext {
         Self::Account(AccountAccessContext {
             query,
             write: Some(scope),
+            exact_read,
         })
     }
 
     /// Read-only context. Used by API read boundaries, which carry an owning
     /// account but no actor Principal, so they must not be able to write.
     pub fn for_reader(query: ResourceScopeQuery) -> Self {
-        Self::Account(AccountAccessContext { query, write: None })
+        Self::Account(AccountAccessContext {
+            query,
+            write: None,
+            exact_read: None,
+        })
+    }
+
+    /// Read-only context bound to all five resource-attribution dimensions.
+    /// Unlike [`Self::for_account`], this context cannot stamp writes.
+    pub fn for_exact_reader(exact: ExactResourceScopeAttribution) -> Self {
+        let query = ResourceScopeQuery::for_owner(exact.owner_account_id)
+            .within_workspace(exact.workspace_id.clone());
+        Self::Account(AccountAccessContext {
+            query,
+            write: None,
+            exact_read: Some(exact),
+        })
     }
 
     pub fn system(authority: SystemScopeAuthority) -> Self {
@@ -629,6 +749,16 @@ impl ResourceAccessContext {
     pub fn write_scope(&self) -> Option<&ResourceScope> {
         match self {
             Self::Account(account) => account.write.as_ref(),
+            Self::System(_) => None,
+        }
+    }
+
+    /// Exact five-dimensional read authority, when this context has one.
+    /// Callers whose resources require every attribution dimension use this to
+    /// reject a coarse owner/workspace context before issuing any query.
+    pub fn exact_read_scope(&self) -> Option<&ExactResourceScopeAttribution> {
+        match self {
+            Self::Account(account) => account.exact_read.as_ref(),
             Self::System(_) => None,
         }
     }
@@ -650,7 +780,11 @@ impl ResourceAccessContext {
     /// the row.
     pub fn authorize_row(&self, row: &StoredResourceScope) -> Result<(), ScopeDenied> {
         match self {
-            Self::Account(account) => account.query.authorize_row(row),
+            Self::Account(account) => match account.exact_read.as_ref() {
+                Some(exact) if &exact.as_stored_scope() == row => Ok(()),
+                Some(_) => Err(ScopeDenied::ExactAttributionMismatch),
+                None => account.query.authorize_row(row),
+            },
             Self::System(_) => Ok(()),
         }
     }
@@ -666,13 +800,33 @@ impl ResourceAccessContext {
             Self::System(_) => ScopeSqlPredicate {
                 clause: String::new(),
                 owner: None,
+                actor: None,
+                session: None,
+                access_space: None,
                 workspace: None,
             },
             Self::Account(account) => {
                 let mut clause =
                     format!(" AND {OWNER_ACCOUNT_COLUMN} = ${first_placeholder}::uuid");
+                let mut actor = None;
+                let mut session = None;
+                let mut access_space = None;
                 let workspace = account.query.workspace().map(|ws| ws.as_str().to_owned());
-                if workspace.is_some() {
+                if let Some(exact) = account.exact_read.as_ref() {
+                    clause.push_str(&format!(
+                        " AND {ACTOR_PRINCIPAL_COLUMN} = ${}::uuid \
+                         AND {AUTHENTICATED_SESSION_COLUMN} = ${}::uuid \
+                         AND {ACCESS_SPACE_COLUMN} = ${}::uuid \
+                         AND {WORKSPACE_COLUMN} = ${}",
+                        first_placeholder + 1,
+                        first_placeholder + 2,
+                        first_placeholder + 3,
+                        first_placeholder + 4
+                    ));
+                    actor = Some(exact.actor_principal_id.as_uuid());
+                    session = Some(exact.authenticated_session_id.as_uuid());
+                    access_space = Some(exact.access_space_id.as_uuid());
+                } else if workspace.is_some() {
                     clause.push_str(&format!(
                         " AND {WORKSPACE_COLUMN} = ${}",
                         first_placeholder + 1
@@ -681,6 +835,9 @@ impl ResourceAccessContext {
                 ScopeSqlPredicate {
                     clause,
                     owner: Some(account.query.owner_account_id().as_uuid()),
+                    actor,
+                    session,
+                    access_space,
                     workspace,
                 }
             }
@@ -713,6 +870,9 @@ pub const RESOURCE_SCOPE_INSERT_COLUMNS: &str = RESOURCE_SCOPE_SELECT_COLUMNS;
 pub struct ScopeSqlPredicate {
     clause: String,
     owner: Option<Uuid>,
+    actor: Option<Uuid>,
+    session: Option<Uuid>,
+    access_space: Option<Uuid>,
     workspace: Option<String>,
 }
 
@@ -724,7 +884,11 @@ impl ScopeSqlPredicate {
 
     /// How many placeholders this predicate consumed.
     pub fn placeholder_count(&self) -> usize {
-        usize::from(self.owner.is_some()) + usize::from(self.workspace.is_some())
+        usize::from(self.owner.is_some())
+            + usize::from(self.actor.is_some())
+            + usize::from(self.session.is_some())
+            + usize::from(self.access_space.is_some())
+            + usize::from(self.workspace.is_some())
     }
 
     /// Bind the predicate values, in the same order the clause references them.
@@ -734,6 +898,15 @@ impl ScopeSqlPredicate {
     ) -> Query<'q, Postgres, PgArguments> {
         if let Some(owner) = self.owner {
             query = query.bind(owner);
+        }
+        if let Some(actor) = self.actor {
+            query = query.bind(actor);
+        }
+        if let Some(session) = self.session {
+            query = query.bind(session);
+        }
+        if let Some(access_space) = self.access_space {
+            query = query.bind(access_space);
         }
         if let Some(workspace) = self.workspace.as_deref() {
             query = query.bind(workspace);
@@ -748,6 +921,15 @@ impl ScopeSqlPredicate {
     ) -> sqlx::query::QueryScalar<'q, Postgres, O, PgArguments> {
         if let Some(owner) = self.owner {
             query = query.bind(owner);
+        }
+        if let Some(actor) = self.actor {
+            query = query.bind(actor);
+        }
+        if let Some(session) = self.session {
+            query = query.bind(session);
+        }
+        if let Some(access_space) = self.access_space {
+            query = query.bind(access_space);
         }
         if let Some(workspace) = self.workspace.as_deref() {
             query = query.bind(workspace);
@@ -925,48 +1107,132 @@ mod tests {
 
     #[test]
     fn derivation_refuses_to_span_two_owners() {
-        let a = ResourceScope::new(owner(), actor());
-        let b = ResourceScope::new(owner(), actor());
+        let source_actor = actor();
+        let a = ResourceScope::new(owner(), source_actor);
+        let b = ResourceScope::new(owner(), source_actor);
 
-        let error = ResourceScope::derive_from_sources([&a, &b], actor())
+        let error = ResourceScope::derive_from_sources([&a, &b], source_actor)
             .expect_err("a derivative must not span two owning accounts");
-        assert!(matches!(error, ResourceScopeError::MixedOwnerDerivation { .. }));
+        assert!(matches!(
+            error,
+            ResourceScopeError::MixedOwnerDerivation { .. }
+        ));
     }
 
     #[test]
-    fn derivation_narrows_to_the_common_workspace_and_never_widens() {
+    fn derivation_refuses_mixed_workspaces_instead_of_widening_to_owner() {
         let mine = owner();
         let alpha = WorkspaceScopeRef::new("ws-alpha").unwrap();
         let beta = WorkspaceScopeRef::new("ws-beta").unwrap();
+        let source_actor = actor();
 
-        let a = ResourceScope::new(mine, actor()).with_workspace(alpha.clone());
-        let b = ResourceScope::new(mine, actor()).with_workspace(beta);
+        let a = ResourceScope::new(mine, source_actor).with_workspace(alpha.clone());
+        let b = ResourceScope::new(mine, source_actor).with_workspace(beta);
 
-        let derived = ResourceScope::derive_from_sources([&a, &b], actor())
-            .expect("same-owner derivation is allowed");
-
-        // Sources disagree on workspace, so the derivative claims neither.
-        assert_eq!(derived.workspace, None);
-        assert_eq!(derived.owner_account_id, mine);
-
-        // And the narrowed derivative is not readable under either workspace.
-        let stored = StoredResourceScope::from(&derived);
-        ResourceScopeQuery::for_owner(mine)
-            .within_workspace(alpha)
-            .authorize_row(&stored)
-            .expect_err("a narrowed derivative must not be claimable by a source workspace");
+        let error = ResourceScope::derive_from_sources([&a, &b], source_actor)
+            .expect_err("mixed workspaces have no safe common derivative scope");
+        assert!(matches!(
+            error,
+            ResourceScopeError::MixedWorkspaceDerivation
+        ));
     }
 
     #[test]
-    fn derivation_preserves_a_workspace_common_to_all_sources() {
+    fn derivation_preserves_the_complete_exact_scope_common_to_all_sources() {
         let mine = owner();
+        let source_actor = actor();
+        let session = AuthenticatedSessionRef::mint();
+        let access_space = AccessSpaceRef::mint();
         let alpha = WorkspaceScopeRef::new("ws-alpha").unwrap();
 
-        let a = ResourceScope::new(mine, actor()).with_workspace(alpha.clone());
-        let b = ResourceScope::new(mine, actor()).with_workspace(alpha.clone());
+        let a = ResourceScope::new(mine, source_actor)
+            .with_session(session)
+            .with_access_space(access_space)
+            .with_workspace(alpha);
+        let b = a.clone();
 
-        let derived = ResourceScope::derive_from_sources([&a, &b], actor()).unwrap();
-        assert_eq!(derived.workspace, Some(alpha));
+        let derived = ResourceScope::derive_from_sources([&a, &b], source_actor).unwrap();
+        assert_eq!(derived, a);
+    }
+
+    #[test]
+    fn derivation_refuses_mixed_access_spaces_instead_of_widening_to_owner() {
+        let mine = owner();
+        let source_actor = actor();
+        let a = ResourceScope::new(mine, source_actor).with_access_space(AccessSpaceRef::mint());
+        let b = ResourceScope::new(mine, source_actor).with_access_space(AccessSpaceRef::mint());
+
+        assert_eq!(
+            ResourceScope::derive_from_sources([&a, &b], source_actor)
+                .expect_err("mixed AccessSpaces have no safe local derivative scope"),
+            ResourceScopeError::MixedAccessSpaceDerivation
+        );
+    }
+
+    #[test]
+    fn derivation_refuses_actor_retarget_without_delegation_authority() {
+        let source = ResourceScope::new(owner(), actor())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(AccessSpaceRef::mint())
+            .with_workspace(WorkspaceScopeRef::new("ws-alpha").unwrap());
+
+        assert_eq!(
+            ResourceScope::derive_from_sources([&source], actor())
+                .expect_err("an arbitrary derivative actor has no delegation authority"),
+            ResourceScopeError::DerivativeActorRetargetDenied
+        );
+    }
+
+    #[test]
+    fn derivation_refuses_mixed_source_actors() {
+        let mine = owner();
+        let source_actor = actor();
+        let a = ResourceScope::new(mine, source_actor);
+        let b = ResourceScope::new(mine, actor());
+
+        assert_eq!(
+            ResourceScope::derive_from_sources([&a, &b], source_actor)
+                .expect_err("mixed source actors have no validated delegation intersection"),
+            ResourceScopeError::MixedActorPrincipalDerivation
+        );
+    }
+
+    #[test]
+    fn derivation_refuses_different_or_missing_authenticated_sessions() {
+        let mine = owner();
+        let source_actor = actor();
+        let a =
+            ResourceScope::new(mine, source_actor).with_session(AuthenticatedSessionRef::mint());
+        let different =
+            ResourceScope::new(mine, source_actor).with_session(AuthenticatedSessionRef::mint());
+        let missing = ResourceScope::new(mine, source_actor);
+
+        for conflicting in [&different, &missing] {
+            for sources in [[&a, conflicting], [conflicting, &a]] {
+                assert_eq!(
+                    ResourceScope::derive_from_sources(sources, source_actor)
+                        .expect_err("session mismatch must be denied in either source order"),
+                    ResourceScopeError::MixedAuthenticatedSessionDerivation
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn derivation_checks_every_contributing_source() {
+        let mine = owner();
+        let source_actor = actor();
+        let session = AuthenticatedSessionRef::mint();
+        let first = ResourceScope::new(mine, source_actor).with_session(session);
+        let second = first.clone();
+        let third =
+            ResourceScope::new(mine, source_actor).with_session(AuthenticatedSessionRef::mint());
+
+        assert_eq!(
+            ResourceScope::derive_from_sources([&first, &second, &third], source_actor)
+                .expect_err("a conflicting final source must not escape validation"),
+            ResourceScopeError::MixedAuthenticatedSessionDerivation
+        );
     }
 
     #[test]
@@ -1016,6 +1282,47 @@ mod tests {
             " AND owner_account_id = $3::uuid AND workspace_id = $4"
         );
         assert_eq!(predicate.placeholder_count(), 2);
+    }
+
+    #[test]
+    fn complete_account_context_reads_with_all_five_exact_dimensions() {
+        let scope = ResourceScope::new(owner(), actor())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(AccessSpaceRef::mint())
+            .with_workspace(WorkspaceScopeRef::new("ws-exact").unwrap());
+        let access = ResourceAccessContext::for_account(scope.clone());
+        let predicate = access.sql_predicate(7);
+        assert_eq!(
+            predicate.clause(),
+            " AND owner_account_id = $7::uuid AND actor_principal_id = $8::uuid AND authenticated_session_id = $9::uuid AND access_space_id = $10::uuid AND workspace_id = $11"
+        );
+        assert_eq!(predicate.placeholder_count(), 5);
+
+        access
+            .authorize_row(&StoredResourceScope::from(&scope))
+            .expect("the exact stored scope must be readable");
+        for denied in [
+            ResourceScope::new(scope.owner_account_id, actor())
+                .with_session(scope.authenticated_session.unwrap())
+                .with_access_space(scope.access_space.unwrap())
+                .with_workspace(scope.workspace.clone().unwrap()),
+            ResourceScope::new(scope.owner_account_id, scope.actor_principal_id)
+                .with_session(AuthenticatedSessionRef::mint())
+                .with_access_space(scope.access_space.unwrap())
+                .with_workspace(scope.workspace.clone().unwrap()),
+            ResourceScope::new(scope.owner_account_id, scope.actor_principal_id)
+                .with_session(scope.authenticated_session.unwrap())
+                .with_access_space(AccessSpaceRef::mint())
+                .with_workspace(scope.workspace.clone().unwrap()),
+        ] {
+            assert_eq!(
+                access
+                    .authorize_row(&StoredResourceScope::from(&denied))
+                    .expect_err("one wrong exact dimension must deny")
+                    .reason_code(),
+                "RESOURCE_SCOPE_EXACT_ATTRIBUTION_MISMATCH"
+            );
+        }
     }
 
     #[test]

@@ -36,7 +36,26 @@
 
 mod knowledge_pg_support;
 
-use std::collections::BTreeSet;
+use std::{
+    collections::BTreeSet,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+
+use async_trait::async_trait;
+
+use handshake_core::model_runtime::{
+    CancellationToken, Embedding, GenerateRequest, KvCacheHandle, LoraStackHandle,
+    ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError, ProviderKind,
+    RuntimeBinding as SwarmRuntimeBinding, Score, SteeringHookHandle, TokenStream,
+};
+use handshake_core::process_ledger::{
+    drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
+    NoopOverflowSink, PostgresProcessLedgerStore,
+};
 
 use handshake_core::swarm_orchestration::model_lane::{
     CloudExportDelegation, LaunchAuthority, ModelLaneCloudConsentReceiptStatus,
@@ -47,9 +66,13 @@ use handshake_core::swarm_orchestration::model_lane::{
     RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
-    stored_resource_scope_from_row, AccountBoundAuthority, ActorPrincipalId, OwnerAccountId,
-    ResourceAccessContext, ResourceScope, ResourceScopeQuery, StoredResourceScope,
-    RESOURCE_SCOPE_SELECT_COLUMNS,
+    stored_resource_scope_from_row, AccessSpaceRef, AccountBoundAuthority, ActorPrincipalId,
+    AuthenticatedSessionRef, OwnerAccountId, ResourceAccessContext, ResourceScope,
+    ResourceScopeQuery, StoredResourceScope, WorkspaceScopeRef, RESOURCE_SCOPE_SELECT_COLUMNS,
+};
+use handshake_core::swarm_orchestration::{
+    CloudLaneFactoryConfig, CloudLiveRuntime, CloudRuntimeBuilder, ModelInstanceId,
+    ModelSessionFactory, ProductionModelSessionFactory, SpawnRequest,
 };
 use serde_json::json;
 use sqlx::PgPool;
@@ -548,7 +571,11 @@ async fn two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority()
 
     // Nor can an account claim to be another account when writing.
     let forged = alice
-        .record_cloud_projection_plan(projection_plan("alice-forge", approver_for(&bob_scope), None))
+        .record_cloud_projection_plan(projection_plan(
+            "alice-forge",
+            approver_for(&bob_scope),
+            None,
+        ))
         .await
         // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)`
         // produced AuthorityDenied("CX-MM-007
@@ -556,9 +583,7 @@ async fn two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority()
         // this store is not authorized to write as")
         .expect_err("alice must not stamp bob as the export source scope");
     assert!(
-        forged
-            .to_string()
-            .contains("not authorized to write as"),
+        forged.to_string().contains("not authorized to write as"),
         "server-derived identity must reject a client-claimed owner: {forged}"
     );
 
@@ -670,7 +695,11 @@ async fn revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pin
         )
         .await
         .expect("revocation must terminate the covered lanes");
-    assert_eq!(cancelled.len(), 1, "the covered in-flight lane is cancelled");
+    assert_eq!(
+        cancelled.len(),
+        1,
+        "the covered in-flight lane is cancelled"
+    );
     assert_eq!(cancelled[0].status, ModelLaneStatus::Cancelled);
     assert_eq!(cancelled[0].failstate_code.as_deref(), Some("CX-MM-007"));
 
@@ -895,10 +924,7 @@ async fn a_self_issued_role_label_approver_is_refused_at_write_time() {
     //   operator://KERNEL_BUILDER-selfissue/cloud-selection is self-issued: its
     //   identity component is this row's own owner_session governance role
     //   label, which authorizes nothing. Record a typed approver instead.")
-    let self_issued = format!(
-        "operator://{}/cloud-selection",
-        owner_session("selfissue")
-    );
+    let self_issued = format!("operator://{}/cloud-selection", owner_session("selfissue"));
     let rejected = store
         .record_cloud_consent_receipt(consent_receipt(
             "selfissue",
@@ -1035,4 +1061,376 @@ async fn an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launc
         message.contains("RESOURCE_SCOPE_UNATTRIBUTED"),
         "the refusal must name the missing approval, not a generic mismatch: {message}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// 5. HBR-PRIV-005/007/008 — provider dispatch diagnostics carry exact scope
+// ---------------------------------------------------------------------------
+
+/// The cloud provider boundary is a derivative of the account-scoped launch.
+/// Its durable ProcessLedger START is therefore both dispatch provenance and a
+/// diagnostic projection: dropping session, AccessSpace, or workspace here
+/// makes two same-account contexts indistinguishable and creates an unscoped
+/// side channel even when the lane tables themselves remain protected.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cloud_provider_start_receipt_preserves_exact_server_owned_scope() {
+    let pool = pg_pool("cloud provider START exact scope").await;
+
+    let owner = OwnerAccountId::mint();
+    let principal = ActorPrincipalId::mint();
+    let session = AuthenticatedSessionRef::mint();
+    let access_space = AccessSpaceRef::mint();
+    let workspace =
+        WorkspaceScopeRef::new("workspace-mt006-cloud-dispatch").expect("nonblank workspace scope");
+    let scope = ResourceScope::new(owner, principal)
+        .with_session(session)
+        .with_access_space(access_space)
+        .with_workspace(workspace.clone());
+    let lane_store = ModelLaneStore::new_scoped(pool.clone(), scope);
+
+    let process_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    process_store
+        .apply_migration()
+        .await
+        .expect("real PostgreSQL ProcessLedger authority is ready");
+    let (ledger, writer) = LedgerBatcher::spawn(
+        process_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig {
+            capacity: 8,
+            batch_size: 1,
+            flush_interval: Duration::from_millis(1),
+        },
+    );
+
+    let factory = ProductionModelSessionFactory::new(
+        ledger.clone(),
+        CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: Some(Arc::new(ExactScopeCloudBuilder {
+                provider: ProviderKind::ByokCloud,
+            })),
+            official_cli: None,
+            official_cli_by_provider: std::collections::HashMap::from([(
+                "codex".to_string(),
+                Arc::new(ExactScopeCloudBuilder {
+                    provider: ProviderKind::OfficialCli,
+                }) as Arc<dyn CloudRuntimeBuilder>,
+            )]),
+        },
+        None,
+    )
+    .with_durable_worktree_vm_store(&lane_store);
+    for (ordinal, provider) in [ProviderKind::ByokCloud, ProviderKind::OfficialCli]
+        .into_iter()
+        .enumerate()
+    {
+        let mut request = SpawnRequest::new(
+            ModelInstanceId::new(ModelId::new_v7(), 6 + ordinal as u32),
+            SwarmRuntimeBinding::Candle,
+            "KERNEL_BUILDER-MT006",
+            format!("mt006-{provider:?}-parent-session"),
+        )
+        .with_cloud_provider(provider, "mt006-cloud-model");
+        if provider == ProviderKind::OfficialCli {
+            request = request
+                .with_official_cli_provider("codex")
+                .with_sandbox_posture(
+                    handshake_core::sandbox::TrustClass::Trusted,
+                    handshake_core::sandbox::IsolationTier::Tier1Container,
+                    BTreeSet::from([
+                        handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
+                    ]),
+                    handshake_core::sandbox::NetPolicy::HostInherited,
+                    handshake_core::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
+                );
+        }
+
+        let live = factory
+            .create(&request)
+            .await
+            .unwrap_or_else(|error| panic!("scoped {provider:?} dispatch failed: {error}"));
+        let process_uuid = live.process_record_id.as_uuid();
+        let start_metadata: serde_json::Value = sqlx::query_scalar(
+            "SELECT metadata_jsonb FROM kernel_process_lifecycle WHERE process_uuid = $1",
+        )
+        .bind(process_uuid)
+        .fetch_one(&pool)
+        .await
+        .expect("read the authoritative cloud START receipt from PostgreSQL");
+
+        assert_exact_cloud_process_scope(
+            &start_metadata,
+            owner,
+            principal,
+            session,
+            access_space,
+            &workspace,
+            provider,
+            "START",
+        );
+
+        live.ledger_lifecycle
+            .as_ref()
+            .expect("pidless cloud dispatch reserves its complete lifecycle")
+            .stop_with_durable_ack(
+                Some(0),
+                "mt006-cloud-provider-scope-proof-complete",
+                Duration::from_secs(5),
+            )
+            .await
+            .expect("matching cloud STOP is durable");
+        let stopped: bool = sqlx::query_scalar(
+            "SELECT stopped_at IS NOT NULL FROM kernel_process_lifecycle WHERE process_uuid = $1",
+        )
+        .bind(process_uuid)
+        .fetch_one(&pool)
+        .await
+        .expect("fresh PostgreSQL consumer observes terminal cloud receipt");
+        assert!(stopped, "{provider:?} lifecycle must reach durable STOP");
+        let stop_metadata: serde_json::Value = sqlx::query_scalar(
+            "SELECT metadata_jsonb FROM kernel_process_lifecycle WHERE process_uuid = $1",
+        )
+        .bind(process_uuid)
+        .fetch_one(&pool)
+        .await
+        .expect("fresh PostgreSQL consumer reloads the final cloud receipt");
+        assert_exact_cloud_process_scope(
+            &stop_metadata,
+            owner,
+            principal,
+            session,
+            access_space,
+            &workspace,
+            provider,
+            "STOP",
+        );
+    }
+    ledger.begin_close();
+    let outcome = drain_and_join_ledger_writer(&ledger, writer, Duration::from_secs(5)).await;
+    assert!(
+        matches!(outcome, LedgerDrainJoinOutcome::Flushed),
+        "cloud scope proof must leave no detached ledger writer: {outcome:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cloud_provider_requires_exact_scope_before_builder_side_effects() {
+    let pool = pg_pool("cloud provider missing scope fails before builder").await;
+    let process_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    process_store
+        .apply_migration()
+        .await
+        .expect("real PostgreSQL ProcessLedger authority is ready");
+    let (ledger, writer) = LedgerBatcher::spawn(
+        process_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig {
+            capacity: 8,
+            batch_size: 1,
+            flush_interval: Duration::from_millis(1),
+        },
+    );
+    let builder_calls = Arc::new(AtomicUsize::new(0));
+    let factory = ProductionModelSessionFactory::new(
+        ledger.clone(),
+        CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: Some(Arc::new(CountingScopeCloudBuilder {
+                calls: builder_calls.clone(),
+            })),
+            official_cli: None,
+            official_cli_by_provider: Default::default(),
+        },
+        None,
+    );
+    let request = SpawnRequest::new(
+        ModelInstanceId::new(ModelId::new_v7(), 7),
+        SwarmRuntimeBinding::Candle,
+        "KERNEL_BUILDER-MT006",
+        "mt006-unscoped-cloud-parent-session",
+    )
+    .with_cloud_provider(ProviderKind::ByokCloud, "mt006-cloud-model");
+
+    let denied = match factory.create(&request).await {
+        Ok(_) => panic!("cloud dispatch without exact server scope must fail closed"),
+        Err(error) => error,
+    };
+    assert!(
+        denied.to_string().contains("RESOURCE_SCOPE"),
+        "missing-scope denial must be stable and identifier-free: {denied}"
+    );
+    assert_eq!(
+        builder_calls.load(Ordering::SeqCst),
+        0,
+        "scope authority must be checked before any provider builder side effect"
+    );
+
+    let incomplete_store = ModelLaneStore::new_scoped(
+        pool,
+        ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint()),
+    );
+    let incomplete_factory = ProductionModelSessionFactory::new(
+        ledger.clone(),
+        CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: Some(Arc::new(CountingScopeCloudBuilder {
+                calls: builder_calls.clone(),
+            })),
+            official_cli: None,
+            official_cli_by_provider: Default::default(),
+        },
+        None,
+    )
+    .with_durable_worktree_vm_store(&incomplete_store);
+    let incomplete_denied = match incomplete_factory.create(&request).await {
+        Ok(_) => panic!("cloud dispatch with incomplete server scope must fail closed"),
+        Err(error) => error,
+    };
+    assert!(
+        incomplete_denied.to_string().contains("RESOURCE_SCOPE"),
+        "incomplete-scope denial must be stable and identifier-free: {incomplete_denied}"
+    );
+    assert_eq!(
+        builder_calls.load(Ordering::SeqCst),
+        0,
+        "incomplete scope must also be denied before provider builder work"
+    );
+
+    ledger.begin_close();
+    let outcome = drain_and_join_ledger_writer(&ledger, writer, Duration::from_secs(5)).await;
+    assert!(
+        matches!(outcome, LedgerDrainJoinOutcome::Flushed),
+        "missing-scope proof must leave no detached ledger writer: {outcome:?}"
+    );
+}
+
+struct CountingScopeCloudBuilder {
+    calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl CloudRuntimeBuilder for CountingScopeCloudBuilder {
+    fn provider(&self) -> ProviderKind {
+        ProviderKind::ByokCloud
+    }
+
+    async fn build_loaded(
+        &self,
+        _model_name: &str,
+        _invocation_context: Option<handshake_core::model_runtime::cloud::CliInvocationContext>,
+        _working_dir: Option<&str>,
+    ) -> Result<CloudLiveRuntime, String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Ok(CloudLiveRuntime {
+            runtime: Arc::new(ExactScopeRuntime),
+            model_id: ModelId::new_v7(),
+        })
+    }
+}
+
+fn assert_exact_cloud_process_scope(
+    metadata: &serde_json::Value,
+    owner: OwnerAccountId,
+    principal: ActorPrincipalId,
+    session: AuthenticatedSessionRef,
+    access_space: AccessSpaceRef,
+    workspace: &WorkspaceScopeRef,
+    provider: ProviderKind,
+    phase: &str,
+) {
+    for (field, expected) in [
+        ("owner_account_id", owner.as_uuid().to_string()),
+        ("actor_principal_id", principal.as_uuid().to_string()),
+        ("authenticated_session_id", session.as_uuid().to_string()),
+        ("access_space_id", access_space.as_uuid().to_string()),
+        ("workspace_id", workspace.as_str().to_string()),
+    ] {
+        assert_eq!(
+            metadata[field].as_str(),
+            Some(expected.as_str()),
+            "{provider:?} {phase} metadata must preserve exact server-owned {field}; metadata={metadata}"
+        );
+    }
+}
+
+struct ExactScopeCloudBuilder {
+    provider: ProviderKind,
+}
+
+#[async_trait]
+impl CloudRuntimeBuilder for ExactScopeCloudBuilder {
+    fn provider(&self) -> ProviderKind {
+        self.provider
+    }
+
+    async fn build_loaded(
+        &self,
+        _model_name: &str,
+        _invocation_context: Option<handshake_core::model_runtime::cloud::CliInvocationContext>,
+        _working_dir: Option<&str>,
+    ) -> Result<CloudLiveRuntime, String> {
+        Ok(CloudLiveRuntime {
+            runtime: Arc::new(ExactScopeRuntime),
+            model_id: ModelId::new_v7(),
+        })
+    }
+}
+
+struct ExactScopeRuntime;
+
+#[async_trait]
+impl ModelRuntime for ExactScopeRuntime {
+    async fn load(
+        &mut self,
+        _spec: handshake_core::model_runtime::LoadSpec,
+    ) -> Result<ModelId, ModelRuntimeError> {
+        Ok(ModelId::new_v7())
+    }
+
+    async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn generate(&self, _request: GenerateRequest) -> TokenStream {
+        Box::pin(futures::stream::empty())
+    }
+
+    async fn score(&self, _id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        Ok(Score {
+            token_logprobs: Vec::new(),
+            mean_logprob: 0.0,
+        })
+    }
+
+    async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
+        Ok(Embedding { vector: Vec::new() })
+    }
+
+    fn capabilities(&self, _id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "mt006-scope-proof".into(),
+            adapter: "mt006-exact-scope-runtime".into(),
+        })
+    }
+
+    fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
+        Err(ModelRuntimeError::KvCacheError("mt006-scope-proof".into()))
+    }
+
+    fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
+        Err(ModelRuntimeError::LoraStackError(
+            "mt006-scope-proof".into(),
+        ))
+    }
+
+    fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
+        Err(ModelRuntimeError::SteeringHookError(
+            "mt006-scope-proof".into(),
+        ))
+    }
+
+    fn cancel(&self, token: CancellationToken) {
+        token.cancel();
+    }
 }

@@ -37,6 +37,7 @@ use crate::process_ledger::{
     ProcessLedgerDurabilityAck, ProcessLedgerError, ProcessStart, ReservedProcessLifecycle,
     StopRecordOutcome,
 };
+use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 
 /// Owner-role tag carried on the embedded-model ledger rows. Mirrors the
 /// `registered_by` operator id used by `boot::build_default_local_client` so the
@@ -111,6 +112,7 @@ impl EmbeddedModelProcess {
             runtime_instance,
             None,
             None,
+            None,
         )?;
         let lifecycle = reservation.begin(start)?;
         Ok(Self { lifecycle })
@@ -127,6 +129,26 @@ impl EmbeddedModelProcess {
         artifact_integrity: &RuntimeArtifactIntegrityReceipt,
         runtime_instance: Option<&EmbeddedRuntimeInstanceDescriptor>,
     ) -> Result<(Self, ProcessLedgerDurabilityAck), ProcessLedgerError> {
+        Self::record_reserved_load_with_durable_ack_scoped(
+            reservation,
+            binding,
+            model_id,
+            display_name,
+            artifact_integrity,
+            runtime_instance,
+            None,
+        )
+    }
+
+    pub(super) fn record_reserved_load_with_durable_ack_scoped(
+        reservation: ReservedProcessLifecycle,
+        binding: RuntimeBinding,
+        model_id: ModelId,
+        display_name: &str,
+        artifact_integrity: &RuntimeArtifactIntegrityReceipt,
+        runtime_instance: Option<&EmbeddedRuntimeInstanceDescriptor>,
+        resource_scope: Option<&ExactResourceScopeAttribution>,
+    ) -> Result<(Self, ProcessLedgerDurabilityAck), ProcessLedgerError> {
         let start = Self::start_event(
             binding,
             model_id.as_uuid(),
@@ -136,6 +158,7 @@ impl EmbeddedModelProcess {
             runtime_instance,
             Some(artifact_integrity),
             None,
+            resource_scope,
         )?;
         let (lifecycle, durable_ack) = reservation.begin_with_durable_ack(start)?;
         Ok((Self { lifecycle }, durable_ack))
@@ -154,6 +177,30 @@ impl EmbeddedModelProcess {
         runtime_instance: Option<&EmbeddedRuntimeInstanceDescriptor>,
         identity_violation: &str,
     ) -> Result<(Self, ProcessLedgerDurabilityAck), ProcessLedgerError> {
+        Self::record_reserved_quarantine_load_with_durable_ack_scoped(
+            reservation,
+            binding,
+            quarantine_process_uuid,
+            reported_model_id,
+            display_name,
+            artifact_integrity,
+            runtime_instance,
+            identity_violation,
+            None,
+        )
+    }
+
+    pub(super) fn record_reserved_quarantine_load_with_durable_ack_scoped(
+        reservation: ReservedProcessLifecycle,
+        binding: RuntimeBinding,
+        quarantine_process_uuid: Uuid,
+        reported_model_id: ModelId,
+        display_name: &str,
+        artifact_integrity: &RuntimeArtifactIntegrityReceipt,
+        runtime_instance: Option<&EmbeddedRuntimeInstanceDescriptor>,
+        identity_violation: &str,
+        resource_scope: Option<&ExactResourceScopeAttribution>,
+    ) -> Result<(Self, ProcessLedgerDurabilityAck), ProcessLedgerError> {
         let start = Self::start_event(
             binding,
             quarantine_process_uuid,
@@ -163,6 +210,7 @@ impl EmbeddedModelProcess {
             runtime_instance,
             Some(artifact_integrity),
             Some(identity_violation),
+            resource_scope,
         )?;
         let (lifecycle, durable_ack) = reservation.begin_with_durable_ack(start)?;
         Ok((Self { lifecycle }, durable_ack))
@@ -177,6 +225,7 @@ impl EmbeddedModelProcess {
         runtime_instance: Option<&EmbeddedRuntimeInstanceDescriptor>,
         artifact_integrity: Option<&RuntimeArtifactIntegrityReceipt>,
         identity_violation: Option<&str>,
+        resource_scope: Option<&ExactResourceScopeAttribution>,
     ) -> Result<ProcessStart, ProcessLedgerError> {
         let engine_kind = match binding {
             RuntimeBinding::LlamaCpp => ProcessEngineKind::LlamaCpp,
@@ -231,6 +280,15 @@ impl EmbeddedModelProcess {
                 "quarantine_process_uuid".to_string(),
                 json!(process_uuid.to_string()),
             );
+        }
+        if let Some(resource_scope) = resource_scope {
+            resource_scope
+                .stamp_json_object(&mut metadata)
+                .map_err(|error| {
+                    ProcessLedgerError::InvalidConfig(format!(
+                        "embedded model lifecycle resource attribution is invalid: {error}"
+                    ))
+                })?;
         }
 
         let mut start = ProcessStart::new(engine_kind, EMBEDDED_MODEL_OWNER_ROLE, None)
@@ -326,6 +384,10 @@ impl Drop for EmbeddedModelProcess {
 mod tests {
     use super::*;
     use crate::model_runtime::{LlamaCppArtifactIntegrityReceipt, ModelArtifactComponentIntegrity};
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
+        WorkspaceScopeRef,
+    };
 
     #[test]
     fn quarantine_start_uses_distinct_uuidv7_and_preserves_reported_model_id() {
@@ -341,6 +403,7 @@ mod tests {
             None,
             None,
             Some("duplicate model identity"),
+            None,
         )
         .expect("quarantine START shape");
 
@@ -382,6 +445,7 @@ mod tests {
             None,
             Some(&receipt),
             None,
+            None,
         )
         .expect("llama.cpp START shape");
 
@@ -398,5 +462,35 @@ mod tests {
         assert!(integrity.get("weights").is_none());
         assert!(integrity.get("config").is_none());
         assert!(integrity.get("tokenizer").is_none());
+    }
+
+    #[test]
+    fn embedded_start_stamps_all_five_server_owned_scope_fields() {
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(
+            &ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+                .with_session(AuthenticatedSessionRef::mint())
+                .with_access_space(AccessSpaceRef::mint())
+                .with_workspace(WorkspaceScopeRef::new("embedded-boot").unwrap()),
+        )
+        .expect("complete exact scope");
+        let model_id = ModelId::new_v7();
+        let start = EmbeddedModelProcess::start_event(
+            RuntimeBinding::Candle,
+            model_id.as_uuid(),
+            model_id,
+            "scoped-embedded-model",
+            Some("cd".repeat(32)),
+            None,
+            None,
+            None,
+            Some(&exact),
+        )
+        .expect("scoped START shape");
+
+        assert_eq!(
+            serde_json::from_value::<ExactResourceScopeAttribution>(start.metadata_jsonb.clone())
+                .expect("top-level exact attribution"),
+            exact
+        );
     }
 }

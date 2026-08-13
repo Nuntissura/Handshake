@@ -34,11 +34,11 @@
 //! deterministically before the drop, matching the single-load contract.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[cfg(test)]
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
 use async_trait::async_trait;
 use serde_json::json;
@@ -60,7 +60,8 @@ use crate::sandbox::{
 
 use super::error::{SwarmError, SwarmResult};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
-use super::ids::SpawnRequest;
+use super::ids::{ModelInstanceId, SpawnRequest};
+use super::resource_scope::ExactResourceScopeAttribution;
 
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
 use super::events::FlightRecorderSwarmSink;
@@ -69,6 +70,7 @@ use super::model_lane::ModelLaneStore;
 use crate::flight_recorder::FlightRecorderEvent;
 
 const SANDBOX_LLAMA_CLI_HOST_PATH_ENV: &str = "HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH";
+const WARM_VM_WORKTREE_GUEST_ROOT: &str = "/worktree";
 const PIDLESS_SESSION_START_DURABILITY_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
@@ -197,29 +199,70 @@ pub fn build_production_swarm_coordinator<F>(
 where
     F: Fn(FlightRecorderEvent) -> Result<(), String> + Send + Sync + 'static,
 {
+    build_production_swarm_coordinator_with_sandbox_registry(
+        ledger,
+        cloud,
+        model_lane_store,
+        None,
+        concurrency,
+        trace_id,
+        emit_fn,
+    )
+}
+
+/// Production coordinator construction with an explicit sandbox registry.
+/// Warm Tier-3 model lanes use this path so the same coordinator-owned
+/// [`ModelLaneStore`] becomes durable WorktreeVmRegistry authority.
+pub fn build_production_swarm_coordinator_with_sandbox_registry<F>(
+    ledger: LedgerBatcher,
+    cloud: CloudLaneFactoryConfig,
+    model_lane_store: ModelLaneStore,
+    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    concurrency: Option<usize>,
+    trace_id: uuid::Uuid,
+    emit_fn: F,
+) -> SwarmCoordinator
+where
+    F: Fn(FlightRecorderEvent) -> Result<(), String> + Send + Sync + 'static,
+{
     let concurrency = concurrency.unwrap_or_else(default_swarm_concurrency).max(1);
     let budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
     let config = SwarmConfig::new(budget);
-    // Sandbox registry is threaded by the Integrate phase (app startup); the
-    // build helper defaults it to None so existing wiring is unaffected.
-    let factory = Arc::new(ProductionModelSessionFactory::new(
-        ledger.clone(),
-        cloud,
-        None,
-    ));
+    let projection_scope = model_lane_store
+        .write_scope()
+        .map(super::resource_scope::ExactResourceScopeAttribution::try_from_resource_scope)
+        .transpose()
+        .unwrap_or_else(|error| {
+            panic!("production ModelLaneStore has incomplete projection scope: {error}")
+        });
+    let factory = Arc::new(
+        ProductionModelSessionFactory::new(ledger.clone(), cloud, sandbox_registry)
+            .with_durable_worktree_vm_store(&model_lane_store),
+    );
     // The durable Flight Recorder sink runs FIRST so its terminal-persistence
     // rejection still propagates to the lifecycle producer (the fanout returns on
     // the first child error). The NON-AUTHORITATIVE console tee runs AFTER: it
     // mirrors each event into the process-wide live debug-console hub
     // (`GET /wp1/diagnostics/console/stream`) and can never fail the coordinator —
     // a full broadcast ring or absent subscribers is a silent no-op.
-    let flight_sink: Arc<dyn super::events::SwarmEventSink> =
-        Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn));
-    let console_sink: Arc<dyn super::events::SwarmEventSink> =
-        Arc::new(crate::console_stream::ConsoleSwarmSink::shared());
-    let sink: Arc<dyn super::events::SwarmEventSink> = Arc::new(
-        super::events::FanoutSwarmSink::new(vec![flight_sink, console_sink]),
-    );
+    let flight_sink: Arc<dyn super::events::SwarmEventSink> = match projection_scope.clone() {
+        Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
+            trace_id, scope, emit_fn,
+        )),
+        None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn)),
+    };
+    let console_sink: Arc<dyn super::events::SwarmEventSink> = match projection_scope {
+        Some(scope) => Arc::new(crate::console_stream::ConsoleSwarmSink::new_scoped(
+            crate::console_stream::ConsoleBroadcast::shared(),
+            scope,
+        )),
+        None => Arc::new(crate::console_stream::ConsoleSwarmSink::shared()),
+    };
+    let sink: Arc<dyn super::events::SwarmEventSink> =
+        Arc::new(super::events::FanoutSwarmSink::new(vec![
+            flight_sink,
+            console_sink,
+        ]));
     SwarmCoordinator::new_with_model_lane_store(config, factory, sink, ledger, model_lane_store)
 }
 
@@ -282,7 +325,85 @@ pub fn build_operator_chat_launch_service(
     cloud: CloudLaneFactoryConfig,
     trace_id: uuid::Uuid,
 ) -> Arc<super::operator_chat::OperatorChatLaunchService> {
-    let model_lane_store = ModelLaneStore::new(pool.clone());
+    build_operator_chat_launch_service_with_sandbox_registry(
+        pool,
+        recorder,
+        catalog,
+        process_ledger_runtime,
+        process_reclaimer,
+        cloud,
+        None,
+        trace_id,
+    )
+}
+
+/// Shipped operator-chat construction with the app's sandbox registry threaded
+/// into the same production factory used by coordinator launches.
+pub fn build_operator_chat_launch_service_with_sandbox_registry(
+    pool: sqlx::PgPool,
+    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    process_ledger_runtime: RetainedLedgerBatcher,
+    process_reclaimer: Arc<crate::process_ledger::Reclaim>,
+    cloud: CloudLaneFactoryConfig,
+    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    trace_id: uuid::Uuid,
+) -> Arc<super::operator_chat::OperatorChatLaunchService> {
+    build_operator_chat_launch_service_with_optional_scope(
+        pool,
+        recorder,
+        catalog,
+        process_ledger_runtime,
+        process_reclaimer,
+        cloud,
+        sandbox_registry,
+        None,
+        trace_id,
+    )
+}
+
+/// Shipped product-local operator-chat construction. Unlike the retained legacy
+/// helper, every lane write and FR/console projection is stamped from the exact
+/// server-owned scope.
+pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
+    pool: sqlx::PgPool,
+    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    process_ledger_runtime: RetainedLedgerBatcher,
+    process_reclaimer: Arc<crate::process_ledger::Reclaim>,
+    cloud: CloudLaneFactoryConfig,
+    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    resource_scope: super::resource_scope::ResourceScope,
+    trace_id: uuid::Uuid,
+) -> Arc<super::operator_chat::OperatorChatLaunchService> {
+    build_operator_chat_launch_service_with_optional_scope(
+        pool,
+        recorder,
+        catalog,
+        process_ledger_runtime,
+        process_reclaimer,
+        cloud,
+        sandbox_registry,
+        Some(resource_scope),
+        trace_id,
+    )
+}
+
+fn build_operator_chat_launch_service_with_optional_scope(
+    pool: sqlx::PgPool,
+    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    process_ledger_runtime: RetainedLedgerBatcher,
+    process_reclaimer: Arc<crate::process_ledger::Reclaim>,
+    cloud: CloudLaneFactoryConfig,
+    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    resource_scope: Option<super::resource_scope::ResourceScope>,
+    trace_id: uuid::Uuid,
+) -> Arc<super::operator_chat::OperatorChatLaunchService> {
+    let model_lane_store = match resource_scope {
+        Some(scope) => ModelLaneStore::new_scoped(pool.clone(), scope),
+        None => ModelLaneStore::new(pool.clone()),
+    };
     let ledger = process_ledger_runtime.ledger();
     let (terminal_bridge, _terminal_drain) =
         super::events::DurableSwarmFrBridge::spawn_with_postgres_outbox(
@@ -290,10 +411,11 @@ pub fn build_operator_chat_launch_service(
             pool.clone(),
             1024,
         );
-    let coordinator = build_production_swarm_coordinator(
+    let coordinator = build_production_swarm_coordinator_with_sandbox_registry(
         ledger,
         cloud,
         model_lane_store,
+        sandbox_registry,
         None,
         trace_id,
         move |event| terminal_bridge.emit(event),
@@ -979,6 +1101,22 @@ pub struct CloudLiveRuntime {
     pub model_id: ModelId,
 }
 
+#[derive(Clone)]
+struct DurableWorktreeVmStore {
+    pool: sqlx::PgPool,
+    access: super::resource_scope::ResourceAccessContext,
+}
+
+#[derive(Clone)]
+struct PendingWarmVmCreate {
+    registry: Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
+    worktree_id: String,
+    /// Exact durable/in-memory binding fence created by this factory attempt. A
+    /// worktree id or ProcessHandle alone is routing identity, not cleanup
+    /// ownership: an ABA successor may reuse either key after this attempt.
+    binding_identity: super::worktree_vm_registry::WorktreeVmBindingIdentity,
+}
+
 /// The production model session factory.
 pub struct ProductionModelSessionFactory {
     ledger: LedgerBatcher,
@@ -991,6 +1129,21 @@ pub struct ProductionModelSessionFactory {
     /// silently downgraded to an in-process spawn). Threaded by the app at
     /// startup (Integrate phase); the handshake_core change compiles with `None`.
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    /// PostgreSQL + account authority shared with the coordinator's
+    /// ModelLaneStore. When present, every worktree -> microVM binding survives
+    /// factory/registry reconstruction and is filtered to the same account.
+    durable_worktree_vm_store: Option<DurableWorktreeVmStore>,
+    /// One lifecycle registry per selected adapter. Keeping this map inside the
+    /// factory makes every warm session for the same worktree converge on the
+    /// same in-process serialization point while PostgreSQL remains canonical
+    /// across component restarts.
+    worktree_vm_registries:
+        Mutex<HashMap<String, Arc<super::worktree_vm_registry::WorktreeVmRegistry>>>,
+    /// VM resources that crossed their durable bind boundary but whose
+    /// `LiveSession` has not yet been returned. Entries intentionally survive
+    /// cancellation of the async create future so the coordinator can await
+    /// exact compensation even though no ProcessLedger START exists yet.
+    pending_warm_vm_creates: Mutex<HashMap<ModelInstanceId, PendingWarmVmCreate>>,
     /// Synthetic pid base for in-process sessions (candle / cloud run in-process
     /// — there is no separate OS process). A monotonic offset keeps ledger pids
     /// distinct per instance so START/STOP rows correlate one-to-one.
@@ -1012,6 +1165,9 @@ impl ProductionModelSessionFactory {
             ledger,
             cloud,
             sandbox_registry,
+            durable_worktree_vm_store: None,
+            worktree_vm_registries: Mutex::new(HashMap::new()),
+            pending_warm_vm_creates: Mutex::new(HashMap::new()),
             pid_base: 50_000,
         }
     }
@@ -1029,8 +1185,93 @@ impl ProductionModelSessionFactory {
         self
     }
 
+    /// Bind warm worktree-VM lifecycle persistence to the exact store authority
+    /// the coordinator uses for its ModelLane records.
+    pub fn with_durable_worktree_vm_store(mut self, store: &ModelLaneStore) -> Self {
+        self.durable_worktree_vm_store = Some(DurableWorktreeVmStore {
+            pool: store.postgres_pool(),
+            access: store.access().clone(),
+        });
+        self
+    }
+
+    fn require_cloud_resource_scope(&self) -> SwarmResult<ExactResourceScopeAttribution> {
+        let scope = self
+            .durable_worktree_vm_store
+            .as_ref()
+            .and_then(|store| store.access.write_scope())
+            .ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "RESOURCE_SCOPE_EXACT_REQUIRED: cloud provider dispatch requires complete server-owned scope"
+                        .to_string(),
+                )
+            })?;
+        ExactResourceScopeAttribution::try_from_resource_scope(scope).map_err(|_| {
+            SwarmError::FactoryFailed(
+                "RESOURCE_SCOPE_EXACT_REQUIRED: cloud provider dispatch requires complete server-owned scope"
+                    .to_string(),
+            )
+        })
+    }
+
+    fn worktree_vm_registry_for(
+        &self,
+        adapter: Arc<dyn crate::sandbox::SandboxAdapter>,
+    ) -> SwarmResult<Arc<super::worktree_vm_registry::WorktreeVmRegistry>> {
+        let adapter_id = adapter.capabilities().adapter_id.to_string();
+        let mut registries = self.worktree_vm_registries.lock().map_err(|error| {
+            SwarmError::FactoryFailed(format!(
+                "warm VM worktree registry map is poisoned: {error}"
+            ))
+        })?;
+        if let Some(registry) = registries.get(&adapter_id) {
+            return Ok(Arc::clone(registry));
+        }
+        let registry = match &self.durable_worktree_vm_store {
+            Some(store) => Arc::new(
+                super::worktree_vm_registry::WorktreeVmRegistry::new_durable(
+                    adapter,
+                    store.pool.clone(),
+                    store.access.clone(),
+                ),
+            ),
+            None => Arc::new(super::worktree_vm_registry::WorktreeVmRegistry::new(
+                adapter,
+            )),
+        };
+        registries.insert(adapter_id, Arc::clone(&registry));
+        Ok(registry)
+    }
+
     fn synthetic_pid(&self, request: &SpawnRequest) -> u32 {
         self.pid_base.wrapping_add(request.instance_id.instance)
+    }
+
+    fn register_pending_warm_vm_create(
+        &self,
+        request: &SpawnRequest,
+        registry: Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
+        worktree_id: &str,
+        binding_identity: super::worktree_vm_registry::WorktreeVmBindingIdentity,
+    ) -> SwarmResult<()> {
+        let mut pending = self.pending_warm_vm_creates.lock().map_err(|error| {
+            SwarmError::FactoryFailed(format!("pending warm VM create map is poisoned: {error}"))
+        })?;
+        pending.insert(
+            request.instance_id,
+            PendingWarmVmCreate {
+                registry,
+                worktree_id: worktree_id.to_string(),
+                binding_identity,
+            },
+        );
+        Ok(())
+    }
+
+    fn clear_pending_warm_vm_create(&self, instance_id: ModelInstanceId) {
+        if let Ok(mut pending) = self.pending_warm_vm_creates.lock() {
+            pending.remove(&instance_id);
+        }
     }
 
     /// Record a real process-ledger START row for an in-process model session,
@@ -1070,6 +1311,7 @@ impl ProductionModelSessionFactory {
         &self,
         reservation: ReservedProcessLifecycle,
         request: &SpawnRequest,
+        resource_scope: &ExactResourceScopeAttribution,
         model_id: ModelId,
         provider: ProviderKind,
         engine_kind: ProcessEngineKind,
@@ -1088,6 +1330,7 @@ impl ProductionModelSessionFactory {
         .with_process_uuid(record_id.as_uuid())
         .with_parent_session_id(request.parent_session_id.clone())
         .with_metadata_jsonb(json!({
+            "instance_id": request.instance_id.to_string(),
             "lifecycle_kind": if provider == ProviderKind::OfficialCli {
                 "official_cli_bridge_session"
             } else {
@@ -1105,6 +1348,11 @@ impl ProductionModelSessionFactory {
             "checkout_lease_owner_instance_id": request.checkout_lease().map(|lease| lease.owner_instance_id.to_string()),
             "checkout_lease_worktree_id": request.checkout_lease().and_then(|lease| lease.worktree_id.clone()),
             "checkout_lease_canonical_working_dir": request.checkout_lease().and_then(|lease| lease.canonical_working_dir.clone()),
+            "owner_account_id": resource_scope.owner_account_id.as_uuid(),
+            "actor_principal_id": resource_scope.actor_principal_id.as_uuid(),
+            "authenticated_session_id": resource_scope.authenticated_session_id.as_uuid(),
+            "access_space_id": resource_scope.access_space_id.as_uuid(),
+            "workspace_id": resource_scope.workspace_id.as_str(),
         }));
         if let Some(os_pid) = os_pid {
             start = start.with_os_pid(os_pid);
@@ -1176,6 +1424,18 @@ impl ProductionModelSessionFactory {
         handle: &crate::sandbox::ProcessHandle,
     ) -> SwarmResult<(ProcessOwnershipRecordId, ProcessStart)> {
         let record_id = ProcessOwnershipRecordId::new_v7();
+        let resource_scope = self
+            .durable_worktree_vm_store
+            .as_ref()
+            .and_then(|store| store.access.write_scope());
+        let owner_account_id = resource_scope.map(|scope| scope.owner_account_id.as_uuid());
+        let actor_principal_id = resource_scope.map(|scope| scope.actor_principal_id.as_uuid());
+        let authenticated_session_id = resource_scope
+            .and_then(|scope| scope.authenticated_session.map(|session| session.as_uuid()));
+        let access_space_id =
+            resource_scope.and_then(|scope| scope.access_space.map(|space| space.as_uuid()));
+        let workspace_id = resource_scope
+            .and_then(|scope| scope.workspace.as_ref().map(|workspace| workspace.as_str()));
         let mut start = ProcessStart::new(
             engine_kind,
             request.owner_role.clone(),
@@ -1186,6 +1446,7 @@ impl ProductionModelSessionFactory {
         .with_sandbox_adapter_id(handle.adapter_id.to_string())
         .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
         .with_metadata_jsonb(json!({
+            "instance_id": request.instance_id.to_string(),
             "model_id": model_id.to_string(),
             "runtime_binding": request.runtime_binding.adapter_id(),
             "sandbox_handle_id": handle.id,
@@ -1197,6 +1458,11 @@ impl ProductionModelSessionFactory {
             "checkout_lease_owner_instance_id": request.checkout_lease().map(|lease| lease.owner_instance_id.to_string()),
             "checkout_lease_worktree_id": request.checkout_lease().and_then(|lease| lease.worktree_id.clone()),
             "checkout_lease_canonical_working_dir": request.checkout_lease().and_then(|lease| lease.canonical_working_dir.clone()),
+            "owner_account_id": owner_account_id,
+            "actor_principal_id": actor_principal_id,
+            "authenticated_session_id": authenticated_session_id,
+            "access_space_id": access_space_id,
+            "workspace_id": workspace_id,
         }));
         start.started_at = handle.spawned_at_utc;
         if let Some(os_pid) = handle.pid {
@@ -1233,7 +1499,7 @@ impl ProductionModelSessionFactory {
         use crate::sandbox::cloud_hypervisor::{
             SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
         };
-        use crate::sandbox::{select, Signal, TrustClass};
+        use crate::sandbox::{select, TrustClass};
 
         if request.runtime_binding != RuntimeBinding::LlamaCpp {
             return Err(SwarmError::FactoryFailed(
@@ -1251,6 +1517,20 @@ impl ProductionModelSessionFactory {
                     .to_string(),
             )
         })?;
+        let worktree_host_path = request
+            .checkout_lease()
+            .and_then(|lease| lease.canonical_working_dir.as_deref())
+            .or_else(|| request.working_dir())
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+            .map(std::path::PathBuf::from)
+            .ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "warm VM model-lane execution requires a worktree-scoped working_dir; the \
+                     coordinator must provide its canonical checkout path before VM creation"
+                        .to_string(),
+                )
+            })?;
 
         let registry = self.sandbox_registry.as_ref().ok_or_else(|| {
             SwarmError::FactoryFailed(
@@ -1336,6 +1616,12 @@ impl ProductionModelSessionFactory {
                 );
             }
         }
+        spec.binds.push(BindSpec {
+            host_path: worktree_host_path,
+            guest_path: std::path::PathBuf::from(WARM_VM_WORKTREE_GUEST_ROOT),
+            mode: BindMode::ReadOnly,
+        });
+        let worktree_vm_registry = self.worktree_vm_registry_for(Arc::clone(&adapter))?;
 
         let warm_cfg = WarmVmModelConfig::new(
             worktree_id.to_string(),
@@ -1354,44 +1640,78 @@ impl ProductionModelSessionFactory {
                 .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
         }
 
-        let handle = if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
-            adapter
-                .restore(&manifest.snapshot)
-                .await
-                .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?
-        } else {
-            adapter
-                .spawn(spec)
-                .await
-                .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?
-        };
+        let (handle, created_by_attempt, binding_identity) =
+            if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+                let outcome = worktree_vm_registry
+                    .restore_warm_model_with_identity(
+                        manifest,
+                        &model_artifact_sha256,
+                        &warm_cfg.model_guest_path,
+                    )
+                    .await
+                    .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+                (outcome.handle, true, outcome.binding_identity)
+            } else {
+                let outcome = worktree_vm_registry
+                    .ensure_worktree_vm_with_spec_outcome(worktree_id, spec)
+                    .await
+                    .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+                (outcome.handle, outcome.created, outcome.binding_identity)
+            };
+        let binding_identity = binding_identity.ok_or_else(|| {
+            SwarmError::FactoryFailed(format!(
+                "warm VM binding for worktree {worktree_id} did not return an exact ownership fence"
+            ))
+        })?;
+
+        if created_by_attempt {
+            self.register_pending_warm_vm_create(
+                request,
+                Arc::clone(&worktree_vm_registry),
+                worktree_id,
+                binding_identity.clone(),
+            )?;
+        }
+
+        let completion = async {
 
         let transport = match adapter.warm_agent_transport(&handle).await {
             Ok(transport) => transport,
             Err(error) => {
-                let cleanup = kill_created_sandbox_after_factory_failure(&adapter, &handle).await;
+                let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
                 return Err(factory_error_with_cleanup(error.to_string(), cleanup));
             }
         };
 
         let mut runtime = if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
-            match WarmVmModelRuntime::from_restored_manifest(transport, warm_cfg, manifest) {
+            match WarmVmModelRuntime::from_restored_manifest(transport, warm_cfg.clone(), manifest) {
                 Ok(runtime) => runtime,
                 Err(error) => {
-                    let cleanup =
-                        kill_created_sandbox_after_factory_failure(&adapter, &handle).await;
+                    let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                        &worktree_vm_registry,
+                        worktree_id,
+                        created_by_attempt,
+                        &binding_identity,
+                    )
+                    .await;
                     return Err(factory_error_with_cleanup(error.to_string(), cleanup));
                 }
             }
         } else {
-            WarmVmModelRuntime::new(transport, warm_cfg)
+            WarmVmModelRuntime::new(transport, warm_cfg.clone())
         };
         let loaded_model_id = if request.warm_vm_restore_manifest.is_some() {
             runtime.model_id()
         } else {
             let spec_load = LoadSpec {
                 artifact_path: std::path::PathBuf::new(),
-                sha256_expected: model_artifact_sha256,
+                sha256_expected: model_artifact_sha256.clone(),
                 runtime_kind: RuntimeKind::LlamaCpp,
                 sampling_defaults: SamplingParams::default(),
                 kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
@@ -1403,45 +1723,55 @@ impl ProductionModelSessionFactory {
             match runtime.load(spec_load).await {
                 Ok(model_id) => model_id,
                 Err(error) => {
-                    let cleanup =
-                        kill_created_sandbox_after_factory_failure(&adapter, &handle).await;
+                    let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                        &worktree_vm_registry,
+                        worktree_id,
+                        created_by_attempt,
+                        &binding_identity,
+                    )
+                    .await;
                     return Err(factory_error_with_cleanup(error.to_string(), cleanup));
                 }
             }
         };
-        let snapshot = match adapter.snapshot(&handle).await {
-            Ok(snapshot) => snapshot,
+        let ready = match runtime.ready_frame() {
+            Ok(ready) => ready,
             Err(error) => {
-                let cleanup = kill_created_sandbox_after_factory_failure(&adapter, &handle).await;
-                return Err(factory_error_with_cleanup(
-                    format!(
-                    "warm VM snapshot capture failed after successful load/restore; refusing to \
-                     return a non-resumable warm session: {error}"
-                ),
-                    cleanup,
-                ));
+                let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
+                return Err(factory_error_with_cleanup(error.to_string(), cleanup));
             }
         };
-        let warm_vm_restore_manifest = match runtime.warm_snapshot_manifest(snapshot.clone()) {
+        let warm_vm_restore_manifest = match worktree_vm_registry
+            .snapshot_warm_model(
+                worktree_id,
+                &model_artifact_sha256,
+                &warm_cfg.model_guest_path,
+                &ready,
+            )
+            .await
+        {
             Ok(manifest) => manifest,
             Err(error) => {
-                let cleanup = adapter.delete_snapshot(&snapshot).await;
-                let kill_cleanup =
-                    kill_created_sandbox_after_factory_failure(&adapter, &handle).await;
-                let cleanup_detail = cleanup
-                    .err()
-                    .map(|cleanup_error| format!("; snapshot cleanup also failed: {cleanup_error}"))
-                    .unwrap_or_default()
-                    + &kill_cleanup
-                        .err()
-                        .map(|cleanup_error| {
-                            format!("; sandbox cleanup also failed: {cleanup_error}")
-                        })
-                        .unwrap_or_default();
-                return Err(SwarmError::FactoryFailed(format!(
-                    "warm VM snapshot manifest capture failed after successful load/restore; \
-                     refusing to return a non-resumable warm session: {error}{cleanup_detail}"
-                )));
+                let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
+                return Err(factory_error_with_cleanup(
+                    format!(
+                        "warm VM snapshot capture failed after successful load/restore; refusing to \
+                         return a non-resumable warm session: {error}"
+                    ),
+                    cleanup,
+                ));
             }
         };
         let os_pid = self.synthetic_pid(request);
@@ -1456,8 +1786,13 @@ impl ProductionModelSessionFactory {
                 let cleanup = adapter
                     .delete_snapshot(&warm_vm_restore_manifest.snapshot)
                     .await;
-                let kill_cleanup =
-                    kill_created_sandbox_after_factory_failure(&adapter, &handle).await;
+                let kill_cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
                 if let Err(cleanup_error) = cleanup {
                     return Err(SwarmError::FactoryFailed(format!(
                         "warm VM ledger START failed after successful snapshot capture and \
@@ -1481,8 +1816,13 @@ impl ProductionModelSessionFactory {
             model_id: loaded_model_id,
         });
         let cancel = CancellationToken::new();
-        let teardown =
-            sandboxed_runtime_teardown(owning, loaded_model_id, Arc::clone(&adapter), Some(handle));
+        let teardown = worktree_warm_runtime_teardown(
+            owning,
+            loaded_model_id,
+            Arc::clone(&worktree_vm_registry),
+            worktree_id.to_string(),
+            binding_identity,
+        );
 
         let mut live =
             LiveSession::new(shared, loaded_model_id, cancel, teardown, record_id, os_pid);
@@ -1493,6 +1833,13 @@ impl ProductionModelSessionFactory {
         };
         live = live.with_warm_vm_restore_manifest(warm_vm_restore_manifest);
         Ok(live)
+        }
+        .await;
+
+        if created_by_attempt && completion.is_ok() {
+            self.clear_pending_warm_vm_create(request.instance_id);
+        }
+        completion
     }
 
     /// WP-KERNEL-004 wave 1: route a Local+LlamaCpp+Tier3 spawn into a Cloud
@@ -1712,6 +2059,9 @@ impl ProductionModelSessionFactory {
         request: &SpawnRequest,
         provider: ProviderKind,
     ) -> SwarmResult<LiveSession> {
+        // Deny before any provider/session resource is opened unless the same
+        // complete server-owned authority can protect its durable lifecycle.
+        let resource_scope = self.require_cloud_resource_scope()?;
         let model_name =
             request
                 .cloud_model_name
@@ -1874,6 +2224,7 @@ impl ProductionModelSessionFactory {
             .record_cloud_session_start(
                 reservation,
                 request,
+                &resource_scope,
                 model_id,
                 provider,
                 session_engine_kind,
@@ -1924,6 +2275,37 @@ impl ModelSessionFactory for ProductionModelSessionFactory {
             }
         }
     }
+
+    async fn cancel_pending_create(&self, request: &SpawnRequest) -> SwarmResult<()> {
+        let pending = self
+            .pending_warm_vm_creates
+            .lock()
+            .map_err(|error| {
+                SwarmError::FactoryFailed(format!(
+                    "pending warm VM create map is poisoned: {error}"
+                ))
+            })?
+            .get(&request.instance_id)
+            .cloned();
+        let Some(target) = pending else {
+            // No exact attempt record means no cleanup authority. In
+            // particular, a failed adopter has a worktree id but did not create
+            // the existing binding and must never tear it down.
+            return Ok(());
+        };
+        target
+            .registry
+            .teardown_worktree_vm_if_current(&target.worktree_id, &target.binding_identity)
+            .await
+            .map_err(|error| {
+                SwarmError::FactoryFailed(format!(
+                    "pending warm VM create compensation refused a stale binding or failed for {}: {error}",
+                    request.instance_id,
+                ))
+            })?;
+        self.clear_pending_warm_vm_create(request.instance_id);
+        Ok(())
+    }
 }
 
 fn provider_str(provider: ProviderKind) -> &'static str {
@@ -1971,6 +2353,41 @@ async fn kill_created_sandbox_after_factory_failure(
     Err(last_error.unwrap_or_else(|| "sandbox kill failed without a diagnostic".into()))
 }
 
+async fn teardown_created_worktree_after_factory_failure(
+    registry: &Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
+    worktree_id: &str,
+    binding_identity: &super::worktree_vm_registry::WorktreeVmBindingIdentity,
+) -> Result<(), String> {
+    let mut last_error = None;
+    for _ in 0..3 {
+        match registry
+            .teardown_worktree_vm_if_current(worktree_id, binding_identity)
+            .await
+        {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                last_error = Some(error.to_string());
+                tokio::task::yield_now().await;
+            }
+        }
+    }
+    Err(last_error.unwrap_or_else(|| {
+        format!("worktree VM teardown failed without a diagnostic for {worktree_id}")
+    }))
+}
+
+async fn teardown_worktree_after_factory_failure_if_owned(
+    registry: &Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
+    worktree_id: &str,
+    created_by_attempt: bool,
+    binding_identity: &super::worktree_vm_registry::WorktreeVmBindingIdentity,
+) -> Result<(), String> {
+    if !created_by_attempt {
+        return Ok(());
+    }
+    teardown_created_worktree_after_factory_failure(registry, worktree_id, binding_identity).await
+}
+
 fn factory_error_with_cleanup(primary_error: String, cleanup: Result<(), String>) -> SwarmError {
     match cleanup {
         Ok(()) => SwarmError::FactoryFailed(primary_error),
@@ -1978,6 +2395,81 @@ fn factory_error_with_cleanup(primary_error: String, cleanup: Result<(), String>
             "{primary_error}; sandbox cleanup failed after three attempts: {cleanup_error}"
         )),
     }
+}
+
+/// Warm worktree-VM teardown unloads the resident model and always asks the
+/// WorktreeVmRegistry to terminalize the exact durable binding. Either failure
+/// keeps the coordinator's retryable teardown closure pending.
+fn worktree_warm_runtime_teardown<R>(
+    owning: Arc<tokio::sync::Mutex<R>>,
+    model_id: ModelId,
+    registry: Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
+    worktree_id: String,
+    binding_identity: super::worktree_vm_registry::WorktreeVmBindingIdentity,
+) -> SessionTeardown
+where
+    R: ModelRuntime + 'static,
+{
+    #[derive(Default)]
+    struct Progress {
+        unload_succeeded: bool,
+        registry_teardown_succeeded: bool,
+    }
+
+    let progress = Arc::new(tokio::sync::Mutex::new(Progress::default()));
+    Arc::new(move || {
+        let owning = Arc::clone(&owning);
+        let registry = Arc::clone(&registry);
+        let worktree_id = worktree_id.clone();
+        let binding_identity = binding_identity.clone();
+        let progress = Arc::clone(&progress);
+        Box::pin(async move {
+            // Serialize retries and retain success independently for both
+            // side-effects. A transient failure must not repeat a completed
+            // unload or terminalize the same VM binding twice.
+            let mut progress = progress.lock().await;
+            let unload_error = if progress.unload_succeeded {
+                None
+            } else {
+                let result = {
+                    let mut guard = owning.lock().await;
+                    guard.unload(model_id).await
+                };
+                match result {
+                    Ok(()) => {
+                        progress.unload_succeeded = true;
+                        None
+                    }
+                    Err(error) => Some(error),
+                }
+            };
+            let teardown_error = if progress.registry_teardown_succeeded {
+                None
+            } else {
+                match registry
+                    .teardown_worktree_vm_if_current(&worktree_id, &binding_identity)
+                    .await
+                {
+                    Ok(()) => {
+                        progress.registry_teardown_succeeded = true;
+                        // Killing the owning VM terminalizes the in-guest model
+                        // even when the warm-agent shutdown RPC failed. Treat
+                        // unload as complete so a retry never sends RPCs to a
+                        // transport whose VM is already gone.
+                        progress.unload_succeeded = true;
+                        None
+                    }
+                    Err(error) => Some(error),
+                }
+            };
+            if unload_error.is_some() || teardown_error.is_some() {
+                return Err(SwarmError::Internal(format!(
+                    "warm worktree VM teardown failed: unload={unload_error:?}; registry={teardown_error:?}"
+                )));
+            }
+            Ok(())
+        })
+    })
 }
 
 fn shared_runtime_teardown<R>(
@@ -3923,7 +4415,23 @@ mod tests {
     }
 
     #[derive(Default)]
-    struct FactoryWarmTransport;
+    struct FactoryWarmTransport {
+        shutdown_attempts: std::sync::atomic::AtomicUsize,
+        shutdown_after_terminalization_attempts: std::sync::atomic::AtomicUsize,
+        shutdown_failures_remaining: std::sync::atomic::AtomicUsize,
+        vm_terminalized: std::sync::atomic::AtomicBool,
+    }
+
+    impl FactoryWarmTransport {
+        fn with_shutdown_failures(failures: usize) -> Self {
+            Self {
+                shutdown_attempts: std::sync::atomic::AtomicUsize::new(0),
+                shutdown_after_terminalization_attempts: std::sync::atomic::AtomicUsize::new(0),
+                shutdown_failures_remaining: std::sync::atomic::AtomicUsize::new(failures),
+                vm_terminalized: std::sync::atomic::AtomicBool::new(false),
+            }
+        }
+    }
 
     #[async_trait]
     impl crate::model_runtime::WarmAgentTransport for FactoryWarmTransport {
@@ -3977,6 +4485,35 @@ mod tests {
         ) -> Result<(), crate::model_runtime::WarmVmTransportError> {
             Ok(())
         }
+
+        async fn shutdown(&self) -> Result<(), crate::model_runtime::WarmVmTransportError> {
+            self.shutdown_attempts
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if self
+                .vm_terminalized
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                self.shutdown_after_terminalization_attempts
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                return Err(crate::model_runtime::WarmVmTransportError::Transport(
+                    "warm-agent shutdown invoked after VM terminalization".to_string(),
+                ));
+            }
+            if self
+                .shutdown_failures_remaining
+                .fetch_update(
+                    std::sync::atomic::Ordering::SeqCst,
+                    std::sync::atomic::Ordering::SeqCst,
+                    |remaining| remaining.checked_sub(1),
+                )
+                .is_ok()
+            {
+                return Err(crate::model_runtime::WarmVmTransportError::Transport(
+                    "injected retryable warm-agent shutdown failure".to_string(),
+                ));
+            }
+            Ok(())
+        }
     }
 
     struct FactoryWarmSandbox {
@@ -3985,8 +4522,13 @@ mod tests {
         snapshotted_handles: Arc<Mutex<Vec<String>>>,
         deleted_snapshots: Arc<Mutex<Vec<String>>>,
         killed: Arc<Mutex<Vec<String>>>,
+        kill_attempts: Arc<std::sync::atomic::AtomicUsize>,
+        kill_failures_remaining: Arc<std::sync::atomic::AtomicUsize>,
         snapshot_error: Option<String>,
+        snapshot_started: Option<Arc<tokio::sync::Semaphore>>,
+        snapshot_release: Option<Arc<tokio::sync::Semaphore>>,
         warm_agent_capable: bool,
+        warm_transport: Arc<FactoryWarmTransport>,
     }
 
     #[async_trait]
@@ -4033,10 +4575,29 @@ mod tests {
             handle: &crate::sandbox::ProcessHandle,
             _signal: crate::sandbox::Signal,
         ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            self.kill_attempts
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if self
+                .kill_failures_remaining
+                .fetch_update(
+                    std::sync::atomic::Ordering::SeqCst,
+                    std::sync::atomic::Ordering::SeqCst,
+                    |remaining| remaining.checked_sub(1),
+                )
+                .is_ok()
+            {
+                return Err(crate::sandbox::SandboxAdapterError::AdapterUnavailable {
+                    adapter_id: crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                    reason: "injected retryable VM teardown failure".to_string(),
+                });
+            }
             self.killed
                 .lock()
                 .unwrap()
                 .push(handle.sandbox_internal_id.clone());
+            self.warm_transport
+                .vm_terminalized
+                .store(true, std::sync::atomic::Ordering::SeqCst);
             Ok(())
         }
         async fn status(
@@ -4059,6 +4620,16 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push(handle.sandbox_internal_id.clone());
+            if let Some(started) = self.snapshot_started.as_ref() {
+                started.add_permits(1);
+            }
+            if let Some(release) = self.snapshot_release.as_ref() {
+                release
+                    .acquire()
+                    .await
+                    .expect("snapshot release semaphore remains open")
+                    .forget();
+            }
             if let Some(reason) = self.snapshot_error.as_ref() {
                 return Err(crate::sandbox::SandboxAdapterError::SnapshotFailed {
                     adapter_id: crate::sandbox::AdapterId::new("cloud_hypervisor"),
@@ -4101,7 +4672,7 @@ mod tests {
             Arc<dyn crate::model_runtime::WarmAgentTransport>,
             crate::sandbox::SandboxAdapterError,
         > {
-            Ok(Arc::new(FactoryWarmTransport))
+            Ok(self.warm_transport.clone())
         }
         fn capabilities(&self) -> crate::sandbox::AdapterCapabilities {
             crate::sandbox::AdapterCapabilities {
@@ -4160,8 +4731,13 @@ mod tests {
             snapshotted_handles: snapshotted_handles.clone(),
             deleted_snapshots: deleted_snapshots.clone(),
             killed: killed.clone(),
+            kill_attempts: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            kill_failures_remaining: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             snapshot_error,
+            snapshot_started: None,
+            snapshot_release: None,
             warm_agent_capable,
+            warm_transport: Arc::new(FactoryWarmTransport::default()),
         }));
         (
             Arc::new(registry),
@@ -4171,6 +4747,60 @@ mod tests {
             deleted_snapshots,
             killed,
         )
+    }
+
+    struct WarmFaultObservations {
+        registry: Arc<crate::sandbox::SandboxAdapterRegistry>,
+        killed: Arc<Mutex<Vec<String>>>,
+        kill_attempts: Arc<std::sync::atomic::AtomicUsize>,
+        transport: Arc<FactoryWarmTransport>,
+        snapshot_started: Option<Arc<tokio::sync::Semaphore>>,
+        snapshot_release: Option<Arc<tokio::sync::Semaphore>>,
+    }
+
+    fn warm_sandbox_registry_with_faults(
+        shutdown_failures: usize,
+        kill_failures: usize,
+        gate_snapshot: bool,
+        snapshot_error: Option<String>,
+    ) -> WarmFaultObservations {
+        let spawned_specs = Arc::new(Mutex::new(Vec::new()));
+        let restored_snapshots = Arc::new(Mutex::new(Vec::new()));
+        let snapshotted_handles = Arc::new(Mutex::new(Vec::new()));
+        let deleted_snapshots = Arc::new(Mutex::new(Vec::new()));
+        let killed = Arc::new(Mutex::new(Vec::new()));
+        let kill_attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let kill_failures_remaining = Arc::new(std::sync::atomic::AtomicUsize::new(kill_failures));
+        let transport = Arc::new(FactoryWarmTransport::with_shutdown_failures(
+            shutdown_failures,
+        ));
+        let snapshot_started = gate_snapshot.then(|| Arc::new(tokio::sync::Semaphore::new(0)));
+        let snapshot_release = gate_snapshot.then(|| Arc::new(tokio::sync::Semaphore::new(0)));
+        let mut registry = crate::sandbox::SandboxAdapterRegistry::new(
+            crate::sandbox::AdapterId::new("cloud_hypervisor"),
+        );
+        registry.register(Arc::new(FactoryWarmSandbox {
+            spawned_specs,
+            restored_snapshots,
+            snapshotted_handles,
+            deleted_snapshots,
+            killed: Arc::clone(&killed),
+            kill_attempts: Arc::clone(&kill_attempts),
+            kill_failures_remaining,
+            snapshot_error,
+            snapshot_started: snapshot_started.clone(),
+            snapshot_release: snapshot_release.clone(),
+            warm_agent_capable: true,
+            warm_transport: Arc::clone(&transport),
+        }));
+        WarmFaultObservations {
+            registry: Arc::new(registry),
+            killed,
+            kill_attempts,
+            transport,
+            snapshot_started,
+            snapshot_release,
+        }
     }
 
     /// A temp dir + fake gguf so the sandbox runtime's `load` existence gates pass.
@@ -4350,6 +4980,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-1")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_execution();
 
         let err = create_err(&factory, &req).await;
@@ -4406,6 +5037,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-1")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_execution();
 
         let session = factory
@@ -4436,6 +5068,13 @@ mod tests {
             Some(crate::sandbox::SANDBOX_MODE_PERSISTENT),
             "warm spawn must use the persistent VM mode, not cold exec"
         );
+        let worktree_bind = specs[0]
+            .binds
+            .iter()
+            .find(|bind| bind.guest_path == std::path::PathBuf::from(WARM_VM_WORKTREE_GUEST_ROOT))
+            .expect("warm model lane must carry its worktree folder into the microVM spec");
+        assert_eq!(worktree_bind.host_path, dir);
+        assert_eq!(worktree_bind.mode, BindMode::ReadOnly);
         assert!(
             restored_snapshots.lock().unwrap().is_empty(),
             "fresh warm spawn must not restore a snapshot"
@@ -4479,6 +5118,88 @@ mod tests {
         let _ = std::fs::remove_dir_all(runner_dir);
     }
 
+    #[tokio::test]
+    async fn sandboxed_start_and_stop_metadata_preserve_exact_resource_scope() {
+        use crate::swarm_orchestration::resource_scope::{
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            ResourceScope, WorkspaceScopeRef,
+        };
+
+        let owner_account_id = OwnerAccountId::mint();
+        let actor_principal_id = ActorPrincipalId::mint();
+        let authenticated_session = AuthenticatedSessionRef::mint();
+        let access_space = AccessSpaceRef::mint();
+        let workspace =
+            WorkspaceScopeRef::new("workspace-mt023-ledger").expect("non-empty workspace scope");
+        let owner_account_text = owner_account_id.as_uuid().to_string();
+        let actor_principal_text = actor_principal_id.as_uuid().to_string();
+        let authenticated_session_text = authenticated_session.as_uuid().to_string();
+        let access_space_text = access_space.as_uuid().to_string();
+        let scope = ResourceScope::new(owner_account_id, actor_principal_id)
+            .with_session(authenticated_session)
+            .with_access_space(access_space)
+            .with_workspace(workspace.clone());
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://handshake:handshake@127.0.0.1:5432/handshake_lazy")
+            .expect("lazy scoped model lane pool");
+        let model_lane_store = ModelLaneStore::new_scoped(pool, scope);
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            None,
+        )
+        .with_durable_worktree_vm_store(&model_lane_store);
+        let request = SpawnRequest::new(
+            instance(39),
+            RuntimeBinding::LlamaCpp,
+            "KERNEL_BUILDER-MT023",
+            "mt023-scoped-ledger",
+        );
+        let handle = crate::sandbox::ProcessHandle::new(
+            crate::sandbox::AdapterId::new("cloud_hypervisor"),
+            None,
+            "hsk-ch-scoped-ledger",
+        );
+        let (_, start) = factory
+            .record_start_sandboxed(
+                &request,
+                ModelId::new_v7(),
+                ProcessEngineKind::LlamaCpp,
+                &handle,
+            )
+            .expect("sandboxed START records scoped metadata");
+        let stop = crate::process_ledger::ProcessStop::from_start(&start, Some(0))
+            .with_stop_reason("scope metadata proof");
+
+        for metadata in [&start.metadata_jsonb, &stop.metadata_jsonb] {
+            assert_eq!(
+                metadata["owner_account_id"].as_str(),
+                Some(owner_account_text.as_str())
+            );
+            assert_eq!(
+                metadata["actor_principal_id"].as_str(),
+                Some(actor_principal_text.as_str())
+            );
+            assert_eq!(
+                metadata["authenticated_session_id"].as_str(),
+                Some(authenticated_session_text.as_str())
+            );
+            assert_eq!(
+                metadata["access_space_id"].as_str(),
+                Some(access_space_text.as_str())
+            );
+            assert_eq!(metadata["workspace_id"].as_str(), Some(workspace.as_str()));
+        }
+        let rows = drained(&drain, store).await;
+        assert!(
+            rows.iter()
+                .any(|event| matches!(event, LedgerEvent::Start(_))),
+            "the scoped START reaches the ledger batcher"
+        );
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn warm_vm_request_fails_closed_when_restore_manifest_snapshot_fails() {
         let _env_guard = runner_env_lock();
@@ -4514,6 +5235,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-snapshot-fail")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_execution();
 
         let err = create_err(&factory, &req).await;
@@ -4549,6 +5271,496 @@ mod tests {
         restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn failed_adopter_does_not_teardown_existing_worktree_vm() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, _drain) = ledger_pair();
+        let (
+            sandbox_registry,
+            _spawned_specs,
+            _restored_snapshots,
+            _snapshotted_handles,
+            _deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake_and_snapshot_error(Some(
+            "adopter snapshot failure".to_string(),
+        ));
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(sandbox_registry.clone()),
+        );
+        let adapter = sandbox_registry
+            .get(&crate::sandbox::AdapterId::new("cloud_hypervisor"))
+            .expect("registered warm adapter");
+        let worktree_registry = factory
+            .worktree_vm_registry_for(adapter)
+            .expect("factory worktree registry");
+        let worktree_id = "wt-warm-adopted-snapshot-fail";
+        worktree_registry
+            .ensure_worktree_vm(worktree_id)
+            .await
+            .expect("pre-existing worktree VM");
+
+        let request = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree(worktree_id)
+        .with_working_dir(dir.to_string_lossy())
+        .with_warm_vm_execution();
+
+        let error = create_err(&factory, &request).await;
+        assert!(
+            format!("{error}").contains("adopter snapshot failure"),
+            "the injected post-adoption failure must be observed: {error}"
+        );
+        assert!(
+            killed.lock().unwrap().is_empty(),
+            "a failed adopter must not tear down the VM owned by the existing binding"
+        );
+        assert!(
+            worktree_registry.is_bound(worktree_id).await,
+            "the pre-existing VM must remain bound after the adopter fails"
+        );
+
+        worktree_registry
+            .teardown_worktree_vm(worktree_id)
+            .await
+            .expect("explicit owner cleanup");
+        assert_eq!(killed.lock().unwrap().len(), 1);
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn coordinator_failed_adopter_preserves_existing_worktree_vm() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, _drain) = ledger_pair();
+        let (sandbox_registry, _, _, _, _, killed) =
+            warm_sandbox_registry_with_observed_fake_and_snapshot_error(Some(
+                "coordinator adopter snapshot failure".to_string(),
+            ));
+        let factory = ProductionModelSessionFactory::new(
+            ledger.clone(),
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(sandbox_registry.clone()),
+        );
+        let adapter = sandbox_registry
+            .get(&crate::sandbox::AdapterId::new("cloud_hypervisor"))
+            .expect("registered warm adapter");
+        let worktree_registry = factory
+            .worktree_vm_registry_for(adapter)
+            .expect("factory worktree registry");
+        let worktree_id = "wt-warm-coordinator-adopter-fail";
+        let original = worktree_registry
+            .ensure_worktree_vm(worktree_id)
+            .await
+            .expect("pre-existing worktree VM");
+        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(2).with_concurrency(2),
+            ),
+            Arc::new(factory),
+            Arc::new(RecordingSwarmSink::new()),
+            ledger,
+        );
+        let request = SpawnRequest::new(
+            instance(40),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree(worktree_id)
+        .with_working_dir(dir.to_string_lossy())
+        .with_warm_vm_execution();
+
+        let error = coordinator
+            .spawn_session(request)
+            .await
+            .expect_err("injected adopter failure must propagate through coordinator");
+        assert!(
+            error
+                .to_string()
+                .contains("coordinator adopter snapshot failure"),
+            "unexpected failure: {error}"
+        );
+        assert!(
+            killed.lock().unwrap().is_empty(),
+            "coordinator compensation must not kill a binding this attempt adopted"
+        );
+        assert_eq!(
+            worktree_registry
+                .resolve_worktree_vm(worktree_id)
+                .await
+                .expect("existing VM remains resolvable"),
+            original
+        );
+
+        worktree_registry
+            .teardown_worktree_vm(worktree_id)
+            .await
+            .expect("explicit owner cleanup");
+        assert_eq!(killed.lock().unwrap().len(), 1);
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn coordinator_cancel_reclaims_exact_pending_creator_binding() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let observations = warm_sandbox_registry_with_faults(0, 0, true, None);
+        let (ledger, _drain) = ledger_pair();
+        let factory = ProductionModelSessionFactory::new(
+            ledger.clone(),
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(observations.registry.clone()),
+        );
+        let adapter = observations
+            .registry
+            .get(&crate::sandbox::AdapterId::new("cloud_hypervisor"))
+            .expect("registered warm adapter");
+        let worktree_registry = factory
+            .worktree_vm_registry_for(adapter)
+            .expect("factory worktree registry");
+        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(2).with_concurrency(2),
+            )
+            .with_teardown_timeout(Duration::from_millis(25)),
+            Arc::new(factory),
+            Arc::new(RecordingSwarmSink::new()),
+            ledger,
+        ));
+        let instance_id = instance(41);
+        let worktree_id = "wt-warm-cancel-pending-creator";
+        let request = SpawnRequest::new(
+            instance_id,
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree(worktree_id)
+        .with_working_dir(dir.to_string_lossy())
+        .with_warm_vm_execution();
+        let spawn = {
+            let coordinator = Arc::clone(&coordinator);
+            tokio::spawn(async move { coordinator.spawn_session(request).await })
+        };
+        let started = observations
+            .snapshot_started
+            .as_ref()
+            .expect("gated snapshot start semaphore");
+        tokio::time::timeout(Duration::from_secs(2), started.acquire())
+            .await
+            .expect("snapshot starts")
+            .expect("snapshot start semaphore remains open")
+            .forget();
+        coordinator
+            .cancel_session(instance_id, "cancel exact pending creator")
+            .await
+            .expect("pending cancellation token is delivered");
+        let error = spawn
+            .await
+            .expect("spawn task joins")
+            .expect_err("cancelled pending creator must not become live");
+        assert!(error.to_string().contains("spawn cancelled"), "{error}");
+        assert_eq!(
+            observations
+                .kill_attempts
+                .load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "compensation kills exactly the handle recorded for this create attempt"
+        );
+        assert_eq!(observations.killed.lock().unwrap().len(), 1);
+        assert!(
+            !worktree_registry.is_bound(worktree_id).await,
+            "creator compensation removes the exact pending binding"
+        );
+        if let Some(release) = observations.snapshot_release.as_ref() {
+            release.add_permits(1);
+        }
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn coordinator_failed_creator_retries_exact_compensation_after_three_kill_failures() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let observations = warm_sandbox_registry_with_faults(
+            0,
+            3,
+            false,
+            Some("creator snapshot failure after bind".to_string()),
+        );
+        let (ledger, _drain) = ledger_pair();
+        let factory = ProductionModelSessionFactory::new(
+            ledger.clone(),
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(observations.registry.clone()),
+        );
+        let adapter = observations
+            .registry
+            .get(&crate::sandbox::AdapterId::new("cloud_hypervisor"))
+            .expect("registered warm adapter");
+        let worktree_registry = factory
+            .worktree_vm_registry_for(adapter)
+            .expect("factory worktree registry");
+        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(2).with_concurrency(2),
+            ),
+            Arc::new(factory),
+            Arc::new(RecordingSwarmSink::new()),
+            ledger,
+        );
+        let worktree_id = "wt-warm-failed-creator-compensation";
+        let error = coordinator
+            .spawn_session(
+                SpawnRequest::new(
+                    instance(45),
+                    RuntimeBinding::LlamaCpp,
+                    "swarm_prod_test",
+                    "p",
+                )
+                .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+                .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+                .with_worktree(worktree_id)
+                .with_working_dir(dir.to_string_lossy())
+                .with_warm_vm_execution(),
+            )
+            .await
+            .expect_err("injected creator failure must propagate");
+        assert!(
+            error
+                .to_string()
+                .contains("creator snapshot failure after bind"),
+            "unexpected failure: {error}"
+        );
+        assert_eq!(
+            observations
+                .kill_attempts
+                .load(std::sync::atomic::Ordering::SeqCst),
+            4,
+            "factory exhausts three in-band attempts and coordinator retries the retained exact owner once"
+        );
+        assert_eq!(
+            observations.killed.lock().unwrap().len(),
+            1,
+            "only the successful exact compensation terminalizes the VM"
+        );
+        assert!(
+            !worktree_registry.is_bound(worktree_id).await,
+            "coordinator compensation leaves no failed-creator VM orphan"
+        );
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    async fn assert_warm_teardown_retry(
+        instance_number: u32,
+        shutdown_failures: usize,
+        kill_failures: usize,
+        expected_first_error: &[&str],
+    ) {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let observations =
+            warm_sandbox_registry_with_faults(shutdown_failures, kill_failures, false, None);
+        let store = Arc::new(InMemoryStore::default());
+        let (ledger, ledger_writer) = spawned_ledger(store.clone());
+        let ledger_close = ledger.clone();
+        let factory = ProductionModelSessionFactory::new(
+            ledger.clone(),
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(observations.registry.clone()),
+        );
+        let adapter = observations
+            .registry
+            .get(&crate::sandbox::AdapterId::new("cloud_hypervisor"))
+            .expect("registered warm adapter");
+        let worktree_registry = factory
+            .worktree_vm_registry_for(adapter)
+            .expect("factory worktree registry");
+        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(2).with_concurrency(2),
+            ),
+            Arc::new(factory),
+            Arc::new(RecordingSwarmSink::new()),
+            ledger,
+        );
+        let instance_id = instance(instance_number);
+        let worktree_id = format!("wt-warm-teardown-retry-{instance_number}");
+        coordinator
+            .spawn_session(
+                SpawnRequest::new(
+                    instance_id,
+                    RuntimeBinding::LlamaCpp,
+                    "swarm_prod_test",
+                    "p",
+                )
+                .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+                .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+                .with_worktree(&worktree_id)
+                .with_working_dir(dir.to_string_lossy())
+                .with_warm_vm_execution(),
+            )
+            .await
+            .expect("warm session starts");
+
+        let first_error = coordinator
+            .cancel_session(instance_id, "injected warm teardown retry")
+            .await
+            .expect_err("first teardown attempt must expose injected failure");
+        let first_detail = first_error.to_string();
+        for expected in expected_first_error {
+            assert!(
+                first_detail.contains(expected),
+                "first teardown error lost {expected:?}: {first_detail}"
+            );
+        }
+        coordinator
+            .retry_pending_session_cleanups()
+            .await
+            .expect("retry completes only the unfinished teardown substeps");
+        assert_eq!(coordinator.live_session_count(), 0);
+        assert!(
+            !worktree_registry.is_bound(&worktree_id).await,
+            "successful retry leaves no bound warm VM"
+        );
+        assert_eq!(
+            observations.killed.lock().unwrap().len(),
+            1,
+            "the VM is successfully terminalized exactly once"
+        );
+        assert_eq!(
+            observations
+                .transport
+                .shutdown_attempts
+                .load(std::sync::atomic::Ordering::SeqCst),
+            if kill_failures == 0 {
+                1
+            } else {
+                shutdown_failures + 1
+            },
+            "unload retries only while the VM remains alive"
+        );
+        assert_eq!(
+            observations
+                .transport
+                .shutdown_after_terminalization_attempts
+                .load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "retry must never issue warm-agent RPCs after registry teardown killed the VM"
+        );
+        assert_eq!(
+            observations
+                .kill_attempts
+                .load(std::sync::atomic::Ordering::SeqCst),
+            kill_failures + 1,
+            "a successful registry teardown is latched and never repeated"
+        );
+
+        let rows = drain_spawned(&ledger_close, ledger_writer, store).await;
+        assert_eq!(
+            rows.iter()
+                .filter(|event| matches!(event, LedgerEvent::Start(_)))
+                .count(),
+            1,
+            "one warm VM owner records one START"
+        );
+        assert_eq!(
+            rows.iter()
+                .filter(|event| matches!(event, LedgerEvent::Stop(_)))
+                .count(),
+            1,
+            "retry records one matching STOP, not one per teardown attempt"
+        );
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_teardown_retry_skips_completed_registry_after_unload_failure() {
+        assert_warm_teardown_retry(
+            42,
+            1,
+            0,
+            &["injected retryable warm-agent shutdown failure"],
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_teardown_retry_skips_completed_unload_after_registry_failure() {
+        assert_warm_teardown_retry(43, 0, 1, &["injected retryable VM teardown failure"]).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_teardown_preserves_combined_errors_then_retries_both_substeps() {
+        assert_warm_teardown_retry(
+            44,
+            1,
+            1,
+            &[
+                "injected retryable warm-agent shutdown failure",
+                "injected retryable VM teardown failure",
+            ],
+        )
+        .await;
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -4590,6 +5802,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-ledger-fail")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_execution();
 
         let err = create_err(&factory, &req).await;
@@ -4668,6 +5881,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-agent-bind")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_execution();
 
         let session = factory
@@ -4756,6 +5970,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), sha)
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-restore")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_restore_manifest(manifest.clone());
 
         let session = factory
@@ -4855,6 +6070,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), sha)
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-restore-no-env")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_execution()
         .with_warm_vm_restore_manifest(manifest);
 
@@ -4929,6 +6145,7 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), sha)
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-requested")
+        .with_working_dir(dir.to_string_lossy())
         .with_warm_vm_restore_manifest(manifest);
 
         let err = create_err(&factory, &req).await;

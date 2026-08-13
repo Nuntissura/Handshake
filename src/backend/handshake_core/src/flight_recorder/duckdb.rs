@@ -548,6 +548,75 @@ impl DuckDbFlightRecorder {
         let trace_id_str = event.trace_id.to_string();
         let timestamp_str = event.timestamp.to_rfc3339();
 
+        let existing_content_matches = {
+            let mut statement = conn
+                .prepare(
+                    r#"
+                    SELECT
+                        CAST(trace_id AS VARCHAR) IS NOT DISTINCT FROM ?
+                        AND timestamp IS NOT DISTINCT FROM CAST(? AS TIMESTAMPTZ)
+                        AND actor IS NOT DISTINCT FROM ?
+                        AND actor_id IS NOT DISTINCT FROM ?
+                        AND event_type IS NOT DISTINCT FROM ?
+                        AND job_id IS NOT DISTINCT FROM ?
+                        AND workflow_id IS NOT DISTINCT FROM ?
+                        AND model_id IS NOT DISTINCT FROM ?
+                        AND model_session_id IS NOT DISTINCT FROM ?
+                        AND activity_span_id IS NOT DISTINCT FROM ?
+                        AND session_span_id IS NOT DISTINCT FROM ?
+                        AND capability_id IS NOT DISTINCT FROM ?
+                        AND policy_decision_id IS NOT DISTINCT FROM ?
+                        AND CAST(wsids AS VARCHAR) IS NOT DISTINCT FROM ?
+                        AND CAST(payload AS VARCHAR) IS NOT DISTINCT FROM ?
+                    FROM events
+                    WHERE event_id = ?
+                "#,
+                )
+                .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+            let mut rows = statement
+                .query(duckdb::params![
+                    trace_id_str.as_str(),
+                    timestamp_str.as_str(),
+                    event.actor.to_string(),
+                    event.actor_id.as_str(),
+                    event.event_type.to_string(),
+                    event.job_id.as_deref(),
+                    event.workflow_id.as_deref(),
+                    event.model_id.as_deref(),
+                    event.model_session_id.as_deref(),
+                    event.activity_span_id.as_deref(),
+                    event.session_span_id.as_deref(),
+                    event.capability_id.as_deref(),
+                    event.policy_decision_id.as_deref(),
+                    wsids_str.as_str(),
+                    payload_str.as_str(),
+                    event_id_str.as_str(),
+                ])
+                .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+            match rows
+                .next()
+                .map_err(|e| RecorderError::SinkError(e.to_string()))?
+            {
+                Some(row) => Some(
+                    row.get::<usize, bool>(0)
+                        .map_err(|e| RecorderError::SinkError(e.to_string()))?,
+                ),
+                None => None,
+            }
+        };
+
+        match existing_content_matches {
+            Some(true) => return Ok(()),
+            Some(false) => {
+                return Err(RecorderError::InvalidEvent(format!(
+                    "event_id {} is already recorded with divergent content",
+                    event.event_id
+                )));
+            }
+            None => {}
+        }
+
         conn.execute(
             r#"
             INSERT INTO events (
@@ -644,6 +713,7 @@ impl DuckDbFlightRecorder {
 
         let mut conditions = Vec::new();
         let mut params: Vec<Box<dyn duckdb::ToSql>> = Vec::new();
+        let resource_scope = filter.resource_scope.clone();
 
         if let Some(event_id) = filter.event_id {
             conditions.push("event_id = ?".to_string());
@@ -675,6 +745,17 @@ impl DuckDbFlightRecorder {
             params.push(Box::new(to.to_rfc3339()));
         }
 
+        // First privacy layer: denied rows never leave DuckDB. JSON field
+        // names match the flat five-field attribution stamped at ingestion.
+        if let Some(scope) = resource_scope.as_ref() {
+            conditions.push("json_extract_string(payload, '$.owner_account_id') = ?".to_string());
+            params.push(Box::new(scope.owner_account_id().as_uuid().to_string()));
+            if let Some(workspace) = scope.workspace() {
+                conditions.push("json_extract_string(payload, '$.workspace_id') = ?".to_string());
+                params.push(Box::new(workspace.as_str().to_owned()));
+            }
+        }
+
         // NOTE: Avoid provider-specific datetime formatting; use epoch seconds for portability.
         let mut query = String::from(
             "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events",
@@ -699,7 +780,20 @@ impl DuckDbFlightRecorder {
         let mut events = Vec::new();
         for raw_res in event_iter {
             let raw = raw_res.map_err(|e| RecorderError::SinkError(e.to_string()))?;
-            events.push(decode_raw_event(raw)?);
+            let event = decode_raw_event(raw)?;
+            if let Some(scope) = resource_scope.as_ref() {
+                // Second privacy layer: exact post-decode authorization. A
+                // malformed or partially attributed payload fails closed.
+                let Ok(attribution) = serde_json::from_value::<
+                    crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+                >(event.payload.clone()) else {
+                    continue;
+                };
+                if attribution.authorize(scope).is_err() {
+                    continue;
+                }
+            }
+            events.push(event);
         }
 
         Ok(events)
@@ -750,6 +844,106 @@ impl DuckDbFlightRecorder {
         for raw_res in event_iter {
             let raw = raw_res.map_err(|e| RecorderError::SinkError(e.to_string()))?;
             events.push(decode_raw_event(raw)?);
+        }
+        Ok(events)
+    }
+
+    fn query_session_events_for_scope(
+        &self,
+        session_id: &str,
+        from: Option<chrono::DateTime<chrono::Utc>>,
+        to: Option<chrono::DateTime<chrono::Utc>>,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+        let mut params: Vec<Box<dyn duckdb::ToSql>> = vec![
+            Box::new(session_id.to_string()),
+            Box::new(scope.owner_account_id().as_uuid().to_string()),
+        ];
+        let mut query = String::from(
+            "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE (session_span_id = ?1 OR model_session_id = ?1 OR json_extract_string(payload, '$.instance_id') = ?1) AND json_extract_string(payload, '$.owner_account_id') = ?2",
+        );
+        if let Some(workspace) = scope.workspace() {
+            params.push(Box::new(workspace.as_str().to_owned()));
+            query.push_str(&format!(
+                " AND json_extract_string(payload, '$.workspace_id') = ?{}",
+                params.len()
+            ));
+        }
+        if let Some(from) = from {
+            params.push(Box::new(from.to_rfc3339()));
+            query.push_str(&format!(" AND timestamp >= ?{}", params.len()));
+        }
+        if let Some(to) = to {
+            params.push(Box::new(to.to_rfc3339()));
+            query.push_str(&format!(" AND timestamp <= ?{}", params.len()));
+        }
+        query.push_str(" ORDER BY timestamp ASC");
+
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let param_refs: Vec<&dyn duckdb::ToSql> =
+            params.iter().map(|value| value.as_ref()).collect();
+        let rows = stmt
+            .query_map(duckdb::params_from_iter(param_refs), raw_event_from_row)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let mut events = Vec::new();
+        for row in rows {
+            let event = decode_raw_event(
+                row.map_err(|error| RecorderError::SinkError(error.to_string()))?,
+            )?;
+            let Ok(attribution) = serde_json::from_value::<
+                crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+            >(event.payload.clone()) else {
+                continue;
+            };
+            if attribution.authorize(&scope).is_ok() {
+                events.push(event);
+            }
+        }
+        Ok(events)
+    }
+
+    fn query_resource_scoped_events(
+        &self,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+        let mut params: Vec<Box<dyn duckdb::ToSql>> =
+            vec![Box::new(scope.owner_account_id().as_uuid().to_string())];
+        let mut query = String::from(
+            "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE json_extract_string(payload, '$.owner_account_id') = ?1",
+        );
+        if let Some(workspace) = scope.workspace() {
+            params.push(Box::new(workspace.as_str().to_owned()));
+            query.push_str(&format!(
+                " AND json_extract_string(payload, '$.workspace_id') = ?{}",
+                params.len()
+            ));
+        }
+        query.push_str(" ORDER BY timestamp ASC");
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let param_refs: Vec<&dyn duckdb::ToSql> =
+            params.iter().map(|value| value.as_ref()).collect();
+        let rows = stmt
+            .query_map(duckdb::params_from_iter(param_refs), raw_event_from_row)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let mut events = Vec::new();
+        for row in rows {
+            let event = decode_raw_event(
+                row.map_err(|error| RecorderError::SinkError(error.to_string()))?,
+            )?;
+            let Ok(attribution) = serde_json::from_value::<
+                crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+            >(event.payload.clone()) else {
+                continue;
+            };
+            if attribution.authorize(&scope).is_ok() {
+                events.push(event);
+            }
         }
         Ok(events)
     }
@@ -1057,6 +1251,23 @@ impl FlightRecorder for DuckDbFlightRecorder {
         self.query_session_scoped_events(session_id, from, to)
     }
 
+    async fn list_session_events_for_scope(
+        &self,
+        session_id: &str,
+        from: Option<chrono::DateTime<chrono::Utc>>,
+        to: Option<chrono::DateTime<chrono::Utc>>,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.query_session_events_for_scope(session_id, from, to, scope)
+    }
+
+    async fn list_resource_scoped_events(
+        &self,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.query_resource_scoped_events(scope)
+    }
+
     fn duckdb_connection(&self) -> Option<Arc<Mutex<DuckDbConnection>>> {
         Some(self.conn.clone())
     }
@@ -1160,6 +1371,13 @@ mod tests {
         DiagnosticSurface, LinkConfidence,
     };
     use crate::flight_recorder::{EventFilter, FlightRecorderActor, FlightRecorderEventType};
+    use crate::model_runtime::ModelId;
+    use crate::swarm_orchestration::events::{FlightRecorderSwarmSink, SwarmEvent, SwarmEventSink};
+    use crate::swarm_orchestration::ids::ModelInstanceId;
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+        OwnerAccountId, ResourceScopeQuery, WorkspaceScopeRef,
+    };
     use serde_json::json;
     use tempfile::tempdir;
     use uuid::Uuid;
@@ -1179,6 +1397,95 @@ mod tests {
             event = event.with_job_id(jid);
         }
         event
+    }
+
+    #[tokio::test]
+    async fn scoped_swarm_capture_filters_in_storage_and_reauthorizes_all_five_fields(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let owner = OwnerAccountId::mint();
+        let workspace = WorkspaceScopeRef::new(format!("fr-private-{}", Uuid::now_v7()))?;
+        let attribution = ExactResourceScopeAttribution {
+            owner_account_id: owner,
+            actor_principal_id: ActorPrincipalId::mint(),
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            access_space_id: AccessSpaceRef::mint(),
+            workspace_id: workspace.clone(),
+        };
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let capture = Arc::clone(&captured);
+        let sink = FlightRecorderSwarmSink::new_scoped(
+            Uuid::now_v7(),
+            attribution.clone(),
+            move |event| {
+                capture.lock().expect("capture lock").push(event);
+                Ok(())
+            },
+        );
+        let model_id = ModelId::new_v7();
+        let process_uuid = Uuid::now_v7();
+        let worktree_id = format!("fr-private-worktree-{}", Uuid::now_v7());
+        sink.emit(SwarmEvent::SessionSpawned {
+            instance_id: ModelInstanceId::new(model_id, 0),
+            parent_session_id: "fr-private-parent".to_owned(),
+            process_uuid,
+            swarm_id: Some("fr-private-swarm".to_owned()),
+            worktree_id: Some(worktree_id.clone()),
+        })?;
+        let event = captured
+            .lock()
+            .expect("capture lock")
+            .pop()
+            .expect("captured scoped event");
+        let decoded: ExactResourceScopeAttribution = serde_json::from_value(event.payload.clone())?;
+        assert_eq!(
+            decoded, attribution,
+            "all five scope fields survive capture"
+        );
+
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        recorder.record_event(event).await?;
+
+        let owner_query = ResourceScopeQuery::for_owner(owner).within_workspace(workspace.clone());
+        let owner_events = recorder
+            .list_events(EventFilter::for_resource_scope(owner_query))
+            .await?;
+        assert_eq!(owner_events.len(), 1);
+        assert!(owner_events[0]
+            .payload
+            .to_string()
+            .contains(&process_uuid.to_string()));
+        assert!(owner_events[0].payload.to_string().contains(&worktree_id));
+
+        let cross_account = recorder
+            .list_events(EventFilter::for_resource_scope(
+                ResourceScopeQuery::for_owner(OwnerAccountId::mint())
+                    .within_workspace(workspace.clone()),
+            ))
+            .await?;
+        assert!(
+            cross_account.is_empty(),
+            "cross-account storage query is empty"
+        );
+
+        let wrong_workspace = recorder
+            .list_events(EventFilter::for_resource_scope(
+                ResourceScopeQuery::for_owner(owner).within_workspace(WorkspaceScopeRef::new(
+                    format!("{}-other", workspace.as_str()),
+                )?),
+            ))
+            .await?;
+        assert!(
+            wrong_workspace.is_empty(),
+            "same-account wrong-workspace storage query is empty"
+        );
+
+        let system_raw = recorder.list_events(EventFilter::system_raw()).await?;
+        assert_eq!(
+            system_raw.len(),
+            1,
+            "explicit system-only raw path remains available"
+        );
+        Ok(())
     }
 
     fn list_query_string_cells(
@@ -1228,6 +1535,73 @@ mod tests {
             "duckdb index introspection not available",
         )
         .into())
+    }
+
+    #[tokio::test]
+    async fn identical_event_id_and_content_is_an_idempotent_success(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::now_v7();
+        let event = test_event(trace_id, Some("job-idempotent"))
+            .with_actor_id("idempotent-producer")
+            .with_workflow_id("workflow-idempotent")
+            .with_model_id("model-idempotent")
+            .with_model_session_id("model-session-idempotent")
+            .with_activity_span("activity-span-idempotent")
+            .with_session_span("session-span-idempotent")
+            .with_capability("capability-idempotent")
+            .with_policy_decision("policy-idempotent")
+            .with_wsids(vec!["wsid-a".to_string(), "wsid-b".to_string()]);
+        let event_id = event.event_id;
+
+        recorder.record_event(event.clone()).await?;
+        recorder.record_event(event).await?;
+
+        let stored = recorder
+            .list_events(EventFilter {
+                event_id: Some(event_id),
+                ..EventFilter::default()
+            })
+            .await?;
+        assert_eq!(stored.len(), 1, "an identical replay must not add a row");
+        assert_eq!(stored[0].event_id, event_id);
+        assert_eq!(stored[0].actor_id, "idempotent-producer");
+        assert_eq!(stored[0].job_id.as_deref(), Some("job-idempotent"));
+        assert_eq!(stored[0].wsids, ["wsid-a", "wsid-b"]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn same_event_id_with_divergent_content_is_rejected_without_overwrite(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::now_v7();
+        let original = test_event(trace_id, Some("job-original"));
+        let event_id = original.event_id;
+        recorder.record_event(original.clone()).await?;
+
+        let mut divergent = original.clone();
+        divergent.payload["message"] = json!("divergent event content");
+        let error = recorder
+            .record_event(divergent)
+            .await
+            .expect_err("same event_id with divergent content must be rejected");
+        assert!(
+            matches!(error, RecorderError::InvalidEvent(ref message) if message.contains("divergent content")),
+            "unexpected divergent replay error: {error}"
+        );
+
+        let stored = recorder
+            .list_events(EventFilter {
+                event_id: Some(event_id),
+                ..EventFilter::default()
+            })
+            .await?;
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].payload, original.payload);
+
+        Ok(())
     }
 
     #[tokio::test]

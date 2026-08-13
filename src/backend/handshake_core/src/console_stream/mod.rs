@@ -33,16 +33,17 @@
 
 use std::{
     collections::VecDeque,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
 };
+
+#[cfg(feature = "test-utils")]
+use std::sync::Condvar;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
 use crate::swarm_orchestration::events::{SwarmEvent, SwarmEventSink};
+use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use crate::swarm_orchestration::state::ModelSessionState;
 
 /// Schema id stamped onto the SSE `event:` name so consumers can version the
@@ -141,6 +142,10 @@ pub struct ConsoleEntry {
     pub detail: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
+    /// Exact durable-resource attribution. Account-facing readers fail closed
+    /// when this is absent; `None` is reserved for explicit system-only sinks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_scope: Option<ExactResourceScopeAttribution>,
 }
 
 /// The parts of a console entry a publisher provides; the hub stamps `seq` +
@@ -153,6 +158,7 @@ pub struct ConsoleEntryDraft {
     pub subject: String,
     pub detail: String,
     pub trace_id: Option<String>,
+    pub resource_scope: Option<ExactResourceScopeAttribution>,
 }
 
 impl ConsoleEntryDraft {
@@ -169,15 +175,58 @@ impl ConsoleEntryDraft {
             subject: subject.into(),
             detail: detail.into(),
             trace_id,
+            resource_scope: None,
         }
+    }
+
+    pub fn with_resource_scope(mut self, scope: ExactResourceScopeAttribution) -> Self {
+        self.resource_scope = Some(scope);
+        self
     }
 }
 
 struct ConsoleBroadcastInner {
     tx: broadcast::Sender<ConsoleEntry>,
-    history: Mutex<VecDeque<ConsoleEntry>>,
+    publish_state: Mutex<ConsolePublishState>,
     history_capacity: usize,
-    seq: AtomicU64,
+    #[cfg(feature = "test-utils")]
+    recent_snapshot_gate: Mutex<Option<Arc<ConsoleRecentSnapshotGateInner>>>,
+}
+
+struct ConsolePublishState {
+    history: VecDeque<ConsoleEntry>,
+    next_seq: u64,
+}
+
+#[cfg(feature = "test-utils")]
+struct ConsoleRecentSnapshotGateInner {
+    state: Mutex<(bool, bool)>,
+    changed: Condvar,
+}
+
+/// Deterministic integration-test seam for the atomic subscribe+snapshot
+/// boundary. The route holds the publication mutex while blocked, so a queued
+/// publisher cannot enter between receiver creation and history capture.
+#[cfg(feature = "test-utils")]
+#[derive(Clone)]
+pub struct ConsoleRecentSnapshotGate {
+    inner: Arc<ConsoleRecentSnapshotGateInner>,
+}
+
+#[cfg(feature = "test-utils")]
+impl ConsoleRecentSnapshotGate {
+    pub fn wait_until_blocked(&self) {
+        let mut state = self.inner.state.lock().expect("console gate state");
+        while !state.0 {
+            state = self.inner.changed.wait(state).expect("console gate wait");
+        }
+    }
+
+    pub fn release(&self) {
+        let mut state = self.inner.state.lock().expect("console gate state");
+        state.1 = true;
+        self.inner.changed.notify_all();
+    }
 }
 
 /// The live console hub: a `tokio::sync::broadcast` sender plus a bounded
@@ -197,9 +246,13 @@ impl ConsoleBroadcast {
         Self {
             inner: Arc::new(ConsoleBroadcastInner {
                 tx,
-                history: Mutex::new(VecDeque::with_capacity(history_capacity.max(1))),
+                publish_state: Mutex::new(ConsolePublishState {
+                    history: VecDeque::with_capacity(history_capacity.max(1)),
+                    next_seq: 0,
+                }),
                 history_capacity: history_capacity.max(1),
-                seq: AtomicU64::new(0),
+                #[cfg(feature = "test-utils")]
+                recent_snapshot_gate: Mutex::new(None),
             }),
         }
     }
@@ -216,12 +269,20 @@ impl ConsoleBroadcast {
     }
 
     /// Publish a drafted entry: stamp the monotonic `seq` + timestamp, append to
-    /// the bounded history ring, and broadcast to live subscribers. Returns the
-    /// stamped entry. Never blocks and never errors — a full ring drops the
+    /// the bounded history ring, and broadcast to live subscribers. Sequence
+    /// allocation, history insertion, and live send share one short critical
+    /// section so concurrent publishers cannot expose different orders through
+    /// replay and live reads. Returns the stamped entry. A full ring drops the
     /// OLDEST for slow subscribers (who observe `Lagged`), and `send` with no
     /// subscribers is a no-op.
     pub fn publish(&self, draft: ConsoleEntryDraft) -> ConsoleEntry {
-        let seq = self.inner.seq.fetch_add(1, Ordering::Relaxed);
+        let mut state = self
+            .inner
+            .publish_state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let seq = state.next_seq;
+        state.next_seq = state.next_seq.wrapping_add(1);
         let entry = ConsoleEntry {
             seq,
             ts_unix_ms: now_unix_ms(),
@@ -230,13 +291,12 @@ impl ConsoleBroadcast {
             subject: draft.subject,
             detail: draft.detail,
             trace_id: draft.trace_id,
+            resource_scope: draft.resource_scope,
         };
-        if let Ok(mut history) = self.inner.history.lock() {
-            if history.len() == self.inner.history_capacity {
-                history.pop_front();
-            }
-            history.push_back(entry.clone());
+        if state.history.len() == self.inner.history_capacity {
+            state.history.pop_front();
         }
+        state.history.push_back(entry.clone());
         // Ignore the no-subscribers error: an open stream is not required for the
         // durable record, only for live observation.
         let _ = self.inner.tx.send(entry.clone());
@@ -263,15 +323,78 @@ impl ConsoleBroadcast {
         self.inner.tx.subscribe()
     }
 
+    /// Atomically establish a live receiver and capture its replay prefix.
+    /// Holding the same mutex used by `publish` makes the history snapshot a
+    /// strict prefix and the receiver a strict suffix, eliminating overlap,
+    /// loss, and replay/live reordering at connection time.
+    pub fn subscribe_with_recent(
+        &self,
+        limit: usize,
+    ) -> (broadcast::Receiver<ConsoleEntry>, Vec<ConsoleEntry>) {
+        let state = self
+            .inner
+            .publish_state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let rx = self.inner.tx.subscribe();
+        #[cfg(feature = "test-utils")]
+        self.wait_on_recent_snapshot_gate();
+        let len = state.history.len();
+        let start = len.saturating_sub(limit);
+        let replay = state.history.iter().skip(start).cloned().collect();
+        (rx, replay)
+    }
+
     /// The bounded recent history, oldest-first, capped at `limit` (most recent).
     /// Replayed to a subscriber on connect.
     pub fn recent(&self, limit: usize) -> Vec<ConsoleEntry> {
-        let Ok(history) = self.inner.history.lock() else {
-            return Vec::new();
-        };
-        let len = history.len();
+        #[cfg(feature = "test-utils")]
+        self.wait_on_recent_snapshot_gate();
+        let state = self
+            .inner
+            .publish_state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let len = state.history.len();
         let start = len.saturating_sub(limit);
-        history.iter().skip(start).cloned().collect()
+        state.history.iter().skip(start).cloned().collect()
+    }
+
+    /// Pause the next replay snapshot after the route has subscribed. This is
+    /// compiled only for real integration tests and has no production state or
+    /// behavior when `test-utils` is disabled.
+    #[cfg(feature = "test-utils")]
+    pub fn arm_recent_snapshot_gate_for_tests(&self) -> ConsoleRecentSnapshotGate {
+        let gate = ConsoleRecentSnapshotGate {
+            inner: Arc::new(ConsoleRecentSnapshotGateInner {
+                state: Mutex::new((false, false)),
+                changed: Condvar::new(),
+            }),
+        };
+        *self
+            .inner
+            .recent_snapshot_gate
+            .lock()
+            .expect("console recent gate") = Some(Arc::clone(&gate.inner));
+        gate
+    }
+
+    #[cfg(feature = "test-utils")]
+    fn wait_on_recent_snapshot_gate(&self) {
+        if let Some(gate) = self
+            .inner
+            .recent_snapshot_gate
+            .lock()
+            .expect("console recent gate")
+            .take()
+        {
+            let mut state = gate.state.lock().expect("console gate state");
+            state.0 = true;
+            gate.changed.notify_all();
+            while !state.1 {
+                state = gate.changed.wait(state).expect("console gate wait");
+            }
+        }
     }
 
     /// Current live subscriber count (0 = nobody tailing; publish is a cheap no-op).
@@ -287,11 +410,27 @@ impl ConsoleBroadcast {
 /// [`crate::swarm_orchestration::events::FanoutSwarmSink`].
 pub struct ConsoleSwarmSink {
     hub: ConsoleBroadcast,
+    resource_scope: Option<ExactResourceScopeAttribution>,
 }
 
 impl ConsoleSwarmSink {
+    /// Explicit system-only sink. Entries emitted here are deliberately
+    /// invisible to account-facing SSE readers because they carry no scope.
     pub fn new(hub: ConsoleBroadcast) -> Self {
-        Self { hub }
+        Self {
+            hub,
+            resource_scope: None,
+        }
+    }
+
+    pub fn new_scoped(
+        hub: ConsoleBroadcast,
+        resource_scope: ExactResourceScopeAttribution,
+    ) -> Self {
+        Self {
+            hub,
+            resource_scope: Some(resource_scope),
+        }
     }
 
     /// The production tee: bound to the process-wide shared hub.
@@ -302,7 +441,9 @@ impl ConsoleSwarmSink {
 
 impl SwarmEventSink for ConsoleSwarmSink {
     fn emit(&self, event: SwarmEvent) -> Result<(), String> {
-        self.hub.publish(console_draft_for_swarm_event(&event));
+        let mut draft = console_draft_for_swarm_event(&event);
+        draft.resource_scope = self.resource_scope.clone();
+        self.hub.publish(draft);
         Ok(())
     }
 }
@@ -384,6 +525,7 @@ pub fn console_draft_for_swarm_event(event: &SwarmEvent) -> ConsoleEntryDraft {
         SwarmEvent::SessionCancelled {
             instance_id,
             reason,
+            ..
         } => ConsoleEntryDraft::new(
             ConsoleSeverity::Warn,
             ConsoleCategory::ModelLaneStatus,
@@ -391,14 +533,16 @@ pub fn console_draft_for_swarm_event(event: &SwarmEvent) -> ConsoleEntryDraft {
             format!("lane cancelled: {}", redact_secrets(reason)),
             None,
         ),
-        SwarmEvent::SessionCompleted { instance_id } => ConsoleEntryDraft::new(
+        SwarmEvent::SessionCompleted { instance_id, .. } => ConsoleEntryDraft::new(
             ConsoleSeverity::Info,
             ConsoleCategory::ModelLaneStatus,
             instance_id.to_string(),
             "lane completed".to_string(),
             None,
         ),
-        SwarmEvent::SessionFailed { instance_id, error } => ConsoleEntryDraft::new(
+        SwarmEvent::SessionFailed {
+            instance_id, error, ..
+        } => ConsoleEntryDraft::new(
             ConsoleSeverity::Error,
             ConsoleCategory::ModelLaneStatus,
             instance_id.to_string(),
@@ -419,6 +563,7 @@ pub fn console_draft_for_swarm_event(event: &SwarmEvent) -> ConsoleEntryDraft {
         SwarmEvent::ResourceEvicted {
             instance_id,
             terminal_state,
+            ..
         } => ConsoleEntryDraft::new(
             ConsoleSeverity::Info,
             ConsoleCategory::Resource,
@@ -521,9 +666,7 @@ mod tests {
         let k = redact_secrets("provider rejected key sk-0123456789abcdefABCDEF");
         assert!(!k.contains("0123456789abcdefABCDEF"), "{k}");
         // Long high-entropy token (>= 40 chars).
-        let t = redact_secrets(
-            "token eyJhbGciOiJIUzI1NiIsInR5cCJ9AAAAAAAAAAAAAAAA leaked",
-        );
+        let t = redact_secrets("token eyJhbGciOiJIUzI1NiIsInR5cCJ9AAAAAAAAAAAAAAAA leaked");
         assert!(t.contains("[redacted-token]"), "{t}");
         // A UUID (model/instance/run id) stays intact so the stream is still diagnostic.
         let id = "019fad78-453c-79b2-ac79-267206424bd6";
@@ -630,6 +773,7 @@ mod tests {
         sink.emit(SwarmEvent::SessionFailed {
             instance_id: iid,
             error: "boom".to_string(),
+            event_id: None,
         })
         .expect("console tee never errors");
         let recent = hub.recent(16);
@@ -651,7 +795,10 @@ mod tests {
             max_tokens: 128,
         });
         assert_eq!(started.category, ConsoleCategory::ModelInvocation);
-        assert!(started.trace_id.is_some(), "invocation carries the trace id");
+        assert!(
+            started.trace_id.is_some(),
+            "invocation carries the trace id"
+        );
 
         let finished = console_draft_for_swarm_event(&SwarmEvent::ModelInvocationFinished {
             instance_id: instance(),

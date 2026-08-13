@@ -28,12 +28,16 @@ use handshake_core::swarm_orchestration::model_lane::{
     dexterity_spawn_model_session_id, DexterityLaunchAdapterKind, DexterityLaunchAdapterRegistry,
     DexterityLaunchAdapterRequest, DexterityLaunchContract, DexterityNormalizedLaunch,
     ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
-    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneRecoveryState,
-    ModelLaneStatus, ModelLaneStore, NewModelLaneCloudConsentReceipt,
+    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneError,
+    ModelLaneRecoveryState, ModelLaneStatus, ModelLaneStore, NewModelLaneCloudConsentReceipt,
     NewModelLaneCloudProjectionPlan, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::production_factory::{
     build_production_swarm_coordinator, CloudLaneFactoryConfig,
+};
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, ResourceAccessContext, ResourceScope, WorkspaceScopeRef,
 };
 use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
@@ -51,7 +55,24 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated Dexterity launch schema");
-    let store = ModelLaneStore::new(pool.clone());
+    let exact_scope = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new("workspace-mt003-launch")
+            .expect("nonblank launch workspace"),
+    };
+    let launch_scope =
+        ResourceScope::new(exact_scope.owner_account_id, exact_scope.actor_principal_id)
+            .with_session(exact_scope.authenticated_session_id)
+            .with_access_space(exact_scope.access_space_id)
+            .with_workspace(exact_scope.workspace_id.clone());
+    let store = ModelLaneStore::new_scoped(pool.clone(), launch_scope.clone());
+    let exact_reader = ModelLaneStore::new_with_access(
+        pool.clone(),
+        ResourceAccessContext::for_exact_reader(exact_scope.clone()),
+    );
     let registry = DexterityLaunchAdapterRegistry::standard();
     let (ledger, _drain) = LedgerBatcher::manual_for_tests(
         LedgerBatcherConfig {
@@ -77,6 +98,7 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
     );
     let mut process_backed_count = 0usize;
     let mut authority_instance_id = None;
+    let mut live_revocation = None;
 
     for (idx, adapter_kind) in supported_adapters().into_iter().enumerate() {
         let raw_launch = launch_request(adapter_kind.clone(), idx, ModelLaneStatus::Ready);
@@ -103,6 +125,21 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
             );
             seed_cloud_launch_authority(&store, &spawn, &adapter_kind, idx).await;
             let instance_id = spawn.instance_id;
+            if adapter_kind == DexterityLaunchAdapterKind::ByokCloudOpenAi {
+                let contract = spawn
+                    .dexterity_launch
+                    .as_ref()
+                    .expect("cloud launch has normalized contract");
+                live_revocation = Some((
+                    instance_id,
+                    contract.run_id.clone(),
+                    contract.lane_id.clone(),
+                    contract
+                        .consent_receipt_ref
+                        .clone()
+                        .expect("cloud launch has consent receipt"),
+                ));
+            }
             let spawned = coordinator
                 .spawn_session(spawn)
                 .await
@@ -133,6 +170,49 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         assert!(lane.terminal_status_mapping_ref.is_some());
         assert_eq!(lane.owner_session, "KERNEL_BUILDER-MT003");
         assert_eq!(lane.trace_id, format!("trace-mt003-{idx}"));
+        let persisted_scope: (
+            Option<uuid::Uuid>,
+            Option<uuid::Uuid>,
+            Option<uuid::Uuid>,
+            Option<uuid::Uuid>,
+            Option<String>,
+        ) = sqlx::query_as(
+            "SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                    access_space_id, workspace_id \
+             FROM model_lanes WHERE lane_id = $1",
+        )
+        .bind(&lane.lane_id)
+        .fetch_one(&pool)
+        .await
+        .expect("read exact launch scope without a filtering predicate");
+        assert_eq!(
+            persisted_scope,
+            (
+                Some(exact_scope.owner_account_id.as_uuid()),
+                Some(exact_scope.actor_principal_id.as_uuid()),
+                Some(exact_scope.authenticated_session_id.as_uuid()),
+                Some(exact_scope.access_space_id.as_uuid()),
+                Some(exact_scope.workspace_id.as_str().to_string()),
+            ),
+            "adapter {adapter_kind:?} must stamp the server-owned five-field scope before its lane is discoverable"
+        );
+        exact_reader
+            .replay_run(&launch.run_id)
+            .await
+            .expect("the exact launch owner must replay its own lane");
+        for (dimension, foreign) in foreign_exact_scopes(&exact_scope) {
+            let denied = ModelLaneStore::new_with_access(
+                pool.clone(),
+                ResourceAccessContext::for_exact_reader(foreign),
+            )
+            .replay_run(&launch.run_id)
+            .await
+            .expect_err("a one-dimension foreign scope must not discover the launched lane");
+            assert!(
+                matches!(denied, ModelLaneError::NotFound(_)),
+                "foreign {dimension} denial must be indistinguishable from absence: {denied}"
+            );
+        }
         let stream_rows: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger \
              WHERE session_run_id = $1 \
@@ -167,11 +247,101 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
     }
 
     assert_eq!(loads.load(Ordering::SeqCst), process_backed_count);
+    let (revoked_instance, revoked_run, revoked_lane, revoked_receipt) =
+        live_revocation.expect("the all-adapter proof includes a live BYOK cloud launch");
+    let scope_before_revocation: (
+        Option<uuid::Uuid>,
+        Option<uuid::Uuid>,
+        Option<uuid::Uuid>,
+        Option<uuid::Uuid>,
+        Option<String>,
+    ) = sqlx::query_as(
+        "SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                access_space_id, workspace_id FROM model_lanes WHERE lane_id = $1",
+    )
+    .bind(&revoked_lane)
+    .fetch_one(&pool)
+    .await
+    .expect("read live launch scope before revocation");
+    let revoked = coordinator
+        .revoke_cloud_consent_receipt(
+            &revoked_receipt,
+            "operator://mt003/scope-revocation",
+            "MT-003 exact-scope live-launch revocation proof",
+        )
+        .await
+        .expect("revocation must cancel the exact live launch");
+    assert_eq!(revoked.len(), 1, "single-lane consent revokes one launch");
+    assert!(
+        coordinator.session_runtime(revoked_instance).is_none(),
+        "revoked launch must stop being usable"
+    );
+    let replay_after_revocation = exact_reader
+        .replay_run(&revoked_run)
+        .await
+        .expect("the original exact owner retains its terminal audit record");
+    assert_eq!(replay_after_revocation.lanes.len(), 1);
+    assert_eq!(
+        replay_after_revocation.lanes[0].status,
+        ModelLaneStatus::Cancelled
+    );
+    let scope_after_revocation: (
+        Option<uuid::Uuid>,
+        Option<uuid::Uuid>,
+        Option<uuid::Uuid>,
+        Option<uuid::Uuid>,
+        Option<String>,
+    ) = sqlx::query_as(
+        "SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                access_space_id, workspace_id FROM model_lanes WHERE lane_id = $1",
+    )
+    .bind(&revoked_lane)
+    .fetch_one(&pool)
+    .await
+    .expect("read terminal launch scope after revocation");
+    assert_eq!(
+        scope_after_revocation, scope_before_revocation,
+        "revocation must terminate the launch without retargeting its immutable original scope"
+    );
+
+    let mixed_workspace =
+        ResourceScope::new(exact_scope.owner_account_id, ActorPrincipalId::mint())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(exact_scope.access_space_id)
+            .with_workspace(
+                WorkspaceScopeRef::new("workspace-mt003-foreign")
+                    .expect("nonblank foreign workspace"),
+            );
+    ResourceScope::derive_from_sources([&launch_scope, &mixed_workspace], ActorPrincipalId::mint())
+        .expect_err("a mixed-scope derivative must not widen into launchable exact authority");
     coordinator
         .drain_all()
         .await
         .expect("drain Dexterity runtime proof");
     assert_eq!(unloads.load(Ordering::SeqCst), process_backed_count);
+}
+
+fn foreign_exact_scopes(
+    exact: &ExactResourceScopeAttribution,
+) -> Vec<(&'static str, ExactResourceScopeAttribution)> {
+    let mut owner = exact.clone();
+    owner.owner_account_id = OwnerAccountId::mint();
+    let mut principal = exact.clone();
+    principal.actor_principal_id = ActorPrincipalId::mint();
+    let mut session = exact.clone();
+    session.authenticated_session_id = AuthenticatedSessionRef::mint();
+    let mut access_space = exact.clone();
+    access_space.access_space_id = AccessSpaceRef::mint();
+    let mut workspace = exact.clone();
+    workspace.workspace_id =
+        WorkspaceScopeRef::new("workspace-mt003-other").expect("nonblank foreign workspace");
+    vec![
+        ("owner account", owner),
+        ("actor principal", principal),
+        ("authenticated session", session),
+        ("AccessSpace", access_space),
+        ("workspace", workspace),
+    ]
 }
 
 async fn seed_cloud_launch_authority(
@@ -221,13 +391,9 @@ async fn seed_cloud_launch_authority(
             export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
             provider_profile_ref: contract.adapter_id.clone(),
             fan_out_targets: fan_out_targets.clone(),
-            // Seeded through an unscoped store: only an explicitly unattributed
-            // source scope may be stamped.
             export_delegation: handshake_core::swarm_orchestration::model_lane::CloudExportDelegation {
                 audience_refs: fan_out_targets.clone(),
-                source_scope: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
-                    "MT003_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
-                ),
+                source_scope: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::from_access(store.access()),
                 authorization_receipt_ref: None,
             },
             consent_scope: ModelLaneCloudConsentScope::SingleLane,
@@ -275,9 +441,7 @@ async fn seed_cloud_launch_authority(
             export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
             fan_out_targets,
             approved: true,
-            approver: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
-                "MT003_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
-            ),
+            approver: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::from_access(store.access()),
             approved_by_ref: "operator://mt003/approval".into(),
             approved_at_utc: "2026-07-19T00:00:10Z".into(),
             valid_from_utc: "2026-01-01T00:00:00Z".into(),
@@ -350,8 +514,10 @@ async fn model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_b
         LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
             .expect("manual process ledger");
     let calls = Arc::new(AtomicUsize::new(0));
+    let compensations = Arc::new(AtomicUsize::new(0));
     let factory = Arc::new(CountingFactory {
         calls: calls.clone(),
+        compensations: compensations.clone(),
     });
     let coordinator = SwarmCoordinator::new(
         SwarmConfig::new(RunBudget::defaulted(1)),
@@ -392,6 +558,7 @@ async fn model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_b
         SwarmConfig::new(RunBudget::defaulted(1)),
         Arc::new(CountingFactory {
             calls: preflight_calls.clone(),
+            compensations: Arc::new(AtomicUsize::new(0)),
         }),
         Arc::new(RecordingSwarmSink::new()),
         ledger,
@@ -558,8 +725,10 @@ async fn model_lane_launch_records_factory_failure_through_swarm_coordinator() {
         LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
             .expect("manual process ledger");
     let calls = Arc::new(AtomicUsize::new(0));
+    let compensations = Arc::new(AtomicUsize::new(0));
     let factory = Arc::new(CountingFactory {
         calls: calls.clone(),
+        compensations: compensations.clone(),
     });
     let coordinator = SwarmCoordinator::new_with_model_lane_store(
         SwarmConfig::new(RunBudget::defaulted(1)),
@@ -586,6 +755,11 @@ async fn model_lane_launch_records_factory_failure_through_swarm_coordinator() {
         .expect_err("factory failure must propagate after failed lane record");
     assert!(matches!(err, SwarmError::FactoryFailed(_)), "got {err}");
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        compensations.load(Ordering::SeqCst),
+        1,
+        "a factory error can follow an external side effect; coordinator must request exact pending-create compensation before returning it"
+    );
 
     let replay = store
         .replay_run("run-mt003-factory-failed")
@@ -1234,6 +1408,7 @@ fn spawn_contract_from_normalized(launch: &DexterityNormalizedLaunch) -> Dexteri
     DexterityLaunchContract {
         run_id: launch.run_id.clone(),
         lane_id: launch.lane_id.clone(),
+        restart_generation: launch.restart_generation,
         trace_id: launch.trace_id.clone(),
         run_span_id: launch.run_span_id.clone(),
         lane_span_id: launch.lane_span_id.clone(),
@@ -1278,6 +1453,7 @@ fn spawn_contract_for_adapter(
     DexterityLaunchContract {
         run_id: run_id.into(),
         lane_id: lane_id.into(),
+        restart_generation: 0,
         trace_id: "trace-mt003-runtime".into(),
         run_span_id: "span-run-mt003-runtime".into(),
         lane_span_id: "span-lane-mt003-runtime".into(),
@@ -1382,6 +1558,7 @@ fn proof_process_engine_kind(request: &SpawnRequest) -> ProcessEngineKind {
 
 struct CountingFactory {
     calls: Arc<AtomicUsize>,
+    compensations: Arc<AtomicUsize>,
 }
 
 #[async_trait]
@@ -1391,6 +1568,11 @@ impl ModelSessionFactory for CountingFactory {
         Err(SwarmError::FactoryFailed(
             "CountingFactory must not be called by missing-store preflight".into(),
         ))
+    }
+
+    async fn cancel_pending_create(&self, _request: &SpawnRequest) -> Result<(), SwarmError> {
+        self.compensations.fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
 }
 

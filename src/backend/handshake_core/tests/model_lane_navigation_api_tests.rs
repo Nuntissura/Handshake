@@ -7,7 +7,9 @@ mod knowledge_pg_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
+use axum::Extension;
 use handshake_core::api;
+use handshake_core::api::account_scope::ProductLocalResourceScope;
 use handshake_core::swarm_orchestration::model_lane::{
     model_lane_context_bundle_id_for_handoff, LaunchAuthority, ModelLaneAuthority,
     ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneHandoffSelectionState,
@@ -21,7 +23,8 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
-    ActorPrincipalId, OwnerAccountId, ResourceScope,
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, ResourceScope, WorkspaceScopeRef,
 };
 use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
 use handshake_core::user_manual::seed::ensure_seeded;
@@ -29,6 +32,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::collections::BTreeSet;
+use tower::ServiceExt;
 use user_manual_support::{app_state_for, start_server};
 
 const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
@@ -43,14 +47,8 @@ const LOOM_BLOCK_ID: &str = "loom-block-mt010-navigation-handoff";
 struct NavigationFixture {
     base: String,
     _server: tokio::task::JoinHandle<()>,
-    /// Carries the account scope on EVERY request by default.
-    ///
-    /// HBR-PRIV made the navigation routes account-scoped: they read through
-    /// `ModelLaneStore::new_for_owner`, so an unscoped caller is refused before
-    /// any row is touched. Setting the header as a client default keeps that
-    /// requirement in one place instead of scattering it over every probe, and
-    /// `navigation_rejects_a_caller_with_no_account_scope` below proves the
-    /// refusal is real rather than something this default quietly papers over.
+    /// Requests use the server-owned exact scope installed on the production
+    /// extractor; client headers are optional equality assertions only.
     http: reqwest::Client,
     store: ModelLaneStore,
 }
@@ -525,32 +523,23 @@ async fn navigation_fixture() -> NavigationFixture {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated navigation schema");
-    // Seed UNDER an owning account, not unscoped. The routes read through an
-    // account-scoped store, so rows written with a NULL owner would simply be
-    // invisible to every probe (404, not 403) and the suite would prove nothing
-    // about the navigation projections it exists to cover.
-    let owner = OwnerAccountId::mint();
-    let scope = ResourceScope::new(owner, ActorPrincipalId::mint());
-    let store = ModelLaneStore::new_scoped(pool.clone(), scope);
+    let exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!("mt010-nav-{}", uuid::Uuid::now_v7()))
+            .expect("navigation workspace"),
+    };
+    let authority = ProductLocalResourceScope::from_exact(exact.clone()).expect("exact scope");
+    let store = ModelLaneStore::new_scoped(pool.clone(), authority.resource_scope());
     seed_navigation_run(&pool, &store).await;
     let state = app_state_for(&kpg.schema_url).await;
-    let (base, server) = start_server(api::routes(state)).await;
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        "x-handshake-owner-account",
-        owner
-            .as_uuid()
-            .to_string()
-            .parse()
-            .expect("uuid is a valid header value"),
-    );
+    let (base, server) = start_server(api::routes(state).layer(Extension(authority))).await;
     NavigationFixture {
         base,
         _server: server,
-        http: reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .expect("scoped http client"),
+        http: reqwest::Client::new(),
         store,
     }
 }
@@ -560,14 +549,28 @@ async fn navigation_fixture() -> NavigationFixture {
 /// Without this, `navigation_fixture`'s default header could be masking a route
 /// that never enforced scope at all, and every other test here would still pass.
 #[tokio::test]
-async fn navigation_rejects_a_caller_with_no_account_scope() {
+async fn navigation_rejects_a_mismatched_client_scope_assertion() {
     let fx = navigation_fixture().await;
-    let unscoped = reqwest::Client::new();
+    let mismatched = reqwest::Client::builder()
+        .default_headers({
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(
+                "x-handshake-owner-account",
+                OwnerAccountId::mint()
+                    .as_uuid()
+                    .to_string()
+                    .parse()
+                    .expect("uuid header"),
+            );
+            headers
+        })
+        .build()
+        .expect("mismatched assertion client");
     for route in [
         "/swarm/model-lanes/navigation/runs/run-mt010-navigation",
         "/swarm/model-lanes/navigation/lookup",
     ] {
-        let response = unscoped
+        let response = mismatched
             .get(format!("{}{}", fx.base, route))
             .send()
             .await
@@ -575,21 +578,378 @@ async fn navigation_rejects_a_caller_with_no_account_scope() {
         assert_eq!(
             response.status(),
             reqwest::StatusCode::FORBIDDEN,
-            "{route} must refuse a caller that declares no owning account"
+            "{route} must refuse a client scope assertion that contradicts server authority"
         );
         let body: Value = response.json().await.expect("denial body");
         // The stable machine-readable code lives in `error`; `detail` is the
         // human sentence. Asserting the code is what pins the contract - a
         // reworded detail must not be able to break a caller.
-        assert_eq!(
-            body["error"], "RESOURCE_SCOPE_REQUIRED",
-            "the refusal must carry the stable reason code"
-        );
+        assert_eq!(body["error"], "RESOURCE_SCOPE_MISMATCH");
         assert!(
             body.get("run_id").is_none() && body.get("lane_id").is_none(),
             "a scope refusal must not carry resource identifiers (HBR-PRIV-004), got {body}"
         );
     }
+}
+
+#[tokio::test]
+async fn diagnostics_and_navigation_hide_same_owner_workspace_wrong_exact_attribution() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("real PostgreSQL is required for exact diagnostics/navigation proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated exact diagnostics/navigation schema");
+    let exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!("mt023-nav-{}", uuid::Uuid::now_v7()))
+            .expect("workspace scope"),
+    };
+    let authority =
+        ProductLocalResourceScope::from_exact(exact.clone()).expect("complete exact scope");
+    let store = ModelLaneStore::new_scoped(pool.clone(), authority.resource_scope());
+    seed_navigation_run(&pool, &store).await;
+    let state = app_state_for(&kpg.schema_url).await;
+
+    let scoped_router = |scope: ExactResourceScopeAttribution| {
+        let authority =
+            ProductLocalResourceScope::from_exact(scope).expect("complete exact reader scope");
+        api::model_lane_navigation::routes(state.clone())
+            .merge(api::diagnostics::routes(state.clone()))
+            .layer(Extension(authority))
+    };
+    for path in [
+        format!("/swarm/model-lanes/navigation/runs/{RUN_ID}"),
+        format!("/swarm/model-lanes/diagnostics/{RUN_ID}"),
+    ] {
+        let response = scoped_router(exact.clone())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(&path)
+                    .body(axum::body::Body::empty())
+                    .expect("exact owner request"),
+            )
+            .await
+            .expect("exact owner response");
+        assert_eq!(response.status(), axum::http::StatusCode::OK, "{path}");
+
+        for foreign in [
+            ExactResourceScopeAttribution {
+                actor_principal_id: ActorPrincipalId::mint(),
+                ..exact.clone()
+            },
+            ExactResourceScopeAttribution {
+                authenticated_session_id: AuthenticatedSessionRef::mint(),
+                ..exact.clone()
+            },
+            ExactResourceScopeAttribution {
+                access_space_id: AccessSpaceRef::mint(),
+                ..exact.clone()
+            },
+        ] {
+            let response = scoped_router(foreign)
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri(&path)
+                        .body(axum::body::Body::empty())
+                        .expect("foreign exact request"),
+                )
+                .await
+                .expect("foreign exact response");
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::NOT_FOUND,
+                "same owner/workspace foreign exact scope must not discover {path}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn navigation_absent_foreign_and_corrupt_origins_have_one_public_failure_shape() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("real PostgreSQL is required for navigation failure-shape proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated navigation failure-shape schema");
+    let exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!("mt004-nav-{}", uuid::Uuid::now_v7()))
+            .expect("workspace scope"),
+    };
+    let authority = ProductLocalResourceScope::from_exact(exact.clone()).expect("exact scope");
+    let store = ModelLaneStore::new_scoped(pool.clone(), authority.resource_scope());
+    seed_navigation_run(&pool, &store).await;
+    let state = app_state_for(&kpg.schema_url).await;
+    let request = |scope: ExactResourceScopeAttribution, lane_id: &str| {
+        let authority = ProductLocalResourceScope::from_exact(scope).expect("exact reader scope");
+        api::model_lane_navigation::routes(state.clone())
+            .layer(Extension(authority))
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/swarm/model-lanes/navigation/lanes/{lane_id}"))
+                    .body(axum::body::Body::empty())
+                    .expect("navigation request"),
+            )
+    };
+    async fn shape(response: axum::response::Response) -> (axum::http::StatusCode, Vec<u8>) {
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read navigation error body")
+            .to_vec();
+        (status, body)
+    }
+
+    let absent = shape(
+        request(exact.clone(), "lane-mt004-absent")
+            .await
+            .expect("absent response"),
+    )
+    .await;
+    let foreign = shape(
+        request(
+            ExactResourceScopeAttribution {
+                actor_principal_id: ActorPrincipalId::mint(),
+                ..exact.clone()
+            },
+            LANE_ID,
+        )
+        .await
+        .expect("foreign response"),
+    )
+    .await;
+    assert_eq!(
+        foreign, absent,
+        "foreign origin disclosed a different failure shape"
+    );
+
+    let foreign_exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!(
+            "mt004-nav-foreign-corrupt-{}",
+            uuid::Uuid::now_v7()
+        ))
+        .expect("foreign corrupt workspace"),
+    };
+    let foreign_authority =
+        ProductLocalResourceScope::from_exact(foreign_exact).expect("foreign corrupt scope");
+    let foreign_store =
+        ModelLaneStore::new_scoped(pool.clone(), foreign_authority.resource_scope());
+    let foreign_run_id = "run-mt004-foreign-corrupt";
+    let foreign_lane_id = "lane-mt004-foreign-corrupt";
+    foreign_store
+        .record_run(sample_run(foreign_run_id, vec![foreign_lane_id.into()]))
+        .await
+        .expect("record foreign run for pre-scope integrity oracle");
+    foreign_store
+        .record_lane(sample_lane(foreign_lane_id, foreign_run_id))
+        .await
+        .expect("record foreign lane for pre-scope integrity oracle");
+    let foreign_run_event: String =
+        sqlx::query_scalar("SELECT event_ledger_event_id FROM model_lane_runs WHERE run_id = $1")
+            .bind(foreign_run_id)
+            .fetch_one(&pool)
+            .await
+            .expect("read foreign run EventLedger id");
+    sqlx::query(
+        "UPDATE kernel_event_ledger SET payload = jsonb_set(payload, '{actor_principal_id}', to_jsonb($2::uuid)) WHERE event_id = $1",
+    )
+    .bind(foreign_run_event)
+    .bind(ActorPrincipalId::mint().as_uuid())
+    .execute(&pool)
+    .await
+    .expect("corrupt foreign run EventLedger authority");
+    let request_run = |run_id: &str| {
+        let authority =
+            ProductLocalResourceScope::from_exact(exact.clone()).expect("owner exact reader");
+        api::model_lane_navigation::routes(state.clone())
+            .layer(Extension(authority))
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/swarm/model-lanes/navigation/runs/{run_id}"))
+                    .body(axum::body::Body::empty())
+                    .expect("run navigation request"),
+            )
+    };
+    let absent_run = shape(
+        request_run("run-mt004-absent")
+            .await
+            .expect("absent run response"),
+    )
+    .await;
+    let corrupt_foreign_run = shape(
+        request_run(foreign_run_id)
+            .await
+            .expect("foreign corrupt run response"),
+    )
+    .await;
+    assert_eq!(
+        corrupt_foreign_run, absent_run,
+        "foreign corruption disclosed a pre-scope integrity oracle"
+    );
+
+    let original_actor: uuid::Uuid = sqlx::query_scalar(
+        "UPDATE model_lanes SET actor_principal_id = $2 WHERE lane_id = $1 \
+         RETURNING $3::uuid",
+    )
+    .bind(LANE_ID)
+    .bind(ActorPrincipalId::mint().as_uuid())
+    .bind(exact.actor_principal_id.as_uuid())
+    .fetch_one(&pool)
+    .await
+    .expect("forge lane projection scope");
+    let forged_scope = shape(
+        request(exact.clone(), LANE_ID)
+            .await
+            .expect("forged-scope response"),
+    )
+    .await;
+    assert_eq!(
+        forged_scope, absent,
+        "forged scope disclosed a different failure shape"
+    );
+    sqlx::query("UPDATE model_lanes SET actor_principal_id = $2 WHERE lane_id = $1")
+        .bind(LANE_ID)
+        .bind(original_actor)
+        .execute(&pool)
+        .await
+        .expect("restore lane projection scope");
+
+    let event_id: String =
+        sqlx::query_scalar("SELECT event_ledger_event_id FROM model_lanes WHERE lane_id = $1")
+            .bind(LANE_ID)
+            .fetch_one(&pool)
+            .await
+            .expect("read lane EventLedger id");
+    sqlx::query(
+        "UPDATE kernel_event_ledger SET payload = jsonb_set(payload, '{actor_principal_id}', to_jsonb($2::uuid)) WHERE event_id = $1",
+    )
+    .bind(event_id)
+    .bind(ActorPrincipalId::mint().as_uuid())
+    .execute(&pool)
+    .await
+    .expect("tamper lane EventLedger scope");
+    let corrupt = shape(
+        request(exact, LANE_ID)
+            .await
+            .expect("corrupt-origin response"),
+    )
+    .await;
+    assert_eq!(
+        corrupt, absent,
+        "corrupt origin disclosed a different failure shape"
+    );
+    assert_eq!(absent.0, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&absent.1).unwrap(),
+        json!({"error":"not_found"})
+    );
+}
+
+#[tokio::test]
+async fn loom_lookup_excludes_foreign_handoff_collisions_before_ambiguity() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("real PostgreSQL is required for scoped loom collision proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated loom collision schema");
+    let owner_exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!("mt004-loom-owner-{}", uuid::Uuid::now_v7()))
+            .expect("owner workspace"),
+    };
+    let owner_authority =
+        ProductLocalResourceScope::from_exact(owner_exact.clone()).expect("owner exact scope");
+    let owner_store = ModelLaneStore::new_scoped(pool.clone(), owner_authority.resource_scope());
+    seed_navigation_run(&pool, &owner_store).await;
+
+    let foreign_exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!(
+            "mt004-loom-foreign-{}",
+            uuid::Uuid::now_v7()
+        ))
+        .expect("foreign workspace"),
+    };
+    let foreign_authority =
+        ProductLocalResourceScope::from_exact(foreign_exact).expect("foreign exact scope");
+    let foreign_store =
+        ModelLaneStore::new_scoped(pool.clone(), foreign_authority.resource_scope());
+    let foreign_run = "run-mt004-foreign-loom";
+    let foreign_lane = "lane-mt004-foreign-loom";
+    let foreign_message = "msg-mt004-foreign-loom";
+    foreign_store
+        .record_run(sample_run(foreign_run, vec![foreign_lane.into()]))
+        .await
+        .expect("record foreign loom run");
+    foreign_store
+        .record_lane(sample_lane(foreign_lane, foreign_run))
+        .await
+        .expect("record foreign loom lane");
+    let message = sample_message(foreign_message, foreign_run, foreign_lane, 1);
+    foreign_store
+        .record_message(message.clone())
+        .await
+        .expect("record foreign loom message");
+    foreign_store
+        .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(&message))
+        .await
+        .expect("record foreign loom artifact");
+    let mut handoff = sample_context_bundle_handoff_for_message(&message);
+    handoff.handoff_id = "handoff-mt004-foreign-loom".into();
+    handoff.handoff_span_id = "span-handoff-mt004-foreign-loom".into();
+    handoff.idempotency_key = "idem-handoff-mt004-foreign-loom".into();
+    handoff.context_bundle_id = model_lane_context_bundle_id_for_handoff(&handoff)
+        .expect("derive foreign loom ContextBundle id");
+    foreign_store
+        .record_context_bundle_handoff(handoff)
+        .await
+        .expect("record foreign handoff sharing owner loom block");
+
+    let state = app_state_for(&kpg.schema_url).await;
+    let response = api::model_lane_navigation::routes(state)
+        .layer(Extension(owner_authority))
+        .oneshot(
+            axum::http::Request::builder()
+                .uri(format!(
+                    "/swarm/model-lanes/navigation/lookup?loom_block_id={LOOM_BLOCK_ID}"
+                ))
+                .body(axum::body::Body::empty())
+                .expect("owner loom lookup request"),
+        )
+        .await
+        .expect("owner loom lookup response");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read owner loom lookup body");
+    let projection: ModelLaneNavigationProjection =
+        serde_json::from_slice(&body).expect("decode owner loom projection");
+    assert_eq!(projection.run.expect("owner run").run_id, RUN_ID);
 }
 
 async fn seed_navigation_run(pool: &PgPool, store: &ModelLaneStore) {

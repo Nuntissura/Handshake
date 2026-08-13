@@ -2258,6 +2258,7 @@ fn cloud_spawn_contract(run_id: &str, lane_id: &str) -> DexterityLaunchContract 
     DexterityLaunchContract {
         run_id: run_id.into(),
         lane_id: lane_id.into(),
+        restart_generation: 0,
         trace_id: format!("trace-{run_id}"),
         run_span_id: format!("span-{run_id}"),
         lane_span_id: format!("span-{lane_id}"),

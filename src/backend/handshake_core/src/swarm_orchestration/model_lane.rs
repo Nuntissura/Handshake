@@ -47,9 +47,10 @@ use super::error::SwarmError;
 use super::factory::LiveSession;
 use super::ids::{ByokCloudProvider, SpawnRequest};
 use super::resource_scope::{
-    stored_resource_scope_from_row, AccountBoundAuthority, ResourceAccessContext, ResourceScope,
-    ResourceScopeQuery, ScopeColumnValues, ScopeDenied, SystemScopeAuthority,
-    RESOURCE_SCOPE_INSERT_COLUMNS, RESOURCE_SCOPE_SELECT_COLUMNS,
+    stored_resource_scope_from_row, AccessSpaceRef, AccountBoundAuthority, ActorPrincipalId,
+    AuthenticatedSessionRef, ExactResourceScopeAttribution, OwnerAccountId, ResourceAccessContext,
+    ResourceScope, ResourceScopeQuery, ScopeColumnValues, ScopeDenied, SystemScopeAuthority,
+    WorkspaceScopeRef, RESOURCE_SCOPE_INSERT_COLUMNS, RESOURCE_SCOPE_SELECT_COLUMNS,
 };
 
 const SOURCE_COMPONENT: &str = "dexterity_model_lane";
@@ -73,6 +74,8 @@ pub enum ModelLaneError {
     AmbiguousLookup(String),
     #[error("model lane not found: {0}")]
     NotFound(String),
+    #[error("model lane integrity violation: {0}")]
+    IntegrityViolation(String),
     #[error("model lane storage error: {0}")]
     Storage(#[from] StorageError),
     #[error("model lane database error: {0}")]
@@ -92,6 +95,20 @@ pub struct ModelLaneStore {
     /// after deserialization, because HBR-PRIV-002 says hiding a row in one
     /// layer is never sufficient.
     access: ResourceAccessContext,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DurableSessionCleanupReceipt {
+    pub instance_id: String,
+    pub lane_id: Option<String>,
+    pub process_uuid: Uuid,
+    pub terminal_event_id: Uuid,
+    pub resource_evicted_event_id: Uuid,
+    pub status: String,
+    pub terminal_state: String,
+    pub reason: String,
+    pub exit_code: i32,
+    pub last_error: Option<String>,
 }
 
 impl ModelLaneStore {
@@ -139,7 +156,10 @@ impl ModelLaneStore {
     }
 
     /// The scope stamped onto rows written through this store, if any.
-    pub(crate) fn write_scope(&self) -> Option<&ResourceScope> {
+    /// Trusted write scope bound at store construction. Production hosts use
+    /// this to derive projection attribution from the durable authority rather
+    /// than accepting account identifiers from request or renderer payloads.
+    pub fn write_scope(&self) -> Option<&ResourceScope> {
         self.access.write_scope()
     }
 
@@ -165,6 +185,10 @@ impl ModelLaneStore {
     pub(crate) async fn record_session_cleanup_receipt(
         &self,
         instance_id: &str,
+        lane_id: Option<&str>,
+        process_uuid: Uuid,
+        terminal_event_id: Uuid,
+        resource_evicted_event_id: Uuid,
         status: &str,
         terminal_state: &str,
         reason: &str,
@@ -174,6 +198,10 @@ impl ModelLaneStore {
         let record_json = serde_json::json!({
             "schema_id": "hsk.swarm_session_cleanup_receipt@1",
             "instance_id": instance_id,
+            "lane_id": lane_id,
+            "process_uuid": process_uuid,
+            "terminal_event_id": terminal_event_id,
+            "resource_evicted_event_id": resource_evicted_event_id,
             "status": status,
             "terminal_state": terminal_state,
             "reason": reason,
@@ -208,6 +236,94 @@ impl ModelLaneStore {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    /// Durable cleanup intents that survived a coordinator/runtime restart.
+    /// This is deliberately system-authority-only: boot reconciliation is a
+    /// cross-owner operation and must not become an account disclosure route.
+    pub(crate) async fn pending_session_cleanup_receipts(
+        &self,
+    ) -> ModelLaneResult<Vec<DurableSessionCleanupReceipt>> {
+        self.require_system_authority("pending swarm-session cleanup restart reconciliation")?;
+        let rows = sqlx::query(
+            r#"
+            SELECT instance_id, status, terminal_state, reason, exit_code,
+                   last_error, record_json
+            FROM swarm_session_cleanup_receipts
+            WHERE status <> 'completed'
+            ORDER BY updated_at_unix_ms ASC, instance_id ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let record: Value = row.try_get("record_json")?;
+                let required = |field: &str| {
+                    record
+                        .get(field)
+                        .and_then(Value::as_str)
+                        .filter(|value| !value.trim().is_empty())
+                        .ok_or_else(|| {
+                            ModelLaneError::IntegrityViolation(format!(
+                                "pending cleanup receipt is missing {field}"
+                            ))
+                        })
+                };
+                Ok(DurableSessionCleanupReceipt {
+                    instance_id: row.try_get("instance_id")?,
+                    lane_id: record
+                        .get("lane_id")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                    process_uuid: Uuid::parse_str(required("process_uuid")?).map_err(|error| {
+                        ModelLaneError::IntegrityViolation(format!(
+                            "pending cleanup receipt process_uuid is invalid: {error}"
+                        ))
+                    })?,
+                    terminal_event_id: Uuid::parse_str(required("terminal_event_id")?).map_err(
+                        |error| {
+                            ModelLaneError::IntegrityViolation(format!(
+                                "pending cleanup receipt terminal_event_id is invalid: {error}"
+                            ))
+                        },
+                    )?,
+                    resource_evicted_event_id: Uuid::parse_str(required(
+                        "resource_evicted_event_id",
+                    )?)
+                    .map_err(|error| {
+                        ModelLaneError::IntegrityViolation(format!(
+                            "pending cleanup receipt resource_evicted_event_id is invalid: {error}"
+                        ))
+                    })?,
+                    status: row.try_get("status")?,
+                    terminal_state: row.try_get("terminal_state")?,
+                    reason: row.try_get("reason")?,
+                    exit_code: row.try_get("exit_code")?,
+                    last_error: row.try_get("last_error")?,
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) async fn cleanup_process_is_durably_closed(
+        &self,
+        process_uuid: Uuid,
+    ) -> ModelLaneResult<bool> {
+        self.require_system_authority("swarm-session cleanup process closure verification")?;
+        let closed: Option<bool> = sqlx::query_scalar(
+            r#"
+            SELECT stopped_at IS NOT NULL
+               AND exit_code IS NOT NULL
+               AND stop_reason IS NOT NULL
+            FROM kernel_process_lifecycle
+            WHERE process_uuid = $1
+            "#,
+        )
+        .bind(process_uuid)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(closed.unwrap_or(false))
     }
 
     pub(crate) async fn session_cleanup_completed(
@@ -262,7 +378,9 @@ impl ModelLaneStore {
                 &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
             )
             .await?;
-            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await {
+            if let Err(error) =
+                ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await
+            {
                 tx.rollback().await?;
                 return self
                     .deny_cloud_launch(
@@ -272,7 +390,8 @@ impl ModelLaneStore {
                     .await;
             }
         }
-        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
+        let stored_run =
+            record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
         let stored_lane = record_lane_tx(&mut tx, records.1, self.scope_columns()).await?;
         tx.commit().await?;
         Ok((stored_run, stored_lane))
@@ -300,7 +419,8 @@ impl ModelLaneStore {
         ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await?;
         entered.notify_one();
         release.notified().await;
-        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
+        let stored_run =
+            record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
         let stored_lane = record_lane_tx(&mut tx, records.1, self.scope_columns()).await?;
         tx.commit().await?;
         Ok((stored_run, stored_lane))
@@ -335,7 +455,9 @@ impl ModelLaneStore {
                 &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
             )
             .await?;
-            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await {
+            if let Err(error) =
+                ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await
+            {
                 tx.rollback().await?;
                 return self
                     .deny_cloud_launch(
@@ -416,6 +538,15 @@ impl ModelLaneStore {
         Ok(stored_message)
     }
 
+    pub(crate) async fn record_message_with_validation_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        message: NewModelLaneMessage,
+        scope: ScopeColumnValues<'_>,
+    ) -> ModelLaneResult<ModelLaneMessageRecord> {
+        validate_message(&message)?;
+        Self::record_message_tx(tx, message, scope).await
+    }
+
     pub(crate) async fn record_context_bundle_artifact_binding_with_validation_tx(
         tx: &mut Transaction<'_, Postgres>,
         binding: NewModelLaneContextBundleArtifactBinding,
@@ -443,7 +574,19 @@ impl ModelLaneStore {
         scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
-        if let Some(existing) = message_by_idempotency_key_tx(tx, &input.idempotency_key).await? {
+        lock_idempotency_key_tx(tx, &format!("model-lane-message:{}", input.message_id)).await?;
+        require_message_physical_keys_authorized_tx(
+            tx,
+            &input.message_id,
+            &input.idempotency_key,
+            scope,
+        )
+        .await?;
+        if let Some(existing) =
+            message_by_idempotency_key_for_write_scope_tx(tx, &input.idempotency_key, scope).await?
+        {
+            validate_stored_message_eventledger_authority_for_write_scope_tx(tx, scope, &existing)
+                .await?;
             if existing.payload_sha256 == input.payload_sha256 {
                 // Spec 4.3.9.2.5: "Duplicate retries with the same
                 // idempotency_key and payload hash MUST be idempotent." The
@@ -462,7 +605,6 @@ impl ModelLaneStore {
                     &existing.inner,
                     &retry_identity,
                 )?;
-                validate_stored_crdt_message_authority_tx(tx, &existing).await?;
                 return Ok(existing);
             }
             return Err(ModelLaneError::IdempotencyConflict(format!(
@@ -477,23 +619,26 @@ impl ModelLaneStore {
             ModelLaneTarget::Lane(target_lane_id) if target_lane_id != &input.from_lane_id => {
                 if target_lane_id < &input.from_lane_id {
                     let target_lane =
-                        lane_by_id_for_run_tx(tx, &input.run_id, target_lane_id).await?;
-                    let source_lane = lane_by_id_tx(tx, &input.from_lane_id).await?;
+                        message_lane_by_id_for_run_tx(tx, &input.run_id, target_lane_id, scope)
+                            .await?;
+                    let source_lane = message_lane_by_id_tx(tx, &input.from_lane_id, scope).await?;
                     (source_lane, Some(target_lane))
                 } else {
-                    let source_lane = lane_by_id_tx(tx, &input.from_lane_id).await?;
+                    let source_lane = message_lane_by_id_tx(tx, &input.from_lane_id, scope).await?;
                     let target_lane =
-                        lane_by_id_for_run_tx(tx, &input.run_id, target_lane_id).await?;
+                        message_lane_by_id_for_run_tx(tx, &input.run_id, target_lane_id, scope)
+                            .await?;
                     (source_lane, Some(target_lane))
                 }
             }
             ModelLaneTarget::Lane(_) => {
-                let source_lane = lane_by_id_tx(tx, &input.from_lane_id).await?;
+                let source_lane = message_lane_by_id_tx(tx, &input.from_lane_id, scope).await?;
                 (source_lane.clone(), Some(source_lane))
             }
-            ModelLaneTarget::Broadcast | ModelLaneTarget::Coordinator => {
-                (lane_by_id_tx(tx, &input.from_lane_id).await?, None)
-            }
+            ModelLaneTarget::Broadcast | ModelLaneTarget::Coordinator => (
+                message_lane_by_id_tx(tx, &input.from_lane_id, scope).await?,
+                None,
+            ),
         };
         let (source_lane, target_lane) = target_lane;
         require_equal(
@@ -503,7 +648,7 @@ impl ModelLaneStore {
             &source_lane.run_id,
         )?;
         ensure_message_lane_is_live(&source_lane, "source")?;
-        let source_run = run_by_id_tx(tx, &input.run_id).await?;
+        let source_run = message_run_by_id_tx(tx, &input.run_id, scope).await?;
         require_equal(
             "message.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -554,7 +699,7 @@ impl ModelLaneStore {
         }
         match input.authority {
             ModelLaneAuthority::Promoted => {
-                ensure_promoted_message_has_decision_tx(tx, &input).await?;
+                ensure_promoted_message_has_decision_tx(tx, &input, scope).await?;
             }
             ModelLaneAuthority::OperatorDecision | ModelLaneAuthority::ValidatorVerdict
                 if cloud_source =>
@@ -567,12 +712,23 @@ impl ModelLaneStore {
             _ => {}
         }
 
-        let payload = json!({
+        let mut payload = json!({
             "schema_id": "hsk.model_lane_message@1",
             "dexterity_kernel": "Dexterity",
             "record": input,
             "crdt_authority_binding": crdt_authority_binding,
         });
+        if let Some(exact_scope) = exact_resource_scope_from_columns(scope, "ModelLaneMessage")? {
+            exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLaneMessage could not stamp complete resource attribution".into(),
+                )
+            })?;
+        } else if input.authority == ModelLaneAuthority::Promoted {
+            return Err(ModelLaneError::AuthorityDenied(
+                "Promoted ModelLaneMessage could not stamp complete resource attribution".into(),
+            ));
+        }
         let event = model_lane_event(
             KernelEventType::ModelResponseRecorded,
             "model_lane_message",
@@ -641,13 +797,14 @@ impl ModelLaneStore {
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
         } else {
-            let existing = message_by_idempotency_key_tx(tx, &record.idempotency_key).await?;
+            let existing =
+                message_by_idempotency_key_for_write_scope_tx(tx, &record.idempotency_key, scope)
+                    .await?;
             let existing = existing.ok_or_else(|| {
-                ModelLaneError::NotFound(format!(
-                    "idempotency_key {} after insert conflict",
-                    record.idempotency_key
-                ))
+                ModelLaneError::AuthorityDenied("ModelLaneMessage authority unavailable".into())
             })?;
+            validate_stored_message_eventledger_authority_for_write_scope_tx(tx, scope, &existing)
+                .await?;
             if existing.payload_sha256 == record.payload_sha256 {
                 ensure_idempotent_input_matches(
                     "model_lane_message",
@@ -860,14 +1017,15 @@ impl ModelLaneStore {
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?;
 
-        let projection = cloud_projection_plan_by_id_tx(&mut tx, &self.access, &prepared.projection_plan_id)
-            .await?
-            .ok_or_else(|| {
-                ModelLaneError::AuthorityDenied(format!(
-                    "CX-MM-007 ProjectionPlan {} is not durable",
-                    prepared.projection_plan_id
-                ))
-            })?;
+        let projection =
+            cloud_projection_plan_by_id_tx(&mut tx, &self.access, &prepared.projection_plan_id)
+                .await?
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 ProjectionPlan {} is not durable",
+                        prepared.projection_plan_id
+                    ))
+                })?;
         validate_cloud_projection_authority_tx(&mut tx, &projection).await?;
         // Consent receipts are durable evidence, including evidence that does
         // not authorize the referenced projection. Pair coherence is therefore
@@ -1179,14 +1337,15 @@ impl ModelLaneStore {
                 ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
             })?;
         validate_cloud_consent_authority_tx(&mut tx, &existing).await?;
-        let projection = cloud_projection_plan_by_id_tx(&mut tx, &self.access, &existing.projection_plan_id)
-            .await?
-            .ok_or_else(|| {
-                ModelLaneError::AuthorityDenied(format!(
-                    "CX-MM-007 ProjectionPlan {} is missing during revocation",
-                    existing.projection_plan_id
-                ))
-            })?;
+        let projection =
+            cloud_projection_plan_by_id_tx(&mut tx, &self.access, &existing.projection_plan_id)
+                .await?
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 ProjectionPlan {} is missing during revocation",
+                        existing.projection_plan_id
+                    ))
+                })?;
         validate_cloud_projection_authority_tx(&mut tx, &projection).await?;
         validate_cloud_authority_pair(&projection, &existing)?;
         let identical_retry = existing.status == ModelLaneCloudConsentReceiptStatus::Revoked;
@@ -1463,11 +1622,12 @@ impl ModelLaneStore {
             &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
         )
         .await?;
-        let revoked_receipt = cloud_consent_receipt_by_id_tx(&mut tx, &self.access, consent_receipt_id)
-            .await?
-            .ok_or_else(|| {
-                ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
-            })?;
+        let revoked_receipt =
+            cloud_consent_receipt_by_id_tx(&mut tx, &self.access, consent_receipt_id)
+                .await?
+                .ok_or_else(|| {
+                    ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
+                })?;
         validate_cloud_consent_authority_tx(&mut tx, &revoked_receipt).await?;
         if revoked_receipt.status != ModelLaneCloudConsentReceiptStatus::Revoked
             || revoked_receipt.revocation_input_hash.as_deref()
@@ -1626,7 +1786,7 @@ impl ModelLaneStore {
                         .bind(Option::<String>::None),
                 )
                 .execute(&mut *tx)
-            .await?;
+                .await?;
             cancelled.push(record);
         }
 
@@ -1684,6 +1844,22 @@ impl ModelLaneStore {
         &self,
         input: NewModelLanePromotionDecision,
     ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        let exact_scope = self
+            .write_scope()
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "PromotionGate requires complete account/principal/session/AccessSpace/workspace authority"
+                        .into(),
+                )
+            })
+            .and_then(|scope| {
+                ExactResourceScopeAttribution::try_from_resource_scope(scope).map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "PromotionGate requires complete account/principal/session/AccessSpace/workspace authority"
+                            .into(),
+                    )
+                })
+            })?;
         let mut input = input;
         let routing_graph = super::routing::ModelLaneRoutingGraph::for_policy(input.routing_policy);
         routing_graph
@@ -1699,10 +1875,27 @@ impl ModelLaneStore {
         validate_promotion_decision(&input)?;
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        let prepared = prepare_promotion_decision_tx(&mut tx, input).await?;
+        lock_idempotency_key_tx(
+            &mut tx,
+            &format!("model-lane-promotion-decision:{}", input.decision_id),
+        )
+        .await?;
+        require_promotion_physical_keys_authorized_tx(
+            &mut tx,
+            &self.access,
+            &input.decision_id,
+            &input.idempotency_key,
+        )
+        .await?;
+        let prepared =
+            prepare_promotion_decision_tx(&mut tx, &self.access, &exact_scope, input).await?;
 
-        if let Some(existing) =
-            promotion_decision_by_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?
+        if let Some(existing) = promotion_decision_by_idempotency_key_tx(
+            &mut tx,
+            &self.access,
+            &prepared.idempotency_key,
+        )
+        .await?
         {
             if existing.canonical_decision_hash == prepared.canonical_decision_hash {
                 tx.commit().await?;
@@ -1715,7 +1908,9 @@ impl ModelLaneStore {
             )));
         }
 
-        if let Some(existing) = promotion_decision_by_id_tx(&mut tx, &prepared.decision_id).await? {
+        if let Some(existing) =
+            promotion_decision_by_id_tx(&mut tx, &self.access, &prepared.decision_id).await?
+        {
             if existing.canonical_decision_hash == prepared.canonical_decision_hash {
                 tx.commit().await?;
                 return Ok(existing);
@@ -1731,11 +1926,16 @@ impl ModelLaneStore {
             ModelLanePromotionOutcome::Approved => KernelEventType::PromotionAccepted,
             ModelLanePromotionOutcome::Denied => KernelEventType::PromotionRejected,
         };
-        let payload = json!({
+        let mut payload = json!({
             "schema_id": "hsk.model_lane_promotion_decision@1",
             "dexterity_kernel": "Dexterity",
             "record": &prepared,
         });
+        exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+            ModelLaneError::AuthorityDenied(
+                "PromotionGate could not stamp complete resource attribution".into(),
+            )
+        })?;
         let event = model_lane_event(
             event_type,
             "model_lane_promotion_decision",
@@ -1757,8 +1957,22 @@ impl ModelLaneStore {
             transaction_seq: sequence,
             ..prepared
         };
+        let mut final_payload = json!({
+            "schema_id": "hsk.model_lane_promotion_decision@1",
+            "dexterity_kernel": "Dexterity",
+            "record": &record,
+        });
+        exact_scope
+            .stamp_json_object(&mut final_payload)
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "PromotionGate could not stamp complete resource attribution".into(),
+                )
+            })?;
+        stamp_kernel_event_payload_tx(&mut tx, &record.event_ledger_event_id, final_payload)
+            .await?;
 
-        let inserted = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_promotion_decisions (
                 decision_id, run_id, trace_id, decision_span_id,
@@ -1771,58 +1985,68 @@ impl ModelLaneStore {
                 base_snapshot_ref, current_base_snapshot_ref, state_vector,
                 current_state_vector, promotion_gate_ref, promotion_receipt_ref,
                 event_ledger_stream_id, event_ledger_event_id, event_ledger_seq,
-                event_stream_version, transaction_seq, record_json
+                event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                 $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33
+                $31,$32,$33,$34,$35,$36,$37,$38
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
-            "#,
-        )
-        .bind(&record.decision_id)
-        .bind(&record.run_id)
-        .bind(&record.trace_id)
-        .bind(&record.decision_span_id)
-        .bind(&record.coordinator_session_id)
-        .bind(record.routing_policy.as_str())
-        .bind(record.outcome.as_str())
-        .bind(record.final_state.as_str())
-        .bind(record.denial_reason.as_ref().map(|reason| reason.as_str()))
-        .bind(record.work_packet_id.as_deref())
-        .bind(record.micro_task_id.as_deref())
-        .bind(record.task_board_id.as_deref())
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.canonical_decision_hash)
-        .bind(&record.expected_event_ledger_aggregate_type)
-        .bind(&record.expected_event_ledger_aggregate_id)
-        .bind(record.expected_event_ledger_version)
-        .bind(record.current_event_ledger_version)
-        .bind(&record.schema_id)
-        .bind(record.current_schema_id.as_deref())
-        .bind(&record.base_snapshot_ref)
-        .bind(&record.current_base_snapshot_ref)
-        .bind(&record.state_vector)
-        .bind(&record.current_state_vector)
-        .bind(&record.promotion_gate_ref)
-        .bind(record.promotion_receipt_ref.as_deref())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut *tx)
-        .await?;
+            "#
+        );
+        let inserted = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
+                    .bind(&record.decision_id)
+                    .bind(&record.run_id)
+                    .bind(&record.trace_id)
+                    .bind(&record.decision_span_id)
+                    .bind(&record.coordinator_session_id)
+                    .bind(record.routing_policy.as_str())
+                    .bind(record.outcome.as_str())
+                    .bind(record.final_state.as_str())
+                    .bind(record.denial_reason.as_ref().map(|reason| reason.as_str()))
+                    .bind(record.work_packet_id.as_deref())
+                    .bind(record.micro_task_id.as_deref())
+                    .bind(record.task_board_id.as_deref())
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.canonical_decision_hash)
+                    .bind(&record.expected_event_ledger_aggregate_type)
+                    .bind(&record.expected_event_ledger_aggregate_id)
+                    .bind(record.expected_event_ledger_version)
+                    .bind(record.current_event_ledger_version)
+                    .bind(&record.schema_id)
+                    .bind(record.current_schema_id.as_deref())
+                    .bind(&record.base_snapshot_ref)
+                    .bind(&record.current_base_snapshot_ref)
+                    .bind(&record.state_vector)
+                    .bind(&record.current_state_vector)
+                    .bind(&record.promotion_gate_ref)
+                    .bind(record.promotion_receipt_ref.as_deref())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
         } else {
-            let existing =
-                promotion_decision_by_idempotency_key_tx(&mut tx, &record.idempotency_key).await?;
+            let existing = promotion_decision_by_idempotency_key_tx(
+                &mut tx,
+                &self.access,
+                &record.idempotency_key,
+            )
+            .await?;
             let existing = existing.ok_or_else(|| {
                 ModelLaneError::NotFound(format!(
                     "idempotency_key {} after promotion decision insert conflict",
@@ -1849,23 +2073,29 @@ impl ModelLaneStore {
         run_id: &str,
     ) -> ModelLaneResult<Vec<ModelLanePromotionDecisionRecord>> {
         require_token("run_id", run_id)?;
-        sqlx::query(
+        let predicate = self.access.sql_predicate(2);
+        let mut tx = self.pool.begin().await?;
+        let sql = format!(
             r#"
-            SELECT record_json
+            SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
             FROM model_lane_promotion_decisions
-            WHERE run_id = $1
+            WHERE run_id = $1{}
             ORDER BY event_ledger_seq ASC
             "#,
-        )
-        .bind(run_id)
-        .fetch_all(&self.pool)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect()
+            predicate.clause()
+        );
+        let records = predicate
+            .bind(sqlx::query(&sql).bind(run_id))
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .map(|row| authorize_and_decode_row(&self.access, row))
+            .collect::<ModelLaneResult<Vec<_>>>()?;
+        for record in &records {
+            validate_stored_promotion_decision_authority_tx(&mut tx, &self.access, record).await?;
+        }
+        tx.commit().await?;
+        Ok(records)
     }
 
     pub async fn record_context_bundle_artifact_binding(
@@ -1887,7 +2117,9 @@ impl ModelLaneStore {
         scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
         lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
-        run_by_id_tx(tx, &input.run_id).await?;
+        context_bundle_run_by_id_for_write_scope_tx(tx, &input.run_id, scope).await?;
+        let artifact_access =
+            ResourceAccessContext::for_exact_reader(promotion_exact_scope_from_columns(scope)?);
         let binding_hash = context_bundle_artifact_binding_hash(&input)?;
         let prepared = ModelLaneContextBundleArtifactBindingRecord {
             inner: input,
@@ -1899,10 +2131,20 @@ impl ModelLaneStore {
         };
 
         if let Some(existing) =
-            context_bundle_artifact_binding_by_idempotency_key_tx(tx, &prepared.idempotency_key)
-                .await?
+            context_bundle_artifact_binding_by_idempotency_key_for_write_scope_tx(
+                tx,
+                &prepared.idempotency_key,
+                scope,
+            )
+            .await?
         {
             if existing.artifact_binding_hash == prepared.artifact_binding_hash {
+                validate_stored_context_bundle_artifact_authority_tx(
+                    tx,
+                    &artifact_access,
+                    &existing,
+                )
+                .await?;
                 return Ok(existing);
             }
             return Err(ModelLaneError::IdempotencyConflict(format!(
@@ -1918,7 +2160,7 @@ impl ModelLaneStore {
             &prepared.idempotency_key,
             &prepared.work_packet_id,
             &prepared.event_ledger_stream_id,
-            context_bundle_artifact_binding_event_payload(&prepared),
+            context_bundle_artifact_binding_event_payload(&prepared, scope),
         )?;
         let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
         let sequence = stored_event.event_sequence;
@@ -1932,7 +2174,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             tx,
             &record.event_ledger_event_id,
-            context_bundle_artifact_binding_event_payload(&record),
+            context_bundle_artifact_binding_event_payload(&record, scope),
         )
         .await?;
 
@@ -1961,28 +2203,28 @@ impl ModelLaneStore {
         let inserted = scope
             .bind(
                 sqlx::query(&insert_sql)
-        .bind(&record.artifact_binding_id)
-        .bind(&record.run_id)
-        .bind(&record.trace_id)
-        .bind(&record.artifact_ref)
-        .bind(&record.artifact_sha256)
-        .bind(&record.content_hash)
-        .bind(&record.artifact_kind)
-        .bind(&record.artifact_manifest_ref)
-        .bind(&record.artifact_payload_ref)
-        .bind(&record.payload_json)
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.artifact_binding_hash)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?),
+                    .bind(&record.artifact_binding_id)
+                    .bind(&record.run_id)
+                    .bind(&record.trace_id)
+                    .bind(&record.artifact_ref)
+                    .bind(&record.artifact_sha256)
+                    .bind(&record.content_hash)
+                    .bind(&record.artifact_kind)
+                    .bind(&record.artifact_manifest_ref)
+                    .bind(&record.artifact_payload_ref)
+                    .bind(&record.payload_json)
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.artifact_binding_hash)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
             )
             .fetch_optional(&mut **tx)
             .await?;
@@ -1990,9 +2232,12 @@ impl ModelLaneStore {
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
         } else {
-            let existing =
-                context_bundle_artifact_binding_by_idempotency_key_tx(tx, &record.idempotency_key)
-                    .await?;
+            let existing = context_bundle_artifact_binding_by_idempotency_key_for_write_scope_tx(
+                tx,
+                &record.idempotency_key,
+                scope,
+            )
+            .await?;
             let existing = existing.ok_or_else(|| {
                 ModelLaneError::NotFound(format!(
                     "idempotency_key {} after artifact binding insert conflict",
@@ -2009,6 +2254,7 @@ impl ModelLaneStore {
             }
         };
 
+        validate_stored_context_bundle_artifact_authority_tx(tx, &artifact_access, &stored).await?;
         Ok(stored)
     }
 
@@ -2019,13 +2265,22 @@ impl ModelLaneStore {
         validate_context_bundle_handoff(&input)?;
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        let prepared = prepare_context_bundle_handoff_tx(&mut tx, input).await?;
+        let prepared = prepare_context_bundle_handoff_tx(&mut tx, &self.access, input).await?;
 
-        if let Some(existing) =
-            context_bundle_handoff_by_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?
+        if let Some(existing) = context_bundle_handoff_by_idempotency_key_tx(
+            &mut tx,
+            &self.access,
+            &prepared.idempotency_key,
+        )
+        .await?
         {
             if existing.context_bundle_hash == prepared.context_bundle_hash {
-                validate_stored_context_bundle_handoff_authority_tx(&mut tx, &existing).await?;
+                validate_stored_context_bundle_handoff_authority_tx(
+                    &mut tx,
+                    &self.access,
+                    &existing,
+                )
+                .await?;
                 tx.commit().await?;
                 return Ok(existing);
             }
@@ -2043,7 +2298,7 @@ impl ModelLaneStore {
             &prepared.idempotency_key,
             &prepared.work_packet_id,
             &prepared.event_ledger_stream_id,
-            context_bundle_handoff_event_payload(&prepared),
+            context_bundle_handoff_event_payload(&prepared, self.scope_columns()),
         )?;
         let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
         let sequence = stored_event.event_sequence;
@@ -2057,7 +2312,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             &mut tx,
             &record.event_ledger_event_id,
-            context_bundle_handoff_event_payload(&record),
+            context_bundle_handoff_event_payload(&record, self.scope_columns()),
         )
         .await?;
 
@@ -2087,35 +2342,35 @@ impl ModelLaneStore {
             .scope_columns()
             .bind(
                 sqlx::query(&insert_sql)
-        .bind(&record.handoff_id)
-        .bind(&record.context_bundle_id)
-        .bind(&record.run_id)
-        .bind(&record.trace_id)
-        .bind(&record.handoff_span_id)
-        .bind(&record.downstream_lane_id)
-        .bind(&record.source_lane_id)
-        .bind(&record.source_message_id)
-        .bind(&record.artifact_ref)
-        .bind(&record.artifact_sha256)
-        .bind(&record.content_hash)
-        .bind(record.source_kind.as_str())
-        .bind(record.authority_state.as_str())
-        .bind(record.selection_state.as_str())
-        .bind(&record.reason_code)
-        .bind(record.decision_ref.as_deref())
-        .bind(record.reviewer_ref.as_deref())
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.context_bundle_hash)
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?),
+                    .bind(&record.handoff_id)
+                    .bind(&record.context_bundle_id)
+                    .bind(&record.run_id)
+                    .bind(&record.trace_id)
+                    .bind(&record.handoff_span_id)
+                    .bind(&record.downstream_lane_id)
+                    .bind(&record.source_lane_id)
+                    .bind(&record.source_message_id)
+                    .bind(&record.artifact_ref)
+                    .bind(&record.artifact_sha256)
+                    .bind(&record.content_hash)
+                    .bind(record.source_kind.as_str())
+                    .bind(record.authority_state.as_str())
+                    .bind(record.selection_state.as_str())
+                    .bind(&record.reason_code)
+                    .bind(record.decision_ref.as_deref())
+                    .bind(record.reviewer_ref.as_deref())
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.context_bundle_hash)
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
             )
             .fetch_optional(&mut *tx)
             .await?;
@@ -2123,9 +2378,12 @@ impl ModelLaneStore {
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
         } else {
-            let existing =
-                context_bundle_handoff_by_idempotency_key_tx(&mut tx, &record.idempotency_key)
-                    .await?;
+            let existing = context_bundle_handoff_by_idempotency_key_tx(
+                &mut tx,
+                &self.access,
+                &record.idempotency_key,
+            )
+            .await?;
             let existing = existing.ok_or_else(|| {
                 ModelLaneError::NotFound(format!(
                     "idempotency_key {} after context bundle handoff insert conflict",
@@ -2143,7 +2401,7 @@ impl ModelLaneStore {
             }
         };
 
-        validate_stored_context_bundle_handoff_authority_tx(&mut tx, &stored).await?;
+        validate_stored_context_bundle_handoff_authority_tx(&mut tx, &self.access, &stored).await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -2157,8 +2415,15 @@ impl ModelLaneStore {
         require_token("run_id", run_id)?;
         require_token("context_bundle_id", context_bundle_id)?;
         require_token("downstream_lane_id", downstream_lane_id)?;
+        require_exact_context_bundle_read_scope(&self.access)?;
         let mut tx = self.pool.begin().await?;
-        let lane = lane_by_id_tx(&mut tx, downstream_lane_id)
+        sqlx::query("SELECT set_config('application_name', $1, true)")
+            .bind(format!("hsk:cb:consume:{run_id}"))
+            .execute(&mut *tx)
+            .await?;
+        let run = context_bundle_run_by_id_tx(&mut tx, &self.access, run_id).await?;
+        require_equal("run.run_id", &run.run_id, "run_id", run_id)?;
+        let lane = context_bundle_lane_by_id_tx(&mut tx, &self.access, downstream_lane_id)
             .await
             .map_err(|err| match err {
                 ModelLaneError::NotFound(message) => ModelLaneError::InvalidInput(format!(
@@ -2167,27 +2432,26 @@ impl ModelLaneStore {
                 other => other,
             })?;
         require_equal("downstream.run_id", &lane.run_id, "run_id", run_id)?;
-        let records = sqlx::query(
-            r#"
-            SELECT record_json
-            FROM model_lane_context_bundle_handoffs
-            WHERE run_id = $1
-              AND context_bundle_id = $2
-              AND downstream_lane_id = $3
-            ORDER BY event_ledger_seq ASC
-            "#,
-        )
-        .bind(run_id)
-        .bind(context_bundle_id)
-        .bind(downstream_lane_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>>>()?;
+        let predicate = self.access.sql_predicate(4);
+        let sql = format!(
+            "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+             FROM model_lane_context_bundle_handoffs \
+             WHERE run_id = $1 AND context_bundle_id = $2 AND downstream_lane_id = $3{} \
+             ORDER BY event_ledger_seq ASC",
+            predicate.clause()
+        );
+        let records = predicate
+            .bind(
+                sqlx::query(&sql)
+                    .bind(run_id)
+                    .bind(context_bundle_id)
+                    .bind(downstream_lane_id),
+            )
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .map(|row| authorize_and_decode_row(&self.access, row))
+            .collect::<ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>>>()?;
         if records.is_empty() {
             tx.rollback().await?;
             return Err(ModelLaneError::InvalidInput(format!(
@@ -2195,9 +2459,11 @@ impl ModelLaneStore {
             )));
         }
         for record in &records {
-            validate_stored_context_bundle_handoff_authority_tx(&mut tx, record).await?;
+            validate_stored_context_bundle_handoff_authority_tx(&mut tx, &self.access, record)
+                .await?;
             let artifact = context_bundle_artifact_binding_by_ref_tx(
                 &mut tx,
+                &self.access,
                 &record.run_id,
                 &record.artifact_ref,
             )
@@ -2240,27 +2506,26 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
         require_token("run_id", run_id)?;
         require_token("context_bundle_id", context_bundle_id)?;
+        require_exact_context_bundle_read_scope(&self.access)?;
         let mut tx = self.pool.begin().await?;
-        let records = sqlx::query(
-            r#"
-            SELECT record_json
-            FROM model_lane_context_bundle_handoffs
-            WHERE run_id = $1 AND context_bundle_id = $2
-            ORDER BY event_ledger_seq ASC
-            "#,
-        )
-        .bind(run_id)
-        .bind(context_bundle_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>>>()?;
+        let predicate = self.access.sql_predicate(3);
+        let sql = format!(
+            "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+             FROM model_lane_context_bundle_handoffs \
+             WHERE run_id = $1 AND context_bundle_id = $2{} \
+             ORDER BY event_ledger_seq ASC",
+            predicate.clause()
+        );
+        let records = predicate
+            .bind(sqlx::query(&sql).bind(run_id).bind(context_bundle_id))
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .map(|row| authorize_and_decode_row(&self.access, row))
+            .collect::<ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>>>()?;
         for record in &records {
-            validate_stored_context_bundle_handoff_authority_tx(&mut tx, record).await?;
+            validate_stored_context_bundle_handoff_authority_tx(&mut tx, &self.access, record)
+                .await?;
         }
         tx.commit().await?;
         Ok(records)
@@ -2285,9 +2550,17 @@ impl ModelLaneStore {
         }
 
         let mut tx = self.pool.begin().await?;
-        let terminal_idempotency_key = format!("model-lane-terminal:{lane_id}");
-        lock_idempotency_key_tx(&mut tx, &terminal_idempotency_key).await?;
+        lock_idempotency_key_tx(&mut tx, &format!("model-lane-lifecycle:{lane_id}")).await?;
         let existing = lane_by_id_tx(&mut tx, lane_id).await?;
+        let terminal_idempotency_key = if existing.restart_generation == 0 {
+            format!("model-lane-terminal:{lane_id}")
+        } else {
+            format!(
+                "model-lane-terminal:{lane_id}:restart:{}",
+                existing.restart_generation
+            )
+        };
+        lock_idempotency_key_tx(&mut tx, &terminal_idempotency_key).await?;
         if matches!(
             existing.status,
             ModelLaneStatus::Completed | ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
@@ -2423,7 +2696,6 @@ impl ModelLaneStore {
     ///      still fails closed instead of silently disclosing.
     pub async fn replay_run(&self, run_id: &str) -> ModelLaneResult<ModelLaneReplay> {
         require_token("run_id", run_id)?;
-        validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
         let predicate = self.access.sql_predicate(2);
         let mut tx = self.pool.begin().await?;
 
@@ -2440,19 +2712,33 @@ impl ModelLaneStore {
             .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id}")))?;
         self.access
             .authorize_row(&stored_resource_scope_from_row(&run_row)?)?;
-        let run = row_to_json(run_row, "record_json")?;
+        let run: ModelLaneRunRecord = serde_json::from_value(row_to_json(run_row, "record_json")?)?;
+        validate_stored_run_eventledger_authority_tx(&mut tx, &run, self.access.exact_read_scope())
+            .await?;
+        validate_diagnostics_row_eventledger_authority(&self.pool, run_id)
+            .await
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied("ModelLane navigation authority unavailable".into())
+            })?;
 
         let lanes_sql = format!(
             "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes WHERE run_id = $1{} ORDER BY event_ledger_seq ASC",
             predicate.clause()
         );
-        let lanes = self
-            .authorize_and_decode_rows::<ModelLaneRecord>(
-                predicate
-                    .bind(sqlx::query(&lanes_sql).bind(run_id))
-                    .fetch_all(&mut *tx)
-                    .await?,
-            )?;
+        let lanes = self.authorize_and_decode_rows::<ModelLaneRecord>(
+            predicate
+                .bind(sqlx::query(&lanes_sql).bind(run_id))
+                .fetch_all(&mut *tx)
+                .await?,
+        )?;
+        for lane in &lanes {
+            validate_stored_lane_eventledger_authority_tx(
+                &mut tx,
+                lane,
+                self.access.exact_read_scope(),
+            )
+            .await?;
+        }
 
         let messages_sql = format!(
             "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_messages WHERE run_id = $1{} ORDER BY event_ledger_seq ASC",
@@ -2466,12 +2752,17 @@ impl ModelLaneStore {
         )?;
 
         for message in &messages {
-            validate_stored_crdt_message_authority_tx(&mut tx, message).await?;
+            validate_stored_message_eventledger_authority_tx(
+                &mut tx,
+                message,
+                self.access.exact_read_scope(),
+            )
+            .await?;
         }
         tx.commit().await?;
 
         Ok(ModelLaneReplay {
-            run: serde_json::from_value(run)?,
+            run,
             lanes,
             messages,
         })
@@ -2543,30 +2834,22 @@ impl ModelLaneStore {
         let tier_posture = self
             .validate_diagnostic_tier_posture(run_id, "HBR-INT-009")
             .await?;
-        let mt_runtime_statuses = sqlx::query(
-            "SELECT record_json FROM model_lane_mt_runtime_statuses WHERE run_id = $1 ORDER BY event_ledger_seq ASC",
+        let mt_runtime_statuses = select_records_by_column::<ModelLaneMtRuntimeStatusRecord>(
+            &self.pool,
+            &self.access,
+            "model_lane_mt_runtime_statuses",
+            "run_id",
+            run_id,
         )
-        .bind(run_id)
-        .fetch_all(&self.pool)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneMtRuntimeStatusRecord>>>()?;
-        let leases = sqlx::query(
-            "SELECT record_json FROM model_lane_leases WHERE run_id = $1 ORDER BY event_ledger_seq ASC",
+        .await?;
+        let leases = select_records_by_column::<ModelLaneLeaseRecord>(
+            &self.pool,
+            &self.access,
+            "model_lane_leases",
+            "run_id",
+            run_id,
         )
-        .bind(run_id)
-        .fetch_all(&self.pool)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneLeaseRecord>>>()?;
+        .await?;
         let active_lease_count = leases
             .iter()
             .filter(|lease| lease.state == ModelLaneLeaseState::Active)
@@ -2590,10 +2873,13 @@ impl ModelLaneStore {
             .map(|lease| lease.lease_id.clone())
             .collect::<Vec<_>>();
         let routing_executions =
-            super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(self.pool.clone(), self.access.clone())
-                .diagnostics_for_run(run_id)
-                .await
-                .map_err(ModelLaneError::InvalidInput)?;
+            super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(
+                self.pool.clone(),
+                self.access.clone(),
+            )
+            .diagnostics_for_run(run_id)
+            .await
+            .map_err(ModelLaneError::InvalidInput)?;
         let messages_by_lane = replay.messages.iter().fold(
             BTreeMap::<String, Vec<&ModelLaneMessageRecord>>::new(),
             |mut acc, msg| {
@@ -2601,19 +2887,26 @@ impl ModelLaneStore {
                 acc
             },
         );
-        let lane_anchors =
-            sqlx::query("SELECT lane_id, model_stable_anchor FROM model_lanes WHERE run_id = $1")
-                .bind(run_id)
-                .fetch_all(&self.pool)
-                .await?
-                .into_iter()
-                .map(|row| {
-                    Ok((
-                        row.try_get::<String, _>("lane_id")?,
-                        row.try_get::<Option<String>, _>("model_stable_anchor")?,
-                    ))
-                })
-                .collect::<Result<BTreeMap<_, _>, sqlx::Error>>()?;
+        let anchor_predicate = self.access.sql_predicate(2);
+        let anchor_sql = format!(
+            "SELECT lane_id, model_stable_anchor, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+             FROM model_lanes WHERE run_id = $1{}",
+            anchor_predicate.clause()
+        );
+        let lane_anchors = anchor_predicate
+            .bind(sqlx::query(&anchor_sql).bind(run_id))
+            .fetch_all(&self.pool)
+            .await?
+            .into_iter()
+            .map(|row| {
+                self.access
+                    .authorize_row(&stored_resource_scope_from_row(&row)?)?;
+                Ok((
+                    row.try_get::<String, _>("lane_id")?,
+                    row.try_get::<Option<String>, _>("model_stable_anchor")?,
+                ))
+            })
+            .collect::<ModelLaneResult<BTreeMap<_, _>>>()?;
         let lanes = replay
             .lanes
             .iter()
@@ -2885,15 +3178,16 @@ impl ModelLaneStore {
         lane_id: &str,
     ) -> ModelLaneResult<ModelLaneNavigationProjection> {
         require_token("lane_id", lane_id)?;
-        let lane = select_record_by_column::<ModelLaneRecord>(
-            &self.pool,
-            &self.access,
-            "model_lanes",
-            "lane_id",
-            lane_id,
-        )
-        .await?
-        .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))?;
+        let lane =
+            validated_navigation_origins(&self.pool, &self.access, "lane", "lane_id = $1", lane_id)
+                .await?
+                .into_iter()
+                .next()
+                .and_then(|origin| match origin {
+                    ValidatedNavigationOrigin::Lane(record) => Some(record),
+                    _ => None,
+                })
+                .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))?;
         let mut projection = self
             .navigation_projection_for_run(
                 "model_lane.navigation.lane",
@@ -2924,14 +3218,20 @@ impl ModelLaneStore {
         message_id: &str,
     ) -> ModelLaneResult<ModelLaneNavigationProjection> {
         require_token("message_id", message_id)?;
-        let message = select_record_by_column::<ModelLaneMessageRecord>(
+        let message = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lane_messages",
-            "message_id",
+            "message",
+            "message_id = $1",
             message_id,
         )
         .await?
+        .into_iter()
+        .next()
+        .and_then(|origin| match origin {
+            ValidatedNavigationOrigin::Message(record) => Some(record),
+            _ => None,
+        })
         .ok_or_else(|| ModelLaneError::NotFound(format!("message_id {message_id}")))?;
         let mut projection = self
             .navigation_projection_for_run(
@@ -2994,14 +3294,20 @@ impl ModelLaneStore {
         }
         dedupe_context_handoffs(&mut handoffs);
         let context_run = if let Some(value) = context_bundle_id {
-            select_record_by_json_field::<ModelLaneRunRecord>(
+            validated_navigation_origins(
                 &self.pool,
                 &self.access,
-                "model_lane_runs",
-                "context_bundle_id",
+                "run",
+                "record_json->>'context_bundle_id' = $1",
                 value,
             )
             .await?
+            .into_iter()
+            .next()
+            .and_then(|origin| match origin {
+                ValidatedNavigationOrigin::Run(record) => Some(record),
+                _ => None,
+            })
         } else {
             None
         };
@@ -3108,36 +3414,42 @@ impl ModelLaneStore {
         if let Some(value) = span_id {
             require_token("span_id", value)?;
         }
-        let run = select_record_by_column::<ModelLaneRunRecord>(
+        let run = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lane_runs",
-            "trace_id",
+            "run",
+            "trace_id = $1",
             trace_id,
         )
-        .await?;
+        .await?
+        .into_iter()
+        .next();
         let run_id = if let Some(run) = run {
-            run.run_id.clone()
-        } else if let Some(lane) = select_record_by_column::<ModelLaneRecord>(
+            run.run_id().to_owned()
+        } else if let Some(lane) = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lanes",
-            "trace_id",
+            "lane",
+            "trace_id = $1",
             trace_id,
         )
         .await?
+        .into_iter()
+        .next()
         {
-            lane.run_id.clone()
-        } else if let Some(message) = select_record_by_column::<ModelLaneMessageRecord>(
+            lane.run_id().to_owned()
+        } else if let Some(message) = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lane_messages",
-            "trace_id",
+            "message",
+            "trace_id = $1",
             trace_id,
         )
         .await?
+        .into_iter()
+        .next()
         {
-            message.run_id.clone()
+            message.run_id().to_owned()
         } else {
             return Err(ModelLaneError::NotFound(format!("trace_id {trace_id}")));
         };
@@ -3244,25 +3556,29 @@ impl ModelLaneStore {
         let (lookup_kind, lookup_ref) = requested;
         let run_id = match lookup_kind.as_str() {
             "run_id" => lookup_ref.clone(),
-            "lane_id" => select_record_by_column::<ModelLaneRecord>(
+            "lane_id" => validated_navigation_origins(
                 &self.pool,
                 &self.access,
-                "model_lanes",
-                "lane_id",
+                "lane",
+                "lane_id = $1",
                 &lookup_ref,
             )
             .await?
-            .map(|row| row.run_id.clone())
+            .into_iter()
+            .next()
+            .map(|row| row.run_id().to_owned())
             .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lookup_ref}")))?,
-            "message_id" => select_record_by_column::<ModelLaneMessageRecord>(
+            "message_id" => validated_navigation_origins(
                 &self.pool,
                 &self.access,
-                "model_lane_messages",
-                "message_id",
+                "message",
+                "message_id = $1",
                 &lookup_ref,
             )
             .await?
-            .map(|row| row.run_id.clone())
+            .into_iter()
+            .next()
+            .map(|row| row.run_id().to_owned())
             .ok_or_else(|| ModelLaneError::NotFound(format!("message_id {lookup_ref}")))?,
             "model_session_id" => self
                 .run_id_by_model_session_id(&lookup_ref)
@@ -3360,16 +3676,18 @@ impl ModelLaneStore {
     async fn run_id_by_model_session_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         // `model_lanes` stores model_session_id only inside record_json; the
         // recovery tables carry it as physical columns.
-        if let Some(row) = select_record_by_json_field::<ModelLaneRecord>(
+        if let Some(row) = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lanes",
-            "model_session_id",
+            "lane",
+            "record_json->>'model_session_id' = $1",
             value,
         )
         .await?
+        .into_iter()
+        .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
@@ -3396,16 +3714,18 @@ impl ModelLaneStore {
     async fn run_id_by_session_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         // `model_lanes` stores session_id only inside record_json; the recovery
         // tables carry it as physical columns.
-        if let Some(row) = select_record_by_json_field::<ModelLaneRecord>(
+        if let Some(row) = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lanes",
-            "session_id",
+            "lane",
+            "record_json->>'session_id' = $1",
             value,
         )
         .await?
+        .into_iter()
+        .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
@@ -3430,15 +3750,26 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_work_packet_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let run_ids =
-            select_run_ids_by_column(&self.pool, &self.access, "model_lane_runs", "work_packet_id", value)
-                .await?;
+        let run_ids = validated_navigation_run_ids(
+            &self.pool,
+            &self.access,
+            "run",
+            "work_packet_id = $1",
+            value,
+        )
+        .await?;
         unique_run_id_for_lookup("wp_id", value, run_ids)
     }
 
     async fn run_id_by_micro_task_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let mut run_ids =
-            select_run_ids_by_column(&self.pool, &self.access, "model_lane_runs", "micro_task_id", value).await?;
+        let mut run_ids = validated_navigation_run_ids(
+            &self.pool,
+            &self.access,
+            "run",
+            "micro_task_id = $1",
+            value,
+        )
+        .await?;
         run_ids.extend(
             select_run_ids_by_column(
                 &self.pool,
@@ -3453,8 +3784,14 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_task_board_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let mut run_ids =
-            select_run_ids_by_column(&self.pool, &self.access, "model_lane_runs", "task_board_id", value).await?;
+        let mut run_ids = validated_navigation_run_ids(
+            &self.pool,
+            &self.access,
+            "run",
+            "task_board_id = $1",
+            value,
+        )
+        .await?;
         run_ids.extend(
             select_run_ids_by_column(
                 &self.pool,
@@ -3481,12 +3818,24 @@ impl ModelLaneStore {
         // `payload_ref` is stored only inside record_json; `payload_sha256` is a
         // physical column on model_lane_messages.
         run_ids.extend(
-            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_messages", "payload_ref", value)
-                .await?,
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "message",
+                "record_json->>'payload_ref' = $1",
+                value,
+            )
+            .await?,
         );
         run_ids.extend(
-            select_run_ids_by_column(&self.pool, &self.access, "model_lane_messages", "payload_sha256", value)
-                .await?,
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "message",
+                "payload_sha256 = $1",
+                value,
+            )
+            .await?,
         );
         unique_run_id_for_lookup("artifact_ref", value, run_ids)
     }
@@ -3494,9 +3843,14 @@ impl ModelLaneStore {
     async fn run_id_by_context_bundle_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         // `model_lane_runs` carries context_bundle_id only inside record_json; the
         // handoff table exposes it as a physical column.
-        let mut run_ids =
-            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "context_bundle_id", value)
-                .await?;
+        let mut run_ids = validated_navigation_run_ids(
+            &self.pool,
+            &self.access,
+            "run",
+            "record_json->>'context_bundle_id' = $1",
+            value,
+        )
+        .await?;
         run_ids.extend(
             select_run_ids_by_column(
                 &self.pool,
@@ -3511,81 +3865,85 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_memory_pack_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let run_ids =
-            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "memory_pack_ref", value)
-                .await?;
+        let run_ids = validated_navigation_run_ids(
+            &self.pool,
+            &self.access,
+            "run",
+            "record_json->>'memory_pack_ref' = $1",
+            value,
+        )
+        .await?;
         unique_run_id_for_lookup("memory_pack_ref", value, run_ids)
     }
 
     async fn run_id_by_memory_pack_hash(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let run_ids =
-            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "memory_pack_hash", value)
-                .await?;
+        let run_ids = validated_navigation_run_ids(
+            &self.pool,
+            &self.access,
+            "run",
+            "record_json->>'memory_pack_hash' = $1",
+            value,
+        )
+        .await?;
         unique_run_id_for_lookup("memory_pack_hash", value, run_ids)
     }
 
     async fn run_id_by_trace_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        if let Some(row) = select_record_by_column::<ModelLaneRunRecord>(
-            &self.pool,
-            &self.access,
-            "model_lane_runs",
-            "trace_id",
-            value,
-        )
-        .await?
+        if let Some(row) =
+            validated_navigation_origins(&self.pool, &self.access, "run", "trace_id = $1", value)
+                .await?
+                .into_iter()
+                .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) =
-            select_record_by_column::<ModelLaneRecord>(&self.pool, &self.access, "model_lanes", "trace_id", value)
+            validated_navigation_origins(&self.pool, &self.access, "lane", "trace_id = $1", value)
                 .await?
+                .into_iter()
+                .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
-        select_record_by_column::<ModelLaneMessageRecord>(
-            &self.pool,
-            &self.access,
-            "model_lane_messages",
-            "trace_id",
-            value,
-        )
-        .await
-        .map(|row| row.map(|row| row.run_id.clone()))
+        validated_navigation_origins(&self.pool, &self.access, "message", "trace_id = $1", value)
+            .await
+            .map(|rows| rows.into_iter().next().map(|row| row.run_id().to_owned()))
     }
 
     async fn run_id_by_span_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        if let Some(row) = select_record_by_column::<ModelLaneRunRecord>(
-            &self.pool,
-            &self.access,
-            "model_lane_runs",
-            "run_span_id",
-            value,
-        )
-        .await?
+        if let Some(row) =
+            validated_navigation_origins(&self.pool, &self.access, "run", "run_span_id = $1", value)
+                .await?
+                .into_iter()
+                .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
-        if let Some(row) = select_record_by_column::<ModelLaneRecord>(
+        if let Some(row) = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lanes",
-            "lane_span_id",
+            "lane",
+            "lane_span_id = $1",
             value,
         )
         .await?
+        .into_iter()
+        .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
-        if let Some(row) = select_record_by_column::<ModelLaneMessageRecord>(
+        if let Some(row) = validated_navigation_origins(
             &self.pool,
             &self.access,
-            "model_lane_messages",
-            "message_span_id",
+            "message",
+            "message_span_id = $1",
             value,
         )
         .await?
+        .into_iter()
+        .next()
         {
-            return Ok(Some(row.run_id.clone()));
+            return Ok(Some(row.run_id().to_owned()));
         }
         select_record_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
@@ -3610,73 +3968,89 @@ impl ModelLaneStore {
         )
         .await?;
         run_ids.extend(
-            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "failstate_code", value)
-                .await?,
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "run",
+                "record_json->>'failstate_code' = $1",
+                value,
+            )
+            .await?,
         );
         run_ids.extend(
-            select_run_ids_by_json_field(&self.pool, &self.access, "model_lanes", "failstate_code", value)
-                .await?,
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "lane",
+                "record_json->>'failstate_code' = $1",
+                value,
+            )
+            .await?,
         );
         unique_run_id_for_lookup("error_code", value, run_ids)
     }
 
     async fn run_id_by_locus_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        query_optional_run_id(
+        let mut run_ids = validated_navigation_run_ids(
             &self.pool,
-            r#"
-            SELECT record_json->>'run_id' AS run_id
-            FROM model_lane_runs
-            WHERE record_json #>> '{locus_binding,locus_binding_ref}' = $1
-            UNION ALL
-            SELECT record_json->>'run_id' AS run_id
-            FROM model_lanes
-            WHERE record_json #>> '{locus_binding,locus_binding_ref}' = $1
-            UNION ALL
-            SELECT record_json->>'run_id' AS run_id
-            FROM model_lane_messages
-            WHERE record_json #>> '{locus_binding,locus_binding_ref}' = $1
-               OR record_json #>> '{diagnostic_payload,locus_ref}' = $1
-            LIMIT 1
-            "#,
+            &self.access,
+            "run",
+            "record_json #>> '{locus_binding,locus_binding_ref}' = $1",
             value,
         )
-        .await
+        .await?;
+        run_ids.extend(
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "lane",
+                "record_json #>> '{locus_binding,locus_binding_ref}' = $1",
+                value,
+            )
+            .await?,
+        );
+        run_ids.extend(
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "message",
+                "record_json #>> '{locus_binding,locus_binding_ref}' = $1 OR record_json #>> '{diagnostic_payload,locus_ref}' = $1",
+                value,
+            )
+            .await?,
+        );
+        unique_run_id_for_lookup("locus_ref", value, run_ids)
     }
 
     async fn run_id_by_loom_block_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let mut run_ids = sqlx::query_scalar::<_, String>(
-            r#"
-            SELECT DISTINCT run_id
-            FROM model_lane_context_bundle_handoffs
-            WHERE EXISTS (
+        let mut run_ids = validated_navigation_handoff_run_ids(
+            &self.pool,
+            &self.access,
+            "EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements(COALESCE(record_json->'loom_refs', '[]'::jsonb)) AS loom_ref
                 WHERE loom_ref->>'block_id' = $1
-            )
-            ORDER BY run_id ASC
-            "#,
+            )",
+            value,
         )
-        .bind(value)
-        .fetch_all(&self.pool)
         .await?;
         run_ids.extend(
-            sqlx::query_scalar::<_, String>(
-                r#"
-                SELECT DISTINCT run_id
-                FROM (
-                    SELECT run_id
-                    FROM model_lane_messages
-                    WHERE record_json #>> '{diagnostic_payload,loom_block_id}' = $1
-                    UNION ALL
-                    SELECT run_id
-                    FROM model_lane_context_bundle_handoffs
-                    WHERE record_json #>> '{diagnostic_payload,loom_block_id}' = $1
-                ) legacy_refs
-                ORDER BY run_id ASC
-                "#,
+            validated_navigation_run_ids(
+                &self.pool,
+                &self.access,
+                "message",
+                "record_json #>> '{diagnostic_payload,loom_block_id}' = $1",
+                value,
             )
-            .bind(value)
-            .fetch_all(&self.pool)
+            .await?,
+        );
+        run_ids.extend(
+            validated_navigation_handoff_run_ids(
+                &self.pool,
+                &self.access,
+                "record_json #>> '{diagnostic_payload,loom_block_id}' = $1",
+                value,
+            )
             .await?,
         );
         unique_run_id_for_lookup("loom_block_id", value, run_ids)
@@ -3688,23 +4062,17 @@ impl ModelLaneStore {
         keys: &[&str],
     ) -> ModelLaneResult<Option<String>> {
         for key in keys {
-            if let Some(run_id) = query_optional_run_id(
+            let condition = format!("record_json #>> '{{diagnostic_payload,{key}}}' = $1");
+            let run_ids = validated_navigation_run_ids(
                 &self.pool,
-                &format!(
-                    r#"
-                    SELECT run_id
-                    FROM model_lane_messages
-                    WHERE record_json #>> '{{diagnostic_payload,{key}}}' = $1
-                    UNION ALL
-                    SELECT run_id
-                    FROM model_lane_context_bundle_handoffs
-                    WHERE record_json #>> '{{diagnostic_payload,{key}}}' = $1
-                    LIMIT 1
-                    "#
-                ),
+                &self.access,
+                "message",
+                &condition,
                 value,
             )
-            .await?
+            .await?;
+            if let Some(run_id) =
+                unique_run_id_for_lookup("diagnostic_payload_ref", value, run_ids)?
             {
                 return Ok(Some(run_id));
             }
@@ -3759,6 +4127,30 @@ impl ModelLaneStore {
             run_id,
         )
         .await?;
+        let mut authority_tx = self.pool.begin().await?;
+        for artifact in &artifacts {
+            validate_stored_context_bundle_artifact_authority_tx(
+                &mut authority_tx,
+                &self.access,
+                artifact,
+            )
+            .await
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied("ModelLane navigation authority unavailable".into())
+            })?;
+        }
+        for handoff in &context_handoffs {
+            validate_stored_context_bundle_handoff_authority_tx(
+                &mut authority_tx,
+                &self.access,
+                handoff,
+            )
+            .await
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied("ModelLane navigation authority unavailable".into())
+            })?;
+        }
+        authority_tx.commit().await?;
         let recovery_checkpoints = select_records_by_column::<ModelLaneRecoveryCheckpointRecord>(
             &self.pool,
             &self.access,
@@ -3871,9 +4263,18 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneRecoveryCheckpointRecord> {
         validate_recovery_checkpoint(&input)?;
         let mut tx = self.pool.begin().await?;
+        let recovery_child_store = Self::new_with_access(
+            self.pool.clone(),
+            recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
+                .await?,
+        );
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        if let Some(existing) =
-            recovery_checkpoint_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
+        if let Some(existing) = recovery_checkpoint_by_idempotency_key_tx(
+            &mut tx,
+            &recovery_child_store.access,
+            &input.idempotency_key,
+        )
+        .await?
         {
             ensure_idempotent_input_matches(
                 "model_lane_recovery_checkpoint",
@@ -3884,7 +4285,8 @@ impl ModelLaneStore {
             tx.commit().await?;
             return Ok(existing);
         }
-        let run = run_by_id_tx(&mut tx, &input.run_id).await?;
+        let run =
+            recovery_run_by_id_tx(&mut tx, &recovery_child_store.access, &input.run_id).await?;
         require_equal(
             "model_lane_recovery_checkpoint.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -3892,7 +4294,13 @@ impl ModelLaneStore {
             &run.event_ledger_stream_id,
         )?;
         if let Some(lane_id) = input.lane_id.as_deref() {
-            lane_by_id_for_run_tx(&mut tx, &input.run_id, lane_id).await?;
+            recovery_lane_by_id_for_run_tx(
+                &mut tx,
+                &recovery_child_store.access,
+                &input.run_id,
+                lane_id,
+            )
+            .await?;
         }
         // A checkpoint watermark is a statement about the exact stream state
         // immediately before the checkpoint event is appended, not merely a
@@ -3934,7 +4342,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             &mut tx,
             &record.event_ledger_event_id,
-            recovery_checkpoint_event_payload(&record),
+            recovery_checkpoint_event_payload(&record, recovery_child_store.scope_columns()),
         )
         .await?;
         let insert_sql = format!(
@@ -3954,38 +4362,38 @@ impl ModelLaneStore {
             RETURNING record_json
             "#
         );
-        let row = self
+        let row = recovery_child_store
             .scope_columns()
             .bind(
                 sqlx::query(&insert_sql)
-        .bind(&record.checkpoint_id)
-        .bind(&record.run_id)
-        .bind(record.lane_id.as_deref())
-        .bind(&record.session_id)
-        .bind(&record.model_session_id)
-        .bind(record.lane_status.as_str())
-        .bind(record.checkpoint_status.as_str())
-        .bind(record.last_event_ledger_seq)
-        .bind(record.last_message_id.as_deref())
-        .bind(serde_json::to_value(&record.open_payload_refs)?)
-        .bind(record.lease_id.as_deref())
-        .bind(&record.idempotency_scope)
-        .bind(record.recovery_state.as_str())
-        .bind(record.recovery_event_ref.as_deref())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.created_at_utc)
-        .bind(record.recovery_hint_ref.as_deref())
-        .bind(&record.diagnostic_payload)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?),
+                    .bind(&record.checkpoint_id)
+                    .bind(&record.run_id)
+                    .bind(record.lane_id.as_deref())
+                    .bind(&record.session_id)
+                    .bind(&record.model_session_id)
+                    .bind(record.lane_status.as_str())
+                    .bind(record.checkpoint_status.as_str())
+                    .bind(record.last_event_ledger_seq)
+                    .bind(record.last_message_id.as_deref())
+                    .bind(serde_json::to_value(&record.open_payload_refs)?)
+                    .bind(record.lease_id.as_deref())
+                    .bind(&record.idempotency_scope)
+                    .bind(record.recovery_state.as_str())
+                    .bind(record.recovery_event_ref.as_deref())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.created_at_utc)
+                    .bind(record.recovery_hint_ref.as_deref())
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
             )
             .fetch_one(&mut *tx)
             .await?;
@@ -4000,7 +4408,14 @@ impl ModelLaneStore {
         validate_recovery_event(&input)?;
         let mut tx = self.pool.begin().await?;
         lock_recovery_run_tx(&mut tx, &input.run_id).await?;
-        let record = self.record_recovery_event_tx(&mut tx, input).await?;
+        let recovery_child_store = Self::new_with_access(
+            self.pool.clone(),
+            recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
+                .await?,
+        );
+        let record = recovery_child_store
+            .record_recovery_event_tx(&mut tx, input)
+            .await?;
         tx.commit().await?;
         Ok(record)
     }
@@ -4012,7 +4427,7 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneRecoveryEventRecord> {
         lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
         if let Some(existing) =
-            recovery_event_by_idempotency_key_tx(tx, &input.idempotency_key).await?
+            recovery_event_by_idempotency_key_tx(tx, &self.access, &input.idempotency_key).await?
         {
             // replay_order_seq is allocated by this store. Normalize retries to
             // the committed allocation before applying the semantic-idempotency
@@ -4027,7 +4442,7 @@ impl ModelLaneStore {
             return Ok(existing);
         }
         input.replay_order_seq = next_recovery_replay_order_seq_tx(tx, &input.run_id).await?;
-        let run = run_by_id_tx(tx, &input.run_id).await?;
+        let run = recovery_run_by_id_tx(tx, &self.access, &input.run_id).await?;
         require_equal(
             "model_lane_recovery_event.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -4035,7 +4450,7 @@ impl ModelLaneStore {
             &run.event_ledger_stream_id,
         )?;
         if let Some(lane_id) = input.lane_id.as_deref() {
-            lane_by_id_for_run_tx(tx, &input.run_id, lane_id).await?;
+            recovery_lane_by_id_for_run_tx(tx, &self.access, &input.run_id, lane_id).await?;
         }
         if let Some(source_event_ledger_seq) = input.source_event_ledger_seq {
             ensure_event_ledger_sequence_in_stream_tx(
@@ -4071,7 +4486,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             tx,
             &record.event_ledger_event_id,
-            recovery_event_event_payload(&record),
+            recovery_event_event_payload(&record, self.scope_columns()),
         )
         .await?;
         let insert_sql = format!(
@@ -4097,41 +4512,41 @@ impl ModelLaneStore {
             .scope_columns()
             .bind(
                 sqlx::query(&insert_sql)
-        .bind(&record.recovery_event_id)
-        .bind(&record.run_id)
-        .bind(record.lane_id.as_deref())
-        .bind(&record.trace_id)
-        .bind(&record.span_id)
-        .bind(record.parent_span_id.as_deref())
-        .bind(serde_json::to_value(&record.linked_span_contexts)?)
-        .bind(record.session_id.as_deref())
-        .bind(record.model_session_id.as_deref())
-        .bind(record.event_kind.as_str())
-        .bind(record.recovery_status.as_str())
-        .bind(record.replay_order_seq)
-        .bind(record.source_event_ledger_seq)
-        .bind(serde_json::to_value(&record.payload_refs)?)
-        .bind(serde_json::to_value(&record.artifact_refs)?)
-        .bind(record.crdt_base_snapshot_ref.as_deref())
-        .bind(record.crdt_state_vector.as_deref())
-        .bind(record.crdt_stale_base_ref.as_deref())
-        .bind(record.lease_id.as_deref())
-        .bind(record.failure_kind.map(|kind| kind.as_str()))
-        .bind(record.error_code.as_deref())
-        .bind(&record.replay_hint)
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(record.recovery_hint_ref.as_deref())
-        .bind(&record.diagnostic_payload)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?),
+                    .bind(&record.recovery_event_id)
+                    .bind(&record.run_id)
+                    .bind(record.lane_id.as_deref())
+                    .bind(&record.trace_id)
+                    .bind(&record.span_id)
+                    .bind(record.parent_span_id.as_deref())
+                    .bind(serde_json::to_value(&record.linked_span_contexts)?)
+                    .bind(record.session_id.as_deref())
+                    .bind(record.model_session_id.as_deref())
+                    .bind(record.event_kind.as_str())
+                    .bind(record.recovery_status.as_str())
+                    .bind(record.replay_order_seq)
+                    .bind(record.source_event_ledger_seq)
+                    .bind(serde_json::to_value(&record.payload_refs)?)
+                    .bind(serde_json::to_value(&record.artifact_refs)?)
+                    .bind(record.crdt_base_snapshot_ref.as_deref())
+                    .bind(record.crdt_state_vector.as_deref())
+                    .bind(record.crdt_stale_base_ref.as_deref())
+                    .bind(record.lease_id.as_deref())
+                    .bind(record.failure_kind.map(|kind| kind.as_str()))
+                    .bind(record.error_code.as_deref())
+                    .bind(&record.replay_hint)
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(record.recovery_hint_ref.as_deref())
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
             )
             .fetch_one(&mut **tx)
             .await?;
@@ -4144,9 +4559,18 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneLeaseRecord> {
         validate_lane_lease(&input)?;
         let mut tx = self.pool.begin().await?;
+        let recovery_child_store = Self::new_with_access(
+            self.pool.clone(),
+            recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
+                .await?,
+        );
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        if let Some(existing) =
-            lane_lease_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
+        if let Some(existing) = lane_lease_by_idempotency_key_tx(
+            &mut tx,
+            &recovery_child_store.access,
+            &input.idempotency_key,
+        )
+        .await?
         {
             ensure_idempotent_input_matches(
                 "model_lane_lease",
@@ -4157,7 +4581,8 @@ impl ModelLaneStore {
             tx.commit().await?;
             return Ok(existing);
         }
-        let run = run_by_id_tx(&mut tx, &input.run_id).await?;
+        let run =
+            recovery_run_by_id_tx(&mut tx, &recovery_child_store.access, &input.run_id).await?;
         require_equal(
             "model_lane_lease.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -4165,7 +4590,13 @@ impl ModelLaneStore {
             &run.event_ledger_stream_id,
         )?;
         if let Some(lane_id) = input.lane_id.as_deref() {
-            lane_by_id_for_run_tx(&mut tx, &input.run_id, lane_id).await?;
+            recovery_lane_by_id_for_run_tx(
+                &mut tx,
+                &recovery_child_store.access,
+                &input.run_id,
+                lane_id,
+            )
+            .await?;
         }
         let payload = json!({
             "schema_id": "hsk.model_lane_lease@1",
@@ -4193,7 +4624,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             &mut tx,
             &record.event_ledger_event_id,
-            lane_lease_event_payload(&record),
+            lane_lease_event_payload(&record, recovery_child_store.scope_columns()),
         )
         .await?;
         let insert_sql = format!(
@@ -4211,33 +4642,33 @@ impl ModelLaneStore {
             RETURNING record_json
             "#
         );
-        let row = self
+        let row = recovery_child_store
             .scope_columns()
             .bind(
                 sqlx::query(&insert_sql)
-        .bind(&record.lease_id)
-        .bind(&record.run_id)
-        .bind(record.lane_id.as_deref())
-        .bind(record.scope.as_str())
-        .bind(&record.scope_ref)
-        .bind(&record.holder_actor_id)
-        .bind(&record.holder_session_id)
-        .bind(&record.lease_expires_at_utc)
-        .bind(&record.takeover_policy_ref)
-        .bind(record.state.as_str())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(record.recovery_hint_ref.as_deref())
-        .bind(&record.diagnostic_payload)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?),
+                    .bind(&record.lease_id)
+                    .bind(&record.run_id)
+                    .bind(record.lane_id.as_deref())
+                    .bind(record.scope.as_str())
+                    .bind(&record.scope_ref)
+                    .bind(&record.holder_actor_id)
+                    .bind(&record.holder_session_id)
+                    .bind(&record.lease_expires_at_utc)
+                    .bind(&record.takeover_policy_ref)
+                    .bind(record.state.as_str())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(record.recovery_hint_ref.as_deref())
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
             )
             .fetch_one(&mut *tx)
             .await?;
@@ -4251,9 +4682,18 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneDiagnosticTierStatusRecord> {
         validate_diagnostic_tier_status(&input)?;
         let mut tx = self.pool.begin().await?;
+        let recovery_child_store = Self::new_with_access(
+            self.pool.clone(),
+            recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
+                .await?,
+        );
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        if let Some(existing) =
-            diagnostic_tier_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
+        if let Some(existing) = diagnostic_tier_by_idempotency_key_tx(
+            &mut tx,
+            &recovery_child_store.access,
+            &input.idempotency_key,
+        )
+        .await?
         {
             ensure_idempotent_input_matches(
                 "model_lane_diagnostic_tier",
@@ -4264,7 +4704,8 @@ impl ModelLaneStore {
             tx.commit().await?;
             return Ok(existing);
         }
-        let run = run_by_id_tx(&mut tx, &input.run_id).await?;
+        let run =
+            recovery_run_by_id_tx(&mut tx, &recovery_child_store.access, &input.run_id).await?;
         require_equal(
             "diagnostic_tier.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -4297,7 +4738,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             &mut tx,
             &record.event_ledger_event_id,
-            diagnostic_tier_event_payload(&record),
+            diagnostic_tier_event_payload(&record, recovery_child_store.scope_columns()),
         )
         .await?;
         let insert_sql = format!(
@@ -4314,7 +4755,7 @@ impl ModelLaneStore {
             RETURNING record_json
             "#
         );
-        let row = self
+        let row = recovery_child_store
             .scope_columns()
             .bind(
                 sqlx::query(&insert_sql)
@@ -4444,9 +4885,18 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneMtRuntimeStatusRecord> {
         validate_mt_runtime_status(&input)?;
         let mut tx = self.pool.begin().await?;
+        let recovery_child_store = Self::new_with_access(
+            self.pool.clone(),
+            recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
+                .await?,
+        );
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
-        if let Some(existing) =
-            mt_runtime_status_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
+        if let Some(existing) = mt_runtime_status_by_idempotency_key_tx(
+            &mut tx,
+            &recovery_child_store.access,
+            &input.idempotency_key,
+        )
+        .await?
         {
             ensure_idempotent_input_matches(
                 "model_lane_mt_runtime_status",
@@ -4457,7 +4907,8 @@ impl ModelLaneStore {
             tx.commit().await?;
             return Ok(existing);
         }
-        let run = run_by_id_tx(&mut tx, &input.run_id).await?;
+        let run =
+            recovery_run_by_id_tx(&mut tx, &recovery_child_store.access, &input.run_id).await?;
         require_equal(
             "model_lane_mt_runtime_status.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -4490,7 +4941,7 @@ impl ModelLaneStore {
         stamp_kernel_event_payload_tx(
             &mut tx,
             &record.event_ledger_event_id,
-            mt_runtime_status_event_payload(&record),
+            mt_runtime_status_event_payload(&record, recovery_child_store.scope_columns()),
         )
         .await?;
         let insert_sql = format!(
@@ -4509,7 +4960,7 @@ impl ModelLaneStore {
             RETURNING record_json
             "#
         );
-        let row = self
+        let row = recovery_child_store
             .scope_columns()
             .bind(
                 sqlx::query(&insert_sql)
@@ -4620,8 +5071,18 @@ impl ModelLaneStore {
         recovery_fence: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         run_id: &str,
     ) -> ModelLaneResult<ModelLaneRecoveredRun> {
-        validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
+        let recovery_child_access =
+            recovery_child_access_for_canonical_run_tx(recovery_fence, &self.access, run_id)
+                .await?;
         let canonical_run = canonical_run_for_recovery(&self.pool, &self.access, run_id).await?;
+        validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
+        let recovery_child_store = Self::new_with_access(self.pool.clone(), recovery_child_access);
+        validate_recovery_eventledger_resource_scope(
+            recovery_fence,
+            run_id,
+            &canonical_run.event_ledger_stream_id,
+        )
+        .await?;
         let checkpoint =
             latest_recovery_checkpoint(&self.pool, run_id, &canonical_run.event_ledger_stream_id)
                 .await?;
@@ -4756,7 +5217,7 @@ impl ModelLaneStore {
                     event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected
                         && event.lease_id.as_deref() == Some(lease.lease_id.as_str())
                 }) {
-                    let orphan_event = self
+                    let orphan_event = recovery_child_store
                         .record_orphan_recovery_event_tx(
                             recovery_fence,
                             &checkpoint,
@@ -5050,6 +5511,11 @@ async fn record_or_extend_run_tx(
     access.authorize_row(&stored_resource_scope_from_row(&existing)?)?;
     let existing: ModelLaneRunRecord =
         serde_json::from_value(row_to_json(existing, "record_json")?)?;
+    validate_stored_run_eventledger_authority_tx(tx, &existing, access.exact_read_scope())
+        .await
+        .map_err(|_| {
+            ModelLaneError::AuthorityDenied("ModelLaneRun authority unavailable".into())
+        })?;
     let stable_match = existing.trace_id == input.trace_id
         && existing.run_span_id == input.run_span_id
         && existing.coordinator_session_id == input.coordinator_session_id
@@ -5115,6 +5581,22 @@ async fn record_or_extend_run_tx(
     merged.projection_plan_ref = merged.projection_plan_ref.or(input.projection_plan_ref);
     merged.consent_receipt_ref = merged.consent_receipt_ref.or(input.consent_receipt_ref);
     let idempotency_key = format!("model-lane-run-attach:{}:{}", merged.run_id, lane.lane_id);
+    let mut extension_payload = json!({
+        "schema_id": "hsk.model_lane_run_extension@1",
+        "dexterity_kernel": "Dexterity",
+        "run_id": merged.run_id,
+        "attached_lane_id": lane.lane_id,
+        "record": merged,
+    });
+    if let Some(exact_scope) = access.exact_read_scope() {
+        exact_scope
+            .stamp_json_object(&mut extension_payload)
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun extension could not stamp complete resource attribution".into(),
+                )
+            })?;
+    }
     let event = model_lane_event(
         KernelEventType::SessionStarted,
         "model_lane_run",
@@ -5122,13 +5604,7 @@ async fn record_or_extend_run_tx(
         &idempotency_key,
         merged.work_packet_id.as_deref().unwrap_or(&merged.run_id),
         &merged.event_ledger_stream_id,
-        json!({
-            "schema_id": "hsk.model_lane_run_extension@1",
-            "dexterity_kernel": "Dexterity",
-            "run_id": merged.run_id,
-            "attached_lane_id": lane.lane_id,
-            "record": merged,
-        }),
+        extension_payload,
     )?;
     lock_idempotency_key_tx(tx, &idempotency_key).await?;
     let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
@@ -5154,11 +5630,18 @@ async fn record_run_tx(
     input: NewModelLaneRun,
     scope: ScopeColumnValues<'_>,
 ) -> ModelLaneResult<ModelLaneRunRecord> {
-    let payload = json!({
+    let mut payload = json!({
         "schema_id": "hsk.model_lane_run@1",
         "dexterity_kernel": "Dexterity",
         "record": input,
     });
+    if let Some(exact_scope) = exact_resource_scope_from_columns(scope, "ModelLaneRun")? {
+        exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+            ModelLaneError::AuthorityDenied(
+                "ModelLaneRun could not stamp complete resource attribution".into(),
+            )
+        })?;
+    }
     let event = model_lane_event(
         KernelEventType::SessionStarted,
         "model_lane_run",
@@ -5231,14 +5714,29 @@ async fn record_lane_tx(
     input: NewModelLane,
     scope: ScopeColumnValues<'_>,
 ) -> ModelLaneResult<ModelLaneRecord> {
-    let event_idempotency_key = format!("model-lane:{}:{}", input.run_id, input.lane_id);
+    lock_idempotency_key_tx(tx, &format!("model-lane-lifecycle:{}", input.lane_id)).await?;
+    let event_idempotency_key = if input.restart_generation == 0 {
+        format!("model-lane:{}:{}", input.run_id, input.lane_id)
+    } else {
+        format!(
+            "model-lane:{}:{}:restart:{}",
+            input.run_id, input.lane_id, input.restart_generation
+        )
+    };
     let model_stable_anchor = resolve_lane_stable_anchor_tx(tx, &input).await?;
-    let payload = json!({
+    let mut payload = json!({
         "schema_id": "hsk.model_lane@1",
         "dexterity_kernel": "Dexterity",
         "model_stable_anchor": model_stable_anchor,
         "record": input,
     });
+    if let Some(exact_scope) = exact_resource_scope_from_columns(scope, "ModelLane")? {
+        exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+            ModelLaneError::AuthorityDenied(
+                "ModelLane could not stamp complete resource attribution".into(),
+            )
+        })?;
+    }
     let event = model_lane_event(
         KernelEventType::ModelAdapterInvoked,
         "model_lane",
@@ -5301,13 +5799,85 @@ async fn record_lane_tx(
 
     let existing = lane_by_id_tx(tx, &record.lane_id).await?;
     if existing == record {
-        Ok(existing)
-    } else {
-        Err(ModelLaneError::IdempotencyConflict(format!(
-            "lane_id {} already belongs to run_id {}",
-            record.lane_id, existing.run_id
-        )))
+        return Ok(existing);
     }
+
+    validate_lane_restart(&existing, &record.inner)?;
+    let row = sqlx::query(
+        r#"
+        UPDATE model_lanes
+        SET status = $2,
+            event_ledger_event_id = $3,
+            event_ledger_seq = $4,
+            record_json = $5,
+            updated_at = NOW()
+        WHERE lane_id = $1
+        RETURNING record_json
+        "#,
+    )
+    .bind(&record.lane_id)
+    .bind(record.status.as_str())
+    .bind(&record.event_ledger_event_id)
+    .bind(record.event_ledger_seq)
+    .bind(serde_json::to_value(&record)?)
+    .fetch_one(&mut **tx)
+    .await?;
+    serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
+}
+
+fn validate_lane_restart(
+    existing: &ModelLaneRecord,
+    restart: &NewModelLane,
+) -> ModelLaneResult<()> {
+    let expected_generation = existing.restart_generation.checked_add(1).ok_or_else(|| {
+        ModelLaneError::IdempotencyConflict(format!(
+            "lane_id {} restart_generation overflowed",
+            existing.lane_id
+        ))
+    })?;
+    if restart.restart_generation != expected_generation {
+        return Err(ModelLaneError::IdempotencyConflict(format!(
+            "lane_id {} restart_generation {} must follow durable generation {}",
+            existing.lane_id, restart.restart_generation, existing.restart_generation
+        )));
+    }
+    if !matches!(
+        existing.status,
+        ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
+    ) {
+        return Err(ModelLaneError::IdempotencyConflict(format!(
+            "lane_id {} generation {} cannot restart from status {}",
+            existing.lane_id,
+            existing.restart_generation,
+            existing.status.as_str()
+        )));
+    }
+    let stable_identity_matches = existing.lane_id == restart.lane_id
+        && existing.run_id == restart.run_id
+        && existing.trace_id == restart.trace_id
+        && existing.lane_span_id == restart.lane_span_id
+        && existing.event_ledger_stream_id == restart.event_ledger_stream_id
+        && existing.kind == restart.kind
+        && existing.role == restart.role
+        && existing.backend == restart.backend
+        && existing.model_id == restart.model_id
+        && existing.adapter_id == restart.adapter_id
+        && existing.runtime_binding == restart.runtime_binding
+        && existing.launch_authority == restart.launch_authority
+        && existing.provider_kind == restart.provider_kind
+        && existing.projection_plan_ref == restart.projection_plan_ref
+        && existing.consent_receipt_ref == restart.consent_receipt_ref
+        && existing.work_packet_id == restart.work_packet_id
+        && existing.micro_task_id == restart.micro_task_id
+        && existing.task_board_id == restart.task_board_id
+        && existing.owner_session == restart.owner_session;
+    if !stable_identity_matches {
+        return Err(ModelLaneError::IdempotencyConflict(format!(
+            "lane_id {} restart changed stable lane authority",
+            existing.lane_id
+        )));
+    }
+    Ok(())
 }
 
 async fn resolve_lane_stable_anchor_tx(
@@ -6729,6 +7299,8 @@ pub struct ModelLaneRoutingMetadata {
 pub struct DexterityLaunchContract {
     pub run_id: String,
     pub lane_id: String,
+    #[serde(default)]
+    pub restart_generation: i64,
     pub trace_id: String,
     pub run_span_id: String,
     pub lane_span_id: String,
@@ -6814,6 +7386,7 @@ impl DexterityLaunchContract {
         Ok(Self {
             run_id: run_id.clone(),
             lane_id: lane_id.clone(),
+            restart_generation: 0,
             trace_id,
             run_span_id: format!("span-{run_id}-run"),
             lane_span_id: format!("span-{lane_id}-lane"),
@@ -6881,6 +7454,11 @@ impl DexterityLaunchContract {
         require_token("determinism_mode", &self.determinism_mode)?;
         require_token("budget_summary_ref", &self.budget_summary_ref)?;
         require_token("procedural_review_status", &self.procedural_review_status)?;
+        if self.restart_generation < 0 {
+            return Err(ModelLaneError::InvalidInput(
+                "Dexterity launch preflight requires non-negative restart_generation".into(),
+            ));
+        }
         if self.capability_token_ids.is_empty() {
             return Err(ModelLaneError::InvalidInput(
                 "Dexterity launch preflight requires capability_token_ids".into(),
@@ -7061,7 +7639,7 @@ impl DexterityLaunchContract {
             heartbeat_at_utc: Some(heartbeat.to_rfc3339()),
             lease_expires_at_utc: Some((heartbeat + chrono::Duration::minutes(5)).to_rfc3339()),
             reclaim_after_utc: Some((heartbeat + chrono::Duration::minutes(6)).to_rfc3339()),
-            restart_generation: 0,
+            restart_generation: self.restart_generation,
             cancellation_ref: Some(format!("cancel-token://{}", self.lane_id)),
             reclaim_policy_ref: Some("reclaim-policy://swarm-coordinator-lease".into()),
             terminal_status_mapping_ref: Some(terminal_status_mapping_ref),
@@ -7141,7 +7719,7 @@ impl DexterityLaunchContract {
             heartbeat_at_utc: Some(heartbeat.to_rfc3339()),
             lease_expires_at_utc: Some((heartbeat + chrono::Duration::minutes(5)).to_rfc3339()),
             reclaim_after_utc: Some((heartbeat + chrono::Duration::minutes(6)).to_rfc3339()),
-            restart_generation: 0,
+            restart_generation: self.restart_generation,
             cancellation_ref: Some(format!("cancel-token://{}", self.lane_id)),
             reclaim_policy_ref: Some("reclaim-policy://failed-startup".into()),
             terminal_status_mapping_ref: Some(terminal_status_mapping_ref),
@@ -9085,7 +9663,11 @@ fn validate_cloud_authority_pair(
     // When the plan names the receipt that authorizes it, that binding is
     // enforced rather than decorative: a plan may not be paired with a receipt it
     // did not name.
-    if let Some(authorized_by) = projection.export_delegation.authorization_receipt_ref.as_deref() {
+    if let Some(authorized_by) = projection
+        .export_delegation
+        .authorization_receipt_ref
+        .as_deref()
+    {
         if authorized_by != consent.consent_receipt_id {
             return Err(ModelLaneError::AuthorityDenied(format!(
                 "CX-MM-007 ProjectionPlan {} is authorized by {authorized_by}, not by ConsentReceipt {}",
@@ -9475,81 +10057,159 @@ async fn record_cloud_consent_denial(
 
 async fn recovery_checkpoint_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLaneRecoveryCheckpointRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_recovery_checkpoints WHERE idempotency_key = $1 LIMIT 1",
+    recovery_record_by_idempotency_key_tx(
+        tx,
+        access,
+        "model_lane_recovery_checkpoints",
+        idempotency_key,
     )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    .await
 }
 
 async fn recovery_event_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLaneRecoveryEventRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_recovery_events WHERE idempotency_key = $1 LIMIT 1",
-    )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    recovery_record_by_idempotency_key_tx(tx, access, "model_lane_recovery_events", idempotency_key)
+        .await
 }
 
 async fn lane_lease_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLaneLeaseRecord>> {
-    sqlx::query("SELECT record_json FROM model_lane_leases WHERE idempotency_key = $1 LIMIT 1")
-        .bind(idempotency_key)
-        .fetch_optional(&mut **tx)
-        .await?
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .transpose()
+    recovery_record_by_idempotency_key_tx(tx, access, "model_lane_leases", idempotency_key).await
 }
 
 async fn diagnostic_tier_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLaneDiagnosticTierStatusRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_diagnostic_tier_statuses WHERE idempotency_key = $1 LIMIT 1",
+    recovery_record_by_idempotency_key_tx(
+        tx,
+        access,
+        "model_lane_diagnostic_tier_statuses",
+        idempotency_key,
     )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    .await
 }
 
 async fn mt_runtime_status_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLaneMtRuntimeStatusRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_mt_runtime_statuses WHERE idempotency_key = $1 LIMIT 1",
+    recovery_record_by_idempotency_key_tx(
+        tx,
+        access,
+        "model_lane_mt_runtime_statuses",
+        idempotency_key,
     )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    .await
+}
+
+/// Recovery records are children of one canonical ModelLaneRun. Account writes
+/// therefore require the same complete five-dimensional scope on parent and
+/// child; only an explicit system store may use the legacy NULL-scope path.
+fn require_exact_recovery_account_scope(access: &ResourceAccessContext) -> ModelLaneResult<()> {
+    if !access.is_system() && access.exact_read_scope().is_none() {
+        return Err(ModelLaneError::AuthorityDenied(
+            "recovery writes require exact owner, Principal, authenticated session, AccessSpace, and workspace authority"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+async fn recovery_record_by_idempotency_key_tx<T>(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    table: &'static str,
+    idempotency_key: &str,
+) -> ModelLaneResult<Option<T>>
+where
+    T: DeserializeOwned,
+{
+    require_exact_recovery_account_scope(access)?;
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table} \
+         WHERE idempotency_key = $1{} LIMIT 1",
+        predicate.clause()
+    );
+    if let Some(row) = predicate
+        .bind(sqlx::query(&sql).bind(idempotency_key))
+        .fetch_optional(&mut **tx)
+        .await?
+    {
+        return authorize_and_decode_row(access, row).map(Some);
+    }
+
+    // A globally unique idempotency key owned by another scope is reported as
+    // absent. Otherwise the later INSERT would expose its existence through a
+    // uniqueness error even though the scoped replay correctly returned none.
+    if !access.is_system()
+        && sqlx::query_scalar::<_, bool>(&format!(
+            "SELECT EXISTS (SELECT 1 FROM {table} WHERE idempotency_key = $1)"
+        ))
+        .bind(idempotency_key)
+        .fetch_one(&mut **tx)
+        .await?
+    {
+        return Err(ModelLaneError::NotFound(
+            "model lane resource is not available".into(),
+        ));
+    }
+    Ok(None)
+}
+
+async fn recovery_run_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    run_id: &str,
+) -> ModelLaneResult<ModelLaneRunRecord> {
+    require_exact_recovery_account_scope(access)?;
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_runs \
+         WHERE run_id = $1{} LIMIT 1 FOR UPDATE",
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(run_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?
+        .ok_or_else(|| ModelLaneError::NotFound("model lane resource is not available".into()))
+}
+
+async fn recovery_lane_by_id_for_run_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    run_id: &str,
+    lane_id: &str,
+) -> ModelLaneResult<ModelLaneRecord> {
+    require_exact_recovery_account_scope(access)?;
+    let predicate = access.sql_predicate(3);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes \
+         WHERE run_id = $1 AND lane_id = $2{} LIMIT 1 FOR UPDATE",
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(run_id).bind(lane_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?
+        .ok_or_else(|| ModelLaneError::NotFound("model lane resource is not available".into()))
 }
 
 async fn canonical_run_for_recovery(
@@ -9591,6 +10251,105 @@ async fn canonical_run_for_recovery(
         &run.event_ledger_stream_id,
     )?;
     Ok(run)
+}
+
+/// Boot recovery is intentionally system-authority and cross-owner, but every
+/// child it replays must remain pinned to the canonical run's stored scope.
+/// Comparing in PostgreSQL keeps malformed/missing attribution fail-closed and
+/// supports the explicit legacy system path where all five values are NULL.
+async fn validate_recovery_eventledger_resource_scope(
+    tx: &mut Transaction<'_, Postgres>,
+    run_id: &str,
+    event_ledger_stream_id: &str,
+) -> ModelLaneResult<()> {
+    let mismatches: i64 = sqlx::query_scalar(
+        r#"
+        WITH canonical_scope AS (
+            SELECT jsonb_build_object(
+                'owner_account_id', owner_account_id,
+                'actor_principal_id', actor_principal_id,
+                'authenticated_session_id', authenticated_session_id,
+                'access_space_id', access_space_id,
+                'workspace_id', workspace_id
+            ) AS value
+            FROM model_lane_runs
+            WHERE run_id = $1
+        )
+        SELECT COUNT(*)
+        FROM kernel_event_ledger AS event
+        CROSS JOIN canonical_scope
+        WHERE event.session_run_id = $2
+          AND event.aggregate_type IN (
+              'model_lane_recovery_checkpoint',
+              'model_lane_recovery_event',
+              'model_lane_lease',
+              'model_lane_diagnostic_tier',
+              'model_lane_mt_runtime_status'
+          )
+          AND event.payload->'record'->>'run_id' = $1
+          AND event.payload->'resource_scope' IS DISTINCT FROM canonical_scope.value
+        "#,
+    )
+    .bind(run_id)
+    .bind(event_ledger_stream_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    if mismatches != 0 {
+        return Err(ModelLaneError::IntegrityViolation(
+            "recovery EventLedger resource scope does not match the canonical run".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// System boot recovery may discover runs across owners, but every child it
+/// appends remains a derivative of the canonical run. Derive that write
+/// authority from the run's physical scope columns under the recovery fence;
+/// never stamp the system scanner's NULL scope onto an account-owned run.
+async fn recovery_child_access_for_canonical_run_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    recovery_access: &ResourceAccessContext,
+    run_id: &str,
+) -> ModelLaneResult<ResourceAccessContext> {
+    let row = sqlx::query(&format!(
+        "SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_runs \
+         WHERE run_id = $1 LIMIT 1 FOR UPDATE"
+    ))
+    .bind(run_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| ModelLaneError::NotFound("model lane resource is not available".into()))?;
+    let stored = stored_resource_scope_from_row(&row)?;
+    recovery_access
+        .authorize_row(&stored)
+        .map_err(|_| ModelLaneError::NotFound("model lane resource is not available".into()))?;
+    match (
+        stored.owner_account_id,
+        stored.actor_principal_id,
+        stored.authenticated_session,
+        stored.access_space,
+        stored.workspace,
+    ) {
+        (Some(owner), Some(actor), Some(session), Some(access_space), Some(workspace)) => {
+            Ok(ResourceAccessContext::for_account(
+                ResourceScope::new(owner, actor)
+                    .with_session(session)
+                    .with_access_space(access_space)
+                    .with_workspace(workspace),
+            ))
+        }
+        (None, None, None, None, None) => recovery_access
+            .system_authority()
+            .map(ResourceAccessContext::system)
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "legacy unattributed recovery requires explicit system authority".into(),
+                )
+            }),
+        _ => Err(ModelLaneError::IntegrityViolation(
+            "canonical recovery run has incomplete resource scope".into(),
+        )),
+    }
 }
 
 async fn latest_recovery_checkpoint(
@@ -10574,6 +11333,90 @@ where
     row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
 }
 
+fn require_exact_context_bundle_write_scope(scope: ScopeColumnValues<'_>) -> ModelLaneResult<()> {
+    if scope.owner_account_id.is_none()
+        || scope.actor_principal_id.is_none()
+        || scope.authenticated_session_id.is_none()
+        || scope.access_space_id.is_none()
+        || scope.workspace_id.is_none()
+    {
+        return Err(ModelLaneError::AuthorityDenied(
+            "ContextBundle writes require exact owner, Principal, authenticated session, AccessSpace, and workspace authority"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+fn require_exact_context_bundle_read_scope(
+    access: &ResourceAccessContext,
+) -> ModelLaneResult<&ExactResourceScopeAttribution> {
+    access.exact_read_scope().ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(
+            "ContextBundle reads require exact owner, Principal, authenticated session, AccessSpace, and workspace authority"
+                .into(),
+        )
+    })
+}
+
+fn context_bundle_authorize_and_decode_write_scope<T>(
+    scope: ScopeColumnValues<'_>,
+    row: sqlx::postgres::PgRow,
+) -> ModelLaneResult<T>
+where
+    T: DeserializeOwned,
+{
+    let stored = stored_resource_scope_from_row(&row)?;
+    if stored.owner_account_id.map(|value| value.as_uuid()) != scope.owner_account_id
+        || stored.actor_principal_id.map(|value| value.as_uuid()) != scope.actor_principal_id
+        || stored.authenticated_session.map(|value| value.as_uuid())
+            != scope.authenticated_session_id
+        || stored.access_space.map(|value| value.as_uuid()) != scope.access_space_id
+        || stored.workspace.as_ref().map(|value| value.as_str()) != scope.workspace_id
+    {
+        return Err(ModelLaneError::ScopeDenied(
+            ScopeDenied::ExactAttributionMismatch,
+        ));
+    }
+    row_to_json(row, "record_json")
+        .and_then(|value| serde_json::from_value(value).map_err(Into::into))
+}
+
+async fn context_bundle_record_by_key_for_write_scope_tx<T>(
+    tx: &mut Transaction<'_, Postgres>,
+    table: &str,
+    key_column: &str,
+    key: &str,
+    scope: ScopeColumnValues<'_>,
+    for_update: bool,
+) -> ModelLaneResult<Option<T>>
+where
+    T: DeserializeOwned,
+{
+    require_exact_context_bundle_write_scope(scope)?;
+    let lock = if for_update { " FOR UPDATE" } else { "" };
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table} \
+         WHERE {key_column} = $1 \
+           AND owner_account_id IS NOT DISTINCT FROM $2::uuid \
+           AND actor_principal_id IS NOT DISTINCT FROM $3::uuid \
+           AND authenticated_session_id IS NOT DISTINCT FROM $4::uuid \
+           AND access_space_id IS NOT DISTINCT FROM $5::uuid \
+           AND workspace_id IS NOT DISTINCT FROM $6{lock}"
+    );
+    let row = sqlx::query(&sql)
+        .bind(key)
+        .bind(scope.owner_account_id)
+        .bind(scope.actor_principal_id)
+        .bind(scope.authenticated_session_id)
+        .bind(scope.access_space_id)
+        .bind(scope.workspace_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+    row.map(|row| context_bundle_authorize_and_decode_write_scope(scope, row))
+        .transpose()
+}
+
 async fn select_record_by_column<T>(
     pool: &PgPool,
     access: &ResourceAccessContext,
@@ -10671,6 +11514,157 @@ async fn select_run_ids_by_column(
         .fetch_all(pool)
         .await
         .map_err(Into::into)
+}
+
+#[derive(Debug)]
+enum ValidatedNavigationOrigin {
+    Run(ModelLaneRunRecord),
+    Lane(ModelLaneRecord),
+    Message(ModelLaneMessageRecord),
+}
+
+impl ValidatedNavigationOrigin {
+    fn run_id(&self) -> &str {
+        match self {
+            Self::Run(record) => &record.run_id,
+            Self::Lane(record) => &record.run_id,
+            Self::Message(record) => &record.run_id,
+        }
+    }
+}
+
+/// Resolve mutable navigation origins under one locking transaction. The
+/// projection row and its EventLedger authority are reconciled before any
+/// caller is allowed to consume `record_json.run_id`.
+async fn validated_navigation_origins(
+    pool: &PgPool,
+    access: &ResourceAccessContext,
+    origin: &str,
+    condition: &str,
+    value: &str,
+) -> ModelLaneResult<Vec<ValidatedNavigationOrigin>> {
+    let table = match origin {
+        "run" => "model_lane_runs",
+        "lane" => "model_lanes",
+        "message" => "model_lane_messages",
+        _ => {
+            return Err(ModelLaneError::InvalidInput(
+                "unsupported navigation origin".into(),
+            ));
+        }
+    };
+    let mut tx = pool.begin().await?;
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table} \
+         WHERE ({condition}){} ORDER BY record_json->>'run_id' ASC FOR SHARE",
+        predicate.clause()
+    );
+    let rows = predicate
+        .bind(sqlx::query(&sql).bind(value))
+        .fetch_all(&mut *tx)
+        .await?;
+    let mut records = Vec::with_capacity(rows.len());
+    for row in rows {
+        match origin {
+            "run" => {
+                let record: ModelLaneRunRecord = authorize_and_decode_row(access, row)?;
+                validate_stored_run_eventledger_authority_tx(
+                    &mut tx,
+                    &record,
+                    access.exact_read_scope(),
+                )
+                .await
+                .map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "ModelLane navigation authority unavailable".into(),
+                    )
+                })?;
+                records.push(ValidatedNavigationOrigin::Run(record));
+            }
+            "lane" => {
+                let record: ModelLaneRecord = authorize_and_decode_row(access, row)?;
+                validate_stored_lane_eventledger_authority_tx(
+                    &mut tx,
+                    &record,
+                    access.exact_read_scope(),
+                )
+                .await
+                .map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "ModelLane navigation authority unavailable".into(),
+                    )
+                })?;
+                records.push(ValidatedNavigationOrigin::Lane(record));
+            }
+            "message" => {
+                let record: ModelLaneMessageRecord = authorize_and_decode_row(access, row)?;
+                validate_stored_message_eventledger_authority_tx(
+                    &mut tx,
+                    &record,
+                    access.exact_read_scope(),
+                )
+                .await
+                .map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "ModelLane navigation authority unavailable".into(),
+                    )
+                })?;
+                records.push(ValidatedNavigationOrigin::Message(record));
+            }
+            _ => unreachable!("origin validated above"),
+        }
+    }
+    tx.commit().await?;
+    Ok(records)
+}
+
+async fn validated_navigation_run_ids(
+    pool: &PgPool,
+    access: &ResourceAccessContext,
+    origin: &str,
+    condition: &str,
+    value: &str,
+) -> ModelLaneResult<Vec<String>> {
+    Ok(
+        validated_navigation_origins(pool, access, origin, condition, value)
+            .await?
+            .into_iter()
+            .map(|record| record.run_id().to_owned())
+            .collect(),
+    )
+}
+
+async fn validated_navigation_handoff_run_ids(
+    pool: &PgPool,
+    access: &ResourceAccessContext,
+    condition: &str,
+    value: &str,
+) -> ModelLaneResult<Vec<String>> {
+    let mut tx = pool.begin().await?;
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+         FROM model_lane_context_bundle_handoffs WHERE ({condition}){} \
+         ORDER BY run_id ASC FOR SHARE",
+        predicate.clause()
+    );
+    let rows = predicate
+        .bind(sqlx::query(&sql).bind(value))
+        .fetch_all(&mut *tx)
+        .await?;
+    let mut run_ids = Vec::with_capacity(rows.len());
+    for row in rows {
+        let record: ModelLaneContextBundleHandoffRecord = authorize_and_decode_row(access, row)?;
+        validate_stored_context_bundle_handoff_authority_tx(&mut tx, access, &record)
+            .await
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied("ModelLane navigation authority unavailable".into())
+            })?;
+        run_ids.push(record.run_id.clone());
+    }
+    tx.commit().await?;
+    Ok(run_ids)
 }
 
 fn unique_run_id_for_lookup(
@@ -11283,6 +12277,353 @@ async fn validate_stored_crdt_message_authority_tx(
     Ok(Some(resolved))
 }
 
+/// Reconcile every durable message projection against the immutable
+/// MODEL_RESPONSE_RECORDED event. CRDT messages retain their additional lease
+/// validation, while non-CRDT and promoted messages can no longer bypass the
+/// EventLedger authority check merely because they carry no CRDT references.
+async fn validate_stored_message_eventledger_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    message: &ModelLaneMessageRecord,
+    expected_exact_scope: Option<&ExactResourceScopeAttribution>,
+) -> ModelLaneResult<Option<ResolvedModelLaneCrdtAuthority>> {
+    let crdt_authority = validate_stored_crdt_message_authority_tx(tx, message).await?;
+
+    let row = sqlx::query(
+        r#"
+        SELECT event_type, aggregate_type, aggregate_id, event_sequence,
+               session_run_id, payload, payload_hash
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&message.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(
+            "ModelLaneMessage projection does not equal its EventLedger authority".into(),
+        )
+    })?;
+    let event_type: String = row.try_get("event_type")?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let event_sequence: i64 = row.try_get("event_sequence")?;
+    let session_run_id: String = row.try_get("session_run_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let payload_hash: String = row.try_get("payload_hash")?;
+
+    let mut expected_payload = json!({
+        "schema_id": "hsk.model_lane_message@1",
+        "dexterity_kernel": "Dexterity",
+        "record": &message.inner,
+        "crdt_authority_binding": &message.crdt_authority_binding,
+    });
+    if let Some(exact_scope) = expected_exact_scope {
+        exact_scope
+            .stamp_json_object(&mut expected_payload)
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLaneMessage EventLedger authority requires complete resource attribution"
+                        .into(),
+                )
+            })?;
+    } else if message.authority == ModelLaneAuthority::Promoted {
+        return Err(ModelLaneError::AuthorityDenied(
+            "Promoted ModelLaneMessage EventLedger authority requires complete resource attribution"
+                .into(),
+        ));
+    }
+    let expected_payload_hash = dexterity_sha256_hex(canonical_json_bytes(&payload));
+    if event_type != "MODEL_RESPONSE_RECORDED"
+        || aggregate_type != "model_lane_message"
+        || aggregate_id != message.message_id
+        || event_sequence != message.event_ledger_seq
+        || event_sequence != message.event_stream_version
+        || event_sequence != message.transaction_seq
+        || session_run_id != message.event_ledger_stream_id
+        || payload != expected_payload
+        || payload_hash != expected_payload_hash
+    {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "ModelLaneMessage {} projection does not equal its EventLedger authority",
+            message.message_id
+        )));
+    }
+    Ok(crdt_authority)
+}
+
+async fn validate_stored_message_eventledger_authority_for_write_scope_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    scope: ScopeColumnValues<'_>,
+    message: &ModelLaneMessageRecord,
+) -> ModelLaneResult<()> {
+    let exact_scope = exact_resource_scope_from_columns(scope, "ModelLaneMessage")?;
+    if message.authority == ModelLaneAuthority::Promoted && exact_scope.is_none() {
+        return Err(ModelLaneError::AuthorityDenied(
+            "Promoted ModelLaneMessage EventLedger authority requires complete resource attribution"
+                .into(),
+        ));
+    }
+    validate_stored_message_eventledger_authority_tx(tx, message, exact_scope.as_ref())
+        .await
+        .map(|_| ())
+}
+
+async fn validate_stored_run_eventledger_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    run: &ModelLaneRunRecord,
+    expected_exact_scope: Option<&ExactResourceScopeAttribution>,
+) -> ModelLaneResult<()> {
+    let row = sqlx::query(
+        "SELECT event_type, aggregate_type, aggregate_id, event_sequence, \
+         session_run_id, payload, payload_hash FROM kernel_event_ledger WHERE event_id = $1",
+    )
+    .bind(&run.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(
+            "ModelLaneRun projection does not equal its EventLedger authority".into(),
+        )
+    })?;
+    let payload: Value = row.try_get("payload")?;
+    let schema_id = payload.get("schema_id").and_then(Value::as_str);
+    let mut expected_payload = match schema_id {
+        Some("hsk.model_lane_run@1") => json!({
+            "schema_id": "hsk.model_lane_run@1",
+            "dexterity_kernel": "Dexterity",
+            "record": &run.inner,
+        }),
+        Some("hsk.model_lane_run_extension@1") => {
+            let claimed_attached_lane_id = payload
+                .get("attached_lane_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(
+                        "ModelLaneRun extension projection does not equal its EventLedger authority"
+                            .into(),
+                    )
+                })?;
+            let previous = sqlx::query(
+                "SELECT event_type, aggregate_type, aggregate_id, event_sequence, \
+                        session_run_id, payload, payload_hash \
+                 FROM kernel_event_ledger \
+                 WHERE aggregate_type = 'model_lane_run' AND aggregate_id = $1 \
+                   AND event_sequence < $2 ORDER BY event_sequence DESC LIMIT 1",
+            )
+            .bind(&run.run_id)
+            .bind(run.event_ledger_seq)
+            .fetch_optional(&mut **tx)
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun extension has no preceding EventLedger authority".into(),
+                )
+            })?;
+            let previous_payload: Value = previous.try_get("payload")?;
+            if previous.try_get::<String, _>("payload_hash")?
+                != dexterity_sha256_hex(canonical_json_bytes(&previous_payload))
+            {
+                return Err(ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun preceding EventLedger authority hash mismatch".into(),
+                ));
+            }
+            let previous_inner: NewModelLaneRun = serde_json::from_value(
+                previous_payload.get("record").cloned().ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(
+                        "ModelLaneRun preceding EventLedger authority has no record".into(),
+                    )
+                })?,
+            )?;
+            let mut expected_previous_payload =
+                match previous_payload.get("schema_id").and_then(Value::as_str) {
+                    Some("hsk.model_lane_run@1") => json!({
+                        "schema_id": "hsk.model_lane_run@1",
+                        "dexterity_kernel": "Dexterity",
+                        "record": &previous_inner,
+                    }),
+                    Some("hsk.model_lane_run_extension@1") => {
+                        let previous_attached_lane_id = previous_payload
+                            .get("attached_lane_id")
+                            .and_then(Value::as_str)
+                            .ok_or_else(|| {
+                                ModelLaneError::AuthorityDenied(
+                                "ModelLaneRun preceding extension authority has no attached lane"
+                                    .into(),
+                            )
+                            })?;
+                        json!({
+                            "schema_id": "hsk.model_lane_run_extension@1",
+                            "dexterity_kernel": "Dexterity",
+                            "run_id": run.run_id,
+                            "attached_lane_id": previous_attached_lane_id,
+                            "record": &previous_inner,
+                        })
+                    }
+                    _ => {
+                        return Err(ModelLaneError::AuthorityDenied(
+                        "ModelLaneRun preceding EventLedger authority has an unsupported schema"
+                            .into(),
+                    ));
+                    }
+                };
+            if let Some(exact_scope) = expected_exact_scope {
+                exact_scope
+                    .stamp_json_object(&mut expected_previous_payload)
+                    .map_err(|_| {
+                        ModelLaneError::AuthorityDenied(
+                            "ModelLaneRun preceding EventLedger authority requires complete resource attribution"
+                                .into(),
+                        )
+                    })?;
+            }
+            if previous.try_get::<String, _>("event_type")? != "SESSION_STARTED"
+                || previous.try_get::<String, _>("aggregate_type")? != "model_lane_run"
+                || previous.try_get::<String, _>("aggregate_id")? != run.run_id
+                || previous.try_get::<String, _>("session_run_id")? != run.event_ledger_stream_id
+                || previous_payload != expected_previous_payload
+            {
+                return Err(ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun preceding EventLedger authority is not canonical".into(),
+                ));
+            }
+            let previous_lane_ids: BTreeSet<&str> =
+                previous_inner.lane_ids.iter().map(String::as_str).collect();
+            let current_lane_ids: BTreeSet<&str> =
+                run.lane_ids.iter().map(String::as_str).collect();
+            let added_lanes = current_lane_ids
+                .difference(&previous_lane_ids)
+                .copied()
+                .collect::<Vec<_>>();
+            if added_lanes.as_slice() != [claimed_attached_lane_id]
+                || !previous_lane_ids.is_subset(&current_lane_ids)
+            {
+                return Err(ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun extension attached lane does not equal the independently reconstructed delta"
+                        .into(),
+                ));
+            }
+            let previous_models: BTreeSet<&str> = previous_inner
+                .candidate_model_ids
+                .iter()
+                .map(String::as_str)
+                .collect();
+            let current_models: BTreeSet<&str> =
+                run.candidate_model_ids.iter().map(String::as_str).collect();
+            let mut reconstructed_previous = run.inner.clone();
+            reconstructed_previous.lane_ids = previous_inner.lane_ids.clone();
+            reconstructed_previous.candidate_model_ids = previous_inner.candidate_model_ids.clone();
+            reconstructed_previous.projection_plan_ref = previous_inner.projection_plan_ref.clone();
+            reconstructed_previous.consent_receipt_ref = previous_inner.consent_receipt_ref.clone();
+            if reconstructed_previous != previous_inner
+                || !previous_models.is_subset(&current_models)
+                || (previous_inner.projection_plan_ref.is_some()
+                    && previous_inner.projection_plan_ref != run.projection_plan_ref)
+                || (previous_inner.consent_receipt_ref.is_some()
+                    && previous_inner.consent_receipt_ref != run.consent_receipt_ref)
+            {
+                return Err(ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun extension changed fields outside the permitted merge delta"
+                        .into(),
+                ));
+            }
+            json!({
+                "schema_id": "hsk.model_lane_run_extension@1",
+                "dexterity_kernel": "Dexterity",
+                "run_id": run.run_id,
+                "attached_lane_id": claimed_attached_lane_id,
+                "record": &run.inner,
+            })
+        }
+        _ => {
+            return Err(ModelLaneError::AuthorityDenied(
+                "ModelLaneRun projection does not equal its EventLedger authority".into(),
+            ));
+        }
+    };
+    if let Some(exact_scope) = expected_exact_scope {
+        exact_scope
+            .stamp_json_object(&mut expected_payload)
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLaneRun EventLedger authority requires complete resource attribution"
+                        .into(),
+                )
+            })?;
+    }
+    let valid = row.try_get::<String, _>("event_type")? == "SESSION_STARTED"
+        && row.try_get::<String, _>("aggregate_type")? == "model_lane_run"
+        && row.try_get::<String, _>("aggregate_id")? == run.run_id
+        && row.try_get::<i64, _>("event_sequence")? == run.event_ledger_seq
+        && row.try_get::<String, _>("session_run_id")? == run.event_ledger_stream_id
+        && payload == expected_payload
+        && row.try_get::<String, _>("payload_hash")?
+            == dexterity_sha256_hex(canonical_json_bytes(&payload));
+    if !valid {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "ModelLaneRun {} projection does not equal its EventLedger authority",
+            run.run_id
+        )));
+    }
+    Ok(())
+}
+
+async fn validate_stored_lane_eventledger_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    lane: &ModelLaneRecord,
+    expected_exact_scope: Option<&ExactResourceScopeAttribution>,
+) -> ModelLaneResult<()> {
+    let row = sqlx::query(
+        "SELECT event.event_type, event.aggregate_type, event.aggregate_id, \
+         event.event_sequence, event.session_run_id, event.payload, event.payload_hash, \
+         lane.model_stable_anchor \
+         FROM kernel_event_ledger event \
+         JOIN model_lanes lane ON lane.lane_id = $2 \
+         WHERE event.event_id = $1",
+    )
+    .bind(&lane.event_ledger_event_id)
+    .bind(&lane.lane_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(
+            "ModelLane projection does not equal its EventLedger authority".into(),
+        )
+    })?;
+    let payload: Value = row.try_get("payload")?;
+    let model_stable_anchor: Option<String> = row.try_get("model_stable_anchor")?;
+    let mut expected_payload = json!({
+        "schema_id": "hsk.model_lane@1",
+        "dexterity_kernel": "Dexterity",
+        "model_stable_anchor": model_stable_anchor,
+        "record": &lane.inner,
+    });
+    if let Some(exact_scope) = expected_exact_scope {
+        exact_scope
+            .stamp_json_object(&mut expected_payload)
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane EventLedger authority requires complete resource attribution".into(),
+                )
+            })?;
+    }
+    let valid = row.try_get::<String, _>("event_type")? == "MODEL_ADAPTER_INVOKED"
+        && row.try_get::<String, _>("aggregate_type")? == "model_lane"
+        && row.try_get::<String, _>("aggregate_id")? == lane.lane_id
+        && row.try_get::<i64, _>("event_sequence")? == lane.event_ledger_seq
+        && row.try_get::<String, _>("session_run_id")? == lane.event_ledger_stream_id
+        && payload == expected_payload
+        && row.try_get::<String, _>("payload_hash")?
+            == dexterity_sha256_hex(canonical_json_bytes(&payload));
+    if !valid {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "ModelLane {} projection does not equal its EventLedger authority",
+            lane.lane_id
+        )));
+    }
+    Ok(())
+}
+
 async fn validate_replay_message_crdt_posture(
     tx: &mut Transaction<'_, Postgres>,
     messages: &[ModelLaneMessageRecord],
@@ -11485,6 +12826,78 @@ async fn run_by_id_tx(
         .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id}")))
 }
 
+async fn message_run_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    run_id: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<ModelLaneRunRecord> {
+    let run = message_record_by_key_for_write_scope_tx(
+        tx,
+        "model_lane_runs",
+        "run_id",
+        run_id,
+        scope,
+        true,
+    )
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied("ModelLaneMessage authority unavailable".into())
+    })?;
+    let exact_scope = exact_resource_scope_from_columns(scope, "ModelLaneRun")?;
+    validate_stored_run_eventledger_authority_tx(tx, &run, exact_scope.as_ref())
+        .await
+        .map_err(|_| {
+            ModelLaneError::AuthorityDenied("ModelLaneMessage authority unavailable".into())
+        })?;
+    Ok(run)
+}
+
+async fn context_bundle_run_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    run_id: &str,
+) -> ModelLaneResult<ModelLaneRunRecord> {
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_runs \
+         WHERE run_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(run_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?
+        .ok_or_else(|| ModelLaneError::NotFound("ContextBundle run authority".into()))?;
+    validate_stored_run_eventledger_authority_tx(tx, &record, access.exact_read_scope())
+        .await
+        .map_err(|_| ModelLaneError::AuthorityDenied("ContextBundle run authority".into()))?;
+    Ok(record)
+}
+
+async fn context_bundle_run_by_id_for_write_scope_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    run_id: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<ModelLaneRunRecord> {
+    let run = context_bundle_record_by_key_for_write_scope_tx(
+        tx,
+        "model_lane_runs",
+        "run_id",
+        run_id,
+        scope,
+        true,
+    )
+    .await?
+    .ok_or_else(|| ModelLaneError::NotFound("ContextBundle run authority".into()))?;
+    let exact_scope = promotion_exact_scope_from_columns(scope)?;
+    validate_stored_run_eventledger_authority_tx(tx, &run, Some(&exact_scope))
+        .await
+        .map_err(|_| ModelLaneError::AuthorityDenied("ContextBundle run authority".into()))?;
+    Ok(run)
+}
+
 async fn lock_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
     idempotency_key: &str,
@@ -11588,6 +13001,67 @@ async fn lane_by_id_tx(
         })
         .transpose()?
         .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))
+}
+
+async fn message_lane_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    lane_id: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<ModelLaneRecord> {
+    let lane = message_record_by_key_for_write_scope_tx(
+        tx,
+        "model_lanes",
+        "lane_id",
+        lane_id,
+        scope,
+        true,
+    )
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied("ModelLaneMessage authority unavailable".into())
+    })?;
+    let exact_scope = exact_resource_scope_from_columns(scope, "ModelLane")?;
+    validate_stored_lane_eventledger_authority_tx(tx, &lane, exact_scope.as_ref())
+        .await
+        .map_err(|_| {
+            ModelLaneError::AuthorityDenied("ModelLaneMessage authority unavailable".into())
+        })?;
+    Ok(lane)
+}
+
+async fn message_lane_by_id_for_run_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    run_id: &str,
+    lane_id: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<ModelLaneRecord> {
+    let lane = message_lane_by_id_tx(tx, lane_id, scope).await?;
+    require_equal("lane.run_id", &lane.run_id, "record.run_id", run_id)?;
+    Ok(lane)
+}
+
+async fn context_bundle_lane_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    lane_id: &str,
+) -> ModelLaneResult<ModelLaneRecord> {
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes \
+         WHERE lane_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(lane_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?
+        .ok_or_else(|| ModelLaneError::NotFound("ContextBundle lane authority".into()))?;
+    validate_stored_lane_eventledger_authority_tx(tx, &record, access.exact_read_scope())
+        .await
+        .map_err(|_| ModelLaneError::AuthorityDenied("ContextBundle lane authority".into()))?;
+    Ok(record)
 }
 
 async fn lane_by_id_for_run_tx(
@@ -11790,74 +13264,192 @@ async fn cloud_consent_receipt_by_idempotency_key_tx(
     .transpose()
 }
 
-async fn message_by_idempotency_key_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    idempotency_key: &str,
-) -> ModelLaneResult<Option<ModelLaneMessageRecord>> {
-    sqlx::query("SELECT record_json FROM model_lane_messages WHERE idempotency_key = $1 LIMIT 1")
-        .bind(idempotency_key)
-        .fetch_optional(&mut **tx)
-        .await?
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .transpose()
+fn stored_scope_matches_write_columns(
+    stored: &super::resource_scope::StoredResourceScope,
+    scope: ScopeColumnValues<'_>,
+) -> bool {
+    stored.owner_account_id.map(|value| value.as_uuid()) == scope.owner_account_id
+        && stored.actor_principal_id.map(|value| value.as_uuid()) == scope.actor_principal_id
+        && stored.authenticated_session.map(|value| value.as_uuid())
+            == scope.authenticated_session_id
+        && stored.access_space.map(|value| value.as_uuid()) == scope.access_space_id
+        && stored.workspace.as_ref().map(|value| value.as_str()) == scope.workspace_id
 }
 
-async fn context_bundle_artifact_binding_by_idempotency_key_tx(
+async fn message_record_by_key_for_write_scope_tx<T>(
     tx: &mut Transaction<'_, Postgres>,
-    idempotency_key: &str,
-) -> ModelLaneResult<Option<ModelLaneContextBundleArtifactBindingRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_context_bundle_artifacts WHERE idempotency_key = $1 LIMIT 1",
-    )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
+    table: &str,
+    key_column: &str,
+    key: &str,
+    scope: ScopeColumnValues<'_>,
+    for_update: bool,
+) -> ModelLaneResult<Option<T>>
+where
+    T: DeserializeOwned,
+{
+    let lock = if for_update { " FOR UPDATE" } else { "" };
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table} \
+         WHERE {key_column} = $1 \
+           AND owner_account_id IS NOT DISTINCT FROM $2::uuid \
+           AND actor_principal_id IS NOT DISTINCT FROM $3::uuid \
+           AND authenticated_session_id IS NOT DISTINCT FROM $4::uuid \
+           AND access_space_id IS NOT DISTINCT FROM $5::uuid \
+           AND workspace_id IS NOT DISTINCT FROM $6{lock}"
+    );
+    let row = sqlx::query(&sql)
+        .bind(key)
+        .bind(scope.owner_account_id)
+        .bind(scope.actor_principal_id)
+        .bind(scope.authenticated_session_id)
+        .bind(scope.access_space_id)
+        .bind(scope.workspace_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+    row.map(|row| {
+        let stored = stored_resource_scope_from_row(&row)?;
+        if !stored_scope_matches_write_columns(&stored, scope) {
+            return Err(ModelLaneError::AuthorityDenied(
+                "ModelLaneMessage authority unavailable".into(),
+            ));
+        }
+        row_to_json(row, "record_json")
+            .and_then(|value| serde_json::from_value(value).map_err(Into::into))
     })
     .transpose()
+}
+
+async fn require_message_physical_keys_authorized_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    message_id: &str,
+    idempotency_key: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<()> {
+    let rows = sqlx::query(&format!(
+        "SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_messages \
+         WHERE message_id = $1 OR idempotency_key = $2 FOR UPDATE"
+    ))
+    .bind(message_id)
+    .bind(idempotency_key)
+    .fetch_all(&mut **tx)
+    .await?;
+    if rows.iter().any(|row| {
+        stored_resource_scope_from_row(row)
+            .map(|stored| !stored_scope_matches_write_columns(&stored, scope))
+            .unwrap_or(true)
+    }) {
+        return Err(ModelLaneError::AuthorityDenied(
+            "ModelLaneMessage authority unavailable".into(),
+        ));
+    }
+    Ok(())
+}
+
+async fn message_by_idempotency_key_for_write_scope_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    idempotency_key: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<Option<ModelLaneMessageRecord>> {
+    message_record_by_key_for_write_scope_tx(
+        tx,
+        "model_lane_messages",
+        "idempotency_key",
+        idempotency_key,
+        scope,
+        false,
+    )
+    .await
+}
+
+async fn context_bundle_artifact_binding_by_idempotency_key_for_write_scope_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    idempotency_key: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<Option<ModelLaneContextBundleArtifactBindingRecord>> {
+    context_bundle_record_by_key_for_write_scope_tx(
+        tx,
+        "model_lane_context_bundle_artifacts",
+        "idempotency_key",
+        idempotency_key,
+        scope,
+        false,
+    )
+    .await
 }
 
 async fn context_bundle_artifact_binding_by_ref_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     run_id: &str,
     artifact_ref: &str,
 ) -> ModelLaneResult<Option<ModelLaneContextBundleArtifactBindingRecord>> {
-    sqlx::query(
-        r#"
-        SELECT record_json
-        FROM model_lane_context_bundle_artifacts
-        WHERE run_id = $1 AND artifact_ref = $2
-        FOR UPDATE
-        "#,
-    )
-    .bind(run_id)
-    .bind(artifact_ref)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    require_exact_context_bundle_read_scope(access)?;
+    let predicate = access.sql_predicate(3);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+         FROM model_lane_context_bundle_artifacts \
+         WHERE run_id = $1 AND artifact_ref = $2{} FOR UPDATE",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(run_id).bind(artifact_ref))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?;
+    if let Some(record) = record.as_ref() {
+        validate_stored_context_bundle_artifact_authority_tx(tx, access, record).await?;
+    }
+    Ok(record)
 }
 
 async fn promotion_decision_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLanePromotionDecisionRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_promotion_decisions WHERE idempotency_key = $1 LIMIT 1",
-    )
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_promotion_decisions WHERE idempotency_key = $1{} LIMIT 1",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(idempotency_key))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?;
+    if let Some(record) = record.as_ref() {
+        validate_stored_promotion_decision_authority_tx(tx, access, record).await?;
+    }
+    Ok(record)
+}
+
+async fn require_promotion_physical_keys_authorized_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    decision_id: &str,
+    idempotency_key: &str,
+) -> ModelLaneResult<()> {
+    let rows = sqlx::query(&format!(
+        "SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_promotion_decisions \
+         WHERE decision_id = $1 OR idempotency_key = $2 FOR UPDATE"
+    ))
+    .bind(decision_id)
     .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    .fetch_all(&mut **tx)
+    .await?;
+    if rows.iter().any(|row| {
+        let Ok(stored) = stored_resource_scope_from_row(row) else {
+            return true;
+        };
+        access.authorize_row(&stored).is_err()
+    }) {
+        return Err(ModelLaneError::AuthorityDenied(
+            "PromotionGate decision authority unavailable".into(),
+        ));
+    }
+    Ok(())
 }
 
 async fn message_by_id_tx(
@@ -11875,36 +13467,129 @@ async fn message_by_id_tx(
         .transpose()
 }
 
+async fn context_bundle_message_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    message_id: &str,
+) -> ModelLaneResult<Option<ModelLaneMessageRecord>> {
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_messages \
+         WHERE message_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(message_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?;
+    if let Some(record) = record.as_ref() {
+        validate_stored_message_eventledger_authority_tx(tx, record, access.exact_read_scope())
+            .await
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied("ContextBundle message authority".into())
+            })?;
+    }
+    Ok(record)
+}
+
 async fn promotion_decision_by_id_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     decision_id: &str,
 ) -> ModelLaneResult<Option<ModelLanePromotionDecisionRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_promotion_decisions WHERE decision_id = $1 LIMIT 1",
-    )
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_promotion_decisions WHERE decision_id = $1{} LIMIT 1",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(decision_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?;
+    if let Some(record) = record.as_ref() {
+        validate_stored_promotion_decision_authority_tx(tx, access, record).await?;
+    }
+    Ok(record)
+}
+
+async fn promotion_decision_by_id_for_write_scope_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    decision_id: &str,
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<Option<ModelLanePromotionDecisionRecord>> {
+    if scope.owner_account_id.is_none()
+        || scope.actor_principal_id.is_none()
+        || scope.authenticated_session_id.is_none()
+        || scope.access_space_id.is_none()
+        || scope.workspace_id.is_none()
+    {
+        return Ok(None);
+    }
+    let row = sqlx::query(&format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_promotion_decisions \
+         WHERE decision_id = $1 \
+           AND owner_account_id IS NOT DISTINCT FROM $2::uuid \
+           AND actor_principal_id IS NOT DISTINCT FROM $3::uuid \
+           AND authenticated_session_id IS NOT DISTINCT FROM $4::uuid \
+           AND access_space_id IS NOT DISTINCT FROM $5::uuid \
+           AND workspace_id IS NOT DISTINCT FROM $6 LIMIT 1"
+    ))
     .bind(decision_id)
+    .bind(scope.owner_account_id)
+    .bind(scope.actor_principal_id)
+    .bind(scope.authenticated_session_id)
+    .bind(scope.access_space_id)
+    .bind(scope.workspace_id)
     .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    .await?;
+    let record = row
+        .map(|row| {
+            let stored = stored_resource_scope_from_row(&row)?;
+            if stored.owner_account_id.map(|value| value.as_uuid()) != scope.owner_account_id
+                || stored.actor_principal_id.map(|value| value.as_uuid())
+                    != scope.actor_principal_id
+                || stored.authenticated_session.map(|value| value.as_uuid())
+                    != scope.authenticated_session_id
+                || stored.access_space.map(|value| value.as_uuid()) != scope.access_space_id
+                || stored.workspace.as_ref().map(|value| value.as_str()) != scope.workspace_id
+            {
+                return Err(ModelLaneError::ScopeDenied(
+                    ScopeDenied::ExactAttributionMismatch,
+                ));
+            }
+            row_to_json(row, "record_json")
+                .and_then(|value| serde_json::from_value(value).map_err(Into::into))
+        })
+        .transpose()?;
+    if let Some(record) = record.as_ref() {
+        let access =
+            ResourceAccessContext::for_exact_reader(promotion_exact_scope_from_columns(scope)?);
+        validate_stored_promotion_decision_authority_tx(tx, &access, record).await?;
+    }
+    Ok(record)
 }
 
 async fn context_bundle_handoff_by_idempotency_key_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     idempotency_key: &str,
 ) -> ModelLaneResult<Option<ModelLaneContextBundleHandoffRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_context_bundle_handoffs WHERE idempotency_key = $1 LIMIT 1",
-    )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+         FROM model_lane_context_bundle_handoffs WHERE idempotency_key = $1{} LIMIT 1",
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(idempotency_key))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()
 }
 
 async fn stamp_kernel_event_payload_tx(
@@ -11932,6 +13617,7 @@ async fn stamp_kernel_event_payload_tx(
 async fn ensure_promoted_message_has_decision_tx(
     tx: &mut Transaction<'_, Postgres>,
     input: &NewModelLaneMessage,
+    scope: ScopeColumnValues<'_>,
 ) -> ModelLaneResult<()> {
     let promotion_decision_id =
         require_optional_token("promotion_decision_id", input.promotion_decision_id.as_deref())
@@ -11985,14 +13671,14 @@ async fn ensure_promoted_message_has_decision_tx(
                 .into(),
         )
     })?;
-    let decision = promotion_decision_by_id_tx(tx, &promotion_decision_id)
+    let decision = promotion_decision_by_id_for_write_scope_tx(tx, &promotion_decision_id, scope)
         .await?
         .ok_or_else(|| {
             ModelLaneError::InvalidInput(format!(
                 "Promoted ModelLaneMessage requires approved PromotionGate resolution for promotion_decision_id {promotion_decision_id}"
             ))
         })?;
-    if decision.run_id == input.run_id
+    let decision_matches = decision.run_id == input.run_id
         && decision.outcome == ModelLanePromotionOutcome::Approved
         && decision.final_state == ModelLanePromotionState::Executed
         && decision.denial_reason.is_none()
@@ -12000,29 +13686,57 @@ async fn ensure_promoted_message_has_decision_tx(
         && decision.promotion_receipt_ref.as_deref() == Some(promotion_receipt_ref.as_str())
         && decision.promoted_artifact_ref.as_deref() == Some(promoted_artifact_ref.as_str())
         && decision.promoted_artifact_sha256.as_deref() == Some(promoted_artifact_sha256.as_str())
-        && decision.promoted_artifact_version.as_deref() == Some(promoted_artifact_version.as_str())
-    {
-        Ok(())
-    } else {
-        Err(ModelLaneError::InvalidInput(format!(
+        && decision.promoted_artifact_version.as_deref()
+            == Some(promoted_artifact_version.as_str());
+    if !decision_matches {
+        return Err(ModelLaneError::InvalidInput(format!(
             "Promoted ModelLaneMessage requires exact approved PromotionGate resolution and artifact binding for promotion_decision_id {promotion_decision_id}"
-        )))
+        )));
     }
+    let artifact_access =
+        ResourceAccessContext::for_exact_reader(promotion_exact_scope_from_columns(scope)?);
+    let artifact_binding = context_bundle_artifact_binding_by_ref_tx(
+        tx,
+        &artifact_access,
+        &input.run_id,
+        &promoted_artifact_ref,
+    )
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::InvalidInput(format!(
+            "Promoted ModelLaneMessage requires ArtifactStore/EventLedger authority for promotion_decision_id {promotion_decision_id}"
+        ))
+    })?;
+    if artifact_binding.artifact_sha256 != promoted_artifact_sha256
+        || artifact_binding.content_hash != promoted_artifact_sha256
+        || artifact_binding
+            .payload_json
+            .get("artifact_version")
+            .and_then(Value::as_str)
+            != Some(promoted_artifact_version.as_str())
+    {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "Promoted ModelLaneMessage requires exact ArtifactStore/EventLedger artifact binding for promotion_decision_id {promotion_decision_id}"
+        )));
+    }
+    Ok(())
 }
 
 async fn prepare_context_bundle_handoff_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     input: NewModelLaneContextBundleHandoff,
 ) -> ModelLaneResult<ModelLaneContextBundleHandoffRecord> {
-    run_by_id_tx(tx, &input.run_id).await?;
-    let downstream_lane = lane_by_id_tx(tx, &input.downstream_lane_id).await?;
+    context_bundle_run_by_id_tx(tx, access, &input.run_id).await?;
+    let downstream_lane =
+        context_bundle_lane_by_id_tx(tx, access, &input.downstream_lane_id).await?;
     require_equal(
         "handoff.run_id",
         &input.run_id,
         "downstream.run_id",
         &downstream_lane.run_id,
     )?;
-    let source = message_by_id_tx(tx, &input.source_message_id)
+    let source = context_bundle_message_by_id_tx(tx, access, &input.source_message_id)
         .await?
         .ok_or_else(|| {
             ModelLaneError::InvalidInput(format!(
@@ -12030,7 +13744,15 @@ async fn prepare_context_bundle_handoff_tx(
                 input.source_message_id
             ))
         })?;
-    validate_stored_crdt_message_authority_tx(tx, &source).await?;
+    validate_stored_message_eventledger_authority_tx(tx, &source, access.exact_read_scope())
+        .await?;
+    let source_lane = context_bundle_lane_by_id_tx(tx, access, &source.from_lane_id).await?;
+    require_equal(
+        "handoff.run_id",
+        &input.run_id,
+        "source_lane.run_id",
+        &source_lane.run_id,
+    )?;
     require_equal(
         "handoff.run_id",
         &input.run_id,
@@ -12062,7 +13784,7 @@ async fn prepare_context_bundle_handoff_tx(
         &source.payload_sha256,
     )?;
     let artifact_binding =
-        context_bundle_artifact_binding_by_ref_tx(tx, &input.run_id, &input.artifact_ref)
+        context_bundle_artifact_binding_by_ref_tx(tx, access, &input.run_id, &input.artifact_ref)
             .await?
             .ok_or_else(|| {
                 ModelLaneError::InvalidInput(format!(
@@ -12304,9 +14026,10 @@ async fn prepare_context_bundle_handoff_tx(
 /// message/lease authority and exact CONTEXT_BUNDLE_RECORDED ledger event.
 async fn validate_stored_context_bundle_handoff_authority_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     record: &ModelLaneContextBundleHandoffRecord,
 ) -> ModelLaneResult<()> {
-    let prepared = prepare_context_bundle_handoff_tx(tx, record.inner.clone()).await?;
+    let prepared = prepare_context_bundle_handoff_tx(tx, access, record.inner.clone()).await?;
     if prepared.context_bundle_hash != record.context_bundle_hash
         || context_bundle_handoff_hash(&record.inner)? != record.context_bundle_hash
     {
@@ -12339,6 +14062,8 @@ async fn validate_stored_context_bundle_handoff_authority_tx(
     let event_sequence: i64 = row.try_get("event_sequence")?;
     let session_run_id: String = row.try_get("session_run_id")?;
     let payload: Value = row.try_get("payload")?;
+    let ledger_scope = exact_context_bundle_ledger_scope(&payload, &record.handoff_id)?;
+    let expected_scope = require_exact_context_bundle_read_scope(access)?;
     let ledger_record: ModelLaneContextBundleHandoffRecord = payload
         .get("record")
         .cloned()
@@ -12354,14 +14079,114 @@ async fn validate_stored_context_bundle_handoff_authority_tx(
         || aggregate_id != record.handoff_id
         || event_sequence != record.event_ledger_seq
         || session_run_id != record.event_ledger_stream_id
+        || &ledger_scope != expected_scope
         || &ledger_record != record
     {
         return Err(crdt_authority_denied(format!(
-            "ContextBundle handoff {} projection does not equal its CONTEXT_BUNDLE_RECORDED EventLedger authority",
+            "ContextBundle handoff {} projection does not equal its CONTEXT_BUNDLE_RECORDED EventLedger resource_scope authority",
             record.handoff_id
         )));
     }
     Ok(())
+}
+
+async fn validate_stored_context_bundle_artifact_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    record: &ModelLaneContextBundleArtifactBindingRecord,
+) -> ModelLaneResult<()> {
+    if context_bundle_artifact_binding_hash(&record.inner)? != record.artifact_binding_hash {
+        return Err(crdt_authority_denied(format!(
+            "ContextBundle artifact {} artifact_binding_hash does not match its canonical payload",
+            record.artifact_binding_id
+        )));
+    }
+    let row = sqlx::query(
+        r#"
+        SELECT event_type, aggregate_type, aggregate_id, event_sequence,
+               session_run_id, payload
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&record.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "ContextBundle artifact {} references missing EventLedger event {}",
+            record.artifact_binding_id, record.event_ledger_event_id
+        ))
+    })?;
+    let event_type: String = row.try_get("event_type")?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let event_sequence: i64 = row.try_get("event_sequence")?;
+    let session_run_id: String = row.try_get("session_run_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let ledger_scope = exact_context_bundle_ledger_scope(&payload, &record.artifact_binding_id)?;
+    let expected_scope = require_exact_context_bundle_read_scope(access)?;
+    let ledger_record: ModelLaneContextBundleArtifactBindingRecord = payload
+        .get("record")
+        .cloned()
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "ARTIFACT_STORED EventLedger payload for {} has no record",
+                record.artifact_binding_id
+            ))
+        })
+        .and_then(|value| serde_json::from_value(value).map_err(ModelLaneError::from))?;
+    if event_type != "ARTIFACT_STORED"
+        || aggregate_type != "model_lane_context_bundle_artifact"
+        || aggregate_id != record.artifact_binding_id
+        || event_sequence != record.event_ledger_seq
+        || session_run_id != record.event_ledger_stream_id
+        || &ledger_scope != expected_scope
+        || &ledger_record != record
+    {
+        return Err(crdt_authority_denied(format!(
+            "ContextBundle artifact {} projection does not equal its ARTIFACT_STORED EventLedger resource_scope authority",
+            record.artifact_binding_id
+        )));
+    }
+    Ok(())
+}
+
+fn exact_context_bundle_ledger_scope(
+    payload: &Value,
+    resource_id: &str,
+) -> ModelLaneResult<ExactResourceScopeAttribution> {
+    let scope = payload.get("resource_scope").ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "ContextBundle EventLedger payload for {resource_id} has no resource_scope"
+        ))
+    })?;
+    let object = scope.as_object().ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "ContextBundle EventLedger payload for {resource_id} has malformed resource_scope"
+        ))
+    })?;
+    const EXACT_FIELDS: [&str; 5] = [
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
+        "workspace_id",
+    ];
+    if object.len() != EXACT_FIELDS.len()
+        || EXACT_FIELDS
+            .iter()
+            .any(|field| !object.contains_key(*field))
+    {
+        return Err(crdt_authority_denied(format!(
+            "ContextBundle EventLedger payload for {resource_id} has malformed resource_scope"
+        )));
+    }
+    serde_json::from_value(scope.clone()).map_err(|_| {
+        crdt_authority_denied(format!(
+            "ContextBundle EventLedger payload for {resource_id} has malformed resource_scope"
+        ))
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -12372,11 +14197,61 @@ struct PromotionInputResolution {
     selected_message_ids: Vec<String>,
 }
 
+async fn promotion_run_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    run_id: &str,
+) -> ModelLaneResult<ModelLaneRunRecord> {
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_runs \
+         WHERE run_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    let run = predicate
+        .bind(sqlx::query(&sql).bind(run_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?
+        .ok_or_else(|| ModelLaneError::NotFound("PromotionGate run authority".into()))?;
+    validate_stored_run_eventledger_authority_tx(tx, &run, access.exact_read_scope())
+        .await
+        .map_err(|_| ModelLaneError::AuthorityDenied("PromotionGate run authority".into()))?;
+    Ok(run)
+}
+
+async fn promotion_message_by_id_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    message_id: &str,
+) -> ModelLaneResult<Option<ModelLaneMessageRecord>> {
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_messages \
+         WHERE message_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    let record = predicate
+        .bind(sqlx::query(&sql).bind(message_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()?;
+    if let Some(record) = record.as_ref() {
+        validate_stored_message_eventledger_authority_tx(tx, record, access.exact_read_scope())
+            .await?;
+    }
+    Ok(record)
+}
+
 async fn prepare_promotion_decision_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    exact_scope: &ExactResourceScopeAttribution,
     mut input: NewModelLanePromotionDecision,
 ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
-    run_by_id_tx(tx, &input.run_id).await?;
+    promotion_run_by_id_tx(tx, access, &input.run_id).await?;
     let canonical_input_refs = canonicalize_refs("input_refs", &input.input_refs)?;
     let selected_input_refs = canonicalize_refs("selected_input_refs", &input.selected_input_refs)?;
     let rejected_input_refs = canonicalize_refs("rejected_input_refs", &input.rejected_input_refs)?;
@@ -12403,6 +14278,7 @@ async fn prepare_promotion_decision_tx(
     )?;
     let resolution = resolve_promotion_input_refs_tx(
         tx,
+        access,
         &input.run_id,
         &canonical_input_refs,
         &selected_input_refs,
@@ -12456,7 +14332,9 @@ async fn prepare_promotion_decision_tx(
         Some(ModelLanePromotionDenialReason::DirectAuthorityMutation)
     } else if input.validator_authority_ref.is_none() && input.operator_authority_ref.is_none() {
         Some(ModelLanePromotionDenialReason::MissingPromotionAuthority)
-    } else if missing_promoted_artifact_binding(&input) {
+    } else if missing_promoted_artifact_binding(&input)
+        || !promotion_artifact_binding_matches_tx(tx, access, &input).await?
+    {
         Some(ModelLanePromotionDenialReason::MissingPromotedArtifactBinding)
     } else {
         None
@@ -12477,6 +14355,7 @@ async fn prepare_promotion_decision_tx(
         denial_reason,
         current_event_ledger_version,
         current_schema_id.as_deref(),
+        exact_scope,
     );
     let canonical_decision_hash = dexterity_sha256_hex(serde_json::to_vec(&canonical_hash_basis)?);
 
@@ -12496,6 +14375,157 @@ async fn prepare_promotion_decision_tx(
         event_stream_version: 0,
         transaction_seq: 0,
     })
+}
+
+async fn promotion_artifact_binding_matches_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    input: &NewModelLanePromotionDecision,
+) -> ModelLaneResult<bool> {
+    let (Some(artifact_ref), Some(artifact_sha256), Some(artifact_version)) = (
+        input.promoted_artifact_ref.as_deref(),
+        input.promoted_artifact_sha256.as_deref(),
+        input.promoted_artifact_version.as_deref(),
+    ) else {
+        return Ok(false);
+    };
+    let Some(binding) =
+        context_bundle_artifact_binding_by_ref_tx(tx, access, &input.run_id, artifact_ref).await?
+    else {
+        return Ok(false);
+    };
+    Ok(binding.artifact_sha256 == artifact_sha256
+        && binding.content_hash == artifact_sha256
+        && binding
+            .payload_json
+            .get("artifact_version")
+            .and_then(Value::as_str)
+            == Some(artifact_version))
+}
+
+fn promotion_exact_scope_from_columns(
+    scope: ScopeColumnValues<'_>,
+) -> ModelLaneResult<ExactResourceScopeAttribution> {
+    let denied = || {
+        ModelLaneError::AuthorityDenied(
+            "PromotionGate requires complete account/principal/session/AccessSpace/workspace authority"
+                .into(),
+        )
+    };
+    Ok(ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::from_uuid(scope.owner_account_id.ok_or_else(denied)?),
+        actor_principal_id: ActorPrincipalId::from_uuid(
+            scope.actor_principal_id.ok_or_else(denied)?,
+        ),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(
+            scope.authenticated_session_id.ok_or_else(denied)?,
+        ),
+        access_space_id: AccessSpaceRef::from_uuid(scope.access_space_id.ok_or_else(denied)?),
+        workspace_id: WorkspaceScopeRef::new(scope.workspace_id.ok_or_else(denied)?)
+            .map_err(|_| denied())?,
+    })
+}
+
+fn exact_resource_scope_from_columns(
+    scope: ScopeColumnValues<'_>,
+    resource: &str,
+) -> ModelLaneResult<Option<ExactResourceScopeAttribution>> {
+    let dimensions = [
+        scope.owner_account_id.is_some(),
+        scope.actor_principal_id.is_some(),
+        scope.authenticated_session_id.is_some(),
+        scope.access_space_id.is_some(),
+        scope.workspace_id.is_some(),
+    ];
+    if dimensions.iter().all(|present| !present) {
+        return Ok(None);
+    }
+    if !dimensions.iter().all(|present| *present) {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "{resource} requires either complete account/principal/session/AccessSpace/workspace authority or fully unattributed system scope"
+        )));
+    }
+    promotion_exact_scope_from_columns(scope).map(Some)
+}
+
+async fn validate_stored_promotion_decision_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    record: &ModelLanePromotionDecisionRecord,
+) -> ModelLaneResult<()> {
+    let denied = || {
+        ModelLaneError::AuthorityDenied(
+            "PromotionGate decision projection does not equal its canonical/EventLedger authority"
+                .into(),
+        )
+    };
+    let exact_scope = access.exact_read_scope().ok_or_else(denied)?;
+    let expected_basis = promotion_canonical_hash_basis(
+        &record.inner,
+        record.outcome,
+        record.final_state,
+        record.denial_reason,
+        record.current_event_ledger_version,
+        record.current_schema_id.as_deref(),
+        exact_scope,
+    );
+    let expected_hash =
+        dexterity_sha256_hex(serde_json::to_vec(&expected_basis).map_err(ModelLaneError::from)?);
+    let expected_input_refs =
+        canonicalize_refs("input_refs", &record.input_refs).map_err(|_| denied())?;
+    if record.canonical_hash_basis != expected_basis
+        || record.canonical_decision_hash != expected_hash
+        || record.canonical_input_refs != expected_input_refs
+        || record.state_history != promotion_state_history(record.outcome)
+        || record.state_history.last().copied() != Some(record.final_state)
+    {
+        return Err(denied());
+    }
+
+    let row = sqlx::query(
+        r#"
+        SELECT event_type, aggregate_type, aggregate_id, event_sequence,
+               session_run_id, payload, payload_hash
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&record.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(denied)?;
+    let event_type: String = row.try_get("event_type")?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let event_sequence: i64 = row.try_get("event_sequence")?;
+    let session_run_id: String = row.try_get("session_run_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let payload_hash: String = row.try_get("payload_hash")?;
+    let mut expected_payload = json!({
+        "schema_id": "hsk.model_lane_promotion_decision@1",
+        "dexterity_kernel": "Dexterity",
+        "record": record,
+    });
+    exact_scope
+        .stamp_json_object(&mut expected_payload)
+        .map_err(|_| denied())?;
+    let expected_event_type = match record.outcome {
+        ModelLanePromotionOutcome::Approved => "PROMOTION_ACCEPTED",
+        ModelLanePromotionOutcome::Denied => "PROMOTION_REJECTED",
+    };
+    if event_type != expected_event_type
+        || aggregate_type != "model_lane_promotion_decision"
+        || aggregate_id != record.decision_id
+        || event_sequence != record.event_ledger_seq
+        || event_sequence != record.event_stream_version
+        || event_sequence != record.transaction_seq
+        || session_run_id != record.event_ledger_stream_id
+        || payload != expected_payload
+        || payload_hash != dexterity_sha256_hex(canonical_json_bytes(&payload))
+    {
+        return Err(denied());
+    }
+    Ok(())
 }
 
 async fn latest_event_ledger_version_tx(
@@ -13194,47 +15224,64 @@ fn cloud_consent_receipt_event_payload(record: &ModelLaneCloudConsentReceiptReco
     payload
 }
 
-fn recovery_checkpoint_event_payload(record: &ModelLaneRecoveryCheckpointRecord) -> Value {
+fn recovery_checkpoint_event_payload(
+    record: &ModelLaneRecoveryCheckpointRecord,
+    scope: ScopeColumnValues<'_>,
+) -> Value {
     json!({
         "schema_id": "hsk.model_lane_recovery_checkpoint@1",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
     })
 }
 
-fn recovery_event_event_payload(record: &ModelLaneRecoveryEventRecord) -> Value {
+fn recovery_event_event_payload(
+    record: &ModelLaneRecoveryEventRecord,
+    scope: ScopeColumnValues<'_>,
+) -> Value {
     json!({
         "schema_id": "hsk.model_lane_recovery_event@2",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
     })
 }
 
-fn lane_lease_event_payload(record: &ModelLaneLeaseRecord) -> Value {
+fn lane_lease_event_payload(record: &ModelLaneLeaseRecord, scope: ScopeColumnValues<'_>) -> Value {
     json!({
         "schema_id": "hsk.model_lane_lease@1",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
     })
 }
 
-fn diagnostic_tier_event_payload(record: &ModelLaneDiagnosticTierStatusRecord) -> Value {
+fn diagnostic_tier_event_payload(
+    record: &ModelLaneDiagnosticTierStatusRecord,
+    scope: ScopeColumnValues<'_>,
+) -> Value {
     json!({
         "schema_id": "hsk.model_lane_diagnostic_tier@1",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
     })
 }
 
-fn mt_runtime_status_event_payload(record: &ModelLaneMtRuntimeStatusRecord) -> Value {
+fn mt_runtime_status_event_payload(
+    record: &ModelLaneMtRuntimeStatusRecord,
+    scope: ScopeColumnValues<'_>,
+) -> Value {
     json!({
         "schema_id": "hsk.model_lane_mt_runtime_status@1",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
     })
 }
@@ -14646,6 +16693,7 @@ async fn validate_crdt_handoff_authority_tx(
 
 async fn resolve_promotion_input_refs_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     run_id: &str,
     input_refs: &[String],
     selected_input_refs: &[String],
@@ -14654,7 +16702,16 @@ async fn resolve_promotion_input_refs_tx(
     let mut denial_reason = None;
     for reference in input_refs {
         let message_id = message_id_from_ref("input_refs[]", reference)?;
-        match message_by_id_tx(tx, &message_id).await? {
+        let resolved_message = match promotion_message_by_id_tx(tx, access, &message_id).await {
+            Ok(record) => record,
+            Err(ModelLaneError::AuthorityDenied(_)) | Err(ModelLaneError::InvalidInput(_)) => {
+                denial_reason =
+                    denial_reason.or(Some(ModelLanePromotionDenialReason::InputRefMismatch));
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
+        match resolved_message {
             Some(record) if record.run_id == run_id => {
                 if !matches!(
                     record.authority,
@@ -14688,7 +16745,13 @@ async fn resolve_promotion_input_refs_tx(
     let mut current_base_snapshot_ref: Option<String> = None;
     let mut current_state_vector: Option<String> = None;
     for record in &selected_records {
-        let resolved = match validate_stored_crdt_message_authority_tx(tx, record).await {
+        let resolved = match validate_stored_message_eventledger_authority_tx(
+            tx,
+            record,
+            access.exact_read_scope(),
+        )
+        .await
+        {
             Ok(resolved) => resolved,
             Err(ModelLaneError::AuthorityDenied(_)) | Err(ModelLaneError::InvalidInput(_)) => {
                 denial_reason =
@@ -14780,9 +16843,11 @@ fn promotion_canonical_hash_basis(
     denial_reason: Option<ModelLanePromotionDenialReason>,
     current_event_ledger_version: Option<i64>,
     current_schema_id: Option<&str>,
+    exact_scope: &ExactResourceScopeAttribution,
 ) -> Value {
     json!({
         "schema_id": "hsk.model_lane_promotion_decision@1",
+        "resource_scope": exact_scope,
         "run_id": &input.run_id,
         "trace_id": &input.trace_id,
         "coordinator_session_id": &input.coordinator_session_id,
@@ -14876,6 +16941,11 @@ fn validate_lane(input: &NewModelLane) -> ModelLaneResult<()> {
     require_token("model_session_id", &input.model_session_id)?;
     require_token("adapter_id", &input.adapter_id)?;
     require_token("owner_session", &input.owner_session)?;
+    if input.restart_generation < 0 {
+        return Err(ModelLaneError::InvalidInput(
+            "restart_generation must be non-negative".into(),
+        ));
+    }
     let work_packet_id = require_optional_token("work_packet_id", input.work_packet_id.as_deref())?;
     let micro_task_id = require_optional_token("micro_task_id", input.micro_task_id.as_deref())?;
     let task_board_id = require_optional_token("task_board_id", input.task_board_id.as_deref())?;
@@ -15465,19 +17535,35 @@ fn context_bundle_artifact_binding_hash_basis(
 
 fn context_bundle_artifact_binding_event_payload(
     record: &ModelLaneContextBundleArtifactBindingRecord,
+    scope: ScopeColumnValues<'_>,
 ) -> Value {
     json!({
         "schema_id": "hsk.model_lane_context_bundle_artifact@1",
         "dexterity_kernel": "Dexterity",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
     })
 }
 
-fn context_bundle_handoff_event_payload(record: &ModelLaneContextBundleHandoffRecord) -> Value {
+fn context_bundle_handoff_event_payload(
+    record: &ModelLaneContextBundleHandoffRecord,
+    scope: ScopeColumnValues<'_>,
+) -> Value {
     json!({
         "schema_id": "hsk.model_lane_context_bundle_handoff@1",
         "dexterity_kernel": "Dexterity",
+        "resource_scope": context_bundle_resource_scope_payload(scope),
         "record": record,
+    })
+}
+
+fn context_bundle_resource_scope_payload(scope: ScopeColumnValues<'_>) -> Value {
+    json!({
+        "owner_account_id": scope.owner_account_id,
+        "actor_principal_id": scope.actor_principal_id,
+        "authenticated_session_id": scope.authenticated_session_id,
+        "access_space_id": scope.access_space_id,
+        "workspace_id": scope.workspace_id,
     })
 }
 
@@ -15881,9 +17967,10 @@ fn validate_message_authority(input: &NewModelLaneMessage) -> ModelLaneResult<()
             ModelLaneError::InvalidInput("crdt_base_snapshot_ref is required".into())
         })?;
         require_token("crdt_base_snapshot_ref", base_snapshot)?;
-        let state_vector = input.crdt_state_vector.as_deref().ok_or_else(|| {
-            ModelLaneError::InvalidInput("crdt_state_vector is required".into())
-        })?;
+        let state_vector = input
+            .crdt_state_vector
+            .as_deref()
+            .ok_or_else(|| ModelLaneError::InvalidInput("crdt_state_vector is required".into()))?;
         require_token("crdt_state_vector", state_vector)?;
     } else {
         if let Some(base_snapshot) = input.crdt_base_snapshot_ref.as_deref() {

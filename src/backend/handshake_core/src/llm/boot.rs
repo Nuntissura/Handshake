@@ -39,6 +39,7 @@ use crate::model_runtime::{
     RoleBoundModelRegistration, RuntimeArtifactIntegrityReceipt, RuntimeBinding, SamplingParams,
 };
 use crate::process_ledger::{EmbeddedRuntimeInstanceDescriptor, LedgerBatcher};
+use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 
 use super::embedded_ledger::EmbeddedModelProcess;
 use super::guard::CloudEscalationGuard;
@@ -323,6 +324,27 @@ pub async fn build_default_local_client(
             flight_recorder,
         ));
     };
+    let embedded_resource_scope = match model_registry_store.access().write_scope() {
+        None => None,
+        Some(scope) => match ExactResourceScopeAttribution::try_from_resource_scope(scope) {
+            Ok(exact) => Some(exact),
+            Err(error) => {
+                let reason = format!(
+                    "HSK-LOCAL-DISABLED: persistent model registry resource scope is incomplete: {error}"
+                );
+                tracing::error!(
+                    target: "handshake_core::llm",
+                    error = %reason,
+                    "LLM disabled before embedded model load"
+                );
+                return Arc::new(DisabledLlmClient::new_recorded(
+                    resolved.model_id.clone(),
+                    reason,
+                    flight_recorder,
+                ));
+            }
+        },
+    };
     let mut configured_selections = vec![ModelRuntimeSelection {
         artifact_sha256: local.sha256,
         runtime_binding: local.runtime_binding,
@@ -490,13 +512,14 @@ pub async fn build_default_local_client(
     // acknowledgement before any registry or client surface is built.
     // MT-013-PRIMARY-START-BOUNDARY
     let (primary_process, primary_start_ack) =
-        match EmbeddedModelProcess::record_reserved_load_with_durable_ack(
+        match EmbeddedModelProcess::record_reserved_load_with_durable_ack_scoped(
             primary_lifecycle,
             local.runtime_binding,
             model_id,
             &local.display_name,
             &primary_artifact_integrity,
             Some(&runtime_instance),
+            embedded_resource_scope.as_ref(),
         ) {
             Ok(started) => started,
             Err(err) => {
@@ -661,13 +684,14 @@ pub async fn build_default_local_client(
         let embedding_runtime_capabilities = embedding_attested.capabilities;
         // MT-013-EMBEDDING-START-BOUNDARY
         let (embedding_process, embedding_start_ack) =
-            match EmbeddedModelProcess::record_reserved_load_with_durable_ack(
+            match EmbeddedModelProcess::record_reserved_load_with_durable_ack_scoped(
                 embedding_lifecycle,
                 embedding_model.runtime_binding,
                 embedding_model_id,
                 &embedding_model.display_name,
                 &embedding_artifact_integrity,
                 Some(&runtime_instance),
+                embedded_resource_scope.as_ref(),
             ) {
                 Ok(started) => started,
                 Err(err) => {

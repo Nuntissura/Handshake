@@ -4,9 +4,10 @@
 //!
 //! Handshake has no authentication layer yet — `WP-KERNEL-006` owns
 //! `LocalAccount` / `Principal` / `AuthenticatedSession` and the PostgreSQL RLS
-//! that will enforce them. This module does **not** invent one, and it must not
-//! be mistaken for one: it performs no credential check, issues no session, and
-//! trusts the caller's claimed account.
+//! that will enforce them. This module does **not** invent one and performs no
+//! credential check or session issuance. Its authority is instead the exact
+//! five-field product-local resource scope persisted by Tauri and installed in
+//! backend server state at boot; callers cannot select that identity.
 //!
 //! What it does do is close the concrete defect that exists today. Before this,
 //! every ModelLane navigation, diagnostics, and model-registry route returned
@@ -15,18 +16,17 @@
 //! no place in the request where an owning account could even be expressed, so
 //! the store had nothing to filter on and the query enumerated the table.
 //!
-//! So this introduces the **required input** and makes its absence a denial:
+//! The server-owned exact scope is required and its absence or corruption fails
+//! closed. The two HTTP headers are non-authoritative equality assertions:
 //!
-//! * every scoped route must carry `X-Handshake-Owner-Account: <uuid>`;
-//! * a missing, blank, or malformed value is `403` with a stable reason code —
-//!   never a fallback to "return everything";
-//! * `X-Handshake-Workspace: <id>` optionally narrows further, which is the
-//!   same-project privacy case (HBR-PRIV-003).
+//! * absent headers use the exact server scope;
+//! * if supplied, `X-Handshake-Owner-Account` and `X-Handshake-Workspace` must
+//!   match that authority exactly;
+//! * blank, malformed, or mismatched assertions are denied with stable reason
+//!   codes and can never widen or replace the server authority.
 //!
-//! When KERNEL-006 lands, the change here is to derive the same
-//! `ResourceScopeQuery` from the authenticated session instead of from the
-//! header, and to reject the header outright. The stores below it do not change,
-//! because they already require a scope rather than defaulting to one.
+//! A derived `ResourceScopeQuery` exists only as a SQL prefilter. Account-facing
+//! projections and detail endpoints must still compare all five exact fields.
 
 use axum::{
     extract::FromRequestParts,
@@ -34,33 +34,154 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::swarm_orchestration::resource_scope::{
-    OwnerAccountId, ResourceScopeQuery, WorkspaceScopeRef,
+    ExactResourceScopeAttribution, OwnerAccountId, ResourceScope, ResourceScopeQuery,
+    WorkspaceScopeRef,
 };
 
-/// Required. Carries the owning account the caller is reading as.
+/// Strict Tauri -> backend handoff for the persisted product-local identity.
+/// The value is server-owned authority; HTTP headers may only assert equality.
+pub const PRODUCT_LOCAL_RESOURCE_SCOPE_ENV: &str = "HANDSHAKE_PRODUCT_LOCAL_RESOURCE_SCOPE_JSON";
+
+/// Optional equality assertion for the server-owned account.
 pub const OWNER_ACCOUNT_HEADER: &str = "x-handshake-owner-account";
-/// Optional. Narrows the read to one workspace within that account.
+/// Optional equality assertion for the server-owned workspace.
 pub const WORKSPACE_HEADER: &str = "x-handshake-workspace";
 
 pub const MISSING_SCOPE_CODE: &str = "RESOURCE_SCOPE_REQUIRED";
 pub const MALFORMED_SCOPE_CODE: &str = "RESOURCE_SCOPE_MALFORMED";
+pub const MISMATCHED_SCOPE_CODE: &str = "RESOURCE_SCOPE_MISMATCH";
+pub const SERVER_SCOPE_UNAVAILABLE_CODE: &str = "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE";
 
-/// The account scope a request is authorized for.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RequestAccountScope(ResourceScopeQuery);
+pub struct ProductLocalResourceScope(ExactResourceScopeAttribution);
 
-impl RequestAccountScope {
-    pub fn query(&self) -> &ResourceScopeQuery {
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductLocalResourceScopeEnvelope {
+    schema_version: u32,
+    scope: StrictExactResourceScopeAttribution,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StrictExactResourceScopeAttribution {
+    owner_account_id: OwnerAccountId,
+    actor_principal_id: crate::swarm_orchestration::resource_scope::ActorPrincipalId,
+    authenticated_session_id: crate::swarm_orchestration::resource_scope::AuthenticatedSessionRef,
+    access_space_id: crate::swarm_orchestration::resource_scope::AccessSpaceRef,
+    workspace_id: WorkspaceScopeRef,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProductLocalResourceScopeError {
+    #[error("{PRODUCT_LOCAL_RESOURCE_SCOPE_ENV} is missing or not Unicode")]
+    Missing,
+    #[error("{PRODUCT_LOCAL_RESOURCE_SCOPE_ENV} is not strict schema-version-1 JSON: {0}")]
+    Malformed(#[from] serde_json::Error),
+    #[error("{PRODUCT_LOCAL_RESOURCE_SCOPE_ENV} has unsupported schema_version {0}")]
+    UnsupportedVersion(u32),
+    #[error("{PRODUCT_LOCAL_RESOURCE_SCOPE_ENV} has a nil {0}")]
+    NilIdentifier(&'static str),
+    #[error("{PRODUCT_LOCAL_RESOURCE_SCOPE_ENV} has a blank workspace_id")]
+    BlankWorkspace,
+}
+
+impl ProductLocalResourceScope {
+    pub fn from_env() -> Result<Self, ProductLocalResourceScopeError> {
+        let value = std::env::var(PRODUCT_LOCAL_RESOURCE_SCOPE_ENV)
+            .map_err(|_| ProductLocalResourceScopeError::Missing)?;
+        Self::from_json(&value)
+    }
+
+    pub fn from_json(value: &str) -> Result<Self, ProductLocalResourceScopeError> {
+        let envelope: ProductLocalResourceScopeEnvelope = serde_json::from_str(value)?;
+        if envelope.schema_version != 1 {
+            return Err(ProductLocalResourceScopeError::UnsupportedVersion(
+                envelope.schema_version,
+            ));
+        }
+        let scope = envelope.scope;
+        for (name, id) in [
+            ("owner_account_id", scope.owner_account_id.as_uuid()),
+            ("actor_principal_id", scope.actor_principal_id.as_uuid()),
+            (
+                "authenticated_session_id",
+                scope.authenticated_session_id.as_uuid(),
+            ),
+            ("access_space_id", scope.access_space_id.as_uuid()),
+        ] {
+            if id.is_nil() {
+                return Err(ProductLocalResourceScopeError::NilIdentifier(name));
+            }
+        }
+        if scope.workspace_id.as_str().trim().is_empty() {
+            return Err(ProductLocalResourceScopeError::BlankWorkspace);
+        }
+        Ok(Self(ExactResourceScopeAttribution {
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        }))
+    }
+
+    pub fn from_exact(
+        scope: ExactResourceScopeAttribution,
+    ) -> Result<Self, ProductLocalResourceScopeError> {
+        let encoded = serde_json::json!({ "schema_version": 1, "scope": scope });
+        Self::from_json(&encoded.to_string())
+    }
+
+    pub fn exact(&self) -> &ExactResourceScopeAttribution {
         &self.0
     }
 
+    pub fn resource_scope(&self) -> ResourceScope {
+        RequestAccountScope::from_exact(self.0.clone()).resource_scope()
+    }
+}
+
+/// The account scope a request is authorized for.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RequestAccountScope {
+    exact: ExactResourceScopeAttribution,
+    query: ResourceScopeQuery,
+}
+
+impl RequestAccountScope {
+    pub fn from_exact(exact: ExactResourceScopeAttribution) -> Self {
+        let query = ResourceScopeQuery::for_owner(exact.owner_account_id)
+            .within_workspace(exact.workspace_id.clone());
+        Self { exact, query }
+    }
+
+    pub fn query(&self) -> &ResourceScopeQuery {
+        &self.query
+    }
+
+    pub fn exact(&self) -> &ExactResourceScopeAttribution {
+        &self.exact
+    }
+
     pub fn into_query(self) -> ResourceScopeQuery {
-        self.0
+        self.query
+    }
+
+    pub fn into_exact(self) -> ExactResourceScopeAttribution {
+        self.exact
+    }
+
+    pub fn resource_scope(&self) -> ResourceScope {
+        ResourceScope::new(self.exact.owner_account_id, self.exact.actor_principal_id)
+            .with_session(self.exact.authenticated_session_id)
+            .with_access_space(self.exact.access_space_id)
+            .with_workspace(self.exact.workspace_id.clone())
     }
 }
 
@@ -72,6 +193,7 @@ impl RequestAccountScope {
 /// become an existence oracle (HBR-PRIV-004).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountScopeRejection {
+    status: StatusCode,
     code: &'static str,
     detail: &'static str,
 }
@@ -83,15 +205,33 @@ impl AccountScopeRejection {
 
     const fn missing() -> Self {
         Self {
+            status: StatusCode::FORBIDDEN,
             code: MISSING_SCOPE_CODE,
-            detail: "this route requires an owning-account scope; send the X-Handshake-Owner-Account header",
+            detail: "a supplied scope assertion must be nonblank and well formed",
         }
     }
 
     const fn malformed() -> Self {
         Self {
+            status: StatusCode::FORBIDDEN,
             code: MALFORMED_SCOPE_CODE,
             detail: "the supplied owning-account scope is not a well-formed identifier",
+        }
+    }
+
+    const fn mismatched() -> Self {
+        Self {
+            status: StatusCode::FORBIDDEN,
+            code: MISMATCHED_SCOPE_CODE,
+            detail: "the supplied scope assertion does not match the server-owned product scope",
+        }
+    }
+
+    const fn server_scope_unavailable() -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: SERVER_SCOPE_UNAVAILABLE_CODE,
+            detail: "the server-owned product scope authority is unavailable",
         }
     }
 }
@@ -107,7 +247,7 @@ impl IntoResponse for AccountScopeRejection {
         (
             // FORBIDDEN, not UNAUTHORIZED: there is no authentication challenge
             // to issue yet, and 401 would imply one exists.
-            StatusCode::FORBIDDEN,
+            self.status,
             Json(AccountScopeRejectionBody {
                 error: self.code,
                 detail: self.detail,
@@ -125,35 +265,39 @@ where
     type Rejection = AccountScopeRejection;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let raw_owner = parts
-            .headers
-            .get(OWNER_ACCOUNT_HEADER)
-            .ok_or_else(AccountScopeRejection::missing)?
-            .to_str()
-            .map_err(|_| AccountScopeRejection::malformed())?
-            .trim()
-            .to_owned();
-        if raw_owner.is_empty() {
-            // A blank header is an absent scope, not a wildcard.
-            return Err(AccountScopeRejection::missing());
+        let server_scope = parts
+            .extensions
+            .get::<ProductLocalResourceScope>()
+            .cloned()
+            .ok_or_else(AccountScopeRejection::server_scope_unavailable)?;
+        if let Some(raw_owner) = parts.headers.get(OWNER_ACCOUNT_HEADER) {
+            let raw_owner = raw_owner
+                .to_str()
+                .map_err(|_| AccountScopeRejection::malformed())?
+                .trim();
+            if raw_owner.is_empty() {
+                return Err(AccountScopeRejection::missing());
+            }
+            let owner =
+                Uuid::parse_str(raw_owner).map_err(|_| AccountScopeRejection::malformed())?;
+            if OwnerAccountId::from_uuid(owner) != server_scope.exact().owner_account_id {
+                return Err(AccountScopeRejection::mismatched());
+            }
         }
-        let owner = Uuid::parse_str(&raw_owner).map_err(|_| AccountScopeRejection::malformed())?;
-        let mut query = ResourceScopeQuery::for_owner(OwnerAccountId::from_uuid(owner));
 
         if let Some(raw_workspace) = parts.headers.get(WORKSPACE_HEADER) {
             let raw_workspace = raw_workspace
                 .to_str()
                 .map_err(|_| AccountScopeRejection::malformed())?
                 .trim();
-            // Present-but-blank is malformed rather than "no workspace filter":
-            // silently widening a narrowing header is exactly the failure mode
-            // HBR-PRIV-003 is about.
             let workspace = WorkspaceScopeRef::new(raw_workspace)
                 .map_err(|_| AccountScopeRejection::malformed())?;
-            query = query.within_workspace(workspace);
+            if workspace != server_scope.exact().workspace_id {
+                return Err(AccountScopeRejection::mismatched());
+            }
         }
 
-        Ok(Self(query))
+        Ok(Self::from_exact(server_scope.exact().clone()))
     }
 }
 
@@ -165,36 +309,111 @@ pub fn rejection_body_shape() -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+    };
     use axum::http::Request;
 
-    async fn extract(headers: &[(&str, &str)]) -> Result<RequestAccountScope, AccountScopeRejection> {
+    fn exact_scope() -> ExactResourceScopeAttribution {
+        ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::mint(),
+            actor_principal_id: ActorPrincipalId::mint(),
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            access_space_id: AccessSpaceRef::mint(),
+            workspace_id: WorkspaceScopeRef::new("ws-alpha").expect("valid workspace"),
+        }
+    }
+
+    async fn extract(
+        server_scope: Option<ProductLocalResourceScope>,
+        headers: &[(&str, &str)],
+    ) -> Result<RequestAccountScope, AccountScopeRejection> {
         let mut builder = Request::builder().uri("/swarm/model-lanes/navigation/runs/run-1");
         for (name, value) in headers {
             builder = builder.header(*name, *value);
         }
         let request = builder.body(()).expect("build request");
         let (mut parts, ()) = request.into_parts();
+        if let Some(server_scope) = server_scope {
+            parts.extensions.insert(server_scope);
+        }
         RequestAccountScope::from_request_parts(&mut parts, &()).await
     }
 
+    #[test]
+    fn product_local_scope_envelope_is_strict_and_complete() {
+        let exact = exact_scope();
+        let valid = serde_json::json!({ "schema_version": 1, "scope": exact });
+        let parsed = ProductLocalResourceScope::from_json(&valid.to_string())
+            .expect("strict exact scope envelope");
+        assert_eq!(parsed.exact(), &exact);
+
+        for invalid in [
+            serde_json::json!({ "schema_version": 2, "scope": exact }),
+            serde_json::json!({ "schema_version": 1, "scope": exact, "unknown": true }),
+            serde_json::json!({
+                "schema_version": 1,
+                "scope": {
+                    "owner_account_id": exact.owner_account_id,
+                    "actor_principal_id": exact.actor_principal_id,
+                    "authenticated_session_id": exact.authenticated_session_id,
+                    "access_space_id": exact.access_space_id,
+                    "workspace_id": exact.workspace_id,
+                    "unknown": true
+                }
+            }),
+            serde_json::json!({
+                "schema_version": 1,
+                "scope": {
+                    "owner_account_id": Uuid::nil(),
+                    "actor_principal_id": exact.actor_principal_id,
+                    "authenticated_session_id": exact.authenticated_session_id,
+                    "access_space_id": exact.access_space_id,
+                    "workspace_id": exact.workspace_id
+                }
+            }),
+            serde_json::json!({
+                "schema_version": 1,
+                "scope": {
+                    "owner_account_id": exact.owner_account_id,
+                    "actor_principal_id": exact.actor_principal_id,
+                    "authenticated_session_id": exact.authenticated_session_id,
+                    "access_space_id": exact.access_space_id,
+                    "workspace_id": "   "
+                }
+            }),
+        ] {
+            ProductLocalResourceScope::from_json(&invalid.to_string())
+                .expect_err("invalid server scope must fail closed");
+        }
+    }
+
     #[tokio::test]
-    async fn a_request_with_no_scope_header_is_denied_not_widened() {
-        // The whole point: absence must be a denial. If this ever returns Ok,
-        // the route behind it has silently gone back to "return everything".
-        let rejection = extract(&[])
+    async fn a_missing_server_scope_authority_is_service_unavailable() {
+        let rejection = extract(None, &[])
             .await
-            .expect_err("a route with no owning-account scope must be refused");
-        assert_eq!(rejection.code(), MISSING_SCOPE_CODE);
+            .expect_err("missing server-owned scope must fail closed");
+        assert_eq!(rejection.code(), SERVER_SCOPE_UNAVAILABLE_CODE);
         assert_eq!(
             rejection.into_response().status(),
-            StatusCode::FORBIDDEN,
-            "a missing scope must not be answered with data"
+            StatusCode::SERVICE_UNAVAILABLE
         );
     }
 
     #[tokio::test]
+    async fn absent_headers_use_server_authority_without_selecting_scope() {
+        let exact = exact_scope();
+        let server_scope = ProductLocalResourceScope::from_exact(exact.clone()).unwrap();
+        let extracted = extract(Some(server_scope), &[])
+            .await
+            .expect("server-owned exact scope is sufficient authority");
+        assert_eq!(extracted.exact(), &exact);
+    }
+
+    #[tokio::test]
     async fn a_blank_scope_header_is_treated_as_absent_not_as_a_wildcard() {
-        let rejection = extract(&[(OWNER_ACCOUNT_HEADER, "   ")])
+        let server_scope = ProductLocalResourceScope::from_exact(exact_scope()).unwrap();
+        let rejection = extract(Some(server_scope), &[(OWNER_ACCOUNT_HEADER, "   ")])
             .await
             .expect_err("a blank owning-account header must be refused");
         assert_eq!(rejection.code(), MISSING_SCOPE_CODE);
@@ -202,7 +421,8 @@ mod tests {
 
     #[tokio::test]
     async fn a_malformed_scope_header_is_denied() {
-        let rejection = extract(&[(OWNER_ACCOUNT_HEADER, "not-a-uuid")])
+        let server_scope = ProductLocalResourceScope::from_exact(exact_scope()).unwrap();
+        let rejection = extract(Some(server_scope), &[(OWNER_ACCOUNT_HEADER, "not-a-uuid")])
             .await
             .expect_err("a malformed owning-account header must be refused");
         assert_eq!(rejection.code(), MALFORMED_SCOPE_CODE);
@@ -211,35 +431,76 @@ mod tests {
 
     #[tokio::test]
     async fn a_blank_workspace_header_is_malformed_rather_than_a_silent_widening() {
-        let owner = Uuid::now_v7().to_string();
-        let rejection = extract(&[
-            (OWNER_ACCOUNT_HEADER, owner.as_str()),
-            (WORKSPACE_HEADER, "  "),
-        ])
+        let exact = exact_scope();
+        let owner = exact.owner_account_id.to_string();
+        let server_scope = ProductLocalResourceScope::from_exact(exact).unwrap();
+        let rejection = extract(
+            Some(server_scope),
+            &[
+                (OWNER_ACCOUNT_HEADER, owner.as_str()),
+                (WORKSPACE_HEADER, "  "),
+            ],
+        )
         .await
         .expect_err("a present-but-blank workspace narrowing must not be dropped");
         assert_eq!(rejection.code(), MALFORMED_SCOPE_CODE);
     }
 
     #[tokio::test]
-    async fn a_well_formed_scope_header_yields_the_owner_and_optional_workspace() {
-        let owner = Uuid::now_v7();
-        let scope = extract(&[(OWNER_ACCOUNT_HEADER, owner.to_string().as_str())])
-            .await
-            .expect("a well-formed owning-account header must be accepted");
-        assert_eq!(scope.query().owner_account_id().as_uuid(), owner);
-        assert!(scope.query().workspace().is_none());
-
-        let narrowed = extract(&[
-            (OWNER_ACCOUNT_HEADER, owner.to_string().as_str()),
-            (WORKSPACE_HEADER, "ws-alpha"),
-        ])
+    async fn matching_headers_yield_the_full_server_owned_exact_scope() {
+        let exact = exact_scope();
+        let owner = exact.owner_account_id.to_string();
+        let server_scope = ProductLocalResourceScope::from_exact(exact.clone()).unwrap();
+        let narrowed = extract(
+            Some(server_scope),
+            &[
+                (OWNER_ACCOUNT_HEADER, owner.as_str()),
+                (WORKSPACE_HEADER, "ws-alpha"),
+            ],
+        )
         .await
-        .expect("a workspace-narrowed scope must be accepted");
+        .expect("matching assertions must expose server-owned exact scope");
+        assert_eq!(narrowed.exact(), &exact);
         assert_eq!(
             narrowed.query().workspace().map(|ws| ws.as_str()),
             Some("ws-alpha")
         );
+    }
+
+    #[tokio::test]
+    async fn mismatched_owner_and_workspace_assertions_are_denied() {
+        let exact = exact_scope();
+        let owner = exact.owner_account_id.to_string();
+        for headers in [
+            vec![
+                (OWNER_ACCOUNT_HEADER, OwnerAccountId::mint().to_string()),
+                (WORKSPACE_HEADER, "ws-alpha".to_owned()),
+            ],
+            vec![
+                (OWNER_ACCOUNT_HEADER, owner.clone()),
+                (WORKSPACE_HEADER, "ws-other".to_owned()),
+            ],
+        ] {
+            let borrowed = headers
+                .iter()
+                .map(|(name, value)| (*name, value.as_str()))
+                .collect::<Vec<_>>();
+            let rejection = extract(
+                Some(ProductLocalResourceScope::from_exact(exact.clone()).unwrap()),
+                &borrowed,
+            )
+            .await
+            .expect_err("mismatched assertion must be denied");
+            assert_eq!(rejection.code(), MISMATCHED_SCOPE_CODE);
+        }
+
+        let extracted = extract(
+            Some(ProductLocalResourceScope::from_exact(exact).unwrap()),
+            &[(OWNER_ACCOUNT_HEADER, owner.as_str())],
+        )
+        .await
+        .expect("an absent workspace header cannot widen the server-owned exact scope");
+        assert_eq!(extracted.query().workspace().unwrap().as_str(), "ws-alpha");
     }
 
     #[test]
@@ -249,6 +510,8 @@ mod tests {
         for rejection in [
             AccountScopeRejection::missing(),
             AccountScopeRejection::malformed(),
+            AccountScopeRejection::mismatched(),
+            AccountScopeRejection::server_scope_unavailable(),
         ] {
             assert!(!rejection.detail.contains("run"));
             assert!(!rejection.detail.contains("owner_account_id="));

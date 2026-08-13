@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use chrono::Utc;
 use futures::stream;
-use serde_json::json;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use handshake_core::api::operator_chat::{routes as operator_chat_http_routes, OperatorChatState};
@@ -51,9 +51,9 @@ use handshake_core::swarm_orchestration::operator_chat::{
     OperatorChatLaunched, OperatorChatSelection, OPERATOR_CHAT_CLI_ADAPTER,
 };
 use handshake_core::swarm_orchestration::{
-    CloudLaneFactoryConfig, LiveSession, ModelInstanceId, ModelSessionFactory,
+    CloudLaneFactoryConfig, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
     ProductionModelSessionFactory, RecordingSwarmSink, RunBudget, SessionTeardown, SpawnRequest,
-    SwarmConfig, SwarmCoordinator, SwarmError,
+    SwarmConfig, SwarmCoordinator, SwarmError, SwarmEvent,
 };
 
 // ---------------------------------------------------------------------------
@@ -2022,8 +2022,9 @@ async fn coordinator_cancellation_fence_rejects_generation_during_terminal_pg_wr
 #[tokio::test]
 async fn coordinator_cancellation_fence_retries_after_terminal_pg_failure() {
     let (pool, store) = pg_store().await;
-    let (coordinator, _ledger_drain) =
+    let (coordinator, ledger_drain) =
         cli_generic_loopback_coordinator_with_ledger(store, codex_stream_lines());
+    coordinator.set_terminate_trace_enabled_for_test(true);
     let request = build_spawn_request(
         &codex_cli_selection(
             existing_working_dir(),
@@ -2106,6 +2107,37 @@ async fn coordinator_cancellation_fence_retries_after_terminal_pg_failure() {
     assert_eq!(pending.0, "cleanup_pending");
     assert_eq!(pending.1, "mt009-cancellation-fence-failure");
     assert!(pending.2 >= 1);
+    let terminate_trace = coordinator.terminate_trace_events();
+    let teardown_invocations = terminate_trace
+        .iter()
+        .filter(|event| {
+            event.instance_id == instance_id && event.step == "run_teardown_bounded_invoked"
+        })
+        .count();
+    let teardown_successes = terminate_trace
+        .iter()
+        .filter(|event| event.instance_id == instance_id && event.step == "teardown_ok")
+        .count();
+    assert_eq!(
+        (teardown_invocations, teardown_successes),
+        (1, 1),
+        "the retained cleanup-pending state must follow one successful runtime teardown"
+    );
+    ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .await
+        .expect("persist START/STOP before retrying terminal lane state");
+    let before_retry_processes: (i64, i64) = sqlx::query_as(
+        "SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL) FROM kernel_process_lifecycle",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("read exact process closure before terminal retry");
+    assert_eq!(
+        before_retry_processes,
+        (1, 1),
+        "runtime teardown and one durable STOP must precede retained cleanup_pending"
+    );
 
     sqlx::query(&format!("DROP TRIGGER {trigger_name} ON model_lanes"))
         .execute(&pool)
@@ -2141,6 +2173,314 @@ async fn coordinator_cancellation_fence_retries_after_terminal_pg_failure() {
         terminal_events, 1,
         "retry must append one terminal transition"
     );
+    let terminate_trace = coordinator.terminate_trace_events();
+    assert_eq!(
+        terminate_trace
+            .iter()
+            .filter(|event| {
+                event.instance_id == instance_id && event.step == "run_teardown_bounded_invoked"
+            })
+            .count(),
+        1,
+        "retry must not run teardown a second time"
+    );
+    ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .await
+        .expect("drain any retry ledger writes");
+    let after_retry_processes: (i64, i64) = sqlx::query_as(
+        "SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL) FROM kernel_process_lifecycle",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("read process closure after terminal retry");
+    assert_eq!(
+        after_retry_processes,
+        (1, 1),
+        "retry must not emit a duplicate START or STOP"
+    );
+}
+
+#[tokio::test]
+async fn coordinator_restart_adopts_cleanup_pending_after_exact_durable_stop() {
+    let (pool, store) = pg_store().await;
+    let (coordinator, ledger_drain) =
+        cli_generic_loopback_coordinator_with_ledger(store.clone(), codex_stream_lines());
+    let request = build_spawn_request(
+        &codex_cli_selection(
+            existing_working_dir(),
+            "restart cleanup adoption",
+            "operator-mt009-restart-cleanup",
+        ),
+        93,
+    )
+    .expect("build restart-adoption spawn request");
+    let instance_id = request.instance_id;
+    let lane_id = request
+        .dexterity_launch
+        .as_ref()
+        .expect("restart-adoption request carries launch contract")
+        .lane_id
+        .clone();
+    coordinator
+        .spawn_session(request)
+        .await
+        .expect("spawn restart-adoption session");
+
+    let suffix = Uuid::now_v7().simple().to_string();
+    let function_name = format!("mt009_restart_fail_terminal_{suffix}");
+    let trigger_name = format!("mt009_restart_fail_terminal_trigger_{suffix}");
+    sqlx::query(&format!(
+        "CREATE FUNCTION {function_name}() RETURNS trigger AS $$ \
+         BEGIN RAISE EXCEPTION 'mt009 forced restart terminal failure'; RETURN NEW; END; $$ LANGUAGE plpgsql"
+    ))
+    .execute(&pool)
+    .await
+    .expect("install restart terminal-write failure function");
+    sqlx::query(&format!(
+        "CREATE TRIGGER {trigger_name} BEFORE UPDATE ON model_lanes \
+         FOR EACH ROW EXECUTE FUNCTION {function_name}()"
+    ))
+    .execute(&pool)
+    .await
+    .expect("install restart terminal-write failure trigger");
+
+    coordinator
+        .cancel_session(instance_id, "mt009-restart-cleanup")
+        .await
+        .expect_err("terminal lane failure must leave restart-adoptable cleanup intent");
+    ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .await
+        .expect("persist exact START/STOP before simulated restart");
+    sqlx::query(&format!("DROP TRIGGER {trigger_name} ON model_lanes"))
+        .execute(&pool)
+        .await
+        .expect("remove restart terminal-write failure trigger");
+    sqlx::query(&format!("DROP FUNCTION {function_name}()"))
+        .execute(&pool)
+        .await
+        .expect("remove restart terminal-write failure function");
+
+    let pending: (String, String, Value) = sqlx::query_as(
+        "SELECT status, reason, record_json FROM swarm_session_cleanup_receipts WHERE instance_id=$1",
+    )
+    .bind(instance_id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("load restart-adoptable cleanup receipt");
+    assert_eq!(pending.0, "cleanup_pending");
+    assert_eq!(pending.1, "mt009-restart-cleanup");
+    let process_uuid = Uuid::parse_str(
+        pending.2["process_uuid"]
+            .as_str()
+            .expect("cleanup receipt carries exact process UUID"),
+    )
+    .expect("cleanup receipt process UUID parses");
+    let terminal_event_id = Uuid::parse_str(
+        pending.2["terminal_event_id"]
+            .as_str()
+            .expect("cleanup receipt carries stable terminal event ID"),
+    )
+    .expect("terminal event ID parses");
+    let resource_event_id = Uuid::parse_str(
+        pending.2["resource_evicted_event_id"]
+            .as_str()
+            .expect("cleanup receipt carries stable resource event ID"),
+    )
+    .expect("resource event ID parses");
+    let process_closed: bool = sqlx::query_scalar(
+        "SELECT stopped_at IS NOT NULL AND exit_code IS NOT NULL AND stop_reason IS NOT NULL FROM kernel_process_lifecycle WHERE process_uuid=$1",
+    )
+    .bind(process_uuid)
+    .fetch_one(&pool)
+    .await
+    .expect("independently read exact durable STOP before restart adoption");
+    assert!(
+        process_closed,
+        "restart adoption requires the exact durable STOP"
+    );
+
+    drop(coordinator);
+    drop(ledger_drain);
+    let recovery_calls = Arc::new(AtomicUsize::new(0));
+    let recovery_sink = Arc::new(RecordingSwarmSink::new());
+    let (recovery_ledger, _recovery_drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("restart recovery ledger");
+    let recovery = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(CountingFactory {
+            calls: recovery_calls.clone(),
+        }),
+        recovery_sink.clone(),
+        recovery_ledger,
+        store,
+    );
+    recovery
+        .reconcile_durable_cleanup_receipts_after_boot()
+        .await
+        .expect("restart recovery finishes durable terminal intent");
+
+    let repaired: (String, String, i64) = sqlx::query_as(
+        "SELECT status, reason, revision FROM swarm_session_cleanup_receipts WHERE instance_id=$1",
+    )
+    .bind(instance_id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("load completed restart cleanup receipt");
+    assert_eq!(repaired.0, "completed");
+    assert_eq!(repaired.1, "mt009-restart-cleanup");
+    let lane_status: String = sqlx::query_scalar("SELECT status FROM model_lanes WHERE lane_id=$1")
+        .bind(&lane_id)
+        .fetch_one(&pool)
+        .await
+        .expect("read restart-repaired lane status");
+    assert_eq!(lane_status, "cancelled");
+    let events = recovery_sink.events();
+    assert!(events.iter().any(|event| matches!(
+        event,
+        SwarmEvent::SessionCancelled {
+            instance_id: observed,
+            event_id: Some(observed_event_id),
+            ..
+        } if *observed == instance_id && *observed_event_id == terminal_event_id
+    )));
+    assert!(events.iter().any(|event| matches!(
+        event,
+        SwarmEvent::ResourceEvicted {
+            instance_id: observed,
+            terminal_state: ModelSessionState::Cancelled,
+            event_id: Some(observed_event_id),
+        } if *observed == instance_id && *observed_event_id == resource_event_id
+    )));
+    assert_eq!(recovery_calls.load(Ordering::SeqCst), 0);
+
+    let emitted_before_idempotent_retry = recovery_sink.events().len();
+    recovery
+        .reconcile_durable_cleanup_receipts_after_boot()
+        .await
+        .expect("completed restart receipt is idempotently skipped");
+    assert_eq!(
+        recovery_sink.events().len(),
+        emitted_before_idempotent_retry,
+        "completed restart reconciliation must not duplicate terminal events"
+    );
+}
+
+#[tokio::test]
+async fn coordinator_restart_keeps_cleanup_pending_without_exact_durable_stop() {
+    let (pool, store) = pg_store().await;
+    let (coordinator, ledger_drain) =
+        cli_generic_loopback_coordinator_with_ledger(store.clone(), codex_stream_lines());
+    let request = build_spawn_request(
+        &codex_cli_selection(
+            existing_working_dir(),
+            "restart cleanup stop gate",
+            "operator-mt009-restart-stop-gate",
+        ),
+        94,
+    )
+    .expect("build restart STOP-gate spawn request");
+    let instance_id = request.instance_id;
+    let lane_id = request
+        .dexterity_launch
+        .as_ref()
+        .expect("restart STOP-gate request carries launch contract")
+        .lane_id
+        .clone();
+    coordinator
+        .spawn_session(request)
+        .await
+        .expect("spawn restart STOP-gate session");
+    ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .await
+        .expect("persist open START before restart recovery probe");
+    let process_uuid: Uuid =
+        sqlx::query_scalar("SELECT process_uuid FROM kernel_process_lifecycle")
+            .fetch_one(&pool)
+            .await
+            .expect("load open process UUID");
+    let terminal_event_id = Uuid::now_v7();
+    let resource_event_id = Uuid::now_v7();
+    let record_json = json!({
+        "schema_id": "hsk.swarm_session_cleanup_receipt@1",
+        "instance_id": instance_id.to_string(),
+        "lane_id": lane_id.clone(),
+        "process_uuid": process_uuid,
+        "terminal_event_id": terminal_event_id,
+        "resource_evicted_event_id": resource_event_id,
+        "status": "cleanup_pending",
+        "terminal_state": "Cancelled",
+        "reason": "mt009-restart-stop-gate",
+        "exit_code": 130,
+        "last_error": "simulated crash before STOP",
+    });
+    sqlx::query(
+        r#"
+        INSERT INTO swarm_session_cleanup_receipts (
+            instance_id, revision, status, terminal_state, reason,
+            exit_code, last_error, record_json, updated_at_unix_ms
+        ) VALUES ($1, 1, 'cleanup_pending', 'Cancelled', $2, 130, $3, $4, $5)
+        "#,
+    )
+    .bind(instance_id.to_string())
+    .bind("mt009-restart-stop-gate")
+    .bind("simulated crash before STOP")
+    .bind(record_json)
+    .bind(Utc::now().timestamp_millis())
+    .execute(&pool)
+    .await
+    .expect("seed cleanup intent whose exact process remains open");
+
+    let recovery_calls = Arc::new(AtomicUsize::new(0));
+    let recovery_sink = Arc::new(RecordingSwarmSink::new());
+    let (recovery_ledger, _recovery_drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("restart STOP-gate recovery ledger");
+    let recovery = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(CountingFactory {
+            calls: recovery_calls.clone(),
+        }),
+        recovery_sink.clone(),
+        recovery_ledger,
+        store,
+    );
+    let error = recovery
+        .reconcile_durable_cleanup_receipts_after_boot()
+        .await
+        .expect_err("restart recovery must fail closed while exact process remains open");
+    assert!(
+        error.to_string().contains("has no durable STOP"),
+        "unexpected restart STOP-gate error: {error}"
+    );
+    let pending_status: String = sqlx::query_scalar(
+        "SELECT status FROM swarm_session_cleanup_receipts WHERE instance_id=$1",
+    )
+    .bind(instance_id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("cleanup intent remains pending without STOP");
+    assert_eq!(pending_status, "cleanup_pending");
+    let lane_status: String = sqlx::query_scalar("SELECT status FROM model_lanes WHERE lane_id=$1")
+        .bind(&lane_id)
+        .fetch_one(&pool)
+        .await
+        .expect("lane remains nonterminal without STOP");
+    assert_eq!(lane_status, "ready");
+    assert!(recovery_sink.events().is_empty());
+    assert_eq!(recovery_calls.load(Ordering::SeqCst), 0);
+
+    coordinator
+        .cancel_session(instance_id, "test cleanup after STOP-gate proof")
+        .await
+        .expect("clean up the live STOP-gate fixture");
+    ledger_drain
+        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool)))
+        .await
+        .expect("persist STOP for cleaned-up fixture");
 }
 
 /// F1/F2 PROVENANCE: the captured messages carry the DISTINCTIVE text the mock CLI
@@ -2531,7 +2871,10 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
         Arc::new(NoopOverflowSink),
         LedgerBatcherConfig::default(),
     );
-    let spawner = LiveCliSpawner::new(Arc::new(ledger.clone()), LiveCliSpawner::native_cli_registry());
+    let spawner = LiveCliSpawner::new(
+        Arc::new(ledger.clone()),
+        LiveCliSpawner::native_cli_registry(),
+    );
 
     // A real, non-interpreter executable that reports its own cwd.
     //

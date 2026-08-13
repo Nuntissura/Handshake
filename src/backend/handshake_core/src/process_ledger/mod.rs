@@ -54,8 +54,8 @@ pub use restart_resume::{
     ResumeError, ResumeReport, ResumedSessionInfo,
 };
 pub use runtime::{
-    production_process_sandbox_registry, ProcessReclaimRuntime,
-    ProcessReclaimRuntimeDrainReport,
+    production_process_sandbox_registry, production_process_sandbox_registry_async,
+    ProcessReclaimRuntime, ProcessReclaimRuntimeDrainReport,
 };
 pub use table::{
     LedgerEvent, LedgerEventKind, ProcessEngineKind, ProcessRuntimeOwner, ProcessStart, ProcessStop,

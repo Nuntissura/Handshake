@@ -17,6 +17,10 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
     NewModelLaneRun, RuntimeBinding,
 };
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, ResourceAccessContext, ResourceScope, SystemScopeAuthority, WorkspaceScopeRef,
+};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -705,6 +709,7 @@ async fn recovery_checkpoint_requires_exact_pre_write_eventledger_watermark() {
 #[tokio::test]
 async fn production_boot_recovery_fences_public_append_and_new_lane_orphan_recovery() {
     let (pool, store) = recovery_store().await;
+    let boot_store = ModelLaneStore::new(pool.clone());
     let run_id = "run-mt017-ac10-fenced";
     let checkpoint_lane_id = "lane-mt017-ac10-checkpoint";
     let current_lane_id = "lane::post-checkpoint/ac10#opaque";
@@ -891,7 +896,7 @@ async fn production_boot_recovery_fences_public_append_and_new_lane_orphan_recov
     .expect("load allocator-owned raced tail");
     assert_eq!(raced_tail, vec![1, 2, 3, 4]);
 
-    let boot_recovered = store
+    let boot_recovered = boot_store
         .recover_restartable_runs_at_boot()
         .await
         .expect("production boot recovery invokes run recovery");
@@ -909,7 +914,7 @@ async fn production_boot_recovery_fences_public_append_and_new_lane_orphan_recov
         ))
         .await
         .expect("record later expired lease");
-    let later_boot = store
+    let later_boot = boot_store
         .recover_restartable_runs_at_boot()
         .await
         .expect("later production recovery appends one decision");
@@ -921,7 +926,7 @@ async fn production_boot_recovery_fences_public_append_and_new_lane_orphan_recov
             later_lease_id.to_string(),
         ]
     );
-    let repeated_boot = store
+    let repeated_boot = boot_store
         .recover_restartable_runs_at_boot()
         .await
         .expect("repeated production recovery is idempotent");
@@ -1546,6 +1551,447 @@ async fn model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs() 
     .await;
 }
 
+/// V5 HBR-PRIV remediation: a recovery child is part of its canonical run's
+/// account resource. A store bound to any other exact scope must not be able to
+/// attach a child to that run, and neither stale/current-context replay nor an
+/// account-facing diagnostic projection may widen beyond all five dimensions.
+#[tokio::test]
+async fn model_lane_recovery_preserves_exact_scope_and_denies_foreign_stale_replay() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("real PostgreSQL is required for scoped MT-007 recovery proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated scoped recovery schema");
+    let exact = exact_scope("owner");
+    let owner_store = ModelLaneStore::new_scoped(pool.clone(), resource_scope(&exact));
+    let run_id = "run-mt007-exact-scope";
+    let lane_id = "lane-mt007-exact-scope";
+    let message_id = "msg-mt007-exact-scope";
+    seed_run_lane_message(&owner_store, run_id, lane_id, message_id).await;
+
+    let foreign = exact_scope("foreign");
+    let foreign_store = ModelLaneStore::new_scoped(pool.clone(), resource_scope(&foreign));
+    let foreign_error = foreign_store
+        .record_recovery_event(sample_recovery_event(
+            "recovery-event-mt007-foreign-attach",
+            run_id,
+            Some(lane_id),
+            ModelLaneRecoveryEventKind::CheckpointRestored,
+            1,
+            None,
+            None,
+        ))
+        .await
+        .expect_err("foreign scope must not attach recovery state to the owner's run");
+    assert!(
+        foreign_error.to_string().contains("not found")
+            || foreign_error.to_string().contains("scope denied"),
+        "foreign attach must be absent-shaped or scope-denied: {foreign_error}"
+    );
+
+    let recovery_event = owner_store
+        .record_recovery_event(sample_recovery_event(
+            "recovery-event-mt007-exact",
+            run_id,
+            Some(lane_id),
+            ModelLaneRecoveryEventKind::CheckpointRestored,
+            1,
+            None,
+            None,
+        ))
+        .await
+        .expect("record owner recovery event");
+    owner_store
+        .record_lane_lease(sample_lease(
+            "lease-mt007-exact",
+            run_id,
+            lane_id,
+            "2099-01-01T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record owner recovery lease");
+    owner_store
+        .record_mt_runtime_status(sample_mt_status(
+            "mt-status-mt007-exact",
+            run_id,
+            "MT-007",
+            ModelLaneMtRuntimeStatus::ReadyForValidation,
+        ))
+        .await
+        .expect("record owner recovery status");
+    for (tier, state, evidence) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "eventledger://kernel/model-lane/mt007/exact",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTierState::Wired,
+            "hbr-int-009://model-lane/mt007/exact",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+            "palmistry://wp1/mt007/exact",
+        ),
+    ] {
+        owner_store
+            .record_diagnostic_tier_status(sample_tier(run_id, tier, state, evidence))
+            .await
+            .expect("record exact recovery diagnostic tier");
+    }
+    let high_watermark =
+        event_stream_high_watermark(&pool, &format!("mlane-stream-{run_id}")).await;
+    owner_store
+        .record_recovery_checkpoint(sample_checkpoint(
+            "checkpoint-mt007-exact",
+            run_id,
+            Some(lane_id),
+            Some(message_id),
+            Some("lease-mt007-exact"),
+            high_watermark,
+            Vec::new(),
+        ))
+        .await
+        .expect("record owner recovery checkpoint");
+
+    for aggregate_type in [
+        "model_lane_recovery_event",
+        "model_lane_recovery_checkpoint",
+        "model_lane_lease",
+        "model_lane_diagnostic_tier",
+        "model_lane_mt_runtime_status",
+    ] {
+        let scopes: Vec<serde_json::Value> = sqlx::query_scalar(
+            "SELECT payload->'resource_scope' FROM kernel_event_ledger \
+             WHERE aggregate_type = $1 AND session_run_id = $2 ORDER BY event_sequence",
+        )
+        .bind(aggregate_type)
+        .bind(format!("mlane-stream-{run_id}"))
+        .fetch_all(&pool)
+        .await
+        .expect("query recovery EventLedger scope");
+        assert!(!scopes.is_empty(), "{aggregate_type} proof must be nonzero");
+        for stored in scopes {
+            assert_eq!(
+                stored,
+                serde_json::to_value(&exact).expect("serialize exact scope")
+            );
+        }
+    }
+
+    let owner_reader = ModelLaneStore::new_with_access(
+        pool.clone(),
+        ResourceAccessContext::for_exact_reader(exact.clone()),
+    );
+    let replay = owner_reader
+        .replay_run(run_id)
+        .await
+        .expect("exact owner replay remains visible");
+    assert_eq!(replay.run.run_id, run_id);
+    let diagnostics = owner_reader
+        .diagnostics_projection(run_id)
+        .await
+        .expect("exact owner diagnostics remain visible");
+    assert_eq!(diagnostics.run.run_id, run_id);
+    assert_eq!(diagnostics.mt_runtime_statuses.len(), 1);
+    let navigation = owner_reader
+        .navigation_by_recovery(run_id)
+        .await
+        .expect("exact owner recovery navigation remains visible");
+    assert_eq!(navigation.recovery_events.len(), 1);
+    assert_eq!(
+        navigation.recovery_events[0].recovery_event_id,
+        recovery_event.recovery_event_id
+    );
+
+    for denied in wrong_exact_scopes(&exact) {
+        let denied_reader = ModelLaneStore::new_with_access(
+            pool.clone(),
+            ResourceAccessContext::for_exact_reader(denied),
+        );
+        for result in [
+            denied_reader.replay_run(run_id).await.map(|_| ()),
+            denied_reader
+                .diagnostics_projection(run_id)
+                .await
+                .map(|_| ()),
+            denied_reader
+                .navigation_by_recovery(run_id)
+                .await
+                .map(|_| ()),
+        ] {
+            let error = result.expect_err("wrong exact scope must not discover recovery state");
+            assert!(
+                matches!(
+                    error,
+                    handshake_core::swarm_orchestration::model_lane::ModelLaneError::NotFound(_)
+                ),
+                "wrong exact scope must be absent-shaped, got {error}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn recovery_authorizes_before_integrity_validation_and_system_children_inherit_parent_scope()
+{
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("real PostgreSQL is required for MT-007 recovery boundary proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated recovery boundary schema");
+    let exact = exact_scope("system-derivative");
+    let owner_store = ModelLaneStore::new_scoped(pool.clone(), resource_scope(&exact));
+    let run_id = "run-mt007-system-derivative";
+    let lane_id = "lane-mt007-system-derivative";
+    seed_run_lane_message(&owner_store, run_id, lane_id, "msg-mt007-system-derivative").await;
+
+    let system_store = ModelLaneStore::new_system_authority(
+        pool.clone(),
+        SystemScopeAuthority::internal_subsystem("MT007_RECOVERY_DERIVATIVE_TEST"),
+    );
+    system_store
+        .record_recovery_event(sample_recovery_event(
+            "recovery-event-mt007-system-derivative",
+            run_id,
+            Some(lane_id),
+            ModelLaneRecoveryEventKind::CheckpointRestored,
+            1,
+            None,
+            None,
+        ))
+        .await
+        .expect("system reconciliation derives recovery-event scope from canonical run");
+    system_store
+        .record_lane_lease(sample_lease(
+            "lease-mt007-system-derivative",
+            run_id,
+            lane_id,
+            "2099-01-01T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("system reconciliation derives lease scope from canonical run");
+    system_store
+        .record_diagnostic_tier_status(sample_tier(
+            run_id,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "eventledger://kernel/model-lane/mt007/system-derivative",
+        ))
+        .await
+        .expect("system reconciliation derives diagnostic scope from canonical run");
+    system_store
+        .record_mt_runtime_status(sample_mt_status(
+            "mt-status-mt007-system-derivative",
+            run_id,
+            "MT-007",
+            ModelLaneMtRuntimeStatus::ReadyForValidation,
+        ))
+        .await
+        .expect("system reconciliation derives MT-status scope from canonical run");
+    let high_watermark =
+        event_stream_high_watermark(&pool, &format!("mlane-stream-{run_id}")).await;
+    system_store
+        .record_recovery_checkpoint(sample_checkpoint(
+            "checkpoint-mt007-system-derivative",
+            run_id,
+            Some(lane_id),
+            Some("msg-mt007-system-derivative"),
+            Some("lease-mt007-system-derivative"),
+            high_watermark,
+            Vec::new(),
+        ))
+        .await
+        .expect("system reconciliation derives checkpoint scope from canonical run");
+
+    let physical_exact_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*) FROM (
+            SELECT owner_account_id, actor_principal_id, authenticated_session_id,
+                   access_space_id, workspace_id
+              FROM model_lane_recovery_events WHERE recovery_event_id = $1
+            UNION ALL
+            SELECT owner_account_id, actor_principal_id, authenticated_session_id,
+                   access_space_id, workspace_id
+              FROM model_lane_leases WHERE lease_id = $2
+            UNION ALL
+            SELECT owner_account_id, actor_principal_id, authenticated_session_id,
+                   access_space_id, workspace_id
+              FROM model_lane_diagnostic_tier_statuses
+             WHERE run_id = $3 AND behavior_id = 'HBR-INT-009' AND tier = 'flight_recorder'
+            UNION ALL
+            SELECT owner_account_id, actor_principal_id, authenticated_session_id,
+                   access_space_id, workspace_id
+              FROM model_lane_mt_runtime_statuses WHERE mt_status_id = $4
+            UNION ALL
+            SELECT owner_account_id, actor_principal_id, authenticated_session_id,
+                   access_space_id, workspace_id
+              FROM model_lane_recovery_checkpoints WHERE checkpoint_id = $5
+        ) children
+        WHERE owner_account_id = $6 AND actor_principal_id = $7
+          AND authenticated_session_id = $8 AND access_space_id = $9 AND workspace_id = $10
+        "#,
+    )
+    .bind("recovery-event-mt007-system-derivative")
+    .bind("lease-mt007-system-derivative")
+    .bind(run_id)
+    .bind("mt-status-mt007-system-derivative")
+    .bind("checkpoint-mt007-system-derivative")
+    .bind(exact.owner_account_id.as_uuid())
+    .bind(exact.actor_principal_id.as_uuid())
+    .bind(exact.authenticated_session_id.as_uuid())
+    .bind(exact.access_space_id.as_uuid())
+    .bind(exact.workspace_id.as_str())
+    .fetch_one(&pool)
+    .await
+    .expect("query derived physical recovery-child scopes");
+    assert_eq!(
+        physical_exact_count, 5,
+        "every recovery child must inherit all five canonical scope values"
+    );
+
+    let ledger_exact_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE session_run_id = $1 \
+           AND aggregate_type IN ('model_lane_recovery_checkpoint','model_lane_recovery_event', \
+                                  'model_lane_lease','model_lane_diagnostic_tier', \
+                                  'model_lane_mt_runtime_status') \
+           AND payload->'resource_scope' = $2",
+    )
+    .bind(format!("mlane-stream-{run_id}"))
+    .bind(serde_json::to_value(&exact).expect("serialize exact scope"))
+    .fetch_one(&pool)
+    .await
+    .expect("query derived recovery EventLedger scopes");
+    assert_eq!(
+        ledger_exact_count, 5,
+        "every recovery child EventLedger event must inherit canonical scope"
+    );
+
+    sqlx::query("UPDATE model_lanes SET model_stable_anchor = repeat('f', 64) WHERE lane_id = $1")
+        .bind(lane_id)
+        .execute(&pool)
+        .await
+        .expect("tamper foreign projection for no-oracle counterfactual");
+    for wrong in wrong_exact_scopes(&exact) {
+        let wrong_store = ModelLaneStore::new_scoped(pool.clone(), resource_scope(&wrong));
+        let error = wrong_store
+            .recover_run_after_restart(run_id)
+            .await
+            .expect_err("wrong exact recovery scope must remain absent despite foreign corruption");
+        assert!(
+            matches!(
+                error,
+                handshake_core::swarm_orchestration::model_lane::ModelLaneError::NotFound(_)
+            ),
+            "wrong exact recovery must not disclose foreign integrity state: {error}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn concurrent_recovery_child_writes_lock_parent_without_upgrade_deadlock() {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("real PostgreSQL is required for MT-007 recovery concurrency proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(12)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated recovery concurrency schema");
+    let exact = exact_scope("concurrent-child-writes");
+    let store = ModelLaneStore::new_scoped(pool, resource_scope(&exact));
+    let run_id = "run-mt007-concurrent-child-writes";
+    seed_run_lane_message(
+        &store,
+        run_id,
+        "lane-mt007-concurrent-child-writes",
+        "msg-mt007-concurrent-child-writes",
+    )
+    .await;
+
+    let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(8));
+    let mut writes = Vec::new();
+    for index in 0..8 {
+        let store = store.clone();
+        let barrier = barrier.clone();
+        writes.push(tokio::spawn(async move {
+            barrier.wait().await;
+            store
+                .record_mt_runtime_status(sample_mt_status(
+                    &format!("mt-status-mt007-concurrent-{index}"),
+                    run_id,
+                    "MT-007",
+                    ModelLaneMtRuntimeStatus::ReadyForValidation,
+                ))
+                .await
+        }));
+    }
+    for write in writes {
+        let result = tokio::time::timeout(std::time::Duration::from_secs(15), write)
+            .await
+            .expect("recovery child write must not hang waiting on an upgrade deadlock")
+            .expect("recovery child task must join");
+        result.expect("every concurrent recovery child write must serialize successfully");
+    }
+}
+
+fn exact_scope(label: &str) -> ExactResourceScopeAttribution {
+    ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new(format!("workspace-mt007-{label}"))
+            .expect("valid exact workspace"),
+    }
+}
+
+fn resource_scope(exact: &ExactResourceScopeAttribution) -> ResourceScope {
+    ResourceScope::new(exact.owner_account_id, exact.actor_principal_id)
+        .with_session(exact.authenticated_session_id)
+        .with_access_space(exact.access_space_id)
+        .with_workspace(exact.workspace_id.clone())
+}
+
+fn wrong_exact_scopes(exact: &ExactResourceScopeAttribution) -> [ExactResourceScopeAttribution; 5] {
+    [
+        ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::mint(),
+            ..exact.clone()
+        },
+        ExactResourceScopeAttribution {
+            actor_principal_id: ActorPrincipalId::mint(),
+            ..exact.clone()
+        },
+        // A successor session makes the former session stale at this bounded
+        // pre-K006 seam; no revocation registry is invented by MT-007.
+        ExactResourceScopeAttribution {
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            ..exact.clone()
+        },
+        ExactResourceScopeAttribution {
+            access_space_id: AccessSpaceRef::mint(),
+            ..exact.clone()
+        },
+        ExactResourceScopeAttribution {
+            workspace_id: WorkspaceScopeRef::new("workspace-mt007-wrong")
+                .expect("valid wrong workspace"),
+            ..exact.clone()
+        },
+    ]
+}
+
 async fn assert_recovery_failure(
     store: &ModelLaneStore,
     run_id: &str,
@@ -1586,7 +2032,8 @@ async fn recovery_store() -> (sqlx::PgPool, ModelLaneStore) {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated model-lane recovery schema");
-    let store = ModelLaneStore::new(pool.clone());
+    let exact = exact_scope("fixture");
+    let store = ModelLaneStore::new_scoped(pool.clone(), resource_scope(&exact));
     (pool, store)
 }
 

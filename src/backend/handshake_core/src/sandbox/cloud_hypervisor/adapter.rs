@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex, OnceLock},
@@ -25,9 +25,9 @@ use crate::model_runtime::{
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
-    AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough, IsolationStrength,
-    IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits,
-    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    AdapterId, BindMode, BindSpec, Command, DetachedProcessIdentity, ExecResult, GpuPassthrough,
+    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
 use super::guest_agent::{
@@ -197,9 +197,6 @@ fi
 i=0
 while true; do echo "$i" >/tmp/hsk-tick; i=$((i+1)); /bin/busybox sleep 1; done"#;
 
-/// How long to wait for the persistent VM's API socket to appear after the CH
-/// child is launched (the guest must boot far enough to create it).
-const PERSISTENT_BOOT_TIMEOUT_MS: u64 = 30_000;
 /// Poll interval while waiting for WSL-side socket/file paths to appear.
 const PERSISTENT_POLL_INTERVAL_MS: u64 = 250;
 const SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES: usize = 16 * 1024;
@@ -467,6 +464,13 @@ impl CloudHypervisorConfig {
 
     pub fn probe_timeout_ms(&self) -> u64 {
         self.probe_timeout_ms
+    }
+
+    /// VM boot and a cold WSL availability probe are lifecycle commands, not
+    /// quick file/log probes. Reuse the existing operator-configurable command
+    /// budget so a loaded host does not fail at unrelated fixed 15s/30s gates.
+    fn boot_timeout_ms(&self) -> u64 {
+        self.command_timeout_ms.max(self.probe_timeout_ms)
     }
 
     pub fn balloon(&self) -> &CloudHypervisorBalloonConfig {
@@ -756,9 +760,23 @@ impl Default for HandleState {
 /// `Clone`/`Debug`. `kill_on_drop(true)` means dropping the [`Child`] also
 /// terminates the CH process, so removing an entry here tears down the VM.
 type PersistentChildren = Arc<tokio::sync::Mutex<HashMap<Uuid, Child>>>;
+type PendingVmRoots = Arc<Mutex<HashSet<String>>>;
+type PendingSnapshotDirs = Arc<Mutex<HashMap<Uuid, HashSet<String>>>>;
 type PersistentExecLocks = Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<()>>>>>;
 type WarmAgentBridgeSlot = Arc<tokio::sync::Mutex<PersistentWarmSerialBridgeSlot>>;
 type WarmAgentBridges = Arc<Mutex<HashMap<Uuid, WarmAgentBridgeSlot>>>;
+#[cfg(test)]
+type RegistrationRollbackRoots = Arc<Mutex<Vec<String>>>;
+#[cfg(test)]
+type SnapshotRollbackDirs = Arc<Mutex<Vec<String>>>;
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SnapshotRollbackResumeOutcome {
+    Success,
+    NonZeroExit,
+    LaunchFailure,
+}
 
 #[derive(Default)]
 struct PersistentWarmSerialBridgeSlot {
@@ -781,11 +799,34 @@ pub struct CloudHypervisorAdapter {
     handles: Arc<Mutex<HashMap<Uuid, HandleState>>>,
     /// Live CH child processes for persistent handles. Skipped in `Debug`.
     persistent_children: PersistentChildren,
+    /// Scratch roots being built/booted before their handle becomes live.
+    pending_vm_roots: PendingVmRoots,
+    /// Snapshot directories that have crossed their filesystem side-effect
+    /// boundary but have not yet returned a durable SnapshotRef. Ownership is
+    /// exact per persistent handle so cancellation/kill can reclaim only the
+    /// directories created by that handle's in-flight snapshot operation.
+    pending_snapshot_dirs: PendingSnapshotDirs,
     /// One in-flight serial command per persistent VM handle. Different VMs may
     /// execute independently, but one CH serial socket is a single command stream.
     persistent_exec_locks: PersistentExecLocks,
     /// One persistent host-side warm-agent bridge per VM handle.
     warm_agent_bridges: WarmAgentBridges,
+    #[cfg(test)]
+    registration_rollback_roots: RegistrationRollbackRoots,
+    #[cfg(test)]
+    registration_rollback_uses_host_fs: bool,
+    #[cfg(test)]
+    snapshot_rollback_dirs: SnapshotRollbackDirs,
+    #[cfg(test)]
+    snapshot_rollback_uses_host_fs: bool,
+    #[cfg(test)]
+    snapshot_rollback_resume_outcome: Option<SnapshotRollbackResumeOutcome>,
+    #[cfg(test)]
+    snapshot_rollback_resume_attempts: Arc<Mutex<Vec<SnapshotRollbackResumeOutcome>>>,
+    #[cfg(test)]
+    snapshot_rollback_skip_thread_spawn: bool,
+    #[cfg(test)]
+    snapshot_rollback_skip_runtime_build: bool,
 }
 
 impl std::fmt::Debug for CloudHypervisorAdapter {
@@ -805,6 +846,262 @@ struct CommittedMemoryReservation {
     adapter: CloudHypervisorAdapter,
     memory_mib: u32,
     armed: bool,
+}
+
+/// Cancellation rollback for persistent spawn/restore setup. This guard is
+/// armed before the first scratch-root operation and disarmed only after both
+/// the handle and retained child are registered. Dropping an in-flight future
+/// therefore cannot strand a live-looking handle or its VM root while waiting
+/// for the async child registry.
+struct PersistentRegistrationRollback {
+    adapter: CloudHypervisorAdapter,
+    handle_id: Uuid,
+    vm_root: String,
+    child: Option<Child>,
+    armed: bool,
+}
+
+impl PersistentRegistrationRollback {
+    fn new(
+        adapter: CloudHypervisorAdapter,
+        handle_id: Uuid,
+        vm_root: String,
+    ) -> Result<Self, SandboxAdapterError> {
+        adapter
+            .pending_vm_roots
+            .lock()
+            .map_err(|error| spawn_failed(format!("pending VM root registry poisoned: {error}")))?
+            .insert(vm_root.clone());
+        Ok(Self {
+            adapter,
+            handle_id,
+            vm_root,
+            child: None,
+            armed: true,
+        })
+    }
+
+    fn retain_child(&mut self, child: Child) {
+        debug_assert!(self.child.is_none());
+        self.child = Some(child);
+    }
+
+    fn child_mut(&mut self) -> Option<&mut Child> {
+        self.child.as_mut()
+    }
+
+    fn take_child(&mut self) -> Option<Child> {
+        self.child.take()
+    }
+
+    fn disarm(&mut self) {
+        if let Ok(mut roots) = self.adapter.pending_vm_roots.lock() {
+            roots.remove(&self.vm_root);
+        }
+        self.armed = false;
+    }
+}
+
+impl Drop for PersistentRegistrationRollback {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+
+        // The committed-memory reservation remains armed until registration
+        // succeeds, so remove the state without releasing its mirrored value;
+        // CommittedMemoryReservation performs the single authoritative release.
+        if let Ok(mut handles) = self.adapter.handles.lock() {
+            handles.remove(&self.handle_id);
+        }
+        if let Ok(mut roots) = self.adapter.pending_vm_roots.lock() {
+            roots.remove(&self.vm_root);
+        }
+
+        // Drop cannot await. Move the retained child into a small independent
+        // runtime: explicitly kill and reap it before removing the root. This
+        // preserves teardown ordering even when the original Tokio task was
+        // cancelled exactly at the child-registry mutex await.
+        let config = self.adapter.config.clone();
+        let vm_root = self.vm_root.clone();
+        let completed_root = vm_root.clone();
+        let child = self.child.take();
+        #[cfg(test)]
+        let completed_roots = self.adapter.registration_rollback_roots.clone();
+        #[cfg(test)]
+        let use_host_fs = self.adapter.registration_rollback_uses_host_fs;
+        let _ = std::thread::Builder::new()
+            .name("hsk-ch-registration-rollback".to_string())
+            .spawn(move || {
+                if let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                {
+                    let cleaned = runtime.block_on(async move {
+                        if let Some(mut child) = child {
+                            let _ = child.start_kill();
+                            match tokio::time::timeout(Duration::from_secs(5), child.wait()).await {
+                                Ok(Ok(_)) => {}
+                                Ok(Err(_)) | Err(_) => return false,
+                            }
+                        }
+                        #[cfg(test)]
+                        if use_host_fs {
+                            return remove_host_test_root_bounded(&vm_root).await;
+                        }
+                        reclaim_cancelled_vm_root_bounded(&config, &vm_root).await
+                    });
+                    #[cfg(test)]
+                    if cleaned {
+                        if let Ok(mut roots) = completed_roots.lock() {
+                            roots.push(completed_root);
+                        }
+                    }
+                }
+            });
+    }
+}
+
+/// Cancellation/error rollback for one in-flight Cloud Hypervisor snapshot.
+///
+/// The guard registers the exact snapshot directory before the first async
+/// filesystem command. Once pause may have reached Cloud Hypervisor it also
+/// records that the source may require resume. Dropping the surrounding future
+/// launches bounded cleanup on an independent current-thread runtime, so a
+/// coordinator timeout cannot strand a paused VM or an untracked `snap-*` dir.
+struct SnapshotRollback {
+    adapter: CloudHypervisorAdapter,
+    handle: ProcessHandle,
+    api_socket: String,
+    snapshot_dir: String,
+    resume_required: bool,
+    armed: bool,
+}
+
+impl SnapshotRollback {
+    fn new(
+        adapter: CloudHypervisorAdapter,
+        handle: ProcessHandle,
+        api_socket: String,
+        snapshot_dir: String,
+    ) -> Result<Self, SandboxAdapterError> {
+        let handle_id = handle.id;
+        adapter
+            .pending_snapshot_dirs
+            .lock()
+            .map_err(|error| {
+                snapshot_failed(format!(
+                    "pending snapshot directory registry poisoned: {error}"
+                ))
+            })?
+            .entry(handle_id)
+            .or_default()
+            .insert(snapshot_dir.clone());
+        Ok(Self {
+            adapter,
+            handle,
+            api_socket,
+            snapshot_dir,
+            resume_required: false,
+            armed: true,
+        })
+    }
+
+    /// Mark before issuing `ch-remote pause`: a timeout/error can lose the
+    /// command result after Cloud Hypervisor already accepted the pause.
+    fn mark_resume_required(&mut self) {
+        self.resume_required = true;
+    }
+
+    fn mark_resumed(&mut self) {
+        self.resume_required = false;
+    }
+
+    fn disarm(&mut self) {
+        self.adapter
+            .release_pending_snapshot_ownership(self.handle.id, &self.snapshot_dir);
+        self.armed = false;
+    }
+}
+
+impl Drop for SnapshotRollback {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+
+        let adapter = self.adapter.clone();
+        let config = adapter.config.clone();
+        let handle_id = self.handle.id;
+        let api_socket = self.api_socket.clone();
+        let snapshot_dir = self.snapshot_dir.clone();
+        let resume_required = self.resume_required;
+        #[cfg(test)]
+        let completed_dirs = adapter.snapshot_rollback_dirs.clone();
+        #[cfg(test)]
+        let use_host_fs = adapter.snapshot_rollback_uses_host_fs;
+        #[cfg(test)]
+        let resume_outcome = adapter.snapshot_rollback_resume_outcome;
+        #[cfg(test)]
+        let resume_attempts = adapter.snapshot_rollback_resume_attempts.clone();
+        #[cfg(test)]
+        let skip_thread_spawn = adapter.snapshot_rollback_skip_thread_spawn;
+        #[cfg(test)]
+        let skip_runtime_build = adapter.snapshot_rollback_skip_runtime_build;
+        let cleanup_dir = snapshot_dir.clone();
+
+        // A failed thread spawn cannot run async cleanup. Keep the exact
+        // pending-snapshot ownership and directory intact so a later exact
+        // handle kill can drain it; never pretend the paused boundary was
+        // recovered.
+        #[cfg(test)]
+        if skip_thread_spawn {
+            return;
+        }
+        let _ = std::thread::Builder::new()
+            .name("hsk-ch-snapshot-rollback".to_string())
+            .spawn(move || {
+                #[cfg(test)]
+                if skip_runtime_build {
+                    return;
+                }
+                if let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                {
+                    let cleaned = runtime.block_on(async move {
+                        if resume_required {
+                            #[cfg(test)]
+                            let resumed = if let Some(outcome) = resume_outcome {
+                                if let Ok(mut attempts) = resume_attempts.lock() {
+                                    attempts.push(outcome);
+                                }
+                                matches!(outcome, SnapshotRollbackResumeOutcome::Success)
+                            } else {
+                                resume_source_vm(&config, &api_socket).await
+                            };
+                            #[cfg(not(test))]
+                            let resumed = resume_source_vm(&config, &api_socket).await;
+                            if !resumed {
+                                return false;
+                            }
+                        }
+                        #[cfg(test)]
+                        if use_host_fs {
+                            return remove_host_test_root_bounded(&cleanup_dir).await;
+                        }
+                        remove_wsl_path(&config, &cleanup_dir).await
+                    });
+                    if cleaned {
+                        adapter.release_pending_snapshot_ownership(handle_id, &snapshot_dir);
+                        #[cfg(test)]
+                        if let Ok(mut dirs) = completed_dirs.lock() {
+                            dirs.push(snapshot_dir);
+                        }
+                    }
+                }
+            });
+    }
 }
 
 impl CommittedMemoryReservation {
@@ -836,8 +1133,26 @@ impl CloudHypervisorAdapter {
             config,
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            pending_vm_roots: Arc::new(Mutex::new(HashSet::new())),
+            pending_snapshot_dirs: Arc::new(Mutex::new(HashMap::new())),
             persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
             warm_agent_bridges: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(test)]
+            registration_rollback_roots: Arc::new(Mutex::new(Vec::new())),
+            #[cfg(test)]
+            registration_rollback_uses_host_fs: false,
+            #[cfg(test)]
+            snapshot_rollback_dirs: Arc::new(Mutex::new(Vec::new())),
+            #[cfg(test)]
+            snapshot_rollback_uses_host_fs: false,
+            #[cfg(test)]
+            snapshot_rollback_resume_outcome: None,
+            #[cfg(test)]
+            snapshot_rollback_resume_attempts: Arc::new(Mutex::new(Vec::new())),
+            #[cfg(test)]
+            snapshot_rollback_skip_thread_spawn: false,
+            #[cfg(test)]
+            snapshot_rollback_skip_runtime_build: false,
         })
     }
 
@@ -905,64 +1220,77 @@ impl CloudHypervisorAdapter {
 
     /// WSL scratch roots of the persistent VMs this adapter currently owns
     /// in-process — used to distinguish live VMs from on-disk orphans.
-    fn live_vm_roots(&self) -> Vec<String> {
-        self.handles
+    fn live_vm_roots(&self) -> Result<Vec<String>, SandboxAdapterError> {
+        let mut roots: Vec<String> = self
+            .handles
             .lock()
+            .map_err(|error| {
+                unavailable(format!(
+                    "cannot prove live persistent VM roots because the handle registry is poisoned: {error}"
+                ))
+            })
             .map(|map| {
                 map.values()
                     .filter(|state| !state.killed)
                     .filter_map(|state| state.persistent.as_ref().map(|vm| vm.vm_root.clone()))
                     .filter(|root| !root.is_empty())
                     .collect()
-            })
-            .unwrap_or_default()
+            })?;
+        let pending = self.pending_vm_roots.lock().map_err(|error| {
+            unavailable(format!(
+                "cannot prove in-flight persistent VM roots because the pending-root registry is poisoned: {error}"
+            ))
+        })?;
+        roots.extend(pending.iter().cloned());
+        Ok(roots)
     }
 
     /// Discover persistent/restore VM scratch roots left on disk that this
     /// adapter does NOT own in-process — orphans from a crashed or restarted
     /// prior run (Master Spec v02.187 §3.5.7 #8/#9 — no leaked VMs across
     /// restart). Returns absolute WSL dir paths.
-    pub async fn discover_orphan_vm_dirs(&self) -> Vec<String> {
-        let listing = match run_wsl_sh(
+    pub async fn discover_orphan_vm_dirs(&self) -> Result<Vec<String>, SandboxAdapterError> {
+        let listing = run_wsl_sh(
             &self.config,
-            &discover_orphan_vm_dirs_script(&self.config.work_dir, std::process::id()),
+            &discover_orphan_vm_dirs_script(&self.config.work_dir, &self.config.ch_bin),
             PROBE_TIMEOUT_MS,
         )
-        .await
-        {
-            Ok(listing) => listing,
-            Err(_) => return Vec::new(),
-        };
-        let live = self.live_vm_roots();
-        String::from_utf8_lossy(&listing.stdout)
-            .lines()
-            .map(|line| line.trim().to_string())
-            .filter(|line| !line.is_empty() && !live.contains(line))
-            .collect()
+        .await?;
+        if listing.exit_code != 0 {
+            return Err(unavailable(format!(
+                "persistent VM orphan discovery failed (exit {}): {}",
+                listing.exit_code,
+                listing.stderr_text()
+            )));
+        }
+        let live = self.live_vm_roots()?;
+        orphan_vm_dirs_from_probe(
+            &listing.stdout,
+            &live,
+            std::process::id(),
+            host_process_is_alive,
+        )
     }
 
-    /// Reclaim orphaned persistent/restore VMs left on disk by a prior run:
-    /// best-effort terminate any Cloud Hypervisor process still bound to the
-    /// orphan's scratch root, then remove the scratch dir. Returns the number of
-    /// orphan roots cleaned. Safe to call at adapter bring-up for crash recovery
-    /// (it never touches a VM this adapter currently owns). Master Spec §3.5.7 #9.
-    pub async fn reclaim_orphan_vm_dirs(&self) -> usize {
-        let orphans = self.discover_orphan_vm_dirs().await;
+    /// Reclaim orphaned persistent/restore VMs left on disk by a prior run.
+    /// Discovery must first prove that neither a matching Cloud Hypervisor nor
+    /// a live foreign owner exists; reclaim then removes only that proven-dead
+    /// scratch root and never sends a broad process signal. Returns the number
+    /// of roots cleaned. Master Spec §3.5.7 #9.
+    pub async fn reclaim_orphan_vm_dirs(&self) -> Result<usize, SandboxAdapterError> {
+        let orphans = self.discover_orphan_vm_dirs().await?;
         let mut reclaimed = 0;
         for dir in orphans {
-            // Terminate any CH process whose argv references this scratch root
-            // (its --api-socket / --initramfs live under it).
-            let _ = run_wsl_sh(
-                &self.config,
-                &format!("pkill -f {d} 2>/dev/null || true", d = sh_quote_wsl(&dir)),
-                PROBE_TIMEOUT_MS,
-            )
-            .await;
-            if remove_wsl_path(&self.config, &dir).await {
-                reclaimed += 1;
+            // Discovery proved no matching CH process exists. Never issue a
+            // broad pkill here: another adapter/process may share work_dir.
+            if !remove_wsl_path(&self.config, &dir).await {
+                return Err(unavailable(format!(
+                    "failed to remove proven orphan VM root `{dir}`"
+                )));
             }
+            reclaimed += 1;
         }
-        reclaimed
+        Ok(reclaimed)
     }
 
     /// Release a restore reservation/handle from the registry (snapshot-clone
@@ -976,6 +1304,51 @@ impl CloudHypervisorAdapter {
         if let Some(mib) = released_mib.filter(|mib| *mib > 0) {
             self.release_committed_memory_mib(mib);
         }
+    }
+
+    fn release_pending_snapshot_ownership(&self, handle_id: Uuid, snapshot_dir: &str) {
+        if let Ok(mut pending) = self.pending_snapshot_dirs.lock() {
+            if let Some(dirs) = pending.get_mut(&handle_id) {
+                dirs.remove(snapshot_dir);
+                if dirs.is_empty() {
+                    pending.remove(&handle_id);
+                }
+            }
+        }
+    }
+
+    async fn drain_pending_snapshot_dirs(
+        &self,
+        handle_id: Uuid,
+    ) -> Result<(), SandboxAdapterError> {
+        let dirs = self
+            .pending_snapshot_dirs
+            .lock()
+            .map_err(|error| {
+                snapshot_failed(format!(
+                    "pending snapshot directory registry poisoned: {error}"
+                ))
+            })?
+            .get(&handle_id)
+            .cloned()
+            .unwrap_or_default();
+        for snapshot_dir in dirs {
+            #[cfg(test)]
+            let removed = if self.snapshot_rollback_uses_host_fs {
+                remove_host_test_root_bounded(&snapshot_dir).await
+            } else {
+                remove_wsl_path(&self.config, &snapshot_dir).await
+            };
+            #[cfg(not(test))]
+            let removed = remove_wsl_path(&self.config, &snapshot_dir).await;
+            if !removed {
+                return Err(snapshot_failed(format!(
+                    "failed to drain in-flight snapshot dir `{snapshot_dir}` for handle {handle_id}"
+                )));
+            }
+            self.release_pending_snapshot_ownership(handle_id, &snapshot_dir);
+        }
+        Ok(())
     }
 
     /// ATOMIC snapshot-clone gate + reservation. Under a SINGLE acquisition of
@@ -1113,8 +1486,18 @@ impl CloudHypervisorAdapter {
             config: CloudHypervisorConfig::default(),
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            pending_vm_roots: Arc::new(Mutex::new(HashSet::new())),
+            pending_snapshot_dirs: Arc::new(Mutex::new(HashMap::new())),
             persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
             warm_agent_bridges: Arc::new(Mutex::new(HashMap::new())),
+            registration_rollback_roots: Arc::new(Mutex::new(Vec::new())),
+            registration_rollback_uses_host_fs: false,
+            snapshot_rollback_dirs: Arc::new(Mutex::new(Vec::new())),
+            snapshot_rollback_uses_host_fs: false,
+            snapshot_rollback_resume_outcome: None,
+            snapshot_rollback_resume_attempts: Arc::new(Mutex::new(Vec::new())),
+            snapshot_rollback_skip_thread_spawn: false,
+            snapshot_rollback_skip_runtime_build: false,
         }
     }
 
@@ -1146,6 +1529,24 @@ impl CloudHypervisorAdapter {
                 ))
             })
             .clone())
+    }
+
+    async fn commit_persistent_registration(
+        &self,
+        handle_id: Uuid,
+        memory_reservation: &mut CommittedMemoryReservation,
+        registration_rollback: &mut PersistentRegistrationRollback,
+    ) {
+        let mut children = self.persistent_children.lock().await;
+        let child = registration_rollback
+            .take_child()
+            .expect("persistent registration owns its spawned child before commit");
+        children.insert(handle_id, child);
+        // No await is permitted between child registration and disarming both
+        // rollback guards: task cancellation is observed only at the mutex
+        // await, where the guards are still armed and own the whole rollback.
+        memory_reservation.disarm();
+        registration_rollback.disarm();
     }
 
     async fn kill_warm_agent_bridge_for(&self, handle_id: Uuid) {
@@ -1181,6 +1582,87 @@ impl CloudHypervisorAdapter {
             return Err(SandboxAdapterError::ProcessHandleStale {
                 process_id: handle.id,
             });
+        }
+        Ok(())
+    }
+
+    /// Reconstruct the only WSL root shapes that a durable Cloud Hypervisor
+    /// handle may own. Strict prefix + 32-hex validation prevents a persisted
+    /// or forged handle from turning detached reclaim into an arbitrary path or
+    /// process selector.
+    fn detached_vm_root(&self, handle: &ProcessHandle) -> Result<String, SandboxAdapterError> {
+        if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        let (root_kind, token) = if let Some(token) = handle
+            .sandbox_internal_id
+            .strip_prefix("hsk-ch-persistent-")
+        {
+            ("persistent", token)
+        } else if let Some(token) = handle.sandbox_internal_id.strip_prefix("hsk-ch-restored-") {
+            ("restore", token)
+        } else {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        };
+        if token.len() != 32 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        Ok(format!(
+            "{}/{root_kind}-{token}",
+            self.config.work_dir.trim_end_matches('/')
+        ))
+    }
+
+    async fn detached_vm_status_for_root(
+        &self,
+        vm_root: &str,
+    ) -> Result<ProcessStatus, SandboxAdapterError> {
+        let output = run_wsl_sh(
+            &self.config,
+            &detached_vm_status_script(self.config.ch_bin(), vm_root),
+            self.config.probe_timeout_ms(),
+        )
+        .await?;
+        if output.exit_code != 0 {
+            return Err(spawn_failed(format!(
+                "detached Cloud Hypervisor status probe failed for `{vm_root}`: {}",
+                output.stderr_text()
+            )));
+        }
+        match String::from_utf8_lossy(&output.stdout).trim() {
+            "RUNNING" => Ok(ProcessStatus::Running),
+            "ORPHANED" => Ok(ProcessStatus::Orphaned),
+            other => Err(spawn_failed(format!(
+                "detached Cloud Hypervisor status probe returned an invalid state for `{vm_root}`: {other:?}"
+            ))),
+        }
+    }
+
+    async fn reclaim_detached_vm_root(
+        &self,
+        vm_root: &str,
+        signal: Signal,
+    ) -> Result<(), SandboxAdapterError> {
+        let output = run_wsl_sh(
+            &self.config,
+            &detached_vm_reclaim_script(self.config.ch_bin(), vm_root, signal),
+            self.config.command_timeout_ms(),
+        )
+        .await?;
+        if output.exit_code != 0
+            || !String::from_utf8_lossy(&output.stdout).contains("HSK_DETACHED_VM_RECLAIMED")
+        {
+            return Err(spawn_failed(format!(
+                "detached Cloud Hypervisor reclaim failed for `{vm_root}` (exit {}): {}",
+                output.exit_code,
+                output.stderr_text()
+            )));
         }
         Ok(())
     }
@@ -1288,9 +1770,17 @@ impl CloudHypervisorAdapter {
     ) -> Result<ProcessHandle, SandboxAdapterError> {
         let vm_id = Uuid::now_v7().simple().to_string();
         let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            format!("hsk-ch-persistent-{vm_id}"),
+        );
+        let mut registration_rollback =
+            PersistentRegistrationRollback::new(self.clone(), handle.id, vm_root.clone())?;
         let api_socket = format!("{vm_root}/ch.sock");
         let agent_socket = format!("{vm_root}/agent.sock");
         let serial_log = format!("{vm_root}/serial.log");
+        let ch_log = format!("{vm_root}/cloud-hypervisor.log");
         let idle_cpio = format!("{vm_root}/idle.cpio");
         let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
         let mut memory_reservation = self.reserve_committed_memory_mib(memory_mib)?;
@@ -1306,7 +1796,7 @@ impl CloudHypervisorAdapter {
 
         // Boot args for the persistent idle VM (absolute serial path so the
         // snapshot config is CWD-independent).
-        let boot_args = self.persistent_boot_args(
+        let mut boot_args = self.persistent_boot_args(
             &api_socket,
             &idle_cpio,
             &serial_log,
@@ -1314,6 +1804,7 @@ impl CloudHypervisorAdapter {
             warm_agent_guest_path.as_deref(),
             memory_mib,
         )?;
+        boot_args.extend(["--log-file".to_string(), ch_log.clone(), "-v".to_string()]);
 
         let child = match spawn_persistent_child(self.config.wsl_exe(), &boot_args) {
             Ok(child) => child,
@@ -1322,29 +1813,38 @@ impl CloudHypervisorAdapter {
                 return Err(error);
             }
         };
+        registration_rollback.retain_child(child);
 
         // Wait for the guest to boot far enough that CH creates the API socket
         // (the readiness signal). The idle `/init` also emits HSK-BOOT-ONCE on
         // the serial console, but that marker is asserted by the snapshot test,
         // not gated here.
-        if let Err(error) =
-            wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
-        {
-            let _ = remove_wsl_path(&self.config, &vm_root).await;
-            return Err(error);
+        let boot_timeout_ms = self.config.boot_timeout_ms();
+        if let Err(error) = wait_for_wsl_path(&self.config, &api_socket, boot_timeout_ms).await {
+            let diagnostic = persistent_boot_failure_diagnostic(
+                &self.config,
+                registration_rollback
+                    .child_mut()
+                    .expect("spawn rollback retains child through readiness"),
+                &ch_log,
+                &serial_log,
+            )
+            .await;
+            return Err(spawn_failed(format!("{error}; {diagnostic}")));
         }
-        if let Err(error) =
-            wait_for_wsl_path(&self.config, &agent_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
-        {
-            let _ = remove_wsl_path(&self.config, &vm_root).await;
-            return Err(error);
+        if let Err(error) = wait_for_wsl_path(&self.config, &agent_socket, boot_timeout_ms).await {
+            let diagnostic = persistent_boot_failure_diagnostic(
+                &self.config,
+                registration_rollback
+                    .child_mut()
+                    .expect("spawn rollback retains child through readiness"),
+                &ch_log,
+                &serial_log,
+            )
+            .await;
+            return Err(spawn_failed(format!("{error}; {diagnostic}")));
         }
 
-        let handle = ProcessHandle::new(
-            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
-            None,
-            format!("hsk-ch-persistent-{vm_id}"),
-        );
         let vm = PersistentVm {
             api_socket,
             agent_socket,
@@ -1368,11 +1868,12 @@ impl CloudHypervisorAdapter {
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
             .insert(handle.id, hstate);
-        self.persistent_children
-            .lock()
-            .await
-            .insert(handle.id, child);
-        memory_reservation.disarm();
+        self.commit_persistent_registration(
+            handle.id,
+            &mut memory_reservation,
+            &mut registration_rollback,
+        )
+        .await;
 
         // Idle auto-kill (Master Spec v02.187 §3.5.7 #6): if an idle timeout was
         // requested, arm a background reaper so a persistent VM whose owner never
@@ -1843,9 +2344,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 let _ = tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), child.wait())
                     .await;
             }
-            let _ = remove_wsl_path(&self.config, &vm.api_socket).await;
-            let _ = remove_wsl_path(&self.config, &vm.vm_root).await;
+            self.reclaim_detached_vm_root(&vm.vm_root, _signal).await?;
         }
+
+        // A cancelled snapshot future may have been dropped after creating its
+        // directory but before returning a SnapshotRef. Drain only directories
+        // registered to this exact handle before releasing adapter ownership.
+        self.drain_pending_snapshot_dirs(handle.id).await?;
 
         let committed_memory_to_release = if let Ok(mut map) = self.handles.lock() {
             if let Some(state) = map.get_mut(&handle.id) {
@@ -1873,6 +2378,23 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         Ok(())
     }
 
+    async fn reclaim_detached(
+        &self,
+        identity: &DetachedProcessIdentity,
+        signal: Signal,
+    ) -> Result<(), SandboxAdapterError> {
+        if self
+            .handles
+            .lock()
+            .map(|handles| handles.contains_key(&identity.handle.id))
+            .unwrap_or(false)
+        {
+            return self.kill(&identity.handle, signal).await;
+        }
+        let vm_root = self.detached_vm_root(&identity.handle)?;
+        self.reclaim_detached_vm_root(&vm_root, signal).await
+    }
+
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
         self.ensure_handle(handle)?;
         let status = self
@@ -1882,6 +2404,22 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .and_then(|map| map.get(&handle.id).map(|state| state.status.clone()))
             .unwrap_or(ProcessStatus::Orphaned);
         Ok(status)
+    }
+
+    async fn detached_status(
+        &self,
+        identity: &DetachedProcessIdentity,
+    ) -> Result<ProcessStatus, SandboxAdapterError> {
+        if self
+            .handles
+            .lock()
+            .map(|handles| handles.contains_key(&identity.handle.id))
+            .unwrap_or(false)
+        {
+            return self.status(&identity.handle).await;
+        }
+        let vm_root = self.detached_vm_root(&identity.handle)?;
+        self.detached_vm_status_for_root(&vm_root).await
     }
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError> {
@@ -1948,6 +2486,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             format!("{}/snap-{}", self.config.work_dir, Uuid::now_v7().simple()),
         )
         .with_observe_path(vm.serial_log.clone());
+        let mut snapshot_rollback = SnapshotRollback::new(
+            self.clone(),
+            handle.clone(),
+            vm.api_socket.clone(),
+            snap_ref.snapshot_dir.clone(),
+        )?;
 
         // CH requires the snapshot destination to exist and be empty.
         let mkdir = run_wsl_sh(
@@ -1970,6 +2514,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         }
 
         // 1. Pause the live guest so the captured memory is consistent.
+        // Mark before awaiting the command. A timeout/cancellation can discard
+        // the result after Cloud Hypervisor already accepted the pause.
+        snapshot_rollback.mark_resume_required();
         let pause = run_host_command(
             self.config.wsl_exe(),
             &ch_remote_args(&self.config, &vm.api_socket, &["pause".to_string()]),
@@ -1982,7 +2529,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             // Pause may have left the VM in an indeterminate state; best-effort
             // resume + drop the empty snapshot dir created above so a failed
             // capture leaves no wedged VM or stray dir.
-            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = resume_source_vm(&self.config, &vm.api_socket).await;
             let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(snapshot_failed(format!(
                 "ch-remote pause failed (exit {}): {}",
@@ -2011,7 +2558,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             // VM is paused (pause succeeded above); resume it and drop the
             // partial snapshot dir so a failed capture leaves no wedged VM or
             // half-written snapshot behind.
-            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = resume_source_vm(&self.config, &vm.api_socket).await;
             let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(snapshot_failed(format!(
                 "ch-remote snapshot failed (exit {}): {}",
@@ -2034,7 +2581,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if !String::from_utf8_lossy(&verify.stdout).contains("HSK_SNAP_OK") {
             // Snapshot reported success but the expected artifacts are absent;
             // resume the paused VM and drop the partial dir.
-            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = resume_source_vm(&self.config, &vm.api_socket).await;
             let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(snapshot_failed(format!(
                 "snapshot dir `{}` is missing config.json/state.json after ch-remote snapshot",
@@ -2048,7 +2595,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         )
         .await
         {
-            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = resume_source_vm(&self.config, &vm.api_socket).await;
             let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(error);
         }
@@ -2057,13 +2604,15 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 write_warm_agent_snapshot_marker(&self.config, &snap_ref.snapshot_dir, guest_path)
                     .await
             {
-                best_effort_resume(&self.config, &vm.api_socket).await;
+                let _ = resume_source_vm(&self.config, &vm.api_socket).await;
                 let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
                 return Err(error);
             }
         }
         resume_after_successful_snapshot(&self.config, &vm.api_socket, &snap_ref.snapshot_dir)
             .await?;
+        snapshot_rollback.mark_resumed();
+        snapshot_rollback.disarm();
 
         Ok(snap_ref)
     }
@@ -2168,11 +2717,22 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // copy's CH console log + serial agent socket to restore-owned paths, and
         // restore from the COPY. The original snapshot is left intact and
         // re-restorable, and the restored VM owns its own channel + scratch.
-        let restore_root = format!(
-            "{}/restore-{}",
-            self.config.work_dir,
-            Uuid::now_v7().simple()
-        );
+        let restore_token = handle
+            .sandbox_internal_id
+            .strip_prefix("hsk-ch-restored-")
+            .expect("restored handle is minted above with the canonical prefix");
+        let restore_root = format!("{}/restore-{restore_token}", self.config.work_dir);
+        let mut registration_rollback = match PersistentRegistrationRollback::new(
+            self.clone(),
+            handle.id,
+            restore_root.clone(),
+        ) {
+            Ok(rollback) => rollback,
+            Err(error) => {
+                self.release_restore_reservation(handle.id);
+                return Err(error);
+            }
+        };
         let restore_serial = format!("{restore_root}/serial.log");
         let restore_agent_socket = format!("{restore_root}/agent.sock");
         let restore_config = format!("{restore_root}/config.json");
@@ -2266,27 +2826,21 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 return Err(error);
             }
         };
+        registration_rollback.retain_child(child);
 
         // Wait for the restored VM's API socket to appear (proves CH came up).
         // On timeout, clean the whole restore root (mirrors spawn_persistent's
         // clean-on-every-failure discipline); the `child` drops on this early
         // return, so kill_on_drop reaps the process.
-        if let Err(error) =
-            wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
-        {
-            let _ = remove_wsl_path(&self.config, &restore_root).await;
+        let boot_timeout_ms = self.config.boot_timeout_ms();
+        if let Err(error) = wait_for_wsl_path(&self.config, &api_socket, boot_timeout_ms).await {
             self.release_restore_reservation(handle.id);
             return Err(error);
         }
         if restore_has_agent_socket {
-            if let Err(error) = wait_for_wsl_path(
-                &self.config,
-                &restore_agent_socket,
-                PERSISTENT_BOOT_TIMEOUT_MS,
-            )
-            .await
+            if let Err(error) =
+                wait_for_wsl_path(&self.config, &restore_agent_socket, boot_timeout_ms).await
             {
-                let _ = remove_wsl_path(&self.config, &restore_root).await;
                 self.release_restore_reservation(handle.id);
                 return Err(error);
             }
@@ -2322,11 +2876,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .lock()
             .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?
             .insert(handle.id, state);
-        self.persistent_children
-            .lock()
-            .await
-            .insert(handle.id, child);
-        memory_reservation.disarm();
+        self.commit_persistent_registration(
+            handle.id,
+            &mut memory_reservation,
+            &mut registration_rollback,
+        )
+        .await;
 
         Ok(handle)
     }
@@ -2606,6 +3161,7 @@ fn parse_serial_markers(serial_text: &str) -> Option<ParsedSerial> {
 }
 
 async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxAdapterError> {
+    let availability_timeout_ms = config.boot_timeout_ms();
     // 1. wsl.exe + distro registered.
     let distros = run_host_command(
         config.wsl_exe(),
@@ -2636,42 +3192,82 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
     }
 
     // 2. ch binary, kernel and initramfs all exist inside WSL, and 3. /dev/kvm
-    // is readable+writable. A single `test` chain keeps this to one wsl call.
+    // is readable+writable. Keep this to one WSL call, but emit one marker per
+    // prerequisite: a short-circuit `test && test` chain produces an empty
+    // stderr/stdout on failure and therefore cannot name which live resource
+    // disappeared between environment preflight and adapter construction.
     let probe_script = format!(
-        "test -x {bin} && test -f {kernel} && test -f {initramfs} && test -r /dev/kvm && test -w /dev/kvm && echo CH_OK",
+        "if test -x {bin}; then echo CH_BIN=1; else echo CH_BIN=0; fi; \
+         if test -f {kernel}; then echo CH_KERNEL=1; else echo CH_KERNEL=0; fi; \
+         if test -f {initramfs}; then echo CH_INITRAMFS=1; else echo CH_INITRAMFS=0; fi; \
+         if test -r /dev/kvm; then echo CH_KVM_READ=1; else echo CH_KVM_READ=0; fi; \
+         if test -w /dev/kvm; then echo CH_KVM_WRITE=1; else echo CH_KVM_WRITE=0; fi; \
+         id; ls -ln /dev/kvm 2>&1 || true",
         bin = sh_quote_wsl(config.ch_bin()),
         kernel = sh_quote_wsl(config.kernel()),
         initramfs = sh_quote_wsl(config.initramfs()),
     );
-    let probe = run_host_command(
-        config.wsl_exe(),
-        &[
-            "-d".to_string(),
-            config.distro().to_string(),
-            "-e".to_string(),
-            "sh".to_string(),
-            "-c".to_string(),
-            probe_script,
-        ],
-        None,
-        Some(config.probe_timeout_ms()),
-        Uuid::nil(),
-    )
-    .await
-    .map_err(|error| unavailable(format!("wsl artifact probe failed: {error}")))?;
+    let probe_started = Instant::now();
+    let mut attempts = 0_u32;
+    loop {
+        attempts = attempts.saturating_add(1);
+        let elapsed_ms = probe_started
+            .elapsed()
+            .as_millis()
+            .min(u128::from(u64::MAX)) as u64;
+        let remaining_ms = availability_timeout_ms.saturating_sub(elapsed_ms).max(1);
+        let probe = run_host_command(
+            config.wsl_exe(),
+            &[
+                "-d".to_string(),
+                config.distro().to_string(),
+                "-e".to_string(),
+                "sh".to_string(),
+                "-c".to_string(),
+                probe_script.clone(),
+            ],
+            None,
+            Some(remaining_ms),
+            Uuid::nil(),
+        )
+        .await
+        .map_err(|error| unavailable(format!("wsl artifact probe failed: {error}")))?;
 
-    if probe.exit_code != 0 || !String::from_utf8_lossy(&probe.stdout).contains("CH_OK") {
-        return Err(unavailable(format!(
-            "Cloud Hypervisor prerequisites missing in WSL distro `{}` (ch_bin={}, kernel={}, initramfs={}, /dev/kvm rw): {}",
-            config.distro(),
-            config.ch_bin(),
-            config.kernel(),
-            config.initramfs(),
-            probe.stderr_text()
-        )));
+        let probe_stdout = String::from_utf8_lossy(&probe.stdout);
+        let has_marker = |marker: &str| probe_stdout.lines().any(|line| line.trim() == marker);
+        let static_artifacts_ready =
+            has_marker("CH_BIN=1") && has_marker("CH_KERNEL=1") && has_marker("CH_INITRAMFS=1");
+        let kvm_ready = has_marker("CH_KVM_READ=1") && has_marker("CH_KVM_WRITE=1");
+        if probe.exit_code == 0 && static_artifacts_ready && kvm_ready {
+            return Ok(());
+        }
+
+        let elapsed_ms = probe_started
+            .elapsed()
+            .as_millis()
+            .min(u128::from(u64::MAX)) as u64;
+        let only_kvm_is_pending = probe.exit_code == 0 && static_artifacts_ready && !kvm_ready;
+        if !only_kvm_is_pending || elapsed_ms >= availability_timeout_ms {
+            return Err(unavailable(format!(
+                "Cloud Hypervisor prerequisites missing in WSL distro `{}` (ch_bin={}, kernel={}, initramfs={}, /dev/kvm rw): attempts={}, elapsed_ms={}, exit_code={}, stdout={:?}, stderr={}",
+                config.distro(),
+                config.ch_bin(),
+                config.kernel(),
+                config.initramfs(),
+                attempts,
+                elapsed_ms,
+                probe.exit_code,
+                probe_stdout,
+                probe.stderr_text()
+            )));
+        }
+
+        // WSL can return from its first cold-boot command before udev has
+        // materialized /dev/kvm. Poll only that proven transient condition;
+        // static artifact failures above remain immediate and fail closed.
+        let sleep_ms = config.boot_timeout_ms().saturating_sub(elapsed_ms).min(250);
+        tokio::time::sleep(Duration::from_millis(sleep_ms.max(1))).await;
     }
-
-    Ok(())
 }
 
 async fn read_serial_log(config: &CloudHypervisorConfig, serial_log: &str) -> Option<Vec<u8>> {
@@ -2719,15 +3315,17 @@ async fn remove_serial_log(config: &CloudHypervisorConfig, serial_log: &str) -> 
 /// Best-effort `ch-remote resume` of a persistent VM that a failed snapshot
 /// attempt left paused, so a failed capture does not wedge the source VM in the
 /// paused state. Errors are ignored (the VM may already be gone or never paused).
-async fn best_effort_resume(config: &CloudHypervisorConfig, api_socket: &str) {
-    let _ = run_host_command(
+async fn resume_source_vm(config: &CloudHypervisorConfig, api_socket: &str) -> bool {
+    run_host_command(
         config.wsl_exe(),
         &ch_remote_args(config, api_socket, &["resume".to_string()]),
         None,
         Some(PROBE_TIMEOUT_MS),
         Uuid::nil(),
     )
-    .await;
+    .await
+    .map(|output| output.exit_code == 0)
+    .unwrap_or(false)
 }
 
 async fn resume_after_successful_snapshot(
@@ -2777,6 +3375,19 @@ async fn remove_wsl_path(config: &CloudHypervisorConfig, path: &str) -> bool {
     .unwrap_or(false)
 }
 
+#[cfg(test)]
+async fn remove_host_test_root_bounded(path: &str) -> bool {
+    let path = Path::new(path);
+    for _ in 0..50 {
+        match std::fs::remove_dir_all(path) {
+            Ok(()) => return true,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return true,
+            Err(_) => tokio::time::sleep(Duration::from_millis(20)).await,
+        }
+    }
+    !path.exists()
+}
+
 async fn mark_vm_root_owned(
     config: &CloudHypervisorConfig,
     vm_root: &str,
@@ -2803,16 +3414,183 @@ async fn mark_vm_root_owned(
     Ok(())
 }
 
-fn discover_orphan_vm_dirs_script(work_dir: &str, owner_pid: u32) -> String {
+fn discover_orphan_vm_dirs_script(work_dir: &str, ch_bin: &str) -> String {
     format!(
-        "for d in {wd}/persistent-* {wd}/restore-*; do \
+        "bin=$(readlink -f {bin} 2>/dev/null); \
+         for d in {wd}/persistent-* {wd}/restore-*; do \
            [ -d \"$d\" ] || continue; \
-           if [ \"$(cat \"$d/{owner}\" 2>/dev/null)\" = \"{owner_pid}\" ]; then continue; fi; \
-           echo \"$d\"; \
+           owner=$(cat \"$d/{owner}\" 2>/dev/null) || {{ echo \"missing owner marker: $d\" >&2; exit 42; }}; \
+           case \"$owner\" in ''|*[!0-9]*) echo \"invalid owner marker: $d\" >&2; exit 43;; esac; \
+           live_ch=0; \
+           for proc in /proc/[0-9]*; do \
+             [ -r \"$proc/cmdline\" ] || continue; \
+             [ \"$(readlink -f \"$proc/exe\" 2>/dev/null)\" = \"$bin\" ] || continue; \
+             tr '\\000' ' ' < \"$proc/cmdline\" | grep -F -- \"$d\" >/dev/null 2>&1 || continue; \
+             live_ch=1; break; \
+           done; \
+           if [ \"$live_ch\" -eq 1 ]; then status=LIVE_CH; else status=NO_CH; fi; \
+           printf '%s\\t%s\\t%s\\n' \"$status\" \"$owner\" \"$d\"; \
          done",
         wd = sh_quote_wsl(work_dir),
+        bin = sh_quote_wsl(ch_bin),
         owner = VM_ROOT_OWNER_PID_FILE,
     )
+}
+
+fn orphan_vm_dirs_from_probe<F>(
+    probe: &[u8],
+    live_vm_roots: &[String],
+    current_pid: u32,
+    mut owner_is_alive: F,
+) -> Result<Vec<String>, SandboxAdapterError>
+where
+    F: FnMut(u32) -> std::io::Result<bool>,
+{
+    let mut orphans = Vec::new();
+    for line in String::from_utf8_lossy(probe).lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut fields = line.splitn(3, '\t');
+        let status = fields.next().unwrap_or_default();
+        let owner_pid = fields
+            .next()
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or_else(|| unavailable(format!("invalid orphan probe owner record `{line}`")))?;
+        let root = fields
+            .next()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| unavailable(format!("invalid orphan probe root record `{line}`")))?;
+
+        if live_vm_roots.iter().any(|live| live == root) {
+            continue;
+        }
+        match status {
+            "LIVE_CH" => continue,
+            "NO_CH" if owner_pid == current_pid => orphans.push(root.to_string()),
+            "NO_CH" => match owner_is_alive(owner_pid) {
+                Ok(true) => continue,
+                Ok(false) => orphans.push(root.to_string()),
+                Err(error) => {
+                    return Err(unavailable(format!(
+                        "cannot prove owner PID {owner_pid} is dead for VM root `{root}`: {error}"
+                    )))
+                }
+            },
+            _ => {
+                return Err(unavailable(format!(
+                    "invalid orphan probe status record `{line}`"
+                )))
+            }
+        }
+    }
+    Ok(orphans)
+}
+
+#[cfg(target_os = "windows")]
+fn host_process_is_alive(pid: u32) -> std::io::Result<bool> {
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, STILL_ACTIVE},
+        System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
+    };
+
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if process.is_null() {
+        let error = std::io::Error::last_os_error();
+        return if error.raw_os_error() == Some(87) {
+            Ok(false)
+        } else {
+            Err(error)
+        };
+    }
+    let mut exit_code = 0u32;
+    let ok = unsafe { GetExitCodeProcess(process, &mut exit_code) };
+    unsafe {
+        let _ = CloseHandle(process);
+    }
+    if ok == 0 {
+        Err(std::io::Error::last_os_error())
+    } else {
+        Ok(exit_code == STILL_ACTIVE as u32)
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn host_process_is_alive(pid: u32) -> std::io::Result<bool> {
+    match std::fs::metadata(format!("/proc/{pid}")) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
+fn detached_vm_status_script(ch_bin: &str, vm_root: &str) -> String {
+    format!(
+        "bin={bin}; root={root}; \
+         for proc in /proc/[0-9]*; do \
+           [ -r \"$proc/cmdline\" ] || continue; \
+           [ \"$(readlink -f \"$proc/exe\" 2>/dev/null)\" = \"$bin\" ] || continue; \
+           tr '\\000' ' ' < \"$proc/cmdline\" | grep -F -- \"$root\" >/dev/null 2>&1 || continue; \
+           echo RUNNING; exit 0; \
+         done; \
+         echo ORPHANED",
+        bin = sh_quote_wsl(ch_bin),
+        root = sh_quote_wsl(vm_root),
+    )
+}
+
+fn detached_vm_reclaim_script(ch_bin: &str, vm_root: &str, signal: Signal) -> String {
+    let signal = match signal {
+        Signal::Term => "TERM",
+        Signal::Kill => "KILL",
+        Signal::Int => "INT",
+    };
+    format!(
+        "bin={bin}; root={root}; pids=''; \
+         for proc in /proc/[0-9]*; do \
+           [ -r \"$proc/cmdline\" ] || continue; \
+           [ \"$(readlink -f \"$proc/exe\" 2>/dev/null)\" = \"$bin\" ] || continue; \
+           tr '\\000' ' ' < \"$proc/cmdline\" | grep -F -- \"$root\" >/dev/null 2>&1 || continue; \
+           pid=${{proc#/proc/}}; pids=\"$pids $pid\"; kill -s {signal} \"$pid\" 2>/dev/null || true; \
+         done; \
+         for ignored in $(seq 1 50); do \
+           alive=0; for pid in $pids; do kill -0 \"$pid\" 2>/dev/null && alive=1; done; \
+           [ \"$alive\" -eq 0 ] && break; sleep 0.1; \
+         done; \
+         for pid in $pids; do kill -0 \"$pid\" 2>/dev/null && kill -s KILL \"$pid\" 2>/dev/null || true; done; \
+         for ignored in $(seq 1 20); do \
+           alive=0; for pid in $pids; do kill -0 \"$pid\" 2>/dev/null && alive=1; done; \
+           [ \"$alive\" -eq 0 ] && break; sleep 0.1; \
+         done; \
+         for pid in $pids; do \
+           if kill -0 \"$pid\" 2>/dev/null; then echo \"Cloud Hypervisor pid $pid still live for $root\" >&2; exit 41; fi; \
+         done; \
+         rm -rf -- \"$root\"; \
+         [ ! -e \"$root\" ] || {{ echo \"VM root still exists: $root\" >&2; exit 42; }}; \
+         echo HSK_DETACHED_VM_RECLAIMED",
+        bin = sh_quote_wsl(ch_bin),
+        root = sh_quote_wsl(vm_root),
+    )
+}
+
+async fn reclaim_cancelled_vm_root_bounded(config: &CloudHypervisorConfig, vm_root: &str) -> bool {
+    let reclaim = run_wsl_sh(
+        config,
+        &detached_vm_reclaim_script(&config.ch_bin, vm_root, Signal::Kill),
+        PROBE_TIMEOUT_MS,
+    )
+    .await;
+    if !matches!(reclaim, Ok(output) if output.exit_code == 0) {
+        return false;
+    }
+    for _ in 0..3 {
+        if remove_wsl_path(config, vm_root).await {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    false
 }
 
 /// Run a `sh -c <script>` inside the configured WSL distro and return the raw
@@ -2958,8 +3736,14 @@ fn windows_to_wsl_path(host_path: &Path) -> Result<String, SandboxAdapterError> 
         return Ok(raw.replace('\\', "/"));
     }
 
+    // `std::fs::canonicalize` returns an extended-length path on Windows. It
+    // identifies the same drive path, so strip only that exact drive prefix at
+    // the WSL translation boundary. Extended UNC paths remain unsupported and
+    // fail the drive-letter check below.
+    let drive_path = raw.strip_prefix(r"\\?\").unwrap_or(&raw);
+
     // Expect a drive-letter path like `D:\a\b` or `D:/a/b`.
-    let bytes = raw.as_bytes();
+    let bytes = drive_path.as_bytes();
     if bytes.len() < 2 || bytes[1] != b':' || !bytes[0].is_ascii_alphabetic() {
         return Err(spawn_failed(format!(
             "host bind path `{raw}` is not an absolute Windows drive path (expected e.g. `D:\\dir`)"
@@ -2967,7 +3751,7 @@ fn windows_to_wsl_path(host_path: &Path) -> Result<String, SandboxAdapterError> 
     }
     let drive = (bytes[0] as char).to_ascii_lowercase();
     // Strip `D:` and normalize backslashes; collapse a leading separator.
-    let rest = raw[2..].replace('\\', "/");
+    let rest = drive_path[2..].replace('\\', "/");
     let rest = rest.trim_start_matches('/');
     if rest.is_empty() {
         Ok(format!("/mnt/{drive}"))
@@ -3029,7 +3813,7 @@ async fn build_per_exec_initramfs(
         cpio = sh_quote_wsl(&format!("{exec_root}/initramfs.cpio")),
     ));
 
-    let output = run_wsl_sh(config, &script, PROBE_TIMEOUT_MS).await?;
+    let output = run_wsl_sh(config, &script, config.boot_timeout_ms()).await?;
     if output.exit_code != 0 || !String::from_utf8_lossy(&output.stdout).contains("HSK_BUILD_OK") {
         return Err(spawn_failed(format!(
             "per-exec initramfs build failed (exit {}): {}",
@@ -3087,7 +3871,7 @@ async fn build_idle_initramfs(
         cpio = sh_quote_wsl(idle_cpio),
     ));
 
-    let output = run_wsl_sh(config, &script, PROBE_TIMEOUT_MS).await?;
+    let output = run_wsl_sh(config, &script, config.boot_timeout_ms()).await?;
     if output.exit_code != 0 || !String::from_utf8_lossy(&output.stdout).contains("HSK_IDLE_OK") {
         return Err(spawn_failed(format!(
             "idle initramfs build failed (exit {}): {}",
@@ -3120,6 +3904,37 @@ fn spawn_persistent_child(wsl_exe: &Path, args: &[String]) -> Result<Child, Sand
                 wsl_exe.to_string_lossy()
             ),
         })
+}
+
+async fn persistent_boot_failure_diagnostic(
+    config: &CloudHypervisorConfig,
+    child: &mut Child,
+    ch_log: &str,
+    serial_log: &str,
+) -> String {
+    let child_status = match child.try_wait() {
+        Ok(Some(status)) => format!("exited:{status}"),
+        Ok(None) => "running-without-readiness-socket".to_string(),
+        Err(error) => format!("status-unavailable:{error}"),
+    };
+    let (ch_log_bytes, serial_log_bytes) = tokio::join!(
+        read_serial_log(config, ch_log),
+        read_serial_log(config, serial_log)
+    );
+    format!(
+        "persistent_child_status={child_status}; cloud_hypervisor_log_tail={:?}; guest_serial_tail={:?}",
+        diagnostic_text_tail(ch_log_bytes.as_deref()),
+        diagnostic_text_tail(serial_log_bytes.as_deref())
+    )
+}
+
+fn diagnostic_text_tail(bytes: Option<&[u8]>) -> String {
+    const MAX_DIAGNOSTIC_BYTES: usize = 16 * 1024;
+    let Some(bytes) = bytes else {
+        return "<unavailable>".to_string();
+    };
+    let start = bytes.len().saturating_sub(MAX_DIAGNOSTIC_BYTES);
+    String::from_utf8_lossy(&bytes[start..]).into_owned()
 }
 
 const SERIAL_AGENT_BRIDGE_PY: &str = r#"
@@ -5272,16 +6087,499 @@ done
     }
 
     #[test]
-    fn orphan_discovery_script_skips_current_process_owned_roots() {
-        let script = discover_orphan_vm_dirs_script("/tmp/handshake sandbox", 4242);
-        assert!(script.contains(VM_ROOT_OWNER_PID_FILE));
+    fn orphan_discovery_enumerates_same_pid_candidates_and_filters_only_live_roots() {
+        let script = discover_orphan_vm_dirs_script(
+            "/tmp/handshake sandbox",
+            "/opt/handshake/cloud-hypervisor",
+        );
         assert!(script.contains("/persistent-*"));
         assert!(script.contains("/restore-*"));
-        assert!(script.contains("cat \"$d/.hsk-owner-pid\""));
-        assert!(script.contains("= \"4242\""));
+        assert!(script.contains(VM_ROOT_OWNER_PID_FILE));
+        assert!(script.contains("LIVE_CH"));
+        assert!(script.contains("/proc/[0-9]*"));
+
+        let same_pid_root = format!("/tmp/handshake/persistent-{}", std::process::id());
+        let actual_live_root = "/tmp/handshake/restore-live".to_string();
+        let probe = format!(
+            "NO_CH\t{}\t{same_pid_root}\nNO_CH\t{}\t{actual_live_root}\n",
+            std::process::id(),
+            std::process::id()
+        );
+        let orphans = orphan_vm_dirs_from_probe(
+            probe.as_bytes(),
+            &[actual_live_root],
+            std::process::id(),
+            |_| panic!("same-process or locally live roots do not need a foreign PID query"),
+        )
+        .expect("parse deterministic orphan probe");
+        assert_eq!(orphans, vec![same_pid_root]);
+    }
+
+    #[tokio::test]
+    async fn live_foreign_owner_or_matching_cloud_hypervisor_is_never_orphaned() {
+        let mut foreign_owner = spawn_registration_test_sleeper();
+        let foreign_pid = foreign_owner.id().expect("foreign owner PID");
+        assert_ne!(foreign_pid, std::process::id());
+        let foreign_root = "/tmp/handshake/persistent-foreign-live";
+        let ch_root = "/tmp/handshake/restore-live-ch";
+        let probe = format!("NO_CH\t{foreign_pid}\t{foreign_root}\nLIVE_CH\t999999\t{ch_root}\n");
+
+        let orphans = orphan_vm_dirs_from_probe(
+            probe.as_bytes(),
+            &[],
+            std::process::id(),
+            host_process_is_alive,
+        )
+        .expect("live foreign owner liveness must be queryable");
         assert!(
-            script.contains("then continue"),
-            "current-process owned VM roots must be skipped, not reclaimed"
+            orphans.is_empty(),
+            "neither a live foreign-owner root nor a matching live-CH root may be reclaimed"
+        );
+
+        foreign_owner.kill().await.expect("stop owned test sleeper");
+        foreign_owner.wait().await.expect("reap owned test sleeper");
+    }
+
+    #[tokio::test]
+    async fn orphan_discovery_probe_failure_is_an_error_not_an_empty_success() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config.wsl_exe = std::env::temp_dir().join(format!(
+            "hsk-missing-wsl-{}-{}.exe",
+            std::process::id(),
+            Uuid::now_v7().simple()
+        ));
+
+        let error = adapter
+            .discover_orphan_vm_dirs()
+            .await
+            .expect_err("a WSL launch failure must fail orphan discovery closed");
+        match error {
+            SandboxAdapterError::AdapterUnavailable { reason, .. } => {
+                assert!(reason.contains("failed to spawn"));
+            }
+            other => panic!("expected typed AdapterUnavailable, got {other:?}"),
+        }
+    }
+
+    fn spawn_registration_test_sleeper() -> Child {
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = TokioCommand::new("powershell.exe");
+            command.args([
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Start-Sleep -Seconds 30",
+            ]);
+            command
+        };
+        #[cfg(not(windows))]
+        let mut command = {
+            let mut command = TokioCommand::new("sh");
+            command.args(["-c", "sleep 30"]);
+            command
+        };
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .expect("spawn cancellation-boundary sleeper")
+    }
+
+    #[tokio::test]
+    async fn cancellation_while_child_registry_is_held_rolls_back_registration() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        let vm_root_path = std::env::temp_dir().join(format!(
+            "hsk-registration-cancel-{}",
+            Uuid::now_v7().simple()
+        ));
+        std::fs::create_dir_all(&vm_root_path).expect("create real rollback scratch root");
+        std::fs::write(vm_root_path.join("sentinel"), b"must be removed")
+            .expect("write rollback scratch sentinel");
+        let vm_root = vm_root_path.to_string_lossy().to_string();
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_work_dir(vm_root.clone())
+            .with_committed_memory_budget_mib(128);
+        adapter.registration_rollback_uses_host_fs = true;
+
+        let held_child_registry = adapter.persistent_children.lock().await;
+        let task_adapter = adapter.clone();
+        let (at_boundary_tx, at_boundary_rx) = tokio::sync::oneshot::channel();
+        let handle_id = Uuid::now_v7();
+        let task_root = vm_root.clone();
+        let registration = tokio::spawn(async move {
+            let mut memory_reservation = task_adapter
+                .reserve_committed_memory_mib(64)
+                .expect("reserve test committed memory");
+            let mut rollback = PersistentRegistrationRollback::new(
+                task_adapter.clone(),
+                handle_id,
+                task_root.clone(),
+            )
+            .expect("register pending test root");
+            let mut state = HandleState::default();
+            state.persistent = Some(PersistentVm {
+                api_socket: format!("{task_root}/ch.sock"),
+                agent_socket: format!("{task_root}/agent.sock"),
+                serial_log: format!("{task_root}/serial.log"),
+                vm_root: task_root,
+                warm_agent_guest_path: None,
+            });
+            state.committed_memory_mib = 64;
+            task_adapter
+                .handles
+                .lock()
+                .expect("test handle registry")
+                .insert(handle_id, state);
+            let child = spawn_registration_test_sleeper();
+            let child_pid = child.id().expect("cancellation-boundary child PID");
+            rollback.retain_child(child);
+            at_boundary_tx
+                .send(child_pid)
+                .expect("signal blocked registration boundary");
+            task_adapter
+                .commit_persistent_registration(handle_id, &mut memory_reservation, &mut rollback)
+                .await;
+        });
+
+        let child_pid = at_boundary_rx
+            .await
+            .expect("registration reached held child-registry boundary");
+        assert!(
+            adapter.handles.lock().unwrap().contains_key(&handle_id),
+            "precondition: handle is visible before child registration"
+        );
+        assert_eq!(adapter.committed_memory_used_mib_for_test(), 64);
+        assert!(adapter.pending_vm_roots.lock().unwrap().contains(&vm_root));
+
+        registration.abort();
+        let join_error = registration
+            .await
+            .expect_err("registration task must be cancelled at the mutex boundary");
+        assert!(join_error.is_cancelled());
+        drop(held_child_registry);
+
+        assert!(
+            !adapter.handles.lock().unwrap().contains_key(&handle_id),
+            "cancelled registration must remove its prematurely visible handle"
+        );
+        assert_eq!(
+            adapter.committed_memory_used_mib_for_test(),
+            0,
+            "cancelled registration must release its committed-memory reservation exactly once"
+        );
+        assert!(adapter.persistent_children.lock().await.is_empty());
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let child_dead = !host_process_is_alive(child_pid)
+                .expect("query cancellation-boundary child liveness");
+            let root_removed = !vm_root_path.exists();
+            let cleanup_recorded = adapter
+                .registration_rollback_roots
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|root| root == &vm_root);
+            if child_dead && root_removed && cleanup_recorded {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "bounded rollback did not prove child death/root removal: child_dead={child_dead} root_removed={root_removed} cleanup_recorded={cleanup_recorded}"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(!adapter.pending_vm_roots.lock().unwrap().contains(&vm_root));
+        assert_eq!(
+            adapter
+                .registration_rollback_roots
+                .lock()
+                .unwrap()
+                .as_slice(),
+            &[vm_root],
+            "completion is recorded only after the exact scratch root is actually removed"
+        );
+    }
+
+    #[tokio::test]
+    async fn snapshot_cancellation_cleans_prepared_and_pause_boundary_dirs() {
+        for resume_required in [false, true] {
+            let mut adapter = CloudHypervisorAdapter::new_for_test();
+            adapter.snapshot_rollback_uses_host_fs = true;
+            adapter.snapshot_rollback_resume_outcome = Some(SnapshotRollbackResumeOutcome::Success);
+            let handle = ProcessHandle::new(
+                AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+                None,
+                format!("hsk-ch-persistent-{}", Uuid::now_v7().simple()),
+            );
+            let handle_id = handle.id;
+            let snapshot_path = std::env::temp_dir().join(format!(
+                "hsk-snapshot-cancel-{}-{}",
+                if resume_required {
+                    "paused"
+                } else {
+                    "prepared"
+                },
+                Uuid::now_v7().simple()
+            ));
+            std::fs::create_dir_all(&snapshot_path).expect("create cancellation snapshot dir");
+            std::fs::write(snapshot_path.join("partial-state"), b"must be removed")
+                .expect("write partial snapshot sentinel");
+            let snapshot_dir = snapshot_path.to_string_lossy().to_string();
+            let task_adapter = adapter.clone();
+            let task_snapshot_dir = snapshot_dir.clone();
+            let (at_boundary_tx, at_boundary_rx) = tokio::sync::oneshot::channel();
+            let task = tokio::spawn(async move {
+                let mut rollback = SnapshotRollback::new(
+                    task_adapter,
+                    handle,
+                    "/tmp/fake-api.sock".to_string(),
+                    task_snapshot_dir,
+                )
+                .expect("register in-flight snapshot ownership");
+                if resume_required {
+                    rollback.mark_resume_required();
+                }
+                at_boundary_tx
+                    .send(())
+                    .expect("signal snapshot cancellation boundary");
+                std::future::pending::<()>().await;
+                rollback.disarm();
+            });
+
+            at_boundary_rx
+                .await
+                .expect("snapshot reached cancellation boundary");
+            assert!(
+                adapter
+                    .pending_snapshot_dirs
+                    .lock()
+                    .unwrap()
+                    .get(&handle_id)
+                    .is_some_and(|dirs| dirs.contains(&snapshot_dir)),
+                "the exact snapshot directory must be owned before an await can be cancelled"
+            );
+            task.abort();
+            assert!(task
+                .await
+                .expect_err("snapshot task must cancel")
+                .is_cancelled());
+
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                let root_removed = !snapshot_path.exists();
+                let ownership_released = adapter
+                    .pending_snapshot_dirs
+                    .lock()
+                    .unwrap()
+                    .get(&handle_id)
+                    .is_none_or(HashSet::is_empty);
+                let cleanup_recorded = adapter
+                    .snapshot_rollback_dirs
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|root| root == &snapshot_dir);
+                if root_removed && ownership_released && cleanup_recorded {
+                    break;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "snapshot rollback did not remove exact residue: resume_required={resume_required} root_removed={root_removed} ownership_released={ownership_released} cleanup_recorded={cleanup_recorded}"
+                );
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            let attempts = adapter
+                .snapshot_rollback_resume_attempts
+                .lock()
+                .unwrap()
+                .clone();
+            if resume_required {
+                assert_eq!(
+                    attempts,
+                    vec![SnapshotRollbackResumeOutcome::Success],
+                    "the actual paused rollback branch must positively prove resume before cleanup"
+                );
+            } else {
+                assert!(attempts.is_empty());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn snapshot_rollback_retains_discoverable_ownership_when_resume_is_unproven() {
+        for outcome in [
+            SnapshotRollbackResumeOutcome::NonZeroExit,
+            SnapshotRollbackResumeOutcome::LaunchFailure,
+        ] {
+            let mut adapter = CloudHypervisorAdapter::new_for_test();
+            adapter.snapshot_rollback_uses_host_fs = true;
+            adapter.snapshot_rollback_resume_outcome = Some(outcome);
+            let handle = ProcessHandle::new(
+                AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+                None,
+                format!("hsk-ch-persistent-{}", Uuid::now_v7().simple()),
+            );
+            let handle_id = handle.id;
+            let snapshot_path = std::env::temp_dir().join(format!(
+                "hsk-snapshot-resume-failure-{}-{}",
+                match outcome {
+                    SnapshotRollbackResumeOutcome::NonZeroExit => "nonzero",
+                    SnapshotRollbackResumeOutcome::LaunchFailure => "launch",
+                    SnapshotRollbackResumeOutcome::Success => unreachable!(),
+                },
+                Uuid::now_v7().simple()
+            ));
+            std::fs::create_dir_all(&snapshot_path).expect("create retained snapshot dir");
+            let snapshot_dir = snapshot_path.to_string_lossy().to_string();
+            let mut rollback = SnapshotRollback::new(
+                adapter.clone(),
+                handle,
+                "/tmp/fake-api.sock".to_string(),
+                snapshot_dir.clone(),
+            )
+            .expect("register paused snapshot ownership");
+            rollback.mark_resume_required();
+            drop(rollback);
+
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                let attempts = adapter
+                    .snapshot_rollback_resume_attempts
+                    .lock()
+                    .unwrap()
+                    .clone();
+                if attempts == vec![outcome] {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "resume failure was not observed");
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            assert!(
+                snapshot_path.exists(),
+                "unproven resume must retain residue instead of deleting the evidence"
+            );
+            assert!(
+                adapter
+                    .pending_snapshot_dirs
+                    .lock()
+                    .unwrap()
+                    .get(&handle_id)
+                    .is_some_and(|dirs| dirs.contains(&snapshot_dir)),
+                "unproven resume must retain exact-handle discoverability"
+            );
+
+            adapter
+                .drain_pending_snapshot_dirs(handle_id)
+                .await
+                .expect("a later exact-handle teardown can drain retained residue");
+            assert!(!snapshot_path.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn snapshot_rollback_thread_or_runtime_failure_retains_discoverable_ownership() {
+        for fail_thread_spawn in [true, false] {
+            let mut adapter = CloudHypervisorAdapter::new_for_test();
+            adapter.snapshot_rollback_uses_host_fs = true;
+            adapter.snapshot_rollback_resume_outcome = Some(SnapshotRollbackResumeOutcome::Success);
+            adapter.snapshot_rollback_skip_thread_spawn = fail_thread_spawn;
+            adapter.snapshot_rollback_skip_runtime_build = !fail_thread_spawn;
+            let handle = ProcessHandle::new(
+                AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+                None,
+                format!("hsk-ch-persistent-{}", Uuid::now_v7().simple()),
+            );
+            let handle_id = handle.id;
+            let snapshot_path = std::env::temp_dir().join(format!(
+                "hsk-snapshot-cleanup-start-failure-{}-{}",
+                if fail_thread_spawn {
+                    "thread"
+                } else {
+                    "runtime"
+                },
+                Uuid::now_v7().simple()
+            ));
+            std::fs::create_dir_all(&snapshot_path).expect("create retained cleanup dir");
+            let snapshot_dir = snapshot_path.to_string_lossy().to_string();
+            let mut rollback = SnapshotRollback::new(
+                adapter.clone(),
+                handle,
+                "/tmp/fake-api.sock".to_string(),
+                snapshot_dir.clone(),
+            )
+            .expect("register cleanup ownership");
+            rollback.mark_resume_required();
+            drop(rollback);
+            tokio::time::sleep(Duration::from_millis(100)).await;
+
+            assert!(snapshot_path.exists());
+            assert!(adapter
+                .snapshot_rollback_resume_attempts
+                .lock()
+                .unwrap()
+                .is_empty());
+            assert!(
+                adapter
+                    .pending_snapshot_dirs
+                    .lock()
+                    .unwrap()
+                    .get(&handle_id)
+                    .is_some_and(|dirs| dirs.contains(&snapshot_dir)),
+                "cleanup startup failure must leave exact ownership discoverable"
+            );
+            adapter
+                .drain_pending_snapshot_dirs(handle_id)
+                .await
+                .expect("exact teardown drains startup-failure residue");
+            assert!(!snapshot_path.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn exact_handle_snapshot_drain_removes_all_registered_dirs() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.snapshot_rollback_uses_host_fs = true;
+        let handle_id = Uuid::now_v7();
+        let mut paths = Vec::new();
+        for suffix in ["pause-error", "verify-error"] {
+            let path = std::env::temp_dir().join(format!(
+                "hsk-snapshot-drain-{suffix}-{}",
+                Uuid::now_v7().simple()
+            ));
+            std::fs::create_dir_all(&path).expect("create drain snapshot dir");
+            std::fs::write(path.join("partial-state"), b"must be removed")
+                .expect("write drain snapshot sentinel");
+            paths.push(path);
+        }
+        adapter.pending_snapshot_dirs.lock().unwrap().insert(
+            handle_id,
+            paths
+                .iter()
+                .map(|path| path.to_string_lossy().to_string())
+                .collect(),
+        );
+
+        adapter
+            .drain_pending_snapshot_dirs(handle_id)
+            .await
+            .expect("drain exact handle snapshot ownership");
+
+        assert!(paths.iter().all(|path| !path.exists()));
+        assert!(
+            adapter
+                .pending_snapshot_dirs
+                .lock()
+                .unwrap()
+                .get(&handle_id)
+                .is_none_or(HashSet::is_empty),
+            "successful drain must release exact in-flight ownership"
         );
     }
 
@@ -5787,6 +7085,10 @@ done
             "/mnt/d/foo"
         );
         assert_eq!(windows_to_wsl_path(Path::new(r"C:\")).unwrap(), "/mnt/c");
+        assert_eq!(
+            windows_to_wsl_path(Path::new(r"\\?\D:\canonical\worktree")).unwrap(),
+            "/mnt/d/canonical/worktree"
+        );
         // Already-POSIX paths pass through verbatim.
         assert_eq!(
             windows_to_wsl_path(Path::new("/home/x/y")).unwrap(),
@@ -5794,6 +7096,7 @@ done
         );
         // Non-drive relative paths are rejected.
         assert!(windows_to_wsl_path(Path::new("relative\\path")).is_err());
+        assert!(windows_to_wsl_path(Path::new(r"\\?\UNC\server\share")).is_err());
     }
 
     #[test]
@@ -6365,6 +7668,20 @@ done
         assert_eq!(config.vcpus(), 1);
         assert_eq!(config.command_timeout_ms(), 60_000);
         assert_eq!(config.probe_timeout_ms(), 15_000);
+        assert_eq!(config.boot_timeout_ms(), 60_000);
         assert_eq!(config.balloon().size_mib(), None);
+    }
+
+    #[test]
+    fn boot_budget_reuses_the_larger_existing_configured_timeout() {
+        let command_bounded = CloudHypervisorConfig::default()
+            .with_command_timeout_ms(75_000)
+            .with_probe_timeout_ms(15_000);
+        assert_eq!(command_bounded.boot_timeout_ms(), 75_000);
+
+        let probe_bounded = CloudHypervisorConfig::default()
+            .with_command_timeout_ms(5_000)
+            .with_probe_timeout_ms(20_000);
+        assert_eq!(probe_bounded.boot_timeout_ms(), 20_000);
     }
 }

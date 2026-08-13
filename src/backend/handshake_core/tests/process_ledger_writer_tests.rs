@@ -1195,8 +1195,8 @@ fn production_process_ledger_writers_are_retained_until_shutdown() {
     let api_source = std::fs::read_to_string(manifest_dir.join("src/api/mod.rs"))
         .expect("read api routes source");
     assert!(
-        api_source.contains("RetainedLedgerBatcher::spawn("),
-        "production API routes must create a retained process-ledger writer for operator-chat lanes"
+        api_source.contains("RetainedLedgerBatcher::spawn_with_runtime_owner("),
+        "production API routes must create a retained, runtime-owner-bound process-ledger writer for operator-chat lanes"
     );
     assert!(
         !api_source.contains("routes_with_runtime(state).router"),

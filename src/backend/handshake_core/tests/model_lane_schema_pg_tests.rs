@@ -311,6 +311,7 @@ async fn dexterity_launch_records_real_swarm_spawn_session_runtime_path() {
     .with_dexterity_launch(DexterityLaunchContract {
         run_id: "run-runtime-001".into(),
         lane_id: "lane-runtime-local".into(),
+        restart_generation: 0,
         trace_id: "trace-mt003-runtime".into(),
         run_span_id: "span-runtime-run".into(),
         lane_span_id: "span-runtime-lane".into(),

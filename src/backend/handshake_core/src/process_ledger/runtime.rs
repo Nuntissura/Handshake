@@ -85,6 +85,7 @@ impl ProcessReclaimRuntime {
         startup_timeout: Duration,
     ) -> Result<Self, ProcessLedgerError> {
         let runtime_instance = runtime_lease.descriptor().clone();
+        ledger_store.preflight().await?;
         let ledger = RetainedLedgerBatcher::spawn_with_runtime_owner(
             ledger_store,
             overflow_sink.unwrap_or_else(|| Arc::new(NoopOverflowSink)),
@@ -92,6 +93,7 @@ impl ProcessReclaimRuntime {
             runtime_instance.process_runtime_owner(),
         );
         let reclaim_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+        reclaim_store.preflight().await?;
         let killer = Arc::new(ProductionSandboxKill::with_registry(
             pool.clone(),
             Arc::clone(&registry),
@@ -230,10 +232,12 @@ impl ProcessReclaimRuntime {
     }
 
     pub async fn shutdown_and_drain(&self, timeout: Duration) -> ProcessReclaimRuntimeDrainReport {
-        let started = std::time::Instant::now();
+        // The caller supplies a per-infrastructure-phase budget. Reclaim-task
+        // quiescence and ledger flush are independent obligations; allowing the
+        // first to consume the second's budget can abort a healthy writer even
+        // when both phases individually finish within the declared bound.
         let reclaim_task_quiesced = self.inner.reclaim_task.shutdown_and_join(timeout).await;
-        let remaining = timeout.saturating_sub(started.elapsed());
-        let ledger = self.inner.ledger.drain_and_join(remaining).await;
+        let ledger = self.inner.ledger.drain_and_join(timeout).await;
         let drained = reclaim_task_quiesced
             && matches!(
                 &ledger,
@@ -345,4 +349,19 @@ pub fn production_process_sandbox_registry() -> Arc<SandboxAdapterRegistry> {
         crate::sandbox::palmistry_watcher::PalmistryWatcherAdapter,
     ));
     Arc::new(registry)
+}
+
+/// Discover the full shipped sandbox set for the async application composition
+/// root. Unlike the synchronous fixture/compatibility registry above, this
+/// executes the adapters' real availability probes, so the same registry can
+/// route Tier-3 model lanes and reclaim their durable handles after restart.
+/// Palmistry remains an explicit host-process owner even though it is not part
+/// of the generic sandbox bootstrap.
+pub async fn production_process_sandbox_registry_async(
+) -> Result<Arc<SandboxAdapterRegistry>, crate::sandbox::SandboxAdapterError> {
+    let mut registry = crate::sandbox::build_default_registry_async().await?;
+    registry.register(Arc::new(
+        crate::sandbox::palmistry_watcher::PalmistryWatcherAdapter,
+    ));
+    Ok(Arc::new(registry))
 }

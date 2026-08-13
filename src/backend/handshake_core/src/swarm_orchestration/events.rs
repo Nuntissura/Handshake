@@ -35,6 +35,7 @@ use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRec
 use uuid::Uuid;
 
 use super::ids::ModelInstanceId;
+use super::resource_scope::ExactResourceScopeAttribution;
 use super::state::ModelSessionState;
 
 /// Self-contained FR-EVT-SWARM-* identifier table. Canonical case is
@@ -154,13 +155,18 @@ pub enum SwarmEvent {
     SessionCancelled {
         instance_id: ModelInstanceId,
         reason: String,
+        /// Stable across cleanup retry so a partial fanout/outbox success is
+        /// deduplicated by the durable event ID.
+        event_id: Option<Uuid>,
     },
     SessionCompleted {
         instance_id: ModelInstanceId,
+        event_id: Option<Uuid>,
     },
     SessionFailed {
         instance_id: ModelInstanceId,
         error: String,
+        event_id: Option<Uuid>,
     },
     ResourceAllocated {
         instance_id: ModelInstanceId,
@@ -170,6 +176,7 @@ pub enum SwarmEvent {
     ResourceEvicted {
         instance_id: ModelInstanceId,
         terminal_state: ModelSessionState,
+        event_id: Option<Uuid>,
     },
     BreakerTripped {
         signature: String,
@@ -272,6 +279,7 @@ where
 {
     trace_id: Uuid,
     emit_fn: F,
+    resource_scope: Option<ExactResourceScopeAttribution>,
 }
 
 impl<F> FlightRecorderSwarmSink<F>
@@ -279,17 +287,35 @@ where
     F: Fn(FlightRecorderEvent) -> Result<(), String> + Send + Sync + 'static,
 {
     pub fn new(trace_id: Uuid, emit_fn: F) -> Self {
-        Self { trace_id, emit_fn }
+        Self {
+            trace_id,
+            emit_fn,
+            resource_scope: None,
+        }
     }
 
-    fn build(&self, event: &SwarmEvent) -> FlightRecorderEvent {
+    /// Account-facing production sink. Every emitted payload is stamped with
+    /// the exact five-field scope frozen from the durable ModelLaneStore.
+    pub fn new_scoped(
+        trace_id: Uuid,
+        resource_scope: ExactResourceScopeAttribution,
+        emit_fn: F,
+    ) -> Self {
+        Self {
+            trace_id,
+            emit_fn,
+            resource_scope: Some(resource_scope),
+        }
+    }
+
+    fn build(&self, event: &SwarmEvent) -> Result<FlightRecorderEvent, String> {
         let fr_id = event.fr_event_id().as_str();
         let trace_id = match event {
             SwarmEvent::ModelInvocationStarted { trace_id, .. }
             | SwarmEvent::ModelInvocationFinished { trace_id, .. } => *trace_id,
             _ => self.trace_id,
         };
-        let (payload, model_id) = match event {
+        let (mut payload, model_id) = match event {
             SwarmEvent::SessionSpawned {
                 instance_id,
                 parent_session_id,
@@ -309,7 +335,7 @@ where
                 Some(instance_id.model_id.to_string()),
             ),
             SwarmEvent::SessionReady { instance_id }
-            | SwarmEvent::SessionCompleted { instance_id } => (
+            | SwarmEvent::SessionCompleted { instance_id, .. } => (
                 json!({ "fr_event_id": fr_id, "instance_id": instance_id.to_string() }),
                 Some(instance_id.model_id.to_string()),
             ),
@@ -369,6 +395,7 @@ where
             SwarmEvent::SessionCancelled {
                 instance_id,
                 reason,
+                ..
             } => (
                 json!({
                     "fr_event_id": fr_id,
@@ -377,7 +404,9 @@ where
                 }),
                 Some(instance_id.model_id.to_string()),
             ),
-            SwarmEvent::SessionFailed { instance_id, error } => (
+            SwarmEvent::SessionFailed {
+                instance_id, error, ..
+            } => (
                 json!({
                     "fr_event_id": fr_id,
                     "instance_id": instance_id.to_string(),
@@ -401,6 +430,7 @@ where
             SwarmEvent::ResourceEvicted {
                 instance_id,
                 terminal_state,
+                ..
             } => (
                 json!({
                     "fr_event_id": fr_id,
@@ -441,16 +471,31 @@ where
             ),
         };
 
+        if let Some(resource_scope) = self.resource_scope.as_ref() {
+            resource_scope
+                .stamp_json_object(&mut payload)
+                .map_err(|error| error.to_string())?;
+        }
+
         let mut fr_event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::System,
             trace_id,
             payload,
         );
+        if let Some(event_id) = match event {
+            SwarmEvent::SessionCancelled { event_id, .. }
+            | SwarmEvent::SessionCompleted { event_id, .. }
+            | SwarmEvent::SessionFailed { event_id, .. }
+            | SwarmEvent::ResourceEvicted { event_id, .. } => *event_id,
+            _ => None,
+        } {
+            fr_event.event_id = event_id;
+        }
         if let Some(model_id) = model_id {
             fr_event = fr_event.with_model_id(model_id);
         }
-        fr_event
+        Ok(fr_event)
     }
 }
 
@@ -459,7 +504,7 @@ where
     F: Fn(FlightRecorderEvent) -> Result<(), String> + Send + Sync + 'static,
 {
     fn emit(&self, event: SwarmEvent) -> Result<(), String> {
-        let fr_event = self.build(&event);
+        let fr_event = self.build(&event)?;
         (self.emit_fn)(fr_event)
     }
 }
@@ -965,6 +1010,27 @@ mod tests {
         for id in SwarmFrEventId::all() {
             assert_eq!(SwarmFrEventId::from_str_id(id.as_str()), Some(*id));
         }
+    }
+
+    #[test]
+    fn retryable_terminal_events_preserve_their_durable_event_id() {
+        let recorded = Arc::new(Mutex::new(Vec::new()));
+        let captured = Arc::clone(&recorded);
+        let sink = FlightRecorderSwarmSink::new(Uuid::now_v7(), move |event| {
+            captured.lock().expect("capture poisoned").push(event);
+            Ok(())
+        });
+        let event_id = Uuid::now_v7();
+        let event = SwarmEvent::SessionCancelled {
+            instance_id: ModelInstanceId::new(crate::model_runtime::ModelId::new_v7(), 1),
+            reason: "retryable terminal event".to_string(),
+            event_id: Some(event_id),
+        };
+        sink.emit(event.clone()).unwrap();
+        sink.emit(event).unwrap();
+        let events = recorded.lock().expect("capture poisoned");
+        assert_eq!(events.len(), 2);
+        assert!(events.iter().all(|event| event.event_id == event_id));
     }
 
     #[test]

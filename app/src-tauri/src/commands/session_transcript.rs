@@ -47,10 +47,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use handshake_core::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent};
+use handshake_core::flight_recorder::{FlightRecorder, FlightRecorderEvent};
 use handshake_core::session_transcript::{
     self, export, ChatTurnInput, ExportCounts, ExportFormat, ExportHeader, SessionTranscriptEntry,
     TranscriptKind,
+};
+use handshake_core::swarm_orchestration::resource_scope::{
+    ExactResourceScopeAttribution, ResourceScopeQuery,
 };
 use handshake_core::terminal::redaction::{PatternRedactor, SecretRedactor};
 use handshake_core::terminal::TerminalRuntime;
@@ -106,10 +109,13 @@ pub struct SessionTranscriptState {
     recorder: Option<Arc<dyn FlightRecorder>>,
     /// Disk-agnostic data root; chat logs + the discovery index live under it.
     app_data_root: PathBuf,
-    /// Optional live terminal runtime, used ONLY for the live-scrollback
-    /// enrichment (a still-open capture session's current raw stdout). The
-    /// durable terminal record is the FR `TerminalChunk` events.
-    terminal: Option<TerminalRuntime>,
+    /// Retained for constructor compatibility while terminal sessions lack
+    /// exact five-field attribution. Account-facing replay must not consult
+    /// this runtime until that attribution is carried by every session.
+    _terminal: Option<TerminalRuntime>,
+    /// Trusted, persisted product-local scope. It is created at bootstrap and
+    /// never accepted from renderer IPC arguments.
+    resource_scope: ExactResourceScopeAttribution,
 }
 
 impl std::fmt::Debug for SessionTranscriptState {
@@ -117,7 +123,8 @@ impl std::fmt::Debug for SessionTranscriptState {
         f.debug_struct("SessionTranscriptState")
             .field("recorder", &self.recorder.is_some())
             .field("app_data_root", &self.app_data_root)
-            .field("terminal", &self.terminal.is_some())
+            .field("terminal", &self._terminal.is_some())
+            .field("resource_scope", &"exact-five-field")
             .finish()
     }
 }
@@ -129,16 +136,23 @@ impl SessionTranscriptState {
         recorder: Option<Arc<dyn FlightRecorder>>,
         app_data_root: impl Into<PathBuf>,
         terminal: Option<TerminalRuntime>,
+        resource_scope: ExactResourceScopeAttribution,
     ) -> Self {
         Self {
             recorder,
             app_data_root: app_data_root.into(),
-            terminal,
+            _terminal: terminal,
+            resource_scope,
         }
     }
 
     fn sessions_root(&self) -> PathBuf {
         self.app_data_root.join("sessions")
+    }
+
+    fn resource_scope_query(&self) -> ResourceScopeQuery {
+        ResourceScopeQuery::for_owner(self.resource_scope.owner_account_id)
+            .within_workspace(self.resource_scope.workspace_id.clone())
     }
 }
 
@@ -472,45 +486,22 @@ async fn fetch_fr_events(
     session_id: &str,
     from: Option<DateTime<Utc>>,
     to: Option<DateTime<Utc>>,
+    resource_scope: &ExactResourceScopeAttribution,
 ) -> Result<Vec<FlightRecorderEvent>, String> {
-    // Seam 1: documented EventFilter by model_session_id.
-    let documented = recorder
-        .list_events(EventFilter {
-            model_session_id: Some(session_id.to_string()),
-            from,
-            to,
-            ..Default::default()
-        })
-        .await
-        .map_err(|e| format!("FR list_events failed: {e}"))?;
-
-    // Seam 2: raw scoped query by session_span_id OR payload.instance_id.
-    let raw = recorder
-        .list_session_scoped_events(session_id, from, to)
+    let query = ResourceScopeQuery::for_owner(resource_scope.owner_account_id)
+        .within_workspace(resource_scope.workspace_id.clone());
+    let events = recorder
+        .list_session_events_for_scope(session_id, from, to, query)
         .await
         .map_err(|e| format!("FR scoped query failed: {e}"))?;
-
-    Ok(union_dedup_events(documented, raw))
+    Ok(events
+        .into_iter()
+        .filter(|event| event_scope(event).as_ref() == Some(resource_scope))
+        .collect())
 }
 
-/// Best-effort live terminal scrollback for a still-open capture session bound
-/// to this `session_id` (its `binding.instance_id == session_id`). Returns the
-/// `(terminal_session_id, text, ts)` triple to enrich the timeline, or `None`.
-fn live_terminal_scrollback(
-    terminal: &Option<TerminalRuntime>,
-    session_id: &str,
-) -> Option<(String, String, DateTime<Utc>)> {
-    let runtime = terminal.as_ref()?;
-    let sessions = runtime.list_sessions();
-    let info = sessions
-        .into_iter()
-        .find(|s| s.binding.instance_id.as_deref() == Some(session_id))?;
-    let bytes = runtime.scrollback(&info.session_id).ok()?;
-    if bytes.is_empty() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&bytes).to_string();
-    Some((info.session_id, text, Utc::now()))
+fn event_scope(event: &FlightRecorderEvent) -> Option<ExactResourceScopeAttribution> {
+    serde_json::from_value(event.payload.clone()).ok()
 }
 
 // ---------------------------------------------------------------------------
@@ -530,7 +521,11 @@ fn discover_chat_sessions(state: &SessionTranscriptState) -> Vec<SessionSummary>
             continue;
         }
         let session_id = entry.file_name().to_string_lossy().to_string();
-        let rows = match session_chat_log::read_chat_log(&state.app_data_root, &session_id) {
+        let rows = match session_chat_log::read_chat_log_for_scope(
+            &state.app_data_root,
+            &session_id,
+            &state.resource_scope,
+        ) {
             Ok(rows) if !rows.is_empty() => rows,
             _ => continue, // no chat.jsonl / empty -> not a chat session
         };
@@ -575,70 +570,81 @@ async fn discover_fr_sessions(state: &SessionTranscriptState) -> Vec<SessionSumm
     let Some(recorder) = &state.recorder else {
         return Vec::new();
     };
-    let Some(conn) = recorder.duckdb_connection() else {
-        return Vec::new();
-    };
-    let conn = match conn.lock() {
-        Ok(c) => c,
+    let events = match recorder
+        .list_resource_scoped_events(state.resource_scope_query())
+        .await
+    {
+        Ok(events) => events,
         Err(_) => return Vec::new(),
     };
-    let mut stmt = match conn.prepare(
-        "SELECT json_extract_string(payload, '$.instance_id') AS sid, \
-         CAST(EXTRACT(EPOCH FROM min(timestamp)) AS DOUBLE), \
-         CAST(EXTRACT(EPOCH FROM max(timestamp)) AS DOUBLE), \
-         count(*), any_value(model_id), \
-         any_value(json_extract_string(payload, '$.worktree_id')) \
-         FROM events \
-         WHERE json_extract_string(payload, '$.instance_id') IS NOT NULL \
-         GROUP BY sid",
-    ) {
-        Ok(s) => s,
-        Err(_) => return Vec::new(),
-    };
-    let rows = stmt.query_map([], |row| {
-        let sid: String = row.get(0)?;
-        let min_epoch: f64 = row.get(1)?;
-        let max_epoch: f64 = row.get(2)?;
-        let count: i64 = row.get(3)?;
-        let model_id: Option<String> = row.get(4)?;
-        let worktree_id: Option<String> = row.get(5)?;
-        Ok((sid, min_epoch, max_epoch, count, model_id, worktree_id))
-    });
-    let rows = match rows {
-        Ok(r) => r,
-        Err(_) => return Vec::new(),
-    };
-    let mut out = Vec::new();
-    for row in rows.flatten() {
-        let (sid, min_epoch, max_epoch, count, model_id, worktree_id) = row;
-        if sid.trim().is_empty() {
+    #[derive(Default)]
+    struct Aggregate {
+        started_at: Option<DateTime<Utc>>,
+        last_activity_at: Option<DateTime<Utc>>,
+        count: u64,
+        model_id: Option<String>,
+        worktree_id: Option<String>,
+    }
+    let mut by_session: HashMap<String, Aggregate> = HashMap::new();
+    for event in events {
+        if event_scope(&event).as_ref() != Some(&state.resource_scope) {
             continue;
         }
-        let (split_model, provider) = split_instance_id(&sid);
-        // Normalize a blank/whitespace recorded worktree to None (honest
-        // "unassigned"), matching the spawn-side trimming rule.
-        let worktree_id = worktree_id
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty());
-        out.push(SessionSummary {
-            session_id: sid.clone(),
-            kind: "swarm".to_string(),
-            started_at: epoch_to_dt(min_epoch),
-            last_activity_at: epoch_to_dt(max_epoch),
-            model_id: model_id.or(split_model),
-            provider,
-            title: Some(sid),
-            counts: SourceCounts {
-                fr: count.max(0) as u64,
-                ..Default::default()
-            },
-            worktree_id,
-            // Overlaid against the spawn-template store in kernel_session_list;
-            // defaulted false here so the discovery seam stays self-contained.
-            resumable: false,
-        });
+        let Some(session_id) = event
+            .payload
+            .get("instance_id")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        else {
+            continue;
+        };
+        let aggregate = by_session.entry(session_id.to_string()).or_default();
+        aggregate.started_at = Some(
+            aggregate
+                .started_at
+                .map_or(event.timestamp, |current| current.min(event.timestamp)),
+        );
+        aggregate.last_activity_at = Some(
+            aggregate
+                .last_activity_at
+                .map_or(event.timestamp, |current| current.max(event.timestamp)),
+        );
+        aggregate.count += 1;
+        if aggregate.model_id.is_none() {
+            aggregate.model_id = event.model_id.clone();
+        }
+        if aggregate.worktree_id.is_none() {
+            aggregate.worktree_id = event
+                .payload
+                .get("worktree_id")
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string);
+        }
     }
-    out
+    by_session
+        .into_iter()
+        .map(|(session_id, aggregate)| {
+            let (split_model, provider) = split_instance_id(&session_id);
+            SessionSummary {
+                title: Some(session_id.clone()),
+                session_id,
+                kind: "swarm".to_string(),
+                started_at: aggregate.started_at,
+                last_activity_at: aggregate.last_activity_at,
+                model_id: aggregate.model_id.or(split_model),
+                provider,
+                counts: SourceCounts {
+                    fr: aggregate.count,
+                    ..Default::default()
+                },
+                worktree_id: aggregate.worktree_id,
+                resumable: false,
+            }
+        })
+        .collect()
 }
 
 fn epoch_to_dt(epoch: f64) -> Option<DateTime<Utc>> {
@@ -677,11 +683,16 @@ fn merge_summaries(chat: Vec<SessionSummary>, fr: Vec<SessionSummary>) -> Vec<Se
 pub async fn kernel_session_list(
     state: State<'_, SessionTranscriptState>,
 ) -> Result<Vec<SessionSummary>, String> {
-    let chat = discover_chat_sessions(&state);
-    let fr = discover_fr_sessions(&state).await;
-    let mut summaries = merge_summaries(chat, fr);
-    overlay_resumable(&state, &mut summaries);
-    Ok(summaries)
+    Ok(authorized_session_summaries(&state).await)
+}
+
+async fn authorized_session_summaries(state: &SessionTranscriptState) -> Vec<SessionSummary> {
+    let mut summaries = merge_summaries(
+        discover_chat_sessions(state),
+        discover_fr_sessions(state).await,
+    );
+    overlay_resumable(state, &mut summaries);
+    summaries
 }
 
 /// ROI#3 STATE RECOVERY: overlay `resumable` onto each summary from the per-
@@ -691,7 +702,10 @@ pub async fn kernel_session_list(
 /// stay `false` (honest: not-resumable, never a list failure). Chat (UUID)
 /// sessions are never template keys => stay `false`.
 fn overlay_resumable(state: &SessionTranscriptState, summaries: &mut [SessionSummary]) {
-    let store = super::spawn_template_store::SpawnTemplateStore::new(&state.app_data_root);
+    let store = super::spawn_template_store::SpawnTemplateStore::new_scoped(
+        &state.app_data_root,
+        state.resource_scope.clone(),
+    );
     let keys = match store.load() {
         Ok(doc) => doc.templates,
         // A missing/corrupt store leaves every row not-resumable (honest), and
@@ -724,22 +738,42 @@ pub async fn kernel_session_transcript_get(
     let to = parse_rfc3339_opt(to, "to")?;
     let kinds = parse_kinds(kinds)?;
 
+    transcript_for_state(&state, &session_id, from, to, kinds).await
+}
+
+async fn transcript_for_state(
+    state: &SessionTranscriptState,
+    session_id: &str,
+    from: Option<DateTime<Utc>>,
+    to: Option<DateTime<Utc>>,
+    kinds: Option<Vec<TranscriptKind>>,
+) -> Result<SessionTranscriptResponse, String> {
+    if resolve_single_summary(state, session_id).await.is_none() {
+        return Err("SESSION_NOT_FOUND".to_string());
+    }
+
     // Chat lane: path-keyed by session_id. A composite instance id (contains
     // `#`) has no chat file -> empty (honest).
-    let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
+    let chat_entries = session_chat_log::read_chat_log_for_scope(
+        &state.app_data_root,
+        &session_id,
+        &state.resource_scope,
+    )?;
     let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
 
     // FR lanes via both seams (or unavailable).
     let (fr_events, recorder_available) = match &state.recorder {
         Some(recorder) => (
-            fetch_fr_events(recorder, &session_id, from, to).await?,
+            fetch_fr_events(recorder, session_id, from, to, &state.resource_scope).await?,
             true,
         ),
         None => (Vec::new(), false),
     };
 
-    // Live terminal scrollback enrichment (still-open capture session only).
-    let live = live_terminal_scrollback(&state.terminal, &session_id);
+    // Live terminal sessions currently carry no exact resource attribution.
+    // Never enrich an account-facing transcript by instance-id equality alone:
+    // a foreign session can legitimately use the same composite id.
+    let live = None;
 
     Ok(build_response(
         &session_id,
@@ -888,8 +922,11 @@ async fn scan_candidate(
     // --- Chat lane: the SAME reader the aggregator + discovery use. A composite
     // `<model_id>#<n>` id has no chat.jsonl -> empty (honest), no false hits.
     if kind_allowed(TranscriptKind::ChatTurn) {
-        if let Ok(rows) = session_chat_log::read_chat_log(&state.app_data_root, &summary.session_id)
-        {
+        if let Ok(rows) = session_chat_log::read_chat_log_for_scope(
+            &state.app_data_root,
+            &summary.session_id,
+            &state.resource_scope,
+        ) {
             for row in &rows {
                 if let Some(snippet) = make_snippet(&row.content, query_lc) {
                     let ts = DateTime::parse_from_rfc3339(row.created_at_utc.trim())
@@ -909,7 +946,15 @@ async fn scan_candidate(
     // (`fetch_fr_events` = seam-1 + seam-2 + union_dedup), then the SAME typed
     // rows the transcript shows (`entries_from_fr_event`). No second SQL.
     if let Some(recorder) = &state.recorder {
-        if let Ok(events) = fetch_fr_events(recorder, &summary.session_id, from, to).await {
+        if let Ok(events) = fetch_fr_events(
+            recorder,
+            &summary.session_id,
+            from,
+            to,
+            &state.resource_scope,
+        )
+        .await
+        {
             for event in &events {
                 for entry in session_transcript::entries_from_fr_event(event) {
                     let kind = entry.kind();
@@ -995,9 +1040,7 @@ async fn search_sessions(
     let query_lc = query_trimmed.to_lowercase();
 
     // Step A: structured candidate filter (reuse kernel_session_list internals).
-    let chat = discover_chat_sessions(state);
-    let fr = discover_fr_sessions(state).await;
-    let mut candidates = merge_summaries(chat, fr);
+    let mut candidates = authorized_session_summaries(state).await;
 
     if let Some(wt) = worktree_id {
         candidates.retain(|s| s.worktree_id.as_deref() == Some(wt));
@@ -1112,9 +1155,8 @@ async fn resolve_single_summary(
     state: &SessionTranscriptState,
     session_id: &str,
 ) -> Option<SessionSummary> {
-    let chat = discover_chat_sessions(state);
-    let fr = discover_fr_sessions(state).await;
-    merge_summaries(chat, fr)
+    authorized_session_summaries(state)
+        .await
         .into_iter()
         .find(|s| s.session_id == session_id)
 }
@@ -1262,36 +1304,33 @@ pub async fn kernel_session_export(
     }
     let fmt = ExportFormat::from_ipc(&format).ok_or_else(|| format!("unknown format: {format}"))?;
 
+    let Some(summary) = resolve_single_summary(&state, &session_id).await else {
+        return Err("SESSION_NOT_FOUND".to_string());
+    };
+
     // Chat lane: path-keyed by session_id (same as transcript_get).
-    let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
+    let chat_entries = session_chat_log::read_chat_log_for_scope(
+        &state.app_data_root,
+        &session_id,
+        &state.resource_scope,
+    )?;
     let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
 
     // FR lanes via both seams (or unavailable). FULL export: no from/to window.
     let (fr_events, recorder_available) = match &state.recorder {
         Some(recorder) => (
-            fetch_fr_events(recorder, &session_id, None, None).await?,
+            fetch_fr_events(recorder, &session_id, None, None, &state.resource_scope).await?,
             true,
         ),
         None => (Vec::new(), false),
     };
 
-    // Live terminal scrollback enrichment (parity with the transcript view).
-    let live = live_terminal_scrollback(&state.terminal, &session_id);
+    // See `transcript_for_state`: unscoped live terminal state is withheld.
+    let live = None;
 
     // FULL merge, no kind filter — REUSE the aggregator.
     let response = build_response(&session_id, chat, fr_events, recorder_available, live, None);
 
-    // Resolve the summary (discovery reuse) for the header + not-found honesty.
-    let summary = resolve_single_summary(&state, &session_id).await;
-
-    // Honest not-found: an id that matches NO discoverable session AND produces
-    // an empty transcript is a typed error, not a meaningless file.
-    if response.entries.is_empty() && summary.is_none() {
-        return Err(format!("SESSION_NOT_FOUND: {session_id}"));
-    }
-
-    // Discoverable-but-thin fallback: a real (or synthesized-minimal) summary.
-    let summary = summary.unwrap_or_else(|| synth_min_summary(&session_id));
     let header = build_export_header(&session_id, &summary, &response.entries);
 
     // Resolve the destination dir: operator choice (verbatim, off-root-capable
@@ -1354,14 +1393,45 @@ pub fn load_session_index(sessions_root: &Path) -> Result<SessionIndexDoc, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use handshake_core::capabilities::CapabilityRegistry;
+    use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
     use handshake_core::flight_recorder::{
-        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+        EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
     };
+    use handshake_core::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+        WorkspaceScopeRef,
+    };
+    use handshake_core::terminal::SessionBinding;
     use serde_json::json;
     use uuid::Uuid;
 
     fn at(secs: i64) -> DateTime<Utc> {
         DateTime::<Utc>::from_timestamp(secs, 0).unwrap()
+    }
+
+    fn test_scope() -> ExactResourceScopeAttribution {
+        ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::from_uuid(
+                Uuid::parse_str("00000000-0000-7000-8000-000000000001").unwrap(),
+            ),
+            actor_principal_id: ActorPrincipalId::from_uuid(
+                Uuid::parse_str("00000000-0000-7000-8000-000000000002").unwrap(),
+            ),
+            authenticated_session_id: AuthenticatedSessionRef::from_uuid(
+                Uuid::parse_str("00000000-0000-7000-8000-000000000003").unwrap(),
+            ),
+            access_space_id: AccessSpaceRef::from_uuid(
+                Uuid::parse_str("00000000-0000-7000-8000-000000000004").unwrap(),
+            ),
+            workspace_id: WorkspaceScopeRef::new("workspace-owner").unwrap(),
+        }
+    }
+
+    fn stamp_test_scope(event: &mut FlightRecorderEvent) {
+        test_scope()
+            .stamp_json_object(&mut event.payload)
+            .expect("stamp test scope");
     }
 
     fn chat_input(turn: u64, secs: i64, role: &str, content: &str) -> ChatTurnInput {
@@ -1389,6 +1459,7 @@ mod tests {
                 "worktree_id": "wt-recovery-1",
             }),
         );
+        stamp_test_scope(&mut e);
         e.timestamp = at(secs);
         e
     }
@@ -1565,6 +1636,7 @@ mod tests {
             "turn_index": 1u64,
             "created_at_utc": at(100).to_rfc3339(),
             "message_id": "0192a000-0000-7000-8000-0000000000aa",
+            "resource_scope": test_scope(),
             "role": "user",
             "content": "hello operator",
         });
@@ -1601,9 +1673,10 @@ mod tests {
         )
         .with_session_span(instance.to_string());
         term.timestamp = at(60);
+        stamp_test_scope(&mut term);
         recorder.record_event(term).await.expect("record terminal");
 
-        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None);
+        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None, test_scope());
 
         // (a) Discovery finds BOTH the chat session and the FR instance.
         let chat_sessions = discover_chat_sessions(&state);
@@ -1628,7 +1701,7 @@ mod tests {
         // ordered, with honest source_status (chat empty, fr/terminal/process
         // present).
         let recorder_ref = state.recorder.as_ref().unwrap();
-        let fr_events = fetch_fr_events(recorder_ref, instance, None, None)
+        let fr_events = fetch_fr_events(recorder_ref, instance, None, None, &state.resource_scope)
             .await
             .expect("fetch fr");
         let resp = build_response(instance, vec![], fr_events, true, None, None);
@@ -1645,12 +1718,22 @@ mod tests {
 
         // (c) Transcript for the CHAT session: one chat turn, fr empty (no FR
         // events keyed by the chat UUID), honest.
-        let chat_entries =
-            session_chat_log::read_chat_log(&state.app_data_root, chat_session).expect("read chat");
+        let chat_entries = session_chat_log::read_chat_log_for_scope(
+            &state.app_data_root,
+            chat_session,
+            &state.resource_scope,
+        )
+        .expect("read chat");
         let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
-        let chat_fr = fetch_fr_events(recorder_ref, chat_session, None, None)
-            .await
-            .expect("fetch fr for chat");
+        let chat_fr = fetch_fr_events(
+            recorder_ref,
+            chat_session,
+            None,
+            None,
+            &state.resource_scope,
+        )
+        .await
+        .expect("fetch fr for chat");
         let chat_resp = build_response(chat_session, chat, chat_fr, true, None, None);
         assert_eq!(chat_resp.source_status.chat, SourceState::Present);
         assert_eq!(chat_resp.source_status.fr, SourceState::Empty);
@@ -1869,6 +1952,7 @@ mod tests {
                 "turn_index": turn,
                 "created_at_utc": at(100 + turn as i64).to_rfc3339(),
                 "message_id": format!("0192a000-0000-7000-8000-0000000000{turn:02}"),
+                "resource_scope": test_scope(),
                 "role": "user",
                 "content": content,
             });
@@ -1904,9 +1988,10 @@ mod tests {
         )
         .with_session_span(instance.to_string());
         term.timestamp = at(60);
+        stamp_test_scope(&mut term);
         recorder.record_event(term).await.expect("record terminal");
 
-        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None);
+        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None, test_scope());
 
         // (a) query "cargo" -> the swarm session via a terminal snippet.
         let resp = search_sessions(&state, "cargo", None, None, None, None, 50).await;
@@ -2031,6 +2116,7 @@ mod tests {
                     "turn_index": turn as u64,
                     "created_at_utc": at(base + turn as i64).to_rfc3339(),
                     "message_id": format!("{sid}-{turn}"),
+                    "resource_scope": test_scope(),
                     "role": "user",
                     "content": "needle here",
                 });
@@ -2043,7 +2129,7 @@ mod tests {
         write_chat("0192a000-0000-7000-8000-00000000aaaa", 100, 3);
         write_chat("0192a000-0000-7000-8000-00000000bbbb", 900, 1);
 
-        let state = SessionTranscriptState::new(None, &app_data_root, None);
+        let state = SessionTranscriptState::new(None, &app_data_root, None, test_scope());
         let resp = search_sessions(&state, "needle", None, None, None, None, 50).await;
         assert_eq!(resp.hits.len(), 2);
         // Higher match_count ranks first regardless of recency.
@@ -2165,7 +2251,7 @@ mod tests {
             SessionSpawnTemplate, SpawnTemplateStore, TemplateProvider,
         };
         let tmp = tempfile::tempdir().expect("tempdir");
-        let state = SessionTranscriptState::new(None, tmp.path(), None);
+        let state = SessionTranscriptState::new(None, tmp.path(), None, test_scope());
 
         // Missing store: nothing flips, no panic.
         let mut summaries = vec![
@@ -2199,11 +2285,12 @@ mod tests {
         assert!(!summaries[1].resumable);
 
         // Persist a template for the swarm id only.
-        let store = SpawnTemplateStore::new(tmp.path());
+        let store = SpawnTemplateStore::new_scoped(tmp.path(), test_scope());
         store
             .upsert(
                 "model-x#0",
                 SessionSpawnTemplate {
+                    resource_scope: None,
                     provider: TemplateProvider::ByokCloud,
                     artifact_path: None,
                     sha256_expected: None,
@@ -2259,6 +2346,7 @@ mod tests {
             "turn_index": 1u64,
             "created_at_utc": at(100).to_rfc3339(),
             "message_id": "0192a000-0000-7000-8000-0000000000ef",
+            "resource_scope": test_scope(),
             "role": "user",
             "content": "set API_KEY=supersecretexportval and run",
         });
@@ -2295,9 +2383,10 @@ mod tests {
         )
         .with_session_span(instance.to_string());
         term.timestamp = at(60);
+        stamp_test_scope(&mut term);
         recorder.record_event(term).await.expect("record terminal");
 
-        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None);
+        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None, test_scope());
         (tmp, app_data_root, state, instance.to_string())
     }
 
@@ -2307,7 +2396,7 @@ mod tests {
 
         // FULL transcript via the reused readers (same as the command body).
         let recorder_ref = state.recorder.as_ref().unwrap();
-        let fr_events = fetch_fr_events(recorder_ref, &instance, None, None)
+        let fr_events = fetch_fr_events(recorder_ref, &instance, None, None, &state.resource_scope)
             .await
             .expect("fetch fr");
         let resp = build_response(&instance, vec![], fr_events, true, None, None);
@@ -2487,6 +2576,329 @@ mod tests {
         assert_eq!(v["files"][0]["bytes"], json!(1234));
     }
 
+    #[tokio::test]
+    async fn exact_scope_is_canonical_across_list_get_search_export_and_templates() {
+        use super::super::spawn_template_store::{
+            SessionSpawnTemplate, SpawnTemplateStore, TemplateProvider,
+        };
+        use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
+
+        let root = tempfile::tempdir().expect("tempdir");
+        let owner_scope = test_scope();
+        let mut foreign_scope = test_scope();
+        foreign_scope.owner_account_id = OwnerAccountId::mint();
+        let mut wrong_workspace_scope = test_scope();
+        wrong_workspace_scope.workspace_id = WorkspaceScopeRef::new("workspace-foreign").unwrap();
+
+        let write_chat =
+            |session_id: &str, content: &str, scope: Option<&ExactResourceScopeAttribution>| {
+                let dir = root.path().join("sessions").join(session_id);
+                std::fs::create_dir_all(&dir).unwrap();
+                let mut row = json!({
+                    "schema_version": "hsk.session_chat_log@0.1",
+                    "session_id": session_id,
+                    "turn_index": 1u64,
+                    "created_at_utc": at(100).to_rfc3339(),
+                    "message_id": Uuid::now_v7().to_string(),
+                    "role": "user",
+                    "content": content,
+                });
+                if let Some(scope) = scope {
+                    row.as_object_mut().unwrap().insert(
+                        "resource_scope".to_string(),
+                        serde_json::to_value(scope).unwrap(),
+                    );
+                }
+                std::fs::write(dir.join("chat.jsonl"), format!("{row}\n")).unwrap();
+            };
+        let owner_chat = "0192a000-0000-7000-8000-000000000101";
+        let foreign_chat = "0192a000-0000-7000-8000-000000000102";
+        let wrong_workspace_chat = "0192a000-0000-7000-8000-000000000103";
+        let legacy_chat = "0192a000-0000-7000-8000-000000000104";
+        write_chat(owner_chat, "owner-marker", Some(&owner_scope));
+        write_chat(foreign_chat, "foreign-marker", Some(&foreign_scope));
+        write_chat(
+            wrong_workspace_chat,
+            "wrong-workspace-marker",
+            Some(&wrong_workspace_scope),
+        );
+        write_chat(legacy_chat, "legacy-marker", None);
+
+        let recorder: Arc<dyn FlightRecorder> =
+            Arc::new(DuckDbFlightRecorder::new_in_memory(7).unwrap());
+        for (session_id, scope) in [
+            ("owner#0", Some(&owner_scope)),
+            ("foreign#0", Some(&foreign_scope)),
+            ("wrong-workspace#0", Some(&wrong_workspace_scope)),
+            ("legacy#0", None),
+        ] {
+            let mut event = swarm_event(50, session_id);
+            if let Some(scope) = scope {
+                scope.stamp_json_object(&mut event.payload).unwrap();
+            } else if let Some(payload) = event.payload.as_object_mut() {
+                for field in [
+                    "owner_account_id",
+                    "actor_principal_id",
+                    "authenticated_session_id",
+                    "access_space_id",
+                    "workspace_id",
+                ] {
+                    payload.remove(field);
+                }
+            }
+            recorder.record_event(event).await.unwrap();
+        }
+
+        let template = |origin: &str| SessionSpawnTemplate {
+            resource_scope: None,
+            provider: TemplateProvider::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            local_execution_mode: None,
+            warm_vm_restore_manifest: None,
+            cloud_model_name: Some("gpt-4o".to_string()),
+            byok_cloud_provider: None,
+            instance: 0,
+            swarm_id: None,
+            worktree_id: None,
+            working_dir: None,
+            isolation_tier: None,
+            committed_memory_bytes: None,
+            origin_session_id: origin.to_string(),
+            captured_at: Utc::now(),
+        };
+        SpawnTemplateStore::new_scoped(root.path(), owner_scope.clone())
+            .upsert("owner#0", template("owner#0"))
+            .unwrap();
+        SpawnTemplateStore::new_scoped(root.path(), foreign_scope.clone())
+            .upsert("foreign#0", template("foreign#0"))
+            .unwrap();
+        SpawnTemplateStore::new(root.path())
+            .upsert("legacy#0", template("legacy#0"))
+            .unwrap();
+
+        let state =
+            SessionTranscriptState::new(Some(recorder), root.path(), None, owner_scope.clone());
+        let listed = authorized_session_summaries(&state).await;
+        let listed_ids: Vec<&str> = listed.iter().map(|row| row.session_id.as_str()).collect();
+        assert!(listed_ids.contains(&owner_chat));
+        assert!(listed_ids.contains(&"owner#0"));
+        for denied in [
+            foreign_chat,
+            wrong_workspace_chat,
+            legacy_chat,
+            "foreign#0",
+            "wrong-workspace#0",
+            "legacy#0",
+        ] {
+            assert!(
+                !listed_ids.contains(&denied),
+                "denied list row leaked: {denied}"
+            );
+        }
+        assert!(
+            listed
+                .iter()
+                .find(|row| row.session_id == "owner#0")
+                .unwrap()
+                .resumable
+        );
+
+        let owner_transcript = transcript_for_state(&state, owner_chat, None, None, None)
+            .await
+            .expect("owner transcript");
+        assert!(serde_json::to_string(&owner_transcript)
+            .unwrap()
+            .contains("owner-marker"));
+        for denied in [
+            foreign_chat,
+            wrong_workspace_chat,
+            legacy_chat,
+            "missing-session",
+        ] {
+            assert_eq!(
+                transcript_for_state(&state, denied, None, None, None)
+                    .await
+                    .expect_err("denied transcript"),
+                "SESSION_NOT_FOUND"
+            );
+        }
+
+        let owner_search =
+            search_sessions(&state, "owner-marker", None, None, None, None, 50).await;
+        assert_eq!(owner_search.hits.len(), 1);
+        for marker in ["foreign-marker", "wrong-workspace-marker", "legacy-marker"] {
+            assert!(search_sessions(&state, marker, None, None, None, None, 50)
+                .await
+                .hits
+                .is_empty());
+        }
+
+        let export_dir = root.path().join("scope-export");
+        assert!(kernel_session_export_core(
+            &state,
+            owner_chat,
+            "json",
+            Some(export_dir.to_string_lossy().into_owned()),
+        )
+        .await
+        .is_ok());
+        for denied in [
+            foreign_chat,
+            wrong_workspace_chat,
+            legacy_chat,
+            "missing-session",
+        ] {
+            assert_eq!(
+                kernel_session_export_core(&state, denied, "json", None)
+                    .await
+                    .expect_err("denied export"),
+                "SESSION_NOT_FOUND"
+            );
+        }
+
+        let owner_templates = SpawnTemplateStore::new_scoped(root.path(), owner_scope);
+        assert!(owner_templates.get("owner#0").unwrap().is_some());
+        assert_eq!(owner_templates.get("foreign#0").unwrap(), None);
+        assert_eq!(owner_templates.get("legacy#0").unwrap(), None);
+        assert_eq!(owner_templates.get("missing#0").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn same_instance_unattributed_live_terminal_is_withheld_from_transcript_and_export() {
+        let root = tempfile::tempdir().expect("app data root");
+        let instance_id = "shared-instance#0";
+        let foreign_marker = "FOREIGN_LIVE_TERMINAL_MARKER";
+        let recorder_impl =
+            Arc::new(DuckDbFlightRecorder::new_in_memory(7).expect("in-memory flight recorder"));
+        let recorder: Arc<dyn FlightRecorder> = recorder_impl.clone();
+        recorder
+            .record_event(swarm_event(50, instance_id))
+            .await
+            .expect("authorized session event");
+
+        // TerminalRuntime currently emits unattributed events and its binding
+        // has only the instance id. This intentionally creates the collision
+        // that must not enrich the authorized account-facing replay.
+        let terminal = TerminalRuntime::new(
+            Arc::new(CapabilityRegistry::new()),
+            recorder_impl as Arc<dyn FlightRecorder>,
+        );
+        let (_info, sink) = terminal
+            .create_capture_session(
+                SessionBinding {
+                    instance_id: Some(instance_id.to_string()),
+                    ..SessionBinding::default()
+                },
+                Some("foreign same-id capture".to_string()),
+            )
+            .await;
+        sink.feed(foreign_marker.as_bytes()).await;
+
+        let state =
+            SessionTranscriptState::new(Some(recorder), root.path(), Some(terminal), test_scope());
+        let transcript = transcript_for_state(&state, instance_id, None, None, None)
+            .await
+            .expect("authorized transcript");
+        let transcript_json = serde_json::to_string(&transcript).expect("serialize transcript");
+        assert!(!transcript_json.contains(foreign_marker));
+
+        let export_dir = root.path().join("same-id-export");
+        let export = kernel_session_export_core(
+            &state,
+            instance_id,
+            "json",
+            Some(export_dir.to_string_lossy().to_string()),
+        )
+        .await
+        .expect("authorized export");
+        for file in export.files {
+            let body = std::fs::read_to_string(&file.path).expect("read export");
+            assert!(!body.contains(foreign_marker));
+        }
+
+        drop(sink);
+    }
+
+    #[tokio::test]
+    async fn production_terminal_events_are_exact_scoped_and_unattributed_collisions_are_hidden() {
+        let root = tempfile::tempdir().expect("app data root");
+        let instance_id = "owner-terminal#0";
+        let scope = test_scope();
+        let recorder_impl =
+            Arc::new(DuckDbFlightRecorder::new_in_memory(7).expect("in-memory flight recorder"));
+        let recorder: Arc<dyn FlightRecorder> = recorder_impl.clone();
+
+        // Exercise the same constructor used by the actual Tauri bootstrap.
+        let owner_terminal = crate::commands::terminal::production_terminal_runtime(
+            Arc::new(CapabilityRegistry::new()),
+            recorder.clone(),
+            scope.clone(),
+        );
+        let (_owner_info, owner_sink) = owner_terminal
+            .create_capture_session(
+                SessionBinding {
+                    instance_id: Some(instance_id.to_string()),
+                    ..SessionBinding::default()
+                },
+                Some("owner capture".to_string()),
+            )
+            .await;
+        owner_sink.feed(b"owner-output").await;
+
+        // Deliberately write a same-instance legacy/unattributed collision
+        // through a raw runtime. It may exist on the system-raw path, but the
+        // account-facing exact replay path must never return it.
+        let raw_terminal =
+            TerminalRuntime::new(Arc::new(CapabilityRegistry::new()), recorder.clone());
+        let (_raw_info, raw_sink) = raw_terminal
+            .create_capture_session(
+                SessionBinding {
+                    instance_id: Some(instance_id.to_string()),
+                    ..SessionBinding::default()
+                },
+                Some("legacy collision".to_string()),
+            )
+            .await;
+        raw_sink.feed(b"legacy-output").await;
+
+        let visible = fetch_fr_events(&recorder, instance_id, None, None, &scope)
+            .await
+            .expect("exact owner replay");
+        assert!(
+            visible.len() >= 2,
+            "owner terminal open and captured-output receipts must be visible"
+        );
+        assert!(visible.iter().all(|event| {
+            matches!(event.event_type, FlightRecorderEventType::TerminalCommand)
+                && event_scope(event).as_ref() == Some(&scope)
+        }));
+
+        let raw = recorder
+            .list_events(EventFilter::system_raw())
+            .await
+            .expect("system raw terminal rows");
+        assert!(
+            raw.len() > visible.len(),
+            "counterexample unattributed rows must exist but stay hidden"
+        );
+
+        let state = SessionTranscriptState::new(Some(recorder), root.path(), None, scope.clone());
+        let summaries = discover_fr_sessions(&state).await;
+        assert_eq!(
+            summaries
+                .iter()
+                .filter(|summary| summary.session_id == instance_id)
+                .count(),
+            1,
+            "owner terminal session must remain discoverable exactly once"
+        );
+
+        drop(owner_sink);
+        drop(raw_sink);
+    }
+
     /// A test-only mirror of the `kernel_session_export` command body that takes
     /// the state by reference (the `#[tauri::command]` takes `State`, which is not
     /// constructible in a unit test). Keeps the not-found / default-dest / format
@@ -2504,22 +2916,25 @@ mod tests {
         let fmt =
             ExportFormat::from_ipc(format).ok_or_else(|| format!("unknown format: {format}"))?;
 
-        let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
+        let Some(summary) = resolve_single_summary(state, &session_id).await else {
+            return Err("SESSION_NOT_FOUND".to_string());
+        };
+
+        let chat_entries = session_chat_log::read_chat_log_for_scope(
+            &state.app_data_root,
+            &session_id,
+            &state.resource_scope,
+        )?;
         let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
         let (fr_events, recorder_available) = match &state.recorder {
             Some(recorder) => (
-                fetch_fr_events(recorder, &session_id, None, None).await?,
+                fetch_fr_events(recorder, &session_id, None, None, &state.resource_scope).await?,
                 true,
             ),
             None => (Vec::new(), false),
         };
-        let live = live_terminal_scrollback(&state.terminal, &session_id);
+        let live = None;
         let response = build_response(&session_id, chat, fr_events, recorder_available, live, None);
-        let summary = resolve_single_summary(state, &session_id).await;
-        if response.entries.is_empty() && summary.is_none() {
-            return Err(format!("SESSION_NOT_FOUND: {session_id}"));
-        }
-        let summary = summary.unwrap_or_else(|| synth_min_summary(&session_id));
         let header = build_export_header(&session_id, &summary, &response.entries);
         let dest_dir: PathBuf = match dest_dir.map(|d| d.trim().to_string()) {
             Some(d) if !d.is_empty() => PathBuf::from(d),

@@ -31,9 +31,9 @@ use crate::{
     },
     storage::postgres::append_kernel_event_with_executor,
     swarm_orchestration::resource_scope::{
-        stored_resource_scope_from_row, ResourceAccessContext, ResourceScope, ResourceScopeQuery,
-        ScopeDenied, SystemScopeAuthority, RESOURCE_SCOPE_INSERT_COLUMNS,
-        RESOURCE_SCOPE_SELECT_COLUMNS,
+        stored_resource_scope_from_row, ExactResourceScopeAttribution, ResourceAccessContext,
+        ResourceScope, ResourceScopeQuery, ScopeDenied, SystemScopeAuthority,
+        RESOURCE_SCOPE_INSERT_COLUMNS, RESOURCE_SCOPE_SELECT_COLUMNS,
     },
 };
 
@@ -530,6 +530,11 @@ impl ModelRegistryStore {
     /// Read-only registry store bound to one owning account.
     pub fn new_for_owner(pool: PgPool, query: ResourceScopeQuery) -> Self {
         Self::new_with_access(pool, ResourceAccessContext::for_reader(query))
+    }
+
+    /// Read-only registry store bound to all five exact resource dimensions.
+    pub fn new_for_exact_scope(pool: PgPool, exact: ExactResourceScopeAttribution) -> Self {
+        Self::new_with_access(pool, ResourceAccessContext::for_exact_reader(exact))
     }
 
     pub fn new_with_access(pool: PgPool, access: ResourceAccessContext) -> Self {

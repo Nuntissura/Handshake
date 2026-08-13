@@ -953,6 +953,8 @@ enum ManualNamedSymbol {
     DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest,
     /// `DexterityLaunchContract::attach_to_spawn_request`
     DexterityLaunchContractAttachToSpawnRequest,
+    /// `DexterityLaunchContract::restart_generation`
+    DexterityLaunchContractRestartGeneration,
     /// `DisabledLlmClient::completion`
     DisabledLlmClientCompletion,
     /// `DisabledLlmClient::embedding`
@@ -977,6 +979,8 @@ enum ManualNamedSymbol {
     GuardedCliChildTerminateAndCollect,
     /// `HandshakeNativeSandboxAdapter::spawn_attached_with_stdio`
     HandshakeNativeSandboxAdapterSpawnAttachedWithStdio,
+    /// `IsolationTier::Tier3Microvm`
+    IsolationTierTier3Microvm,
     /// `KernelEventType::ModelRuntimeSelectionRecorded`
     KernelEventTypeModelRuntimeSelectionRecorded,
     /// `KillOutcome::Failed`
@@ -1111,6 +1115,8 @@ enum ManualNamedSymbol {
     SystemScopeAuthorityBootRecovery,
     /// `Update::decode_v1`
     UpdateDecodeV1,
+    /// `WorktreeVmRegistry::teardown_worktree_vm`
+    WorktreeVmRegistryTeardownWorktreeVm,
 }
 
 impl ManualNamedSymbol {
@@ -1127,6 +1133,7 @@ impl ManualNamedSymbol {
         Self::ConsoleSwarmSinkShared,
         Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest,
         Self::DexterityLaunchContractAttachToSpawnRequest,
+        Self::DexterityLaunchContractRestartGeneration,
         Self::DisabledLlmClientCompletion,
         Self::DisabledLlmClientEmbedding,
         Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck,
@@ -1139,6 +1146,7 @@ impl ManualNamedSymbol {
         Self::FlightRecorderSwarmSinkNew,
         Self::GuardedCliChildTerminateAndCollect,
         Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio,
+        Self::IsolationTierTier3Microvm,
         Self::KernelEventTypeModelRuntimeSelectionRecorded,
         Self::KillOutcomeFailed,
         Self::LaunchAuthoritySubagentManager,
@@ -1206,6 +1214,7 @@ impl ManualNamedSymbol {
         Self::SwarmFrEventIdSpawnRejected,
         Self::SystemScopeAuthorityBootRecovery,
         Self::UpdateDecodeV1,
+        Self::WorktreeVmRegistryTeardownWorktreeVm,
     ];
 
     /// The exact text the manual prose is allowed to print between backticks.
@@ -1223,6 +1232,9 @@ impl ManualNamedSymbol {
             Self::ConsoleSwarmSinkShared => "ConsoleSwarmSink::shared",
             Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => "DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request",
             Self::DexterityLaunchContractAttachToSpawnRequest => "DexterityLaunchContract::attach_to_spawn_request",
+            Self::DexterityLaunchContractRestartGeneration => {
+                "DexterityLaunchContract::restart_generation"
+            }
             Self::DisabledLlmClientCompletion => "DisabledLlmClient::completion",
             Self::DisabledLlmClientEmbedding => "DisabledLlmClient::embedding",
             Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => "EmbeddedModelProcess::record_reserved_load_with_durable_ack",
@@ -1235,6 +1247,7 @@ impl ManualNamedSymbol {
             Self::FlightRecorderSwarmSinkNew => "FlightRecorderSwarmSink::new",
             Self::GuardedCliChildTerminateAndCollect => "GuardedCliChild::terminate_and_collect",
             Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+            Self::IsolationTierTier3Microvm => "IsolationTier::Tier3Microvm",
             Self::KernelEventTypeModelRuntimeSelectionRecorded => "KernelEventType::ModelRuntimeSelectionRecorded",
             Self::KillOutcomeFailed => "KillOutcome::Failed",
             Self::LaunchAuthoritySubagentManager => "LaunchAuthority::SubagentManager",
@@ -1304,6 +1317,9 @@ impl ManualNamedSymbol {
             Self::SwarmFrEventIdSpawnRejected => "SwarmFrEventId::SpawnRejected",
             Self::SystemScopeAuthorityBootRecovery => "SystemScopeAuthority::boot_recovery",
             Self::UpdateDecodeV1 => "Update::decode_v1",
+            Self::WorktreeVmRegistryTeardownWorktreeVm => {
+                "WorktreeVmRegistry::teardown_worktree_vm"
+            }
         }
     }
 
@@ -1321,6 +1337,7 @@ impl ManualNamedSymbol {
             Self::ConsoleSwarmSinkShared => ManualNamedSymbolProof::CompileAnchored,
             Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => ManualNamedSymbolProof::CompileAnchored,
             Self::DexterityLaunchContractAttachToSpawnRequest => ManualNamedSymbolProof::CompileAnchored,
+            Self::DexterityLaunchContractRestartGeneration => ManualNamedSymbolProof::CompileAnchored,
             Self::DisabledLlmClientCompletion => ManualNamedSymbolProof::CompileAnchored,
             Self::DisabledLlmClientEmbedding => ManualNamedSymbolProof::CompileAnchored,
             Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => ManualNamedSymbolProof::DeclaredNotNameableHere(
@@ -1337,6 +1354,7 @@ impl ManualNamedSymbol {
                 "module-private struct GuardedCliChild inside model_runtime::cloud::official_cli_bridge; not nameable from user_manual. Verified by inspection at src/model_runtime/cloud/official_cli_bridge.rs.",
             ),
             Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => ManualNamedSymbolProof::CompileAnchored,
+            Self::IsolationTierTier3Microvm => ManualNamedSymbolProof::CompileAnchored,
             Self::KernelEventTypeModelRuntimeSelectionRecorded => ManualNamedSymbolProof::CompileAnchored,
             Self::KillOutcomeFailed => ManualNamedSymbolProof::CompileAnchored,
             Self::LaunchAuthoritySubagentManager => ManualNamedSymbolProof::CompileAnchored,
@@ -1408,6 +1426,7 @@ impl ManualNamedSymbol {
             Self::SwarmFrEventIdSpawnRejected => ManualNamedSymbolProof::CompileAnchored,
             Self::SystemScopeAuthorityBootRecovery => ManualNamedSymbolProof::CompileAnchored,
             Self::UpdateDecodeV1 => ManualNamedSymbolProof::CompileAnchored,
+            Self::WorktreeVmRegistryTeardownWorktreeVm => ManualNamedSymbolProof::CompileAnchored,
         }
     }
 
@@ -1466,6 +1485,11 @@ impl ManualNamedSymbol {
                     crate::swarm_orchestration::SpawnRequest,
                 > = crate::swarm_orchestration::model_lane::DexterityLaunchContract::attach_to_spawn_request;
             }
+            Self::DexterityLaunchContractRestartGeneration => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::DexterityLaunchContract| {
+                    value.restart_generation
+                };
+            }
             Self::DisabledLlmClientCompletion => {
                 let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::completion;
             }
@@ -1516,6 +1540,11 @@ impl ManualNamedSymbol {
             }
             Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => {
                 let _ = <crate::sandbox::HandshakeNativeSandboxAdapter as crate::sandbox::SandboxAdapter>::spawn_attached_with_stdio;
+            }
+            Self::IsolationTierTier3Microvm => {
+                let _ = |value: &crate::sandbox::IsolationTier| {
+                    matches!(value, crate::sandbox::IsolationTier::Tier3Microvm)
+                };
             }
             Self::KernelEventTypeModelRuntimeSelectionRecorded => {
                 let _ = |value: &crate::kernel::KernelEventType| matches!(value, crate::kernel::KernelEventType::ModelRuntimeSelectionRecorded);
@@ -1735,6 +1764,9 @@ impl ManualNamedSymbol {
             }
             Self::UpdateDecodeV1 => {
                 let _ = <yrs::Update as yrs::updates::decoder::Decode>::decode_v1;
+            }
+            Self::WorktreeVmRegistryTeardownWorktreeVm => {
+                let _ = crate::swarm_orchestration::WorktreeVmRegistry::teardown_worktree_vm;
             }
         }
     }

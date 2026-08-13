@@ -17,7 +17,10 @@ use std::time::Instant;
 
 use base64::Engine;
 use handshake_core::capabilities::CapabilityRegistry;
-use handshake_core::flight_recorder::FlightRecorder;
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
+};
+use handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use handshake_core::terminal::TerminalSessionType;
 use handshake_core::terminal::{
     PtySpawnConfig, SessionBinding, SessionInfo, SessionOutput, TerminalRuntime,
@@ -43,6 +46,56 @@ pub struct TerminalRuntimeState {
     runtime: TerminalRuntime,
 }
 
+/// Server-owned projection boundary for terminal receipts. The renderer never
+/// supplies this scope: production constructs it from the persisted local app
+/// scope and stamps every terminal event before the durable recorder sees it.
+struct ScopedTerminalFlightRecorder {
+    inner: Arc<dyn FlightRecorder>,
+    resource_scope: ExactResourceScopeAttribution,
+}
+
+#[async_trait::async_trait]
+impl FlightRecorder for ScopedTerminalFlightRecorder {
+    async fn record_event(&self, mut event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        if matches!(event.event_type, FlightRecorderEventType::TerminalCommand) {
+            self.resource_scope
+                .stamp_json_object(&mut event.payload)
+                .map_err(|error| {
+                    RecorderError::InvalidEvent(format!(
+                        "terminal exact resource-scope attribution failed: {error}"
+                    ))
+                })?;
+        }
+        self.inner.record_event(event).await
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        self.inner.enforce_retention().await
+    }
+
+    async fn list_events(
+        &self,
+        filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.inner.list_events(filter).await
+    }
+}
+
+/// Build the exact production runtime. Keeping the scoping inside this
+/// constructor prevents a future bootstrap callsite from accidentally passing
+/// the raw shared recorder back to `TerminalRuntime`.
+pub(crate) fn production_terminal_runtime(
+    capabilities: Arc<CapabilityRegistry>,
+    flight_recorder: Arc<dyn FlightRecorder>,
+    resource_scope: ExactResourceScopeAttribution,
+) -> TerminalRuntime {
+    let recorder: Arc<dyn FlightRecorder> = Arc::new(ScopedTerminalFlightRecorder {
+        inner: flight_recorder,
+        resource_scope,
+    });
+    TerminalRuntime::new(capabilities, recorder)
+}
+
 impl std::fmt::Debug for TerminalRuntimeState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TerminalRuntimeState").finish()
@@ -56,9 +109,10 @@ impl TerminalRuntimeState {
     pub fn production(
         capabilities: Arc<CapabilityRegistry>,
         flight_recorder: Arc<dyn FlightRecorder>,
+        resource_scope: ExactResourceScopeAttribution,
     ) -> Self {
         Self {
-            runtime: TerminalRuntime::new(capabilities, flight_recorder),
+            runtime: production_terminal_runtime(capabilities, flight_recorder, resource_scope),
         }
     }
 
@@ -222,6 +276,7 @@ pub async fn kernel_terminal_create_session(
         args: req.args.clone(),
         cwd: req.cwd.clone().map(std::path::PathBuf::from),
         env: Vec::new(),
+        env_clear: false,
         rows: req.rows.unwrap_or(24),
         cols: req.cols.unwrap_or(80),
         scrollback_bytes: 0,
@@ -393,6 +448,7 @@ async fn run_command_with_runtime(
         args: req.args.clone(),
         cwd: cwd_path.clone(),
         env: Vec::new(),
+        env_clear: false,
         rows: 24,
         cols: 80,
         scrollback_bytes: 0,

@@ -33,6 +33,7 @@ use crate::{
         SamplingParams,
     },
     process_ledger::{EmbeddedRuntimeInstanceDescriptor, LedgerBatcher},
+    swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
 };
 
 use super::{
@@ -1403,14 +1404,26 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                         )));
                     }
                 };
+                let replacement_resource_scope = self
+                    .durable_selection_store
+                    .as_ref()
+                    .and_then(|store| store.access().write_scope())
+                    .map(ExactResourceScopeAttribution::try_from_resource_scope)
+                    .transpose()
+                    .map_err(|error| {
+                        LlmError::ProviderError(format!(
+                            "adapter swap resource scope is incomplete: {error}"
+                        ))
+                    })?;
                 let (replacement_process, start_ack) =
-                    match EmbeddedModelProcess::record_reserved_load_with_durable_ack(
+                    match EmbeddedModelProcess::record_reserved_load_with_durable_ack_scoped(
                         reservation,
                         target_binding,
                         replacement_id,
                         source.base_model_tag.as_str(),
                         &artifact_integrity,
                         Some(runtime_instance),
+                        replacement_resource_scope.as_ref(),
                     ) {
                         Ok(started) => started,
                         Err(error) => {
@@ -1975,42 +1988,41 @@ impl LlmClient for LocalModelRuntimeLlmClient {
         // generation activity. Each sub-field is honestly typed unavailable when
         // no call has completed or the device exposes no residency, never a fake
         // zero. A runtime that records no activity fails the whole snapshot typed.
-        let (tokens_per_second, vram_resident_bytes, last_call_at_utc) =
-            match runtime.perf_snapshot(model_id) {
-                Ok(snapshot) => {
-                    let tokens_per_second = match snapshot.tokens_per_second {
+        let (tokens_per_second, vram_resident_bytes, last_call_at_utc) = match runtime
+            .perf_snapshot(model_id)
+        {
+            Ok(snapshot) => {
+                let tokens_per_second = match snapshot.tokens_per_second {
                         Some(value) => ModelRuntimeValue::available(value),
                         None => ModelRuntimeValue::unavailable(
                             "no completed generation has produced a throughput sample for this loaded model yet",
                         ),
                     };
-                    let vram_resident_bytes = match snapshot.vram_resident_bytes {
-                        RuntimeVramResidency::DeviceReported { bytes } => {
-                            ModelRuntimeValue::available(bytes)
-                        }
-                        RuntimeVramResidency::NotApplicable { reason } => {
-                            ModelRuntimeValue::unavailable(reason)
-                        }
-                    };
-                    let last_call_at_utc = match snapshot.last_call_at_utc {
-                        Some(completed_at) => {
-                            ModelRuntimeValue::available(completed_at.to_rfc3339())
-                        }
-                        None => ModelRuntimeValue::unavailable(
-                            "no generation call has completed for this loaded model yet",
-                        ),
-                    };
-                    (tokens_per_second, vram_resident_bytes, last_call_at_utc)
-                }
-                Err(error) => {
-                    let reason = error.to_string();
-                    (
-                        ModelRuntimeValue::unavailable(reason.clone()),
-                        ModelRuntimeValue::unavailable(reason.clone()),
-                        ModelRuntimeValue::unavailable(reason),
-                    )
-                }
-            };
+                let vram_resident_bytes = match snapshot.vram_resident_bytes {
+                    RuntimeVramResidency::DeviceReported { bytes } => {
+                        ModelRuntimeValue::available(bytes)
+                    }
+                    RuntimeVramResidency::NotApplicable { reason } => {
+                        ModelRuntimeValue::unavailable(reason)
+                    }
+                };
+                let last_call_at_utc = match snapshot.last_call_at_utc {
+                    Some(completed_at) => ModelRuntimeValue::available(completed_at.to_rfc3339()),
+                    None => ModelRuntimeValue::unavailable(
+                        "no generation call has completed for this loaded model yet",
+                    ),
+                };
+                (tokens_per_second, vram_resident_bytes, last_call_at_utc)
+            }
+            Err(error) => {
+                let reason = error.to_string();
+                (
+                    ModelRuntimeValue::unavailable(reason.clone()),
+                    ModelRuntimeValue::unavailable(reason.clone()),
+                    ModelRuntimeValue::unavailable(reason),
+                )
+            }
+        };
         // Section 10.13.2 "Inspect engine internals": adapter-specific drilldown
         // of the real engine-known configuration. Typed unavailable when the
         // active adapter exposes no internals.

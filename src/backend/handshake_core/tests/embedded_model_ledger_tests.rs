@@ -49,9 +49,10 @@ use handshake_core::{
         LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome, LedgerEvent,
         LedgerOverflowEvent, LegacyHostScopeOpenRowProbe, NoopOverflowSink,
         PidlessEmbeddedReclaimReport, PostgresProcessLedgerStore, ProcessEngineKind,
-        ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessStart,
-        ProcessStop, StopRecordOutcome, EMBEDDED_RUNTIME_MANAGED_LOCAL_HOST_SCOPE_V2_PREFIX,
-        PIDLESS_RECLAIM_INSTANCE_CAP,
+        ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessRuntimeOwner,
+        ProcessStart, ProcessStop, StopRecordOutcome, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
+        EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
+        EMBEDDED_RUNTIME_MANAGED_LOCAL_HOST_SCOPE_V2_PREFIX, PIDLESS_RECLAIM_INSTANCE_CAP,
     },
 };
 use sqlx::{postgres::PgPoolOptions, Connection};
@@ -1234,6 +1235,15 @@ fn url_with_search_path(base_url: &str, encoded_search_path: &str) -> String {
 }
 
 async fn orphan_reclaim_schema_pool() -> OrphanTestDb {
+    // Surface the reclaim path's per-deferral tracing in --nocapture output so
+    // a closed_rows:0/deferred_instances:1 failure names WHICH deferral branch
+    // fired instead of only counting it (MT-013 post-fix census, 7-test
+    // cluster). DEBUG level so the non-deferring Protected-lease skip is
+    // visible too.
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .try_init();
     // These tests deliberately install hostile locks, RLS policies, triggers,
     // and very small PostgreSQL deadlines. Isolated schemas prevent data
     // collisions, but parallel catalog/lock pressure can still consume those
@@ -1970,6 +1980,7 @@ async fn assert_authority_rejection_preserves_reclaim_state(
     db: &OrphanTestDb,
     process_uuid: uuid::Uuid,
     host_scope: &str,
+    expected_authority_surface: &str,
 ) {
     let error = reclaim_pidless_embedded_orphans(
         &db.pool,
@@ -1979,8 +1990,8 @@ async fn assert_authority_rejection_preserves_reclaim_state(
     .await
     .expect_err("unsafe PostgreSQL authority must fail closed");
     assert!(
-        error.to_string().contains("hook/RLS/rule-free"),
-        "authority rejection must identify the unsafe behavior surface: {error}"
+        error.to_string().contains(expected_authority_surface),
+        "authority rejection must identify the expected {expected_authority_surface} behavior surface: {error}"
     );
     assert!(
         stopped_at(&db.pool, process_uuid).await.is_none(),
@@ -2040,8 +2051,16 @@ async fn pidless_reclaimer_rejects_lifecycle_user_trigger_without_mutation() {
         ))])
         .await
         .expect_err("writer must reject lifecycle user triggers");
-    assert!(writer_error.to_string().contains("hook/RLS/rule-free"));
-    assert_authority_rejection_preserves_reclaim_state(&db, process_uuid, host_scope).await;
+    assert!(writer_error
+        .to_string()
+        .contains("exact-runtime-owner-guard/RLS/rule-free"));
+    assert_authority_rejection_preserves_reclaim_state(
+        &db,
+        process_uuid,
+        host_scope,
+        "exact-runtime-owner-guard/RLS/rule-free",
+    )
+    .await;
     let lifecycle_rows: i64 =
         sqlx::query_scalar("SELECT pg_catalog.count(*) FROM ONLY kernel_process_lifecycle")
             .fetch_one(&db.pool)
@@ -2073,7 +2092,13 @@ async fn pidless_reclaimer_rejects_cursor_user_trigger_without_mutation() {
     .await
     .expect("install hostile cursor trigger");
 
-    assert_authority_rejection_preserves_reclaim_state(&db, process_uuid, host_scope).await;
+    assert_authority_rejection_preserves_reclaim_state(
+        &db,
+        process_uuid,
+        host_scope,
+        "hook/RLS/rule-free",
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2100,8 +2125,16 @@ async fn pidless_reclaimer_rejects_lifecycle_rls_policy_without_mutation() {
         ))])
         .await
         .expect_err("writer must reject lifecycle RLS/policies");
-    assert!(writer_error.to_string().contains("hook/RLS/rule-free"));
-    assert_authority_rejection_preserves_reclaim_state(&db, process_uuid, host_scope).await;
+    assert!(writer_error
+        .to_string()
+        .contains("exact-runtime-owner-guard/RLS/rule-free"));
+    assert_authority_rejection_preserves_reclaim_state(
+        &db,
+        process_uuid,
+        host_scope,
+        "exact-runtime-owner-guard/RLS/rule-free",
+    )
+    .await;
     let lifecycle_rows: i64 =
         sqlx::query_scalar("SELECT pg_catalog.count(*) FROM ONLY kernel_process_lifecycle")
             .fetch_one(&db.pool)
@@ -2126,7 +2159,13 @@ async fn pidless_reclaimer_rejects_cursor_rls_policy_without_mutation() {
     .await
     .expect("install hostile cursor RLS policy");
 
-    assert_authority_rejection_preserves_reclaim_state(&db, process_uuid, host_scope).await;
+    assert_authority_rejection_preserves_reclaim_state(
+        &db,
+        process_uuid,
+        host_scope,
+        "hook/RLS/rule-free",
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2262,9 +2301,9 @@ async fn pidless_reclaimer_rejects_unlogged_cursor_and_inherited_lifecycle_rows(
     )
     .await
     .expect_err("lifecycle authority participating in inheritance must fail closed");
-    assert!(inheritance_error
-        .to_string()
-        .contains("-shaped, permanent, non-inherited"));
+    let inheritance_error = inheritance_error.to_string();
+    assert!(inheritance_error.contains("no migration-0021/0359-shaped"));
+    assert!(inheritance_error.contains("permanent, non-inherited"));
     let inherited_stopped_at: Option<chrono::DateTime<Utc>> = sqlx::query_scalar(
         "SELECT stopped_at FROM ONLY kernel_process_lifecycle_inherited_child WHERE process_uuid = $1",
     )
@@ -2293,6 +2332,82 @@ async fn insert_pidless_embedded_row(
     started_at: chrono::DateTime<Utc>,
     metadata: serde_json::Value,
 ) {
+    let runtime_owner = fixture_runtime_owner(&metadata);
+    sqlx::query(
+        r#"
+        INSERT INTO kernel_process_lifecycle
+            (process_uuid, os_pid, parent_session_id, engine_kind, started_at, owner_role,
+             owner_runtime_instance_id, owner_host_scope_id, owner_lease_schema_id,
+             owner_lease_protocol, owner_lease_address, owner_lease_port, metadata_jsonb)
+        VALUES ($1, NULL, NULL, $2, $3, 'handshake-embedded-default',
+                $4, $5, $6, $7, $8, $9, $10)
+        "#,
+    )
+    .bind(process_uuid)
+    .bind(engine_kind)
+    .bind(started_at)
+    .bind(
+        runtime_owner
+            .as_ref()
+            .map(|owner| owner.runtime_instance_id),
+    )
+    .bind(
+        runtime_owner
+            .as_ref()
+            .map(|owner| owner.host_scope_id.as_str()),
+    )
+    .bind(
+        runtime_owner
+            .as_ref()
+            .map(|owner| owner.lease_schema_id.as_str()),
+    )
+    .bind(
+        runtime_owner
+            .as_ref()
+            .map(|owner| owner.lease_protocol.as_str()),
+    )
+    .bind(
+        runtime_owner
+            .as_ref()
+            .map(|owner| owner.lease_address.as_str()),
+    )
+    .bind(
+        runtime_owner
+            .as_ref()
+            .map(|owner| i32::from(owner.lease_port)),
+    )
+    .bind(metadata)
+    .execute(pool)
+    .await
+    .expect("insert pid-less embedded lifecycle row");
+}
+
+fn fixture_runtime_owner(metadata: &serde_json::Value) -> Option<ProcessRuntimeOwner> {
+    if metadata
+        .get("runtime_instance_schema_id")
+        .and_then(serde_json::Value::as_str)
+        != Some(EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID)
+    {
+        return None;
+    }
+    let descriptor =
+        serde_json::from_value::<EmbeddedRuntimeInstanceDescriptor>(metadata.clone()).ok()?;
+    if descriptor.lease_protocol != EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL
+        || !descriptor.loopback_address.is_loopback()
+        || descriptor.loopback_port == 0
+    {
+        return None;
+    }
+    Some(descriptor.process_runtime_owner())
+}
+
+async fn insert_untyped_legacy_pidless_embedded_row(
+    pool: &sqlx::PgPool,
+    process_uuid: uuid::Uuid,
+    engine_kind: &str,
+    started_at: chrono::DateTime<Utc>,
+    metadata: serde_json::Value,
+) {
     sqlx::query(
         r#"
         INSERT INTO kernel_process_lifecycle
@@ -2306,7 +2421,7 @@ async fn insert_pidless_embedded_row(
     .bind(metadata)
     .execute(pool)
     .await
-    .expect("insert pid-less embedded lifecycle row");
+    .expect("insert explicitly untyped legacy pid-less embedded lifecycle row");
 }
 
 async fn insert_reclaim_control_row(
@@ -2319,11 +2434,15 @@ async fn insert_reclaim_control_row(
     stopped_at: Option<chrono::DateTime<Utc>>,
     metadata: serde_json::Value,
 ) {
+    let runtime_owner = fixture_runtime_owner(&metadata);
     sqlx::query(
         r#"
         INSERT INTO kernel_process_lifecycle
-            (process_uuid, os_pid, parent_session_id, engine_kind, started_at, stopped_at, owner_role, metadata_jsonb)
-        VALUES ($1, $2, $3, $4, $5, $6, 'handshake-embedded-default', $7)
+            (process_uuid, os_pid, parent_session_id, engine_kind, started_at, stopped_at, owner_role,
+             owner_runtime_instance_id, owner_host_scope_id, owner_lease_schema_id,
+             owner_lease_protocol, owner_lease_address, owner_lease_port, metadata_jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, 'handshake-embedded-default',
+                $7, $8, $9, $10, $11, $12, $13)
         "#,
     )
     .bind(process_uuid)
@@ -2332,6 +2451,12 @@ async fn insert_reclaim_control_row(
     .bind(engine_kind)
     .bind(started_at)
     .bind(stopped_at)
+    .bind(runtime_owner.as_ref().map(|owner| owner.runtime_instance_id))
+    .bind(runtime_owner.as_ref().map(|owner| owner.host_scope_id.as_str()))
+    .bind(runtime_owner.as_ref().map(|owner| owner.lease_schema_id.as_str()))
+    .bind(runtime_owner.as_ref().map(|owner| owner.lease_protocol.as_str()))
+    .bind(runtime_owner.as_ref().map(|owner| owner.lease_address.as_str()))
+    .bind(runtime_owner.as_ref().map(|owner| i32::from(owner.lease_port)))
     .bind(metadata)
     .execute(pool)
     .await
@@ -2955,7 +3080,7 @@ async fn corrupt_and_conflicting_metadata_does_not_abort_valid_reclaim() {
     drop(conflict_b_lease);
     let conflict_row_a = uuid::Uuid::now_v7();
     let conflict_row_b = uuid::Uuid::now_v7();
-    insert_pidless_embedded_row(
+    insert_untyped_legacy_pidless_embedded_row(
         &db.pool,
         conflict_row_a,
         "candle",
@@ -2963,7 +3088,7 @@ async fn corrupt_and_conflicting_metadata_does_not_abort_valid_reclaim() {
         conflict_a.metadata_fields(),
     )
     .await;
-    insert_pidless_embedded_row(
+    insert_untyped_legacy_pidless_embedded_row(
         &db.pool,
         conflict_row_b,
         "candle",

@@ -5,7 +5,10 @@
 //! readiness. This endpoint joins those authorities by artifact SHA-256; a
 //! boot-scoped UUID is never used as restart identity.
 
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 use axum::{
     extract::{Path as AxumPath, State},
@@ -181,6 +184,14 @@ impl ModelRuntimeRegistryApiError {
         }
     }
 
+    fn process_not_found() -> Self {
+        Self {
+            status: StatusCode::NOT_FOUND,
+            code: MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
+            detail: "the requested process ownership record is unavailable".to_owned(),
+        }
+    }
+
     fn conflict(detail: impl Into<String>) -> Self {
         Self {
             status: StatusCode::CONFLICT,
@@ -245,63 +256,216 @@ async fn list_registry(
 
 async fn get_process_ownership_record(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     AxumPath(process_uuid): AxumPath<Uuid>,
 ) -> Result<Json<ModelRuntimeProcessOwnershipRecord>, ModelRuntimeRegistryApiError> {
-    let row = sqlx::query(
+    load_authorized_process_ownership_records(&state, &scope, Some(process_uuid))
+        .await?
+        .into_iter()
+        .next()
+        .map(Json)
+        .ok_or_else(ModelRuntimeRegistryApiError::process_not_found)
+}
+
+/// Load ProcessOwnershipLedger rows through the same privacy boundary used by
+/// both the registry projection and the process-detail route.
+///
+/// The SQL predicate prevents cross-account/wrong-workspace rows from entering
+/// the transfer at all. The exact five-dimensional attribution is then decoded
+/// and authorized again before any identifier can reach an HTTP response. A
+/// malformed newer row is ignored rather than shadowing an older authorized
+/// row for the same artifact SHA.
+async fn load_authorized_process_ownership_records(
+    state: &AppState,
+    scope: &RequestAccountScope,
+    process_uuid: Option<Uuid>,
+) -> Result<Vec<ModelRuntimeProcessOwnershipRecord>, ModelRuntimeRegistryApiError> {
+    let exact = scope.exact();
+    let rows = sqlx::query(
         r#"
         SELECT process_uuid, os_pid, engine_kind, started_at, stopped_at,
                exit_code, stop_reason, model_artifact_sha256, owner_role,
-               owner_wp, sandbox_adapter_id
+               owner_wp, sandbox_adapter_id, metadata_jsonb
         FROM kernel_process_lifecycle
-        WHERE process_uuid = $1
+        WHERE metadata_jsonb->>'owner_account_id' = $1::text
+          AND metadata_jsonb->>'actor_principal_id' = $2::text
+          AND metadata_jsonb->>'authenticated_session_id' = $3::text
+          AND metadata_jsonb->>'access_space_id' = $4::text
+          AND metadata_jsonb->>'workspace_id' = $5::text
+          AND ($6::uuid IS NULL OR process_uuid = $6::uuid)
+        ORDER BY model_artifact_sha256 ASC NULLS LAST,
+                 started_at DESC,
+                 process_uuid DESC
         "#,
     )
+    .bind(exact.owner_account_id.as_uuid().to_string())
+    .bind(exact.actor_principal_id.as_uuid().to_string())
+    .bind(exact.authenticated_session_id.as_uuid().to_string())
+    .bind(exact.access_space_id.as_uuid().to_string())
+    .bind(exact.workspace_id.as_str())
     .bind(process_uuid)
-    .fetch_optional(&state.postgres_pool)
+    .fetch_all(&state.postgres_pool)
     .await
-    .map_err(ModelRegistryPersistenceError::Database)?
-    .ok_or_else(|| {
-        ModelRuntimeRegistryApiError::bad_request(
-            MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
-            format!("ProcessOwnershipLedger record {process_uuid} was not found"),
-        )
-    })?;
-    Ok(Json(ModelRuntimeProcessOwnershipRecord {
-        schema_id: "hsk.model_runtime_process_ownership@1".to_owned(),
-        process_uuid: row
-            .try_get("process_uuid")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        os_pid: row
-            .try_get("os_pid")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        engine_kind: row
-            .try_get("engine_kind")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        started_at_utc: row
-            .try_get("started_at")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        stopped_at_utc: row
-            .try_get("stopped_at")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        exit_code: row
-            .try_get("exit_code")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        stop_reason: row
-            .try_get("stop_reason")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        model_artifact_sha256: row
-            .try_get("model_artifact_sha256")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        owner_role: row
-            .try_get("owner_role")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        owner_wp: row
-            .try_get("owner_wp")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-        sandbox_adapter_id: row
-            .try_get("sandbox_adapter_id")
-            .map_err(ModelRegistryPersistenceError::Database)?,
-    }))
+    .map_err(ModelRegistryPersistenceError::Database)?;
+
+    let mut authorized = Vec::with_capacity(rows.len());
+    for row in rows {
+        let metadata: Value = row
+            .try_get("metadata_jsonb")
+            .map_err(ModelRegistryPersistenceError::Database)?;
+        let Ok(attribution) = serde_json::from_value::<
+            crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+        >(metadata) else {
+            continue;
+        };
+        if &attribution != exact {
+            continue;
+        }
+        authorized.push(ModelRuntimeProcessOwnershipRecord {
+            schema_id: "hsk.model_runtime_process_ownership@1".to_owned(),
+            process_uuid: row
+                .try_get("process_uuid")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            os_pid: row
+                .try_get("os_pid")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            engine_kind: row
+                .try_get("engine_kind")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            started_at_utc: row
+                .try_get("started_at")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            stopped_at_utc: row
+                .try_get("stopped_at")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            exit_code: row
+                .try_get("exit_code")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            stop_reason: row
+                .try_get("stop_reason")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            model_artifact_sha256: row
+                .try_get("model_artifact_sha256")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            owner_role: row
+                .try_get("owner_role")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            owner_wp: row
+                .try_get("owner_wp")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            sandbox_adapter_id: row
+                .try_get("sandbox_adapter_id")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+        });
+    }
+    Ok(authorized)
+}
+
+async fn load_exact_registry_authority_keys(
+    state: &AppState,
+    scope: &RequestAccountScope,
+) -> Result<(BTreeSet<[u8; 32]>, BTreeSet<(String, [u8; 32])>), ModelRuntimeRegistryApiError> {
+    let exact = scope.exact();
+    let registry_rows = sqlx::query(
+        r#"
+        SELECT artifact_sha256, owner_account_id, actor_principal_id,
+               authenticated_session_id, access_space_id, workspace_id
+        FROM ONLY model_runtime_registry
+        WHERE owner_account_id = $1::uuid
+          AND actor_principal_id = $2::uuid
+          AND authenticated_session_id = $3::uuid
+          AND access_space_id = $4::uuid
+          AND workspace_id = $5::text
+        "#,
+    )
+    .bind(exact.owner_account_id.as_uuid())
+    .bind(exact.actor_principal_id.as_uuid())
+    .bind(exact.authenticated_session_id.as_uuid())
+    .bind(exact.access_space_id.as_uuid())
+    .bind(exact.workspace_id.as_str())
+    .fetch_all(&state.postgres_pool)
+    .await
+    .map_err(ModelRegistryPersistenceError::Database)?;
+    let mut artifacts = BTreeSet::new();
+    for row in registry_rows {
+        if !registry_scope_row_matches_exact(&row, exact)? {
+            continue;
+        }
+        artifacts.insert(registry_artifact_sha256(&row)?);
+    }
+
+    let active_rows = sqlx::query(
+        r#"
+        SELECT purpose, artifact_sha256, owner_account_id, actor_principal_id,
+               authenticated_session_id, access_space_id, workspace_id
+        FROM ONLY model_runtime_active_selection
+        WHERE owner_account_id = $1::uuid
+          AND actor_principal_id = $2::uuid
+          AND authenticated_session_id = $3::uuid
+          AND access_space_id = $4::uuid
+          AND workspace_id = $5::text
+        "#,
+    )
+    .bind(exact.owner_account_id.as_uuid())
+    .bind(exact.actor_principal_id.as_uuid())
+    .bind(exact.authenticated_session_id.as_uuid())
+    .bind(exact.access_space_id.as_uuid())
+    .bind(exact.workspace_id.as_str())
+    .fetch_all(&state.postgres_pool)
+    .await
+    .map_err(ModelRegistryPersistenceError::Database)?;
+    let mut active = BTreeSet::new();
+    for row in active_rows {
+        if !registry_scope_row_matches_exact(&row, exact)? {
+            continue;
+        }
+        active.insert((
+            row.try_get("purpose")
+                .map_err(ModelRegistryPersistenceError::Database)?,
+            registry_artifact_sha256(&row)?,
+        ));
+    }
+    Ok((artifacts, active))
+}
+
+fn registry_scope_row_matches_exact(
+    row: &sqlx::postgres::PgRow,
+    exact: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+) -> Result<bool, ModelRuntimeRegistryApiError> {
+    let owner: Uuid = row
+        .try_get("owner_account_id")
+        .map_err(ModelRegistryPersistenceError::Database)?;
+    let actor: Uuid = row
+        .try_get("actor_principal_id")
+        .map_err(ModelRegistryPersistenceError::Database)?;
+    let session: Uuid = row
+        .try_get("authenticated_session_id")
+        .map_err(ModelRegistryPersistenceError::Database)?;
+    let access_space: Uuid = row
+        .try_get("access_space_id")
+        .map_err(ModelRegistryPersistenceError::Database)?;
+    let workspace: String = row
+        .try_get("workspace_id")
+        .map_err(ModelRegistryPersistenceError::Database)?;
+    Ok(owner == exact.owner_account_id.as_uuid()
+        && actor == exact.actor_principal_id.as_uuid()
+        && session == exact.authenticated_session_id.as_uuid()
+        && access_space == exact.access_space_id.as_uuid()
+        && workspace == exact.workspace_id.as_str())
+}
+
+fn registry_artifact_sha256(
+    row: &sqlx::postgres::PgRow,
+) -> Result<[u8; 32], ModelRuntimeRegistryApiError> {
+    let bytes: Vec<u8> = row
+        .try_get("artifact_sha256")
+        .map_err(ModelRegistryPersistenceError::Database)?;
+    bytes.try_into().map_err(|bytes: Vec<u8>| {
+        ModelRuntimeRegistryApiError::from(ModelRegistryPersistenceError::CorruptRow(format!(
+            "artifact_sha256 must be 32 bytes, got {}",
+            bytes.len()
+        )))
+    })
 }
 
 async fn build_registry_projection(
@@ -313,29 +477,34 @@ async fn build_registry_projection(
     // selection receipts below are filtered to this owner in SQL and
     // re-authorized after decode (HBR-PRIV-002).
     let store =
-        ModelRegistryStore::new_for_owner(state.postgres_pool.clone(), scope.query().clone());
-    let durable_rows = store.list_recoverable().await?;
-    let active_selections = store.list_active_selections().await?;
-    let ownership_rows = sqlx::query(
-        r#"
-        SELECT DISTINCT ON (model_artifact_sha256)
-               model_artifact_sha256, process_uuid
-        FROM kernel_process_lifecycle
-        WHERE model_artifact_sha256 IS NOT NULL
-        ORDER BY model_artifact_sha256, started_at DESC, process_uuid DESC
-        "#,
-    )
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(ModelRegistryPersistenceError::Database)?;
+        ModelRegistryStore::new_for_exact_scope(state.postgres_pool.clone(), scope.exact().clone());
+    let (exact_artifacts, exact_active_selections) =
+        load_exact_registry_authority_keys(state, scope).await?;
+    let durable_rows = store
+        .list_recoverable()
+        .await?
+        .into_iter()
+        .filter(|row| exact_artifacts.contains(&row.artifact_sha256))
+        .collect::<Vec<_>>();
+    let active_selections = store
+        .list_active_selections()
+        .await?
+        .into_iter()
+        .filter(|selection| {
+            exact_active_selections.contains(&(
+                selection.purpose.as_str().to_owned(),
+                selection.artifact_sha256,
+            ))
+        })
+        .collect::<Vec<_>>();
+    let ownership_rows = load_authorized_process_ownership_records(state, scope, None).await?;
     let mut process_by_artifact = BTreeMap::<String, Uuid>::new();
     for row in ownership_rows {
-        process_by_artifact.insert(
-            row.try_get("model_artifact_sha256")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            row.try_get("process_uuid")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-        );
+        if let Some(artifact_sha256) = row.model_artifact_sha256 {
+            process_by_artifact
+                .entry(artifact_sha256)
+                .or_insert(row.process_uuid);
+        }
     }
     // Compute the application/default selection receipt, but defer the
     // absent-selection integrity error until AFTER the structural catalog vs
@@ -650,6 +819,7 @@ async fn build_registry_projection(
 
 async fn control_model_runtime(
     State(state): State<AppState>,
+    _scope: RequestAccountScope,
     Json(request): Json<ModelRuntimeControlRequest>,
 ) -> Result<Json<ModelRuntimeControlReceipt>, ModelRuntimeRegistryApiError> {
     if request.schema_version != MODEL_RUNTIME_CONTROL_SCHEMA_VERSION {

@@ -38,11 +38,17 @@
 //! hardcoded, identical to `swarm_schedule_store`.
 
 use std::collections::BTreeMap;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use chrono::{DateTime, Utc};
+use fs2::FileExt;
 use handshake_core::model_runtime::WarmVmSnapshotManifest;
+use handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // Reuse the calendar's provider + runtime-binding enums verbatim: they already
 // model the local/byok_cloud/official_cli lane + the candle/llama binding, and
@@ -56,7 +62,7 @@ pub const SPAWN_TEMPLATES_FILE: &str = "session_spawn_templates.json";
 
 /// Current on-disk schema version. Bumped if the persisted shape changes so a
 /// future loader can migrate rather than silently mis-parse.
-pub const SPAWN_TEMPLATES_SCHEMA_VERSION: u32 = 3;
+pub const SPAWN_TEMPLATES_SCHEMA_VERSION: u32 = 5;
 
 /// Operator-intended isolation tier captured on a resume template. Mirrors the
 /// swarm IPC `SwarmIsolationTierIpc` (and through it
@@ -96,6 +102,11 @@ pub enum TemplateByokCloudProvider {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SessionSpawnTemplate {
+    /// Exact account/runtime scope captured by the trusted store at write time.
+    /// Missing attribution identifies a legacy record and is denied by scoped
+    /// production readers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_scope: Option<ExactResourceScopeAttribution>,
     /// Provider lane: `local`, `byok_cloud`, or `official_cli`.
     pub provider: TemplateProvider,
     /// Local: the on-disk model artifact path (safetensors / GGUF).
@@ -166,8 +177,14 @@ pub struct SessionSpawnTemplate {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpawnTemplateDoc {
     pub schema_version: u32,
+    /// Legacy/system-only flat records. Scoped production writes use
+    /// `scoped_templates` so two exact scopes may safely reuse one instance id.
     #[serde(default)]
     pub templates: BTreeMap<String, SessionSpawnTemplate>,
+    /// Exact-scope bucket -> instance id -> template. The bucket key is the
+    /// canonical JSON encoding of the complete five-field attribution.
+    #[serde(default)]
+    scoped_templates: BTreeMap<String, BTreeMap<String, SessionSpawnTemplate>>,
 }
 
 impl Default for SpawnTemplateDoc {
@@ -175,6 +192,7 @@ impl Default for SpawnTemplateDoc {
         Self {
             schema_version: SPAWN_TEMPLATES_SCHEMA_VERSION,
             templates: BTreeMap::new(),
+            scoped_templates: BTreeMap::new(),
         }
     }
 }
@@ -184,29 +202,53 @@ impl Default for SpawnTemplateDoc {
 #[derive(Clone, Debug)]
 pub struct SpawnTemplateStore {
     path: PathBuf,
+    resource_scope: Option<ExactResourceScopeAttribution>,
 }
+
+static SPAWN_TEMPLATE_STORE_LOCKS: OnceLock<Mutex<BTreeMap<PathBuf, Arc<Mutex<()>>>>> =
+    OnceLock::new();
 
 impl SpawnTemplateStore {
     /// Bind the store to `<app_data_root>/session_spawn_templates.json`.
     pub fn new(app_data_root: impl AsRef<Path>) -> Self {
         Self {
             path: app_data_root.as_ref().join(SPAWN_TEMPLATES_FILE),
+            resource_scope: None,
+        }
+    }
+
+    /// Bind an account-facing store to the trusted product-local scope. Reads
+    /// hide legacy and foreign templates; writes stamp this exact scope.
+    pub fn new_scoped(
+        app_data_root: impl AsRef<Path>,
+        resource_scope: ExactResourceScopeAttribution,
+    ) -> Self {
+        Self {
+            path: app_data_root.as_ref().join(SPAWN_TEMPLATES_FILE),
+            resource_scope: Some(resource_scope),
         }
     }
 
     /// Bind the store to an explicit file path (tests / alternate wirings).
     pub fn with_path(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into() }
+        Self {
+            path: path.into(),
+            resource_scope: None,
+        }
     }
 
     pub fn path(&self) -> &Path {
         &self.path
     }
 
+    pub fn resource_scope(&self) -> Option<&ExactResourceScopeAttribution> {
+        self.resource_scope.as_ref()
+    }
+
     /// Load the persisted templates. A missing file is NOT an error — it yields
     /// an empty document (first run). A present-but-corrupt file returns an error
     /// so the caller can surface it rather than silently dropping templates.
-    pub fn load(&self) -> Result<SpawnTemplateDoc, String> {
+    fn load_raw(&self) -> Result<SpawnTemplateDoc, String> {
         match std::fs::read(&self.path) {
             Ok(bytes) => {
                 let doc = serde_json::from_slice::<SpawnTemplateDoc>(&bytes).map_err(|error| {
@@ -227,13 +269,36 @@ impl SpawnTemplateStore {
         }
     }
 
+    pub fn load(&self) -> Result<SpawnTemplateDoc, String> {
+        let mut doc = self.load_raw()?;
+        if let Some(scope) = self.resource_scope.as_ref() {
+            let bucket_key = scope_bucket_key(scope)?;
+            let mut visible = doc.scoped_templates.remove(&bucket_key).unwrap_or_default();
+            visible.retain(|_, template| template.resource_scope.as_ref() == Some(scope));
+
+            // v4 and older used one flat instance-id key. Preserve an
+            // attributed matching row as a read-only migration fallback; a v5
+            // scoped row wins if both exist.
+            for (instance_id, template) in &doc.templates {
+                if template.resource_scope.as_ref() == Some(scope) {
+                    visible
+                        .entry(instance_id.clone())
+                        .or_insert_with(|| template.clone());
+                }
+            }
+            doc.templates = visible;
+            doc.scoped_templates.clear();
+        }
+        Ok(doc)
+    }
+
     fn normalize_loaded_doc(&self, mut doc: SpawnTemplateDoc) -> Result<SpawnTemplateDoc, String> {
         match doc.schema_version {
             SPAWN_TEMPLATES_SCHEMA_VERSION => Ok(doc),
-            // v1/v2 -> v3 only added optional fields with serde defaults.
-            // Loading them as v3 is a lossless migration; the next save
-            // persists v3.
-            1 | 2 => {
+            // Older versions only added optional fields with serde defaults.
+            // Their missing resource attribution remains `None`, so scoped
+            // production readers deny those legacy rows.
+            1 | 2 | 3 | 4 => {
                 doc.schema_version = SPAWN_TEMPLATES_SCHEMA_VERSION;
                 Ok(doc)
             }
@@ -243,7 +308,7 @@ impl SpawnTemplateStore {
                 SPAWN_TEMPLATES_SCHEMA_VERSION
             )),
             version => Err(format!(
-                "spawn template store at {} uses unsupported schema_version {version}; expected {} or compatible v1/v2",
+                "spawn template store at {} uses unsupported schema_version {version}; expected {} or compatible v1-v4",
                 self.path.display(),
                 SPAWN_TEMPLATES_SCHEMA_VERSION
             )),
@@ -255,6 +320,13 @@ impl SpawnTemplateStore {
     /// template set. Creates the parent directory if needed. Mirrors
     /// `SwarmScheduleStore::save`.
     pub fn save(&self, doc: &SpawnTemplateDoc) -> Result<(), String> {
+        let lock = store_lock_for_path(&self.path)?;
+        let _guard = lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _file_lock = acquire_store_file_lock(&self.path)?;
+        self.save_locked(doc)
+    }
+
+    fn save_locked(&self, doc: &SpawnTemplateDoc) -> Result<(), String> {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent).map_err(|error| {
                 format!(
@@ -267,22 +339,38 @@ impl SpawnTemplateStore {
         doc.schema_version = SPAWN_TEMPLATES_SCHEMA_VERSION;
         let json = serde_json::to_vec_pretty(&doc)
             .map_err(|error| format!("failed to serialize spawn templates: {error}"))?;
-        let tmp = self
-            .path
-            .with_extension(format!("json.tmp.{}", std::process::id()));
-        std::fs::write(&tmp, &json).map_err(|error| {
+        let tmp = self.path.with_extension(format!(
+            "json.tmp.{}.{}",
+            std::process::id(),
+            Uuid::now_v7()
+        ));
+        let mut tmp_file = File::create(&tmp).map_err(|error| {
+            format!(
+                "failed to create temp spawn template store {}: {error}",
+                tmp.display()
+            )
+        })?;
+        tmp_file.write_all(&json).map_err(|error| {
             format!(
                 "failed to write temp spawn template store {}: {error}",
                 tmp.display()
             )
         })?;
-        std::fs::rename(&tmp, &self.path).map_err(|error| {
+        tmp_file.sync_all().map_err(|error| {
+            format!(
+                "failed to flush temp spawn template store {}: {error}",
+                tmp.display()
+            )
+        })?;
+        drop(tmp_file);
+        replace_store_file(&tmp, &self.path).map_err(|error| {
             let _ = std::fs::remove_file(&tmp);
             format!(
                 "failed to commit spawn template store {}: {error}",
                 self.path.display()
             )
         })?;
+        sync_store_parent(&self.path)?;
         Ok(())
     }
 
@@ -293,11 +381,37 @@ impl SpawnTemplateStore {
     pub fn upsert(
         &self,
         instance_id: impl Into<String>,
-        template: SessionSpawnTemplate,
+        mut template: SessionSpawnTemplate,
     ) -> Result<(), String> {
-        let mut doc = self.load()?;
-        doc.templates.insert(instance_id.into(), template);
-        self.save(&doc)
+        // Every store handle for the same canonical file shares this process
+        // lock. It covers the complete read-modify-write transaction, not only
+        // rename, so concurrent scope buckets cannot lose one another.
+        let lock = store_lock_for_path(&self.path)?;
+        let _guard = lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _file_lock = acquire_store_file_lock(&self.path)?;
+        let mut doc = self.load_raw()?;
+        #[cfg(test)]
+        hold_after_load_for_cross_process_test();
+        let instance_id = instance_id.into();
+        if let Some(scope) = self.resource_scope.as_ref() {
+            template.resource_scope = Some(scope.clone());
+            // Remove only this scope's compatible flat legacy row. A flat row
+            // belonging to another scope remains hidden and intact.
+            if doc
+                .templates
+                .get(&instance_id)
+                .is_some_and(|legacy| legacy.resource_scope.as_ref() == Some(scope))
+            {
+                doc.templates.remove(&instance_id);
+            }
+            doc.scoped_templates
+                .entry(scope_bucket_key(scope)?)
+                .or_default()
+                .insert(instance_id, template);
+        } else {
+            doc.templates.insert(instance_id, template);
+        }
+        self.save_locked(&doc)
     }
 
     /// Fetch the stored template for a composite `instance_id`, or `None` when no
@@ -319,12 +433,175 @@ impl SpawnTemplateStore {
     }
 }
 
+struct StoreFileLock(File);
+
+impl Drop for StoreFileLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.0);
+    }
+}
+
+fn acquire_store_file_lock(path: &Path) -> Result<StoreFileLock, String> {
+    let parent = path.parent().ok_or_else(|| {
+        format!(
+            "spawn template store path {} has no parent directory",
+            path.display()
+        )
+    })?;
+    std::fs::create_dir_all(parent).map_err(|error| {
+        format!(
+            "failed to create spawn template lock dir {}: {error}",
+            parent.display()
+        )
+    })?;
+    let lock_path = path.with_extension("json.lock");
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&lock_path)
+        .map_err(|error| {
+            format!(
+                "failed to open spawn template store lock {}: {error}",
+                lock_path.display()
+            )
+        })?;
+    FileExt::lock_exclusive(&file).map_err(|error| {
+        format!(
+            "failed to lock spawn template store {}: {error}",
+            lock_path.display()
+        )
+    })?;
+    Ok(StoreFileLock(file))
+}
+
+#[cfg(windows)]
+fn replace_store_file(source: &Path, destination: &Path) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let source = source
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let destination = destination
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    unsafe {
+        MoveFileExW(
+            PCWSTR(source.as_ptr()),
+            PCWSTR(destination.as_ptr()),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    }
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(not(windows))]
+fn replace_store_file(source: &Path, destination: &Path) -> Result<(), String> {
+    std::fs::rename(source, destination).map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+fn sync_store_parent(_path: &Path) -> Result<(), String> {
+    // MoveFileExW(MOVEFILE_WRITE_THROUGH) does not return until the move has
+    // been flushed through the system cache.
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn sync_store_parent(path: &Path) -> Result<(), String> {
+    let parent = path.parent().ok_or_else(|| {
+        format!(
+            "spawn template store path {} has no parent directory",
+            path.display()
+        )
+    })?;
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| {
+            format!(
+                "failed to flush spawn template store directory {}: {error}",
+                parent.display()
+            )
+        })
+}
+
+fn scope_bucket_key(scope: &ExactResourceScopeAttribution) -> Result<String, String> {
+    serde_json::to_string(scope)
+        .map_err(|error| format!("failed to encode exact spawn-template scope: {error}"))
+}
+
+fn store_lock_for_path(path: &Path) -> Result<Arc<Mutex<()>>, String> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|error| {
+                format!("failed to resolve spawn-template current directory: {error}")
+            })?
+            .join(path)
+    };
+    let canonical = match absolute.parent() {
+        Some(parent) => parent
+            .canonicalize()
+            .map(|resolved| {
+                resolved.join(
+                    absolute
+                        .file_name()
+                        .expect("spawn-template path has a file name"),
+                )
+            })
+            .unwrap_or(absolute),
+        None => absolute,
+    };
+    let locks = SPAWN_TEMPLATE_STORE_LOCKS.get_or_init(|| Mutex::new(BTreeMap::new()));
+    let mut locks = locks
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    Ok(locks
+        .entry(canonical)
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone())
+}
+
+#[cfg(test)]
+fn hold_after_load_for_cross_process_test() {
+    let Ok(raw) = std::env::var("HANDSHAKE_TEST_SPAWN_TEMPLATE_HOLD_AFTER_LOAD_MS") else {
+        return;
+    };
+    if let Ok(milliseconds) = raw.parse::<u64>() {
+        std::thread::sleep(std::time::Duration::from_millis(milliseconds.min(5_000)));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use handshake_core::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+        WorkspaceScopeRef,
+    };
+
+    fn exact_scope(workspace: &str) -> ExactResourceScopeAttribution {
+        ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::mint(),
+            actor_principal_id: ActorPrincipalId::mint(),
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            access_space_id: AccessSpaceRef::mint(),
+            workspace_id: WorkspaceScopeRef::new(workspace).unwrap(),
+        }
+    }
 
     fn sample_local(origin: &str) -> SessionSpawnTemplate {
         SessionSpawnTemplate {
+            resource_scope: None,
             provider: TemplateProvider::Local,
             artifact_path: Some("D:/models/qwen.safetensors".to_string()),
             sha256_expected: Some("ab".repeat(32)),
@@ -346,6 +623,7 @@ mod tests {
 
     fn sample_cloud(origin: &str) -> SessionSpawnTemplate {
         SessionSpawnTemplate {
+            resource_scope: None,
             provider: TemplateProvider::ByokCloud,
             artifact_path: None,
             sha256_expected: None,
@@ -526,5 +804,239 @@ mod tests {
         // contains() degrades to false on a corrupt store so kernel_session_list
         // never breaks (honest: surfaces as not-resumable, not a list failure).
         assert!(!store.contains("x#0"));
+    }
+
+    #[test]
+    fn scoped_store_hides_foreign_wrong_workspace_and_legacy_templates() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let owner_scope = exact_scope("workspace-owner");
+        let owner = SpawnTemplateStore::new_scoped(tmp.path(), owner_scope.clone());
+        owner
+            .upsert("owner#0", sample_cloud("owner#0"))
+            .expect("write owner template");
+        assert_eq!(
+            owner
+                .get("owner#0")
+                .expect("owner read")
+                .and_then(|template| template.resource_scope),
+            Some(owner_scope.clone())
+        );
+
+        let foreign = SpawnTemplateStore::new_scoped(tmp.path(), exact_scope("workspace-owner"));
+        assert_eq!(foreign.get("owner#0").expect("foreign read"), None);
+
+        let mut wrong_workspace_scope = owner_scope.clone();
+        wrong_workspace_scope.workspace_id = WorkspaceScopeRef::new("workspace-other").unwrap();
+        let wrong_workspace = SpawnTemplateStore::new_scoped(tmp.path(), wrong_workspace_scope);
+        assert_eq!(
+            wrong_workspace.get("owner#0").expect("workspace read"),
+            None
+        );
+
+        SpawnTemplateStore::new(tmp.path())
+            .upsert("legacy#0", sample_cloud("legacy#0"))
+            .expect("write legacy template");
+        assert_eq!(owner.get("legacy#0").expect("legacy read"), None);
+    }
+
+    #[test]
+    fn exact_scopes_with_the_same_instance_id_survive_updates_and_restart() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let owner_scope = exact_scope("workspace-shared");
+        let foreign_scope = exact_scope("workspace-shared");
+        let instance_id = "shared-model#0";
+
+        let owner = SpawnTemplateStore::new_scoped(tmp.path(), owner_scope.clone());
+        let foreign = SpawnTemplateStore::new_scoped(tmp.path(), foreign_scope.clone());
+        let mut owner_template = sample_cloud("owner-origin#0");
+        owner_template.cloud_model_name = Some("owner-model-v1".to_string());
+        let mut foreign_template = sample_cloud("foreign-origin#0");
+        foreign_template.cloud_model_name = Some("foreign-model".to_string());
+
+        owner
+            .upsert(instance_id, owner_template)
+            .expect("owner insert");
+        foreign
+            .upsert(instance_id, foreign_template)
+            .expect("foreign same-id insert");
+
+        let raw = owner.load_raw().expect("raw persisted document");
+        assert_eq!(raw.scoped_templates.len(), 2, "two exact scope buckets");
+        assert!(raw
+            .scoped_templates
+            .values()
+            .all(|bucket| bucket.contains_key(instance_id)));
+
+        let mut owner_update = sample_cloud("owner-origin#0");
+        owner_update.cloud_model_name = Some("owner-model-v2".to_string());
+        owner
+            .upsert(instance_id, owner_update)
+            .expect("owner update");
+
+        // Reconstruct both stores to prove the persisted restart path, not an
+        // in-memory cache.
+        let owner_after_restart = SpawnTemplateStore::new_scoped(tmp.path(), owner_scope);
+        let foreign_after_restart = SpawnTemplateStore::new_scoped(tmp.path(), foreign_scope);
+        assert_eq!(
+            owner_after_restart
+                .get(instance_id)
+                .expect("owner read")
+                .and_then(|template| template.cloud_model_name),
+            Some("owner-model-v2".to_string())
+        );
+        assert_eq!(
+            foreign_after_restart
+                .get(instance_id)
+                .expect("foreign read")
+                .and_then(|template| template.cloud_model_name),
+            Some("foreign-model".to_string())
+        );
+    }
+
+    #[test]
+    fn concurrent_exact_scope_upserts_preserve_every_bucket_after_restart() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let owner_scope = exact_scope("workspace-concurrent");
+        let foreign_scope = exact_scope("workspace-concurrent");
+        let owner = SpawnTemplateStore::new_scoped(tmp.path(), owner_scope.clone());
+        let foreign = SpawnTemplateStore::new_scoped(tmp.path(), foreign_scope.clone());
+        let rounds = 24;
+
+        for round in 0..rounds {
+            let barrier = Arc::new(std::sync::Barrier::new(3));
+            let owner_store = owner.clone();
+            let owner_barrier = barrier.clone();
+            let owner_id = format!("owner-{round}#0");
+            let owner_thread = std::thread::spawn(move || {
+                owner_barrier.wait();
+                owner_store.upsert(&owner_id, sample_cloud(&owner_id))
+            });
+
+            let foreign_store = foreign.clone();
+            let foreign_barrier = barrier.clone();
+            let foreign_id = format!("foreign-{round}#0");
+            let foreign_thread = std::thread::spawn(move || {
+                foreign_barrier.wait();
+                foreign_store.upsert(&foreign_id, sample_cloud(&foreign_id))
+            });
+
+            barrier.wait();
+            owner_thread
+                .join()
+                .expect("owner thread")
+                .expect("owner concurrent upsert");
+            foreign_thread
+                .join()
+                .expect("foreign thread")
+                .expect("foreign concurrent upsert");
+        }
+
+        let owner_after_restart = SpawnTemplateStore::new_scoped(tmp.path(), owner_scope);
+        let foreign_after_restart = SpawnTemplateStore::new_scoped(tmp.path(), foreign_scope);
+        for round in 0..rounds {
+            let owner_id = format!("owner-{round}#0");
+            let foreign_id = format!("foreign-{round}#0");
+            assert!(
+                owner_after_restart.get(&owner_id).unwrap().is_some(),
+                "owner row {owner_id} must survive concurrent persistence"
+            );
+            assert!(
+                foreign_after_restart.get(&foreign_id).unwrap().is_some(),
+                "foreign row {foreign_id} must survive concurrent persistence"
+            );
+        }
+
+        let raw = owner_after_restart
+            .load_raw()
+            .expect("raw persisted document");
+        assert_eq!(raw.scoped_templates.len(), 2);
+        assert_eq!(
+            raw.scoped_templates
+                .values()
+                .map(BTreeMap::len)
+                .sum::<usize>(),
+            rounds * 2
+        );
+    }
+
+    #[test]
+    fn cross_process_upsert_helper() {
+        let Some(root) = std::env::var_os("HANDSHAKE_TEST_SPAWN_TEMPLATE_HELPER_ROOT") else {
+            return;
+        };
+        let scope_json =
+            std::env::var("HANDSHAKE_TEST_SPAWN_TEMPLATE_HELPER_SCOPE").expect("helper scope JSON");
+        let scope: ExactResourceScopeAttribution =
+            serde_json::from_str(&scope_json).expect("decode helper scope");
+        let instance_id = std::env::var("HANDSHAKE_TEST_SPAWN_TEMPLATE_HELPER_INSTANCE")
+            .expect("helper instance");
+        SpawnTemplateStore::new_scoped(PathBuf::from(root), scope)
+            .upsert(&instance_id, sample_cloud(&instance_id))
+            .expect("cross-process helper upsert");
+    }
+
+    #[test]
+    fn concurrent_processes_preserve_two_exact_scope_buckets_after_restart() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let owner_scope = exact_scope("workspace-process");
+        let foreign_scope = exact_scope("workspace-process");
+        let executable = std::env::current_exe().expect("current test executable");
+        let spawn_helper = |scope: &ExactResourceScopeAttribution, instance_id: &str| {
+            std::process::Command::new(&executable)
+                .arg("--exact")
+                .arg("commands::spawn_template_store::tests::cross_process_upsert_helper")
+                .arg("--nocapture")
+                .env("HANDSHAKE_TEST_SPAWN_TEMPLATE_HELPER_ROOT", tmp.path())
+                .env(
+                    "HANDSHAKE_TEST_SPAWN_TEMPLATE_HELPER_SCOPE",
+                    serde_json::to_string(scope).expect("encode helper scope"),
+                )
+                .env("HANDSHAKE_TEST_SPAWN_TEMPLATE_HELPER_INSTANCE", instance_id)
+                // Widen the vulnerable load-to-save interval. With the OS file
+                // lock, the second process cannot reach this hold until the
+                // first durable replace has completed.
+                .env("HANDSHAKE_TEST_SPAWN_TEMPLATE_HOLD_AFTER_LOAD_MS", "750")
+                .spawn()
+                .expect("spawn helper process")
+        };
+
+        let owner_child = spawn_helper(&owner_scope, "process-owner#0");
+        let foreign_child = spawn_helper(&foreign_scope, "process-foreign#0");
+        let owner_output = owner_child.wait_with_output().expect("wait owner helper");
+        let foreign_output = foreign_child
+            .wait_with_output()
+            .expect("wait foreign helper");
+        assert!(
+            owner_output.status.success(),
+            "owner helper failed: {}",
+            String::from_utf8_lossy(&owner_output.stderr)
+        );
+        assert!(
+            foreign_output.status.success(),
+            "foreign helper failed: {}",
+            String::from_utf8_lossy(&foreign_output.stderr)
+        );
+
+        let owner_after_restart = SpawnTemplateStore::new_scoped(tmp.path(), owner_scope);
+        let foreign_after_restart = SpawnTemplateStore::new_scoped(tmp.path(), foreign_scope);
+        assert!(owner_after_restart
+            .get("process-owner#0")
+            .expect("owner restart read")
+            .is_some());
+        assert!(foreign_after_restart
+            .get("process-foreign#0")
+            .expect("foreign restart read")
+            .is_some());
+        let raw = owner_after_restart
+            .load_raw()
+            .expect("raw persisted document");
+        assert_eq!(raw.scoped_templates.len(), 2);
+        assert_eq!(
+            raw.scoped_templates
+                .values()
+                .map(BTreeMap::len)
+                .sum::<usize>(),
+            2
+        );
     }
 }

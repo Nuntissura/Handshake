@@ -1520,6 +1520,66 @@ impl ModelLaneRoutingExecutionStore {
         Ok(execution)
     }
 
+    pub(crate) async fn record_authority_request(
+        &self,
+        claim: &ModelLaneRoutingStageClaim,
+        authority_lane_id: String,
+        message: super::model_lane::NewModelLaneMessage,
+    ) -> Result<
+        (
+            ModelLaneRoutingExecutionState,
+            super::model_lane::ModelLaneMessageRecord,
+        ),
+        String,
+    > {
+        let execution_id = claim.execution_id.as_str();
+        let stage_id = claim.stage_id.as_str();
+        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
+        lock_execution(&mut tx, execution_id).await?;
+        let locked_execution = load_execution_tx(&mut tx, execution_id)
+            .await?
+            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
+        let locked_stage = locked_execution
+            .stages
+            .get(stage_id)
+            .ok_or_else(|| format!("stage {stage_id} was not durably scheduled"))?;
+        if locked_stage.attempt != claim.attempt
+            || locked_stage.lease_owner.as_deref() != Some(claim.lease_owner.as_str())
+            || locked_stage.fencing_token.as_deref() != Some(claim.fencing_token.as_str())
+            || locked_stage.lease_expires_at_unix_ms.unwrap_or_default() < now_ms()
+        {
+            return Err(format!(
+                "stale routing authority claim rejected before request commit for {execution_id}/{stage_id}/attempt-{}",
+                claim.attempt
+            ));
+        }
+        let stored_message = super::model_lane::ModelLaneStore::record_message_with_validation_tx(
+            &mut tx,
+            message,
+            self.access.insert_columns(),
+        )
+        .await
+        .map_err(|err| err.to_string())?;
+        let execution = self
+            .record_stage_result_tx(
+                &mut tx,
+                claim,
+                ModelLaneRoutingStageStateKind::AwaitingAuthority,
+                None,
+                Some(authority_lane_id),
+                Some(stored_message.message_id.clone()),
+                Vec::new(),
+                None,
+                None,
+                None,
+                None,
+                Some("typed authority lane dispatched; awaiting ModelLaneMessage".into()),
+            )
+            .await?;
+        tx.commit().await.map_err(|err| err.to_string())?;
+        Ok((execution, stored_message))
+    }
+
     pub(crate) async fn stage_input_envelope(
         &self,
         execution_id: &str,
@@ -1533,7 +1593,10 @@ impl ModelLaneRoutingExecutionStore {
             .into_iter()
             .find(|view| view.stage_id == stage_id)
             .ok_or_else(|| format!("unknown routing stage {stage_id}"))?;
-        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(self.pool.clone(), self.access.clone());
+        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(
+            self.pool.clone(),
+            self.access.clone(),
+        );
         let mut predecessors = Vec::new();
         let mut predecessor_states = Vec::new();
         for dependency in &view.dependencies {
@@ -1723,7 +1786,10 @@ impl ModelLaneRoutingExecutionStore {
             .ok_or_else(|| {
                 format!("routing output {stage_id} has no canonical source ModelLane")
             })?;
-        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(self.pool.clone(), self.access.clone());
+        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(
+            self.pool.clone(),
+            self.access.clone(),
+        );
         let source_projection = model_lane_store
             .navigation_by_lane(&source_lane_id)
             .await
@@ -2254,10 +2320,10 @@ impl ModelLaneRoutingExecutionStore {
         Ok(recovered)
     }
 
-    pub(crate) async fn expired_stage_instance_ids(
+    pub(crate) async fn expired_stage_attempts(
         &self,
         execution_id: &str,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<(String, u32, String)>, String> {
         let now = now_ms();
         let execution = self
             .snapshot(execution_id)
@@ -2276,7 +2342,12 @@ impl ModelLaneRoutingExecutionStore {
                     .lease_expires_at_unix_ms
                     .is_some_and(|expiry| expiry <= now)
             })
-            .filter_map(|stage| stage.instance_id.clone())
+            .filter_map(|stage| {
+                stage
+                    .instance_id
+                    .clone()
+                    .map(|instance_id| (stage.stage_id.clone(), stage.attempt, instance_id))
+            })
             .collect())
     }
     pub(crate) async fn cancel_execution(
@@ -2290,6 +2361,17 @@ impl ModelLaneRoutingExecutionStore {
         let mut execution = load_execution_tx(&mut tx, execution_id)
             .await?
             .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
+        // Cancellation is first-writer-wins. A retry commonly means the first
+        // call durably cancelled the routing execution but one runtime cleanup
+        // remained retryable. Re-appending `routing-cancel:{execution_id}` with
+        // a new revision/reason would correctly fail EventLedger's divergent
+        // idempotency check before the coordinator can retry that cleanup.
+        // Return the canonical cancelled projection unchanged so the caller can
+        // continue its exact-generation runtime scan without rewriting history.
+        if execution.status == ModelLaneRoutingExecutionStatus::Cancelled {
+            tx.rollback().await.map_err(|err| err.to_string())?;
+            return Ok(execution);
+        }
         if matches!(
             execution.status,
             ModelLaneRoutingExecutionStatus::Succeeded | ModelLaneRoutingExecutionStatus::Failed

@@ -774,6 +774,13 @@ async fn model_lane_launch_user_manual_entry_is_current() {
         "durable cancellation terminal state",
         "no Ready/runtime exposure before ModelLane persistence",
         "retryable terminal intent before runtime teardown",
+        "cleanup owner's observable progress",
+        "coordinator-owned task",
+        "claim.attempt",
+        "restart_generation",
+        "generation-scoped",
+        "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions",
+        "ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation",
         "per-lane terminal serialization",
         "No-OS caller receipts are minted from a live",
         "not offline bearer tokens",
@@ -1227,6 +1234,14 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "work_packet_id",
         "micro_task_id",
         "task_board_id",
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
+        "ModelLaneStore::new_scoped",
+        "server-derived scope is authority",
+        "default-denied at SQL and post-decode boundaries",
+        "session or AccessSpace switch cannot retarget",
         "to_kernel_context_bundle",
         "CTX-<hash>",
         "selected",
@@ -1375,6 +1390,8 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay",
         "loom_refs exceeds bounded limit",
         "duplicate idempotency returning the original context_bundle_hash",
+        "exact five-field resource scope retained on ContextBundle and derived artifact refs",
+        "SQL plus post-decode default-deny across owner/Principal/authenticated session/AccessSpace/workspace switches",
     ] {
         assert!(
             handoff_tool["expected_output"]
@@ -1418,6 +1435,10 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "work_packet_id",
         "micro_task_id",
         "task_board_id",
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
         "to_kernel_context_bundle",
         "CTX-<hash>",
         "selected",
@@ -1483,6 +1504,7 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
     assert!(common_errors.contains("Yjs-compatible format yjs_update_v1"));
     assert!(common_errors.contains("advisory_only"));
     assert!(common_errors.contains("loom_refs exceeds bounded limit"));
+    assert!(common_errors.contains("missing or mismatched exact resource scope is default-denied"));
     let recovery_steps = handoff_tool["recovery_steps"]
         .as_array()
         .expect("recovery steps")
@@ -1502,6 +1524,9 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("CTX-<hash>"));
     assert!(recovery_steps.contains("kernel_event_ledger"));
     assert!(recovery_steps.contains("source ModelLaneMessage first"));
+    assert!(recovery_steps.contains(
+        "original server-derived owner/Principal/authenticated session/AccessSpace/workspace context"
+    ));
     assert!(recovery_steps.contains("artifact_ref/artifact_sha256/content_hash"));
     assert!(recovery_steps.contains("cloud_safe = true"));
     assert!(recovery_steps.contains("classification other than local_only_context"));
@@ -1809,6 +1834,12 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
         "model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency",
         "model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row",
         "model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs",
+        "five-dimensional resource scope",
+        "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE",
+        "stale successor session",
+        "never converts an account-scoped parent into an unscoped legacy row",
+        "model_lane_recovery_preserves_exact_scope_and_denies_foreign_stale_replay",
+        "recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped",
         "model_lane_recovery_user_manual_entry_is_current",
     ] {
         assert!(
@@ -2356,6 +2387,9 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "mixed_model_lane_negative_guards_fail_closed",
         "mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep",
         "ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts",
+        "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions",
+        "ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation",
+        "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create",
         "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
         "mixed_model_lane_run_is_inspectable_through_argus",
         "mixed_model_lane_behaviors_have_manual_coverage",
@@ -2399,6 +2433,9 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge",
         "mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep",
         "ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts",
+        "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions",
+        "ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation",
+        "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create",
         "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
         "coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write",
         "coordinator_cancellation_fence_retries_after_terminal_pg_failure",
@@ -2435,6 +2472,8 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "backend lane/message counts matching native diagnostics rows",
         "Rust coverage matrix/contract entries",
         "FlightRecorder/internal_diagnostics/Palmistry",
+        "stable-lane restart_generation advancement",
+        "exactly-once teardown",
     ] {
         assert!(
             validation_tool["expected_output"]
@@ -2458,6 +2497,7 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "model_lane_behavior_coverage_matrix",
         "verify_model_lane_behavior_coverage",
         "native_swarm_lane_diagnostics",
+        "restart_generation",
         "CRDT",
         "Locus",
         "Loom",
@@ -2484,6 +2524,8 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "argus_count_mismatch",
         "missing_manual_coverage",
         "FlightRecorder-only",
+        "model_lane_restart_generation_conflict",
+        "orphaned_session_teardown",
     ] {
         assert!(
             common_errors.contains(required),
@@ -2499,6 +2541,8 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         .join("\n");
     assert!(recovery_steps.contains("ModelLaneStore::replay_run"));
     assert!(recovery_steps.contains("ModelLaneStore::recover_run_after_restart"));
+    assert!(recovery_steps.contains("claim.attempt N"));
+    assert!(recovery_steps.contains("generation-scoped model_lane/model_lane_terminal"));
     assert!(recovery_steps.contains("Repair missing payloads"));
     assert!(recovery_steps.contains("Reject stale CRDT bases"));
     assert!(recovery_steps.contains("Repair UserManual gaps"));
@@ -2512,6 +2556,72 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
             .contains("--target-dir ..\\\\Handshake_Artifacts\\\\handshake-cargo-target"),
         "validation harness tool metadata must embed external target-dir Cargo commands"
     );
+}
+
+/// WP-1 MT-023: the built-in manual must describe the runtime-proven
+/// worktree-scoped Cloud Hypervisor model-lane path, shipped registry and
+/// detached reclaim without inventing a public Tier3/WarmVm request selector.
+#[tokio::test]
+async fn microvm_worktree_model_lane_user_manual_entry_is_current() {
+    let fx = skip_if_no_pg!(fixture().await, "microvm_worktree_model_lane_manual");
+    let response = fx
+        .http
+        .get(format!("{}/usermanual/pages/microvm-sandbox-kvm", fx.base))
+        .send()
+        .await
+        .expect("read microVM worktree-lane manual page");
+    assert_eq!(response.status(), 200);
+    let page: Value = response.json().await.expect("manual page json");
+    assert_eq!(page["page"]["manual_version"], USER_MANUAL_VERSION);
+    let body = page.to_string();
+
+    for required in [
+        "ModelLaneStore",
+        "SwarmCoordinator",
+        "ProductionModelSessionFactory",
+        "WorktreeVmRegistry",
+        "CloudHypervisorAdapter",
+        "build_production_swarm_coordinator_with_sandbox_registry",
+        "production_process_sandbox_registry_async",
+        "ProcessReclaimRuntime",
+        "routes_with_process_reclaim_runtime",
+        "process_runtime.sandbox_registry()",
+        "IsolationTier::Tier3Microvm",
+        "with_warm_vm_execution()",
+        "/worktree/AGENTS.md",
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
+        "workspace_id",
+        "worktree_id",
+        "cross-account",
+        "ProcessOwnershipLedger",
+        "worktree_model_lane_live_pg_tests",
+        "mt023_real_worktree_model_lane_runs_inside_microvm",
+        "--ignored",
+        "fresh adapter",
+        "WorktreeVmRegistry::teardown_worktree_vm",
+        "Public `/operator-chat/launch`",
+        "WP-KERNEL-012 is unshipped",
+    ] {
+        assert!(
+            body.contains(required),
+            "microVM worktree-lane UserManual page must mention {required}"
+        );
+    }
+    for stale in [
+        "NOT YET WIRED",
+        "The proven run was driven directly against the VMM",
+        "compiled-in default VMM and kernel paths are machine-local",
+        "does not yet register that adapter",
+        "full host-process restart is not proven",
+    ] {
+        assert!(
+            !body.contains(stale),
+            "microVM worktree-lane UserManual page must not retain stale claim {stale}"
+        );
+    }
 }
 
 /// MT-201: page linking — outbound page links and inbound backlinks resolve.

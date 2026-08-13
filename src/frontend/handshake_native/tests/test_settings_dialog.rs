@@ -878,11 +878,13 @@ fn swarm_admission_budget_control_drives_the_live_action_channel_and_persists() 
         "default admission budget is the compiled-in flood ceiling"
     );
 
-    // Drive the wired change through the same outcome the live ComboBox emits (a kittest cannot
-    // reliably click into an egui ComboBox popup item across frames — the same path the Theme /
-    // View Mode proofs use).
-    harness.state_mut().apply_settings_outcome_for_test(
-        handshake_native::settings_dialog::SettingsOutcome::SwarmMaxActionsPerFrameChanged(1),
+    // Drive the visible control through AccessKit/Argus exactly as an out-of-process model does:
+    // open the real ComboBox, then select its stable option node. No SettingsOutcome injection.
+    click_settings_author_id(&mut harness, "settings.swarm-max-actions-per-frame");
+    harness.run();
+    click_settings_author_id(
+        &mut harness,
+        &handshake_native::settings_dialog::swarm_action_budget_option_author_id(1),
     );
     harness.run();
 
@@ -924,6 +926,108 @@ fn swarm_admission_budget_control_drives_the_live_action_channel_and_persists() 
             .and_then(Value::as_u64),
         Some(handshake_native::mcp::MAX_ACTIONS_PER_BURST as u64),
         "persisted blob carries the admission budget"
+    );
+}
+
+/// MT-021: the model-session cap is a distinct real control. This exercises the live AccessKit popup
+/// option, persists the desired project value, proves the exact production GET/PUT request contract,
+/// and confirms the UI continues to expose backend-returned requested/in-force/draining truth.
+#[test]
+fn model_session_concurrency_control_uses_accesskit_and_preserves_runtime_truth() {
+    use handshake_native::backend_client::{
+        HttpMethod, OperatorChatClient, SwarmConcurrencySnapshot,
+    };
+
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let client = OperatorChatClient::new("http://127.0.0.1:37501", handle.clone());
+    let get = client.swarm_concurrency_get_request();
+    assert_eq!(get.method, HttpMethod::Get);
+    assert_eq!(
+        get.url,
+        "http://127.0.0.1:37501/operator-chat/swarm/max-concurrent"
+    );
+    assert_eq!(get.body, None);
+    let put = client.swarm_concurrency_put_request(4);
+    assert_eq!(put.method, HttpMethod::Put);
+    assert_eq!(put.url, get.url);
+    assert_eq!(put.body, Some(serde_json::json!({ "max_concurrent": 4 })));
+
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport.clone());
+    app.set_swarm_concurrency_snapshot_for_test(SwarmConcurrencySnapshot {
+        requested: 2,
+        max_concurrent: 5,
+        fully_applied: false,
+        live_sessions: 5,
+    });
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+    let search = harness.get_by_label("Search settings");
+    search.focus();
+    harness.run();
+    harness.get_by_label("Search settings").type_text("session");
+    harness.run();
+    harness.run();
+    let nodes = settings_author_nodes(&harness);
+    let status = nodes
+        .iter()
+        .find(|(id, _, _)| id == "settings.swarm-model-sessions-max-concurrent.status")
+        .and_then(|(_, _, label)| label.clone())
+        .unwrap_or_else(|| panic!("live coordinator status node; published nodes: {nodes:?}"));
+    for truth in [
+        "Requested: 2",
+        "In force: 5",
+        "Fully applied: false",
+        "Live sessions: 5",
+    ] {
+        assert!(status.contains(truth), "status exposes `{truth}`: {status}");
+    }
+
+    click_settings_author_id(&mut harness, "settings.swarm-model-sessions-max-concurrent");
+    harness.run();
+    click_settings_author_id(
+        &mut harness,
+        &handshake_native::settings_dialog::swarm_model_session_option_author_id(4),
+    );
+    harness.run();
+
+    assert_eq!(
+        harness
+            .state()
+            .workspace_settings()
+            .swarm_model_sessions_max_concurrent,
+        Some(4),
+        "desired cap is stored separately from backend-reported in-force truth"
+    );
+    assert_eq!(
+        harness.state().last_swarm_concurrency_request_for_test(),
+        Some(4),
+        "the live UI selection dispatches the coordinator request"
+    );
+    let status_after_failed_update = settings_author_nodes(&harness)
+        .into_iter()
+        .find(|(id, _, _)| id == "settings.swarm-model-sessions-max-concurrent.status")
+        .and_then(|(_, _, label)| label)
+        .expect("model-session status remains accessible after a failed update");
+    assert!(
+        status_after_failed_update.contains("Update failed: backend unavailable"),
+        "the prior coordinator snapshot must not hide the failed update: {status_after_failed_update}"
+    );
+    assert!(
+        run_until(&mut harness, 60, |_| transport.save_calls() >= 1),
+        "desired cap persisted through the project settings authority"
+    );
+    assert_eq!(
+        transport.saved().and_then(|blob| {
+            blob.pointer("/settings/swarm_model_sessions_max_concurrent")
+                .and_then(Value::as_u64)
+        }),
+        Some(4)
     );
 }
 

@@ -52,8 +52,9 @@ use handshake_core::swarm_orchestration::model_lane::{
     RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
-    stored_resource_scope_from_row, ActorPrincipalId, OwnerAccountId, ResourceAccessContext,
-    ResourceScope, ResourceScopeQuery, ScopeDenied, SystemScopeAuthority, WorkspaceScopeRef,
+    stored_resource_scope_from_row, AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+    OwnerAccountId, ResourceAccessContext, ResourceScope, ResourceScopeError, ResourceScopeQuery,
+    ScopeDenied, StoredResourceScope, SystemScopeAuthority, WorkspaceScopeRef,
     RESOURCE_SCOPE_SELECT_COLUMNS,
 };
 use serde_json::json;
@@ -459,80 +460,119 @@ async fn a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source
     let pool = pg_pool("derived scope non-widening").await;
 
     let owner = OwnerAccountId::mint();
-    let alpha = WorkspaceScopeRef::new("ws-alpha").unwrap();
-    let beta = WorkspaceScopeRef::new("ws-beta").unwrap();
-
-    let source_a = scope_in_workspace(owner, "ws-alpha");
-    let source_b = scope_in_workspace(owner, "ws-beta");
+    let source_actor = ActorPrincipalId::mint();
+    let source_a = ResourceScope::new(owner, source_actor)
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new("ws-alpha").expect("nonblank workspace"));
 
     // HBR-PRIV-004: the derivative inherits an access scope no broader than ALL
-    // contributing sources. The sources disagree on workspace, so the derivative
-    // may claim neither.
-    let derived = ResourceScope::derive_from_sources([&source_a, &source_b], ActorPrincipalId::mint())
-        .expect("same-owner derivation is allowed");
-    assert_eq!(
-        derived.workspace, None,
-        "a derivative must not claim a workspace that is not common to every source"
-    );
-
-    // Persist the derivative for real and prove the narrowing survives the round
-    // trip through PostgreSQL, not just the in-memory computation.
+    // contributing sources. First prove all five exact dimensions survive
+    // PostgreSQL when every source has the same scope.
+    let same_scope_source = source_a.clone();
+    let derived =
+        ResourceScope::derive_from_sources([&source_a, &same_scope_source], source_actor)
+            .expect("same exact-scope derivation is allowed");
+    assert_eq!(derived, source_a, "derivation must preserve all five fields");
     let derived_store = account_store(&pool, &derived);
     let derived_run = seed_run(&derived_store, "derived").await;
 
     let stored =
         stored_scope_without_predicate(&pool, "model_lane_runs", "run_id", &derived_run).await;
-    assert_eq!(stored.owner_account_id, Some(owner));
     assert_eq!(
-        stored.workspace, None,
-        "the persisted derivative must carry the narrowed (absent) workspace"
+        stored,
+        StoredResourceScope::from(&source_a),
+        "the persisted derivative must retain every exact source-scope dimension"
     );
 
-    // Neither source workspace can claim the derivative.
-    let alpha_reader = reader_store(
-        &pool,
-        ResourceScopeQuery::for_owner(owner).within_workspace(alpha.clone()),
-    );
-    let beta_reader = reader_store(
-        &pool,
-        ResourceScopeQuery::for_owner(owner).within_workspace(beta.clone()),
-    );
-    expect_not_found(
-        alpha_reader.replay_run(&derived_run).await,
-        "ws-alpha claiming a narrowed derivative",
-    );
-    expect_not_found(
-        beta_reader.replay_run(&derived_run).await,
-        "ws-beta claiming a narrowed derivative",
-    );
+    let run_count_before_negatives: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_runs")
+            .fetch_one(&pool)
+            .await
+            .expect("count runs before mixed-scope derivation negatives");
 
-    // LAYER 2 for both source scopes.
-    for workspace in [alpha, beta] {
-        let denied = ResourceAccessContext::for_reader(
-            ResourceScopeQuery::for_owner(owner).within_workspace(workspace.clone()),
+    let mut wrong_owner = source_a.clone();
+    wrong_owner.owner_account_id = OwnerAccountId::mint();
+    assert!(matches!(
+        ResourceScope::derive_from_sources([&source_a, &wrong_owner], source_actor)
+            .expect_err("owner mismatch must fail before persistence"),
+        ResourceScopeError::MixedOwnerDerivation { .. }
+    ));
+
+    let mut wrong_actor = source_a.clone();
+    wrong_actor.actor_principal_id = ActorPrincipalId::mint();
+    assert_eq!(
+        ResourceScope::derive_from_sources([&source_a, &wrong_actor], source_actor)
+            .expect_err("actor mismatch must fail before persistence"),
+        ResourceScopeError::MixedActorPrincipalDerivation
+    );
+    assert_eq!(
+        ResourceScope::derive_from_sources(
+            [&source_a, &same_scope_source],
+            ActorPrincipalId::mint(),
         )
-        .authorize_row(&stored)
-        .expect_err("a source workspace must not be able to claim the narrowed derivative");
-        assert_eq!(
-            denied.reason_code(),
-            "RESOURCE_SCOPE_WORKSPACE_MISMATCH",
-            "workspace {workspace} denial must be reported as a workspace mismatch"
-        );
+        .expect_err("actor retarget requires delegation authority this seam does not carry"),
+        ResourceScopeError::DerivativeActorRetargetDenied
+    );
+
+    let mut wrong_session = source_a.clone();
+    wrong_session.authenticated_session = Some(AuthenticatedSessionRef::mint());
+    let mut missing_session = source_a.clone();
+    missing_session.authenticated_session = None;
+    for conflicting in [&wrong_session, &missing_session] {
+        for sources in [[&source_a, conflicting], [conflicting, &source_a]] {
+            assert_eq!(
+                ResourceScope::derive_from_sources(sources, source_actor)
+                    .expect_err("session mismatch must fail in either source order"),
+                ResourceScopeError::MixedAuthenticatedSessionDerivation
+            );
+        }
     }
 
-    // Derivation across two OWNERS is refused outright rather than widened.
-    let other_owner_source = scope_for(OwnerAccountId::mint());
-    ResourceScope::derive_from_sources(
-        [&source_a, &other_owner_source],
-        ActorPrincipalId::mint(),
-    )
-    .expect_err("a derivative must never span two owning accounts");
+    let mut wrong_access_space = source_a.clone();
+    wrong_access_space.access_space = Some(AccessSpaceRef::mint());
+    let mut missing_access_space = source_a.clone();
+    missing_access_space.access_space = None;
+    for conflicting in [&wrong_access_space, &missing_access_space] {
+        for sources in [[&source_a, conflicting], [conflicting, &source_a]] {
+            assert_eq!(
+                ResourceScope::derive_from_sources(sources, source_actor)
+                    .expect_err("AccessSpace mismatch must fail in either source order"),
+                ResourceScopeError::MixedAccessSpaceDerivation
+            );
+        }
+    }
 
-    // POSITIVE CONTROL: the un-narrowed owner scope can still read it.
-    reader_store(&pool, ResourceScopeQuery::for_owner(owner))
+    let mut wrong_workspace = source_a.clone();
+    wrong_workspace.workspace = Some(
+        WorkspaceScopeRef::new("ws-beta").expect("nonblank conflicting workspace"),
+    );
+    let mut missing_workspace = source_a.clone();
+    missing_workspace.workspace = None;
+    for conflicting in [&wrong_workspace, &missing_workspace] {
+        for sources in [[&source_a, conflicting], [conflicting, &source_a]] {
+            assert_eq!(
+                ResourceScope::derive_from_sources(sources, source_actor)
+                    .expect_err("workspace mismatch must fail in either source order"),
+                ResourceScopeError::MixedWorkspaceDerivation
+            );
+        }
+    }
+
+    let run_count_after_negatives: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_runs")
+            .fetch_one(&pool)
+            .await
+            .expect("count runs after mixed-scope derivation negatives");
+    assert_eq!(
+        run_count_after_negatives, run_count_before_negatives,
+        "rejected one-field and missing-field derivations must create no durable row"
+    );
+
+    derived_store
         .replay_run(&derived_run)
         .await
-        .expect("the owning account (with no workspace narrowing) must still read its derivative");
+        .expect("the complete exact source scope must replay its derivative");
 }
 
 // ---------------------------------------------------------------------------

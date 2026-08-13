@@ -564,46 +564,44 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
             ),
             section_with_json(
                 "navigation",
-                "The account-scope header contract (pre-WP-KERNEL-006 seam)",
-                "PURPOSE. ModelLane navigation, ModelLane diagnostics, Palmistry, and \
-                 model-runtime-registry reads are ACCOUNT-SCOPED. Before this seam existed those \
-                 routes returned whatever row matched the id in the path, to anybody who could \
-                 reach the port: the scope was not merely unauthenticated, it was ABSENT — there \
-                 was nowhere in the request to express an owning account, so the store had \
-                 nothing to filter on and the query enumerated the table.\n\n\
-                 WHAT THIS IS NOT. This is NOT authentication. It performs no credential check, \
-                 issues no session, and trusts the caller's claimed account. \
-                 `WP-KERNEL-006` owns the real LocalAccount / Principal / AuthenticatedSession \
-                 layer and the PostgreSQL row-level security that will enforce it; when it lands, \
-                 the same scope is derived from the authenticated session and this header is \
-                 rejected outright. The stores below the seam do not change, because they already \
-                 REQUIRE a scope instead of defaulting to one.\n\n\
-                 USAGE PATH (inputs). Send on every scoped route:\n\n\
-                 - `x-handshake-owner-account` — REQUIRED. The owning account, as a UUID.\n\
-                 - `x-handshake-workspace` — OPTIONAL. Narrows the read to one workspace inside \
-                 that account (the same-project privacy case).\n\n\
-                 OUTPUTS AND FAILURE MODES. A missing, blank, or malformed owner value is \
-                 `403 forbidden` with `RESOURCE_SCOPE_REQUIRED` or `RESOURCE_SCOPE_MALFORMED` — \
-                 NEVER a fallback to returning everything. `403` and not `401`, because there is \
-                 no authentication challenge to issue yet and `401` would imply one exists. A \
-                 present-but-blank workspace value is `RESOURCE_SCOPE_MALFORMED` rather than \
-                 'no workspace filter': silently widening a narrowing header is the exact failure \
-                 this rejects. Rows are filtered in the SQL predicate AND re-authorized after \
-                 deserialization, so another account's row is ABSENT rather than \
-                 denied-with-detail; the storage-level reason codes are \
-                 `RESOURCE_SCOPE_OWNER_MISMATCH` (row belongs to another account), \
-                 `RESOURCE_SCOPE_UNATTRIBUTED` (row has no owning account recorded, denied by \
-                 default), and `RESOURCE_SCOPE_WORKSPACE_MISMATCH`. No denial body ever echoes \
-                 the requested resource id, the stored owner, or anything about whether the \
-                 resource exists — a denial must not become an existence oracle.\n\n\
-                 RECOVERY. A `403` here is a MISSING INPUT, not a broken backend: resend with a \
-                 well-formed `x-handshake-owner-account`. An empty result under a valid scope \
-                 means the row belongs to another account or another workspace — do not retry \
-                 without the header hoping for a wildcard, and do not read the table directly. \
-                 Rows written before this seam carry a NULL owning account and are therefore \
-                 unreadable by every account-scoped reader; that is deliberate (fail closed for \
-                 readers, visibly wrong for auditors) and is repaired by re-recording them \
-                 through an account-scoped store, never by relaxing the reader.\n\n\
+                "The server-owned product-local scope contract (pre-WP-KERNEL-006 seam)",
+                "PURPOSE. ModelLane navigation, diagnostics, Flight Recorder, console, \
+                 operator-chat, and model-runtime-registry resources are bound to one server-owned \
+                 product-local scope: a persisted installation-local exact scope. Tauri creates \
+                 that opaque scope once under its \
+                 application-data root and passes a strict versioned envelope to the backend. \
+                 The backend validates owner account, actor Principal, authenticated session, \
+                 AccessSpace, and workspace before mounting account-facing routes. Request \
+                 headers never create or select authority.\n\n\
+                 WHAT THIS IS NOT. This is NOT multi-user authentication, ResourceGrant, or \
+                 PostgreSQL RLS, and it does not implement `WP-KERNEL-006` or \
+                 `WP-KERNEL-007`. It is one opaque, persisted product-local isolation scope that \
+                 keeps WP-1 resources and derived telemetry attributable and non-widening until \
+                 those later WPs replace the installation-local authority with authenticated \
+                 request context.\n\n\
+                 USAGE PATH (inputs). Normal native requests send no scope headers: the backend \
+                 uses its server-installed exact scope. Advanced HTTP probes MAY send \
+                 `x-handshake-owner-account` and `x-handshake-workspace`, but these are optional \
+                 equality assertions only. They must match the server-owned account and workspace \
+                 exactly and can never select another scope or widen a read.\n\n\
+                 OUTPUTS AND FAILURE MODES. Missing, malformed, incomplete, unknown-version, nil, \
+                 or blank server scope prevents normal scoped service construction; a scoped \
+                 route without installed server authority returns the fixed \
+                 `RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE` response. A malformed optional assertion or \
+                 an assertion that differs from the server scope returns `403 forbidden` with \
+                 `RESOURCE_SCOPE_MISMATCH` and no resource metadata. Rows are prefiltered in \
+                 storage and then compared again \
+                 against all five decoded fields. Foreign, legacy-unattributed, partially \
+                 attributed, and wrong Principal/session/AccessSpace/workspace rows are absent, \
+                 never denied-with-detail.\n\n\
+                 RECOVERY. If the product-local scope file is corrupt or incomplete, restore that \
+                 file from backup. Removing it mints a new opaque scope and makes existing scoped \
+                 sessions, templates, and telemetry inaccessible, so remove it only after \
+                 explicitly acknowledging that recovery consequence. If an optional assertion \
+                 receives `403`, remove the assertion or correct it to match the server scope; do \
+                 not retry with another account id. Legacy rows without complete attribution are \
+                 repaired by re-recording them through the scoped product path, never by relaxing \
+                 the reader.\n\n\
                  AFFECTED PRIMITIVES. Migrations `0363_model_lane_account_resource_scope` and \
                  `0364_model_lane_resource_scope_search_path_repair` added \
                  `owner_account_id`, `actor_principal_id`, `authenticated_session_id`, \
@@ -621,11 +619,13 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                  `SYSTEM_SCOPE_BOOT_RESTART_RECOVERY`. Cross-owner access is therefore never an \
                  accident: it is a typed, enumerable authority, and it is refused from an \
                  account-scoped store.\n\n\
-                 VERIFICATION PROOF. `account_scope::tests::a_request_with_no_scope_header_is_denied_not_widened`; \
-                 `account_scope::tests::a_blank_scope_header_is_treated_as_absent_not_as_a_wildcard`; \
+                 VERIFICATION PROOF. `account_scope::tests::product_local_scope_envelope_is_strict_and_complete`; \
+                 `account_scope::tests::a_missing_server_scope_authority_is_service_unavailable`; \
+                 `account_scope::tests::absent_headers_use_server_authority_without_selecting_scope`; \
                  `account_scope::tests::a_malformed_scope_header_is_denied`; \
                  `account_scope::tests::a_blank_workspace_header_is_malformed_rather_than_a_silent_widening`; \
-                 `account_scope::tests::a_denial_body_never_carries_resource_metadata`; \
+                 `account_scope::tests::matching_headers_yield_the_full_server_owned_exact_scope`; \
+                 `account_scope::tests::mismatched_owner_and_workspace_assertions_are_denied`; \
                  `model_lane_resource_scope_pg_tests::two_accounts_cannot_read_each_others_lane_rows`; \
                  `model_lane_resource_scope_pg_tests::one_account_cannot_read_across_its_own_workspaces`; \
                  `model_lane_resource_scope_pg_tests::an_unattributed_legacy_row_is_denied_not_grandfathered`; \
@@ -645,18 +645,25 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                  projects them in the Problems pane, but no server-side diagnostic event is \
                  emitted for a scope refusal, so repeated cross-account probing by a non-native \
                  HTTP client is not visible there. Follow-up: emit a typed diagnostic event for \
-                 scope denials once the seam is replaced by WP-KERNEL-006 authentication, so the \
-                 event carries a real principal instead of a claimed one.\n\
+                 scope denials once WP-KERNEL-006 supplies authenticated request principals.\n\n\
                  - Tier 3 Palmistry: NOT_APPLICABLE-with-reason. Palmistry is the EXTERNAL \
                  out-of-process watcher that survives a Handshake freeze or crash; a scope \
                  denial is a normal in-process request outcome and is not a survivability event, \
                  so fabricating a Palmistry observation for it would dilute the tier that exists \
                  to prove Handshake stopped answering at all.",
                 json!({
-                    "required_scope_header": "x-handshake-owner-account",
-                    "optional_scope_header": "x-handshake-workspace",
-                    "rejection_status": 403,
-                    "request_reason_codes": ["RESOURCE_SCOPE_REQUIRED", "RESOURCE_SCOPE_MALFORMED"],
+                    "authority_source": "server-owned persisted product-local exact scope",
+                    "optional_equality_assertion_headers": [
+                        "x-handshake-owner-account",
+                        "x-handshake-workspace"
+                    ],
+                    "rejection_status": [403, 503],
+                    "request_reason_codes": [
+                        "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE",
+                        "RESOURCE_SCOPE_REQUIRED",
+                        "RESOURCE_SCOPE_MALFORMED",
+                        "RESOURCE_SCOPE_MISMATCH"
+                    ],
                     "storage_reason_codes": [
                         "RESOURCE_SCOPE_OWNER_MISMATCH",
                         "RESOURCE_SCOPE_UNATTRIBUTED",
@@ -675,6 +682,7 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                     ],
                     "named_cross_owner_authority": "SYSTEM_SCOPE_BOOT_RESTART_RECOVERY",
                     "is_authentication": false,
+                    "implements_wp_kernel_006_or_007": false,
                     "superseded_by": "WP-KERNEL-006"
                 }),
             ),
@@ -843,6 +851,22 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  and evict the session.\n\
                  - 404 `cli_login_session_not_found` for any unknown or already-evicted session id.\n\n\
                  There is no route to read a stored key back out over HTTP.",
+            ),
+            section(
+                "safety",
+                "Cloud consent / export posture is explicitly NOT WIRED",
+                "The Cloud Models section exposes this missing capability truthfully instead of \
+                 inventing an allow/deny state. `settings.cloud.consent.status` is the stable summary \
+                 node. Each configured provider lane exposes \
+                 `settings.cloud.consent.{provider}.posture`; its visible token is `NOT WIRED`, because \
+                 production `CloudLaneObservability.consent` is currently `None` and no consent \
+                 mutation route exists. These are read-only status nodes, not controls. Do not infer \
+                 consent from configured credentials or CLI login status. Recovery: use only a \
+                 workflow whose real consent authority is available; otherwise the cloud export \
+                 remains unavailable. Diagnostic posture: Tier-1 Flight Recorder/EventLedger records \
+                 actual cloud-access and denial events when an authority exists, while Tier-2 \
+                 internal_diagnostics and Tier-3 Palmistry remain observers and cannot manufacture \
+                 consent.",
             ),
             section(
                 "navigation",
@@ -1063,7 +1087,8 @@ fn page_wp1_orchestration_console() -> NewUserManualPage {
          from a live text stream — no pop-out window screenshot required.\n\n\
          Connect with `GET /wp1/diagnostics/console/stream` (`Accept: text/event-stream`). On connect \
          the endpoint replays the bounded recent history, then follows the live tail. Each event is a \
-         `hsk.wp1_console_entry@1` record with fields: `seq` (monotonic, stable row identity), \
+         `hsk.wp1_console_entry@1` record with fields: `seq` (contiguous, subscriber-local \
+         visible sequence; never a global producer count), \
          `ts_unix_ms`, `severity` (`debug|info|warn|error`), `category` (`model_lane_launch`, \
          `model_lane_status`, `model_invocation`, `resource`, `breaker`, `lease`, `spawn_rejected`, \
          `promotion`, `cloud_access`, `process`, `pane`, `system`), `subject`, `detail`, and optional \
@@ -1072,14 +1097,19 @@ fn page_wp1_orchestration_console() -> NewUserManualPage {
             section(
                 "navigation",
                 "Headless usage",
-                "No-context probe (curl):\n\n\
+                "Operator navigation: open MODELS > WP-1 Orchestration Console. The stable menu item \
+                 is `menu.models.wp1-orchestration-console`; it navigates to the same native pane that \
+                 consumes the stream below.\n\n\
+                 No-context probe (curl):\n\n\
                  `curl -N http://127.0.0.1:37501/wp1/diagnostics/console/stream`\n\n\
                  `-N` disables buffering so events print as they arrive. Trigger any WP-1 lane launch \
                  (e.g. `POST /operator-chat/launch`) and watch `model_lane_launch` / `model_lane_status` \
                  / `model_invocation` entries stream in. The native shell tails the SAME endpoint into \
                  the live console pane (reusing the debug-console widget with a category filter and \
-                 auto-follow). A subscriber that falls behind the ring receives a `console_lagged` \
-                 event carrying the number of dropped entries, so a gap is never silent.",
+                 auto-follow). Global lag counts are deliberately suppressed because they could \
+                 reveal activity outside the subscriber's exact scope. If a subscriber falls \
+                 behind, reconnect for bounded scoped replay and use Flight Recorder/EventLedger \
+                 for durable completeness.",
             ),
             section(
                 "safety",
@@ -1359,9 +1389,10 @@ fn page_swarm_budget_and_spawn_rejection() -> NewUserManualPage {
                  fingerprint, `detail` = `circuit breaker tripped after N consecutive \
                  failures`.\n\n\
                  The console tee can never fail the coordinator — its `emit` always returns \
-                 `Ok`, and it is composed AFTER the durable sink. A subscriber that falls behind \
-                 the ring gets a `console_lagged` event carrying the dropped count, so a gap is \
-                 never silent. See [[wp1-orchestration-console]].",
+                 `Ok`, and it is composed AFTER the durable sink. Global lag counts are suppressed \
+                 to avoid leaking cross-scope activity; a subscriber that falls behind reconnects \
+                 for bounded scoped replay and uses Flight Recorder/EventLedger for durable \
+                 completeness. See [[wp1-orchestration-console]].",
             ),
             section(
                 "recovery",
@@ -2223,26 +2254,39 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
             section(
                 "run_commands",
                 "Proof commands",
-                "Exact Rust proof targets: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests` \
-                  (a valid embedded load emits a pid-less START keyed on the minted UUIDv7, while \
-                   invalid/duplicate returned identities receive distinct quarantine START rows; the graceful- \
-                  shutdown sequence flushes the STOP through the background writer; the hard-crash \
-                  orphan-reconcile sweep closes a stale pid-less embedded START; both the primary \
-                  chat model and optional dedicated embedding model get START/STOP rows; supplied \
-                  ledger START failure fails closed instead of leaving an active unledgered client); \
-                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests` \
-                  (fail-closed and embedding Flight Recorder events on every call path, including \
-                  DisabledLlmClient::embedding, with `data_embedding_computed` using the validated \
-                  Flight Recorder payload shape); \
-                  `cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests` \
-                  (reserved STOP capacity survives retained-batch store failure/recovery and \
-                  invalid batch sizing fails closed); \
-                  `cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --lib candle_stream_reserves_terminal_slot_under_saturated_cancellation` \
-                  and `cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,llama-cpp-runtime-engine\" --lib llama_stream_reserves_terminal_slot_under_saturated_cancellation` \
-                  prove saturated cancellation preserves the explicit terminal outcome. These are supporting deterministic proofs; MT-013 \
-                  READY_FOR_VALIDATION additionally requires the live real-load proof command \
-                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture` \
+                "Before running Cargo, set `CARGO_TARGET_DIR` to an absolute per-owner child of the \
+                 external artifacts root, never to the shared `handshake-cargo-target` root. \
+                 PowerShell: `$env:CARGO_TARGET_DIR = Join-Path $env:HANDSHAKE_ARTIFACTS_DIR \
+                 'handshake-cargo-target/<owner-slug>'`. POSIX: \
+                 `export CARGO_TARGET_DIR=\"$HANDSHAKE_ARTIFACTS_DIR/handshake-cargo-target/<owner-slug>\"`. \
+                 For the embedded-ledger, local-routing, and process-ledger-writer suites, use template-owned \
+                 PostgreSQL mode: unset `POSTGRES_TEST_URL` and `DATABASE_URL`, set \
+                 `HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1` and `HANDSHAKE_MANAGED_PG_ENABLED=1`, and assign \
+                 a fresh per-run `HANDSHAKE_MANAGED_PG_DATA_DIR` plus a free `HANDSHAKE_MANAGED_PG_PORT`. \
+                 Owned-cluster shutdown uses a separate, fixed 120-second budget so a loaded final \
+                 checkpoint is not constrained by the 30-second startup budget. \
+                 Exact Rust proof targets: \
+                 `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests` \
+                   (a valid embedded load emits a pid-less START keyed on the minted UUIDv7, while \
+                    invalid/duplicate returned identities receive distinct quarantine START rows; the graceful- \
+                   shutdown sequence flushes the STOP through the background writer; the hard-crash \
+                   orphan-reconcile sweep closes a stale pid-less embedded START; both the primary \
+                   chat model and optional dedicated embedding model get START/STOP rows; supplied \
+                   ledger START failure fails closed instead of leaving an active unledgered client); \
+                  `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests` \
+                   (fail-closed and embedding Flight Recorder events on every call path, including \
+                   DisabledLlmClient::embedding, with `data_embedding_computed` using the validated \
+                   Flight Recorder payload shape); \
+                  `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests` \
+                   (reserved STOP capacity survives retained-batch store failure/recovery and \
+                   invalid batch sizing fails closed); \
+                  `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --lib model_runtime::candle::generate::activity_tests::bounded_stream_reserves_terminal_slot_and_cancellation_releases_full_worker -- --exact` \
+                  and `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,llama-cpp-runtime-engine\" --lib llama_stream_reserves_terminal_slot_under_saturated_cancellation` \
+                   prove saturated cancellation preserves the explicit terminal outcome. These are supporting deterministic proofs; MT-013 \
+                  READY_FOR_VALIDATION additionally requires external PostgreSQL mode with \
+                  `POSTGRES_TEST_URL` set to the dedicated test database and the template-mode variables unset, \
+                  then the live real-load proof command \
+                  `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture` \
                   with `HANDSHAKE_TEST_CANDLE_MODEL_DIR` pointing at real Candle weights and output \
                   containing `[MT-013_REAL_CANDLE_LEDGER_DUMP]` with matching START/STOP rows. The \
                   deterministic suite exercises real PostgreSQL/EventLedger for the orphan-reconcile \
@@ -2518,12 +2562,22 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  INPUTS. `PUT` body: `{\"max_concurrent\": <integer>}`. A value below 1 is clamped \
                  to 1 — there is no 'zero concurrency' setting, because that would be a stop \
                  button disguised as a slider. `GET` takes no body.\n\n\
-                 OUTPUTS. `GET` returns `{max_concurrent, live_sessions}`. `PUT` returns \
+                 OUTPUTS. Both `GET` and `PUT` return \
                  `{requested, max_concurrent, fully_applied, live_sessions}`, where \
                  `max_concurrent` is the cap in force AFTER the change and `fully_applied` is \
                  whether that cap equals the CLAMPED request (so asking for 0 and getting 1 is a \
                  full application, not a partial one). Read those two fields, not the echo of \
                  `requested`.\n\n\
+                 SETTINGS CONTROLS. Settings > Swarm exposes TWO intentionally separate controls. \
+                 `settings.swarm-model-sessions-max-concurrent` changes this model-session cap through \
+                 the GET/PUT routes above and displays the route's `requested`, in-force \
+                 `max_concurrent`, `fully_applied`, and `live_sessions` fields in \
+                 `settings.swarm-model-sessions-max-concurrent.status`. The desired value is persisted \
+                 in the current project's settings as `swarm_model_sessions_max_concurrent`; an absent \
+                 value performs a read-only GET and does not overwrite the coordinator. \
+                 `settings.swarm-max-actions-per-frame` is different: it persists \
+                 `swarm_max_actions_per_frame` and bounds queued MCP/Argus UI actions admitted per \
+                 frame. It does NOT change live model-session admission.\n\n\
                  RAISING IS IMMEDIATE, LOWERING IS COOPERATIVE — this asymmetry is the whole \
                  point of the route. Raising adds permits to the live semaphore at once, so the \
                  next spawn can use them. Lowering reclaims ONLY the permits that are free right \
@@ -2561,13 +2615,16 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  internal_diagnostics and Tier-3 Palmistry inherit this surface's posture stated \
                  above: both are wired observers of the operator-chat runtime and neither becomes \
                  the authority for the cap.\n\n\
-                 VERIFICATION PROOF, STATED HONESTLY. Both methods are rows of \
+                 VERIFICATION PROOF. Both methods are rows of \
                  `wp009_surface_registry` and are probed against the REAL product router by \
                  `mtdoc_every_registry_surface_exists_on_the_real_router`, so a removed route or \
                  a wrong documented method fails the build; the MT-195 coverage gate and the tool \
-                 catalog cover them as well. There is NO dedicated behavioural proof target for \
-                 the cooperative-lowering semantics described above — that gap is real and is \
-                 recorded here rather than papered over with a proof name that does not exist.",
+                 catalog cover them as well. Dedicated coordinator proofs are \
+                 `mt021_lowering_max_concurrent_is_cooperative_and_converges_to_the_request`, \
+                 `mt021_raising_max_concurrent_admits_at_once_and_cancels_a_pending_lowering`, and \
+                 `mt021_max_concurrent_of_zero_is_clamped_to_one_not_wedged`. The native Settings proof \
+                 drives the model-session control through its live AccessKit node and verifies the \
+                 exact GET/PUT request shape plus project-settings persistence.",
                 json!({
                     "read_route": "GET /operator-chat/swarm/max-concurrent",
                     "write_route": "PUT /operator-chat/swarm/max-concurrent",
@@ -2772,6 +2829,17 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  ProcessOwnershipLedger STOP; the durable receipt advances through \
                  `teardown_succeeded` to `completed`. Terminal writes serialize \
                  per lane before any competing completed/failed/cancelled status can append. A \
+                 concurrent terminal caller waits on the cleanup owner's observable progress; \
+                 if that owner finishes, the waiter observes completion, and if it drops, the \
+                 waiter adopts the pending generation. Terminal cleanup runs in a \
+                 coordinator-owned task so cancellation of the requesting routing-stage future \
+                 cannot abandon teardown. Routing recovery preserves the canonical lane_id: \
+                 `dispatch_ready_routing_stages` maps `claim.attempt` N to \
+                 `DexterityLaunchContract::restart_generation` N-1. Generation zero keeps the \
+                 legacy EventLedger idempotency key; later generations use generation-scoped \
+                 launch and terminal keys. A stable lane may advance only one generation from \
+                 Failed or Cancelled, and a skipped generation or changed stable lane authority \
+                 fails closed as an idempotency conflict. A \
                  runtime terminal Failed state records a `terminal-failure://dexterity/<lane_id>` \
                  failure ref instead of leaving the ModelLane failure shape incomplete. Official \
                  CLI execution uses the HandshakeNative attached-sandbox contract: the sandbox \
@@ -2804,6 +2872,8 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib model_runtime::cloud::official_cli_bridge::tests::explicit_failed_terminate_leaves_start_open_without_stop -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests failed_termination_with_never_eof_pipe_returns_within_cleanup_deadline -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_timeout_polling -- --exact`; \
@@ -2816,8 +2886,8 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  PostgreSQL/EventLedger stream rows, production builder store wiring, factory \
                  failure persistence, fail-closed bypass rejection, no Ready/runtime exposure \
                  before ModelLane persistence, cancellation boundaries, durable cancellation \
-                 terminal state, retryable terminal intent before runtime teardown, per-lane \
-                 terminal serialization, \
+                 terminal state, retryable terminal intent before runtime teardown, cleanup-owner \
+                 adoption, stable-lane restart generations, per-lane terminal serialization, \
                  reclaim policy, terminal status mapping, startup failure rows, manual parity, \
                  and no-OS-process equivalents. `docs/model-manual`, `app/MODEL_MANUAL.md`, \
                  and npm/JavaScript proof are reference-only and never launch authority.",
@@ -3072,7 +3142,10 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  idempotency key, replay order key, and diagnostic payload. Selection state is one of \
                  `selected`, `rejected`, `unresolved`, or `superseded`. The row-level \
                  `context_bundle_hash` covers the replayable handoff payload while the \
-                 `context_bundle_id` groups multiple handoffs for one downstream replay.",
+                 `context_bundle_id` groups multiple handoffs for one downstream replay. Both \
+                 artifact bindings and handoffs retain the server-derived exact resource scope: \
+                 `owner_account_id`, `actor_principal_id`, `authenticated_session_id`, \
+                 `access_space_id`, and `workspace_id`.",
                 json!({
                     "kernel": "Dexterity",
                     "artifact_schema_id": "hsk.model_lane_context_bundle_artifact@1",
@@ -3101,6 +3174,13 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                     "coordinator_api": "SwarmCoordinator::context_bundle_for_downstream_lane(run_id, context_bundle_id, downstream_lane_id)",
                     "adapter_invocation_api": "SwarmCoordinator::invoke_downstream_context_bundle(run_id, context_bundle_id, downstream_lane_id, adapter, actor)",
                     "kernel_conversion": "ModelLaneDownstreamContextBundle::to_kernel_context_bundle"
+                    ,"resource_scope_fields": [
+                        "owner_account_id",
+                        "actor_principal_id",
+                        "authenticated_session_id",
+                        "access_space_id",
+                        "workspace_id"
+                    ]
                 }),
             ),
             section(
@@ -3119,7 +3199,11 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  and source-lane parity, requires `artifact_ref`, `artifact_sha256`, and \
                  `content_hash` to match both the source message and artifact binding, appends \
                  `CONTEXT_BUNDLE_RECORDED` to EventLedger, stamps the final EventLedger id/seq \
-                 into the row payload, and stores the replay row. A downstream lane uses \
+                 plus the exact five-field resource scope into the row and EventLedger payload, \
+                 and stores the replay row. Construct the store with `ModelLaneStore::new_scoped`; \
+                 its server-derived scope is authority, and a derivative cannot retarget any \
+                 owner, Principal, authenticated session, AccessSpace, or workspace field. \
+                 A downstream lane uses \
                  `ModelLaneStore::consume_context_bundle_for_downstream` or \
                  `SwarmCoordinator::context_bundle_for_downstream_lane` to resolve only \
                  handoffs addressed to its lane in `event_ledger_seq` order and can convert the \
@@ -3210,7 +3294,10 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  value, `authority_effect` is not `advisory_only`, or \
                  `promotion_receipt_ref` is non-null while advisory, Loom evidence refs are missing or use non-EventLedger / \
                  non-Flight Recorder prefixes, or idempotency is reused with a different \
-                 `context_bundle_hash` or `artifact_binding_hash`. Fabricated CRDT authority, \
+                 `context_bundle_hash` or `artifact_binding_hash`. Missing or mismatched exact \
+                 owner/Principal/session/AccessSpace/workspace authority is default-denied at \
+                 SQL and post-decode boundaries; a session or AccessSpace switch cannot retarget \
+                 an existing ContextBundle or derived artifact ref. Fabricated CRDT authority, \
                  mismatched artifact/lease refs, and tampered projections are rejected inside the \
                  admission transaction: these forged values fail closed before any handoff row is written, \
                  so no `model_lane_context_bundle_handoffs` row is persisted on any denied path.",
@@ -3233,7 +3320,8 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  `artifact_binding_hash`, `selection_state`, `source_message_id`, \
                  `downstream_lane_id`, `artifact_ref`, `artifact_sha256`, `content_hash`, \
                  `context_bundle_hash`, `event_ledger_event_id`, `event_ledger_seq`, \
-                 `work_packet_id`, `micro_task_id`, `task_board_id`, \
+                 `work_packet_id`, `micro_task_id`, `task_board_id`, `owner_account_id`, \
+                 `actor_principal_id`, `authenticated_session_id`, `access_space_id`, `workspace_id`, \
                  `crdt_payload.state_vector`, `crdt_payload.base_snapshot_ref`, \
                  `crdt_payload.materialized_projection_hash`, `crdt_payload.replay_metadata`, \
                  `crdt_payload.promotion_gate_ref`, `crdt_payload.validation_runner_ref`, and the \
@@ -3342,9 +3430,9 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `AccountBoundAuthority` — either `AccountBoundAuthority::Account` (owning \
                  account plus actor principal, and optionally authenticated session, access \
                  space, and workspace) or `AccountBoundAuthority::Unattributed` with a stable \
-                 machine-readable reason. It is DERIVED SERVER-SIDE from the store's access \
-                 context (the request seam is the `x-handshake-owner-account` header today; an \
-                 authenticated session after WP-KERNEL-006) and can never be supplied by the \
+                 machine-readable reason. It is DERIVED SERVER-SIDE from the persisted \
+                 product-local exact scope today (authenticated request authority remains \
+                 WP-KERNEL-006/007 work) and can never be supplied by the \
                  caller's payload: a receipt naming an account the store may not write as is \
                  refused. Only `approver` decides whether a receipt may authorize a cloud \
                  export; an `AccountBoundAuthority::Unattributed` approver satisfies no \
@@ -3621,6 +3709,24 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  because replay remains checkpoint-bounded.",
             ),
             section(
+                "safety",
+                "Recovery scope and stale authority",
+                "Every account-owned recovery child write inherits the canonical run's exact \
+                 five-dimensional resource scope: owner account, actor principal, authenticated \
+                 session, AccessSpace, and workspace. The parent run and lane must match that \
+                 server-owned scope before the write; a caller cannot retarget a checkpoint, \
+                 recovery event, lease, diagnostic tier, or MT runtime status by supplying a run \
+                 or lane identifier from another scope. The same resource_scope is recorded in \
+                 the recovery child's EventLedger payload and checked against the canonical run \
+                 during restart recovery. A stale successor session and each other wrong scope \
+                 receive the same absent-shaped result with no restricted identifiers. If the \
+                 account-facing server has no complete ResourceScopeQuery, recovery navigation \
+                 fails closed as RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE. The explicit system \
+                 recovery path may traverse owners during boot, but it validates each recovered \
+                 child's scope against its canonical run and never converts an account-scoped \
+                 parent into an unscoped legacy row.",
+            ),
+            section(
                 "navigation",
                 "Diagnostics and operators",
                 "HBR-INT-009 is represented by `ModelLaneDiagnosticTierStatusRecord` with \
@@ -3696,6 +3802,8 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_preserves_exact_scope_and_denies_foreign_stale_replay -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_scope_api_pg_tests recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_recovery_user_manual_entry_is_current -- --exact`.",
             ),
         ],
@@ -4230,7 +4338,11 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  only replayable authority. Production routing permits at most three durable \
                  attempts for one stage. Exhaustion records `bounded_recovery_exhausted`, never \
                  creates attempt four, and an AfterFailure fallback receives the canonical initial \
-                 input plus typed failed-predecessor state and causal message-span linkage. Never \
+                 input plus typed failed-predecessor state and causal message-span linkage. A \
+                 recovered routing attempt keeps the canonical lane_id while mapping attempt N \
+                 to `restart_generation` N-1. The ModelLane projection advances only from a \
+                 durable Failed or Cancelled prior generation, and EventLedger launch/terminal \
+                 idempotency keys are generation-scoped after generation zero. Never \
                  repair an advisory routing output by inventing a `crdt-*://` URI; either keep all \
                  CRDT fields null or commit a real Yjs v1 update and derived state vector first. \
                  On the `Proposal`-kind CRDT path, negative proof must also reject a fabricated \
@@ -4259,6 +4371,9 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact`; \
@@ -4280,7 +4395,11 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  and compare backend lane/message counts to native diagnostics rows. Then \
                  inspect `ModelLaneStore::recover_run_after_restart` for checkpoint high-water \
                  mark, recovery events, active/reclaimable leases, cloud consent denials, and \
-                  MT runtime status. For CRDT failures, lock and replay the cited append-only \
+                  MT runtime status. For a routing-stage crash, compare `claim.attempt` with the \
+                  durable lane `restart_generation`, verify the prior generation is terminal, \
+                  and inspect generation-scoped `model-lane:<run>:<lane>:restart:<generation>` \
+                  and `model-lane-terminal:<lane>:restart:<generation>` EventLedger keys. For \
+                  CRDT failures, lock and replay the cited append-only \
                   snapshot plus contiguous dependency-resolved updates, then compare the durable \
                   authority binding, derived vector, materialized projection hash, and EventLedger \
                   identity/payload/hash evidence before promotion. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer.",
@@ -4674,10 +4793,10 @@ fn page_kernel_write_governance() -> NewUserManualPage {
 /// model needs to know to run a model inside a microVM rather than beside the
 /// host.
 ///
-/// Posture is written honestly and deliberately: the CAPABILITY is proven at
-/// runtime, the LANE WIRING is not. A page claiming an operator can launch a
-/// worktree-scoped VM lane today would be false, and this manual is read by
-/// models with no other source of truth.
+/// Posture is written honestly and deliberately: the capability, production
+/// lane wiring, application registry, and detached reclaim are runtime-proven.
+/// The public operator request selector is a separate boundary and is called
+/// out instead of being inferred from registry availability.
 fn page_microvm_sandbox() -> NewUserManualPage {
     NewUserManualPage {
         slug: "microvm-sandbox-kvm".into(),
@@ -4691,9 +4810,10 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                 "Why this page exists",
                 "Handshake can run a model inside a hardware-isolated microVM instead of beside \
                  your files. The VM gets its own kernel, its own memory, and only what you put \
-                 in its image; it cannot read the host filesystem. This is the isolation wall \
-                 for running untrusted or experimental model work, and it is what makes it safe \
-                 to hand a model a folder and let it act.\n\n\
+                 in its image; it cannot read the host filesystem. A worktree lane copies only \
+                 its canonical worktree into the guest as the read-only `/worktree` bind. This \
+                 is the isolation wall for running untrusted or experimental model work, and it \
+                 is what makes it safe to hand a model a scoped folder and let it act.\n\n\
                  IMPORTANT TERMINOLOGY: Handshake does not, and cannot, 'contain a /dev/kvm'. \
                  `/dev/kvm` is a Linux kernel device node exposed by the kvm module. What \
                  Handshake does is BUNDLE AND DRIVE a virtual machine monitor that talks to it. \
@@ -4709,39 +4829,74 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                  write that device, normally by membership of the `kvm` group. Root is NOT \
                  required.\n\
                  - Guest kernel: an uncompressed `vmlinux` image.\n\
-                 - Guest image: an initramfs (cpio) holding busybox, the inference binary, and \
-                 the model weights. Everything the model may touch is what you put in this file, \
-                 which is precisely why the isolation holds.\n\
+                 - Guest image: an initramfs (cpio) holding busybox, the inference binary, model \
+                 weights, and declared bind contents. Everything the model may touch is copied \
+                 into this file, which is precisely why the isolation holds.\n\
                  - Guest binary: the inference executable MUST be statically linked. A busybox \
                  initramfs has no libc, so a dynamically linked binary cannot start.\n\
-                 - Entry contract: the init reads `hsk.cmd=<base64>` from the kernel command \
-                 line, runs it, and brackets the result with `---HSK-BEGIN---` / \
-                 `---HSK-END rc=<code>---`, then powers the VM down.",
+                 - Worktree authority: `WorktreeVmRegistry` durably maps the five-part resource \
+                 scope (`owner_account_id`, `actor_principal_id`, `authenticated_session_id`, \
+                 `access_space_id`, and `workspace_id`) plus `worktree_id` to the adapter handle, \
+                 snapshot, lifecycle state, and generation in PostgreSQL. Reads and mutations \
+                 re-check the same scope.\n\
+                 - Launch path: `ModelLaneStore -> SwarmCoordinator -> \
+                 ProductionModelSessionFactory -> WorktreeVmRegistry -> \
+                 CloudHypervisorAdapter -> hsk-warm-agent -> llama-server`. The worktree never \
+                 bypasses this chain in the production proof.\n\
+                 - Guest channel: the resident warm agent multiplexes the JSONL model protocol \
+                 with the adapter's bounded `HSK-EXEC` channel, so the same live VM can prove its \
+                 worktree identity and then stream model tokens.",
             ),
             section(
                 "workflows",
                 "Running a model inside the VM",
-                "1. Confirm the hardware path: `/dev/kvm` exists and your account can read and \
-                 write it.\n\
-                 2. Point Handshake at the VMM and kernel. Every path is overridable through \
-                 `HANDSHAKE_CH_*` (`HANDSHAKE_CH_BIN`, `HANDSHAKE_CH_REMOTE_BIN`, \
-                 `HANDSHAKE_CH_KERNEL`, `HANDSHAKE_CH_INITRAMFS`, `HANDSHAKE_CH_WORK_DIR`, \
-                 `HANDSHAKE_CH_MEMORY_MIB`, `HANDSHAKE_CH_VCPUS`). ALWAYS set these rather than \
-                 relying on the compiled-in defaults, which are machine-local paths.\n\
-                 3. Build a guest image containing a statically linked inference binary and the \
-                 model file.\n\
-                 4. Size memory above the image: the initramfs is unpacked into guest RAM, so \
-                 memory must exceed image size plus the model's working set. A ~61 MiB image \
-                 with a 68M-parameter model runs comfortably in 3072 MiB.\n\
-                 5. Read the result between the `---HSK-BEGIN---` / `---HSK-END---` markers on \
-                 the serial log.",
+                "1. Confirm the hardware path: `/dev/kvm` exists and the WSL account can read and \
+                 write it. Adapter startup retries only the measured cold-boot case where static \
+                 resources are ready but `/dev/kvm` has not appeared yet.\n\
+                 2. Configure the VMM, kernel, work root, memory, CPU, command timeout, and probe \
+                 timeout through `HANDSHAKE_CH_*`. Path defaults resolve at runtime from \
+                 `HANDSHAKE_SANDBOX_ROOT`, then the user profile, then a relative fallback; \
+                 overrides remain the portable machine-local control.\n\
+                 3. Build and validate the static guest package with `hsk-warm-agent-package`. \
+                 `HANDSHAKE_CH_WARM_AGENT_HOST_PATH` must point at its manifest-matched agent and \
+                 `HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH` at its sibling static `llama-server`.\n\
+                 4. Application startup calls `production_process_sandbox_registry_async`, \
+                 gives that registry to `ProcessReclaimRuntime`, and \
+                 `routes_with_process_reclaim_runtime` passes \
+                 `process_runtime.sandbox_registry()` to the production launch factory. For a \
+                 programmatic VM lane, create a scoped `ModelLaneStore`, use \
+                 `build_production_swarm_coordinator_with_sandbox_registry`, and attach the \
+                 `DexterityLaunchContract` to a local LlamaCpp `SpawnRequest` with \
+                 `IsolationTier::Tier3Microvm`, `with_warm_vm_execution()`, `worktree_id`, the \
+                 canonical working directory, GGUF path, and GGUF SHA-256. Missing worktree, \
+                 package, scope, hash, selector, or adapter fails closed before a lane is exposed \
+                 as READY.\n\
+                 5. Expected outputs are a READY coordinator session, a scoped durable running \
+                 VM binding, real token frames from the guest model, then a terminal binding and \
+                 ProcessOwnershipLedger START/STOP after cancel or teardown.\n\
+                 6. From the product worktree root, set a per-owner external \
+                 `CARGO_TARGET_DIR`, then run \
+                 `cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 \
+                 --test worktree_model_lane_live_pg_tests \
+                 mt023_real_worktree_model_lane_runs_inside_microvm -- --ignored --exact \
+                 --nocapture --test-threads=1`. PostgreSQL has three supported, mutually \
+                 exclusive modes: `POSTGRES_TEST_URL`, `DATABASE_URL`, or the task-owned managed \
+                 template. For the managed-template proof, unset both URL variables and set \
+                 `HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1`, a fresh \
+                 `HANDSHAKE_MANAGED_PG_DATA_DIR` under the external `Handshake_Artifacts` root, \
+                 and a verified free `HANDSHAKE_MANAGED_PG_PORT`. Never combine template and URL \
+                 modes. The proof also requires `HANDSHAKE_MT023_LIVE=1`, the worktree root, GGUF \
+                 path/hash, static package paths, sandbox root, and Cloud Hypervisor \
+                 resource/time budgets.",
             ),
             section_with_json(
                 "workflows",
                 "Proven runtime evidence",
                 "This page documents behaviour that was observed, not intended. A 68M-parameter \
                  GGUF model was loaded INSIDE the guest and generated real tokens, while the \
-                 same command confirmed the guest could see nothing of the host filesystem.",
+                 lane then generated real tokens. The guest independently hashed \
+                 `/worktree/AGENTS.md` and read `/worktree/.git`; both matched the canonical host \
+                 worktree while unrelated host filesystem content remained absent.",
                 json!({
                     "vmm": "cloud-hypervisor v52.0",
                     "guest_kernel": "vmlinux-6.1.102",
@@ -4752,7 +4907,27 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                     "model_buffer": "48.10 MiB CPU_Mapped",
                     "decoded_tokens": 24,
                     "speed_tokens_per_second": 287.74,
-                    "exit": "rc=0 then ACPI S5 power down"
+                    "exit": "rc=0 then ACPI S5 power down",
+                    "production_chain": [
+                        "ModelLaneStore",
+                        "SwarmCoordinator",
+                        "ProductionModelSessionFactory",
+                        "WorktreeVmRegistry",
+                        "CloudHypervisorAdapter"
+                    ],
+                    "worktree_identity_verified_in_guest": true,
+                    "durable_scope_verified": [
+                        "owner_account_id",
+                        "actor_principal_id",
+                        "authenticated_session_id",
+                        "access_space_id",
+                        "workspace_id"
+                    ],
+                    "worktree_id_bound_separately": true,
+                    "cross_account_control_denied": true,
+                    "real_guest_tokens_generated": true,
+                    "fresh_adapter_can_inspect_and_reclaim_durable_vm": true,
+                    "cancel_left_no_live_vm_or_persistent_root": true
                 }),
             ),
             section(
@@ -4771,37 +4946,67 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                  linked. Rebuild statically.\n\
                  - Static link fails with 'attempted static link of dynamic object libgomp.so': \
                  OpenMP is dynamic-only on that host. Build with OpenMP disabled.\n\
-                 - Guest boots but the model is absent: the weights were not copied INTO the \
-                 image. The guest cannot reach host paths - that is the isolation working.",
+                 - Guest boots but the model is absent: the weights or validated warm package were \
+                 not copied INTO the image. The guest cannot reach arbitrary host paths - that is \
+                 the isolation working.\n\
+                 - Canonical host bind begins `\\\\?\\D:\\...`: this is the normal \
+                 `std::fs::canonicalize` form on Windows. The adapter translates canonical drive \
+                 paths to `/mnt/<drive>/...`; relative and UNC paths still fail closed.\n\
+                 - Warm JSON decode reports leading NUL evidence: Cloud Hypervisor's serial \
+                 boundary may prefix a newly connected line with `0x00`. The guest strips only \
+                 leading NUL padding; interior/trailing NULs still fail protocol decoding.\n\
+                 - Durable binding survives but the warm transport was owned by the old adapter: \
+                 a fresh Cloud Hypervisor adapter can inspect and reclaim the exact durable VM, \
+                 but cannot resume the lost in-memory token transport. Call \
+                 `WorktreeVmRegistry::teardown_worktree_vm`, verify the binding becomes terminal, \
+                 then relaunch or restore rather than treating a PostgreSQL row as a live channel.\n\
+                 - The async production registry omits `cloud_hypervisor`: its real availability \
+                 probe failed, so startup skipped an unavailable Tier-3 adapter. Check the \
+                 configured binary, kernel, initramfs, work root, `/dev/kvm`, and probe timeout; \
+                 the exact live registry proof sets `HANDSHAKE_CH_REQUIRE=1` so omission fails.\n\
+                 - Public `/operator-chat/launch` receives the full shipped registry but does not \
+                 yet expose `Tier3Microvm` / `WarmVm` selection. A local request through that \
+                 public contract remains an ordinary local lane; use the governed programmatic \
+                 SpawnRequest path above until the public selector is shipped.",
             ),
             section(
                 "failure_modes",
                 "HBR-INT-009 diagnostic posture",
-                "- Tier 1 Flight Recorder / EventLedger: DEFERRED-with-reason. The proven run was \
-                 driven directly against the VMM, so no model-lane run row exists for it yet. \
-                 Follow-up: emit the lane's process-ledger START/STOP across the VM boundary once \
-                 the lane wiring lands.\n\
+                "- Tier 1 durable lane and lifecycle evidence: WIRED. The runtime proof replays the \
+                 scoped ModelLane row, reconstructs the durable WorktreeVmRegistry binding through \
+                 a fresh registry component, and reads the matching ProcessOwnershipLedger \
+                 START/STOP after operator cancellation.\n\
                  - Tier 2 internal_diagnostics: DEFERRED-with-reason. The tier IS present in this \
                  worktree (`handshake_native::internal_diagnostics`); what is deferred is this \
-                 path's use of it - no VM lifecycle event is emitted into the native producer.\n\
+                 path's use of it - no VM lifecycle event is emitted into the native producer \
+                 while WP-KERNEL-012 is unshipped.\n\
                  - Tier 3 Palmistry: DEFERRED-with-reason. The external watcher IS present \
                  (`sandbox::palmistry_watcher`); what is deferred is registering the VM as a \
-                 tracked child, so an abandoned guest is not yet observable if Handshake freezes.",
+                 tracked child while WP-KERNEL-012 is unshipped, so an abandoned guest is not yet \
+                 observable through that tier if Handshake freezes.",
             ),
             section(
                 "recovery",
                 "Current status - read this before trusting the surface",
-                "PROVEN: a real model loads inside the microVM and generates real tokens under \
-                 cloud-hypervisor on KVM, with no host filesystem visibility and a clean \
-                 shutdown.\n\n\
-                 NOT YET WIRED: you cannot today launch this as a worktree-scoped MODEL LANE \
-                 through the operator surfaces. The proven run was driven directly against the \
-                 VMM, not through ModelLaneStore -> SwarmCoordinator -> WorktreeVmRegistry. \
-                 Until that lands, the VM is a proven capability rather than an operator feature, \
-                 and this page will not claim otherwise.\n\n\
-                 KNOWN DEFECT: the compiled-in default VMM and kernel paths are machine-local \
-                 absolute paths containing a specific user's home directory. Always override them \
-                 through the `HANDSHAKE_CH_*` environment variables.",
+                "PROVEN: a real worktree-scoped model lane now runs through ModelLaneStore -> \
+                 SwarmCoordinator -> WorktreeVmRegistry -> CloudHypervisorAdapter, loads a real \
+                 GGUF inside KVM, verifies the intended `/worktree` inside the guest, generates \
+                 real tokens, persists scoped VM authority in PostgreSQL, denies cross-account \
+                 control, and cancels without a live VM or persistent scratch root.\n\n\
+                 SHIPPED REGISTRATION: `production_process_sandbox_registry_async` performs the \
+                 real adapter probes and includes `CloudHypervisorAdapter` when available; the \
+                 application-owned `ProcessReclaimRuntime` shares that exact registry with \
+                 operator-chat launch and reclaim. This composition is runtime-proven.\n\n\
+                 BOUNDARY: registry availability is not a request selector. The public \
+                 `/operator-chat/launch` request currently has no Tier3/WarmVm field, so the \
+                 proven VM lane is reached through the governed programmatic SpawnRequest path.\n\n\
+                 RECOVERY: after full host-process loss, reconstruct the scoped \
+                 `WorktreeVmRegistry` from PostgreSQL and call \
+                 `WorktreeVmRegistry::teardown_worktree_vm`. A fresh adapter verifies the exact \
+                 executable and VM root, reclaims that durable handle, removes its root, and marks \
+                 the binding terminal. If continued inference is required, relaunch or restore to \
+                 establish a new warm transport; never treat a durable row alone as a live token \
+                 channel.",
             ),
         ],
         anchors: vec![
@@ -5085,7 +5290,7 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "403 forbidden (resync by cloud_model/unauthenticated)".into(),
         ],
         SurfaceGroup::Wp1OrchestrationConsole => vec![
-            "console_lagged event (subscriber fell behind the broadcast ring; the count of dropped entries is reported so the gap is not silent)".into(),
+            "reader fell behind the broadcast ring (global dropped counts are suppressed to prevent cross-scope volume disclosure; reconnect for bounded scoped replay)".into(),
             "empty stream / only keep-alive comments (no WP-1 orchestration activity yet — trigger a lane launch)".into(),
             "connection closed (backend restarted; the console is a display buffer, so reconnect and rely on EventLedger/Flight Recorder for durable history)".into(),
         ],
@@ -5152,7 +5357,7 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::Wp1OrchestrationConsole => vec![
             "Reconnect to GET /wp1/diagnostics/console/stream; the bounded recent history replays on connect".into(),
             "For durable/complete history use the Flight Recorder + EventLedger authority (this console is a best-effort display tee, never the authority)".into(),
-            "On console_lagged, the reader has fallen behind — widen the client read cadence or filter by category to reduce volume".into(),
+            "If the reader falls behind, reconnect for bounded scoped replay; use Flight Recorder/EventLedger for durable completeness because no global lag count is exposed".into(),
         ],
     }
 }
@@ -5859,10 +6064,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity model-to-model ContextBundle handoff persistence with artifact binding, downstream replay, CRDT/Loom/FEMS binding, and fail-closed artifact refs."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; source ModelLaneMessage rows with replayable payload refs; NewModelLaneContextBundleArtifactBinding rows whose payload_json sha256 equals artifact_sha256/content_hash; downstream_lane_id; work_packet_id; micro_task_id; task_board_id; explicit reviewed MemoryPack refs for cloud lanes."
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneStore::new_scoped with server-derived exact owner_account_id/actor_principal_id/authenticated_session_id/access_space_id/workspace_id authority; source ModelLaneMessage rows with replayable payload refs; NewModelLaneContextBundleArtifactBinding rows whose payload_json sha256 equals artifact_sha256/content_hash; downstream_lane_id; work_packet_id; micro_task_id; task_board_id; explicit reviewed MemoryPack refs for cloud lanes."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, canonical append-only PostgreSQL/EventLedger CRDT state_vector/base_snapshot_ref/update_bytes_ref validation with Yjs-compatible format yjs_update_v1 only, exact replay_metadata replay_order_key/dependency_update_ids/schema_version parity with the persisted update, forged replay metadata producing no handoff row, full crdt_authority_binding parity, exact promotion/validation refs, null advisory promotion receipt, materialized_projection_hash verification, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
+            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, exact five-field resource scope retained on ContextBundle and derived artifact refs, SQL plus post-decode default-deny across owner/Principal/authenticated session/AccessSpace/workspace switches, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, canonical append-only PostgreSQL/EventLedger CRDT state_vector/base_snapshot_ref/update_bytes_ref validation with Yjs-compatible format yjs_update_v1 only, exact replay_metadata replay_order_key/dependency_update_ids/schema_version parity with the persisted update, forged replay metadata producing no handoff row, full crdt_authority_binding parity, exact promotion/validation refs, null advisory promotion receipt, materialized_projection_hash verification, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
                 .into(),
         schema_fields: vec![
             "ModelLaneContextBundleArtifactBindingRecord".into(),
@@ -5893,6 +6098,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "work_packet_id".into(),
             "micro_task_id".into(),
             "task_board_id".into(),
+            "owner_account_id".into(),
+            "actor_principal_id".into(),
+            "authenticated_session_id".into(),
+            "access_space_id".into(),
             "to_kernel_context_bundle".into(),
             "CTX-<hash>".into(),
             "selected".into(),
@@ -5961,6 +6170,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "crdt_payload.authority_effect must be advisory_only before promotion".into(),
             "loom_refs exceeds bounded limit".into(),
             "idempotency conflict".into(),
+            "missing or mismatched exact resource scope is default-denied".into(),
         ],
         recovery_steps: vec![
             "Recover artifact authority first with ModelLaneStore::record_context_bundle_artifact_binding and verify model_lane_context_bundle_artifacts.payload_json hashes to artifact_sha256/content_hash.".into(),
@@ -5969,6 +6179,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "For runtime model invocation, call SwarmCoordinator::invoke_downstream_context_bundle so the adapter receives ModelAdapterRequest.context_bundle from PostgreSQL/EventLedger replay.".into(),
             "For missing source failures, record the source ModelLaneMessage first and retry with a new idempotency_key.".into(),
             "For artifact failures, copy artifact_ref/artifact_sha256/content_hash from the source ModelLaneMessage row instead of trusting caller memory.".into(),
+            "For scope denial, restore the original server-derived owner/Principal/authenticated session/AccessSpace/workspace context; never copy or retarget scope fields from a payload or foreign row.".into(),
             "For cloud handoff failures, use explicit reviewed MemoryPack refs with memory_pack_hash, scope_tag, classification, projection_ref, evidence_ref, cloud_safe = true, and classification other than local_only_context.".into(),
             "For CRDT failures, copy update_bytes_ref, state_vector, and base_snapshot_ref from the source ModelLaneMessage CRDT fields and keep authority_effect = advisory_only until PromotionGate approval.".into(),
             "For Loom failures, include workspace/block refs plus EventLedger and Flight Recorder evidence refs before retry.".into(),
@@ -6411,6 +6622,9 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact",
@@ -6441,7 +6655,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Real PostgreSQL/EventLedger test schema; deterministic local/cloud/subagent lane fixtures; ProjectionPlan/ConsentReceipt rows; bounded payload artifacts; CRDT base/state-vector refs; recovery checkpoints; diagnostic tier rows; native AccessKit Argus harness."
                 .into(),
         expected_output:
-            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; atomic PostgreSQL/EventLedger Yjs receipts under cross-connection races; coordinator cancellation preserving a captured prefix while rejecting late message/tool/artifact/Flight Recorder activity; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
+            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; stable-lane restart_generation advancement with generation-scoped launch/terminal authority; exactly-once teardown under concurrent cancellation; atomic PostgreSQL/EventLedger Yjs receipts under cross-connection races; coordinator cancellation preserving a captured prefix while rejecting late message/tool/artifact/Flight Recorder activity; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
                 .into(),
         schema_fields: vec![
             "hsk.user_manual_behavior_coverage@1".into(),
@@ -6455,6 +6669,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Flight Recorder".into(),
             "native_swarm_lane_diagnostics".into(),
             "ProcessOwnershipLedger".into(),
+            "restart_generation".into(),
             "ContextBundle".into(),
             "CRDT".into(),
             "Locus".into(),
@@ -6470,6 +6685,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "argus_count_mismatch".into(),
             "missing_manual_coverage".into(),
             "FlightRecorder-only".into(),
+            "model_lane_restart_generation_conflict".into(),
+            "orphaned_session_teardown".into(),
         ],
         recovery_steps: vec![
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact".into(),
@@ -6479,6 +6696,9 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact".into(),
@@ -6487,6 +6707,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact".into(),
             "Replay ModelLaneStore::replay_run(run_id) before trusting UI row counts.".into(),
             "Use ModelLaneStore::recover_run_after_restart(run_id) to reconstruct checkpoint, recovery events, leases, cloud denial, and MT runtime status from PostgreSQL/EventLedger.".into(),
+            "For routing retry conflicts, compare claim.attempt N to durable restart_generation N-1 and inspect the generation-scoped model_lane/model_lane_terminal EventLedger keys before changing code or assertions.".into(),
             "Repair missing payloads by recording model_lane_context_bundle_artifacts rows that bind payload_ref to bounded artifact refs and EventLedger evidence.".into(),
             "Reject stale CRDT bases until state_vector and base_snapshot_ref match the current replay posture.".into(),
             "Repair UserManual gaps by adding canonical UserManual page/tool entries and hsk.user_manual_behavior_coverage@1 Rust contract entries; do not use markdown-only docs as proof.".into(),
@@ -6503,7 +6724,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "id": "embedded_model_ledger_tests",
             "name": "Embedded model ProcessOwnershipLedger START/STOP + orphan-reconcile proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests",
+            "cli_flag": "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests",
             "manual_version": USER_MANUAL_VERSION,
         }))
         .expect("embedded model ledger tool serializes"),
@@ -6516,7 +6737,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests".into(),
+            "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6524,7 +6745,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
              "Exact Rust proof targets for the embedded-model ProcessOwnershipLedger obligation: all-or-none pre-artifact START+STOP reservation, store-acknowledged pid-less START on load (normally keyed on the minted UUIDv7, with a distinct quarantine UUID for invalid/duplicate returned identities), a pre-reserved STOP emitted only after worker quiescence and offered to a bounded background-writer drain, and OS-loopback-lease-aware hard-crash reconciliation when graceful durability cannot be proven."
                 .into(),
         expected_input:
-            "test-utils feature enabled; controlled in-process ModelRuntime barriers for the deterministic lifecycle legs; real Handshake-managed PostgreSQL (127.0.0.1:5544) or POSTGRES_TEST_URL isolated schema for the orphan-reconcile leg."
+            "test-utils feature enabled; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; template-owned PostgreSQL mode with POSTGRES_TEST_URL and DATABASE_URL unset, HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1, HANDSHAKE_MANAGED_PG_ENABLED=1, a fresh per-run HANDSHAKE_MANAGED_PG_DATA_DIR, and a free HANDSHAKE_MANAGED_PG_PORT."
                 .into(),
         expected_output:
              "A store-acknowledged pid-less ProcessOwnershipLedger START row (os_pid=NULL; valid path process_uuid == model UUIDv7; identity-contract failures use a distinct quarantine UUID and metadata), a matching pre-reserved STOP emitted via LlmClient::shutdown_gracefully only after the exact runtime workers exit and durably flushed on a successful drain-and-join, plus open-START reconciliation when shutdown or drain cannot prove success."
@@ -6566,7 +6787,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "id": "candle_e2e_smoke::mt013_real_candle_default_load_emits_process_ledger_start_stop",
             "name": "MT-013 real Candle default-load ProcessOwnershipLedger START/STOP proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+            "cli_flag": "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
             "manual_version": USER_MANUAL_VERSION,
         }))
         .expect("real Candle ledger tool serializes"),
@@ -6581,7 +6802,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture".into(),
+            "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6589,7 +6810,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Non-skipping MT-013 managed-resource proof for the default embedded LlmClient path: it loads real Candle weights through build_default_local_client, drains the ProcessOwnershipLedger, calls LlmClient::shutdown_gracefully to quiesce real workers before STOP, drains again, and prints [MT-013_REAL_CANDLE_LEDGER_DUMP] containing the matching pid-less START/STOP rows."
                 .into(),
         expected_input:
-            "Features test-utils,candle-runtime-engine enabled; HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a directory containing real model.safetensors and tokenizer.json; external CARGO_TARGET_DIR under ..\\Handshake_Artifacts\\handshake-cargo-target."
+            "Features test-utils,candle-runtime-engine enabled; HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a directory containing real model.safetensors and tokenizer.json; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; external POSTGRES_TEST_URL set to the dedicated test database with template-mode variables unset."
                 .into(),
         expected_output:
             "Exactly one real Candle START row keyed on the LlmClient profile UUIDv7, os_pid=NULL with os_pid_absent_reason=in_process_library_load_no_os_process, model_artifact_sha256 matching the real artifact, then exactly one STOP row with stop_reason=llm-client-shutdown; missing model env fails loudly, not skipped."
@@ -6679,7 +6900,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "id": "llm_client_local_routing_tests",
             "name": "LlmClient fail-closed + embedding Flight Recorder proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests",
+            "cli_flag": "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests",
             "manual_version": USER_MANUAL_VERSION,
         }))
         .expect("llm local routing tool serializes"),
@@ -6692,7 +6913,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests".into(),
+            "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6700,7 +6921,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for master-spec §4.2.3.2(3) Flight Recorder emission on EVERY LlmClient call path: fail-closed DisabledLlmClient::completion and ::embedding, local completion error branches, and the embedding lane (success + error) — all emitted at CALL TIME, never at construction."
                 .into(),
         expected_input:
-            "test-utils feature enabled; a capturing FlightRecorder; configurable in-process ModelRuntime and a recorder-wired DisabledLlmClient fallback."
+            "test-utils feature enabled; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; template-owned PostgreSQL mode configured as on the embedded-model lifecycle page; a capturing FlightRecorder; configurable in-process ModelRuntime and a recorder-wired DisabledLlmClient fallback."
                 .into(),
         expected_output:
             "One Flight Recorder event per call: zeroed-usage llm_inference events (error_kind llm_disabled / llm_error / embedding_disabled) on error/disabled paths and data_embedding_computed on embedding success; no construction-time emission."
