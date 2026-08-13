@@ -6562,6 +6562,18 @@ pub const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
 pub const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
 pub const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 
+/// WP-KERNEL-012 MT-120: the OPTIONAL native-MCP session credential header.
+///
+/// Distinct from the four identity headers above in kind, not just in name: those are
+/// client-DECLARED attribution and are required, while this one is a credential the backend
+/// VERIFIES through `stage::capture_context` to derive the principal it stamps into the save
+/// receipt as `minted_by_principal`. Absent, the document routes take their optional-session
+/// branch and behave exactly as they did before MT-120. Present but invalid or stale is a hard
+/// 401 `HSK-401-DOC-SESSION` that never downgrades to the declared header identity.
+///
+/// Must stay byte-identical to `handshake_core::api::knowledge_documents::HSK_HEADER_SESSION_TOKEN`.
+pub const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
+
 /// The stable actor identity the native editor presents to the backend code-nav API. `system` is the
 /// verified-valid `x-hsk-actor-kind` for an automated UI navigation (the backend maps it to
 /// `KernelActor::System`); the actor id names the native editor surface so the nav receipts are
@@ -9803,39 +9815,6 @@ pub struct RichDocSaveBackend {
     actor_id: String,
 }
 
-/// WP-KERNEL-012 MT-120: the process-wide session-authenticated document transport, keyed by the token
-/// it carries.
-///
-/// The token itself is re-resolved from the on-disk native-MCP binding on EVERY save (see
-/// [`crate::event_emitter::flight_recorder_session_token`], which never caches), so a rebind is picked
-/// up immediately. Only the reqwest connection pool is memoized, and it is rebuilt the moment the token
-/// changes — a cached client can therefore never present a superseded credential.
-static SESSION_SCOPED_DOC_CLIENT: std::sync::Mutex<Option<(String, reqwest::Client)>> =
-    std::sync::Mutex::new(None);
-
-/// A bounded reqwest client that presents `x-hsk-session-token` on every request it makes.
-fn session_scoped_http_client(token: &str) -> Option<reqwest::Client> {
-    let mut guard = SESSION_SCOPED_DOC_CLIENT.lock().ok()?;
-    if let Some((cached_token, client)) = guard.as_ref() {
-        if cached_token == token {
-            return Some(client.clone());
-        }
-    }
-    let mut header_map = reqwest::header::HeaderMap::new();
-    // A malformed credential must degrade to the existing unauthenticated client, never panic a save.
-    let mut value = reqwest::header::HeaderValue::from_str(token).ok()?;
-    value.set_sensitive(true);
-    header_map.insert("x-hsk-session-token", value);
-    let client = reqwest::Client::builder()
-        .connect_timeout(BACKEND_CONNECT_TIMEOUT)
-        .timeout(BACKEND_REQUEST_TIMEOUT)
-        .default_headers(header_map)
-        .build()
-        .ok()?;
-    *guard = Some((token.to_owned(), client.clone()));
-    Some(client)
-}
-
 impl RichDocSaveBackend {
     pub fn new(base_url: impl Into<String>) -> Self {
         let base_url = base_url.into();
@@ -9880,22 +9859,22 @@ impl RichDocSaveBackend {
     ///
     /// Takes the fallback client + base URL by value rather than `&self` so the binding file read
     /// happens on the async save worker, never on the egui frame thread (HBR-QUIET).
-    fn transport(
-        fallback: &crate::backend::knowledge_documents::KnowledgeDocumentsClient,
-        base_url: &str,
-    ) -> crate::backend::knowledge_documents::KnowledgeDocumentsClient {
-        let Ok(token) = crate::event_emitter::flight_recorder_session_token() else {
-            return fallback.clone();
-        };
-        match session_scoped_http_client(&token) {
-            Some(client) => {
-                crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
-                    client,
-                    base_url.to_owned(),
-                )
-            }
-            None => fallback.clone(),
-        }
+    /// Resolve the live native-MCP session token for THIS save, or `None` when no binding is
+    /// published.
+    ///
+    /// The token is carried PER REQUEST on the save headers rather than baked into a
+    /// session-scoped `reqwest::Client`. The first MT-120 implementation used a token-keyed client
+    /// with `default_headers`, and the MT-088 timeout audit correctly rejected it: it made
+    /// `backend_client.rs` own a SECOND `ClientBuilder` where exactly one is allowed
+    /// (`test_backend_down_responsive::reqwest_clients_carry_connect_and_request_timeouts`,
+    /// left {backend_client.rs: 2} right {backend_client.rs: 1}). Per-request is also strictly
+    /// better: no credential is memoized in a process-wide pool, and a rebind is picked up on the
+    /// very next save because `flight_recorder_session_token` never caches.
+    ///
+    /// Called on the async save worker, never on the egui frame thread, so the binding-file read
+    /// cannot stall a frame (HBR-QUIET).
+    fn session_token_for_save() -> Option<String> {
+        crate::event_emitter::flight_recorder_session_token().ok()
     }
 
     /// Production transport with an explicit operator/agent identity. Parallel mounted hosts use this
@@ -9931,7 +9910,6 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
         expected_version: u64,
     ) -> crate::rich_editor::save::save_manager::SaveFuture {
         let fallback_client = self.client.clone();
-        let base_url = self.base_url.clone();
         let headers = self.headers(document_id);
         let read_headers = headers.clone();
         let document_id = document_id.to_owned();
@@ -9939,7 +9917,13 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
             // MT-120: resolve the credential per save (never cached) so a rebind is picked up by the
             // very next save; falls back to the unauthenticated client when no binding exists. Done
             // here, off the egui frame thread, because it touches the filesystem (HBR-QUIET).
-            let client = Self::transport(&fallback_client, &base_url);
+            //
+            // `with_session_token` clones the SHARED pool and only sets a field — it does not mint a
+            // second reqwest client, which the MT-088 timeout audit forbids in this file.
+            let client = match Self::session_token_for_save() {
+                Some(token) => fallback_client.clone().with_session_token(token),
+                None => fallback_client.clone(),
+            };
             let body = crate::backend::knowledge_documents::SaveDocumentRequest {
                 expected_version: i64::try_from(expected_version).unwrap_or(i64::MAX),
                 content_json,

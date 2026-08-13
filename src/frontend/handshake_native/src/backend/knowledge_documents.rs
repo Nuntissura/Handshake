@@ -73,6 +73,7 @@ use serde_json::Value;
 use crate::backend_client::{
     shared_http_client, BACKEND_BASE_URL, DOC_ACTOR_ID, DOC_ACTOR_KIND, HSK_HEADER_ACTOR_ID,
     HSK_HEADER_ACTOR_KIND, HSK_HEADER_KERNEL_TASK_RUN_ID, HSK_HEADER_SESSION_RUN_ID,
+    HSK_HEADER_SESSION_TOKEN,
 };
 
 /// The optional `x-hsk-correlation-id` header constant. The other four document identity headers
@@ -627,6 +628,21 @@ pub struct BatchResponse {
 pub struct KnowledgeDocumentsClient {
     client: reqwest::Client,
     base_url: String,
+    /// WP-KERNEL-012 MT-120: the optional native-MCP session credential presented as
+    /// `x-hsk-session-token` on EVERY request this transport makes.
+    ///
+    /// Deliberately a plain field applied per request rather than a `default_headers` client:
+    /// a token-keyed second `reqwest::Client` is exactly what the MT-088 timeout audit
+    /// (`test_backend_down_responsive::reqwest_clients_carry_connect_and_request_timeouts`)
+    /// forbids — `backend_client.rs` may own exactly ONE `ClientBuilder`. Per-request is also
+    /// strictly safer: no credential is memoized in a process-wide connection pool, and because
+    /// [`crate::event_emitter::flight_recorder_session_token`] never caches, a rebind is picked
+    /// up by the very next call.
+    ///
+    /// `None` — the default for every existing construction site — is the pre-MT-120 behaviour:
+    /// the request is sent unauthenticated, the backend takes the optional-session branch, and
+    /// the resulting receipt simply carries no ownership anchor.
+    session_token: Option<String>,
 }
 
 impl Default for KnowledgeDocumentsClient {
@@ -653,6 +669,7 @@ impl KnowledgeDocumentsClient {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
+            session_token: None,
         }
     }
 
@@ -662,7 +679,25 @@ impl KnowledgeDocumentsClient {
         Self {
             client,
             base_url: base_url.into(),
+            session_token: None,
         }
+    }
+
+    /// WP-KERNEL-012 MT-120: return this transport carrying `token` as `x-hsk-session-token` on
+    /// every subsequent request, WITHOUT constructing a second [`reqwest::Client`] — the existing
+    /// pool is cloned and only the credential field changes.
+    ///
+    /// Consumed by value so an authenticated transport is a distinct value the caller derives per
+    /// operation; the shared unauthenticated client it was cloned from is never mutated.
+    #[must_use]
+    pub fn with_session_token(mut self, token: impl Into<String>) -> Self {
+        let token = token.into();
+        self.session_token = if token.trim().is_empty() {
+            None
+        } else {
+            Some(token)
+        };
+        self
     }
 
     fn url(&self, path: &str) -> String {
@@ -994,6 +1029,12 @@ impl KnowledgeDocumentsClient {
         builder: reqwest::RequestBuilder,
         conflict_mapping: ConflictMapping,
     ) -> DocResult<T> {
+        // MT-120: the single choke point every one of the twenty `/knowledge/documents/*` calls
+        // funnels through, so the credential cannot be forgotten on a route added later.
+        let builder = match &self.session_token {
+            Some(token) => builder.header(HSK_HEADER_SESSION_TOKEN, token),
+            None => builder,
+        };
         let resp = builder
             .timeout(REQUEST_TIMEOUT)
             .send()
