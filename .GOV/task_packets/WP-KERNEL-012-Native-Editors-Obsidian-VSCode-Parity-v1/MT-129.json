@@ -22,7 +22,7 @@
   "title": "E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-08-13T09:40:00Z",
+  "updated_at_utc": "2026-08-13T17:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -66,16 +66,30 @@
   "lifecycle": {
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "NOT_STARTED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-116",
       "MT-108"
     ],
-    "creation_reason": "Isolated while unblocking MT-116 AC-116-3. MT-116 own recorded hypothesis (a creation race in the binding publisher) is wrong, and so is the stale-lock theory. Confirmed by reproducing the exact os error 3 from the real failing run PID. Unrelated to MT-116 chip-rendering change, so filed separately rather than absorbed."
+    "creation_reason": "Isolated while unblocking MT-116 AC-116-3. MT-116 own recorded hypothesis (a creation race in the binding publisher) is wrong, and so is the stale-lock theory. Confirmed by reproducing the exact os error 3 from the real failing run PID. Unrelated to MT-116 chip-rendering change, so filed separately rather than absorbed.",
+    "claimed_at_utc": "2026-08-13T17:20:00Z",
+    "ready_for_validation_at_utc": "2026-08-13T17:20:00Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "commit": "3e543f01",
+      "ac_129_1": "MET. Both MoveFileExW operands go to Win32 in extended-length (verbatim) form via a local verbatim_wide helper that canonicalizes to absolute first, so a caller-supplied relative root behaves the same as an absolute one. UNC paths take the UNC verbatim form.",
+      "ac_129_2": "MET, and this is what makes the fix credible rather than plausible. A new lib test, write_binding_survives_a_root_past_the_legacy_max_path_limit, publishes a binding under a root padded past the limit. With the fix reverted it fails with the EXACT production error shape (replace ... atomically); with the fix restored it passes. binding lib tests 14 passed / 0 failed.",
+      "ac_129_3": "MET. The error named only the destination, which during the real failure was the 235-character path that was FINE while the 260-character source was what Win32 rejected. It now names both operands with their character counts.",
+      "ac_129_4": "MET, on the REAL acceptance surface rather than the workaround. test_block_collection_view is 29 passed / 0 failed with HANDSHAKE_ARGUS_BINDING_ROOT UNSET - on the relative fallback root that previously broke it. The env var is no longer required.",
+      "not_test_only": "binding_path() resolves under the local app-data root, so an operator with a deep enough profile hit this in the shipped app, and the published error blamed a path that was fine.",
+      "secondary_risk_NOT_addressed": "The unguarded process-global LOCALAPPDATA set at test_block_collection_view.rs:2089 is untouched. It is safe only under --test-threads=1 and can still race ScopedArgusAppData under default parallelism, producing a GENUINE missing-directory os error 3 with a message identical to this defect. Stated rather than silently folded in; it is outside this MT scope.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    }
   },
   "hbr_obligations": {
     "MAN": "UserManual must record that the discovery binding root should be absolute and short until this is fixed.",
