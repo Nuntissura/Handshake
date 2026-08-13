@@ -22,7 +22,7 @@
   "title": "E12-MT-134-Wire-The-MT-028-Lease-Registry-Into-The-Widget-Mutation-Path-It-Was-Built-For",
   "group": "E12-Swarm",
   "created_at_utc": "2026-08-13T12:20:00Z",
-  "updated_at_utc": "2026-08-13T12:20:00Z",
+  "updated_at_utc": "2026-08-13T17:50:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-134.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -67,10 +67,25 @@
       "PT-134-2": "The AC-134-3 RED run showing the deadline still returns -32004.",
       "PT-134-3": "A concurrency proof that two agents targeting DIFFERENT widgets never block each other - otherwise the fix has serialized the whole surface instead of per-resource leasing."
     },
-    "risk_if_missed": "HBR-SWARM parallel steering does not work under contention. Any two agents touching the same widget lose actions with a bare -32004, and the operator-facing symptom is a swarm that silently drops work. The registry that would fix it already exists and is inert."
+    "risk_if_missed": "HBR-SWARM parallel steering does not work under contention. Any two agents touching the same widget lose actions with a bare -32004, and the operator-facing symptom is a swarm that silently drops work. The registry that would fix it already exists and is inert.",
+    "CORRECTION_2026_08_13": {
+      "schema_id": "hsk.mt_scope_correction@1",
+      "recorded_at_utc": "2026-08-13T17:50:00Z",
+      "corrected_by": "KERNEL_BUILDER-20260812-113007",
+      "what_was_wrong": "This MT was filed claiming the MT-028 LeaseRegistry has ZERO call sites and was \"built and never connected\". That is FALSE. The registry IS wired, through mcp/session.rs: try_acquire at :199 (SharedRead on the snapshot resource) and :216 (ExclusiveWrite on the per-widget target key), driven by SwarmSession::decide (:147-166) which routes click_widget / set_value with a non-empty target to DispatchPlan::ExclusiveWrite.",
+      "how_the_error_was_made": "The originating investigation grepped for acquire_all and .acquire( and found nothing outside leases.rs. The real API in use is try_acquire, which the grep never matched. A negative result from one spelling was treated as proof of absence. Recorded because the same mistake is cheap to repeat.",
+      "what_is_actually_true": {
+        "the_lease_does_wait": "LeaseRegistry::try_acquire (leases.rs:162-176) loops until a deadline, so the \"generous timeout only WAITS\" contract the test states IS implemented for the lease.",
+        "the_second_mechanism_does_not": "There are TWO serialization mechanisms with DIFFERENT lifetimes. The lease guard is released at the END of SwarmSession::dispatch (session.rs documents this: \"The registry lease guard drops at the end of this call\"). The ActionChannel then keeps its own per-target in-flight transaction until POST-RENDER acknowledgement, and that second mechanism fails FAST: ActionChannel::enqueue scans queue + in_flight and returns ActionError::TargetBusy immediately (action.rs:1077-1093), which tools.rs:314 maps to the same -32004.",
+        "consequence": "A second agent can win the lease - because the first agent already released it at dispatch end - and then still be rejected by the channel because the first action has not been acknowledged yet. The wait protects the wrong window. That is why test_swarm_concurrency sees -32004 on action 0 for agents 0, 1 and 2 despite a generous lease timeout."
+      },
+      "what_this_MT_should_actually_decide": "Whether the exclusive lease should be HELD until the action terminalizes (aligning the two windows, so the wait covers the period that actually blocks), or whether the channel TargetBusy should itself become a bounded wait. The first is a lifetime change to the guard; the second changes fail-fast semantics inside the channel. Either way the earlier framing - \"wire up an unwired registry\" - is not the work.",
+      "what_survives_from_the_original_filing": "The deadlock CONSTRAINT still holds and is still the trap: dispatch_request (tools.rs:344-350) is synchronous and holds &mut ActionChannel for its whole body, so a wait placed there blocks the frame loop that would release what is being waited on. Any fix that lengthens a hold must not lengthen it across that borrow.",
+      "status_note": "The acceptance criteria below were written against the wrong premise and must be re-authored before implementation. AC-134-1 in particular asks to make a busy mutation \"WAIT instead of returning -32004 immediately\", which is already true at the lease layer and false only at the channel layer."
+    }
   },
   "lifecycle": {
-    "status": "NOT_STARTED",
+    "status": "NEEDS_RESCOPE_PREMISE_CORRECTED",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -80,7 +95,7 @@
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Isolated while clearing MT-108 AC-108-3. test_swarm_concurrency was UNROUTED in the MT-127 table; root-caused to the MT-028 lease registry having zero call sites. Not fixed inline because the wait cannot live where the failure surfaces - dispatch_request holds &mut ActionChannel, so waiting there deadlocks against the frame loop that would release the lease. That is a design decision, not a patch."
+    "creation_reason": "Isolated while clearing MT-108 AC-108-3. test_swarm_concurrency was UNROUTED in the MT-127 table; root-caused to the MT-028 lease registry having zero call sites. Not fixed inline because the wait cannot live where the failure surfaces - dispatch_request holds &mut ActionChannel, so waiting there deadlocks against the frame loop that would release the lease. That is a design decision, not a patch. CORRECTED 2026-08-13: the premise was wrong. The registry IS wired via try_acquire in session.rs; the original investigation grepped only for acquire_all / .acquire( and treated that negative as proof of absence. See scope.CORRECTION_2026_08_13 for what is actually true."
   },
   "hbr_obligations": {
     "SWARM": "This IS the HBR-SWARM contention path. Attribution must survive: each response keeps its own agent_id.",
