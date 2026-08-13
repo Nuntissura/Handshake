@@ -282,10 +282,18 @@ fn steer_loop_over_socket() {
         setval_resp["result"]["queued"], true,
         "set_value queued over the wire"
     );
-    // egui text inputs are steered by Focus + characters (MT-026/027 deviation: no SetValue on text).
+    // The MT-026/027 "no SetValue on text, steer by Focus + characters" deviation no longer holds:
+    // `UiAction::SetValue` maps to `accesskit::Action::SetValue` (mcp/action.rs:650-652) and has a
+    // real apply path that writes the value straight onto the widget node (:847-868). That landed at
+    // 892662e0; this assertion still encoded the older workaround.
+    //
+    // The action NAME is an intermediate implementation detail. The load-bearing assertion is the
+    // end-to-end one further down — that the field's value really becomes "steer probe" over the
+    // wire — and it is unchanged. If the native SetValue path did not actually apply, that assertion
+    // would fail, so this correction cannot mask a regression.
     assert_eq!(
-        setval_resp["result"]["action"], "Focus",
-        "set_value resolves to Focus on a text input"
+        setval_resp["result"]["action"], "SetValue",
+        "set_value resolves to a native AccessKit SetValue on a text input"
     );
 
     // ── The running shell drains the SAME shared channel and runs frames; observable state changes ──

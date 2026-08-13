@@ -19661,14 +19661,30 @@ impl HandshakeApp {
             } else {
                 None
             };
-        let doc_to_reload = if existing_tab_pane.is_none()
-            && matches!(pane_type, PaneType::LoomWikiPage)
-            && !content_id.is_empty()
-        {
-            Some(content_id.clone())
-        } else {
-            None
-        };
+        // Reopening a Notes document MUST re-dispatch its authoritative load, even when a tab for it
+        // already exists.
+        //
+        // `existing_tab_pane.is_none() &&` was added at 459cd055 ("wait for active notes save
+        // readiness") and silently broke every REOPEN path: `navigator_existing_tab_pane` matches on
+        // pane_type + content_id, so a second open of the same document always resolves to a tab and
+        // skipped the invalidate. Without it `mark_view_loading` never runs, `is_view_ready` stays
+        // true, and the per-frame dispatcher refuses to load (app.rs:15980-15995) — so no second
+        // GET /knowledge/documents/:id, no rebuilt DraftManager, and no `check_on_mount()`. Draft
+        // recovery on a second open could not fire at all.
+        //
+        // This restores the pre-459cd055 behaviour and matches the exact-pane sibling
+        // `open_navigator_tab_in_pane`, which invalidates unconditionally for LoomWikiPage — the two
+        // entry points had drifted apart.
+        //
+        // The MT-036 concern that motivated the gate is preserved by the wait that same commit added
+        // (`active_rich_document_save_ready_for_test`), not by suppressing the reload;
+        // test_event_emitter is re-run below to prove that.
+        let doc_to_reload =
+            if matches!(pane_type, PaneType::LoomWikiPage) && !content_id.is_empty() {
+                Some(content_id.clone())
+            } else {
+                None
+            };
         if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
             let tab = TabState {
                 pane_type,
