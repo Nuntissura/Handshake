@@ -22,7 +22,7 @@
   "title": "E4-MT-131-Name-Or-Desense-The-Slash-Menu-Framework-Container-Nodes",
   "group": "E4-Rich-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-08-13T10:30:00Z",
+  "updated_at_utc": "2026-08-13T11:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-131.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -66,7 +66,7 @@
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "PARTIAL_AC_131_4_OPEN",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-108"
@@ -83,12 +83,16 @@
       "ac_131_1": "MET - both nodes addressed.",
       "ac_131_2": "MET - the scrollbar is NAMED rather than hidden (it is a genuine agent target: the catalog exceeds SLASH_MENU_MAX_VISIBLE). Only the invisible Area move handle is de-sensed, and the popup itself stays addressable as slash-menu.",
       "ac_131_3": "MET - both were fixed, not just the reported one. egui drains its node map in arbitrary order, so fixing one would have moved the panic to the other rather than resolving it.",
-      "ac_131_4": "NOT DONE. The adjacent latent instance at menu.rs Window::anchor(..) is untouched, because no test currently exercises the gate on that frame and inventing one is outside what this pass proved. Stated rather than silently dropped.",
+      "ac_131_4": "MET. The prompt modal Area move-response is now named slash-prompt-surface. Window::anchor calls Area::movable(false) (area.rs:334-337) while leaving it interactable, so its move-response senses click (area.rs:504-514); its id is layer_id.id combined with \"move\" (area.rs:505) and that layer id is the dialog id the Window was given. NAMED rather than de-sensed because the click is meaningful (it brings the modal to front).",
       "regression": "test_visual_interaction_proof 1/0/1, test_rich_editor_widget 6/0, test_focus_audit_quiet 7/0.",
-      "status_note": "AC-131-4 is open, so this is NOT complete.",
+      "status_note": "All four acceptance criteria met. test_slash_commands 24 passed / 0 failed / 1 ignored.",
       "status": "PARTIAL_AC_131_4_OPEN",
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
-    }
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only.",
+      "final_ac_closed_at_utc": "2026-08-13T11:10:00Z",
+      "final_ac_commit": "b7089e07"
+    },
+    "ready_for_validation_at_utc": "2026-08-13T11:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007"
   },
   "hbr_obligations": {
     "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",

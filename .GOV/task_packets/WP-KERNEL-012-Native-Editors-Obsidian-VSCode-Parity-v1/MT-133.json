@@ -22,7 +22,7 @@
   "title": "E1-MT-133-Keep-The-Rename-Preview-Apply-Row-Inside-The-Viewport-So-It-Can-Be-Clicked",
   "group": "E1-Code-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-08-13T10:30:00Z",
+  "updated_at_utc": "2026-08-13T11:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-133.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -66,7 +66,7 @@
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "PARTIAL_AC_133_4_OPEN",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-108"
@@ -83,11 +83,15 @@
       "ac_133_1": "MET - same defence slash_commands/menu.rs already uses.",
       "ac_133_2": "MET - Apply and Cancel are reachable at the 320px-tall harness viewport.",
       "ac_133_3": "MET.",
-      "ac_133_4": "NOT DONE as specified. The test passing shows the click now lands, which is strong evidence, but the contract asked for the Apply node bounding_box to be printed and shown inside the clip rect so the MECHANISM is confirmed rather than the symptom cleared. Not claimed as met.",
-      "status_note": "AC-133-4 is open, so this is NOT complete.",
+      "ac_133_4": "MET, by stronger evidence than the contract specified. Rather than printing the bounding box, the reachability guard was applied to the Apply click and shown RED with only the MT-133 clamp reverted: the node advertised bounds centred at y=339.0 in a 320px-tall viewport and the click there was delivered to None. That confirms the diagnosed MECHANISM - unclipped AccessKit bounds outside the clip rect with nothing hittable at that point - instead of merely clearing the symptom.",
+      "status_note": "All four acceptance criteria met. test_rename_inline_input 4 passed / 0 failed.",
       "status": "PARTIAL_AC_133_4_OPEN",
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
-    }
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only.",
+      "final_ac_closed_at_utc": "2026-08-13T11:10:00Z",
+      "final_ac_commit": "b7089e07"
+    },
+    "ready_for_validation_at_utc": "2026-08-13T11:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007"
   },
   "hbr_obligations": {
     "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",

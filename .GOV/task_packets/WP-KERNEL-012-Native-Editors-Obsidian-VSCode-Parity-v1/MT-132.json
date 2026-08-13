@@ -22,7 +22,7 @@
   "title": "E1-MT-132-Stop-The-Editor-Context-Surface-Shadowing-The-Sticky-Header-Click",
   "group": "E1-Code-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-08-13T10:30:00Z",
+  "updated_at_utc": "2026-08-13T11:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-132.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -66,7 +66,7 @@
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "PARTIAL_AC_132_4_OPEN",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-108"
@@ -83,12 +83,17 @@
       "ac_132_1": "MET.",
       "ac_132_2": "MET by construction: the rect was NARROWED by exactly the band strip, so the context menu still covers everything it covered outside the band. test_code_editor_panel 8/0 and the menu suites are unchanged.",
       "ac_132_3": "MET - the viewport range now actually changes.",
-      "ac_132_4": "NOT DONE. The systemic bounds-centre-resolves-to-this-widget guard is not written. It is the highest-value item left on this MT because it is what would have caught both this and MT-133 before either shipped.",
+      "ac_132_4": "MET, and proven non-vacuous. tests/native_gui_support/hit_reachability.rs clicks a target at the centre of the bounds it advertises to AccessKit and asserts egui delivered that click to THAT widget. RED proven by restoring only the MT-132 shadowing - the guard reported the click was delivered to a different widget id - then GREEN after restoring the fix.",
       "correction_to_the_original_diagnosis": "The \"line 0\" in the old panic message is LITERAL TEXT in the test format string (test_sticky_scroll.rs:323-326); only before/after are interpolated. Any theory about a target-line lookup returning a default was false, and is recorded here so it is not re-investigated.",
-      "status_note": "AC-132-4 is open, so this is NOT complete.",
+      "status_note": "All four acceptance criteria met. test_sticky_scroll 6 passed / 0 failed.",
       "status": "PARTIAL_AC_132_4_OPEN",
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
-    }
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only.",
+      "two_earlier_versions_of_the_guard_were_VACUOUS": "Recorded because it is the whole reason a RED proof is mandatory. Reading contains_pointer PASSED with the shadowing restored, because it holds every widget whose rect covers the point (hit_test.rs:20-27 calls it \"both a Window and the Button in it\"). Reading hovered also PASSED, because it resolves to a set including ancestry. WidgetHits::click is the exact \"what would be clicked\" answer but has no public accessor, so the guard performs a real press/release and reads InteractionSnapshot::clicked, a single Option<Id>. Two guards that asserted nothing would have shipped without the RED step.",
+      "final_ac_closed_at_utc": "2026-08-13T11:10:00Z",
+      "final_ac_commit": "b7089e07"
+    },
+    "ready_for_validation_at_utc": "2026-08-13T11:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007"
   },
   "hbr_obligations": {
     "VIS": "Argus evidence required: these are click-reachability defects, and node presence alone is exactly what failed to catch them.",
