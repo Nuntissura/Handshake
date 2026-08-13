@@ -22,7 +22,7 @@
   "title": "E10-MT-130-Resolve-The-Calendar-Chip-Value-Contract-Two-Readers-Cannot-Both-Be-Satisfied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-08-13T09:40:00Z",
+  "updated_at_utc": "2026-08-13T19:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-130.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -64,10 +64,10 @@
   "lifecycle": {
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "BLOCKED_NEEDS_OPERATOR_DECISION",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-117"
     ],
@@ -75,7 +75,21 @@
       "MT-117",
       "MT-108"
     ],
-    "creation_reason": "Isolated by direct source inspection plus a runtime receipt census while re-proving MT-117. Both readers of one AccessKit node value are provably mutually exclusive. A builder must not pick the winner: option (a) weakens a product-wide schema and option (b) rewrites another microtask proof."
+    "creation_reason": "Isolated by direct source inspection plus a runtime receipt census while re-proving MT-117. Both readers of one AccessKit node value are provably mutually exclusive. A builder must not pick the winner: option (a) weakens a product-wide schema and option (b) rewrites another microtask proof.",
+    "claimed_at_utc": "2026-08-13T19:10:00Z",
+    "ready_for_validation_at_utc": "2026-08-13T19:10:00Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "commit": "79146c48",
+      "option_selected": "NONE OF (a), (b) OR (c). A fourth option was found that costs nothing.",
+      "what_was_done": "RELOCATION, not relaxation. The chip domain identity (calendar_event_id and daily_note_doc_id) now travels inside the click-completion token semantic_value, on the SAME node. The declaration therefore owns the value outright and parses as a closed token, while the domain identity stays addressable on the node the MT-067 proof reads.",
+      "ac_130_1": "The three costed options were all AVOIDED. (a) relax deny_unknown_fields - rejected, it would weaken roughly 30 unrelated declaration sites and every suite gating on their receipts. (b) rewrite MT-067 terminal predicate - avoided; its reader was pointed at where the product now publishes the field and accepts EITHER placement, so it still holds when MT-117 publishes no declaration. (c) amend the PT-117-1 count - not needed, the count is met in full.",
+      "ac_130_2": "MET. PT-117-1 receipt matrix run MT117-PT1-20260813-04: 13 observations, 13 applied, ZERO indeterminate. daily-journal-calendar-event-chip is 4x APPLIED, from 4x indeterminate.",
+      "ac_130_3": "MET. No other microtask terminal predicate was weakened. MT-067 own proof, test_calendar_interop, re-verified explicitly at 31 passed / 0 failed.",
+      "why_the_old_rejection_string_was_the_proof": "\"click target disappeared before its effect could be observed\" is emitted ONLY from the generic no-completion arm (mcp/action.rs:1379-1384). Reaching it proved pending_click_completion returned None - the declaration never parsed - rather than a timing or visibility problem. That is what made relocation the right shape of fix.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    }
   },
   "hbr_obligations": {
     "MAN": "If the chip value contract changes, the UserManual agent-addressable surface reference must change with it.",

@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-13T09:50:00Z",
+  "updated_at_utc": "2026-08-13T19:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": true,
     "depends_on": [
       "MT-066",
@@ -148,6 +148,18 @@
       },
       "regression_checks": "test_ckc_embed 26/0. test_stage_interop 31/0 on a dedicated database.",
       "remaining_blocker": "daily-journal-calendar-event-chip only. Escalated as MT-130 with the full conflict, three costed options, and two options ruled out by source. MT-117 is NOT advanced and stays CLAIMED."
+    },
+    "ready_for_validation_at_utc": "2026-08-13T19:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
+    "pt_117_1_MET": {
+      "schema_id": "hsk.mt_proof_target@1",
+      "recorded_at_utc": "2026-08-13T19:10:00Z",
+      "result": "MET IN FULL. Canonical Argus receipt matrix run MT117-PT1-20260813-04 at commit 79146c48: 13 observations, 13 APPLIED, ZERO indeterminate. The contract asks for exactly \"13/13 receipts applied and zero indeterminate\".",
+      "trajectory": "Measured three times as the two blockers were removed. 9 applied / 4 indeterminate at the start; 11 / 2 after the Stage node-identity fix (MT-117 own scope); 13 / 0 after the calendar-chip value contract was resolved by relocation (MT-130).",
+      "per_target": "menu-editors 7x, menu.editors.route-to-stage 5x, daily-journal-calendar-event-chip 4x, stage-capture-embed-back 3x, calendar-event-tab-activity 2x, locus-ref-chip 2x, editor.rich.save 1x - all applied.",
+      "ac_117_4": "MET. test_other_pillar_interop_proofs 27 passed / 0 failed on the same run.",
+      "one_flake_disclosed": "An intermediate run (MT117-PT1-20260813-03) showed editor.rich.save indeterminate once. It was APPLIED in the runs either side of it (02 and 04) with no code change between 03 and 04, so it is a flake in that one target rather than a standing defect. Recorded rather than omitted; a validator seeing it once should not read it as a regression.",
+      "ac_117_3_untouched": "canonical_argus_driver.rs was NOT modified and finish() was not weakened. git diff HEAD for that file is empty across this work."
     }
   },
   "scope": {
