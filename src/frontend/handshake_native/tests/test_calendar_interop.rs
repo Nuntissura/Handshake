@@ -856,14 +856,41 @@ fn argus_node_json_value_field_equals(
     field: &str,
     expected: &str,
 ) -> bool {
-    canonical_argus_driver::json_node_by_author_id(tree, author_id)
+    // MT-130: read the field from wherever the product legitimately publishes it on this node.
+    //
+    // A node carries exactly ONE AccessKit value, and two readers want the chip's: the canonical
+    // driver parses the whole value as a closed `handshake.click-completion/v1` token
+    // (deny_unknown_fields), and this proof reads the domain identity. Merging both into one object
+    // made the token unparseable, so no completion was ever registered and every chip receipt was
+    // indeterminate.
+    //
+    // The product now publishes the token as the value and carries `calendar_event_id` /
+    // `daily_note_doc_id` inside its `semantic_value`. This helper accepts EITHER placement: the
+    // bare domain object (published when MT-117 has no declaration for the frame) or nested in the
+    // token semantic. The assertion is unchanged in substance — same node, same field, same expected
+    // value — it simply no longer assumes one of the two legal shapes.
+    let node_value = canonical_argus_driver::json_node_by_author_id(tree, author_id)
         .and_then(|node| node.get("value"))
         .and_then(serde_json::Value::as_str)
-        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
-        .and_then(|value| value.get(field).cloned())
-        .and_then(|value| value.as_str().map(str::to_owned))
-        .as_deref()
-        == Some(expected)
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+    let Some(node_value) = node_value else {
+        return false;
+    };
+    let direct = node_value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    let via_semantic = node_value
+        .get("semantic_value")
+        .and_then(serde_json::Value::as_str)
+        .and_then(|semantic| serde_json::from_str::<serde_json::Value>(semantic).ok())
+        .and_then(|semantic| {
+            semantic
+                .get(field)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    direct.or(via_semantic).as_deref() == Some(expected)
 }
 
 /// Own the transient localhost server through unwind. A failed terminal predicate must not leave the
@@ -3540,8 +3567,31 @@ fn daily_journal_panel_accesskit_nodes_present() {
     );
     let event_chip_value = value_of(&root, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID)
         .expect("the CalendarEvent chip exposes its exact structured identity");
+    // MT-130: assert the BINDING, not one serialization of it. A raw substring match forced the
+    // domain identity to sit at the top level of the chip value, which is the constraint that made
+    // the completion token unparseable. `argus_node_json_value_field_equals` reads the same field
+    // from the same node under either legal placement.
+    let chip_json: serde_json::Value =
+        serde_json::from_str(&event_chip_value).expect("PT-5: the chip value is JSON");
+    let chip_binds_event_id = chip_json
+        .get("calendar_event_id")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| chip_json.get("semantic_value").and_then(serde_json::Value::as_str))
+        .is_some_and(|found| {
+            found == "E-1"
+                || serde_json::from_str::<serde_json::Value>(found)
+                    .ok()
+                    .and_then(|semantic| {
+                        semantic
+                            .get("calendar_event_id")
+                            .and_then(serde_json::Value::as_str)
+                            .map(str::to_owned)
+                    })
+                    .as_deref()
+                    == Some("E-1")
+        });
     assert!(
-        event_chip_value.contains("\"calendar_event_id\":\"E-1\""),
+        chip_binds_event_id,
         "PT-5: the event chip AccessKit value binds the exact CalendarEvent id: {event_chip_value}"
     );
     assert_eq!(

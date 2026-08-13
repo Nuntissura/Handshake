@@ -457,7 +457,16 @@ fn atomic_replace(path: &std::path::Path, bytes: &[u8]) -> Result<(), BindingErr
                     Ok(cwd) if path.is_relative() => cwd.join(path),
                     _ => path.to_path_buf(),
                 });
-            let text = absolute.as_os_str().to_string_lossy().into_owned();
+            // Verbatim (`\\?\`) paths are passed to the object manager with NO normalization: Win32
+            // does not translate `/` to `\` inside them, and a mixed-separator verbatim path is
+            // simply invalid. A caller-supplied root can legitimately use forward slashes (an env
+            // var like `D:/hsk-bind/...`), and `canonicalize` only fixes that when the path already
+            // exists — which the DESTINATION does not on a first publish. Normalize before
+            // prefixing, or the prefix turns a working path into a broken one.
+            let text = absolute
+                .as_os_str()
+                .to_string_lossy()
+                .replace('/', r"\");
             let prefixed = if text.starts_with(r"\\?\") {
                 text
             } else if let Some(unc) = text.strip_prefix(r"\\") {

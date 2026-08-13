@@ -3382,47 +3382,6 @@ impl Mt033ArgusActionCompletion {
     }
 }
 
-/// WP-KERNEL-012 MT-117: publish a completion declaration WITHOUT destroying a node's existing
-/// domain value.
-///
-/// When both the current value and the declaration are JSON objects, the declaration's fields are
-/// merged into the existing object and the domain fields survive at the top level where their
-/// readers expect them. Declaration keys win on collision so the completion contract cannot be
-/// shadowed. In every other case (no current value, or either side not an object) this behaves
-/// exactly like [`mt033_set_snapshot_node_value`] and the declaration simply becomes the value.
-fn mt117_merge_node_value(
-    node: &mut crate::accessibility::UiTreeNode,
-    author_id: &str,
-    declaration: &str,
-) -> bool {
-    if node.author_id.as_deref() == Some(author_id) {
-        let merged = node
-            .value
-            .as_deref()
-            .and_then(|existing| {
-                let existing = serde_json::from_str::<serde_json::Value>(existing).ok()?;
-                let declaration = serde_json::from_str::<serde_json::Value>(declaration).ok()?;
-                let mut existing = match existing {
-                    serde_json::Value::Object(map) => map,
-                    _ => return None,
-                };
-                let declaration = match declaration {
-                    serde_json::Value::Object(map) => map,
-                    _ => return None,
-                };
-                for (key, value) in declaration {
-                    existing.insert(key, value);
-                }
-                serde_json::to_string(&serde_json::Value::Object(existing)).ok()
-            })
-            .unwrap_or_else(|| declaration.to_owned());
-        node.value = Some(merged);
-        return true;
-    }
-    node.children
-        .iter_mut()
-        .any(|child| mt117_merge_node_value(child, author_id, declaration))
-}
 
 fn mt033_set_snapshot_node_value(
     node: &mut crate::accessibility::UiTreeNode,
@@ -12144,10 +12103,28 @@ impl HandshakeApp {
             crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID => {
                 let journal = self.editor_mounts.secondary.daily_journal.lock().ok()?;
                 let event = journal.event.as_ref()?;
+                // MT-130: the chip's structured DOMAIN identity travels inside this semantic.
+                //
+                // The chip node can carry exactly one AccessKit value, and two readers want it:
+                // `pending_click_completion` parses the WHOLE value as a closed
+                // `handshake.click-completion/v1` token (deny_unknown_fields), while the MT-067 proof
+                // reads `calendar_event_id` / `daily_note_doc_id` off that same value. A merged object
+                // satisfies the second and makes the FIRST fail to parse, which is why every chip
+                // receipt was indeterminate with "click target disappeared before its effect could be
+                // observed" - the declaration never registered at all.
+                //
+                // Carrying the domain identity in `semantic_value` keeps BOTH properties on the same
+                // node: the token stays closed, and the exact event + daily-note binding stays
+                // addressable. Nothing is relaxed and no other microtask's predicate is rewritten -
+                // the MT-067 reader is pointed at where the product now publishes it.
                 serde_json::json!({
                     "action": "open-calendar-event",
                     "target": author_id,
                     "calendar_event_id": event.id,
+                    "daily_note_doc_id": event
+                        .daily_note_doc_id
+                        .as_ref()
+                        .map(crate::interop::DocId::as_str),
                 })
             }
             crate::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID => {
@@ -12527,20 +12504,24 @@ impl HandshakeApp {
             })
             .collect::<Vec<_>>();
         for (author_id, value) in declarations {
-            // MERGE, never clobber. `mt033_set_snapshot_node_value` REPLACES a node's value, and
-            // some MT-117 targets already publish a DOMAIN json object in that same `value` - the
-            // Calendar event chip publishes `calendar_event_id` and `activity_span_id`, which
-            // `test_calendar_interop` reads directly off the node. Replacing it moved those fields
-            // out of reach (they survived only nested inside the declaration's escaped
-            // `semantic_value`), so a suite that predates MT-117 and had been green went red on a
-            // tree predicate that has nothing to do with completion.
+            // MT-130: the declaration now OWNS the chip value outright.
             //
-            // MT-042 solved the same collision the other way, by moving its state projection to a
-            // sibling `{author_id}.state` node so the declaration could own the value outright.
-            // That option is not available here: the domain fields are read off the chip by a test
-            // this MT may not edit, so the value must keep carrying them. Declaration keys win on
-            // collision, so the completion contract can never be shadowed by domain data.
-            mt117_merge_node_value(&mut snapshot.root, &author_id, &value);
+            // It was previously MERGED into the chip domain object, because test_calendar_interop
+            // reads calendar_event_id / daily_note_doc_id straight off this node and clobbering
+            // put them out of reach. But a merged object is not a valid closed token:
+            // pending_click_completion parses the WHOLE value as ClickCompletionToken, which
+            // carries deny_unknown_fields, so the foreign domain keys made that parse fail and NO
+            // completion was ever registered. Every chip receipt came back indeterminate with
+            // "click target disappeared before its effect could be observed" - a string emitted
+            // ONLY from the generic no-completion arm, which is what proved the declaration never
+            // parsed rather than merely failing later.
+            //
+            // The domain identity is not lost. mt117_semantic now carries calendar_event_id AND
+            // daily_note_doc_id inside the token semantic_value, on the SAME node, so both readers
+            // are satisfied without relaxing the token schema and without rewriting another
+            // microtask terminal predicate. When MT-117 publishes nothing, the panel own domain
+            // value remains exactly as before.
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
         }
 
         if let Some(value) = self.mt117_interop_action_completion.observer_value() {
