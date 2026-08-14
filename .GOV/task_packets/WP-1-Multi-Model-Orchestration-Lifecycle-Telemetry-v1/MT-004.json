@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-004",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T18:48:38.234Z",
+  "updated_at_utc": "2026-08-14T18:49:38.414Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002"
     ],
@@ -25,23 +25,23 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260814-135053",
     "claimed_at_utc": "2026-08-14T18:48:38.234Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-020913",
-    "ready_for_validation_at_utc": "2026-07-29T02:09:13Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260814-135053",
+    "ready_for_validation_at_utc": "2026-08-14T18:49:38.414Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V5: The PromotionGate privacy contract is not fully proven: positive owner/AccessSpace propagation into promoted artifacts and cross-account promotion denials remain unattached. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASSED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source - promotion outputs derived from mixed-scope sources cannot widen scope (HBR-PRIV-004 non-widening). STILL OWED: Promotion-specific positive path: promoted artifacts carrying owner/AccessSpace through the PromotionGate, plus cross-account promotion negatives, are not yet attached.",
-    "kb_ready_checklist_receipt_id": null,
+    "proof_status": "REMEDIATED_V5_PENDING_VALIDATION: product commit 4fc67486; all declared promotion, replay, schema, UserManual and cargo-check proofs passed; exact five-dimensional PromotionGate privacy positive and foreign/mixed-source negatives passed on real PostgreSQL.",
+    "hbr_status": "HBR-PRIV PASS_PENDING_VALIDATOR: PromotionGate proves exact owner account, Principal, authenticated session, AccessSpace, and workspace inheritance into decision, EventLedger, and promoted message; foreign and mixed-scope inputs fail before authority mutation and cannot widen derived scope. HBR-INT, HBR-SWARM, and HBR-MAN declared proofs pass on current source.",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-08-14T18:49:38.414Z",
     "product_worktree_root_resolution": "RESOLVED_TO_CURRENT_WORKTREE",
     "last_recovery_event_ref": "usermanual://model-lane-promotion#recovery",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "REMEDIATED_V5 at 4fc67486; canonical PostgreSQL, promotion/replay/schema, manual, cargo-check and adversarial proof gates passed; validator verdict pending",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_2026-06-29",
-    "adversarial_findings_status": "POST_IMPLEMENTATION_FINDINGS_ADDRESSED_IN_RUNTIME_AND_USERMANUAL",
+    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
+    "adversarial_findings_status": "POST_REVIEW_EXACT_SCOPE_INHERITANCE_FOREIGN_SCOPE_PREMUTATION_DENIAL_MIXED_SCOPE_NONWIDENING_AND_MANUAL_FINDINGS_REPROVEN",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
