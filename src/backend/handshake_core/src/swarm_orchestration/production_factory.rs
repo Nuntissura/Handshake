@@ -2803,6 +2803,28 @@ mod tests {
         ModelLaneStore::new(pool)
     }
 
+    /// Cloud dispatch is production-fenced by a complete server-owned resource
+    /// scope. Tests that intend to exercise a cloud lane must provide that same
+    /// authority instead of stopping at the fail-closed scope guard.
+    fn scoped_lazy_model_lane_store() -> ModelLaneStore {
+        use crate::swarm_orchestration::resource_scope::{
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            ResourceScope, WorkspaceScopeRef,
+        };
+
+        let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(AccessSpaceRef::mint())
+            .with_workspace(
+                WorkspaceScopeRef::new("workspace-production-factory-test")
+                    .expect("non-empty workspace scope"),
+            );
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://handshake:handshake@127.0.0.1:5432/handshake_lazy")
+            .expect("lazy scoped model lane pool");
+        ModelLaneStore::new_scoped(pool, scope)
+    }
+
     fn one_slot_failing_overflow_ledger_pair() -> (LedgerBatcher, ProcessLedgerDrain) {
         LedgerBatcher::manual_for_tests(
             LedgerBatcherConfig {
@@ -2870,7 +2892,9 @@ mod tests {
     #[tokio::test]
     async fn cloud_spawn_without_configured_lane_returns_provider_not_configured() {
         let (ledger, _drain) = ledger_pair();
-        let factory = ProductionModelSessionFactory::local_only(ledger);
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = ProductionModelSessionFactory::local_only(ledger)
+            .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
             instance(0),
             RuntimeBinding::Candle,
@@ -3084,7 +3108,9 @@ mod tests {
             official_cli: None,
             official_cli_by_provider: HashMap::new(),
         };
-        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
+            .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
             instance(0),
             RuntimeBinding::Candle,
@@ -3237,11 +3263,11 @@ mod tests {
             official_cli_by_provider: HashMap::new(),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(
-            ledger.clone(),
-            cloud,
-            None,
-        ));
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = Arc::new(
+            ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
+                .with_durable_worktree_vm_store(&model_lane_store),
+        );
         let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -3327,7 +3353,9 @@ mod tests {
             official_cli: None,
             official_cli_by_provider: HashMap::new(),
         };
-        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
+            .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
             instance(0),
             RuntimeBinding::Candle,
@@ -3431,7 +3459,9 @@ mod tests {
             official_cli: None,
             official_cli_by_provider,
         };
-        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
+            .with_durable_worktree_vm_store(&model_lane_store);
         let mut req = SpawnRequest::new(
             instance(0),
             RuntimeBinding::Candle,
@@ -3605,7 +3635,9 @@ mod tests {
             })),
             official_cli_by_provider,
         };
-        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
+            .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
             instance(0),
             RuntimeBinding::Candle,
@@ -3856,11 +3888,11 @@ mod tests {
         let (ledger, ledger_writer) = spawned_ledger(store.clone());
         let ledger_close = ledger.clone();
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(
-            ledger.clone(),
-            cloud,
-            None,
-        ));
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = Arc::new(
+            ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
+                .with_durable_worktree_vm_store(&model_lane_store),
+        );
         let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -3945,11 +3977,11 @@ mod tests {
         let (ledger, ledger_writer) = spawned_ledger(store.clone());
         let ledger_close = ledger.clone();
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(
-            ledger.clone(),
-            cloud,
-            None,
-        ));
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = Arc::new(
+            ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
+                .with_durable_worktree_vm_store(&model_lane_store),
+        );
         let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
@@ -4219,11 +4251,11 @@ mod tests {
             official_cli_by_provider: HashMap::new(),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(
-            ledger.clone(),
-            cloud,
-            None,
-        ));
+        let model_lane_store = scoped_lazy_model_lane_store();
+        let factory = Arc::new(
+            ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
+                .with_durable_worktree_vm_store(&model_lane_store),
+        );
         let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -4290,7 +4322,9 @@ mod tests {
 
         // Not-configured variant: official_cli=None -> ProviderNotConfigured.
         let (ledger2, _drain2) = ledger_pair();
-        let factory2 = ProductionModelSessionFactory::local_only(ledger2);
+        let model_lane_store2 = scoped_lazy_model_lane_store();
+        let factory2 = ProductionModelSessionFactory::local_only(ledger2)
+            .with_durable_worktree_vm_store(&model_lane_store2);
         let req2 = SpawnRequest::new(
             instance(1),
             RuntimeBinding::Candle,
