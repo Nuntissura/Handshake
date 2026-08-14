@@ -35,7 +35,7 @@
 
 mod knowledge_pg_support;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use chrono::Utc;
 use handshake_core::model_runtime::{
@@ -47,18 +47,18 @@ use handshake_core::swarm_orchestration::model_lane::{
     LaunchAuthority, ModelLaneAuthority, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
     ModelLaneError, ModelLaneKind, ModelLaneLocusBinding, ModelLaneMessageKind,
     ModelLaneNavigationLookup, ModelLaneProviderKind, ModelLaneRecoveryState,
-    ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore, ModelLaneTarget,
-    NewModelLane, NewModelLaneDiagnosticTierStatus, NewModelLaneMessage, NewModelLaneRun,
-    RuntimeBinding,
+    ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
+    NewModelLaneDiagnosticTierStatus, NewModelLaneMessage, NewModelLaneRun, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     stored_resource_scope_from_row, AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
-    OwnerAccountId, ResourceAccessContext, ResourceScope, ResourceScopeError, ResourceScopeQuery,
-    ScopeDenied, StoredResourceScope, SystemScopeAuthority, WorkspaceScopeRef,
-    RESOURCE_SCOPE_SELECT_COLUMNS,
+    ExactResourceScopeAttribution, OwnerAccountId, ResourceAccessContext, ResourceScope,
+    ResourceScopeError, ResourceScopeQuery, ScopeDenied, StoredResourceScope, SystemScopeAuthority,
+    WorkspaceScopeRef, RESOURCE_SCOPE_SELECT_COLUMNS,
 };
-use serde_json::json;
-use sqlx::PgPool;
+use serde_json::{json, Value};
+use sqlx::{PgPool, Row};
+use tokio::sync::Barrier;
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -83,6 +83,13 @@ fn scope_for(owner: OwnerAccountId) -> ResourceScope {
 
 fn scope_in_workspace(owner: OwnerAccountId, workspace: &str) -> ResourceScope {
     scope_for(owner).with_workspace(WorkspaceScopeRef::new(workspace).unwrap())
+}
+
+fn exact_scope_for(owner: OwnerAccountId, workspace: &str) -> ResourceScope {
+    ResourceScope::new(owner, ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new(workspace).expect("nonblank exact workspace"))
 }
 
 /// Store bound to one account for both reads and writes.
@@ -166,6 +173,9 @@ async fn seed_run(store: &ModelLaneStore, slug: &str) -> String {
 
 /// Read a row's stored scope columns with NO owner predicate at all.
 ///
+/// INSPECTION ONLY: this helper is test-local and must never be copied into a
+/// product read path or used to return row content to a caller.
+///
 /// This is the deliberate simulation of layer 1 being absent: it is exactly the
 /// query the store would run if someone deleted the `AND owner_account_id = $n`
 /// fragment. Feeding the result to `authorize_row` proves layer 2 independently
@@ -192,6 +202,14 @@ fn expect_not_found(result: Result<impl std::fmt::Debug, ModelLaneError>, what: 
         Err(other) => panic!("{what}: expected NotFound denial, got {other}"),
         Ok(value) => panic!("{what}: DISCLOSED another account's data: {value:?}"),
     }
+}
+
+async fn event_payload(pool: &PgPool, event_id: &str) -> Value {
+    sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+        .bind(event_id)
+        .fetch_one(pool)
+        .await
+        .unwrap_or_else(|error| panic!("read EventLedger payload {event_id}: {error}"))
 }
 
 // ---------------------------------------------------------------------------
@@ -401,7 +419,373 @@ async fn one_account_cannot_read_across_its_own_workspaces() {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Pre-0363 style unattributed rows are denied, not grandfathered
+// 3. Exact five-dimensional runtime attribution
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn exact_five_dimension_scope_covers_rows_eventledger_and_diagnostics() {
+    let pool = pg_pool("exact five-dimensional ModelLane isolation").await;
+    let exact_scope = exact_scope_for(OwnerAccountId::mint(), "ws-exact-five");
+    let exact_attribution = ExactResourceScopeAttribution::try_from_resource_scope(&exact_scope)
+        .expect("fixture carries all five scope dimensions");
+    let expected_stored = exact_attribution.as_stored_scope();
+    let expected_json =
+        serde_json::to_value(&exact_attribution).expect("serialize exact attribution fixture");
+    let owning_store = account_store(&pool, &exact_scope);
+    let run_id = seed_run(&owning_store, "exact-five").await;
+
+    // Positive controls prove that the exact owner can read every base record
+    // and the scope-enforced diagnostic derivative.
+    let replay = owning_store
+        .replay_run(&run_id)
+        .await
+        .expect("the exact five-dimensional owner must replay its run");
+    assert_eq!(replay.run.run_id, run_id);
+    assert_eq!(replay.lanes.len(), 1);
+    assert_eq!(replay.messages.len(), 1);
+    let own_lane_navigation = owning_store
+        .navigation_by_lane("lane-exact-five")
+        .await
+        .expect("the exact owner must navigate its ModelLane");
+    assert_eq!(
+        own_lane_navigation
+            .run
+            .as_ref()
+            .expect("lane navigation includes its owning run")
+            .run_id,
+        run_id
+    );
+    let own_message_navigation = owning_store
+        .navigation_by_message("msg-exact-five")
+        .await
+        .expect("the exact owner must navigate its ModelLaneMessage");
+    assert_eq!(
+        own_message_navigation
+            .run
+            .as_ref()
+            .expect("message navigation includes its owning run")
+            .run_id,
+        run_id
+    );
+    let diagnostics = owning_store
+        .diagnostics_projection(&run_id)
+        .await
+        .expect("the exact owner must read the diagnostic derivative");
+    assert_eq!(diagnostics.run.run_id, run_id);
+
+    let event_ids = [
+        ("ModelLaneRun", replay.run.event_ledger_event_id.clone()),
+        ("ModelLane", replay.lanes[0].event_ledger_event_id.clone()),
+        (
+            "ModelLaneMessage",
+            replay.messages[0].event_ledger_event_id.clone(),
+        ),
+    ];
+    for (aggregate, event_id) in &event_ids {
+        let own_event_navigation = owning_store
+            .navigation_by_lookup(ModelLaneNavigationLookup {
+                event_ledger_event_id: Some(event_id.clone()),
+                ..Default::default()
+            })
+            .await
+            .unwrap_or_else(|error| {
+                panic!("the exact owner must navigate its {aggregate} EventLedger event: {error}")
+            });
+        assert_eq!(
+            own_event_navigation
+                .run
+                .as_ref()
+                .expect("EventLedger navigation includes its owning run")
+                .run_id,
+            run_id,
+            "{aggregate} EventLedger positive control resolved the wrong run"
+        );
+    }
+
+    // ModelLaneRun, ModelLane, and ModelLaneMessage must persist the complete
+    // five-dimensional scope, not merely owner/workspace.
+    for (table, key_column, key) in [
+        ("model_lane_runs", "run_id", run_id.as_str()),
+        ("model_lanes", "lane_id", "lane-exact-five"),
+        ("model_lane_messages", "message_id", "msg-exact-five"),
+    ] {
+        assert_eq!(
+            stored_scope_without_predicate(&pool, table, key_column, key).await,
+            expected_stored,
+            "{table} must retain all five exact scope dimensions"
+        );
+    }
+
+    // Their immutable EventLedger authorities carry the same five flat fields.
+    for (_, event_id) in &event_ids {
+        let payload = event_payload(&pool, event_id).await;
+        for field in [
+            "owner_account_id",
+            "actor_principal_id",
+            "authenticated_session_id",
+            "access_space_id",
+            "workspace_id",
+        ] {
+            assert_eq!(
+                payload.get(field),
+                expected_json.get(field),
+                "EventLedger payload {event_id} lost exact field {field}"
+            );
+        }
+    }
+
+    // Diagnostic rows and their EventLedger derivatives are protected data too.
+    let diagnostic_rows = sqlx::query(&format!(
+        "SELECT event_ledger_event_id, {RESOURCE_SCOPE_SELECT_COLUMNS} \
+         FROM model_lane_diagnostic_tier_statuses WHERE run_id = $1"
+    ))
+    .bind(&run_id)
+    .fetch_all(&pool)
+    .await
+    .expect("read diagnostic scope proof rows");
+    assert_eq!(diagnostic_rows.len(), 3, "all diagnostic tiers were seeded");
+    let mut diagnostic_event_ids = Vec::with_capacity(diagnostic_rows.len());
+    for row in diagnostic_rows {
+        assert_eq!(
+            stored_resource_scope_from_row(&row).expect("decode diagnostic row scope"),
+            expected_stored,
+            "diagnostic row must retain all five exact scope dimensions"
+        );
+        let event_id: String = row
+            .try_get("event_ledger_event_id")
+            .expect("diagnostic EventLedger id");
+        let payload = event_payload(&pool, &event_id).await;
+        assert_eq!(
+            payload.get("resource_scope"),
+            Some(&expected_json),
+            "diagnostic EventLedger derivative must retain the exact source scope"
+        );
+        diagnostic_event_ids.push(("ModelLaneDiagnosticTier", event_id));
+    }
+    for (aggregate, event_id) in &diagnostic_event_ids {
+        let own_event_navigation = owning_store
+            .navigation_by_lookup(ModelLaneNavigationLookup {
+                event_ledger_event_id: Some(event_id.clone()),
+                ..Default::default()
+            })
+            .await
+            .unwrap_or_else(|error| {
+                panic!("the exact owner must navigate its {aggregate} EventLedger event: {error}")
+            });
+        assert_eq!(
+            own_event_navigation
+                .run
+                .as_ref()
+                .expect("diagnostic EventLedger navigation includes its owning run")
+                .run_id,
+            run_id,
+            "diagnostic EventLedger positive control resolved the wrong run"
+        );
+    }
+
+    // Change exactly one scope dimension at a time. Each foreign exact context
+    // must be denied independently at the run, lane, message, EventLedger
+    // navigation, and diagnostic derivative boundaries.
+    let mut wrong_owner = exact_scope.clone();
+    wrong_owner.owner_account_id = OwnerAccountId::mint();
+    let mut wrong_actor = exact_scope.clone();
+    wrong_actor.actor_principal_id = ActorPrincipalId::mint();
+    let mut wrong_session = exact_scope.clone();
+    wrong_session.authenticated_session = Some(AuthenticatedSessionRef::mint());
+    let mut wrong_access_space = exact_scope.clone();
+    wrong_access_space.access_space = Some(AccessSpaceRef::mint());
+    let mut wrong_workspace = exact_scope.clone();
+    wrong_workspace.workspace =
+        Some(WorkspaceScopeRef::new("ws-exact-five-foreign").expect("nonblank foreign workspace"));
+
+    let foreign_scopes = [
+        ("owner_account_id", wrong_owner),
+        ("actor_principal_id", wrong_actor),
+        ("authenticated_session_id", wrong_session),
+        ("access_space_id", wrong_access_space),
+        ("workspace_id", wrong_workspace),
+    ];
+    for (dimension, foreign_scope) in &foreign_scopes {
+        let foreign_store = account_store(&pool, foreign_scope);
+        expect_not_found(
+            foreign_store.replay_run(&run_id).await,
+            &format!("foreign {dimension} replaying ModelLaneRun"),
+        );
+        expect_not_found(
+            foreign_store.navigation_by_lane("lane-exact-five").await,
+            &format!("foreign {dimension} navigating ModelLane"),
+        );
+        expect_not_found(
+            foreign_store.navigation_by_message("msg-exact-five").await,
+            &format!("foreign {dimension} navigating ModelLaneMessage"),
+        );
+        for (aggregate, event_id) in event_ids.iter().chain(diagnostic_event_ids.iter()) {
+            expect_not_found(
+                foreign_store
+                    .navigation_by_lookup(ModelLaneNavigationLookup {
+                        event_ledger_event_id: Some(event_id.clone()),
+                        ..Default::default()
+                    })
+                    .await,
+                &format!("foreign {dimension} navigating {aggregate} EventLedger derivative"),
+            );
+        }
+        expect_not_found(
+            foreign_store.diagnostics_projection(&run_id).await,
+            &format!("foreign {dimension} reading diagnostic derivative"),
+        );
+
+        let foreign_access = ResourceAccessContext::for_account(foreign_scope.clone());
+        for (resource, stored) in [
+            (
+                "ModelLaneRun",
+                stored_scope_without_predicate(&pool, "model_lane_runs", "run_id", &run_id).await,
+            ),
+            (
+                "ModelLane",
+                stored_scope_without_predicate(&pool, "model_lanes", "lane_id", "lane-exact-five")
+                    .await,
+            ),
+            (
+                "ModelLaneMessage",
+                stored_scope_without_predicate(
+                    &pool,
+                    "model_lane_messages",
+                    "message_id",
+                    "msg-exact-five",
+                )
+                .await,
+            ),
+        ] {
+            assert_eq!(
+                foreign_access
+                    .authorize_row(&stored)
+                    .unwrap_err()
+                    .reason_code(),
+                "RESOURCE_SCOPE_EXACT_ATTRIBUTION_MISMATCH",
+                "post-deserialization {resource} authorization must reject foreign {dimension}"
+            );
+        }
+    }
+
+    // HBR-SWARM-001 + HBR-PRIV-002: start one exact-owner idempotent write and
+    // all five one-dimension-foreign readers from the same barrier. The rows
+    // already exist and have owner-positive controls above, so every denial is
+    // falsifiable rather than a read racing ahead of initial persistence.
+    let barrier = Arc::new(Barrier::new(foreign_scopes.len() + 1));
+    let writer_barrier = Arc::clone(&barrier);
+    let writer_store = owning_store.clone();
+    let writer = tokio::spawn(async move {
+        writer_barrier.wait().await;
+        let written_run = seed_run(&writer_store, "exact-five").await;
+        assert_eq!(written_run, "run-exact-five");
+    });
+
+    let all_event_ids = event_ids
+        .iter()
+        .chain(diagnostic_event_ids.iter())
+        .map(|(aggregate, event_id)| ((*aggregate).to_owned(), event_id.clone()))
+        .collect::<Vec<_>>();
+    let mut readers = Vec::with_capacity(foreign_scopes.len());
+    for (dimension, foreign_scope) in foreign_scopes {
+        let reader_barrier = Arc::clone(&barrier);
+        let reader_pool = pool.clone();
+        let reader_event_ids = all_event_ids.clone();
+        readers.push(tokio::spawn(async move {
+            let foreign_store = account_store(&reader_pool, &foreign_scope);
+            reader_barrier.wait().await;
+            expect_not_found(
+                foreign_store.replay_run("run-exact-five").await,
+                &format!("concurrent foreign {dimension} replaying ModelLaneRun"),
+            );
+            expect_not_found(
+                foreign_store.navigation_by_lane("lane-exact-five").await,
+                &format!("concurrent foreign {dimension} navigating ModelLane"),
+            );
+            expect_not_found(
+                foreign_store.navigation_by_message("msg-exact-five").await,
+                &format!("concurrent foreign {dimension} navigating ModelLaneMessage"),
+            );
+            expect_not_found(
+                foreign_store.diagnostics_projection("run-exact-five").await,
+                &format!("concurrent foreign {dimension} reading diagnostics"),
+            );
+            for (aggregate, event_id) in reader_event_ids {
+                expect_not_found(
+                    foreign_store
+                        .navigation_by_lookup(ModelLaneNavigationLookup {
+                            event_ledger_event_id: Some(event_id),
+                            ..Default::default()
+                        })
+                        .await,
+                    &format!(
+                        "concurrent foreign {dimension} navigating {aggregate} EventLedger event"
+                    ),
+                );
+            }
+        }));
+    }
+    writer.await.expect("exact-owner concurrent writer joined");
+    for reader in readers {
+        reader.await.expect("foreign concurrent reader joined");
+    }
+
+    // The concurrent idempotent owner write and denied readers must leave every
+    // base row, diagnostic row, and EventLedger derivative at the original exact
+    // five-dimensional attribution.
+    for (table, key_column, key) in [
+        ("model_lane_runs", "run_id", run_id.as_str()),
+        ("model_lanes", "lane_id", "lane-exact-five"),
+        ("model_lane_messages", "message_id", "msg-exact-five"),
+    ] {
+        assert_eq!(
+            stored_scope_without_predicate(&pool, table, key_column, key).await,
+            expected_stored,
+            "concurrency changed {table} exact attribution"
+        );
+    }
+    let final_diagnostic_scopes = sqlx::query(&format!(
+        "SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} \
+         FROM model_lane_diagnostic_tier_statuses WHERE run_id = $1"
+    ))
+    .bind(&run_id)
+    .fetch_all(&pool)
+    .await
+    .expect("inspect final diagnostic scopes");
+    assert_eq!(final_diagnostic_scopes.len(), 3);
+    for row in final_diagnostic_scopes {
+        assert_eq!(
+            stored_resource_scope_from_row(&row).expect("decode final diagnostic scope"),
+            expected_stored,
+            "concurrency changed diagnostic exact attribution"
+        );
+    }
+    for (aggregate, event_id) in all_event_ids {
+        let payload = event_payload(&pool, &event_id).await;
+        let observed = if aggregate == "ModelLaneDiagnosticTier" {
+            payload.get("resource_scope")
+        } else {
+            Some(&payload)
+        }
+        .expect("EventLedger attribution object");
+        for field in [
+            "owner_account_id",
+            "actor_principal_id",
+            "authenticated_session_id",
+            "access_space_id",
+            "workspace_id",
+        ] {
+            assert_eq!(
+                observed.get(field),
+                expected_json.get(field),
+                "concurrency changed {aggregate} EventLedger field {field}"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Pre-0363 style unattributed rows are denied, not grandfathered
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
@@ -436,11 +820,10 @@ async fn an_unattributed_legacy_row_is_denied_not_grandfathered() {
     );
 
     // LAYER 2: and it is denied on its own merits, not merely filtered out.
-    let denied = ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(
-        OwnerAccountId::mint(),
-    ))
-    .authorize_row(&stored)
-    .expect_err("a row with no owning account must never be readable by an account");
+    let denied =
+        ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(OwnerAccountId::mint()))
+            .authorize_row(&stored)
+            .expect_err("a row with no owning account must never be readable by an account");
     assert_eq!(denied.reason_code(), "RESOURCE_SCOPE_UNATTRIBUTED");
 
     // The explicitly-system store can still read it. That is the documented,
@@ -470,10 +853,12 @@ async fn a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source
     // contributing sources. First prove all five exact dimensions survive
     // PostgreSQL when every source has the same scope.
     let same_scope_source = source_a.clone();
-    let derived =
-        ResourceScope::derive_from_sources([&source_a, &same_scope_source], source_actor)
-            .expect("same exact-scope derivation is allowed");
-    assert_eq!(derived, source_a, "derivation must preserve all five fields");
+    let derived = ResourceScope::derive_from_sources([&source_a, &same_scope_source], source_actor)
+        .expect("same exact-scope derivation is allowed");
+    assert_eq!(
+        derived, source_a,
+        "derivation must preserve all five fields"
+    );
     let derived_store = account_store(&pool, &derived);
     let derived_run = seed_run(&derived_store, "derived").await;
 
@@ -544,9 +929,8 @@ async fn a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source
     }
 
     let mut wrong_workspace = source_a.clone();
-    wrong_workspace.workspace = Some(
-        WorkspaceScopeRef::new("ws-beta").expect("nonblank conflicting workspace"),
-    );
+    wrong_workspace.workspace =
+        Some(WorkspaceScopeRef::new("ws-beta").expect("nonblank conflicting workspace"));
     let mut missing_workspace = source_a.clone();
     missing_workspace.workspace = None;
     for conflicting in [&wrong_workspace, &missing_workspace] {
@@ -559,11 +943,10 @@ async fn a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source
         }
     }
 
-    let run_count_after_negatives: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_runs")
-            .fetch_one(&pool)
-            .await
-            .expect("count runs after mixed-scope derivation negatives");
+    let run_count_after_negatives: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_runs")
+        .fetch_one(&pool)
+        .await
+        .expect("count runs after mixed-scope derivation negatives");
     assert_eq!(
         run_count_after_negatives, run_count_before_negatives,
         "rejected one-field and missing-field derivations must create no durable row"
@@ -614,11 +997,11 @@ async fn a_cross_account_denial_leaks_no_identifiers_or_row_contents() {
     }
 
     // The typed denial reason itself is also identifier-free.
-    let stored =
-        stored_scope_without_predicate(&pool, "model_lane_runs", "run_id", &bob_run).await;
-    let denied: ScopeDenied = ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice))
-        .authorize_row(&stored)
-        .unwrap_err();
+    let stored = stored_scope_without_predicate(&pool, "model_lane_runs", "run_id", &bob_run).await;
+    let denied: ScopeDenied =
+        ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice))
+            .authorize_row(&stored)
+            .unwrap_err();
     let denial_text = denied.to_string();
     assert!(!denial_text.contains(&bob.to_string()));
     assert!(!denial_text.contains(&alice.to_string()));
@@ -727,7 +1110,8 @@ async fn boot_recovery_refuses_to_run_from_an_account_scoped_store() {
 
     // Restart recovery is intentionally cross-owner. An account-scoped store
     // must not be able to reach it, or "recovery" becomes a disclosure route.
-    let account_scoped = ModelLaneStore::new_scoped(pool.clone(), scope_for(OwnerAccountId::mint()));
+    let account_scoped =
+        ModelLaneStore::new_scoped(pool.clone(), scope_for(OwnerAccountId::mint()));
     match account_scoped.recover_restartable_runs_at_boot().await {
         Err(ModelLaneError::AuthorityDenied(detail)) => {
             assert!(
