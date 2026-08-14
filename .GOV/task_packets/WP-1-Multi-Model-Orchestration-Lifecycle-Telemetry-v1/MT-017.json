@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-017",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-08-05T06:45:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -33,7 +33,7 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER",
     "claimed_at_utc": "2026-07-16T23:03:45Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
@@ -41,15 +41,16 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: full declared 22-proof suite GREEN at a single frozen revision efea010a with a clean tree. pass=22 fail=0 false_pass_zero_tests=0. Every step reports a non-zero executed count, so no proof passed vacuously. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker. CAPSTONE STILL OWED: the 22-proof suite must be rerun in full at ONE frozen clean HEAD. The recorded GREEN was at efea010a while current HEAD is 50517aec with ~43 uncommitted files across parallel lanes, so it is stale by construction and cannot be re-declared without a quiet tree.",
+    "proof_status": "FAIL_V5: The declared git diff --check main...HEAD command exits 2 on a blank EOF line, and the recorded 22-proof capstone belongs to an older source revision rather than current HEAD. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
     "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_DIAGNOSTICS_USERMANUAL_AND_RUNTIME_AUDIT_GREEN",
     "adversarial_findings_status": "PASS_V3_ALL_V2_DEPENDENCY_BLOCKERS_CLOSED_FRESH_NONCE_BOUND_PRODUCER_CONSUMER_AND_VISUAL_PROOFS_ACCEPTED",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-017:2026-07-20T01:18:29.891Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
   "final_audit_remediation_2026_07_18": {
     "status": "PASS_READY_FOR_VALIDATION_ONLY",
@@ -268,7 +269,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": "FAIL_V5",
   "remediation_v3": {
     "status": "READY_FOR_VALIDATION_V3",
     "prepared_by": "KERNEL_BUILDER-20260717-072123",
@@ -460,5 +461,67 @@
     "status_unchanged": "No lifecycle status was changed by this record.",
     "recorded_by": "KERNEL_BUILDER-20260805-053606",
     "recorded_at_utc": "2026-08-05T08:40:00Z"
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "The declared git diff --check main...HEAD command exits 2 on a blank EOF line, and the recorded 22-proof capstone belongs to an older source revision rather than current HEAD.",
+    "failed_gates": [
+      "declared git diff --check proof",
+      "fresh 22-command capstone"
+    ],
+    "remediation_plan": [
+      "Remove the blank EOF line and require git diff --check main...HEAD to pass.",
+      "Run the complete declared 22-command suite once, serially, at one clean frozen current HEAD with real PostgreSQL and non-zero test counts.",
+      "Attach exact results, hashes, and required live visual evidence before requesting revalidation."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "Fresh git diff --check main...HEAD exited 2 on the blank EOF line; this is a direct declared-proof failure."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5: full declared 22-proof suite GREEN at a single frozen revision efea010a with a clean tree. pass=22 fail=0 false_pass_zero_tests=0. Every step reports a non-zero executed count, so no proof passed vacuously. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker. CAPSTONE STILL OWED: the 22-proof suite must be rerun in full at ONE frozen clean HEAD. The recorded GREEN was at efea010a while current HEAD is 50517aec with ~43 uncommitted files across parallel lanes, so it is stale by construction and cannot be re-declared without a quiet tree.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

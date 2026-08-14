@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-015",
   "created_at_utc": "2026-07-01T23:23:30Z",
-  "updated_at_utc": "2026-08-04T15:30:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-02_CLOUD_CONFIG_SECRETS_HARDENED",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
@@ -16,13 +16,13 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-006"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T13:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -30,13 +30,14 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": "Validator-gated: live 2nd-OS-window + live-pixel PrintWindow grab (GUI host); existing test_argus_production_socket_live* covers it on a display.",
-    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): HBR-QUIET-001 violation REMOVED - CREATE_NEW_CONSOLE gone as an active flag (independently verified), interactive login on ConPTY, login proven still COMPLETABLE by runtime round-trip. Proofs: model_access_route_tests 11/0; test_cloud_models_settings_argus 9/0; test_focus_audit_quiet 7/0; cli_bridge_login_quiet_tests 3/0/1; cargo check --all-targets exit 0; git diff --check clean. Falsifiability DEMONSTRATED by injecting a real CREATE_NEW_CONSOLE defect and observing both gates fail, then removing it. That exercise also EXPOSED and REPAIRED a near-vacuous test: the old created-during-window pid filter missed the regression because Windows 11's default-terminal handoff rendered the console in a pre-existing WindowsTerminal.exe pid. Live detached Settings Argus remains BLOCKED on Palmistry provenance (WP-KERNEL-012).",
+    "proof_status": "FAIL_V5: The contract itself records the live detached-OS-window PrintWindow/Palmistry proof as missing. Named UI suites use egui_kittest rather than production LiveApp, so the required real Settings surface and quiet-focus behavior are not proven. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED; HBR-QUIET-001 code-level violation removed (ConPTY, no CREATE_NEW_CONSOLE). HBR-QUIET-004 is NOT declared on this MT and is NOT needed now - there is no foreground exception to declare because the foreground launch is gone. Detached Settings Argus proof remains BLOCKED on authenticated Palmistry provenance (WP-KERNEL-012).",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_task_a0e9015f5c0ee8643",
     "post_implementation_adversarial_review_status": "COMPLETED_SECRETS_LEAKAGE_LENS_20260729_PASS",
     "adversarial_findings_status": "NO_SECRET_LEAKS; real accessibility gap fixed; HBR-QUIET CLI-login window + canary value-scan deferred",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
   "scope": {
     "summary": "Operator-facing cloud-model access configuration surface: (a) CLI-bridge / subscription-plan auth-and-login status + config for the official-CLI providers the operator uses (Claude Code, GPT/Codex), and (b) a BYOK API-key entry (Anthropic, OpenAI) stored in the existing OS-keychain secrets vault for users who bring their own keys. Gemini is explicitly excluded (CLI deprecating).",
@@ -162,7 +163,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs (incl. the secrets-leak negative test); COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": "FAIL_V5",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -233,5 +234,68 @@
     "residual_weakness_disclosed": "The runtime negative observes a real desktop, so an unrelated application opening a new console/terminal window inside the ~900ms audit window would false-positive. This is a deliberate false-positive bias (fail loud rather than miss a regression) and is documented in the test file.",
     "blocked_row": "HBR-VIS-001 live detached Settings Argus - BLOCKED, missing resource palmistry.exe / authenticated Palmistry provenance (WP-KERNEL-012). app.rs:1058 returns false unless diagnostics.argus_signing_secret() resolves; api/palmistry.rs:504 returns PALMISTRY_LAUNCH_UNAVAILABLE. Headless egui_kittest evidence was NOT substituted for it.",
     "cross_lane_hazard_observed": "Another lane editing the same worktree left handshake_core NON-COMPILING for ~20 minutes (E0063) mid-session, failing this lane's first backend and native runs for reasons unrelated to MT-015. Concurrent edits to a shared crate inside one worktree make every lane's proof non-reproducible while the break lasts."
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "The contract itself records the live detached-OS-window PrintWindow/Palmistry proof as missing. Named UI suites use egui_kittest rather than production LiveApp, so the required real Settings surface and quiet-focus behavior are not proven.",
+    "failed_gates": [
+      "HBR-VIS-001",
+      "HBR-PRIV-008",
+      "live detached-window proof"
+    ],
+    "remediation_plan": [
+      "Configure authenticated Palmistry and a production LiveApp backend, then open the actual cloud-model Settings surface.",
+      "Capture both the main and detached OS windows through the production PrintWindow path and prove login/configuration does not steal focus or expose secrets.",
+      "Independently inspect artifacts and rerun all declared model-access, quiet, UserManual, and live-Argus commands."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): HBR-QUIET-001 violation REMOVED - CREATE_NEW_CONSOLE gone as an active flag (independently verified), interactive login on ConPTY, login proven still COMPLETABLE by runtime round-trip. Proofs: model_access_route_tests 11/0; test_cloud_models_settings_argus 9/0; test_focus_audit_quiet 7/0; cli_bridge_login_quiet_tests 3/0/1; cargo check --all-targets exit 0; git diff --check clean. Falsifiability DEMONSTRATED by injecting a real CREATE_NEW_CONSOLE defect and observing both gates fail, then removing it. That exercise also EXPOSED and REPAIRED a near-vacuous test: the old created-during-window pid filter missed the regression because Windows 11's default-terminal handoff rendered the console in a pre-existing WindowsTerminal.exe pid. Live detached Settings Argus remains BLOCKED on Palmistry provenance (WP-KERNEL-012).",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

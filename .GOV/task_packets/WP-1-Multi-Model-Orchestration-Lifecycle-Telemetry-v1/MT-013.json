@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-08-10T02:49:52.393Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "scope_status": "READY_FOR_VALIDATION_V4",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
@@ -16,13 +16,13 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260809-150449",
     "claimed_at_utc": "2026-08-09T20:33:29.822Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260810-011933",
@@ -30,14 +30,15 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V4: fresh final-source embedded ledger suite 45/45 with exit 0 and clean owned-PostgreSQL shutdown under the separate fixed 120s stop budget; fixed-budget unit 1/1; writer suite 28/28; seven exact MT-013 completion/embedding Flight Recorder tests 7/7; real Candle load/START/STOP 1/1; real Candle embedding-failure rollback 1/1; distinct embedding default 1/1; current UserManual exact 1/1 including persisted per-owner Cargo command guards; app-runtime cargo check PASS. Independent current-path post-diff review PASS with no local-delta finding. Headless KB readiness checklist PASS with zero blockers.",
+    "proof_status": "FAIL_V5: The mandatory real Candle proof cannot run in the current environment because HANDSHAKE_TEST_CANDLE_MODEL_DIR is unset. The ignored real-model gate cannot be replaced by deterministic model tests. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN; operator correction 2026-08-10 confirms WP-KERNEL-006/007 privacy-foundation work is not part of MT-013 and is not a predecessor to this WP-1 microtask.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "PASS_2026-08-10_CURRENT_BACKEND_PATHS_NO_LOCAL_DELTA_FINDINGS",
     "adversarial_findings_status": "LOCAL_DELTA_PASS; unrelated WP-KERNEL-006/007 findings remain owned by those future packets and do not block MT-013",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-08-10T02:49:52.393Z",
-    "validated_by": null,
-    "validated_at_utc": null
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: for the in-process Candle/llama.cpp library path, enforce artifact integrity plus ProcessOwnershipLedger START/STOP rows with honest pid-less metadata; any actual spawned model process remains SandboxAdapter-owned. Emit a Flight Recorder event on DisabledLlmClient and fail-closed error paths, validated with a REAL Candle model load.",
@@ -164,7 +165,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves artifact integrity plus matching pid-less ProcessOwnershipLedger START/STOP rows; SandboxAdapter boxing is NOT_APPLICABLE to the no-child/no-guest in-process path, and any actual spawned model process remains SandboxAdapter-owned. COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": "FAIL_V5",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -520,5 +521,68 @@
     "status_unchanged": "No lifecycle status changed.",
     "recorded_by": "KERNEL_BUILDER-20260805-053606",
     "recorded_at_utc": "2026-08-05T10:15:00Z"
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "The mandatory real Candle proof cannot run in the current environment because HANDSHAKE_TEST_CANDLE_MODEL_DIR is unset. The ignored real-model gate cannot be replaced by deterministic model tests.",
+    "failed_gates": [
+      "real Candle model load/generation proof",
+      "real START/STOP ledger proof",
+      "fresh current-head proof"
+    ],
+    "remediation_plan": [
+      "Provide a valid real Candle model directory through HANDSHAKE_TEST_CANDLE_MODEL_DIR and verify the artifact hash/identity.",
+      "Run the ignored proof with candle-runtime-engine against real PostgreSQL and require real model load/generation plus balanced durable START/STOP rows.",
+      "Rerun all remaining MT-013 commands at the same frozen source revision."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V4: fresh final-source embedded ledger suite 45/45 with exit 0 and clean owned-PostgreSQL shutdown under the separate fixed 120s stop budget; fixed-budget unit 1/1; writer suite 28/28; seven exact MT-013 completion/embedding Flight Recorder tests 7/7; real Candle load/START/STOP 1/1; real Candle embedding-failure rollback 1/1; distinct embedding default 1/1; current UserManual exact 1/1 including persisted per-owner Cargo command guards; app-runtime cargo check PASS. Independent current-path post-diff review PASS with no local-delta finding. Headless KB readiness checklist PASS with zero blockers.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

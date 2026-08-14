@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-04T12:00:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -42,7 +42,7 @@
     }
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-002"
     ],
@@ -52,7 +52,7 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-01T19:02:22Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -60,17 +60,17 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": "Real-model proofs [19]/[20] need operator-local Candle/GGUF weights (validator-gated).",
-    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): SECONDARY concern CLOSED - the real llama.cpp GGUF E2E that was never completed at current HEAD now passes: llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload ok 1 passed/0 failed (17.84s) against a real 68M GGUF (sha256 452e1a2b..., 51164992 bytes) with frozen==compiled worktree sha256 f9d3810b...; artifact records generation_count=6, embedding_dimension=768, flight_recorder_event_count=23, failed=0. PRIMARY HBR-PRIV concern remains PARTIAL: rows declared and shared substrate proven, but per-lane launched-resource owner/scope evidence for local/cloud/CLI/human/subagent lanes and HBR-PRIV-006 revocation-during-live-launch are still owed.",
+    "proof_status": "FAIL_V5: Required launched-resource privacy proof is incomplete: the contract still owes exact owner/scope evidence for local, cloud, CLI, human, and subagent lanes plus HBR-PRIV-006 revocation during a live launch. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "PASS: cargo test --test model_lane_launch_tests 8/8 including missing SpawnRequest::with_dexterity_launch rejection before factory creation and public constructor fail-closed proof; cargo test --test model_lane_schema_pg_tests 4/4; exact UserManual schema and launch tests passed. POST_REVIEW_P1_FIXED: public SwarmCoordinator::new now requires Dexterity and fails closed without ModelLaneStore, new_with_model_lane_store requires a concrete ModelLaneStore, legacy no-Dexterity construction is test/test-utils named only, and SwarmSchedulerState::new attaches Dexterity by default. REQUEST_SOURCE_GUARD_EVIDENCE_ONLY: cargo test --manifest-path app/src-tauri/Cargo.toml --lib dexterity_contract passed 5/5, exact production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn passed 1/1, and cargo check --manifest-path app/src-tauri/Cargo.toml --lib passed, proving live Rust Tauri IPC/scheduled request sources attach core-generated Dexterity launch contracts, BYOK scheduled spin-ups require byok_cloud_provider, no-store production request paths fail closed, and test-only helpers do not block production app compilation. App/src-tauri evidence is bypass-closure evidence and does not satisfy WP proof authority. PASS: JSON parse, git diff --check, and hbr-matrix-check after live-path/spec/status patch. BLOCKED_EXTERNAL: spec-current/spec-bundle fail on indexed hash mismatch for spec-modules/04-llm-infrastructure.md.",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_ANTIGAMING_20260729",
     "adversarial_findings_status": "GENUINE_CLOSURE_NO_GAMING; MINOR_direct_preflight_test_deferred",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
   "scope": {
     "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
@@ -319,7 +319,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": "FAIL_V5",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -546,5 +546,69 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "Required launched-resource privacy proof is incomplete: the contract still owes exact owner/scope evidence for local, cloud, CLI, human, and subagent lanes plus HBR-PRIV-006 revocation during a live launch.",
+    "failed_gates": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006"
+    ],
+    "remediation_plan": [
+      "Exercise every lane kind through its production launch boundary using real PostgreSQL and durable EventLedger rows.",
+      "Prove same-scope positive access and cross-account/session/access-space denial for every launched resource.",
+      "Revoke or context-switch during a live launch and prove fail-closed cancellation, cleanup, and non-leaking diagnostics before rerunning all declared proofs."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): SECONDARY concern CLOSED - the real llama.cpp GGUF E2E that was never completed at current HEAD now passes: llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload ok 1 passed/0 failed (17.84s) against a real 68M GGUF (sha256 452e1a2b..., 51164992 bytes) with frozen==compiled worktree sha256 f9d3810b...; artifact records generation_count=6, embedding_dimension=768, flight_recorder_event_count=23, failed=0. PRIMARY HBR-PRIV concern remains PARTIAL: rows declared and shared substrate proven, but per-lane launched-resource owner/scope evidence for local/cloud/CLI/human/subagent lanes and HBR-PRIV-006 revocation-during-live-launch are still owed.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

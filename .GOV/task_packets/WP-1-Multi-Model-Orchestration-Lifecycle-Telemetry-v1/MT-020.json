@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-020",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-04T13:30:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -56,11 +56,11 @@
     "note_on_scope": "MT-020 was NOT given HBR-PRIV rows during the 2026-08-02 declaration sweep: it repairs pre-existing failing tests in the production_factory module and creates no product resource, so HBR-PRIV-001's not_applicable_when clause genuinely applies. That is a reasoned exclusion, not an omission."
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-08-01T00:30:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -68,10 +68,13 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: production_factory module green with NO name filter in BOTH thread modes (32 passed / 0 failed each); reclaim suite 31 passed / 0 failed; both build configurations green. || AC-3 BOTH MODES GREEN (2026-08-04): production_factory tests with NO name filter - default-parallel ok. 32 passed/0 failed (24.70s) AND --test-threads=1 ok. 32 passed/0 failed (10.48s). The validator saw only the serial run. AC-7 BOTH CHECKS CLEAN: cargo check --all-targets (DEFAULT features) and cargo check --features test-utils --all-targets both finished with no errors, proving the shared support module tests/model_lane_crdt_support.rs no longer compiles under default features as an auto-discovered target. AC-6 FULL RECLAIM SUITE GREEN: RECLAIM SUITE GREEN (2026-08-04): cargo test --features test-utils --test process_ledger_reclaim_tests => ok. 31 passed; 0 failed; 0 ignored; 0 filtered out (175.84s), FULL suite with no name filter. LOAD-DEPENDENCE IS THE FINDING, recorded so nobody re-diagnoses it: an earlier run of the same suite during heavy parallel builds returned 30 passed/1 failed at 617s, with production_reclaim_kills_real_process_and_durably_closes_postgres_lifecycle failing on KillOutcome::Failed{ error: \"sandbox adapter handshake_native failed to spawn process: ... cannot read executable identity: A device attached to the system is not functioning. (os error 31)\" } instead of Killed. os error 31 is a Windows ERROR_GEN_FAILURE - an OS-level device fault while inspecting a real spawned process, NOT a reclaim-logic defect: the logic reached the kill path correctly and the failure was beneath it. Re-run under light load passed and took 175.84s versus 617s, so this test is sensitive to machine contention. Do not chase it as a code bug; run the reclaim suite when the box is quiet.",
+    "proof_status": "FAIL_V5: A declared acceptance command fails now: git diff --check main...HEAD exits 2 on pidless_cloud_lifecycle_harness/Cargo.toml:14. See integration_validation_v5_2026_08_14.",
     "hbr_status": "HBR-INT-001 and HBR-STOP-003 for MT-020: AC-3 proven in both execution modes and AC-6's full reclaim suite green at 31/0, so the module is honestly green rather than green-by-narrow-filter - which is precisely what this MT exists to establish. HBR-PRIV deliberately NOT declared on MT-020: it repairs pre-existing failing tests in the production_factory module and creates no product resource, so HBR-PRIV-001's not_applicable_when genuinely applies. AC-5 ESTABLISHED 2026-08-04 by mechanism (see ac5_baseline_2026_08_04): 6fd044b0's only functional change to production_factory.rs sets session_start_os_pid for OfficialCli and leaves BYOK on `_ => None`, byte-identical to the previous literal None, with the durability-ack requirement and ledger_pair() untouched - so that commit cannot have introduced the five failures. AC-5 ALSO CONFIRMED EMPIRICALLY 2026-08-04 under Operator authorization: baseline 3bbc72b3 = 26 passed/6 failed with the DURABILITY_ACK_TIMEOUT failures present, current HEAD = 32 passed/0 failed. Mechanism proof and empirical A/B agree.",
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": null
+    "post_implementation_adversarial_review_status": null,
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -225,6 +228,68 @@
       "verdict": "CONFIRMED PRE-EXISTING. The DURABILITY_ACK_TIMEOUT failures reproduce at 6fd044b0^, so they were NOT introduced by the MT-017 fixes. The empirical A/B and the independent mechanism proof agree: 6fd044b0's only functional change to production_factory.rs sets session_start_os_pid for OfficialCli and leaves BYOK on `_ => None`, byte-identical to the previous literal None.",
       "honest_discrepancy": "AC-5 describes 'these five failures'; the baseline run shows SIX failed. Recorded as observed rather than rounded to match the contract text. Four are the named DURABILITY_ACK_TIMEOUT cases above; the remaining two were outside the grep filter used to capture the summary and should be enumerated if the exact count matters to the validator.",
       "cleanup": "The throwaway baseline worktree must be removed via `just delete-local-worktree` per CX-122 - NEVER raw `git worktree remove`, which follows the .GOV junction and destroys real governance files."
+    }
+  },
+  "validator_verdict": "FAIL_V5",
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "A declared acceptance command fails now: git diff --check main...HEAD exits 2 on pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+    "failed_gates": [
+      "declared git diff --check proof"
+    ],
+    "remediation_plan": [
+      "Remove the blank EOF line and rerun git diff --check main...HEAD.",
+      "Rerun the unfiltered production_factory module in default-parallel and single-thread modes, the complete reclaim suite, and both cargo-check configurations.",
+      "Bind all results to one clean frozen current HEAD before requesting revalidation."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "Fresh git diff --check main...HEAD exited 2 on the blank EOF line; this is a direct declared-proof failure."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5: production_factory module green with NO name filter in BOTH thread modes (32 passed / 0 failed each); reclaim suite 31 passed / 0 failed; both build configurations green. || AC-3 BOTH MODES GREEN (2026-08-04): production_factory tests with NO name filter - default-parallel ok. 32 passed/0 failed (24.70s) AND --test-threads=1 ok. 32 passed/0 failed (10.48s). The validator saw only the serial run. AC-7 BOTH CHECKS CLEAN: cargo check --all-targets (DEFAULT features) and cargo check --features test-utils --all-targets both finished with no errors, proving the shared support module tests/model_lane_crdt_support.rs no longer compiles under default features as an auto-discovered target. AC-6 FULL RECLAIM SUITE GREEN: RECLAIM SUITE GREEN (2026-08-04): cargo test --features test-utils --test process_ledger_reclaim_tests => ok. 31 passed; 0 failed; 0 ignored; 0 filtered out (175.84s), FULL suite with no name filter. LOAD-DEPENDENCE IS THE FINDING, recorded so nobody re-diagnoses it: an earlier run of the same suite during heavy parallel builds returned 30 passed/1 failed at 617s, with production_reclaim_kills_real_process_and_durably_closes_postgres_lifecycle failing on KillOutcome::Failed{ error: \"sandbox adapter handshake_native failed to spawn process: ... cannot read executable identity: A device attached to the system is not functioning. (os error 31)\" } instead of Killed. os error 31 is a Windows ERROR_GEN_FAILURE - an OS-level device fault while inspecting a real spawned process, NOT a reclaim-logic defect: the logic reached the kill path correctly and the failure was beneath it. Re-run under light load passed and took 175.84s versus 617s, so this test is sensitive to machine contention. Do not chase it as a code bug; run the reclaim suite when the box is quiet.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
   }
 }

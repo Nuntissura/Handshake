@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-022",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-07-30T13:10:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -40,11 +40,11 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T04:30:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -52,10 +52,13 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-02): all three declared suites GREEN in one run at one tree state, each invoked as an INDEPENDENT command (never &&-chained, which is why the validator's storage suite never ran). user_manual_behavior_coverage_tests ok 17 passed/0 failed (215.00s); user_manual_api_tests ok 24 passed/0 failed (455.24s); user_manual_storage_tests ok 12 passed/0 failed (175.12s); git diff --check clean. No suite executed zero tests. The prior V5 claim of '22 passed/1 failed where the single failure is independently verified PRE-EXISTING' is RETRACTED: a red test is a red test, and the validator was correct to reject that framing.",
+    "proof_status": "FAIL_V5: A declared acceptance command fails now: git diff --check main...HEAD exits 2 on pidless_cloud_lifecycle_harness/Cargo.toml:14. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT022: mounted-route registry and manual corpus are code-truthful and self-consistency-gated; HBR-PRIV NOT_APPLICABLE for MT-022 because it changes only in-product UserManual content and its own gate, creating no product resource (HBR-PRIV-001 not_applicable_when).",
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS"
+    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -151,5 +154,67 @@
       "PRE-EXISTING failure routed out of scope: mtdoc_every_loom_router_route_is_in_surface_registry reports 30 mounted Loom routes absent from wp009_surface_registry. Parent independently verified registry.rs and all Loom files are untouched by this diff and the assertion exists at HEAD. Needs the Loom lane.",
       "One line in behavior_coverage.rs authored by the parent to unblock a 40-minute lib-red state: a concrete fn-pointer anchor, since both turbofish (E0107, argument-position impl Trait) and bare reference (E0283) are illegal for that signature. Disclosed to the coder."
     ]
+  },
+  "validator_verdict": "FAIL_V5",
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "A declared acceptance command fails now: git diff --check main...HEAD exits 2 on pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+    "failed_gates": [
+      "declared git diff --check proof"
+    ],
+    "remediation_plan": [
+      "Remove the blank EOF line and pass git diff --check main...HEAD.",
+      "Run the UserManual behavior, API, and storage suites as independent commands with non-zero executed-test counts.",
+      "Bind the manual corpus and route-registry results to one clean frozen current HEAD before requesting revalidation."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "Fresh git diff --check main...HEAD exited 2 on the blank EOF line; this is a direct declared-proof failure."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-02): all three declared suites GREEN in one run at one tree state, each invoked as an INDEPENDENT command (never &&-chained, which is why the validator's storage suite never ran). user_manual_behavior_coverage_tests ok 17 passed/0 failed (215.00s); user_manual_api_tests ok 24 passed/0 failed (455.24s); user_manual_storage_tests ok 12 passed/0 failed (175.12s); git diff --check clean. No suite executed zero tests. The prior V5 claim of '22 passed/1 failed where the single failure is independently verified PRE-EXISTING' is RETRACTED: a red test is a red test, and the validator was correct to reject that framing.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

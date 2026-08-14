@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-006",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-04T21:20:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-006.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -25,7 +25,7 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": null,
     "claimed_at_utc": null,
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -33,17 +33,17 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): the self-minted cloud consent approver is GONE. approver is a required typed AccountBoundAuthority derived from the store access context and adjudicated by the same authorize_row the storage boundary uses; validity 365d -> 12h; export_delegation adds audience/source-scope/authorization provenance with non-widening enforcement; both cloud INSERTs now populate the 0363/0364 scope columns that were previously dead. Also fixed: a revoked receipt that still read approved:true, and an unreachable 'ConsentReceipt is revoked' error the UserManual documents. Proofs: new cloud consent scope suite 5/0; cloud policy 14/0; resource scope 7/0; launch 8/0; schema 4/0; promotion 3/0; context bundle 4/0; lib resource_scope 21/0; lib operator_chat 13/0; cargo check exit 0. TEN falsifiability inversions run against real PostgreSQL with observed failure text. STILL OWED: HBR-MAN-004 UserManual entry.",
+    "proof_status": "FAIL_V5: The cloud-lane resource-scope boundary is still incomplete: account-bound launch is not proven end-to-end through HTTP, while an unscoped BYOK path can create unattributed NULL-owner rows. Required privacy, revocation, and delegated-remote scope gates therefore remain unmet. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON; HBR-PRIV NOT YET PROVEN FOR THIS MT (2026-08-04) - stated plainly rather than borrowing the shared substrate's green. The 7-test isolation suite covers lane rows, navigation routes, registry enumeration, derived non-widening and boot recovery; it does NOT cover cloud projection plans or consent receipts. MT-006 additionally needs HBR-PRIV-006 (revocation / context-switch on a live cloud lane) and HBR-PRIV-007 (remote/SaaS delegation scope), neither of which the substrate exercises. A SEPARATE REAL DEFECT is on record for this area and is NOT fixed: cloud consent receipts self-mint their approver as approved_by_ref = format!(\"operator://{}/cloud-selection\", owner_session) with approved:true and 365-day validity - and owner_session is a governance ROLE LABEL, not an account - so the receipt currently proves nothing about who consented. Fixing that is a prerequisite for honest HBR-PRIV-005/007 evidence here.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -j 1 -- --exact --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -j 1 -- --exact --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -j 1 -- --exact --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -j 1 -- --exact --nocapture; cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils -j 1 --message-format short",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
     "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FR_EVT_CLOUD_EMIT_RECORDED_AS_FOLLOW_ON_NOT_CLAIMED_WIRED",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
   "scope": {
     "summary": "Enforce cloud projection, consent, and authority boundaries for cloud lanes.",
@@ -238,7 +238,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": null,
+  "validator_verdict": "FAIL_V5",
   "validation_v5": {
     "verdict": "READY_FOR_VALIDATION_V5",
     "ready_by": "KERNEL_BUILDER-20260723-205940",
@@ -337,6 +337,72 @@
       "now": "WRITTEN. USER_MANUAL_VERSION 2.0.20 -> 2.0.21. model-lane-cloud-projection-consent documents approver: AccountBoundAuthority as the required server-derived authorization surface, demotes approved_by_ref to provenance-only with the operator://{owner_session}/... self-issuance shape rejected at write time, documents CloudExportDelegation (audience subset of fan_out_targets, source_scope, authorization_receipt_ref) and the same-owner rule, the 12-hour validity constant, and CORRECTS the previously-wrong revocation claim with a which-refusal-means-what triage block. The grant-launch wire-contract change (export_delegation now REQUIRED) is documented.",
       "verified_by_kernel_builder": "Counts were NOT taken on the delegated agent's word. Re-run independently after its changes AND after KERNEL_BUILDER's own subsequent seed.rs correction: user_manual_behavior_coverage_tests 21 passed/0 failed, user_manual_api_tests 24/0, user_manual_storage_tests 12/0.",
       "residual_still_owed": "Unchanged and still open: the account-bound operator-chat cloud launch is proven at the STORE boundary only; api/account_scope.rs is not wired into the operator-chat launch route (a WP-KERNEL-006 dependency), so it is not proven end-to-end through HTTP."
+    }
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "The cloud-lane resource-scope boundary is still incomplete: account-bound launch is not proven end-to-end through HTTP, while an unscoped BYOK path can create unattributed NULL-owner rows. Required privacy, revocation, and delegated-remote scope gates therefore remain unmet.",
+    "failed_gates": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007"
+    ],
+    "remediation_plan": [
+      "Bind an exact ResourceScope at the HTTP cloud-launch boundary and reject missing scope before any provider side effect.",
+      "Remove or fail-close the unscoped ModelLaneStore launch path so it cannot persist NULL-owner runtime rows.",
+      "Add real-PostgreSQL cross-account, delegated-audience, live-revocation, and context-switch proofs; then rerun every declared cloud-policy and manual proof."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): the self-minted cloud consent approver is GONE. approver is a required typed AccountBoundAuthority derived from the store access context and adjudicated by the same authorize_row the storage boundary uses; validity 365d -> 12h; export_delegation adds audience/source-scope/authorization provenance with non-widening enforcement; both cloud INSERTs now populate the 0363/0364 scope columns that were previously dead. Also fixed: a revoked receipt that still read approved:true, and an unreachable 'ConsentReceipt is revoked' error the UserManual documents. Proofs: new cloud consent scope suite 5/0; cloud policy 14/0; resource scope 7/0; launch 8/0; schema 4/0; promotion 3/0; context bundle 4/0; lib resource_scope 21/0; lib operator_chat 13/0; cargo check exit 0. TEN falsifiability inversions run against real PostgreSQL with observed failure text. STILL OWED: HBR-MAN-004 UserManual entry.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
   }
 }

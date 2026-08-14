@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-09T18:22:50.871Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -27,7 +27,7 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260809-150449",
@@ -35,17 +35,17 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: fresh final-source proof on 2026-08-09 passed all 13 declared targets with exactly one matched test per command. Target 0 passed as a nonce-bound producer/consumer pair: the PostgreSQL backend emitted the mixed local/cloud/subagent projection and the Rust native Argus AccessKit/egui harness consumed the same fresh nonce, verified artifact SHA-256 and exact JSON shape, matched backend counts to UI rows, and exposed the required diagnostic rows. Targets 1-12 passed against external PostgreSQL 127.0.0.1:5544 and current UserManual surfaces. Additional deterministic RED-to-GREEN coverage proves exact-incarnation cleanup ownership, same-ID retry snapshot fencing, aggregate sibling cleanup after one teardown error, idempotent public routing-cancellation retry with one EventLedger cancellation row, exact per-instance cleanup receipt/process UUID/STOP/event joins, and no live-session residue. The original flaky cancellation proof passed 12 consecutive trace-disabled runs before final assertion hardening and passed again on the final source. Independent post-implementation adversarial re-review of the actual final diff returned PASS with no actionable findings.",
+    "proof_status": "FAIL_V5: The required native Argus acceptance target is an egui_kittest Harness proxy rather than a production-socket LiveApp/Argus observation. The current live backend, diagnostics directory, and authenticated Palmistry prerequisites were not configured, so the live GUI contract is unproven. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS: HBR-INT-009 native diagnostics, HBR-SWARM lifecycle, HBR-MAN UserManual coverage, HBR-QUIET-003 teardown/STOP/reclaim, and HBR-PRIV fail-closed guards are fresh-green on 2026-08-09. The MT-009 native Argus acceptance target is a deterministic Rust AccessKit/egui consumer of the nonce-bound backend projection and does not require the separate production-socket Palmistry launch surface; that exact declared target passed.",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-08-09T18:25:06.251Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": "takeover_recovery_and_mt009_closure_2026_08_09",
-    "last_runtime_status_ref": null,
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "PASS_2026-08-09_ACTUAL_FINAL_DIFF_NO_ACTIONABLE_FINDINGS",
     "adversarial_findings_status": "PASS_AFTER_FOUR_HIGH_CONCURRENCY_FINDINGS_FIXED_WITH_DETERMINISTIC_RED_GREEN_PROOF",
-    "validated_by": null,
-    "validated_at_utc": null
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
   "scope": {
     "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
@@ -378,7 +378,7 @@
       "validator_boundary": "Historical FAIL_V1 remains immutable; COMPLETED remains validator-only."
     }
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": "FAIL_V5",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -557,9 +557,9 @@
     "headline": "ROOT CAUSE OF THE SIBLING CANCELLATION HANG, established from LIVE PostgreSQL evidence, not inference: a pg_advisory_xact_lock is held across an in-process await, so cancellation queues behind the very work it is cancelling.",
     "how_it_was_established": "The test was run while sampling pg_stat_activity and pg_blocking_pids during the hang window. This replaced two earlier hypotheses that were both WRONG and are recorded as refuted below.",
     "observed_blocking_chain": {
-      "88652": "wait_event = Client/ClientRead, blocked_by = {} -- THE HOLDER. Its last statement is `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, so it took the advisory lock and then went IDLE IN TRANSACTION waiting on the application. It is not waiting on PostgreSQL at all; it is parked awaiting Rust.",
       "24936": "wait_event = Lock/advisory, blocked_by = {88652}",
-      "86300": "wait_event = Lock/advisory, blocked_by = {88652, 24936}"
+      "86300": "wait_event = Lock/advisory, blocked_by = {88652, 24936}",
+      "88652": "wait_event = Client/ClientRead, blocked_by = {} -- THE HOLDER. Its last statement is `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, so it took the advisory lock and then went IDLE IN TRANSACTION waiting on the application. It is not waiting on PostgreSQL at all; it is parked awaiting Rust."
     },
     "mechanism": "swarm_orchestration/routing_execution.rs defines `lock_execution` (line 2554) which issues pg_advisory_xact_lock(hashtextextended(execution_id, 0)) INSIDE a transaction, and it is called from EIGHT sites (lines 345, 369, 507, 716, 1256, 1822, 1982, 2221) including claim_ready (709) and record_generated_output (1566). Because the lock is an XACT lock it is held until that transaction ends. When a stage is mid-generation the holding transaction stays open across the generation await, and cancel_routing_execution - which needs the same execution-keyed advisory lock to terminalize - blocks behind it indefinitely. The advisory lock serializes on execution_id, so a slow or blocked stage makes the operator's cancel unreachable by construction.",
     "why_the_other_symptom_differed": "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create used hold_create, so the stall was in factory create BEFORE any generation transaction existed; bounding the post-cancel create wait (the fix already landed) resolved it and that test now passes. ac9_cancel_terminalizes_parallel_siblings_and_live_sessions uses hold_generation instead: both creates COMPLETE, the sessions are live, and the stall is inside generation while a routing transaction holds the advisory lock. Same visible symptom, genuinely different cause - which is why the first fix correctly did not mask the second.",
@@ -578,8 +578,8 @@
     "correction_of_my_earlier_claim": "An earlier record in this MT stated the advisory lock held across an await was the root cause, and a later message claimed 'the deadlock is broken'. Both were PARTIAL. The advisory lock was the first blocking point only; removing cancellation's dependency on it fixed one of the two tests and moved the hang, it did not remove it. Recorded here so the earlier, narrower diagnosis is not trusted as complete.",
     "evidence_second_sample": {
       "62788": "wait_event = ClientRead, blocked_by = {} -- HEAD-OF-LINE HOLDER. Last statement `SELECT record_json, owner_account_id, actor_principal_id, authenticated...` (a resource-scope-columns read). It is IDLE IN TRANSACTION, waiting on the application, not on PostgreSQL.",
-      "95116": "wait_event = transactionid, blocked_by = {62788} -- waiting for 62788's transaction to end (row-level conflict) while reading model_lane rows.",
-      "77436": "wait_event = advisory, blocked_by = {95116} -- the advisory waiter is now THIRD in the chain, not the cause."
+      "77436": "wait_event = advisory, blocked_by = {95116} -- the advisory waiter is now THIRD in the chain, not the cause.",
+      "95116": "wait_event = transactionid, blocked_by = {62788} -- waiting for 62788's transaction to end (row-level conflict) while reading model_lane rows."
     },
     "what_this_means": "A transaction that has read lane rows stays open for the entire duration of model inference. Any writer touching those rows blocks on the row lock, and anything needing the execution advisory lock then queues behind that writer. Cancellation is simply the first operation an operator notices, because it is the one they issue while inference is still running.",
     "severity": "Architectural and operator-facing. With a real model - not a fixture - inference can run for many seconds to minutes. For that whole window the routing execution's rows are transactionally pinned. This is a scalability and responsiveness defect well beyond the cancellation path.",
@@ -711,9 +711,9 @@
   "cancellation_deadlock_ROOT_CAUSE_PROVEN_2026_08_05": {
     "headline": "PROVEN by tokio task id: a RE-ENTRANT SELF-DEADLOCK inside ONE task. The holder of the execution-keyed salt-0 advisory lock and one of its waiters are THE SAME tokio task. The task cannot release the lock it holds because it is blocked acquiring the same lock on a second pooled connection.",
     "observed_chain_verbatim": {
+      "83352": "application_name=hsk:le:task36 | active | Lock/advisory | blocked_by={87600,101480} | SAME TASK AS THE HOLDER",
       "87600": "application_name=hsk:le:task36 | idle in transaction | Client/ClientRead | blocked_by={} | HOLDER",
-      "101480": "application_name=hsk:le:tasknone | active | Lock/advisory | blocked_by={87600} | acquired OUTSIDE any tokio task context",
-      "83352": "application_name=hsk:le:task36 | active | Lock/advisory | blocked_by={87600,101480} | SAME TASK AS THE HOLDER"
+      "101480": "application_name=hsk:le:tasknone | active | Lock/advisory | blocked_by={87600} | acquired OUTSIDE any tokio task context"
     },
     "why_this_is_conclusive": "task36 appears twice: once holding on connection 87600 and once waiting on connection 83352. One logical operation therefore holds this key on one pooled connection while requesting it on another. PostgreSQL can never grant the second request, and the task can never reach the code that would release the first, because it is suspended awaiting that grant. This is a closed cycle inside a single task - not cross-task lock ordering, and not resource starvation.",
     "why_every_earlier_theory_failed_to_fix_it": "Each earlier theory attacked a DIFFERENT layer and therefore could not work: raising max_connections 5 -> 25 only lets the same task grab another connection and self-block sooner (measured: hang got WORSE, 318.1s); the multi_thread runtime experiment could not help because the cycle is within one task regardless of worker-thread count; and 'commit before awaiting inference' does not apply because the lock is not held across inference at all.",
@@ -871,5 +871,68 @@
     "status_transition": "READY_FOR_VALIDATION_V5; implementer did not mark COMPLETED",
     "recorded_by": "KERNEL_BUILDER-20260809-150449",
     "recorded_at_utc": "2026-08-09T18:22:50.871Z"
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "The required native Argus acceptance target is an egui_kittest Harness proxy rather than a production-socket LiveApp/Argus observation. The current live backend, diagnostics directory, and authenticated Palmistry prerequisites were not configured, so the live GUI contract is unproven.",
+    "failed_gates": [
+      "HBR-VIS-005",
+      "actual live Argus proof",
+      "fresh current-head runtime proof"
+    ],
+    "remediation_plan": [
+      "Run the production native application with a healthy backend at 127.0.0.1:37501, HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, a real diagnostics directory, and authenticated Palmistry provenance.",
+      "Drive the mixed local/cloud/subagent lifecycle through the production socket and observe the nonce-bound diagnostics projection in the actual UI.",
+      "Capture and independently inspect artifacts and receipts, then rerun all thirteen declared focused commands at one frozen SHA."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "Fresh mixed_model_lane_integration_pg_tests attempt entered shared-target compilation but had no completed libtest verdict when the advisory review closed; excluded."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5: fresh final-source proof on 2026-08-09 passed all 13 declared targets with exactly one matched test per command. Target 0 passed as a nonce-bound producer/consumer pair: the PostgreSQL backend emitted the mixed local/cloud/subagent projection and the Rust native Argus AccessKit/egui harness consumed the same fresh nonce, verified artifact SHA-256 and exact JSON shape, matched backend counts to UI rows, and exposed the required diagnostic rows. Targets 1-12 passed against external PostgreSQL 127.0.0.1:5544 and current UserManual surfaces. Additional deterministic RED-to-GREEN coverage proves exact-incarnation cleanup ownership, same-ID retry snapshot fencing, aggregate sibling cleanup after one teardown error, idempotent public routing-cancellation retry with one EventLedger cancellation row, exact per-instance cleanup receipt/process UUID/STOP/event joins, and no live-session residue. The original flaky cancellation proof passed 12 consecutive trace-disabled runs before final assertion hardening and passed again on the final source. Independent post-implementation adversarial re-review of the actual final diff returned PASS with no actionable findings.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

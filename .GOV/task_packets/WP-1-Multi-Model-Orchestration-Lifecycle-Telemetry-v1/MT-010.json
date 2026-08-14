@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-010",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-04T22:15:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-007",
       "MT-008",
@@ -23,7 +23,7 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:36:59Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -31,17 +31,17 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5 (PRIV REGRESSION REPAIRED 2026-08-04): all three declared proofs green - model_lane_navigation_api_tests 4/0 and user_manual_api_tests 24/0. The suite now seeds under a real owning account and carries the account scope on every request, so it proves the navigation surface under HBR-PRIV rather than around it, plus a new negative control proving an unscoped caller is refused with the stable reason code and no identifiers. Declared proof commands were also repaired: as written they omitted --features test-utils and ran no tests at all.",
+    "proof_status": "FAIL_V5: No fresh exact proof completed, and the authoritative HBR record still leaves search/index and preview/export privacy boundaries unexercised. A PASS cannot be issued from historical results or source inspection alone. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_INT_MAN_FOR_MT010_NAV_API_AND_MANUAL_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows covers replay_run AND all eight navigation routes (navigation_by_run/_lane/_message/_recovery/...); a_cross_account_denial_leaks_no_identifiers_or_row_contents proves the denial itself is not a metadata side channel. api/account_scope.rs makes a missing or malformed scope a 403 with a stable reason code - never a fallback to returning everything. STILL OWED: Search/index and preview/export boundaries named by HBR-PRIV-002 are not exercised by this MT's routes.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": null,
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "DONE_20260729_MANUAL_OPERATIONALLY_CORRECT_RECLAIM_WIRED_DIAGNOSTICS_MODELRUNTIME_PRESENT",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; V4_MANUAL_CORRECTNESS_AND_COMPLETENESS_BLOCKERS_REMEDIATED_VIA_MT007_MT008_MT011_MT014",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
   "scope": {
     "summary": "Update no-context model manual and backend navigation for lane launch, exchange, diagnostics, and recovery.",
@@ -257,7 +257,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": null,
+  "validator_verdict": "FAIL_V5",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -323,5 +323,69 @@
     },
     "also_repaired_this_session": "proof_command_repair_2026_08_04 - all three declared commands omitted --features test-utils and executed ZERO tests as written.",
     "repaired_by": "KERNEL_BUILDER-20260801-214802"
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "No fresh exact proof completed, and the authoritative HBR record still leaves search/index and preview/export privacy boundaries unexercised. A PASS cannot be issued from historical results or source inspection alone.",
+    "failed_gates": [
+      "HBR-PRIV-002",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "fresh exact PostgreSQL proof"
+    ],
+    "remediation_plan": [
+      "Add same-owner positives and cross-account/session/access-space negatives for navigation, search/index, preview, and export paths using real PostgreSQL.",
+      "Include non-leaking denial assertions and derived-scope non-widening checks.",
+      "Run every declared MT-010 command at the current frozen SHA with non-zero executed-test counts."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5 (PRIV REGRESSION REPAIRED 2026-08-04): all three declared proofs green - model_lane_navigation_api_tests 4/0 and user_manual_api_tests 24/0. The suite now seeds under a real owning account and carries the account scope on every request, so it proves the navigation surface under HBR-PRIV rather than around it, plus a new negative control proving an unscoped caller is refused with the stable reason code and no identifiers. Declared proof commands were also repaired: as written they omitted --features test-utils and ran no tests at all.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-021",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-04T21:20:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -52,11 +52,11 @@
     }
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T04:30:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
@@ -64,10 +64,13 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5 (AC-3 CONVERGENCE REMEDIATION 2026-08-04): the operator concurrency control now binds to real runtime behaviour in both directions. A lowering that cannot fully apply at once CONVERGES as permits free instead of being silently abandoned at an intermediate value, and a freed permit can no longer admit a spawn above the requested cap. Running sessions are never killed. Proven by 3 new tests, with the fix INVERTED and the failure OBSERVED (left: 2 / right: 1) before restoring GREEN. UserManual suites re-run after the change: behavior_coverage 21/0, api 24/0, storage 12/0.",
+    "proof_status": "FAIL_V5: A declared diff check fails, required HBR dispositions are absent, and authenticated production Argus/Palmistry visual proof for the operator controls is not available. See integration_validation_v5_2026_08_14.",
     "hbr_status": null,
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS"
+    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -195,5 +198,71 @@
     },
     "deliberately_not_done": "No Settings ROW was added for the coordinator cap. AC-3 is satisfied without one, and a second control also labelled 'concurrency' would need its own stable Argus author_id, pin-list entry, and before/after headless proof under AC-4/AC-6. Adding it untested to claim breadth would be the scaffold-pass this packet has already been failed for. Recorded in settings_dialog.rs as a follow-up so it is not lost.",
     "remediation_by": "KERNEL_BUILDER-20260801-214802"
+  },
+  "validator_verdict": "FAIL_V5",
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "A declared diff check fails, required HBR dispositions are absent, and authenticated production Argus/Palmistry visual proof for the operator controls is not available.",
+    "failed_gates": [
+      "declared git diff --check proof",
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-003",
+      "HBR-PRIV-008"
+    ],
+    "remediation_plan": [
+      "Remove the blank EOF line and pass git diff --check main...HEAD.",
+      "Populate passing dispositions for every required HBR row and run the actual production Settings/Orchestration Console through authenticated Argus/Palmistry.",
+      "Capture and independently inspect consent/export/concurrency controls in main and detached windows, then rerun all native, backend, and UserManual proofs."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "Fresh git diff --check main...HEAD exited 2 on the blank EOF line; this is a direct declared-proof failure."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5 (AC-3 CONVERGENCE REMEDIATION 2026-08-04): the operator concurrency control now binds to real runtime behaviour in both directions. A lowering that cannot fully apply at once CONVERGES as permits free instead of being silently abandoned at an intermediate value, and a freed permit can no longer admit a spawn above the requested cap. Running sessions are never killed. Proven by 3 new tests, with the fix INVERTED and the failure OBSERVED (left: 2 / right: 1) before restoring GREEN. UserManual suites re-run after the change: behavior_coverage 21/0, api 24/0, storage 12/0.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-008",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-05T03:30:00Z",
+  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -36,7 +36,7 @@
     "adopt_from_wp_kernel_012": "WP-KERNEL-012 (wtc-native-editors-v1) proves Argus with a reusable canonical driver (tests/native_gui_support/canonical_argus_driver.rs, emitting ArgusObservation with before/after, authoritative receipt correlation, agent identity and typed TerminalPredicateResult evidence) plus a declarative manifest (tests/mt108_argus_matrix.json, schema hsk.native_gui.argus_surface_matrix@1) and a SEPARATE post-run closure gate (test_mt108_argus_aggregate.rs) so a partial matrix can never silently close the aggregate. Its manifest explicitly EXCLUDES model-session.launch-workspace as outside the editor GUI matrix - i.e. exactly the Dexterity surfaces WP-1 owns. WP-1 should adopt that driver/manifest/closure-gate pattern for its own surfaces (operator chat, model runtime panel, swarm lane diagnostics, cloud model settings, WP-1 console stream, MODELS menu leaf) rather than keeping bespoke per-surface tests that can partially pass. The two Argus surfaces are the same 11-file MCP core in both worktrees, so this is convergence, not a fork."
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V5",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-002",
       "MT-004",
@@ -48,7 +48,7 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:23:40Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260729-152028",
@@ -56,17 +56,17 @@
     "completed_by": null,
     "blocker": "Live detached-window Argus proof requires authenticated Palmistry provenance (WP-KERNEL-012); MT-008's own proof contract was separately repaired 2026-08-02 (missing --features test-utils on a required-features target, missing HANDSHAKE_ARTIFACTS_DIR + HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE, and two declared native targets that cannot produce pixels on this host).",
     "missing_resource": "CORRECTED 2026-08-04: the previously recorded resource -- 'Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)' -- is STALE. Palmistry is PRESENT in this worktree and was verified by direct file inspection, not inference: migrations/0360_palmistry_durable_verifier.sql (+ .down), src/api/palmistry.rs (carries WatcherSigningSecret, i.e. the authenticated provenance seam), src/sandbox/palmistry_watcher.rs, src/frontend/handshake_native/src/palmistry.rs, the cargo-auto-discovered binary target src/frontend/handshake_native/src/bin/palmistry.rs, and the real end-to-end proof tests/palmistry_real_e2e_tests.rs. REMAINING GATE (smaller and actionable, not an absent component): palmistry_real_e2e_tests is #[ignore]-gated and needs an operator-provided environment -- CARGO_BIN_EXE_handshake_core via --features app-runtime, HANDSHAKE_NATIVE_BIN, HANDSHAKE_PALMISTRY_BIN, HANDSHAKE_PALMISTRY_SHA256 (exact lowercase pin), POSTGRES_TEST_URL on a disposable database, and HANDSHAKE_PALMISTRY_E2E_ISOLATED=1 -- plus exclusive use of the production-fixed listener 127.0.0.1:37501, so the target must run serially and fails closed if that port is occupied.",
-    "proof_status": "READY_FOR_VALIDATION_V5: all declared targets green on managed PostgreSQL + pop-out Argus capture wired and unit-covered. [0] swarm_lane_diagnostics_pg_tests backend_projection_matches_eventledger ok -- fixed a REAL production over-reject bug: validate_initial_input_tx compared a CRDT-bearing routing input's record_json (binding NESTED) against the EventLedger /record (binding a SIBLING) -> false mismatch for ALL CRDT routing inputs; now strips the binding from the record body and asserts it separately as an exact match vs the ledger sibling (adversarial review PASS: binding authority STRENGTHENED, all tamper classes still fail closed). [1][2] test_swarm_lane_diagnostics_argus (egui_kittest, HEADLESS AccessKit) lists_filters_and_drills_down + rejects_missing_author_id_and_count_mismatch ok; two_swarm_lane_panes_have_unique_pane_scoped_author_ids ok. Pop-out capture: every pop-out records its OS window handle by stable window_id; resolve_capture_target picks the recorded HWND per 'Handshake - <pane>' pop-out (screenshot.rs) -- 10 resolution/registry units ok (incl. two same-title pop-outs each keep their own HWND). Live debug console (051138ef) streams swarm-lane diagnostics headlessly. VALIDATOR-GATED: only the live-GPU PrintWindow/BitBlt PIXEL grab of a real on-screen pop-out needs a GUI host; the declared egui_kittest Argus proofs do not. Deferred (review MINOR): negative-tamper pinning tests for the CRDT binding path. Source at d4a22c08.",
+    "proof_status": "FAIL_V5: The required live diagnostics visual proof is absent. The diagnostics-specific production-socket test stops after privacy landmarks and omits filter/drilldown, exact-pane pop-out, screenshots, provenance, receipts, and artifact inspection; the named generic live test captures Settings and pane-a instead of SwarmLaneDiagnostics. See integration_validation_v5_2026_08_14.",
     "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": null,
+    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_20260729",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
-    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
     "missing_resource_prior_2026_08_04": "Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)"
   },
   "scope": {
@@ -261,7 +261,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": "FAIL_V5",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -329,5 +329,70 @@
     },
     "repaired_by": "KERNEL_BUILDER-20260801-214802",
     "repaired_at_utc": "2026-08-05T03:30:00Z"
+  },
+  "integration_validation_v5_2026_08_14": {
+    "verdict": "FAIL_V5",
+    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
+    "source_state": {
+      "base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+      "head_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "worktree_clean_at_validation_start": true
+    },
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.203",
+      ".GOV/spec/master-spec-v02.203/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "method": "Fresh current-source Integration Validator review using authoritative MT contract acceptance criteria, spec-realism, required HBR dispositions, exact proof-command inspection, direct runtime prerequisite probes, adversarial source tracing, and three independent advisory review lanes. Historical evidence was retained as context but not reused as current proof.",
+    "fail_report": "The required live diagnostics visual proof is absent. The diagnostics-specific production-socket test stops after privacy landmarks and omits filter/drilldown, exact-pane pop-out, screenshots, provenance, receipts, and artifact inspection; the named generic live test captures Settings and pane-a instead of SwarmLaneDiagnostics.",
+    "failed_gates": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-003",
+      "HBR-VIS-004",
+      "HBR-PRIV-008"
+    ],
+    "remediation_plan": [
+      "Extend the MT-008 production-socket LiveApp test to open the actual SwarmLaneDiagnostics pane, filter and drill into run/lane/message data, and exercise artifact/promotion state.",
+      "Pop out that exact pane and capture both main and detached OS windows with authenticated Palmistry provenance and receipts.",
+      "Independently inspect the produced PNGs for readable layout, discoverability, navigation, visible state, and redaction; then rerun all backend and live-Argus proofs."
+    ],
+    "proof_observations": [
+      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
+      "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
+    ],
+    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5: all declared targets green on managed PostgreSQL + pop-out Argus capture wired and unit-covered. [0] swarm_lane_diagnostics_pg_tests backend_projection_matches_eventledger ok -- fixed a REAL production over-reject bug: validate_initial_input_tx compared a CRDT-bearing routing input's record_json (binding NESTED) against the EventLedger /record (binding a SIBLING) -> false mismatch for ALL CRDT routing inputs; now strips the binding from the record body and asserts it separately as an exact match vs the ledger sibling (adversarial review PASS: binding authority STRENGTHENED, all tamper classes still fail closed). [1][2] test_swarm_lane_diagnostics_argus (egui_kittest, HEADLESS AccessKit) lists_filters_and_drills_down + rejects_missing_author_id_and_count_mismatch ok; two_swarm_lane_panes_have_unique_pane_scoped_author_ids ok. Pop-out capture: every pop-out records its OS window handle by stable window_id; resolve_capture_target picks the recorded HWND per 'Handshake - <pane>' pop-out (screenshot.rs) -- 10 resolution/registry units ok (incl. two same-title pop-outs each keep their own HWND). Live debug console (051138ef) streams swarm-lane diagnostics headlessly. VALIDATOR-GATED: only the live-GPU PrintWindow/BitBlt PIXEL grab of a real on-screen pop-out needs a GUI host; the declared egui_kittest Argus proofs do not. Deferred (review MINOR): negative-tamper pinning tests for the CRDT binding path. Source at d4a22c08.",
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
+        "The exact current source was inspected at df463aa6459d29c82187e7284d86a0bf37575009; historical green results were treated as non-authoritative for materially changed surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "git diff --check main...HEAD was run independently and exited 2 on src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.toml:14.",
+        "All 105 named exact test filters declared by the ready MT contracts were statically resolved to non-empty Rust test sources; zero missing filters were found.",
+        "Three fresh advisory reviewers independently read current authority, contracts, spec, source, and runtime prerequisites for MT-002..008, MT-009..015, and MT-016..023."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Historical green output was not accepted as proof of current HEAD.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Account/session/access-space ownership and derived-resource non-widening were checked at ModelLane, promotion, ContextBundle, cloud launch, recovery, navigation, embedding/Loom, and proposal lifecycle boundaries.",
+        "Production GUI proof was distinguished from headless Harness/RecordingBackend proxies, and live MicroVM proof was distinguished from deterministic registry coverage."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+      ],
+      "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
+      "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
   }
 }
