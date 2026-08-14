@@ -105,6 +105,21 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
             && manual_text.contains("never fabricate STOP from unknown evidence"),
         "UserManual must explain lossless fenced reclaim and pending-STOP recovery"
     );
+    assert!(
+        manual_text.contains("STALE_RECLAIM_OWNER_SCOPE_REQUIRED")
+            && manual_text.contains("owner_runtime_instance_id")
+            && manual_text.contains("owner_host_scope_id")
+            && manual_text.contains("sandbox_adapter_id IS NOT NULL")
+            && manual_text.contains("STALE_RECLAIM_PROCESS_SET_REQUIRED")
+            && manual_text.contains("sorted authorized process-UUID set")
+            && manual_text.contains("rejects the whole snapshot")
+            && manual_text.contains("re-scan rather than widening")
+            && manual_text.contains("rather than falling back to a session-wide reclaim")
+            && manual_text
+                .contains("non-sandbox row that merely shares the session remains unclaimed")
+            && manual_text.contains("receives no STOP"),
+        "UserManual must explain stale selection-to-claim scope and missing-scope recovery"
+    );
 
     let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
         .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");

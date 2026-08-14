@@ -161,10 +161,31 @@ pub const POSTGRES_ACTIVE_PROCESS_RECLAIM_QUERY_SQL: &str =
 /// in-app reaper structurally unable to touch another live Handshake instance's
 /// process. Binds: `$1` process_uuid, `$2` claimant uuid, `$3`
 /// owner_runtime_instance_id.
-pub const POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL: &str =
-    postgres_active_reclaim_claim_sql!(
-        "process_uuid = $1::uuid AND owner_runtime_instance_id = $3::uuid"
-    );
+pub const POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL: &str = postgres_active_reclaim_claim_sql!(
+    "process_uuid = $1::uuid AND owner_runtime_instance_id = $3::uuid"
+);
+
+/// MT-019: stale-session claim scoped to the exact runtime instance and host
+/// whose lane evidence was evaluated by [`StaleSessionSource::stale_sessions`].
+/// Binds: `$1` parent_session_id, `$2` claimant uuid, `$3` runtime instance,
+/// `$4` host scope, `$5` exact process UUID set authorized by the stale scan.
+pub const POSTGRES_ACTIVE_STALE_OWNER_RECLAIM_QUERY_SQL: &str = postgres_active_reclaim_claim_sql!(
+    "parent_session_id = $1 \
+         AND sandbox_adapter_id IS NOT NULL \
+         AND owner_runtime_instance_id = $3::uuid \
+         AND owner_host_scope_id = $4 \
+         AND process_uuid = ANY($5::uuid[]) \
+         AND $5::uuid[] = ARRAY( \
+             SELECT candidate.process_uuid \
+             FROM ONLY kernel_process_lifecycle AS candidate \
+             WHERE candidate.parent_session_id = $1 \
+               AND candidate.stopped_at IS NULL \
+               AND candidate.sandbox_adapter_id IS NOT NULL \
+               AND candidate.owner_runtime_instance_id = $3::uuid \
+               AND candidate.owner_host_scope_id = $4 \
+             ORDER BY candidate.process_uuid \
+         )"
+);
 
 /// MT-019 P-4(c): restart-orphan claim that structurally cannot claim a row
 /// owned by THIS runtime instance.
@@ -176,11 +197,10 @@ pub const POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL: &str =
 /// as "prior owner provably dead" in the first place. Binds: `$1`
 /// parent_session_id, `$2` claimant uuid, `$3` this instance's
 /// owner_runtime_instance_id.
-pub const POSTGRES_ACTIVE_FOREIGN_OWNER_RECLAIM_QUERY_SQL: &str =
-    postgres_active_reclaim_claim_sql!(
-        "parent_session_id = $1 \
+pub const POSTGRES_ACTIVE_FOREIGN_OWNER_RECLAIM_QUERY_SQL: &str = postgres_active_reclaim_claim_sql!(
+    "parent_session_id = $1 \
          AND (owner_runtime_instance_id IS NULL OR owner_runtime_instance_id <> $3::uuid)"
-    );
+);
 
 pub const EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID: &str = "hsk.embedded_runtime.instance@2";
 pub const EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL: &str =
@@ -874,7 +894,7 @@ async fn resolve_process_ledger_authority_relation_on_connection(
                  Read it this way: if BOTH rejection lists are empty the relation is not on this connection's search_path at all, which is a pool/search_path wiring fault; if EITHER list is non-empty the relation IS visible and was rejected for the reason stated there, which is a schema-shape fault, not a wiring fault.)",
                 shape_rejected = shape_rejections.join(" | "),
                 guard_rejected = guard_rejections.join(" | ")
-            )))
+            )));
         }
         schemas => {
             return Err(ProcessLedgerError::Store(format!(
@@ -2627,6 +2647,20 @@ pub trait ReclaimProcessStore: Send + Sync + 'static {
         )))
     }
 
+    /// Claim only the rows whose exact runtime+host ownership was evaluated by
+    /// the stale-session source. A session id is not an ownership boundary.
+    async fn active_stale_owned_processes_for_session(
+        &self,
+        _session_id: &str,
+        _owner_runtime_instance_id: Uuid,
+        _owner_host_scope_id: &str,
+        _authorized_process_uuids: &[Uuid],
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        Err(ProcessLedgerError::InvalidConfig(
+            "STALE_RECLAIM_STORE_OWNER_SCOPE_UNSUPPORTED".to_string(),
+        ))
+    }
+
     async fn renew_reclaim_claim(
         &self,
         process_uuid: Uuid,
@@ -2663,6 +2697,19 @@ pub trait ReclaimProcessStore: Send + Sync + 'static {
         session_id: &str,
         limit: usize,
     ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError>;
+
+    async fn in_progress_kill_operations_for_stale_owner(
+        &self,
+        _session_id: &str,
+        _owner_runtime_instance_id: Uuid,
+        _owner_host_scope_id: &str,
+        _authorized_process_uuids: &[Uuid],
+        _limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        Err(ProcessLedgerError::InvalidConfig(
+            "STALE_RECLAIM_RECOVERY_OWNER_SCOPE_UNSUPPORTED".to_string(),
+        ))
+    }
 }
 
 #[async_trait]
@@ -3003,7 +3050,8 @@ impl Reclaim {
             .and_then(|process| process.parent_session_id.clone())
             .unwrap_or_else(|| format!("process-ledger://{process_uuid}"));
         let active = claimed.into_iter().collect();
-        self.run_claimed(&session_id, trigger, started, active).await
+        self.run_claimed(&session_id, trigger, started, active)
+            .await
     }
 
     /// MT-019 P-4(c): Restart-triggered reclaim of one surfaced orphan session
@@ -3022,6 +3070,29 @@ impl Reclaim {
             )
             .await?;
         self.run_claimed(session_id, ReclaimTrigger::Restart, started, active)
+            .await
+    }
+
+    /// Reclaim a stale session without widening the source's runtime+host
+    /// ownership decision to foreign rows that happen to share the session id.
+    pub async fn run_stale_owned_session(
+        &self,
+        session_id: &str,
+        owner_runtime_instance_id: Uuid,
+        owner_host_scope_id: &str,
+        authorized_process_uuids: &[Uuid],
+    ) -> Result<ReclaimReport, ProcessLedgerError> {
+        let started = std::time::Instant::now();
+        let active = self
+            .store
+            .active_stale_owned_processes_for_session(
+                session_id,
+                owner_runtime_instance_id,
+                owner_host_scope_id,
+                authorized_process_uuids,
+            )
+            .await?;
+        self.run_claimed(session_id, ReclaimTrigger::Stale, started, active)
             .await
     }
 
@@ -3121,10 +3192,17 @@ impl Reclaim {
                     }
                     Err(error) => {
                         drop(reservation);
-                        self.store
+                        let release_result = self
+                            .store
                             .release_reclaim_claim(process.process_uuid, &process.reclaim_claim)
-                            .await?;
+                            .await;
+                        // The process-global fence only coalesces one live kill
+                        // attempt. It must never retain a completed failure just
+                        // because PostgreSQL claim release also failed; otherwise
+                        // a later durable retry replays the stale in-memory error
+                        // without invoking the owning adapter again.
                         clear_process_kill_fence(process.process_uuid, &kill_fence);
+                        release_result?;
                         (
                             KillOutcome::Failed {
                                 error: error.message().to_string(),
@@ -3191,6 +3269,43 @@ impl Reclaim {
             .store
             .in_progress_kill_operations_for_session(session_id, RECLAIM_IN_PROGRESS_RECOVERY_LIMIT)
             .await?;
+        self.reconcile_in_progress_candidates(session_id, recoverable, None, None)
+            .await
+    }
+
+    pub async fn reconcile_in_progress_for_stale_owner(
+        &self,
+        session_id: &str,
+        owner_runtime_instance_id: Uuid,
+        owner_host_scope_id: &str,
+        authorized_process_uuids: &[Uuid],
+    ) -> Result<ReclaimKillOperationSweep, ProcessLedgerError> {
+        let recoverable = self
+            .store
+            .in_progress_kill_operations_for_stale_owner(
+                session_id,
+                owner_runtime_instance_id,
+                owner_host_scope_id,
+                authorized_process_uuids,
+                RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
+            )
+            .await?;
+        self.reconcile_in_progress_candidates(
+            session_id,
+            recoverable,
+            Some((owner_runtime_instance_id, owner_host_scope_id)),
+            Some(authorized_process_uuids),
+        )
+        .await
+    }
+
+    async fn reconcile_in_progress_candidates(
+        &self,
+        session_id: &str,
+        recoverable: Vec<ReclaimKillOperationCandidate>,
+        stale_owner_scope: Option<(Uuid, &str)>,
+        stale_authorized_process_uuids: Option<&[Uuid]>,
+    ) -> Result<ReclaimKillOperationSweep, ProcessLedgerError> {
         let mut operations = Vec::with_capacity(recoverable.len());
         let mut state_advanced = false;
         for candidate in recoverable {
@@ -3266,7 +3381,19 @@ impl Reclaim {
             }
         }
         let (reclaim_report, reclaim_error) = if state_advanced {
-            match self.run(session_id, ReclaimTrigger::Stale).await {
+            let reclaim_result = match stale_owner_scope {
+                Some((owner_runtime_instance_id, owner_host_scope_id)) => {
+                    self.run_stale_owned_session(
+                        session_id,
+                        owner_runtime_instance_id,
+                        owner_host_scope_id,
+                        stale_authorized_process_uuids.unwrap_or_default(),
+                    )
+                    .await
+                }
+                None => self.run(session_id, ReclaimTrigger::Stale).await,
+            };
+            match reclaim_result {
                 Ok(report) => (Some(report), None),
                 Err(error) => (None, Some(error.to_string())),
             }
@@ -3550,6 +3677,12 @@ enum PostgresReclaimClaimScope<'a> {
         process_uuid: Uuid,
         owner_runtime_instance_id: Uuid,
     },
+    StaleOwnedSession {
+        session_id: &'a str,
+        owner_runtime_instance_id: Uuid,
+        owner_host_scope_id: &'a str,
+        authorized_process_uuids: &'a [Uuid],
+    },
     ForeignOwnerSession {
         session_id: &'a str,
         excluded_owner_runtime_instance_id: Uuid,
@@ -3596,6 +3729,17 @@ impl PostgresProcessLedgerStore {
                 .bind(process_uuid)
                 .bind(claimant_uuid.to_string())
                 .bind(owner_runtime_instance_id),
+            PostgresReclaimClaimScope::StaleOwnedSession {
+                session_id,
+                owner_runtime_instance_id,
+                owner_host_scope_id,
+                authorized_process_uuids,
+            } => sqlx::query(POSTGRES_ACTIVE_STALE_OWNER_RECLAIM_QUERY_SQL)
+                .bind(session_id.to_string())
+                .bind(claimant_uuid.to_string())
+                .bind(owner_runtime_instance_id)
+                .bind(owner_host_scope_id.to_string())
+                .bind(authorized_process_uuids.to_vec()),
             PostgresReclaimClaimScope::ForeignOwnerSession {
                 session_id,
                 excluded_owner_runtime_instance_id,
@@ -4029,9 +4173,55 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
             .await
     }
 
+    async fn active_stale_owned_processes_for_session(
+        &self,
+        session_id: &str,
+        owner_runtime_instance_id: Uuid,
+        owner_host_scope_id: &str,
+        authorized_process_uuids: &[Uuid],
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        self.claim_active_rows(PostgresReclaimClaimScope::StaleOwnedSession {
+            session_id,
+            owner_runtime_instance_id,
+            owner_host_scope_id,
+            authorized_process_uuids,
+        })
+        .await
+    }
+
     async fn in_progress_kill_operations_for_session(
         &self,
         session_id: &str,
+        limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        self.in_progress_kill_operations(session_id, None, None, limit)
+            .await
+    }
+
+    async fn in_progress_kill_operations_for_stale_owner(
+        &self,
+        session_id: &str,
+        owner_runtime_instance_id: Uuid,
+        owner_host_scope_id: &str,
+        authorized_process_uuids: &[Uuid],
+        limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        self.in_progress_kill_operations(
+            session_id,
+            Some((owner_runtime_instance_id, owner_host_scope_id)),
+            Some(authorized_process_uuids),
+            limit,
+        )
+        .await
+    }
+}
+
+impl PostgresProcessLedgerStore {
+    async fn in_progress_kill_operations(
+        &self,
+        session_id: &str,
+        stale_owner_scope: Option<(Uuid, &str)>,
+        stale_authorized_process_uuids: Option<&[Uuid]>,
         limit: usize,
     ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
         if limit == 0 || limit > RECLAIM_IN_PROGRESS_RECOVERY_LIMIT {
@@ -4040,23 +4230,46 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
             )));
         }
         let authority = self.authority().await?.clone();
+        let qualified_table = &authority.qualified_table;
         let sql = format!(
             r#"
             SELECT process_uuid::text,
                    metadata_jsonb->'reclaim_last_kill_operation'->>'kill_operation_uuid'
                        AS kill_operation_uuid
-            FROM ONLY {}
+            FROM ONLY {qualified_table}
             WHERE parent_session_id = $1
+              AND ($3::uuid IS NULL OR owner_runtime_instance_id = $3::uuid)
+              AND ($4::text IS NULL OR owner_host_scope_id = $4)
+              AND ($3::uuid IS NULL OR sandbox_adapter_id IS NOT NULL)
+              AND ($3::uuid IS NULL OR process_uuid = ANY($5::uuid[]))
+              AND ($3::uuid IS NULL OR $5::uuid[] = ARRAY(
+                    SELECT candidate.process_uuid
+                    FROM ONLY {qualified_table} AS candidate
+                    WHERE candidate.parent_session_id = $1
+                      AND candidate.stopped_at IS NULL
+                      AND candidate.sandbox_adapter_id IS NOT NULL
+                      AND candidate.owner_runtime_instance_id = $3::uuid
+                      AND candidate.owner_host_scope_id = $4
+                    ORDER BY candidate.process_uuid
+                  ))
               AND stopped_at IS NULL
               AND stop_reason = 'reclaim_kill_in_progress'
             ORDER BY started_at, process_uuid
             LIMIT $2
             "#,
-            authority.qualified_table
         );
+        let (owner_runtime_instance_id, owner_host_scope_id) = stale_owner_scope
+            .map(|(instance_id, host_scope_id)| (Some(instance_id), Some(host_scope_id)))
+            .unwrap_or((None, None));
+        let authorized_process_uuids = stale_authorized_process_uuids
+            .map(<[Uuid]>::to_vec)
+            .unwrap_or_default();
         let rows = sqlx::query(&sql)
             .bind(session_id)
             .bind(limit as i64)
+            .bind(owner_runtime_instance_id)
+            .bind(owner_host_scope_id)
+            .bind(authorized_process_uuids)
             .fetch_all(self.pool())
             .await?;
         rows.into_iter()
@@ -4234,9 +4447,24 @@ fn pg_pid_to_u32(value: i64) -> Result<u32, ProcessLedgerError> {
         .map_err(|_| ProcessLedgerError::Store(format!("invalid os_pid in reclaim query: {value}")))
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StaleSessionProcessSet {
+    pub session_id: String,
+    pub authorized_process_uuids: Vec<Uuid>,
+}
+
 #[async_trait]
 pub trait StaleSessionSource: Send + Sync + 'static {
     async fn stale_sessions(&self, ttl: Duration) -> Result<Vec<String>, ProcessLedgerError>;
+
+    async fn stale_session_process_sets(
+        &self,
+        _ttl: Duration,
+    ) -> Result<Vec<StaleSessionProcessSet>, ProcessLedgerError> {
+        Err(ProcessLedgerError::InvalidConfig(
+            "STALE_RECLAIM_PROCESS_SET_REQUIRED".to_string(),
+        ))
+    }
 
     async fn restart_sessions(&self) -> Result<Vec<String>, ProcessLedgerError> {
         Ok(Vec::new())
@@ -4250,6 +4478,18 @@ pub trait StaleSessionSource: Send + Sync + 'static {
     /// surfacing-level veto in [`Self::restart_sessions`].
     fn self_runtime_instance_id(&self) -> Option<Uuid> {
         None
+    }
+
+    /// Exact owner boundary used by stale-session selection. Callers must carry
+    /// both values into the atomic claim instead of widening back to session id.
+    fn self_runtime_owner_scope(&self) -> Option<(Uuid, String)> {
+        None
+    }
+
+    fn require_runtime_owner_scope(&self) -> Result<(Uuid, String), ProcessLedgerError> {
+        self.self_runtime_owner_scope().ok_or_else(|| {
+            ProcessLedgerError::InvalidConfig("STALE_RECLAIM_OWNER_SCOPE_REQUIRED".to_string())
+        })
     }
 }
 
@@ -4400,6 +4640,13 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
         Some(self.runtime_instance.instance_id)
     }
 
+    fn self_runtime_owner_scope(&self) -> Option<(Uuid, String)> {
+        Some((
+            self.runtime_instance.instance_id,
+            self.runtime_instance.host_scope_id.clone(),
+        ))
+    }
+
     async fn restart_sessions(&self) -> Result<Vec<String>, ProcessLedgerError> {
         let authority = resolve_process_ledger_authority_relation(&self.pool).await?;
         let sql = format!(
@@ -4493,10 +4740,23 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
     }
 
     async fn stale_sessions(&self, ttl: Duration) -> Result<Vec<String>, ProcessLedgerError> {
+        Ok(self
+            .stale_session_process_sets(ttl)
+            .await?
+            .into_iter()
+            .map(|candidate| candidate.session_id)
+            .collect())
+    }
+
+    async fn stale_session_process_sets(
+        &self,
+        ttl: Duration,
+    ) -> Result<Vec<StaleSessionProcessSet>, ProcessLedgerError> {
         let authority = resolve_process_ledger_authority_relation(&self.pool).await?;
         let sql = format!(
             r#"
-            SELECT lifecycle.parent_session_id, lanes.record_json::text AS record_json
+            SELECT lifecycle.parent_session_id, lifecycle.process_uuid::text AS process_uuid,
+                   lanes.record_json::text AS record_json
             FROM ONLY {} AS lifecycle
             LEFT JOIN model_lanes AS lanes
               ON lanes.record_json->>'coordinator_session_id' = lifecycle.parent_session_id
@@ -4538,7 +4798,7 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
         // task, which silently killed the periodic reclaimer for the remaining
         // process lifetime. Session-less orphans are reclaimed through the
         // process-scoped path instead, never through this session-scoped scan.
-        let mut session_reclaimable = BTreeMap::<String, bool>::new();
+        let mut session_reclaimable = BTreeMap::<String, (bool, BTreeSet<Uuid>)>::new();
         for row in rows {
             let Some(session_id) = row.try_get::<Option<String>, _>("parent_session_id")? else {
                 tracing::warn!(
@@ -4549,6 +4809,12 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
                 );
                 continue;
             };
+            let process_uuid = Uuid::parse_str(&row.try_get::<String, _>("process_uuid")?)
+                .map_err(|error| {
+                    ProcessLedgerError::Store(format!(
+                        "invalid process_uuid in stale-session query: {error}"
+                    ))
+                })?;
             let row_reclaimable = match row.try_get::<Option<String>, _>("record_json")? {
                 Some(raw) => {
                     let record: Value = serde_json::from_str(&raw).map_err(|error| {
@@ -4569,12 +4835,20 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
             };
             session_reclaimable
                 .entry(session_id)
-                .and_modify(|all_reclaimable| *all_reclaimable &= row_reclaimable)
-                .or_insert(row_reclaimable);
+                .and_modify(|(all_reclaimable, process_uuids)| {
+                    *all_reclaimable &= row_reclaimable;
+                    process_uuids.insert(process_uuid);
+                })
+                .or_insert_with(|| (row_reclaimable, BTreeSet::from([process_uuid])));
         }
         Ok(session_reclaimable
             .into_iter()
-            .filter_map(|(session_id, all_reclaimable)| all_reclaimable.then_some(session_id))
+            .filter_map(|(session_id, (all_reclaimable, process_uuids))| {
+                all_reclaimable.then_some(StaleSessionProcessSet {
+                    session_id,
+                    authorized_process_uuids: process_uuids.into_iter().collect(),
+                })
+            })
             .collect())
     }
 }
@@ -4793,6 +5067,32 @@ pub async fn reconcile_restart_orphans_at_boot(
     .await
 }
 
+async fn reconcile_and_reclaim_stale_session(
+    reclaim: &Reclaim,
+    stale_source: &dyn StaleSessionSource,
+    candidate: &StaleSessionProcessSet,
+) -> Result<(), ProcessLedgerError> {
+    let (owner_runtime_instance_id, owner_host_scope_id) =
+        stale_source.require_runtime_owner_scope()?;
+    reclaim
+        .reconcile_in_progress_for_stale_owner(
+            &candidate.session_id,
+            owner_runtime_instance_id,
+            &owner_host_scope_id,
+            &candidate.authorized_process_uuids,
+        )
+        .await?;
+    reclaim
+        .run_stale_owned_session(
+            &candidate.session_id,
+            owner_runtime_instance_id,
+            &owner_host_scope_id,
+            &candidate.authorized_process_uuids,
+        )
+        .await?;
+    Ok(())
+}
+
 pub fn spawn_staleness_reclaim_task(
     reclaim: Arc<Reclaim>,
     stale_source: Arc<dyn StaleSessionSource>,
@@ -4804,20 +5104,22 @@ pub fn spawn_staleness_reclaim_task(
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
-            let session_ids = match stale_source.stale_sessions(config.ttl).await {
-                Ok(session_ids) => session_ids,
+            let candidates = match stale_source.stale_session_process_sets(config.ttl).await {
+                Ok(candidates) => candidates,
                 Err(error) => {
                     tracing::error!(error = %error, "process-ledger stale-session scan failed");
                     continue;
                 }
             };
-            for session_id in session_ids {
-                if let Err(error) = reclaim.reconcile_in_progress_for_session(&session_id).await {
-                    tracing::error!(session_id, error = %error, "process-ledger in-progress kill reconciliation failed");
-                    continue;
-                }
-                if let Err(error) = reclaim.run(&session_id, ReclaimTrigger::Stale).await {
-                    tracing::error!(session_id, error = %error, "process-ledger stale-session reclaim failed");
+            for candidate in candidates {
+                if let Err(error) = reconcile_and_reclaim_stale_session(
+                    reclaim.as_ref(),
+                    stale_source.as_ref(),
+                    &candidate,
+                )
+                .await
+                {
+                    tracing::error!(error = %error, "process-ledger stale-session reclaim failed");
                 }
             }
         }
@@ -4971,23 +5273,25 @@ fn spawn_managed_staleness_reclaim_task_internal(
                     if *shutdown_rx.borrow() {
                         return;
                     }
-                    let session_ids = match stale_source.stale_sessions(config.ttl).await {
-                        Ok(session_ids) => session_ids,
+                    let candidates = match stale_source.stale_session_process_sets(config.ttl).await {
+                        Ok(candidates) => candidates,
                         Err(error) => {
                             tracing::error!(error = %error, "process-ledger stale-session scan failed");
                             continue;
                         }
                     };
-                    for session_id in session_ids {
+                    for candidate in candidates {
                         if *shutdown_rx.borrow() {
                             return;
                         }
-                        if let Err(error) = reclaim.reconcile_in_progress_for_session(&session_id).await {
-                            tracing::error!(session_id, error = %error, "process-ledger in-progress kill reconciliation failed");
-                            continue;
-                        }
-                        if let Err(error) = reclaim.run(&session_id, ReclaimTrigger::Stale).await {
-                            tracing::error!(session_id, error = %error, "process-ledger stale-session reclaim failed");
+                        if let Err(error) = reconcile_and_reclaim_stale_session(
+                            reclaim.as_ref(),
+                            stale_source.as_ref(),
+                            &candidate,
+                        )
+                        .await
+                        {
+                            tracing::error!(error = %error, "process-ledger stale-session reclaim failed");
                         }
                     }
                 }

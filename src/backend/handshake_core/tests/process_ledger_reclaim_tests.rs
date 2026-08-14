@@ -1,8 +1,34 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    io::Write,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
+
+#[derive(Clone, Default)]
+struct SharedTraceBuffer(Arc<Mutex<Vec<u8>>>);
+
+impl Write for SharedTraceBuffer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for SharedTraceBuffer {
+    type Writer = SharedTraceBuffer;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -10,14 +36,16 @@ use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
+use handshake_core::process_ledger::reclaim::StaleSessionProcessSet;
 use handshake_core::process_ledger::{
     spawn_staleness_reclaim_task, KillError, KillOutcome, LedgerEvent, LedgerOverflowEvent,
-    ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
-    ProcessLedgerWriter, ProcessStart, ProcessStop, Reclaim, ReclaimClaim, ReclaimKillOperation,
-    ReclaimKillOperationCandidate, ReclaimKillOperationStatus, ReclaimKillOperationSweepOutcome,
-    ReclaimProcessStore, ReclaimStopReservation, ReclaimStopWriter, ReclaimTrigger,
-    ReclaimableProcess, SandboxKill, StaleSessionSource, StalenessReclaimConfig, WriterConfig,
-    POSTGRES_ACTIVE_RECLAIM_QUERY_SQL, PROCESS_STOP_UPSERT_SQL,
+    PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
+    ProcessLedgerStore, ProcessLedgerWriter, ProcessStart, ProcessStop, Reclaim, ReclaimClaim,
+    ReclaimKillOperation, ReclaimKillOperationCandidate, ReclaimKillOperationStatus,
+    ReclaimKillOperationSweepOutcome, ReclaimProcessStore, ReclaimStopReservation,
+    ReclaimStopWriter, ReclaimTrigger, ReclaimableProcess, SandboxKill, StaleSessionSource,
+    StalenessReclaimConfig, WriterConfig, POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
+    PROCESS_STOP_UPSERT_SQL,
 };
 
 mod knowledge_pg_support;
@@ -686,7 +714,10 @@ async fn staleness_background_task_reclaims_after_ttl_scan() {
         HashMap::from([("SR-STALE".to_string(), vec![process.clone()])]),
         HashSet::new(),
     );
-    let stale_source = Arc::new(FakeStaleSource::new(vec!["SR-STALE".to_string()]));
+    let stale_source = Arc::new(FakeStaleSource::scoped(
+        vec!["SR-STALE".to_string()],
+        vec![process.process_uuid],
+    ));
     let handle = spawn_staleness_reclaim_task(
         Arc::clone(&fixture.reclaim),
         stale_source,
@@ -711,6 +742,68 @@ async fn staleness_background_task_reclaims_after_ttl_scan() {
     let stops = fixture.stop_writer.stops();
     assert_eq!(stops[0].process_uuid, process.process_uuid);
     assert_eq!(stops[0].exit_code, Some(-1));
+}
+
+#[tokio::test]
+async fn staleness_background_task_without_owner_scope_fails_closed_before_kill() {
+    let session_id = "SR-STALE-UNSCOPED";
+    let process = reclaimable(session_id, ProcessEngineKind::MechanicalJob);
+    let fixture = Fixture::new(
+        HashMap::from([(session_id.to_string(), vec![process])]),
+        HashSet::new(),
+    );
+    let stale_source = Arc::new(FakeStaleSource::unscoped(vec![session_id.to_string()]));
+    let scope_error = stale_source
+        .require_runtime_owner_scope()
+        .expect_err("unscoped source must return the stable fail-closed reason");
+    assert_eq!(
+        scope_error.to_string(),
+        "PROCESS_LEDGER_INVALID_CONFIG: STALE_RECLAIM_OWNER_SCOPE_REQUIRED"
+    );
+    assert!(!scope_error.to_string().contains(session_id));
+    let stale_source_for_task: Arc<dyn StaleSessionSource> = stale_source.clone();
+    let trace_buffer = SharedTraceBuffer::default();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(trace_buffer.clone())
+        .with_ansi(false)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("install isolated stale-reclaim tracing capture");
+    let handle = spawn_staleness_reclaim_task(
+        Arc::clone(&fixture.reclaim),
+        stale_source_for_task,
+        StalenessReclaimConfig {
+            ttl: Duration::from_millis(20),
+            scan_interval: Duration::from_millis(10),
+        },
+    );
+
+    timeout(Duration::from_secs(2), async {
+        while stale_source.scan_count() == 0 {
+            sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("the unscoped source must be scanned");
+    sleep(Duration::from_millis(25)).await;
+    handle.abort();
+
+    let captured_logs = String::from_utf8(trace_buffer.0.lock().unwrap().clone())
+        .expect("captured stale-reclaim logs are UTF-8");
+    assert!(captured_logs.contains("STALE_RECLAIM_OWNER_SCOPE_REQUIRED"));
+    assert!(
+        !captured_logs.contains(session_id),
+        "pre-authority stale-reclaim logs must not disclose the source-provided session id: {captured_logs}"
+    );
+
+    assert!(
+        fixture.killer.killed().is_empty(),
+        "missing stale-owner scope must fail closed before any kill"
+    );
+    assert!(
+        fixture.stop_writer.stops().is_empty(),
+        "missing stale-owner scope must never fabricate STOP"
+    );
 }
 
 #[tokio::test]
@@ -967,6 +1060,152 @@ async fn post_kill_persistence_failure_is_typed_and_retry_does_not_rekill() {
         retry_report.processes_reclaimed[0].stop_event_kind,
         Some(handshake_core::process_ledger::LedgerEventKind::Stop)
     );
+}
+
+#[tokio::test]
+async fn kill_failure_with_claim_release_failure_clears_process_fence_for_retry() {
+    let process = reclaimable("SR-FENCE-RETRY", ProcessEngineKind::SandboxContainer);
+    let store = Arc::new(ReleaseFailsOnceStore {
+        process: process.clone(),
+        release_attempts: Mutex::new(0),
+    });
+    let killer = Arc::new(FailThenSucceedKill {
+        attempts: Mutex::new(Vec::new()),
+    });
+    let stop_writer = Arc::new(RecordingStopWriter {
+        stops: Arc::new(Mutex::new(Vec::new())),
+    });
+    let reclaim = Reclaim::new(
+        Arc::clone(&store),
+        Arc::clone(&killer),
+        Arc::clone(&stop_writer),
+    );
+
+    let first = reclaim
+        .run("SR-FENCE-RETRY", ReclaimTrigger::Failure)
+        .await
+        .expect_err("first claim release failure must surface");
+    assert!(first.to_string().contains("injected claim release failure"));
+    assert_eq!(killer.attempts(), vec![process.process_uuid]);
+    assert!(stop_writer.stops().is_empty());
+
+    let retry = reclaim
+        .run("SR-FENCE-RETRY", ReclaimTrigger::Failure)
+        .await
+        .expect("retry must invoke the adapter instead of replaying a completed fence failure");
+    assert_eq!(
+        killer.attempts(),
+        vec![process.process_uuid, process.process_uuid],
+        "the completed process-global failure fence must be cleared even when claim release fails"
+    );
+    assert!(matches!(
+        retry.processes_reclaimed[0].kill_result,
+        KillOutcome::Killed
+    ));
+    assert_eq!(stop_writer.stops().len(), 1);
+}
+
+#[tokio::test]
+async fn postgres_release_failure_recovers_in_progress_state_and_retries_without_false_stop() {
+    let pool = reclaim_pg_pool(4).await;
+    let postgres = PostgresProcessLedgerStore::new(pool.clone());
+    postgres.apply_migration().await.expect("apply migration");
+    postgres
+        .preflight()
+        .await
+        .expect("preflight PostgreSQL store");
+
+    let session = format!("SR-PG-FENCE-RETRY-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    let start = ProcessStart::new(ProcessEngineKind::SandboxContainer, "RECLAIM_TEST", None)
+        .with_process_uuid(process_uuid)
+        .with_parent_session_id(session.clone())
+        .with_sandbox_adapter_id("sandbox-adapter-test")
+        .with_sandbox_internal_id("sandbox-internal-test");
+    postgres
+        .write_batch(vec![LedgerEvent::Start(start)])
+        .await
+        .expect("seed PostgreSQL lifecycle");
+
+    let writer_store: Arc<dyn ProcessLedgerStore> =
+        Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    let (writer, writer_join) = ProcessLedgerWriter::spawn(
+        writer_store,
+        Arc::new(NoopOverflowSink),
+        WriterConfig {
+            capacity: 8,
+            batch_size: 1,
+            flush_interval: Duration::from_millis(5),
+        },
+    );
+    let writer = Arc::new(writer);
+    let store = Arc::new(PostgresReleaseFailsOnceStore {
+        inner: postgres,
+        fail_release: AtomicBool::new(true),
+    });
+    let killer = Arc::new(FailThenSucceedKill {
+        attempts: Mutex::new(Vec::new()),
+    });
+    let reclaim = Reclaim::new(Arc::clone(&store), Arc::clone(&killer), Arc::clone(&writer));
+
+    let first = reclaim
+        .run(&session, ReclaimTrigger::Failure)
+        .await
+        .expect_err("the injected PostgreSQL release failure must surface");
+    assert!(first
+        .to_string()
+        .contains("injected PostgreSQL claim-release transport failure"));
+    let before_recovery: (Option<chrono::DateTime<Utc>>, Option<String>) = sqlx::query_as(
+        "SELECT stopped_at, stop_reason FROM kernel_process_lifecycle WHERE process_uuid = $1",
+    )
+    .bind(process_uuid)
+    .fetch_one(&pool)
+    .await
+    .expect("read crash-left PostgreSQL state");
+    assert!(
+        before_recovery.0.is_none(),
+        "failed kill must not write STOP"
+    );
+    assert_eq!(
+        before_recovery.1.as_deref(),
+        Some("reclaim_kill_in_progress")
+    );
+
+    let sweep = reclaim
+        .reconcile_in_progress_for_session(&session)
+        .await
+        .expect("recover NotStarted operation and retry");
+    assert_eq!(sweep.operations.len(), 1);
+    assert!(sweep.reclaim_error.is_none(), "{sweep:?}");
+    let retry_report = sweep
+        .reclaim_report
+        .expect("NotStarted recovery must immediately retry the durable open row");
+    assert!(matches!(
+        retry_report.processes_reclaimed[0].kill_result,
+        KillOutcome::Killed
+    ));
+    assert_eq!(
+        killer.attempts(),
+        vec![process_uuid, process_uuid],
+        "recovery must invoke the adapter again rather than replaying the cleared in-memory failure fence"
+    );
+    let after_recovery: (Option<chrono::DateTime<Utc>>, Option<String>, i64) = sqlx::query_as(
+        "SELECT stopped_at, stop_reason, COUNT(*) OVER () FROM kernel_process_lifecycle WHERE process_uuid = $1",
+    )
+    .bind(process_uuid)
+    .fetch_one(&pool)
+    .await
+    .expect("read recovered PostgreSQL STOP");
+    assert!(after_recovery.0.is_some());
+    assert_eq!(after_recovery.1.as_deref(), Some("reclaim"));
+    assert_eq!(after_recovery.2, 1, "exactly one lifecycle row may exist");
+
+    drop(reclaim);
+    drop(writer);
+    writer_join
+        .await
+        .expect("PostgreSQL writer task joins")
+        .expect("PostgreSQL writer drains");
 }
 
 #[cfg(feature = "test-utils")]
@@ -2024,6 +2263,21 @@ impl ReclaimProcessStore for MemoryReclaimStore {
             .unwrap_or_default())
     }
 
+    async fn active_stale_owned_processes_for_session(
+        &self,
+        session_id: &str,
+        _owner_runtime_instance_id: Uuid,
+        _owner_host_scope_id: &str,
+        authorized_process_uuids: &[Uuid],
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        Ok(self
+            .active_processes_for_session(session_id)
+            .await?
+            .into_iter()
+            .filter(|process| authorized_process_uuids.contains(&process.process_uuid))
+            .collect())
+    }
+
     async fn renew_reclaim_claim(
         &self,
         _process_uuid: Uuid,
@@ -2066,6 +2320,18 @@ impl ReclaimProcessStore for MemoryReclaimStore {
         _limit: usize,
     ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
         Ok(Vec::new())
+    }
+
+    async fn in_progress_kill_operations_for_stale_owner(
+        &self,
+        session_id: &str,
+        _owner_runtime_instance_id: Uuid,
+        _owner_host_scope_id: &str,
+        _authorized_process_uuids: &[Uuid],
+        limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        self.in_progress_kill_operations_for_session(session_id, limit)
+            .await
     }
 }
 
@@ -2732,6 +2998,184 @@ struct RecordingKill {
     failures: HashSet<Uuid>,
 }
 
+struct FailThenSucceedKill {
+    attempts: Mutex<Vec<Uuid>>,
+}
+
+impl FailThenSucceedKill {
+    fn attempts(&self) -> Vec<Uuid> {
+        self.attempts.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl SandboxKill for FailThenSucceedKill {
+    async fn kill(&self, process_uuid: Uuid, _kill_operation_uuid: Uuid) -> Result<(), KillError> {
+        let mut attempts = self.attempts.lock().unwrap();
+        attempts.push(process_uuid);
+        if attempts.len() == 1 {
+            Err(KillError::new("injected first kill failure"))
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn kill_operation_status(
+        &self,
+        _process_uuid: Uuid,
+        _kill_operation_uuid: Uuid,
+    ) -> Result<ReclaimKillOperationStatus, KillError> {
+        Ok(ReclaimKillOperationStatus::NotStarted)
+    }
+}
+
+struct ReleaseFailsOnceStore {
+    process: ReclaimableProcess,
+    release_attempts: Mutex<usize>,
+}
+
+struct PostgresReleaseFailsOnceStore {
+    inner: PostgresProcessLedgerStore,
+    fail_release: AtomicBool,
+}
+
+#[async_trait]
+impl ReclaimProcessStore for PostgresReleaseFailsOnceStore {
+    async fn active_processes_for_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        self.inner.active_processes_for_session(session_id).await
+    }
+
+    async fn renew_reclaim_claim(
+        &self,
+        process_uuid: Uuid,
+        claim: &ReclaimClaim,
+    ) -> Result<ReclaimClaim, ProcessLedgerError> {
+        self.inner.renew_reclaim_claim(process_uuid, claim).await
+    }
+
+    async fn mark_reclaim_kill_succeeded(
+        &self,
+        stop: &ProcessStop,
+        claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        self.inner.mark_reclaim_kill_succeeded(stop, claim).await
+    }
+
+    async fn mark_reclaim_kill_started(
+        &self,
+        process_uuid: Uuid,
+        claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        self.inner
+            .mark_reclaim_kill_started(process_uuid, claim)
+            .await
+    }
+
+    async fn release_reclaim_claim(
+        &self,
+        process_uuid: Uuid,
+        claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        if self.fail_release.swap(false, Ordering::SeqCst) {
+            return Err(ProcessLedgerError::Store(
+                "injected PostgreSQL claim-release transport failure".to_string(),
+            ));
+        }
+        self.inner.release_reclaim_claim(process_uuid, claim).await
+    }
+
+    async fn resolve_reclaim_kill_operation(
+        &self,
+        process_uuid: Uuid,
+        kill_operation_uuid: Uuid,
+        status: ReclaimKillOperationStatus,
+    ) -> Result<(), ProcessLedgerError> {
+        self.inner
+            .resolve_reclaim_kill_operation(process_uuid, kill_operation_uuid, status)
+            .await
+    }
+
+    async fn in_progress_kill_operations_for_session(
+        &self,
+        session_id: &str,
+        limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        self.inner
+            .in_progress_kill_operations_for_session(session_id, limit)
+            .await
+    }
+}
+
+#[async_trait]
+impl ReclaimProcessStore for ReleaseFailsOnceStore {
+    async fn active_processes_for_session(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        Ok(vec![self.process.clone()])
+    }
+
+    async fn renew_reclaim_claim(
+        &self,
+        _process_uuid: Uuid,
+        claim: &ReclaimClaim,
+    ) -> Result<ReclaimClaim, ProcessLedgerError> {
+        Ok(claim.clone())
+    }
+
+    async fn mark_reclaim_kill_succeeded(
+        &self,
+        _stop: &ProcessStop,
+        _claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn mark_reclaim_kill_started(
+        &self,
+        _process_uuid: Uuid,
+        _claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn release_reclaim_claim(
+        &self,
+        _process_uuid: Uuid,
+        _claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        let mut attempts = self.release_attempts.lock().unwrap();
+        *attempts += 1;
+        if *attempts == 1 {
+            Err(ProcessLedgerError::Store(
+                "injected claim release failure".to_string(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn resolve_reclaim_kill_operation(
+        &self,
+        _process_uuid: Uuid,
+        _kill_operation_uuid: Uuid,
+        _status: ReclaimKillOperationStatus,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn in_progress_kill_operations_for_session(
+        &self,
+        _session_id: &str,
+        _limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        Ok(Vec::new())
+    }
+}
+
 struct StatusKill {
     statuses: HashMap<Uuid, Result<ReclaimKillOperationStatus, String>>,
     killed: Mutex<Vec<(Uuid, Uuid)>>,
@@ -2944,13 +3388,32 @@ impl ProcessLedgerStore for FencedStopStore {
 
 struct FakeStaleSource {
     sessions: Mutex<Vec<String>>,
+    authorized_process_uuids: Vec<Uuid>,
+    owner_scope: Option<(Uuid, String)>,
+    scans: Mutex<usize>,
 }
 
 impl FakeStaleSource {
-    fn new(sessions: Vec<String>) -> Self {
+    fn scoped(sessions: Vec<String>, authorized_process_uuids: Vec<Uuid>) -> Self {
         Self {
             sessions: Mutex::new(sessions),
+            authorized_process_uuids,
+            owner_scope: Some((Uuid::now_v7(), "fake-stale-owner-host".to_string())),
+            scans: Mutex::new(0),
         }
+    }
+
+    fn unscoped(sessions: Vec<String>) -> Self {
+        Self {
+            sessions: Mutex::new(sessions),
+            authorized_process_uuids: Vec::new(),
+            owner_scope: None,
+            scans: Mutex::new(0),
+        }
+    }
+
+    fn scan_count(&self) -> usize {
+        *self.scans.lock().unwrap()
     }
 }
 
@@ -2960,7 +3423,26 @@ impl StaleSessionSource for FakeStaleSource {
         &self,
         _ttl: Duration,
     ) -> Result<Vec<String>, handshake_core::process_ledger::ProcessLedgerError> {
+        *self.scans.lock().unwrap() += 1;
         Ok(std::mem::take(&mut *self.sessions.lock().unwrap()))
+    }
+
+    async fn stale_session_process_sets(
+        &self,
+        _ttl: Duration,
+    ) -> Result<Vec<StaleSessionProcessSet>, ProcessLedgerError> {
+        *self.scans.lock().unwrap() += 1;
+        Ok(std::mem::take(&mut *self.sessions.lock().unwrap())
+            .into_iter()
+            .map(|session_id| StaleSessionProcessSet {
+                session_id,
+                authorized_process_uuids: self.authorized_process_uuids.clone(),
+            })
+            .collect())
+    }
+
+    fn self_runtime_owner_scope(&self) -> Option<(Uuid, String)> {
+        self.owner_scope.clone()
     }
 }
 
@@ -3101,7 +3583,8 @@ async fn mt019_boot_reconcile_surfaces_in_progress_sweep_reclaim_error() {
         "the in-progress sweep's reclaim_error must be surfaced, not dropped: {report:?}"
     );
     assert!(
-        report.sweep_reclaim_errors[0].contains("simulated in-progress sweep follow-up reclaim failure"),
+        report.sweep_reclaim_errors[0]
+            .contains("simulated in-progress sweep follow-up reclaim failure"),
         "the surfaced error must be the sweep's own reclaim error: {:?}",
         report.sweep_reclaim_errors
     );

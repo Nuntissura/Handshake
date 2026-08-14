@@ -136,8 +136,10 @@ struct SpawnedChild {
     os_creation_time_100ns: u64,
 }
 
-fn spawn_real_long_lived_child() -> Option<SpawnedChild> {
-    let exe = powershell_path()?;
+fn spawn_real_long_lived_child() -> SpawnedChild {
+    let exe = powershell_path().expect(
+        "REQUIRED_REAL_PROCESS_PROOF: Windows PowerShell executable is unavailable; this test must fail, not green-skip",
+    );
     let child = Command::new(&exe)
         .args([
             "-NoProfile",
@@ -156,21 +158,23 @@ fn spawn_real_long_lived_child() -> Option<SpawnedChild> {
     // helper the sandbox spawn path uses.
     let os_creation_time_100ns =
         process_creation_time_100ns(pid).expect("read child OS creation-generation identity");
-    Some(SpawnedChild {
+    SpawnedChild {
         guard: ChildGuard(Some(child)),
         pid,
         executable_sha256: sha256_file(&exe),
         os_creation_time_100ns,
-    })
+    }
 }
 
 /// Full migration chain on an isolated schema of the real managed cluster.
-async fn managed_full_chain_pool() -> Option<(knowledge_pg_support::KnowledgePg, PgPool)> {
-    let kp = knowledge_pg_support::knowledge_pg().await?;
+async fn managed_full_chain_pool() -> (knowledge_pg_support::KnowledgePg, PgPool) {
+    let kp = knowledge_pg_support::knowledge_pg().await.expect(
+        "REQUIRED_REAL_POSTGRES_PROOF: Handshake-managed PostgreSQL is unavailable; this test must fail, not green-skip",
+    );
     let pool = sqlx::PgPool::connect(&kp.schema_url)
         .await
         .expect("connect a reclaim pool pinned to the isolated migrated schema");
-    Some((kp, pool))
+    (kp, pool)
 }
 
 /// Directly seed a durable START row carrying the real OS identity, exactly as a
@@ -359,14 +363,8 @@ async fn drain(
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn real_process_reclaim_kills_child_and_writes_durable_stop() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED real_process_reclaim_kills_child_and_writes_durable_stop: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED real_process_reclaim_kills_child_and_writes_durable_stop: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let process_uuid = Uuid::now_v7();
@@ -384,7 +382,10 @@ async fn real_process_reclaim_kills_child_and_writes_durable_stop() {
     // before any reclaim runs.
     assert_eq!(open_row_count(&pool, process_uuid).await, 1);
     assert!(stopped_at(&pool, process_uuid).await.is_none());
-    assert!(spawned.guard.is_still_running(), "child must be live pre-reclaim");
+    assert!(
+        spawned.guard.is_still_running(),
+        "child must be live pre-reclaim"
+    );
 
     let (reclaim, ledger, join) = build_reclaim(&pool);
     let report = reclaim
@@ -392,7 +393,11 @@ async fn real_process_reclaim_kills_child_and_writes_durable_stop() {
         .await
         .expect("production reclaim run");
 
-    assert_eq!(report.processes_reclaimed.len(), 1, "exactly one process reclaimed");
+    assert_eq!(
+        report.processes_reclaimed.len(),
+        1,
+        "exactly one process reclaimed"
+    );
     let reclaimed = &report.processes_reclaimed[0];
     assert_eq!(reclaimed.process_uuid, process_uuid);
     assert!(
@@ -426,14 +431,8 @@ async fn real_process_reclaim_kills_child_and_writes_durable_stop() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget() {
-    let Some((kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget: PowerShell not found");
-        return;
-    };
+    let (kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let process_uuid = Uuid::now_v7();
@@ -507,14 +506,8 @@ async fn mt019_production_kill_identity_wait_uses_authoritative_reclaim_budget()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget() {
-    let Some((kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget: PowerShell not found");
-        return;
-    };
+    let (kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let process_uuid = Uuid::now_v7();
@@ -637,14 +630,8 @@ async fn mt019_crash_left_status_identity_wait_uses_authoritative_reclaim_budget
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn boot_reconcile_kills_prior_boot_orphan_and_writes_durable_stop() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED boot_reconcile_kills_prior_boot_orphan_and_writes_durable_stop: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED boot_reconcile_kills_prior_boot_orphan_and_writes_durable_stop: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let process_uuid = Uuid::now_v7();
@@ -704,14 +691,8 @@ async fn boot_reconcile_kills_prior_boot_orphan_and_writes_durable_stop() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_reclaimers_produce_exactly_one_kill_and_one_stop() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED concurrent_reclaimers_produce_exactly_one_kill_and_one_stop: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED concurrent_reclaimers_produce_exactly_one_kill_and_one_stop: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let process_uuid = Uuid::now_v7();
@@ -795,14 +776,8 @@ async fn concurrent_reclaimers_produce_exactly_one_kill_and_one_stop() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn pid_reuse_guard_refuses_to_kill_a_mismatched_generation() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED pid_reuse_guard_refuses_to_kill_a_mismatched_generation: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED pid_reuse_guard_refuses_to_kill_a_mismatched_generation: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let process_uuid = Uuid::now_v7();
@@ -959,14 +934,8 @@ async fn seed_official_cli_start_with_dead_prior_owner(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     // This boot's LIVE runtime instance. Its OS liveness lease is held for the
     // whole test so its own loopback port can never be mistaken for free.
@@ -1135,6 +1104,155 @@ async fn seed_self_owned_official_cli_start(
     .expect("seed durable self-owned official-CLI START row");
 }
 
+/// Seed an exact-owner lifecycle row that is deliberately outside the stale
+/// source's sandbox-owned authorization class. Sharing a session with an
+/// authorized stale child must never widen the later claim/recovery queries to
+/// this row.
+#[allow(clippy::too_many_arguments)]
+async fn seed_self_owned_non_sandbox_start(
+    pool: &PgPool,
+    parent_session_id: &str,
+    process_uuid: Uuid,
+    pid: u32,
+    creation_time: u64,
+    executable_sha256: &str,
+    owner: &handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor,
+) {
+    let metadata = json!({
+        "executable_sha256": executable_sha256,
+        "os_creation_time_100ns": creation_time,
+    });
+    sqlx::query(
+        r#"
+        INSERT INTO kernel_process_lifecycle (
+            process_uuid, os_pid, parent_session_id, sandbox_adapter_id,
+            sandbox_internal_id, engine_kind, started_at, owner_role, owner_wp,
+            owner_runtime_instance_id, owner_host_scope_id, owner_lease_schema_id,
+            owner_lease_protocol, owner_lease_address, owner_lease_port,
+            metadata_jsonb
+        )
+        VALUES (
+            $1, $2, $3, NULL, NULL, 'official_cli_bridge', NOW(), 'coder', 'WP-1',
+            $4::uuid, $5, $6, $7, $8, $9, $10
+        )
+        "#,
+    )
+    .bind(process_uuid)
+    .bind(i64::from(pid))
+    .bind(parent_session_id)
+    .bind(owner.instance_id)
+    .bind(&owner.host_scope_id)
+    .bind(EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID)
+    .bind(EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL)
+    .bind(owner.loopback_address.to_string())
+    .bind(i32::from(owner.loopback_port))
+    .bind(metadata)
+    .execute(pool)
+    .await
+    .expect("seed durable self-owned non-sandbox START row");
+}
+
+async fn seed_terminal_lane_for_process(pool: &PgPool, session_id: &str, process_uuid: Uuid) {
+    let run_id = format!("RUN-MT019-{}", Uuid::now_v7());
+    let lane_id = format!("LANE-MT019-{}", Uuid::now_v7());
+    let stream_id = format!("STREAM-MT019-{}", Uuid::now_v7());
+    let run_event_id = format!("EVT-MT019-RUN-{}", Uuid::now_v7());
+    let lane_event_id = format!("EVT-MT019-LANE-{}", Uuid::now_v7());
+    let run_sequence: i64 = sqlx::query_scalar(
+        r#"
+        INSERT INTO kernel_event_ledger (
+            event_id, event_version, kernel_task_run_id, session_run_id,
+            aggregate_type, aggregate_id, idempotency_key, event_type,
+            actor_kind, actor_id, payload_hash, source_component, payload
+        ) VALUES ($1, '1', $2, $2, 'mt019_stale_scope', $3, $4,
+                  'mt019_stale_scope', 'test', 'mt019', $5,
+                  'process_reclaim_real_lifecycle_pg_tests', '{}'::jsonb)
+        RETURNING event_sequence
+        "#,
+    )
+    .bind(&run_event_id)
+    .bind(session_id)
+    .bind(&run_id)
+    .bind(format!("IDEM-{run_event_id}"))
+    .bind("0".repeat(64))
+    .fetch_one(pool)
+    .await
+    .expect("insert MT-019 stale-scope run event");
+    sqlx::query(
+        r#"
+        INSERT INTO model_lane_runs (
+            run_id, trace_id, run_span_id, coordinator_session_id,
+            work_packet_id, micro_task_id, task_board_id, owner_session,
+            idempotency_key, replay_order_key, event_ledger_stream_id,
+            event_ledger_event_id, event_ledger_seq, record_json
+        ) VALUES ($1,$2,$3,$4,'WP-1','MT-019','TB-MT019','OWNER-MT019',
+                  $5,$6,$7,$8,$9,$10)
+        "#,
+    )
+    .bind(&run_id)
+    .bind(format!("TRACE-{run_id}"))
+    .bind(format!("SPAN-{run_id}"))
+    .bind(session_id)
+    .bind(format!("IDEM-{run_id}"))
+    .bind(format!("REPLAY-{run_id}"))
+    .bind(&stream_id)
+    .bind(&run_event_id)
+    .bind(run_sequence)
+    .bind(json!({"run_id": run_id.clone(), "coordinator_session_id": session_id}))
+    .execute(pool)
+    .await
+    .expect("insert MT-019 stale-scope run");
+
+    let lane_sequence: i64 = sqlx::query_scalar(
+        r#"
+        INSERT INTO kernel_event_ledger (
+            event_id, event_version, kernel_task_run_id, session_run_id,
+            aggregate_type, aggregate_id, idempotency_key, event_type,
+            actor_kind, actor_id, payload_hash, source_component, payload
+        ) VALUES ($1, '1', $2, $2, 'mt019_stale_scope', $3, $4,
+                  'mt019_stale_scope', 'test', 'mt019', $5,
+                  'process_reclaim_real_lifecycle_pg_tests', '{}'::jsonb)
+        RETURNING event_sequence
+        "#,
+    )
+    .bind(&lane_event_id)
+    .bind(session_id)
+    .bind(&lane_id)
+    .bind(format!("IDEM-{lane_event_id}"))
+    .bind("0".repeat(64))
+    .fetch_one(pool)
+    .await
+    .expect("insert MT-019 stale-scope lane event");
+    sqlx::query(
+        r#"
+        INSERT INTO model_lanes (
+            lane_id, run_id, trace_id, lane_span_id, kind, runtime_binding,
+            launch_authority, status, work_packet_id, micro_task_id,
+            task_board_id, owner_session, event_ledger_stream_id,
+            event_ledger_event_id, event_ledger_seq, record_json
+        ) VALUES ($1,$2,$3,$4,'worker','local','session_broker','completed',
+                  'WP-1','MT-019','TB-MT019','OWNER-MT019',$5,$6,$7,$8)
+        "#,
+    )
+    .bind(&lane_id)
+    .bind(&run_id)
+    .bind(format!("TRACE-{run_id}"))
+    .bind(format!("SPAN-{lane_id}"))
+    .bind(&stream_id)
+    .bind(&lane_event_id)
+    .bind(lane_sequence)
+    .bind(json!({
+        "lane_id": lane_id,
+        "run_id": run_id,
+        "coordinator_session_id": session_id,
+        "process_ownership_ref": format!("process-ledger://{process_uuid}"),
+        "status": "completed"
+    }))
+    .execute(pool)
+    .await
+    .expect("insert MT-019 terminal lane");
+}
+
 async fn lifecycle_row_state(
     pool: &PgPool,
     process_uuid: Uuid,
@@ -1154,14 +1272,8 @@ async fn lifecycle_row_state(
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     // The LIVE instance keeps its OS liveness lease for the whole test, exactly
     // as a running app does.
@@ -1261,18 +1373,9 @@ async fn mt019_running_app_reclaims_same_instance_official_cli_orphan_without_re
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_running_app_reap_never_kills_a_live_same_instance_child() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_running_app_reap_never_kills_a_live_same_instance_child: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut sessionless) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_running_app_reap_never_kills_a_live_same_instance_child: PowerShell not found");
-        return;
-    };
-    let Some(mut with_session) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_running_app_reap_never_kills_a_live_same_instance_child: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut sessionless = spawn_real_long_lived_child();
+    let mut with_session = spawn_real_long_lived_child();
 
     let host_scope = "wp1-mt019-live-child-host";
     let live_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
@@ -1357,18 +1460,9 @@ async fn mt019_running_app_reap_never_kills_a_live_same_instance_child() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut target) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched: PowerShell not found");
-        return;
-    };
-    let Some(mut sibling) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut target = spawn_real_long_lived_child();
+    let mut sibling = spawn_real_long_lived_child();
 
     let session_run_id = format!("SR-{}", Uuid::now_v7());
     let target_uuid = Uuid::now_v7();
@@ -1424,18 +1518,368 @@ async fn mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched() {
 }
 
 // ---------------------------------------------------------------------------
+// MT-019: stale selection and the atomic claim keep the same owner boundary.
+// A foreign live process sharing the coordinator session must survive even when
+// two stale reclaimers race the selected self-owned process.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_concurrent_stale_reclaim_preserves_foreign_same_session_process() {
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let (reclaim, ledger, join) = build_preflighted_reclaim(&pool).await;
+    let reclaim = Arc::new(reclaim);
+    let mut owned_child = spawn_real_long_lived_child();
+    let mut foreign_child = spawn_real_long_lived_child();
+
+    let host_scope = "wp1-mt019-stale-owner-scope-host";
+    let owned_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire stale source owner lease");
+    let foreign_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire foreign live owner lease");
+    let owned = owned_lease.descriptor().clone();
+    let foreign = foreign_lease.descriptor().clone();
+    let session_id = format!("SR-{}", Uuid::now_v7());
+    let owned_uuid = Uuid::now_v7();
+    let foreign_uuid = Uuid::now_v7();
+
+    seed_self_owned_official_cli_start(
+        &pool,
+        Some(&session_id),
+        owned_uuid,
+        owned_child.pid,
+        owned_child.os_creation_time_100ns,
+        &owned_child.executable_sha256,
+        &owned,
+    )
+    .await;
+    seed_self_owned_official_cli_start(
+        &pool,
+        Some(&session_id),
+        foreign_uuid,
+        foreign_child.pid,
+        foreign_child.os_creation_time_100ns,
+        &foreign_child.executable_sha256,
+        &foreign,
+    )
+    .await;
+    seed_terminal_lane_for_process(&pool, &session_id, owned_uuid).await;
+
+    let source = PostgresModelLaneStaleSessionSource::new(pool.clone(), owned.clone());
+    let candidates = source
+        .stale_session_process_sets(Duration::from_secs(300))
+        .await
+        .expect("owner-scoped stale selection");
+    assert_eq!(
+        candidates.len(),
+        1,
+        "the owned terminal lane must surface its coordinator session"
+    );
+    let candidate = &candidates[0];
+    assert_eq!(candidate.session_id, session_id);
+    assert_eq!(candidate.authorized_process_uuids, vec![owned_uuid]);
+
+    let reclaim_a = Arc::clone(&reclaim);
+    let reclaim_b = Arc::clone(&reclaim);
+    let (result_a, result_b) = tokio::join!(
+        reclaim_a.run_stale_owned_session(
+            &session_id,
+            owned.instance_id,
+            host_scope,
+            &candidate.authorized_process_uuids,
+        ),
+        reclaim_b.run_stale_owned_session(
+            &session_id,
+            owned.instance_id,
+            host_scope,
+            &candidate.authorized_process_uuids,
+        ),
+    );
+    let reports = [
+        result_a.expect("first scoped stale reclaimer"),
+        result_b.expect("second scoped stale reclaimer"),
+    ];
+    let owned_kills = reports
+        .iter()
+        .flat_map(|report| report.processes_reclaimed.iter())
+        .filter(|process| {
+            process.process_uuid == owned_uuid && matches!(process.kill_result, KillOutcome::Killed)
+        })
+        .count();
+    assert_eq!(
+        owned_kills, 1,
+        "the owned process must be killed exactly once"
+    );
+    assert!(owned_child.guard.wait_exited(Duration::from_secs(10)));
+
+    assert!(
+        foreign_child.guard.is_still_running(),
+        "a foreign live owner in the same session must never be killed by stale reclaim"
+    );
+    assert_eq!(open_row_count(&pool, foreign_uuid).await, 1);
+    assert!(
+        stopped_at(&pool, foreign_uuid).await.is_none(),
+        "foreign same-session lifecycle must not receive a false STOP"
+    );
+    let foreign_state = lifecycle_row_state(&pool, foreign_uuid).await;
+    assert_eq!(
+        foreign_state.0, None,
+        "foreign row must not even be claimed"
+    );
+    assert!(foreign_state.1.get("reclaim_claim").is_none());
+
+    drain(ledger, join).await;
+    eprintln!(
+        "MT019_NON_SKIP stale_owner_scope owned_pid={} foreign_pid={} owned_kills=1 foreign_stops=0",
+        owned_child.pid, foreign_child.pid
+    );
+    drop(foreign_lease);
+    drop(owned_lease);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// MT-019: the stale source's sandbox-adapter authorization predicate must be
+// preserved by both the atomic claim and crash-left in-progress recovery. A
+// terminal sandbox child may authorize its session, but that cannot widen into
+// a same-owner/session/host non-sandbox child.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_stale_reclaim_preserves_same_owner_non_sandbox_same_session_process() {
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let (reclaim, ledger, join) = build_preflighted_reclaim(&pool).await;
+    let mut selected_child = spawn_real_long_lived_child();
+    let mut non_sandbox_child = spawn_real_long_lived_child();
+
+    let host_scope = "wp1-mt019-stale-adapter-scope-host";
+    let owner_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire stale source owner lease");
+    let owner = owner_lease.descriptor().clone();
+    let session_id = format!("SR-{}", Uuid::now_v7());
+    let selected_uuid = Uuid::now_v7();
+    let non_sandbox_uuid = Uuid::now_v7();
+
+    seed_self_owned_official_cli_start(
+        &pool,
+        Some(&session_id),
+        selected_uuid,
+        selected_child.pid,
+        selected_child.os_creation_time_100ns,
+        &selected_child.executable_sha256,
+        &owner,
+    )
+    .await;
+    seed_self_owned_non_sandbox_start(
+        &pool,
+        &session_id,
+        non_sandbox_uuid,
+        non_sandbox_child.pid,
+        non_sandbox_child.os_creation_time_100ns,
+        &non_sandbox_child.executable_sha256,
+        &owner,
+    )
+    .await;
+    seed_terminal_lane_for_process(&pool, &session_id, selected_uuid).await;
+
+    let source = PostgresModelLaneStaleSessionSource::new(pool.clone(), owner.clone());
+    let candidates = source
+        .stale_session_process_sets(Duration::from_secs(300))
+        .await
+        .expect("sandbox-owned stale selection");
+    assert_eq!(
+        candidates.len(),
+        1,
+        "the terminal sandbox child must authorize its coordinator session"
+    );
+    let candidate = &candidates[0];
+    assert_eq!(candidate.session_id, session_id);
+    assert_eq!(candidate.authorized_process_uuids, vec![selected_uuid]);
+
+    let report = reclaim
+        .run_stale_owned_session(
+            &session_id,
+            owner.instance_id,
+            host_scope,
+            &candidate.authorized_process_uuids,
+        )
+        .await
+        .expect("adapter-scoped stale reclaim");
+    assert_eq!(
+        report
+            .processes_reclaimed
+            .iter()
+            .filter(|process| {
+                process.process_uuid == selected_uuid
+                    && matches!(process.kill_result, KillOutcome::Killed)
+            })
+            .count(),
+        1,
+        "the selected sandbox process must be killed exactly once: {:?}",
+        report.processes_reclaimed
+    );
+    assert!(selected_child.guard.wait_exited(Duration::from_secs(10)));
+    assert!(
+        non_sandbox_child.guard.is_still_running(),
+        "same-owner/session non-sandbox process must not be claimed or killed"
+    );
+    assert_eq!(open_row_count(&pool, non_sandbox_uuid).await, 1);
+    assert!(stopped_at(&pool, non_sandbox_uuid).await.is_none());
+    let untouched_state = lifecycle_row_state(&pool, non_sandbox_uuid).await;
+    assert_eq!(
+        untouched_state.0, None,
+        "non-sandbox row must not be claimed"
+    );
+    assert!(untouched_state.1.get("reclaim_claim").is_none());
+
+    // Simulate a legacy/unscoped crash-left kill operation on the same healthy
+    // non-sandbox row. The stale-owner recovery sweep must preserve the source
+    // authorization boundary and ignore it entirely.
+    let store = PostgresProcessLedgerStore::new(pool.clone());
+    let claimed = store
+        .active_process_for_session(&session_id, non_sandbox_uuid)
+        .await
+        .expect("seed unscoped legacy claim")
+        .expect("non-sandbox row remains open for recovery-boundary proof");
+    store
+        .mark_reclaim_kill_started(non_sandbox_uuid, &claimed.reclaim_claim)
+        .await
+        .expect("seed crash-left non-sandbox kill operation");
+    let before_recovery = lifecycle_row_state(&pool, non_sandbox_uuid).await;
+    let sweep = reclaim
+        .reconcile_in_progress_for_stale_owner(
+            &session_id,
+            owner.instance_id,
+            host_scope,
+            &candidate.authorized_process_uuids,
+        )
+        .await
+        .expect("adapter-scoped in-progress recovery");
+    assert!(
+        sweep.operations.is_empty(),
+        "stale-owner recovery must not resume a non-sandbox operation: {sweep:?}"
+    );
+    assert!(sweep.reclaim_report.is_none());
+    assert!(sweep.reclaim_error.is_none());
+    assert_eq!(
+        lifecycle_row_state(&pool, non_sandbox_uuid).await,
+        before_recovery,
+        "scoped recovery must leave the non-sandbox lifecycle byte-identical"
+    );
+    assert!(non_sandbox_child.guard.is_still_running());
+    assert!(stopped_at(&pool, non_sandbox_uuid).await.is_none());
+
+    drain(ledger, join).await;
+    eprintln!(
+        "MT019_NON_SKIP stale_adapter_scope selected_pid={} non_sandbox_pid={} selected_kills=1 non_sandbox_stops=0",
+        selected_child.pid, non_sandbox_child.pid
+    );
+    drop(owner_lease);
+    pool.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_stale_reclaim_rejects_same_scope_process_set_drift_before_claim() {
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let (reclaim, ledger, join) = build_preflighted_reclaim(&pool).await;
+    let reclaim = Arc::new(reclaim);
+    let mut selected_child = spawn_real_long_lived_child();
+    let mut inserted_child = spawn_real_long_lived_child();
+
+    let host_scope = "wp1-mt019-stale-set-drift-host";
+    let owner_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire stale source owner lease");
+    let owner = owner_lease.descriptor().clone();
+    let session_id = format!("SR-{}", Uuid::now_v7());
+    let selected_uuid = Uuid::now_v7();
+    let inserted_uuid = Uuid::now_v7();
+    seed_self_owned_official_cli_start(
+        &pool,
+        Some(&session_id),
+        selected_uuid,
+        selected_child.pid,
+        selected_child.os_creation_time_100ns,
+        &selected_child.executable_sha256,
+        &owner,
+    )
+    .await;
+    seed_terminal_lane_for_process(&pool, &session_id, selected_uuid).await;
+    let source = PostgresModelLaneStaleSessionSource::new(pool.clone(), owner.clone());
+    let candidates = source
+        .stale_session_process_sets(Duration::from_secs(300))
+        .await
+        .expect("capture exact stale process set");
+    assert_eq!(candidates.len(), 1);
+    let candidate = candidates.into_iter().next().expect("one stale candidate");
+    assert_eq!(candidate.authorized_process_uuids, vec![selected_uuid]);
+
+    let barrier = Arc::new(tokio::sync::Barrier::new(2));
+    let insert_barrier = Arc::clone(&barrier);
+    let insert_pool = pool.clone();
+    let insert_session = session_id.clone();
+    let insert_owner = owner.clone();
+    let inserted_pid = inserted_child.pid;
+    let inserted_creation_time = inserted_child.os_creation_time_100ns;
+    let inserted_sha256 = inserted_child.executable_sha256.clone();
+    let insert_task = tokio::spawn(async move {
+        seed_self_owned_official_cli_start(
+            &insert_pool,
+            Some(&insert_session),
+            inserted_uuid,
+            inserted_pid,
+            inserted_creation_time,
+            &inserted_sha256,
+            &insert_owner,
+        )
+        .await;
+        insert_barrier.wait().await;
+    });
+    let reclaim_barrier = Arc::clone(&barrier);
+    let reclaim_task = tokio::spawn(async move {
+        reclaim_barrier.wait().await;
+        reclaim
+            .run_stale_owned_session(
+                &candidate.session_id,
+                owner.instance_id,
+                host_scope,
+                &candidate.authorized_process_uuids,
+            )
+            .await
+    });
+    insert_task.await.expect("concurrent insertion task joins");
+    let report = reclaim_task
+        .await
+        .expect("concurrent reclaim task joins")
+        .expect("set-drift claim fails closed without a store error");
+    assert!(
+        report.processes_reclaimed.is_empty(),
+        "atomic process-set drift guard must claim nothing: {report:?}"
+    );
+    for (process_uuid, child, label) in [
+        (selected_uuid, &mut selected_child, "previously selected"),
+        (inserted_uuid, &mut inserted_child, "concurrently inserted"),
+    ] {
+        assert!(child.guard.is_still_running(), "{label} child must survive");
+        assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+        assert!(stopped_at(&pool, process_uuid).await.is_none());
+        let state = lifecycle_row_state(&pool, process_uuid).await;
+        assert_eq!(state.0, None, "{label} row must not be claimed");
+        assert!(state.1.get("reclaim_claim").is_none());
+    }
+
+    drain(ledger, join).await;
+    eprintln!(
+        "MT019_NON_SKIP stale_set_drift selected_pid={} inserted_pid={} kills=0 stops=0",
+        selected_child.pid, inserted_child.pid
+    );
+    drop(owner_lease);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
 // P-4(b): the dead-owner probe requires TWO corroborating observations.
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_dead_owner_probe_requires_two_corroborating_samples() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_dead_owner_probe_requires_two_corroborating_samples: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_dead_owner_probe_requires_two_corroborating_samples: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let host_scope = "wp1-mt019-two-sample-host";
     let this_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
@@ -1549,14 +1993,8 @@ async fn mt019_dead_owner_probe_requires_two_corroborating_samples() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_post_boot_staleness_task_resurfaces_restart_orphan() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_post_boot_staleness_task_resurfaces_restart_orphan: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_post_boot_staleness_task_resurfaces_restart_orphan: PowerShell not found");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
 
     let host_scope = "wp1-mt019-periodic-restart-host";
     let this_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
@@ -1626,20 +2064,11 @@ async fn mt019_post_boot_staleness_task_resurfaces_restart_orphan() {
 // with the row left open — the same shape the non-Windows adapter always returns.
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed()
-{
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed: PostgreSQL unavailable");
-        return;
-    };
-    let Some(mut spawned) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed: PowerShell not found");
-        return;
-    };
-    let Some(mut own_child) = spawn_real_long_lived_child() else {
-        eprintln!("SKIPPED mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed: PowerShell not found");
-        return;
-    };
+async fn mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed(
+) {
+    let (_kp, pool) = managed_full_chain_pool().await;
+    let mut spawned = spawn_real_long_lived_child();
+    let mut own_child = spawn_real_long_lived_child();
 
     // `production_with_lease` composes its own stale-session source, so the only
     // seam to shorten the P-4(b) corroboration window is the test-utils override.
@@ -1770,10 +2199,7 @@ async fn mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt019_production_with_lease_boot_timeout_fails_closed_and_retains_lease() {
-    let Some((_kp, pool)) = managed_full_chain_pool().await else {
-        eprintln!("SKIPPED mt019_production_with_lease_boot_timeout_fails_closed_and_retains_lease: PostgreSQL unavailable");
-        return;
-    };
+    let (_kp, pool) = managed_full_chain_pool().await;
 
     let host_scope = "wp1-mt019-boot-timeout-host";
     let boot_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
@@ -1789,7 +2215,9 @@ async fn mt019_production_with_lease_boot_timeout_fails_closed_and_retains_lease
     )
     .await;
     let error = match boot {
-        Ok(_runtime) => panic!("a boot reconcile that exceeds the startup timeout must fail closed"),
+        Ok(_runtime) => {
+            panic!("a boot reconcile that exceeds the startup timeout must fail closed")
+        }
         Err(error) => error,
     };
     assert!(

@@ -11,4 +11,3 @@ async-trait = "0.1"
 futures = "0.3"
 handshake_core = { path = "../..", default-features = false, features = ["runtime-full", "test-utils"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
-

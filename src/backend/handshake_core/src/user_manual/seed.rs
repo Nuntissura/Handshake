@@ -2200,7 +2200,19 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  during it. Conflicting owner descriptors veto reclaim outright. \
                  (2) PERIODIC: the post-boot staleness task now runs the SAME restart pass on every \
                  30s tick, not only the stale-lane pass, so an orphan the boot pass skipped or timed \
-                 out on is re-surfaced without waiting for the next restart. \
+                 out on is re-surfaced without waiting for the next restart. The stale-lane pass \
+                 fails closed with `STALE_RECLAIM_OWNER_SCOPE_REQUIRED` before recovery, claim, or \
+                 kill when a custom stale source cannot provide its runtime-owner scope; restore the \
+                 production PostgreSQL stale source with its embedded-runtime descriptor rather than \
+                 falling back to a session-wide reclaim. Selection, atomic claim, and crash-left \
+                 in-progress recovery preserve the same exact `owner_runtime_instance_id` plus \
+                 `owner_host_scope_id`, `sandbox_adapter_id IS NOT NULL`, and sorted authorized \
+                 process-UUID set. `STALE_RECLAIM_PROCESS_SET_REQUIRED` means a custom source did \
+                 not provide that snapshot and must be repaired before reclaim can resume. The \
+                 atomic claim rejects the whole snapshot when the current open sandbox-owned set \
+                 drifted after selection; re-scan rather than widening the old authorization. A foreign-owner \
+                 or non-sandbox row that merely shares the session remains unclaimed, alive, open, \
+                 and receives no STOP. \
                  (3) RUNNING-APP: a CLI child whose STOP could not be proven (`record_stop` left the \
                  row open, or terminate-and-reap failed) is reaped immediately by \
                  `Reclaim::run_owned_process`, an owner-scoped claim keyed on `process_uuid` with an \
