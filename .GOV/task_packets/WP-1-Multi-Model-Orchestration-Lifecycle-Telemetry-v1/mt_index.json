@@ -1,10 +1,60 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "generated_at_utc": "2026-08-14T06:47:34.4011273Z",
   "total": 23,
   "range": "MT-001..MT-023",
   "note": "Projection regenerated from authoritative MT-001..MT-023 JSON contracts after Integration Validator V5 verdicts. Individual MT JSON lifecycle fields and integration_validation_v5_2026_08_14 remain authoritative.",
+  "consolidated_validation_2026_08_14": {
+    "source_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
+    "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target",
+    "postgres_url": "postgres://postgres@127.0.0.1:5544/handshake",
+    "handshake_native_build": {
+      "command": "cargo build --manifest-path src/frontend/handshake_native/Cargo.toml",
+      "result": "PASS",
+      "duration_seconds": 55.6
+    },
+    "handshake_native_test": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml",
+      "result": "FAIL",
+      "duration_seconds": 384.7,
+      "failed_test": "app::causal_argus_receipt_tests::missing_drawer_client_cannot_acknowledge_confirm_discard_receipt",
+      "exact_rerun": "FAIL_0_PASSED_1_FAILED_416_FILTERED_OUT",
+      "failure": "assertion mismatch: observed 'target handler did not acknowledge the requested action effect'; expected 'click target handler did not acknowledge the requested action effect'"
+    },
+    "packet_validation_commands": [
+      {
+        "command_index": 1,
+        "result": "FAIL_COMMAND_CONTRACT",
+        "failure": "mixed_model_lane_integration_pg_tests requires feature test-utils, but the packet command omits --features test-utils"
+      },
+      {
+        "command_index": 2,
+        "result": "FAIL_0_PASSED_1_FAILED",
+        "failure": "mixed_model_lane_run_is_inspectable_through_argus panicked because HANDSHAKE_ARTIFACTS_DIR was absent"
+      },
+      {
+        "command_index": 3,
+        "result": "FAIL_COMMAND_CONTRACT",
+        "failure": "user_manual_behavior_coverage_tests requires feature test-utils, but the packet command omits --features test-utils"
+      },
+      {
+        "command_index": 4,
+        "result": "PASS",
+        "observation": "SPEC_CURRENT resolved to master-spec-v02.203"
+      },
+      {
+        "command_index": 5,
+        "result": "PASS",
+        "observation": "spec-bundle-check ok"
+      }
+    ],
+    "additional_validation": {
+      "git_diff_check": "FAIL_EXIT_2_NEW_BLANK_LINE_AT_EOF_IN_PIDLESS_CLOUD_LIFECYCLE_HARNESS_CARGO_TOML_LINE_14",
+      "gov_check": "INCONCLUSIVE_TIMEOUT_120_SECONDS_NO_OUTPUT"
+    },
+    "wp_effect": "WP final PASS rubric, packet PASS status, taskboard PASS update, and merge are forbidden because all ready MTs are FAIL_V5 and the consolidated acceptance surface is red."
+  },
   "microtasks": [
     {
       "mt_id": "MT-001",
