@@ -1325,6 +1325,7 @@ impl ModelLaneStore {
         require_token("reason", reason)?;
         let revocation_input_hash =
             cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
+        let exact_scope = require_exact_lifecycle_write_scope(self)?;
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(
             &mut tx,
@@ -1365,22 +1366,9 @@ impl ModelLaneStore {
                     "CX-MM-007 single-lane consent is missing lane_id".into(),
                 )
             })?;
-            let row = sqlx::query(
-                r#"
-                SELECT record_json
-                FROM model_lanes
-                WHERE run_id = $1 AND lane_id = $2
-                FOR UPDATE
-                "#,
-            )
-            .bind(&existing.run_id)
-            .bind(target_lane_id)
-            .fetch_optional(&mut *tx)
-            .await?;
-            if let Some(row) = row {
-                let lane: ModelLaneRecord =
-                    serde_json::from_value(row_to_json(row, "record_json")?)?;
-                validate_model_lane_authority_tx(&mut tx, &lane).await?;
+            if let Some((lane, _)) =
+                lane_by_access_tx(&mut tx, &self.access, target_lane_id).await?
+            {
                 let core_matches = lane.run_id == existing.run_id
                     && lane.lane_id == target_lane_id
                     && lane.model_session_id
@@ -1403,6 +1391,7 @@ impl ModelLaneStore {
                     &existing.run_id,
                     target_lane_id,
                     consent_receipt_id,
+                    &exact_scope,
                 )
                 .await?
                 {
@@ -1433,30 +1422,40 @@ impl ModelLaneStore {
                 WHERE aggregate_type IN ('model_lane', 'model_lane_terminal')
                   AND payload->'record'->>'run_id' = $1
                   AND payload->'record'->>'consent_receipt_ref' = $2
+                  AND payload->>'owner_account_id' = $3
+                  AND payload->>'actor_principal_id' = $4
+                  AND payload->>'authenticated_session_id' = $5
+                  AND payload->>'access_space_id' = $6
+                  AND payload->>'workspace_id' = $7
                 ORDER BY aggregate_id
                 "#,
             )
             .bind(&existing.run_id)
             .bind(consent_receipt_id)
+            .bind(exact_scope.owner_account_id.to_string())
+            .bind(exact_scope.actor_principal_id.to_string())
+            .bind(exact_scope.authenticated_session_id.to_string())
+            .bind(exact_scope.access_space_id.to_string())
+            .bind(exact_scope.workspace_id.as_str())
             .fetch_all(&mut *tx)
             .await?;
-            let rows = sqlx::query(
-                r#"
-                SELECT record_json
-                FROM model_lanes
-                WHERE run_id = $1
-                  AND record_json->>'consent_receipt_ref' = $2
-                ORDER BY lane_id
-                FOR UPDATE
-                "#,
-            )
-            .bind(&existing.run_id)
-            .bind(consent_receipt_id)
-            .fetch_all(&mut *tx)
-            .await?;
+            let predicate = self.access.sql_predicate(3);
+            let rows_sql = format!(
+                "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes \
+                 WHERE run_id = $1 AND record_json->>'consent_receipt_ref' = $2{} \
+                 ORDER BY lane_id FOR UPDATE",
+                predicate.clause()
+            );
+            let rows = predicate
+                .bind(
+                    sqlx::query(&rows_sql)
+                        .bind(&existing.run_id)
+                        .bind(consent_receipt_id),
+                )
+                .fetch_all(&mut *tx)
+                .await?;
             for row in rows {
-                let lane: ModelLaneRecord =
-                    serde_json::from_value(row_to_json(row, "record_json")?)?;
+                let lane: ModelLaneRecord = authorize_and_decode_row(&self.access, row)?;
                 validate_model_lane_authority_tx(&mut tx, &lane).await?;
                 if lane.run_id != existing.run_id
                     || lane.consent_receipt_ref.as_deref() != Some(consent_receipt_id)
@@ -1485,6 +1484,7 @@ impl ModelLaneStore {
                     &existing.run_id,
                     &missing,
                     consent_receipt_id,
+                    &exact_scope,
                 )
                 .await?
                 .ok_or_else(|| {
@@ -1614,6 +1614,7 @@ impl ModelLaneStore {
         let covered_lanes = self
             .fence_cloud_consent_revocation(consent_receipt_id, revoked_by_ref, reason)
             .await?;
+        let exact_scope = require_exact_lifecycle_write_scope(self)?;
         let revocation_input_hash =
             cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
         let mut tx = self.pool.begin().await?;
@@ -1646,6 +1647,7 @@ impl ModelLaneStore {
                 &fenced_lane.run_id,
                 &fenced_lane.lane_id,
                 consent_receipt_id,
+                &exact_scope,
             )
             .await?
             .unwrap_or(fenced_lane);
@@ -1684,6 +1686,31 @@ impl ModelLaneStore {
                 lane.lane_id
             ));
             validate_lane(&lane)?;
+            let mut terminal_payload = json!({
+                "schema_id": "hsk.model_lane_terminal@1",
+                "dexterity_kernel": "Dexterity",
+                "lane_id": &lane.lane_id,
+                "run_id": &lane.run_id,
+                "status": "cancelled",
+                "reason": reason,
+                "reason_code": "CX-MM-007",
+                "consent_status": "CX-MM-007",
+                "consent_receipt_id": consent_receipt_id,
+                "projection_plan_id": &revoked_receipt.projection_plan_id,
+                "provider_call_cancelled": provider_call_cancelled,
+                "provider_cancel_outcome": provider_cancel_outcome,
+                "flight_recorder": "EventLedger",
+                "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
+                "previous_event_ledger_seq": existing_lane.event_ledger_seq,
+            });
+            exact_scope
+                .stamp_json_object(&mut terminal_payload)
+                .map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "cloud consent terminal EventLedger payload requires exact resource attribution"
+                            .into(),
+                    )
+                })?;
             let terminal_event = model_lane_event(
                 KernelEventType::SessionCancelled,
                 "model_lane_terminal",
@@ -1694,23 +1721,7 @@ impl ModelLaneStore {
                 ),
                 lane.work_packet_id.as_deref().unwrap_or(&lane.run_id),
                 &lane.event_ledger_stream_id,
-                json!({
-                    "schema_id": "hsk.model_lane_terminal@1",
-                    "dexterity_kernel": "Dexterity",
-                    "lane_id": &lane.lane_id,
-                    "run_id": &lane.run_id,
-                    "status": "cancelled",
-                    "reason": reason,
-                    "reason_code": "CX-MM-007",
-                    "consent_status": "CX-MM-007",
-                    "consent_receipt_id": consent_receipt_id,
-                    "projection_plan_id": &revoked_receipt.projection_plan_id,
-                    "provider_call_cancelled": provider_call_cancelled,
-                    "provider_cancel_outcome": provider_cancel_outcome,
-                    "flight_recorder": "EventLedger",
-                    "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
-                    "previous_event_ledger_seq": existing_lane.event_ledger_seq,
-                }),
+                terminal_payload,
             )?;
             let stored_terminal_event =
                 append_kernel_event_with_executor(&mut *tx, terminal_event).await?;
@@ -1720,27 +1731,36 @@ impl ModelLaneStore {
                 event_ledger_seq: stored_terminal_event.event_sequence,
                 inner: lane,
             };
+            let mut stored_terminal_payload = json!({
+                "schema_id": "hsk.model_lane_terminal@1",
+                "dexterity_kernel": "Dexterity",
+                "lane_id": &record.lane_id,
+                "run_id": &record.run_id,
+                "status": "cancelled",
+                "reason": reason,
+                "reason_code": "CX-MM-007",
+                "consent_status": "CX-MM-007",
+                "consent_receipt_id": consent_receipt_id,
+                "projection_plan_id": &revoked_receipt.projection_plan_id,
+                "provider_call_cancelled": provider_call_cancelled,
+                "provider_cancel_outcome": provider_cancel_outcome,
+                "flight_recorder": "EventLedger",
+                "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
+                "previous_event_ledger_seq": existing_lane.event_ledger_seq,
+                "record": serde_json::to_value(&record.inner)?,
+            });
+            exact_scope
+                .stamp_json_object(&mut stored_terminal_payload)
+                .map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "cloud consent terminal EventLedger payload requires exact resource attribution"
+                            .into(),
+                    )
+                })?;
             stamp_kernel_event_payload_tx(
                 &mut tx,
                 &record.event_ledger_event_id,
-                json!({
-                    "schema_id": "hsk.model_lane_terminal@1",
-                    "dexterity_kernel": "Dexterity",
-                    "lane_id": &record.lane_id,
-                    "run_id": &record.run_id,
-                    "status": "cancelled",
-                    "reason": reason,
-                    "reason_code": "CX-MM-007",
-                    "consent_status": "CX-MM-007",
-                    "consent_receipt_id": consent_receipt_id,
-                    "projection_plan_id": &revoked_receipt.projection_plan_id,
-                    "provider_call_cancelled": provider_call_cancelled,
-                    "provider_cancel_outcome": provider_cancel_outcome,
-                    "flight_recorder": "EventLedger",
-                    "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
-                    "previous_event_ledger_seq": existing_lane.event_ledger_seq,
-                    "record": serde_json::to_value(&record.inner)?,
-                }),
+                stored_terminal_payload,
             )
             .await?;
             // The scope columns are only supplied on INSERT. The DO UPDATE arm
@@ -1762,9 +1782,15 @@ impl ModelLaneStore {
                     event_ledger_seq = EXCLUDED.event_ledger_seq,
                     record_json = EXCLUDED.record_json,
                     updated_at = NOW()
+                WHERE model_lanes.owner_account_id IS NOT DISTINCT FROM EXCLUDED.owner_account_id
+                  AND model_lanes.actor_principal_id IS NOT DISTINCT FROM EXCLUDED.actor_principal_id
+                  AND model_lanes.authenticated_session_id IS NOT DISTINCT FROM EXCLUDED.authenticated_session_id
+                  AND model_lanes.access_space_id IS NOT DISTINCT FROM EXCLUDED.access_space_id
+                  AND model_lanes.workspace_id IS NOT DISTINCT FROM EXCLUDED.workspace_id
                 "#
             );
-            self.scope_columns()
+            let projection_result = self
+                .scope_columns()
                 .bind(
                     sqlx::query(&revocation_lane_sql)
                         .bind(&record.lane_id)
@@ -1787,6 +1813,11 @@ impl ModelLaneStore {
                 )
                 .execute(&mut *tx)
                 .await?;
+            if projection_result.rows_affected() != 1 {
+                return Err(ModelLaneError::AuthorityDenied(
+                    "cloud consent terminal projection scope conflict".into(),
+                ));
+            }
             cancelled.push(record);
         }
 
@@ -2549,9 +2580,28 @@ impl ModelLaneStore {
             )));
         }
 
+        let requested_exact_scope = match self.write_scope() {
+            Some(scope) => Some(
+                ExactResourceScopeAttribution::try_from_resource_scope(scope).map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                        "ModelLane terminal mutation requires exact owner, Principal, authenticated session, AccessSpace, and workspace authority"
+                            .into(),
+                    )
+                })?,
+            ),
+            None if self.access.system_authority().is_some() => None,
+            None => {
+                return Err(ModelLaneError::AuthorityDenied(
+                    "ModelLane terminal mutation requires write authority".into(),
+                ))
+            }
+        };
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &format!("model-lane-lifecycle:{lane_id}")).await?;
-        let existing = lane_by_id_tx(&mut tx, lane_id).await?;
+        let (existing, stored_exact_scope) = lane_by_access_tx(&mut tx, &self.access, lane_id)
+            .await?
+            .ok_or_else(|| ModelLaneError::NotFound("ModelLane lifecycle authority".into()))?;
+        let exact_scope = requested_exact_scope.or(stored_exact_scope);
         let terminal_idempotency_key = if existing.restart_generation == 0 {
             format!("model-lane-terminal:{lane_id}")
         } else {
@@ -2609,7 +2659,7 @@ impl ModelLaneStore {
             ModelLaneStatus::Cancelled => KernelEventType::SessionCancelled,
             _ => unreachable!("terminal status validated above"),
         };
-        let payload = json!({
+        let mut payload = json!({
             "schema_id": "hsk.model_lane_terminal@1",
             "dexterity_kernel": "Dexterity",
             "lane_id": &lane.lane_id,
@@ -2619,6 +2669,14 @@ impl ModelLaneStore {
             "previous_event_ledger_event_id": &existing.event_ledger_event_id,
             "previous_event_ledger_seq": existing.event_ledger_seq,
         });
+        if let Some(exact_scope) = exact_scope.as_ref() {
+            exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane terminal EventLedger payload requires exact resource attribution"
+                        .into(),
+                )
+            })?;
+        }
         let event = model_lane_event(
             event_type,
             "model_lane_terminal",
@@ -2643,20 +2701,31 @@ impl ModelLaneStore {
         // `record` matches the row. Re-stamp the terminal event payload with the
         // full updated lane record so that invariant holds instead of failing
         // with "model_lane EventLedger payload missing record".
+        let mut stored_terminal_payload = json!({
+            "schema_id": "hsk.model_lane_terminal@1",
+            "dexterity_kernel": "Dexterity",
+            "lane_id": &record.lane_id,
+            "run_id": &record.run_id,
+            "status": status.as_str(),
+            "reason": reason,
+            "previous_event_ledger_event_id": &existing.event_ledger_event_id,
+            "previous_event_ledger_seq": existing.event_ledger_seq,
+            "record": serde_json::to_value(&record.inner)?,
+        });
+        if let Some(exact_scope) = exact_scope.as_ref() {
+            exact_scope
+                .stamp_json_object(&mut stored_terminal_payload)
+                .map_err(|_| {
+                    ModelLaneError::AuthorityDenied(
+                    "ModelLane terminal EventLedger payload requires exact resource attribution"
+                        .into(),
+                )
+                })?;
+        }
         stamp_kernel_event_payload_tx(
             &mut tx,
             &record.event_ledger_event_id,
-            json!({
-                "schema_id": "hsk.model_lane_terminal@1",
-                "dexterity_kernel": "Dexterity",
-                "lane_id": &record.lane_id,
-                "run_id": &record.run_id,
-                "status": status.as_str(),
-                "reason": reason,
-                "previous_event_ledger_event_id": &existing.event_ledger_event_id,
-                "previous_event_ledger_seq": existing.event_ledger_seq,
-                "record": serde_json::to_value(&record.inner)?,
-            }),
+            stored_terminal_payload,
         )
         .await?;
 
@@ -4084,23 +4153,57 @@ impl ModelLaneStore {
         &self,
         value: &str,
     ) -> ModelLaneResult<Option<String>> {
-        let payload = sqlx::query_scalar::<_, Value>(
-            "SELECT payload FROM kernel_event_ledger WHERE event_id = $1 LIMIT 1",
-        )
-        .bind(value)
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(payload.and_then(|payload| event_payload_run_id(&payload)))
+        let predicate = self.access.sql_predicate(2);
+        let sql = format!(
+            "SELECT payload, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM (\
+                 SELECT event_id, payload, \
+                        NULLIF(payload->>'owner_account_id', '')::uuid AS owner_account_id, \
+                        NULLIF(payload->>'actor_principal_id', '')::uuid AS actor_principal_id, \
+                        NULLIF(payload->>'authenticated_session_id', '')::uuid AS authenticated_session_id, \
+                        NULLIF(payload->>'access_space_id', '')::uuid AS access_space_id, \
+                        payload->>'workspace_id' AS workspace_id \
+                 FROM kernel_event_ledger\
+             ) scoped WHERE event_id = $1{} LIMIT 1",
+            predicate.clause()
+        );
+        let row = predicate
+            .bind(sqlx::query(&sql).bind(value))
+            .fetch_optional(&self.pool)
+            .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        self.access
+            .authorize_row(&stored_resource_scope_from_row(&row)?)?;
+        let payload: Value = row.try_get("payload")?;
+        Ok(event_payload_run_id(&payload))
     }
 
     async fn run_id_by_event_ledger_seq(&self, value: i64) -> ModelLaneResult<Option<String>> {
-        let payload = sqlx::query_scalar::<_, Value>(
-            "SELECT payload FROM kernel_event_ledger WHERE event_sequence = $1 ORDER BY event_id ASC LIMIT 1",
-        )
-        .bind(value)
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(payload.and_then(|payload| event_payload_run_id(&payload)))
+        let predicate = self.access.sql_predicate(2);
+        let sql = format!(
+            "SELECT payload, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM (\
+                 SELECT event_id, event_sequence, payload, \
+                        NULLIF(payload->>'owner_account_id', '')::uuid AS owner_account_id, \
+                        NULLIF(payload->>'actor_principal_id', '')::uuid AS actor_principal_id, \
+                        NULLIF(payload->>'authenticated_session_id', '')::uuid AS authenticated_session_id, \
+                        NULLIF(payload->>'access_space_id', '')::uuid AS access_space_id, \
+                        payload->>'workspace_id' AS workspace_id \
+                 FROM kernel_event_ledger\
+             ) scoped WHERE event_sequence = $1{} ORDER BY event_id ASC LIMIT 1",
+            predicate.clause()
+        );
+        let row = predicate
+            .bind(sqlx::query(&sql).bind(value))
+            .fetch_optional(&self.pool)
+            .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        self.access
+            .authorize_row(&stored_resource_scope_from_row(&row)?)?;
+        let payload: Value = row.try_get("payload")?;
+        Ok(event_payload_run_id(&payload))
     }
 
     async fn navigation_projection_for_run(
@@ -10594,6 +10697,7 @@ async fn current_lane_for_cloud_consent_tx(
     run_id: &str,
     lane_id: &str,
     consent_receipt_id: &str,
+    exact_scope: &ExactResourceScopeAttribution,
 ) -> ModelLaneResult<Option<ModelLaneRecord>> {
     let row = sqlx::query(
         r#"
@@ -10603,6 +10707,11 @@ async fn current_lane_for_cloud_consent_tx(
           AND aggregate_type IN ('model_lane', 'model_lane_terminal')
           AND payload->'record'->>'run_id' = $2
           AND payload->'record'->>'consent_receipt_ref' = $3
+          AND payload->>'owner_account_id' = $4
+          AND payload->>'actor_principal_id' = $5
+          AND payload->>'authenticated_session_id' = $6
+          AND payload->>'access_space_id' = $7
+          AND payload->>'workspace_id' = $8
         ORDER BY event_sequence DESC
         LIMIT 1
         "#,
@@ -10610,6 +10719,11 @@ async fn current_lane_for_cloud_consent_tx(
     .bind(lane_id)
     .bind(run_id)
     .bind(consent_receipt_id)
+    .bind(exact_scope.owner_account_id.to_string())
+    .bind(exact_scope.actor_principal_id.to_string())
+    .bind(exact_scope.authenticated_session_id.to_string())
+    .bind(exact_scope.access_space_id.to_string())
+    .bind(exact_scope.workspace_id.as_str())
     .fetch_optional(&mut **tx)
     .await?;
     let Some(row) = row else {
@@ -12590,14 +12704,125 @@ async fn validate_stored_lane_eventledger_authority_tx(
             "ModelLane projection does not equal its EventLedger authority".into(),
         )
     })?;
+    let event_type: String = row.try_get("event_type")?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
     let payload: Value = row.try_get("payload")?;
+    let payload_hash: String = row.try_get("payload_hash")?;
     let model_stable_anchor: Option<String> = row.try_get("model_stable_anchor")?;
-    let mut expected_payload = json!({
-        "schema_id": "hsk.model_lane@1",
-        "dexterity_kernel": "Dexterity",
-        "model_stable_anchor": model_stable_anchor,
-        "record": &lane.inner,
-    });
+    let mut expected_payload = if aggregate_type == "model_lane" {
+        if event_type != "MODEL_ADAPTER_INVOKED" {
+            return Err(ModelLaneError::AuthorityDenied(
+                "ModelLane projection does not equal its EventLedger authority".into(),
+            ));
+        }
+        json!({
+            "schema_id": "hsk.model_lane@1",
+            "dexterity_kernel": "Dexterity",
+            "model_stable_anchor": model_stable_anchor,
+            "record": &lane.inner,
+        })
+    } else if aggregate_type == "model_lane_terminal" {
+        let expected_event_type =
+            match &lane.status {
+                ModelLaneStatus::Completed => "SESSION_COMPLETED",
+                ModelLaneStatus::Failed => "SESSION_FAILED",
+                ModelLaneStatus::Cancelled => "SESSION_CANCELLED",
+                _ => return Err(ModelLaneError::AuthorityDenied(
+                    "non-terminal ModelLane projection points at terminal EventLedger authority"
+                        .into(),
+                )),
+            };
+        if event_type != expected_event_type {
+            return Err(ModelLaneError::AuthorityDenied(
+                "ModelLane terminal projection has the wrong EventLedger event type".into(),
+            ));
+        }
+        let reason = payload
+            .get("reason")
+            .and_then(Value::as_str)
+            .filter(|reason| !reason.trim().is_empty())
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane terminal EventLedger authority has no reason".into(),
+                )
+            })?;
+        let previous_event_id = payload
+            .get("previous_event_ledger_event_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane terminal EventLedger authority has no predecessor".into(),
+                )
+            })?;
+        let previous_event_seq = payload
+            .get("previous_event_ledger_seq")
+            .and_then(Value::as_i64)
+            .filter(|seq| *seq > 0)
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane terminal EventLedger authority has no predecessor sequence".into(),
+                )
+            })?;
+        validate_terminal_lane_predecessor_tx(
+            tx,
+            lane,
+            previous_event_id,
+            previous_event_seq,
+            model_stable_anchor.as_deref(),
+            expected_exact_scope,
+        )
+        .await?;
+
+        if lane.failstate_code.as_deref() == Some("CX-MM-007") {
+            let provider_call_cancelled = payload
+                .get("provider_call_cancelled")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(
+                        "CX-MM-007 terminal authority has no provider cancellation outcome".into(),
+                    )
+                })?;
+            let provider_cancel_outcome = if provider_call_cancelled {
+                "cancelled_by_coordinator"
+            } else {
+                "not_live_at_revocation"
+            };
+            json!({
+                "schema_id": "hsk.model_lane_terminal@1",
+                "dexterity_kernel": "Dexterity",
+                "lane_id": &lane.lane_id,
+                "run_id": &lane.run_id,
+                "status": "cancelled",
+                "reason": reason,
+                "reason_code": "CX-MM-007",
+                "consent_status": "CX-MM-007",
+                "consent_receipt_id": lane.consent_receipt_ref.as_deref().ok_or_else(|| ModelLaneError::AuthorityDenied("CX-MM-007 terminal authority has no consent receipt".into()))?,
+                "projection_plan_id": lane.projection_plan_ref.as_deref().ok_or_else(|| ModelLaneError::AuthorityDenied("CX-MM-007 terminal authority has no projection plan".into()))?,
+                "provider_call_cancelled": provider_call_cancelled,
+                "provider_cancel_outcome": provider_cancel_outcome,
+                "flight_recorder": "EventLedger",
+                "previous_event_ledger_event_id": previous_event_id,
+                "previous_event_ledger_seq": previous_event_seq,
+                "record": &lane.inner,
+            })
+        } else {
+            json!({
+                "schema_id": "hsk.model_lane_terminal@1",
+                "dexterity_kernel": "Dexterity",
+                "lane_id": &lane.lane_id,
+                "run_id": &lane.run_id,
+                "status": lane.status.as_str(),
+                "reason": reason,
+                "previous_event_ledger_event_id": previous_event_id,
+                "previous_event_ledger_seq": previous_event_seq,
+                "record": &lane.inner,
+            })
+        }
+    } else {
+        return Err(ModelLaneError::AuthorityDenied(
+            "ModelLane projection has unsupported EventLedger aggregate authority".into(),
+        ));
+    };
     if let Some(exact_scope) = expected_exact_scope {
         exact_scope
             .stamp_json_object(&mut expected_payload)
@@ -12607,19 +12832,77 @@ async fn validate_stored_lane_eventledger_authority_tx(
                 )
             })?;
     }
-    let valid = row.try_get::<String, _>("event_type")? == "MODEL_ADAPTER_INVOKED"
-        && row.try_get::<String, _>("aggregate_type")? == "model_lane"
-        && row.try_get::<String, _>("aggregate_id")? == lane.lane_id
+    let valid = row.try_get::<String, _>("aggregate_id")? == lane.lane_id
         && row.try_get::<i64, _>("event_sequence")? == lane.event_ledger_seq
         && row.try_get::<String, _>("session_run_id")? == lane.event_ledger_stream_id
         && payload == expected_payload
-        && row.try_get::<String, _>("payload_hash")?
-            == dexterity_sha256_hex(canonical_json_bytes(&payload));
+        && payload_hash == dexterity_sha256_hex(canonical_json_bytes(&payload));
     if !valid {
         return Err(ModelLaneError::AuthorityDenied(format!(
             "ModelLane {} projection does not equal its EventLedger authority",
             lane.lane_id
         )));
+    }
+    Ok(())
+}
+
+async fn validate_terminal_lane_predecessor_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    terminal_lane: &ModelLaneRecord,
+    previous_event_id: &str,
+    previous_event_seq: i64,
+    model_stable_anchor: Option<&str>,
+    expected_exact_scope: Option<&ExactResourceScopeAttribution>,
+) -> ModelLaneResult<()> {
+    let row = sqlx::query(
+        "SELECT event_type, aggregate_type, aggregate_id, event_sequence, session_run_id, \
+                payload, payload_hash FROM kernel_event_ledger WHERE event_id = $1",
+    )
+    .bind(previous_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(
+            "ModelLane terminal EventLedger predecessor is missing".into(),
+        )
+    })?;
+    let payload: Value = row.try_get("payload")?;
+    let previous_lane: NewModelLane =
+        event_payload_record(&payload, "model_lane", &terminal_lane.lane_id)?;
+    let mut expected_payload = json!({
+        "schema_id": "hsk.model_lane@1",
+        "dexterity_kernel": "Dexterity",
+        "model_stable_anchor": model_stable_anchor,
+        "record": &previous_lane,
+    });
+    if let Some(exact_scope) = expected_exact_scope {
+        exact_scope
+            .stamp_json_object(&mut expected_payload)
+            .map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane predecessor authority requires complete resource attribution".into(),
+                )
+            })?;
+    }
+    let valid = row.try_get::<String, _>("event_type")? == "MODEL_ADAPTER_INVOKED"
+        && row.try_get::<String, _>("aggregate_type")? == "model_lane"
+        && row.try_get::<String, _>("aggregate_id")? == terminal_lane.lane_id
+        && row.try_get::<i64, _>("event_sequence")? == previous_event_seq
+        && row.try_get::<String, _>("session_run_id")? == terminal_lane.event_ledger_stream_id
+        && previous_lane.lane_id == terminal_lane.lane_id
+        && previous_lane.run_id == terminal_lane.run_id
+        && previous_lane.event_ledger_stream_id == terminal_lane.event_ledger_stream_id
+        && !matches!(
+            previous_lane.status,
+            ModelLaneStatus::Completed | ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
+        )
+        && payload == expected_payload
+        && row.try_get::<String, _>("payload_hash")?
+            == dexterity_sha256_hex(canonical_json_bytes(&payload));
+    if !valid {
+        return Err(ModelLaneError::AuthorityDenied(
+            "ModelLane terminal EventLedger predecessor is not canonical".into(),
+        ));
     }
     Ok(())
 }
@@ -13001,6 +13284,58 @@ async fn lane_by_id_tx(
         })
         .transpose()?
         .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))
+}
+
+fn require_exact_lifecycle_write_scope(
+    store: &ModelLaneStore,
+) -> ModelLaneResult<ExactResourceScopeAttribution> {
+    store
+        .write_scope()
+        .ok_or_else(|| {
+            ModelLaneError::AuthorityDenied(
+                "ModelLane lifecycle mutation requires exact owner, Principal, authenticated session, AccessSpace, and workspace write authority"
+                    .into(),
+            )
+        })
+        .and_then(|scope| {
+            ExactResourceScopeAttribution::try_from_resource_scope(scope).map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "ModelLane lifecycle mutation requires exact owner, Principal, authenticated session, AccessSpace, and workspace write authority"
+                        .into(),
+                )
+            })
+        })
+}
+
+async fn lane_by_access_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
+    lane_id: &str,
+) -> ModelLaneResult<Option<(ModelLaneRecord, Option<ExactResourceScopeAttribution>)>> {
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes \
+         WHERE lane_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    let row = predicate
+        .bind(sqlx::query(&sql).bind(lane_id))
+        .fetch_optional(&mut **tx)
+        .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let stored_scope = stored_resource_scope_from_row(&row)?;
+    access.authorize_row(&stored_scope)?;
+    let stored_exact_scope = exact_resource_scope_from_stored(&stored_scope, "ModelLane")?;
+    let record: ModelLaneRecord = serde_json::from_value(row_to_json(row, "record_json")?)?;
+    validate_stored_lane_eventledger_authority_tx(
+        tx,
+        &record,
+        access.exact_read_scope().or(stored_exact_scope.as_ref()),
+    )
+    .await?;
+    Ok(Some((record, stored_exact_scope)))
 }
 
 async fn message_lane_by_id_tx(
@@ -14446,6 +14781,36 @@ fn exact_resource_scope_from_columns(
         )));
     }
     promotion_exact_scope_from_columns(scope).map(Some)
+}
+
+fn exact_resource_scope_from_stored(
+    stored: &super::resource_scope::StoredResourceScope,
+    resource: &str,
+) -> ModelLaneResult<Option<ExactResourceScopeAttribution>> {
+    let dimensions = [
+        stored.owner_account_id.is_some(),
+        stored.actor_principal_id.is_some(),
+        stored.authenticated_session.is_some(),
+        stored.access_space.is_some(),
+        stored.workspace.is_some(),
+    ];
+    if dimensions.iter().all(|present| !present) {
+        return Ok(None);
+    }
+    if !dimensions.iter().all(|present| *present) {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "{resource} requires either complete account/principal/session/AccessSpace/workspace authority or fully unattributed system scope"
+        )));
+    }
+    Ok(Some(ExactResourceScopeAttribution {
+        owner_account_id: stored.owner_account_id.expect("complete scope checked"),
+        actor_principal_id: stored.actor_principal_id.expect("complete scope checked"),
+        authenticated_session_id: stored
+            .authenticated_session
+            .expect("complete scope checked"),
+        access_space_id: stored.access_space.expect("complete scope checked"),
+        workspace_id: stored.workspace.clone().expect("complete scope checked"),
+    }))
 }
 
 async fn validate_stored_promotion_decision_authority_tx(

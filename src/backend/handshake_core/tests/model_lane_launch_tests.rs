@@ -6,6 +6,7 @@
 
 mod knowledge_pg_support;
 
+use std::collections::BTreeSet;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -14,11 +15,17 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::stream;
+use futures::StreamExt;
+use handshake_core::api::resolve_official_cli_config_from_path;
+use handshake_core::model_runtime::cloud::{
+    ByokProvider, CliBridgeProvider, CliSubprocessSpawner, LiveCliSpawner, OsKeychainSecretsVault,
+    SecretsVault, HANDSHAKE_KEYCHAIN_SERVICE,
+};
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
-    CancellationToken, Embedding, GenerateRequest, KvCacheHandle, KvCachePolicy, LoadSpec,
-    LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError, ProviderKind,
-    RuntimeKind, SamplingParams, Score, SteeringHookHandle, TokenStream,
+    CancellationToken, Embedding, GenPrompt, GenerateRequest, KvCacheHandle, KvCachePolicy,
+    LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError,
+    ProviderKind, RuntimeKind, SamplingParams, Score, SteeringHookHandle, TokenStream,
 };
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, ProcessEngineKind,
@@ -29,21 +36,22 @@ use handshake_core::swarm_orchestration::model_lane::{
     DexterityLaunchAdapterRequest, DexterityLaunchContract, DexterityNormalizedLaunch,
     ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
     ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneError,
-    ModelLaneRecoveryState, ModelLaneStatus, ModelLaneStore, NewModelLaneCloudConsentReceipt,
-    NewModelLaneCloudProjectionPlan, RuntimeBinding,
+    ModelLaneNavigationLookup, ModelLaneRecoveryState, ModelLaneStatus, ModelLaneStore,
+    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::production_factory::{
     build_production_swarm_coordinator, CloudLaneFactoryConfig,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
-    OwnerAccountId, ResourceAccessContext, ResourceScope, WorkspaceScopeRef,
+    OwnerAccountId, ResourceAccessContext, ResourceScope, SystemScopeAuthority, WorkspaceScopeRef,
 };
 use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
     RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
 };
-use serde_json::json;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 #[tokio::test]
 async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
@@ -82,29 +90,67 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         Arc::new(NoopOverflowSink),
     )
     .expect("manual process ledger");
-    let loads = Arc::new(AtomicUsize::new(0));
-    let unloads = Arc::new(AtomicUsize::new(0));
-    let factory = Arc::new(DexterityLaunchProofFactory {
-        ledger: ledger.clone(),
-        loads: loads.clone(),
-        unloads: unloads.clone(),
-    });
-    let coordinator = SwarmCoordinator::new_with_model_lane_store(
-        SwarmConfig::new(RunBudget::defaulted(8)),
-        factory,
-        Arc::new(RecordingSwarmSink::new()),
-        ledger,
-        store.clone(),
+    assert!(
+        cfg!(feature = "llama-cpp-runtime-engine"),
+        "MT-003 production all-lane proof requires the llama-cpp-runtime-engine feature"
     );
-    let mut process_backed_count = 0usize;
+    let local_gguf = required_real_gguf_artifact();
+    let local_gguf_sha256 = sha256_file(&local_gguf);
+    let vault: Arc<dyn SecretsVault> =
+        Arc::new(OsKeychainSecretsVault::new(HANDSHAKE_KEYCHAIN_SERVICE));
+    for provider in [ByokProvider::OpenAi, ByokProvider::Anthropic] {
+        let secret = vault.get(provider.vault_lane()).unwrap_or_else(|error| {
+            panic!(
+                "MT-003 production launch proof requires configured operator-vault provider {} at lane {}: {error}",
+                provider.id(),
+                provider.vault_lane()
+            )
+        });
+        drop(secret);
+    }
+    let (cli_provider, cli_config) = CliBridgeProvider::OFFERED
+        .into_iter()
+        .find_map(|provider| {
+            resolve_official_cli_config_from_path(provider).map(|config| (provider, config))
+        })
+        .expect(
+            "MT-003 production launch proof requires a configured Claude Code or Codex executable on PATH",
+        );
+    let cli_model = match cli_provider {
+        CliBridgeProvider::ClaudeCode => "claude-sonnet-4",
+        CliBridgeProvider::Codex => "gpt-5-codex",
+    };
+    let live_cli_spawner = Arc::new(LiveCliSpawner::new(
+        Arc::new(ledger.clone()),
+        LiveCliSpawner::native_cli_registry(),
+    ));
+    live_cli_spawner
+        .pin_config(cli_config.launch_config())
+        .expect("pin the exact production official-CLI executable identity");
+    let cloud = CloudLaneFactoryConfig::from_vault(
+        vault,
+        Some(ByokProvider::Anthropic.vault_lane().to_string()),
+        Some(ByokProvider::OpenAi.vault_lane().to_string()),
+    )
+    .with_official_cli(live_cli_spawner, cli_config);
+    let coordinator = build_production_swarm_coordinator(
+        ledger,
+        cloud,
+        store.clone(),
+        Some(8),
+        uuid::Uuid::now_v7(),
+        |_event| Ok(()),
+    );
     let mut authority_instance_id = None;
     let mut live_revocation = None;
+    let mut system_terminal_proof = None;
 
     for (idx, adapter_kind) in supported_adapters().into_iter().enumerate() {
         let raw_launch = launch_request(adapter_kind.clone(), idx, ModelLaneStatus::Ready);
         let launch = registry
             .normalize(raw_launch.clone())
             .expect("registered Dexterity adapter normalizes");
+        let mut launched_instance_id = None;
         let (run, lane) = if adapter_uses_no_os_runtime(&adapter_kind) {
             let caller = coordinator
                 .authorize_no_os_model_lane(
@@ -117,14 +163,25 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
                 .await
                 .expect("no-OS Dexterity lane launches through SwarmCoordinator")
         } else {
-            process_backed_count += 1;
-            let spawn = spawn_request_for_adapter(
+            let spawn = production_spawn_request_for_adapter(
                 adapter_kind.clone(),
                 idx,
                 spawn_contract_from_normalized(&launch),
+                &local_gguf,
+                &local_gguf_sha256,
+                cli_model,
             );
+            if adapter_kind == DexterityLaunchAdapterKind::LocalModelRuntime {
+                assert_eq!(spawn.runtime_binding, RuntimeAdapterBinding::LlamaCpp);
+                assert_eq!(
+                    spawn.model_artifact_sha256.as_deref(),
+                    Some(local_gguf_sha256.as_str()),
+                    "the production local lane must carry the exact real-GGUF integrity digest"
+                );
+            }
             seed_cloud_launch_authority(&store, &spawn, &adapter_kind, idx).await;
             let instance_id = spawn.instance_id;
+            launched_instance_id = Some(instance_id);
             if adapter_kind == DexterityLaunchAdapterKind::ByokCloudOpenAi {
                 let contract = spawn
                     .dexterity_launch
@@ -145,6 +202,7 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
                 .await
                 .expect("process-backed Dexterity lane launches through SwarmCoordinator");
             assert_eq!(spawned, instance_id);
+            prove_live_production_generation(&coordinator, instance_id, &adapter_kind).await;
             assert!(
                 coordinator.session_runtime(instance_id).is_some(),
                 "runtime must not be exposed until the Dexterity launch record commits"
@@ -170,47 +228,81 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         assert!(lane.terminal_status_mapping_ref.is_some());
         assert_eq!(lane.owner_session, "KERNEL_BUILDER-MT003");
         assert_eq!(lane.trace_id, format!("trace-mt003-{idx}"));
-        let persisted_scope: (
-            Option<uuid::Uuid>,
-            Option<uuid::Uuid>,
-            Option<uuid::Uuid>,
-            Option<uuid::Uuid>,
-            Option<String>,
-        ) = sqlx::query_as(
-            "SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
-                    access_space_id, workspace_id \
-             FROM model_lanes WHERE lane_id = $1",
-        )
-        .bind(&lane.lane_id)
-        .fetch_one(&pool)
-        .await
-        .expect("read exact launch scope without a filtering predicate");
-        assert_eq!(
-            persisted_scope,
-            (
-                Some(exact_scope.owner_account_id.as_uuid()),
-                Some(exact_scope.actor_principal_id.as_uuid()),
-                Some(exact_scope.authenticated_session_id.as_uuid()),
-                Some(exact_scope.access_space_id.as_uuid()),
-                Some(exact_scope.workspace_id.as_str().to_string()),
-            ),
-            "adapter {adapter_kind:?} must stamp the server-owned five-field scope before its lane is discoverable"
-        );
+        if adapter_kind == DexterityLaunchAdapterKind::HumanOperator {
+            system_terminal_proof = Some((run.run_id.clone(), lane.lane_id.clone()));
+        }
+        let expected_scope = exact_scope_tuple(&exact_scope);
+        for (table, key_column, key) in [
+            ("model_lane_runs", "run_id", run.run_id.as_str()),
+            ("model_lanes", "lane_id", lane.lane_id.as_str()),
+        ] {
+            assert_eq!(
+                persisted_scope(&pool, table, key_column, key).await,
+                expected_scope,
+                "adapter {adapter_kind:?} must stamp the server-owned five-field scope on {table} before launch publication"
+            );
+        }
         exact_reader
             .replay_run(&launch.run_id)
             .await
             .expect("the exact launch owner must replay its own lane");
+        exact_reader
+            .navigation_by_lane(&lane.lane_id)
+            .await
+            .expect("the exact launch owner must navigate its own live lane");
+        for (aggregate, event_id) in [
+            ("ModelLaneRun", run.event_ledger_event_id.as_str()),
+            ("ModelLane", lane.event_ledger_event_id.as_str()),
+        ] {
+            exact_reader
+                .navigation_by_lookup(ModelLaneNavigationLookup {
+                    event_ledger_event_id: Some(event_id.to_string()),
+                    ..Default::default()
+                })
+                .await
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "the exact launch owner must navigate {aggregate} EventLedger authority for adapter {adapter_kind:?}: {error}"
+                    )
+                });
+            assert_event_scope(&pool, event_id, &exact_scope).await;
+        }
         for (dimension, foreign) in foreign_exact_scopes(&exact_scope) {
-            let denied = ModelLaneStore::new_with_access(
+            let foreign_store = ModelLaneStore::new_with_access(
                 pool.clone(),
                 ResourceAccessContext::for_exact_reader(foreign),
-            )
-            .replay_run(&launch.run_id)
-            .await
-            .expect_err("a one-dimension foreign scope must not discover the launched lane");
+            );
+            assert_absent_without_scope_leak(
+                foreign_store.replay_run(&launch.run_id).await,
+                dimension,
+                &exact_scope,
+            );
+            assert_absent_without_scope_leak(
+                foreign_store.navigation_by_lane(&lane.lane_id).await,
+                dimension,
+                &exact_scope,
+            );
+            for event_id in [&run.event_ledger_event_id, &lane.event_ledger_event_id] {
+                let denial = assert_absent_without_scope_leak(
+                    foreign_store
+                        .navigation_by_lookup(ModelLaneNavigationLookup {
+                            event_ledger_event_id: Some(event_id.clone()),
+                            ..Default::default()
+                        })
+                        .await,
+                    dimension,
+                    &exact_scope,
+                );
+                assert!(
+                    !denial.contains(&run.run_id) && !denial.contains(&lane.lane_id),
+                    "foreign {dimension} EventLedger lookup leaked hidden launch metadata: {denial}"
+                );
+            }
+        }
+        if let Some(instance_id) = launched_instance_id {
             assert!(
-                matches!(denied, ModelLaneError::NotFound(_)),
-                "foreign {dimension} denial must be indistinguishable from absence: {denied}"
+                coordinator.session_runtime(instance_id).is_some(),
+                "foreign context probes must not cancel or retarget the exact owner's live adapter {adapter_kind:?}"
             );
         }
         let stream_rows: i64 = sqlx::query_scalar(
@@ -246,7 +338,30 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         }
     }
 
-    assert_eq!(loads.load(Ordering::SeqCst), process_backed_count);
+    let (system_terminal_run, system_terminal_lane) =
+        system_terminal_proof.expect("the all-adapter proof includes a no-OS human lane");
+    let system_store = ModelLaneStore::new_system_authority(
+        pool.clone(),
+        SystemScopeAuthority::internal_subsystem("MT003_EXACT_SCOPE_TERMINAL_PROOF"),
+    );
+    let system_terminal = system_store
+        .record_lane_terminal_status(
+            &system_terminal_lane,
+            ModelLaneStatus::Cancelled,
+            "system lifecycle owner preserves the lane's immutable exact scope",
+        )
+        .await
+        .expect("explicit system authority terminalizes an exact-scoped lane canonically");
+    assert_event_scope(&pool, &system_terminal.event_ledger_event_id, &exact_scope).await;
+    let system_terminal_replay = exact_reader
+        .replay_run(&system_terminal_run)
+        .await
+        .expect("the exact owner replays a system-terminalized lane");
+    assert_eq!(system_terminal_replay.lanes.len(), 1);
+    assert_eq!(
+        system_terminal_replay.lanes[0].status,
+        ModelLaneStatus::Cancelled
+    );
     let (revoked_instance, revoked_run, revoked_lane, revoked_receipt) =
         live_revocation.expect("the all-adapter proof includes a live BYOK cloud launch");
     let scope_before_revocation: (
@@ -263,12 +378,153 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
     .fetch_one(&pool)
     .await
     .expect("read live launch scope before revocation");
-    let revoked = coordinator
-        .revoke_cloud_consent_receipt(
-            &revoked_receipt,
-            "operator://mt003/scope-revocation",
-            "MT-003 exact-scope live-launch revocation proof",
+    for (dimension, switched_scope) in foreign_exact_scopes(&exact_scope) {
+        let switched_write_scope = ResourceScope::new(
+            switched_scope.owner_account_id,
+            switched_scope.actor_principal_id,
         )
+        .with_session(switched_scope.authenticated_session_id)
+        .with_access_space(switched_scope.access_space_id)
+        .with_workspace(switched_scope.workspace_id);
+        let switched_store = ModelLaneStore::new_scoped(pool.clone(), switched_write_scope);
+        assert_absent_without_scope_leak(
+            switched_store
+                .record_lane_terminal_status(
+                    &revoked_lane,
+                    ModelLaneStatus::Cancelled,
+                    "foreign context must not terminate an exact-owner launch",
+                )
+                .await,
+            dimension,
+            &exact_scope,
+        );
+        assert!(
+            coordinator.session_runtime(revoked_instance).is_some(),
+            "a live {dimension} switch must fail closed without cancelling the original owner's runtime"
+        );
+        assert_eq!(
+            persisted_scope(&pool, "model_lanes", "lane_id", &revoked_lane).await,
+            scope_before_revocation,
+            "a rejected {dimension} switch must not retarget the live lane"
+        );
+    }
+    let revocation_actor = "operator://mt003/scope-revocation";
+    let revocation_reason = "MT-003 exact-scope live-launch revocation proof";
+    store
+        .test_fence_cloud_consent_revocation(&revoked_receipt, revocation_actor, revocation_reason)
+        .await
+        .expect("fence the receipt before exercising the projection-collision failstate");
+    let (exact_projection_before_collision, initial_lane_event_id): (Value, String) =
+        sqlx::query_as(
+            "SELECT to_jsonb(model_lanes), event_ledger_event_id \
+             FROM model_lanes WHERE lane_id = $1",
+        )
+        .bind(&revoked_lane)
+        .fetch_one(&pool)
+        .await
+        .expect("snapshot the exact-owner projection before collision injection");
+    let initial_event_payload_before: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&initial_lane_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("snapshot the exact-owner canonical EventLedger event");
+    let collision_scope = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new("workspace-mt003-projection-collision")
+            .expect("nonblank collision workspace"),
+    };
+    sqlx::query(
+        "UPDATE model_lanes SET owner_account_id = $2, actor_principal_id = $3, \
+                authenticated_session_id = $4, access_space_id = $5, workspace_id = $6 \
+         WHERE lane_id = $1",
+    )
+    .bind(&revoked_lane)
+    .bind(collision_scope.owner_account_id.as_uuid())
+    .bind(collision_scope.actor_principal_id.as_uuid())
+    .bind(collision_scope.authenticated_session_id.as_uuid())
+    .bind(collision_scope.access_space_id.as_uuid())
+    .bind(collision_scope.workspace_id.as_str())
+    .execute(&pool)
+    .await
+    .expect("inject a foreign five-dimensional projection collision");
+    let foreign_projection_before_attempt: Value =
+        sqlx::query_scalar("SELECT to_jsonb(model_lanes) FROM model_lanes WHERE lane_id = $1")
+            .bind(&revoked_lane)
+            .fetch_one(&pool)
+            .await
+            .expect("snapshot the foreign collision row");
+    let collision_error = store
+        .test_finalize_cloud_consent_revocation(
+            &revoked_receipt,
+            revocation_actor,
+            revocation_reason,
+            &BTreeSet::new(),
+        )
+        .await
+        .expect_err("a foreign-scoped projection collision must fail closed");
+    let rendered_collision_error = collision_error.to_string();
+    for restricted_identifier in [
+        collision_scope.owner_account_id.to_string(),
+        collision_scope.actor_principal_id.to_string(),
+        collision_scope.authenticated_session_id.to_string(),
+        collision_scope.access_space_id.to_string(),
+        collision_scope.workspace_id.to_string(),
+    ] {
+        assert!(
+            !rendered_collision_error.contains(&restricted_identifier),
+            "projection collision denial leaked foreign scope identifier {restricted_identifier}: {rendered_collision_error}"
+        );
+    }
+    let foreign_projection_after_attempt: Value =
+        sqlx::query_scalar("SELECT to_jsonb(model_lanes) FROM model_lanes WHERE lane_id = $1")
+            .bind(&revoked_lane)
+            .fetch_one(&pool)
+            .await
+            .expect("re-read the foreign collision row after failed finalization");
+    assert_eq!(
+        foreign_projection_after_attempt, foreign_projection_before_attempt,
+        "scope-conflicting terminalization must leave the foreign projection byte-identical"
+    );
+    let initial_event_payload_after: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&initial_lane_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("re-read the exact-owner canonical EventLedger event");
+    assert_eq!(
+        initial_event_payload_after, initial_event_payload_before,
+        "a foreign projection collision must not lose or retarget exact-owner canonical authority"
+    );
+    sqlx::query(
+        "UPDATE model_lanes SET owner_account_id = $2, actor_principal_id = $3, \
+                authenticated_session_id = $4, access_space_id = $5, workspace_id = $6 \
+         WHERE lane_id = $1",
+    )
+    .bind(&revoked_lane)
+    .bind(exact_scope.owner_account_id.as_uuid())
+    .bind(exact_scope.actor_principal_id.as_uuid())
+    .bind(exact_scope.authenticated_session_id.as_uuid())
+    .bind(exact_scope.access_space_id.as_uuid())
+    .bind(exact_scope.workspace_id.as_str())
+    .execute(&pool)
+    .await
+    .expect("remove only the injected collision and restore exact-owner projection scope");
+    let exact_projection_after_restore: Value =
+        sqlx::query_scalar("SELECT to_jsonb(model_lanes) FROM model_lanes WHERE lane_id = $1")
+            .bind(&revoked_lane)
+            .fetch_one(&pool)
+            .await
+            .expect("re-read restored exact-owner projection");
+    assert_eq!(
+        exact_projection_after_restore, exact_projection_before_collision,
+        "removing the collision must reveal the original exact-owner projection without mutation"
+    );
+    let revoked = coordinator
+        .revoke_cloud_consent_receipt(&revoked_receipt, revocation_actor, revocation_reason)
         .await
         .expect("revocation must cancel the exact live launch");
     assert_eq!(revoked.len(), 1, "single-lane consent revokes one launch");
@@ -303,6 +559,29 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         scope_after_revocation, scope_before_revocation,
         "revocation must terminate the launch without retargeting its immutable original scope"
     );
+    let terminal_lane = &replay_after_revocation.lanes[0];
+    assert_event_scope(&pool, &terminal_lane.event_ledger_event_id, &exact_scope).await;
+    for (dimension, foreign) in foreign_exact_scopes(&exact_scope) {
+        let switched = ModelLaneStore::new_with_access(
+            pool.clone(),
+            ResourceAccessContext::for_exact_reader(foreign),
+        );
+        assert_absent_without_scope_leak(
+            switched.replay_run(&revoked_run).await,
+            dimension,
+            &exact_scope,
+        );
+        assert_absent_without_scope_leak(
+            switched
+                .navigation_by_lookup(ModelLaneNavigationLookup {
+                    event_ledger_event_id: Some(terminal_lane.event_ledger_event_id.clone()),
+                    ..Default::default()
+                })
+                .await,
+            dimension,
+            &exact_scope,
+        );
+    }
 
     let mixed_workspace =
         ResourceScope::new(exact_scope.owner_account_id, ActorPrincipalId::mint())
@@ -318,7 +597,97 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         .drain_all()
         .await
         .expect("drain Dexterity runtime proof");
-    assert_eq!(unloads.load(Ordering::SeqCst), process_backed_count);
+}
+
+type PersistedExactScope = (
+    Option<uuid::Uuid>,
+    Option<uuid::Uuid>,
+    Option<uuid::Uuid>,
+    Option<uuid::Uuid>,
+    Option<String>,
+);
+
+fn exact_scope_tuple(scope: &ExactResourceScopeAttribution) -> PersistedExactScope {
+    (
+        Some(scope.owner_account_id.as_uuid()),
+        Some(scope.actor_principal_id.as_uuid()),
+        Some(scope.authenticated_session_id.as_uuid()),
+        Some(scope.access_space_id.as_uuid()),
+        Some(scope.workspace_id.as_str().to_string()),
+    )
+}
+
+async fn persisted_scope(
+    pool: &sqlx::PgPool,
+    table: &str,
+    key_column: &str,
+    key: &str,
+) -> PersistedExactScope {
+    // Test-only canonical inspection. Product reads remain scope-filtered through
+    // ModelLaneStore; this helper proves what was durably stamped before those
+    // filters are evaluated.
+    let sql = format!(
+        "SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                access_space_id, workspace_id FROM {table} WHERE {key_column} = $1"
+    );
+    sqlx::query_as(&sql)
+        .bind(key)
+        .fetch_one(pool)
+        .await
+        .unwrap_or_else(|error| panic!("read exact launch scope from {table}: {error}"))
+}
+
+async fn assert_event_scope(
+    pool: &sqlx::PgPool,
+    event_id: &str,
+    exact_scope: &ExactResourceScopeAttribution,
+) {
+    let payload: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(event_id)
+            .fetch_one(pool)
+            .await
+            .expect("read immutable launch EventLedger payload");
+    let expected = serde_json::to_value(exact_scope).expect("serialize exact launch scope");
+    for field in [
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
+        "workspace_id",
+    ] {
+        assert_eq!(
+            payload.get(field),
+            expected.get(field),
+            "EventLedger event {event_id} lost exact launch attribution field {field}"
+        );
+    }
+}
+
+fn assert_absent_without_scope_leak<T: std::fmt::Debug>(
+    result: Result<T, ModelLaneError>,
+    changed_dimension: &str,
+    restricted_scope: &ExactResourceScopeAttribution,
+) -> String {
+    let denied = result.expect_err("a one-dimension foreign scope must observe absence");
+    assert!(
+        matches!(&denied, ModelLaneError::NotFound(_)),
+        "foreign {changed_dimension} denial must be indistinguishable from absence: {denied}"
+    );
+    let rendered = denied.to_string();
+    for restricted_identifier in [
+        restricted_scope.owner_account_id.to_string(),
+        restricted_scope.actor_principal_id.to_string(),
+        restricted_scope.authenticated_session_id.to_string(),
+        restricted_scope.access_space_id.to_string(),
+        restricted_scope.workspace_id.to_string(),
+    ] {
+        assert!(
+            !rendered.contains(&restricted_identifier),
+            "foreign {changed_dimension} denial leaked restricted scope identifier {restricted_identifier}: {rendered}"
+        );
+    }
+    rendered
 }
 
 fn foreign_exact_scopes(
@@ -1245,6 +1614,128 @@ fn adapter_uses_no_os_runtime(adapter_kind: &DexterityLaunchAdapterKind) -> bool
             | DexterityLaunchAdapterKind::Subagent
             | DexterityLaunchAdapterKind::Validator
     )
+}
+
+fn required_real_gguf_artifact() -> std::path::PathBuf {
+    let artifact = std::env::var_os("HANDSHAKE_TEST_GGUF_PATH").unwrap_or_else(|| {
+        panic!(
+            "MT-003 production all-lane proof requires HANDSHAKE_TEST_GGUF_PATH; zero-match or skipped real-model proof is forbidden"
+        )
+    });
+    let artifact = std::path::PathBuf::from(artifact);
+    assert!(
+        artifact.is_file(),
+        "HANDSHAKE_TEST_GGUF_PATH must name an existing GGUF file"
+    );
+    let mut file = std::fs::File::open(&artifact).expect("open real GGUF magic");
+    let mut magic = [0_u8; 4];
+    std::io::Read::read_exact(&mut file, &mut magic).expect("read real GGUF magic");
+    assert_eq!(
+        &magic, b"GGUF",
+        "local production artifact must be GGUF v2+"
+    );
+    artifact
+}
+
+fn sha256_file(path: &std::path::Path) -> String {
+    use std::io::Read as _;
+
+    let mut file = std::fs::File::open(path).expect("open real GGUF artifact for SHA-256");
+    let mut digest = Sha256::new();
+    let mut buffer = [0_u8; 1024 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .expect("read real GGUF artifact for SHA-256");
+        if read == 0 {
+            break;
+        }
+        digest.update(&buffer[..read]);
+    }
+    format!("{:x}", digest.finalize())
+}
+
+fn production_spawn_request_for_adapter(
+    adapter_kind: DexterityLaunchAdapterKind,
+    idx: usize,
+    contract: DexterityLaunchContract,
+    local_gguf: &std::path::Path,
+    local_gguf_sha256: &str,
+    cli_model: &str,
+) -> SpawnRequest {
+    let request = SpawnRequest::new(
+        ModelInstanceId::new(ModelId::new_v7(), 100 + idx as u32),
+        RuntimeAdapterBinding::LlamaCpp,
+        "KERNEL_BUILDER-MT003",
+        format!("coordinator-session-mt003-{idx}"),
+    )
+    .with_wp("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1")
+    .with_mt("MT-003")
+    .with_dexterity_launch(contract);
+    match adapter_kind {
+        DexterityLaunchAdapterKind::LocalModelRuntime => {
+            request.with_local_artifact(local_gguf.to_string_lossy(), local_gguf_sha256.to_string())
+        }
+        DexterityLaunchAdapterKind::ByokCloudOpenAi => request
+            .with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o")
+            .with_byok_cloud_provider(ByokCloudProvider::OpenAi),
+        DexterityLaunchAdapterKind::ByokCloudAnthropic => request
+            .with_cloud_provider(ProviderKind::ByokCloud, "claude-sonnet-4")
+            .with_byok_cloud_provider(ByokCloudProvider::Anthropic),
+        DexterityLaunchAdapterKind::OfficialCliBridge | DexterityLaunchAdapterKind::CliBridge => {
+            request
+                .with_cloud_provider(ProviderKind::OfficialCli, cli_model)
+                .with_sandbox_posture(
+                    handshake_core::sandbox::TrustClass::Trusted,
+                    handshake_core::sandbox::IsolationTier::Tier1Container,
+                    std::collections::BTreeSet::from([
+                        handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
+                    ]),
+                    handshake_core::sandbox::NetPolicy::HostInherited,
+                    handshake_core::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
+                )
+        }
+        other => panic!("adapter {other:?} is not process-backed"),
+    }
+}
+
+async fn prove_live_production_generation(
+    coordinator: &SwarmCoordinator,
+    instance_id: ModelInstanceId,
+    adapter_kind: &DexterityLaunchAdapterKind,
+) {
+    let model_id = coordinator
+        .session_model_id(instance_id)
+        .expect("production factory publishes its runtime-minted model identity");
+    let request = GenerateRequest {
+        id: model_id,
+        prompt: GenPrompt::new("Reply with one short token."),
+        sampling: SamplingParams::default(),
+        lora_overrides: Vec::new(),
+        steering_overrides: Vec::new(),
+        kv_prefix_handle: None,
+        cancel: CancellationToken::new(),
+        max_tokens: 1,
+        stop_sequences: Vec::new(),
+        speculative_mode: None,
+        structured_decoding: None,
+    };
+    let mut stream = coordinator
+        .generate_session_managed(instance_id, request)
+        .unwrap_or_else(|error| {
+            panic!("production {adapter_kind:?} generation must start: {error}")
+        });
+    let mut observed_tokens = 0usize;
+    while let Some(token) = stream.next().await {
+        token.unwrap_or_else(|error| {
+            panic!("production {adapter_kind:?} generation must complete: {error}")
+        });
+        observed_tokens += 1;
+    }
+    assert!(
+        observed_tokens > 0,
+        "production {adapter_kind:?} generation returned no provider/runtime output"
+    );
 }
 
 fn spawn_request_for_adapter(

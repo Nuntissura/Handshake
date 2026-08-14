@@ -2866,8 +2866,19 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                 "Tools and diagnostics",
                 "Tool-capable lanes must pass capability checks before execution; unsupported \
                  tool capabilities fail before persistence. MT-003 records launch-time ToolGate \
-                 decision refs and capability snapshots, but full cross-lane tool execution, \
-                 projection fanout, and consent revocation behavior remain in later MTs. \
+                 decision refs and capability snapshots. Every declared launch kind persists and \
+                 replays only under its exact `owner_account_id`, `actor_principal_id`, \
+                 `authenticated_session_id`, `access_space_id`, and `workspace_id`. Live cloud \
+                 consent revocation through `SwarmCoordinator::revoke_cloud_consent_receipt` \
+                 fences the canonical exact-scoped lane, cancels its runtime, and records \
+                 Cancelled/CX-MM-007 terminal authority while preserving those five immutable \
+                 scope fields in the terminal EventLedger payload. A context switched in any one \
+                 scope dimension observes absence and cannot terminalize or retarget the lane; the \
+                 original exact owner retains scoped audit and recovery access. A same-lane-id \
+                 mutable projection collision with any different scope dimension \
+                 fails closed without overwriting the foreign row or retargeting canonical \
+                 exact-owner EventLedger authority. Full cross-lane \
+                 tool execution and projection fanout remain in later MTs. \
                  HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
                   `dexterity_model_lane` rows; internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and observes these records without \
                  becoming launch authority.",
@@ -2876,7 +2887,7 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-003 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,llama-cpp-runtime-engine --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact`; \
@@ -2901,7 +2912,15 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  terminal state, retryable terminal intent before runtime teardown, cleanup-owner \
                  adoption, stable-lane restart generations, per-lane terminal serialization, \
                  reclaim policy, terminal status mapping, startup failure rows, manual parity, \
-                 and no-OS-process equivalents. `docs/model-manual`, `app/MODEL_MANUAL.md`, \
+                 and no-OS-process equivalents. The all-lane command is an explicit live \
+                 production proof, not a green-skipping fixture: it requires \
+                 `HANDSHAKE_TEST_GGUF_PATH` naming a real GGUF v2+ artifact, the opt-in \
+                 `llama-cpp-runtime-engine` feature, both \
+                 OpenAI and Anthropic BYOK entries in the production `OsKeychainSecretsVault`, \
+                 and a configured Claude Code or Codex executable on PATH. It performs a live \
+                 one-token generation through every process-backed production lane before \
+                 issuing human, subagent, and validator no-OS receipts from the same coordinator; \
+                 a missing prerequisite fails the proof explicitly. `docs/model-manual`, `app/MODEL_MANUAL.md`, \
                  and npm/JavaScript proof are reference-only and never launch authority.",
             ),
         ],
