@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-08-14T17:07:48.968Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,30 +15,30 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-007"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T00:10:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T12:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260814-135053",
+    "ready_for_validation_at_utc": "2026-08-14T17:07:48.968Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V5: The authoritative HBR status is PENDING and the declared git diff check fails. The contract also records unresolved current failures in periodic restart-orphan recovery and concurrent reclaimer behavior. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PENDING; HBR-INT-001 / HBR-INT-005 / HBR-INT-009 / HBR-MAN-004 / HBR-QUIET-003 for MT-019: the full reclaim suite is green including real-process kill and durable PostgreSQL lifecycle closure, which is the HBR-QUIET-003 process-ownership guarantee (no orphan processes after run, failure, staleness or cancel). hbr_status was previously PENDING, which made PASS illegal under CX-503B1 irrespective of the 12/12 the validator saw.",
-    "kb_ready_checklist_receipt_id": null,
+    "proof_status": "REMEDIATED_V5_PENDING_VALIDATION: commit 97920387; full process-ledger suite passed 34/34 and real PostgreSQL lifecycle suite passed 17/17 with no ignored or filtered tests; all declared exact runtime and UserManual proofs passed; git diff check and ARM64 non-host cargo check passed.",
+    "hbr_status": "HBR-INT-001 / HBR-INT-005 / HBR-INT-009 / HBR-MAN-004 / HBR-QUIET-003 PASS_PENDING_VALIDATOR: exact immutable process-set ownership, same-instance and foreign-owner survival, set-drift rejection, durable PostgreSQL STOP closure, fail-open retry recovery, quiet identifier-free missing-scope logging, and UserManual behavior are runtime-proven on current source.",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-08-14T17:05:46.075Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "pre_implementation_adversarial_review_status": "COMPLETE_2026_07_30_PLAN_REQUIRES_REWORK_P1_P2_P3_P4_P5_PREREQUISITES",
-    "post_implementation_adversarial_review_status": "PARENT_REVIEWED_PLUS_PRE_IMPLEMENTATION_ADVERSARIAL_REVIEW_REWORKED_THE_PLAN_BEFORE_CODING",
-    "adversarial_findings_status": "PENDING",
+    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
+    "adversarial_findings_status": "POST_REVIEW_EXACT_SET_DRIFT_PRIVACY_FOREIGN_OWNER_NON_SANDBOX_RETRY_AND_CONCURRENCY_FINDINGS_ADDRESSED_AND_REPROVEN",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "last_runtime_status_ref": "REMEDIATED_V5 at 97920387; canonical PostgreSQL, real-process, adversarial, manual, and cross-target proof commands passed; validator verdict pending"
   },
   "origin": "Deferred from MT-007 post-implementation adversarial review (2026-07-29).",
   "scope": {
