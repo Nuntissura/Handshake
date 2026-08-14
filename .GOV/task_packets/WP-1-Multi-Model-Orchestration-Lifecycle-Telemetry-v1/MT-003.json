@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-08-14T19:19:28.4959954Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -42,7 +42,7 @@
     }
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-002"
     ],
@@ -52,23 +52,23 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-01T19:02:22Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T12:00:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": "Real-model proofs [19]/[20] need operator-local Candle/GGUF weights (validator-gated).",
-    "proof_status": "FAIL_V5: Required launched-resource privacy proof is incomplete: the contract still owes exact owner/scope evidence for local, cloud, CLI, human, and subagent lanes plus HBR-PRIV-006 revocation during a live launch. See integration_validation_v5_2026_08_14.",
+    "blocker": "The production all-lane exact proof fails at the real OsKeychainSecretsVault prerequisite because no secret is stored for cloud-byok-openai; the proof also requires the corresponding Anthropic BYOK entry. No credential was seeded, substituted, or mocked.",
+    "missing_resource": "Operator-provisioned OpenAI and Anthropic BYOK entries in the production OS keychain vault",
+    "proof_status": "SOURCE_REMEDIATED_BLOCKED_ON_DEPENDENCY: product commit 05ee4e67. Real llama.cpp GGUF smoke passed 1/1; seven feasible launch exact tests passed 7/7; real PostgreSQL schema tests passed 4/4; UserManual tests passed 2/2; default boot tests passed 4/4; app-runtime cargo check, scoped rustfmt, and diff checks passed. The production all-lane proof executed and failed only at the real operator-vault precheck for absent cloud-byok-openai, so readiness is not claimed.",
     "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "SOURCE_REMEDIATED at 05ee4e67; exact production all-lane proof awaits real OpenAI and Anthropic OS-keychain BYOK entries",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_ANTIGAMING_20260729",
-    "adversarial_findings_status": "GENUINE_CLOSURE_NO_GAMING; MINOR_direct_preflight_test_deferred",
+    "post_implementation_adversarial_review_status": "COMPLETED_MULTI_LENS_2026-08-14",
+    "adversarial_findings_status": "SOURCE_FINDINGS_REMEDIATED; EXTERNAL_PRODUCTION_VAULT_PREREQUISITE_REMAINS",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
