@@ -3254,8 +3254,14 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  A downstream lane uses \
                  `ModelLaneStore::consume_context_bundle_for_downstream` or \
                  `SwarmCoordinator::context_bundle_for_downstream_lane` to resolve only \
-                 handoffs addressed to its lane in `event_ledger_seq` order and can convert the \
-                 returned `ModelLaneDownstreamContextBundle` with `to_kernel_context_bundle`. \
+                 handoffs addressed to its lane in `event_ledger_seq` order under the exact \
+                 server-derived owner account, acting Principal, authenticated session, \
+                 AccessSpace, and workspace. Foreign account, Principal, session, AccessSpace, \
+                 or workspace contexts are default-denied without disclosing handoff or artifact \
+                 identifiers. Mixed-scope source derivation is rejected before a store or consume \
+                 can be constructed, so downstream consumption never unions records across source \
+                 scopes or widens a derived ContextBundle. The returned lane-local \
+                 `ModelLaneDownstreamContextBundle` can be converted with `to_kernel_context_bundle`. \
                  `to_kernel_context_bundle` preserves the downstream context hash and derives the \
                  kernel `CTX-<hash>` id required by ContextBundle V1. \
                  `SwarmCoordinator::invoke_downstream_context_bundle` then passes that kernel \
@@ -3403,10 +3409,11 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-005 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact`. \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_consume_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact`. \
                  These exercise real PostgreSQL, EventLedger append/replay, schema registry rows, \
                  selected/rejected/unresolved/superseded replay, artifact binding authority, \
                  downstream-only consumption, coordinator adapter invocation, kernel \
@@ -3416,7 +3423,8 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  rejection, normalized hidden-memory URI rejection, bounded Loom/FEMS refs, CRDT \
                  state-vector and Yjs update ref validation, exact active lease admission, \
                  released/expired/correlation/scope/ambiguity denial probes, historical replay \
-                 after lease release, Loom evidence refs, Flight Recorder \
+                 after lease release, exact-owner downstream consume, foreign-scope default deny, \
+                 mixed-source non-widening without PostgreSQL or EventLedger mutation, Loom evidence refs, Flight Recorder \
                  refs, and manual parity. There is no SQLite, mock, \
                  app/src, app/src-tauri, TypeScript, \
                  prompt-only, or hidden-memory proof path for Dexterity ContextBundle handoffs.",

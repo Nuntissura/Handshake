@@ -440,7 +440,8 @@ async fn context_bundle_derivation_rejects_run_lane_and_non_crdt_message_ledger_
 }
 
 #[tokio::test]
-async fn context_bundle_and_derived_refs_retain_exact_scope_and_deny_context_switches() {
+async fn model_lane_context_bundle_consume_preserves_exact_scope_and_denies_foreign_or_mixed_sources(
+) {
     let kpg = knowledge_pg_support::knowledge_pg()
         .await
         .expect("PostgreSQL/EventLedger is required for MT-005 exact-scope proof");
@@ -548,14 +549,38 @@ async fn context_bundle_and_derived_refs_retain_exact_scope_and_deny_context_swi
             .len(),
         1
     );
+    let owner_bundle = owner_store
+        .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+        .await
+        .expect("exact owner consumes ContextBundle");
+    assert_eq!(owner_bundle.records.len(), 1);
+    assert_eq!(owner_bundle.records[0].handoff_id, stored.handoff_id);
+
+    let context_rows_before_denials: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_handoffs \
+         WHERE run_id = $1 AND context_bundle_id = $2 AND downstream_lane_id = $3",
+    )
+    .bind("run-mt005")
+    .bind(&context_bundle_id)
+    .bind("lane-cloud")
+    .fetch_one(&pool)
+    .await
+    .expect("count exact-owner ContextBundle rows before scope denials");
+    let ledger_rows_before_denials: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_context_bundle_handoff'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count ContextBundle EventLedger rows before scope denials");
     assert_eq!(
-        owner_store
-            .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
-            .await
-            .expect("exact owner consumes ContextBundle")
-            .records
-            .len(),
-        1
+        ResourceScope::derive_from_sources(
+            [&owner_scope, &owner_scope],
+            owner_scope.actor_principal_id,
+        )
+        .expect("same exact-scope ContextBundle sources derive without widening"),
+        owner_scope,
+        "same-scope derivation must preserve every owner/Principal/session/AccessSpace/workspace field"
     );
 
     let wrong_scopes = [
@@ -590,6 +615,14 @@ async fn context_bundle_and_derived_refs_retain_exact_scope_and_deny_context_swi
         ),
     ];
     for (dimension, wrong_scope) in wrong_scopes {
+        let mixed_derivation = ResourceScope::derive_from_sources(
+            [&owner_scope, &wrong_scope],
+            owner_scope.actor_principal_id,
+        );
+        assert!(
+            mixed_derivation.is_err(),
+            "{dimension} mismatch produced a widened ContextBundle derivative scope"
+        );
         let reader = ModelLaneStore::new_scoped(pool.clone(), wrong_scope);
         let replay = reader
             .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
@@ -622,6 +655,39 @@ async fn context_bundle_and_derived_refs_retain_exact_scope_and_deny_context_swi
             "scope denial must not disclose foreign identifiers: {denial}"
         );
     }
+
+    let owner_bundle_after_denials = owner_store
+        .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+        .await
+        .expect("exact owner still consumes ContextBundle after foreign and mixed-source denials");
+    assert_eq!(
+        owner_bundle_after_denials
+            .records
+            .iter()
+            .map(|record| record.handoff_id.as_str())
+            .collect::<Vec<_>>(),
+        vec![stored.handoff_id.as_str()],
+        "production consume must never union a rejected mixed-scope source into the owner bundle"
+    );
+    let context_rows_after_denials: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_handoffs \
+         WHERE run_id = $1 AND context_bundle_id = $2 AND downstream_lane_id = $3",
+    )
+    .bind("run-mt005")
+    .bind(&context_bundle_id)
+    .bind("lane-cloud")
+    .fetch_one(&pool)
+    .await
+    .expect("count exact-owner ContextBundle rows after scope denials");
+    let ledger_rows_after_denials: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_context_bundle_handoff'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count ContextBundle EventLedger rows after scope denials");
+    assert_eq!(context_rows_after_denials, context_rows_before_denials);
+    assert_eq!(ledger_rows_after_denials, ledger_rows_before_denials);
 
     let incomplete_readers = [
         (
