@@ -8,9 +8,10 @@ use axum::Extension;
 use handshake_core::api;
 use handshake_core::api::account_scope::ProductLocalResourceScope;
 use handshake_core::swarm_orchestration::model_lane::{
-    LaunchAuthority, ModelLaneKind, ModelLaneLocusBinding, ModelLaneProviderKind,
-    ModelLaneRecoveryEventKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneStatus,
-    ModelLaneStore, NewModelLane, NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
+    LaunchAuthority, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneKind,
+    ModelLaneLocusBinding, ModelLaneProviderKind, ModelLaneRecoveryEventKind,
+    ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneStatus, ModelLaneStore, NewModelLane,
+    NewModelLaneDiagnosticTierStatus, NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
     NewModelLaneRun, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
@@ -25,6 +26,10 @@ const RUN_ID: &str = "run-mt007-scope-api";
 const LANE_ID: &str = "lane-mt007-scope-api";
 const RECOVERY_EVENT_ID: &str = "recovery-event-mt007-scope-api";
 const CHECKPOINT_ID: &str = "checkpoint-mt007-scope-api";
+const DIAGNOSTIC_STATUS_ID: &str = "diagnostic-mt007-scope-api";
+const DIAGNOSTIC_REASON: &str = "private MT-007 recovery diagnosis";
+const DIAGNOSTIC_EVIDENCE_REF: &str = "internal-diagnostics://session/mt007-private";
+const DIAGNOSTIC_PAYLOAD_SECRET: &str = "private-recovery-metadata-mt007";
 
 #[tokio::test]
 async fn recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped() {
@@ -55,16 +60,23 @@ async fn recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped()
         .record_recovery_checkpoint(sample_checkpoint(high_watermark))
         .await
         .expect("record scoped recovery API checkpoint");
+    owner_store
+        .record_diagnostic_tier_status(sample_diagnostic_status())
+        .await
+        .expect("record scoped recovery diagnostic status");
 
     let state = app_state_for(&kpg.schema_url).await;
-    let path = format!("/swarm/model-lanes/navigation/recovery/{RUN_ID}");
+    let recovery_path = format!("/swarm/model-lanes/navigation/recovery/{RUN_ID}");
+    let diagnostic_path = format!(
+        "/swarm/model-lanes/navigation/diagnostics/{RUN_ID}?behavior_id=HBR-PRIV-006&tier=internal_diagnostics&mt_id=MT-007"
+    );
     let owner_authority =
         ProductLocalResourceScope::from_exact(exact.clone()).expect("complete exact owner scope");
     let (owner_base, owner_server) = start_server(
         api::model_lane_navigation::routes(state.clone()).layer(Extension(owner_authority)),
     )
     .await;
-    let owner_response = reqwest::get(format!("{owner_base}{path}"))
+    let owner_response = reqwest::get(format!("{owner_base}{recovery_path}"))
         .await
         .expect("owner recovery route request");
     assert_eq!(owner_response.status(), reqwest::StatusCode::OK);
@@ -78,7 +90,35 @@ async fn recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped()
         owner_body["recovery_checkpoints"][0]["checkpoint_id"],
         CHECKPOINT_ID
     );
+    let owner_diagnostic = reqwest::get(format!("{owner_base}{diagnostic_path}"))
+        .await
+        .expect("owner diagnostic replay route request");
+    assert_eq!(owner_diagnostic.status(), reqwest::StatusCode::OK);
+    let owner_diagnostic_body: Value = owner_diagnostic
+        .json()
+        .await
+        .expect("owner diagnostic replay body");
+    assert_eq!(owner_diagnostic_body["run"]["run_id"], RUN_ID);
+    assert_eq!(
+        owner_diagnostic_body["diagnostic_tiers"][0]["diagnostic_status_id"],
+        DIAGNOSTIC_STATUS_ID
+    );
+    assert_eq!(
+        owner_diagnostic_body["diagnostic_tiers"][0]["reason"],
+        DIAGNOSTIC_REASON
+    );
+    assert_eq!(
+        owner_diagnostic_body["diagnostic_tiers"][0]["evidence_ref"],
+        DIAGNOSTIC_EVIDENCE_REF
+    );
+    assert_eq!(
+        owner_diagnostic_body["diagnostic_tiers"][0]["diagnostic_payload"]
+            ["private_recovery_metadata"],
+        DIAGNOSTIC_PAYLOAD_SECRET
+    );
     owner_server.abort();
+
+    let canonical_before_denials = canonical_recovery_snapshot(&pool).await;
 
     for wrong in wrong_exact_scopes(&exact) {
         let authority =
@@ -87,15 +127,14 @@ async fn recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped()
             api::model_lane_navigation::routes(state.clone()).layer(Extension(authority)),
         )
         .await;
-        let response = reqwest::get(format!("{base}{path}"))
-            .await
-            .expect("wrong-scope recovery route request");
-        assert_eq!(response.status(), reqwest::StatusCode::NOT_FOUND);
-        let body = response.text().await.expect("wrong-scope denial body");
-        assert!(body.contains("not_found"));
-        assert!(!body.contains(RECOVERY_EVENT_ID));
-        assert!(!body.contains(CHECKPOINT_ID));
-        assert!(!body.contains(LANE_ID));
+        for path in [&recovery_path, &diagnostic_path] {
+            let response = reqwest::get(format!("{base}{path}"))
+                .await
+                .expect("stale-context recovery/diagnostic route request");
+            assert_eq!(response.status(), reqwest::StatusCode::NOT_FOUND);
+            let body = response.text().await.expect("stale-context denial body");
+            assert_absent_shaped_without_recovery_leakage(&body, "not_found");
+        }
         server.abort();
     }
 
@@ -104,19 +143,73 @@ async fn recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped()
     // fixed reason code. MT-007 does not invent a session revocation registry.
     let (revoked_base, revoked_server) =
         start_server(api::model_lane_navigation::routes(state)).await;
-    let revoked = reqwest::get(format!("{revoked_base}{path}"))
-        .await
-        .expect("revoked/no-authority recovery route request");
-    assert_eq!(revoked.status(), reqwest::StatusCode::SERVICE_UNAVAILABLE);
-    let revoked_body = revoked.text().await.expect("revoked denial body");
-    assert!(revoked_body.contains("RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE"));
-    for secret in [RECOVERY_EVENT_ID, CHECKPOINT_ID, LANE_ID] {
-        assert!(
-            !revoked_body.contains(secret),
-            "revoked denial must not disclose {secret}: {revoked_body}"
+    for path in [&recovery_path, &diagnostic_path] {
+        let revoked = reqwest::get(format!("{revoked_base}{path}"))
+            .await
+            .expect("revoked/no-authority recovery/diagnostic route request");
+        assert_eq!(revoked.status(), reqwest::StatusCode::SERVICE_UNAVAILABLE);
+        let revoked_body = revoked.text().await.expect("revoked denial body");
+        assert_absent_shaped_without_recovery_leakage(
+            &revoked_body,
+            "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE",
         );
     }
     revoked_server.abort();
+
+    assert_eq!(
+        canonical_recovery_snapshot(&pool).await,
+        canonical_before_denials,
+        "stale or revoked replay must not mutate, retarget, or erase canonical recovery authority"
+    );
+
+    let owner_store = ModelLaneStore::new_scoped(pool, resource_scope(&exact));
+    assert_eq!(
+        owner_store
+            .navigation_by_recovery(RUN_ID)
+            .await
+            .expect("owner recovery remains available after denied attempts")
+            .recovery_events[0]
+            .recovery_event_id,
+        RECOVERY_EVENT_ID
+    );
+    assert_eq!(
+        owner_store
+            .navigation_by_diagnostics(
+                RUN_ID,
+                Some("HBR-PRIV-006"),
+                Some("internal_diagnostics"),
+                Some("MT-007"),
+            )
+            .await
+            .expect("owner diagnostic replay remains available after denied attempts")
+            .diagnostic_tiers[0]
+            .diagnostic_status_id,
+        DIAGNOSTIC_STATUS_ID
+    );
+}
+
+fn assert_absent_shaped_without_recovery_leakage(body: &str, expected_code: &str) {
+    assert!(
+        body.contains(expected_code),
+        "wrong fixed denial body: {body}"
+    );
+    for secret in [
+        RUN_ID,
+        LANE_ID,
+        RECOVERY_EVENT_ID,
+        CHECKPOINT_ID,
+        DIAGNOSTIC_STATUS_ID,
+        DIAGNOSTIC_REASON,
+        DIAGNOSTIC_EVIDENCE_REF,
+        DIAGNOSTIC_PAYLOAD_SECRET,
+        "Replay only through the current exact server scope",
+        "usermanual://model-lane-recovery#checkpoint",
+    ] {
+        assert!(
+            !body.contains(secret),
+            "denial must not disclose identifier, row content, or recovery metadata {secret}: {body}"
+        );
+    }
 }
 
 fn exact_scope(label: &str) -> ExactResourceScopeAttribution {
@@ -322,6 +415,26 @@ fn sample_checkpoint(last_event_ledger_seq: i64) -> NewModelLaneRecoveryCheckpoi
     }
 }
 
+fn sample_diagnostic_status() -> NewModelLaneDiagnosticTierStatus {
+    NewModelLaneDiagnosticTierStatus {
+        diagnostic_status_id: DIAGNOSTIC_STATUS_ID.into(),
+        behavior_id: "HBR-PRIV-006".into(),
+        run_id: RUN_ID.into(),
+        tier: ModelLaneDiagnosticTier::InternalDiagnostics,
+        state: ModelLaneDiagnosticTierState::Wired,
+        reason: DIAGNOSTIC_REASON.into(),
+        evidence_ref: DIAGNOSTIC_EVIDENCE_REF.into(),
+        follow_up_ref: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007".into()),
+        event_ledger_stream_id: event_stream_id(),
+        work_packet_id: "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into(),
+        micro_task_id: "MT-007".into(),
+        task_board_id: "task-board://wp-1".into(),
+        owner_session: "KERNEL_BUILDER-MT007-V5".into(),
+        idempotency_key: format!("idem-{DIAGNOSTIC_STATUS_ID}"),
+        diagnostic_payload: json!({"private_recovery_metadata": DIAGNOSTIC_PAYLOAD_SECRET}),
+    }
+}
+
 fn sample_locus(session_id: &str, model_session_id: &str) -> ModelLaneLocusBinding {
     ModelLaneLocusBinding {
         work_packet_id: "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into(),
@@ -343,6 +456,49 @@ async fn event_stream_high_watermark(pool: &sqlx::PgPool) -> i64 {
     .fetch_one(pool)
     .await
     .expect("query recovery API EventLedger high-watermark")
+}
+
+async fn canonical_recovery_snapshot(pool: &sqlx::PgPool) -> Value {
+    sqlx::query_scalar(
+        "SELECT jsonb_build_object(\
+            'run', (SELECT to_jsonb(row_data) FROM (\
+                SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                       access_space_id, workspace_id, event_ledger_event_id, event_ledger_seq \
+                  FROM model_lane_runs WHERE run_id = $1\
+            ) row_data), \
+            'recovery_event', (SELECT to_jsonb(row_data) FROM (\
+                SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                       access_space_id, workspace_id, recovery_event_id, replay_hint, diagnostic_payload, \
+                       event_ledger_event_id, event_ledger_seq \
+                  FROM model_lane_recovery_events WHERE recovery_event_id = $2\
+            ) row_data), \
+            'checkpoint', (SELECT to_jsonb(row_data) FROM (\
+                SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                       access_space_id, workspace_id, checkpoint_id, recovery_hint_ref, diagnostic_payload, \
+                       event_ledger_event_id, event_ledger_seq \
+                  FROM model_lane_recovery_checkpoints WHERE checkpoint_id = $3\
+            ) row_data), \
+            'diagnostic', (SELECT to_jsonb(row_data) FROM (\
+                SELECT owner_account_id, actor_principal_id, authenticated_session_id, \
+                       access_space_id, workspace_id, diagnostic_status_id, reason, evidence_ref, \
+                       diagnostic_payload, event_ledger_event_id, event_ledger_seq \
+                  FROM model_lane_diagnostic_tier_statuses WHERE diagnostic_status_id = $4\
+            ) row_data), \
+            'ledger', (SELECT jsonb_agg(to_jsonb(row_data) ORDER BY event_sequence) FROM (\
+                SELECT aggregate_type, aggregate_id, payload->'resource_scope' AS resource_scope, \
+                       event_id, event_sequence \
+                  FROM kernel_event_ledger WHERE session_run_id = $5\
+            ) row_data)\
+        )",
+    )
+    .bind(RUN_ID)
+    .bind(RECOVERY_EVENT_ID)
+    .bind(CHECKPOINT_ID)
+    .bind(DIAGNOSTIC_STATUS_ID)
+    .bind(event_stream_id())
+    .fetch_one(pool)
+    .await
+    .expect("read canonical recovery snapshot")
 }
 
 fn event_stream_id() -> String {
