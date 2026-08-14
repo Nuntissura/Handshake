@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-005",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-08-14T20:05:52.6406078Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-002",
       "MT-004"
@@ -24,12 +24,12 @@
       "MT-007",
       "MT-009"
     ],
-    "active": false,
-    "validator_verdict": "FAIL_V5",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-020913",
-    "ready_for_validation_at_utc": "2026-07-29T02:09:13Z",
+    "active": true,
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260814-200552",
+    "claimed_at_utc": "2026-08-14T20:05:52.6406078Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
