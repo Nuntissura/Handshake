@@ -1,10 +1,10 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-30T00:30:00Z",
-  "total": 22,
-  "range": "MT-001..MT-022",
-  "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
+  "generated_at_utc": "2026-08-14T05:19:49.283Z",
+  "total": 23,
+  "range": "MT-001..MT-023",
+  "note": "Projection regenerated from the authoritative MT-001..MT-023 JSON contracts. Individual MT JSON lifecycle fields remain authoritative; historical verdict and remediation fields are preserved where present.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -23,7 +23,7 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "PASS_MT001_SPEC_PACKET_TOPOLOGY_CHECKS || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: spec-current-check OK; spec-bundle-check OK. KNOWN SPEC-DEBT (not a runtime defect): spec 04-llm-infrastructure.md kind/authority/status enums (:1575/:1584/:1515) differ from runtime-proven code enums (model_lane.rs:5118/5142/4849); MT-001 name-only check cannot see it. Spec bundle bump deprioritized by operator.",
+      "proof_status": "PASS_MT001_SPEC_PACKET_TOPOLOGY_CHECKS",
       "hbr_status": "PASS_HBR_MATRIX_CHECK",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
@@ -44,11 +44,11 @@
         "MT-007",
         "MT-008"
       ],
-      "proof_status": "READY_FOR_VALIDATION_V5: all declared proof targets green on real Handshake-managed PostgreSQL (port 5544) at 4066e9c1; see MT contract validation_v5.",
-      "hbr_status": "PASS_MT002_SCHEMA_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V5: all four declared proof targets pass on real Handshake-managed PostgreSQL (port 5544) at source 4066e9c1 (HEAD a63af726 is additive-only, no change to these paths). model_lane_schema_pg_tests 4/4 green (persists_and_replays_eventledger_rows, dexterity_launch_records_real_swarm_spawn_session_runtime_path, rejects_missing_locus_binding_and_idempotency_conflict, serializes_competing_terminal_updates), 34.65s; user_manual_api_tests::model_lane_schema_user_manual_entry_is_current green. The V4 blocker (schema regression did not return) is resolved: the fail-closed CRDT admission Layer-1 fix (validate_message_authority, commit 4066e9c1) makes the shared-schema path admissible and the suite returns green.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows; one_account_cannot_read_across_its_own_workspaces; an_unattributed_legacy_row_is_denied_not_grandfathered - i.e. durable ModelLane rows are owner-scoped, workspace-narrowed, and pre-0363 unattributed rows are DENIED rather than grandfathered. STILL OWED: MT-002-specific: schema/manual proofs rerun at a frozen tree once packet churn settles.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
+      "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -61,18 +61,18 @@
       "depends_on": [
         "MT-002"
       ],
-      "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes; REOPENED 2026-07-01 to make the default LlmClient resolve through the embedded ModelRuntime and remove the Ollama daemon adapter default (CPU-baseline engine features; non-authoritative ExternalEngineImport compat lane retained).",
+      "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
       "unlocks": "Unlocks normalized launch/reclaim paths for local, cloud, CLI, human, subagent, and validator lanes.",
       "blocks": [
         "MT-006",
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "READY_FOR_VALIDATION_V5: all four V4 blocker gaps genuinely closed in production source (adversarial review confirmed no gate-gaming) and all runnable declared proof targets green on managed PostgreSQL (127.0.0.1:5544): launch [0]-[7] 8/8, schema [8]-[11] 4/4, boot-resolution [14]-[17] 7/7 (Ollama-kill: embedded ModelRuntime/Candle default, DisabledLlmClient fail-closed, ExternalEngineImport compat-only, no OllamaAdapter; AC[19] UUIDv7 identity + AC[20] embedding proven by non-vacuous tests), user_manual [12][13] 2/2, cargo check --features app-runtime [18], lib source-guard. (a) SwarmCoordinator generation routes through llm_client.stream_completion_with_context (coordinator.rs:2190); raw session_runtime accessor is test-gated. (b) official-CLI rejects unresolved execution-policy refs fail-closed at 3 layers (execution_policy.rs resolver + model_lane.rs:5392 preflight + official_cli_bridge.rs:2341 process-creation gate). (c) post-resume Windows startup bounded by POST_RESUME_CLEANUP_TIMEOUT=7s with deterministic terminate/reap (windows_native_jail/adapter.rs:740). (d) Ollama-kill complete. Two stale test assertions updated to track the already-committed production refactors (legitimate; anti-bypass negatives preserved). VALIDATOR-GATED: real-model proofs [19]/[20] need operator-local Candle/GGUF weights; a from-frozen-HEAD real-model rerun is operator-gated. MINOR follow-up: no test drives an unresolved exec-policy ref DIRECTLY into preflight_spawn_request (covered transitively). Source at 99c0f75c.",
+      "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): SECONDARY concern CLOSED - the real llama.cpp GGUF E2E that was never completed at current HEAD now passes: llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload ok 1 passed/0 failed (17.84s) against a real 68M GGUF (sha256 452e1a2b..., 51164992 bytes) with frozen==compiled worktree sha256 f9d3810b...; artifact records generation_count=6, embedding_dimension=768, flight_recorder_event_count=23, failed=0. PRIMARY HBR-PRIV concern remains PARTIAL: rows declared and shared substrate proven, but per-lane launched-resource owner/scope evidence for local/cloud/CLI/human/subagent lanes and HBR-PRIV-006 revocation-during-live-launch are still owed.",
       "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_ANTIGAMING_20260729",
+      "adversarial_findings_status": "GENUINE_CLOSURE_NO_GAMING; MINOR_direct_preflight_test_deferred",
       "remediation_v3": {
         "status": "READY_FOR_VALIDATION_V3",
         "kb_ready_checklist_receipt": "2026-07-20T01:13:21.386Z"
@@ -97,10 +97,10 @@
         "MT-009"
       ],
       "proof_status": "READY_FOR_VALIDATION_V5: all six declared proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544). model_lane_promotion_pg_tests appends_eventledger_and_replays_decision / rejects_stale_base_schema_mismatch_and_direct_mutation / reordered_inputs_keep_same_decision_hash (3/3), model_lane_schema_persists_and_replays_eventledger_rows, and model_lane_promotion_user_manual_entry_is_current all ok; cargo check --features test-utils clean. Promotion decision cloud-consent seeding fixed and user-manual HBR-INT-009 posture corrected to Flight Recorder/EventLedger WIRED with direct FR emission DEFERRED-with-reason. Built on resolver actor_kind taxonomy fix 644dee55.",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT004_SCOPE",
+      "hbr_status": "PASSED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source - promotion outputs derived from mixed-scope sources cannot widen scope (HBR-PRIV-004 non-widening). STILL OWED: Promotion-specific positive path: promoted artifacts carrying owner/AccessSpace through the PromotionGate, plus cross-account promotion negatives, are not yet attached.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_2026-06-29",
+      "adversarial_findings_status": "POST_IMPLEMENTATION_FINDINGS_ADDRESSED_IN_RUNTIME_AND_USERMANUAL",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -121,10 +121,10 @@
         "MT-009"
       ],
       "proof_status": "READY_FOR_VALIDATION_V5: all six declared proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544). Full model_lane_context_bundle_pg_tests file (4 passed; 0 failed) including crdt_state_vector_and_loom_refs_are_replayable (now reaches the 'no persisted lease authority binding' guard after stripping crdt_authority_binding from both projection and EventLedger payload), plus model_lane_context_bundle_user_manual_entry_is_current, and cargo check clean. Built on resolver actor_kind taxonomy fix 644dee55.",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source - ContextBundle/CRDT-derived references inherit no broader scope than their sources. STILL OWED: ContextBundle handoff-specific evidence (consume_context_bundle_for_downstream under a foreign scope) is not yet attached.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+      "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FLIGHT_RECORDER_EVENT_EMIT_RECORDED_AS_DEFERRED_TO_MT008",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -144,11 +144,11 @@
       "blocks": [
         "MT-009"
       ],
-      "proof_status": "READY_FOR_VALIDATION_V5: all declared proof targets green on real Handshake-managed PostgreSQL (port 5544) at 4066e9c1; see MT contract validation_v5.",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
+      "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): the self-minted cloud consent approver is GONE. approver is a required typed AccountBoundAuthority derived from the store access context and adjudicated by the same authorize_row the storage boundary uses; validity 365d -> 12h; export_delegation adds audience/source-scope/authorization provenance with non-widening enforcement; both cloud INSERTs now populate the 0363/0364 scope columns that were previously dead. Also fixed: a revoked receipt that still read approved:true, and an unreachable 'ConsentReceipt is revoked' error the UserManual documents. Proofs: new cloud consent scope suite 5/0; cloud policy 14/0; resource scope 7/0; launch 8/0; schema 4/0; promotion 3/0; context bundle 4/0; lib resource_scope 21/0; lib operator_chat 13/0; cargo check exit 0. TEN falsifiability inversions run against real PostgreSQL with observed failure text. STILL OWED: HBR-MAN-004 UserManual entry.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON; HBR-PRIV NOT YET PROVEN FOR THIS MT (2026-08-04) - stated plainly rather than borrowing the shared substrate's green. The 7-test isolation suite covers lane rows, navigation routes, registry enumeration, derived non-widening and boot recovery; it does NOT cover cloud projection plans or consent receipts. MT-006 additionally needs HBR-PRIV-006 (revocation / context-switch on a live cloud lane) and HBR-PRIV-007 (remote/SaaS delegation scope), neither of which the substrate exercises. A SEPARATE REAL DEFECT is on record for this area and is NOT fixed: cloud consent receipts self-mint their approver as approved_by_ref = format!(\"operator://{}/cloud-selection\", owner_session) with approved:true and 365-day validity - and owner_session is a governance ROLE LABEL, not an account - so the receipt currently proves nothing about who consented. Fixing that is a prerequisite for honest HBR-PRIV-005/007 evidence here.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+      "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FR_EVT_CLOUD_EMIT_RECORDED_AS_FOLLOW_ON_NOT_CLAIMED_WIRED",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -173,10 +173,10 @@
         "MT-010"
       ],
       "proof_status": "READY_FOR_VALIDATION_V5: V4 Spec-Realism blocker closed and runtime-proven on managed PostgreSQL (127.0.0.1:5544). The generic spawned-process Reclaim/SandboxKill boot pass is now a named callable (reconcile_restart_orphans_at_boot) reachable unconditionally from real boot (main.rs:447 run() -> production_with_lease), and new proof boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan drives the real restart_sessions() surfacing path and asserts an official-CLI orphan is surfaced, killed via ProductionSandboxKill (pid+creation-time+exe-sha256 fence), given a durable STOP, and its START row no longer open. process_reclaim_real_lifecycle_pg_tests 5/5 pass (incl. pid_reuse_guard + concurrent_reclaimers exactly-one-kill); the 4 declared model_lane_recovery_pg_tests targets still pass. Two-lens adversarial review: NO path can kill a non-owned process (identity fence before kill on one OS handle, no TOCTOU; reaper scoped to Handshake-owned ledger rows only). HONEST SEMANTICS: kill-failure is fail-OPEN (row left OPEN, boot continues), not fail-closed; boot is the safety net. DEFERRED to MT-019: running-app-window reaping (same-instance CLI-bridge/no-lane orphan reaped only at next boot; staleness restart pass disabled post-boot), STARTUP_RECOVERY_ONLY generic-reconcile skip, non-Windows fail-open proof, doc/counter polish. Windows-gated proof (native kill fence is Windows-only). Source at 3be795c7.",
-      "hbr_status": "PASS_MT007_RECOVERY_RECONCILED",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: boot_recovery_refuses_to_run_from_an_account_scoped_store - recovery is a NAMED cross-owner operation (SystemScopeAuthority::boot_recovery) rather than a silent unscoped read, so 'no account filter' cannot happen by accident. STILL OWED: Recovery/diagnostic replay under a stale or revoked context (HBR-PRIV-006) is not yet attached.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_2LENS_20260729",
+      "adversarial_findings_status": "SAFETY_CLEARED_NO_WRONG_KILL; RESIDUAL_FINDINGS_DEFERRED_TO_MT-019",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -199,10 +199,10 @@
         "MT-010"
       ],
       "proof_status": "READY_FOR_VALIDATION_V5: all declared targets green on managed PostgreSQL + pop-out Argus capture wired and unit-covered. [0] swarm_lane_diagnostics_pg_tests backend_projection_matches_eventledger ok -- fixed a REAL production over-reject bug: validate_initial_input_tx compared a CRDT-bearing routing input's record_json (binding NESTED) against the EventLedger /record (binding a SIBLING) -> false mismatch for ALL CRDT routing inputs; now strips the binding from the record body and asserts it separately as an exact match vs the ledger sibling (adversarial review PASS: binding authority STRENGTHENED, all tamper classes still fail closed). [1][2] test_swarm_lane_diagnostics_argus (egui_kittest, HEADLESS AccessKit) lists_filters_and_drills_down + rejects_missing_author_id_and_count_mismatch ok; two_swarm_lane_panes_have_unique_pane_scoped_author_ids ok. Pop-out capture: every pop-out records its OS window handle by stable window_id; resolve_capture_target picks the recorded HWND per 'Handshake - <pane>' pop-out (screenshot.rs) -- 10 resolution/registry units ok (incl. two same-title pop-outs each keep their own HWND). Live debug console (051138ef) streams swarm-lane diagnostics headlessly. VALIDATOR-GATED: only the live-GPU PrintWindow/BitBlt PIXEL grab of a real on-screen pop-out needs a GUI host; the declared egui_kittest Argus proofs do not. Deferred (review MINOR): negative-tamper pinning tests for the CRDT binding path. Source at d4a22c08.",
-      "hbr_status": "PASS_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
+      "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_20260729",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -224,11 +224,11 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "READY_FOR_VALIDATION_V5: the V4 blocker (admission/recovery accepting syntactically valid fabricated CRDT references without resolving the referenced update/hash/state-vector) is resolved via the resolver actor_kind taxonomy fix 644dee55 plus Layer-1 proposal_ref admissibility. All declared backend proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544): [0]-backend mixed_local_cloud, [1] negative_guards (fabricated CRDT now denied with 'CRDT authority resolution failed'; run on a dedicated 32MiB-stack thread so it passes at DEFAULT cargo-test stack, no RUST_MIN_STACK), [2] concurrent_converge, [3] midstream, [4] yjs compaction receipts, [5] yjs atomic cross-connection race, [6] ac9_all_six, [7] ac9_bounded_retry, [8][9][10] operator_chat_capture, [11] validation_harness user_manual, [12] mixed_model_lane behavior coverage. NOT RUN (validator-gated): the frontend half of target [0] (src/frontend/handshake_native test_swarm_lane_diagnostics_argus::mixed_model_lane_run_is_inspectable_through_argus) requires a live GUI host + Palmistry backend and must be run by INTEGRATION_VALIDATOR. Source at 27c07f13.",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V5: fresh final-source proof on 2026-08-09 passed all 13 declared targets with exactly one matched test per command. Target 0 passed as a nonce-bound producer/consumer pair: the PostgreSQL backend emitted the mixed local/cloud/subagent projection and the Rust native Argus AccessKit/egui harness consumed the same fresh nonce, verified artifact SHA-256 and exact JSON shape, matched backend counts to UI rows, and exposed the required diagnostic rows. Targets 1-12 passed against external PostgreSQL 127.0.0.1:5544 and current UserManual surfaces. Additional deterministic RED-to-GREEN coverage proves exact-incarnation cleanup ownership, same-ID retry snapshot fencing, aggregate sibling cleanup after one teardown error, idempotent public routing-cancellation retry with one EventLedger cancellation row, exact per-instance cleanup receipt/process UUID/STOP/event joins, and no live-session residue. The original flaky cancellation proof passed 12 consecutive trace-disabled runs before final assertion hardening and passed again on the final source. Independent post-implementation adversarial re-review of the actual final diff returned PASS with no actionable findings.",
+      "hbr_status": "PASS: HBR-INT-009 native diagnostics, HBR-SWARM lifecycle, HBR-MAN UserManual coverage, HBR-QUIET-003 teardown/STOP/reclaim, and HBR-PRIV fail-closed guards are fresh-green on 2026-08-09. The MT-009 native Argus acceptance target is a deterministic Rust AccessKit/egui consumer of the nonce-bound backend projection and does not require the separate production-socket Palmistry launch surface; that exact declared target passed.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "PASS_2026-08-09_ACTUAL_FINAL_DIFF_NO_ACTIONABLE_FINDINGS",
+      "adversarial_findings_status": "PASS_AFTER_FOUR_HIGH_CONCURRENCY_FINDINGS_FIXED_WITH_DETERMINISTIC_RED_GREEN_PROOF",
       "remediation_v2": {
         "status": "READY_FOR_VALIDATION_V2",
         "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
@@ -247,7 +247,7 @@
     },
     {
       "mt_id": "MT-010",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-007",
         "MT-008",
@@ -256,11 +256,11 @@
       "summary": "Update no-context model manual and backend navigation for lane launch, exchange, diagnostics, and recovery.",
       "unlocks": "Unlocks no-context model/operator use of the lane system through canonical UserManual and backend navigation.",
       "blocks": [],
-      "proof_status": "FAIL_V4: The UserManual is not operationally correct for the current runtime: it states that official-CLI reconciliation can recover open lifecycle ownership, while no production Reclaim/SandboxKill composition is wired. It also cannot be complete for the WP while required diagnostics and ModelRuntime controls are absent.",
-      "hbr_status": "PASS_MT010_NAV_AND_MANUAL_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V5 (PRIV REGRESSION REPAIRED 2026-08-04): all three declared proofs green - model_lane_navigation_api_tests 4/0 and user_manual_api_tests 24/0. The suite now seeds under a real owning account and carries the account scope on every request, so it proves the navigation surface under HBR-PRIV rather than around it, plus a new negative control proving an unscoped caller is refused with the stable reason code and no identifiers. Declared proof commands were also repaired: as written they omitted --features test-utils and ran no tests at all.",
+      "hbr_status": "PASS_HBR_INT_MAN_FOR_MT010_NAV_API_AND_MANUAL_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows covers replay_run AND all eight navigation routes (navigation_by_run/_lane/_message/_recovery/...); a_cross_account_denial_leaks_no_identifiers_or_row_contents proves the denial itself is not a metadata side channel. api/account_scope.rs makes a missing or malformed scope a 403 with a stable reason code - never a fallback to returning everything. STILL OWED: Search/index and preview/export boundaries named by HBR-PRIV-002 are not exercised by this MT's routes.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "DONE_20260729_MANUAL_OPERATIONALLY_CORRECT_RECLAIM_WIRED_DIAGNOSTICS_MODELRUNTIME_PRESENT",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; V4_MANUAL_CORRECTNESS_AND_COMPLETENESS_BLOCKERS_REMEDIATED_VIA_MT007_MT008_MT011_MT014",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -269,19 +269,19 @@
     },
     {
       "mt_id": "MT-011",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-009",
         "MT-010"
       ],
-      "summary": "Update the internal UserManual so every WP behavior is usable by future models/operators and linked to Flight Recorder plus Palmistry posture.",
+      "summary": "Make the in-product internal UserManual reflect every ModelLane/cloud/local/subagent orchestration behavior this WP introduces, including Flight Recorder/EventLedger linkage and Palmistry/internal_diagnostics posture.",
       "unlocks": "Unlocks WP-wide manual currency so every implemented behavior is discoverable, recoverable, and tied to evidence.",
       "blocks": [],
-      "proof_status": "FAIL_V4 (partial: freshness drift fixed c89a20df; diagnostics WIRED postures gamed, operator decision pending)",
-      "hbr_status": "PASS_MT011_USERMANUAL_COVERAGE_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): exact tier-to-evidence-URI binding pinned (Tier1 eventledger://kernel/, Tier2 internal-diagnostics://session/, Tier3 palmistry-observation://session/) and cross-tier substitution now REJECTED - previously one || chain accepted any prefix for every tier. user_manual_behavior_coverage_tests ok 21 passed/0 failed (was 17; +4 substitution negatives); user_manual_api_tests ok 24/0; user_manual_storage_tests ok 12/0. Run and verified by KERNEL_BUILDER, not accepted on the sub-agent's report (agent was lost to a usage limit before running any suite).",
+      "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT011_TIER_SCHEME_BINDING_GREEN; HBR-PRIV-004/005 DECLARED_NOT_YET_PROVEN - shared scope substrate proven (0363+0364, resource_scope.rs, model_lane_resource_scope_pg_tests 7/0) but MT-011-specific diagnostic-surface scope-filtering evidence is not yet attached.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_20260729_HONEST_RUNLEVEL_DOWNGRADE_TAUTOLOGY_KILLED_EVIDENCE_GATE_WIRED",
+      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; VACUOUS_WIRED_FLIP_REMEDIATED_PER_OPERATOR_DECISION_RUNLEVEL_ENCODING; RESIDUAL_BY_DESIGN: static matrix check is structural-only, liveness proven by run-level evidence gate + its two PG tests",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -298,14 +298,14 @@
         "MT-014",
         "MT-015"
       ],
-      "summary": "Operator work-surface: interactive native chat/launch pane to pick local/cloud model + folder/worktree, launch via Dexterity SwarmCoordinator, and capture CLI conversation/thought/tool-calls as ModelLaneMessage wired to Flight Recorder. Build after MT-014 (local enum) + MT-015 (cloud enum/auth). OPERATOR_REQUESTED_ADDITION 2026-07-01.",
+      "summary": "Operator work-surface: an interactive native chat/launch pane where the operator selects a local or cloud model lane and a folder/worktree, launches a session through the Dexterity SwarmCoordinator contract, and sees the CLI-wrapper conversation, model-exposed reasoning/thought, and tool calls captured as typed ModelLaneMessage records wired to Flight Recorder.",
       "unlocks": "Unlocks operator-driven local/cloud model sessions inside Handshake with typed CLI-wrapper capture.",
       "blocks": [],
-      "proof_status": "READY_FOR_VALIDATION_V5: all 4 declared targets green on managed PostgreSQL. [0] operator_chat_capture_tests operator_chat_subagent_selection_launches_no_os_subagent_lane ok; [1] test_operator_chat_selection_and_transcript_argus (egui_kittest, HEADLESS) operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript ok; [2] operator_chat_launch_route_performs_real_launch_when_wired ok -- fixed 2 stale WIP-freeze test fixtures (non-existent working_dir + dropped ProcessLedgerDrain); no production change, 200 assertion unchanged; [3] user_manual_behavior_coverage_tests operator_chat_launch_behaviors_have_manual_coverage ok. Official-CLI reclaim-after-kill/reap (part of the V4 blocker) satisfied by MT-007 boot reclaim. Live debug console (051138ef) streams operator-chat launch activity headlessly. VALIDATOR-GATED: only the live-GPU pixel grab of a real pop-out operator-chat window needs a GUI host. NOTE: 5 OTHER operator_chat_capture tests (NOT MT-012 declared targets) remain pre-existing WIP-freeze failures -- 2 tied to the MT-011 HBR-INT-009 internal_diagnostics posture cluster (operator decision), others environmental (cmd canonicalize) / dropped-drain / reclaim. Source at d4a22c08.",
-      "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE_WITH_SUBAGENT_NO_OS_LAUNCH",
+      "proof_status": "READY_FOR_VALIDATION_V5: all 4 declared targets green on managed PostgreSQL. [0] operator_chat_capture_tests operator_chat_subagent_selection_launches_no_os_subagent_lane ok; [1] test_operator_chat_selection_and_transcript_argus (egui_kittest, HEADLESS) operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript ok; [2] operator_chat_launch_route_performs_real_launch_when_wired ok -- fixed 2 stale WIP-freeze test fixtures (non-existent working_dir + dropped ProcessLedgerDrain); no production change, 200 assertion unchanged; [3] user_manual_behavior_coverage_tests operator_chat_launch_behaviors_have_manual_coverage ok. Official-CLI reclaim-after-kill/reap (part of the V4 blocker) satisfied by MT-007 boot reclaim. Live debug console (051138ef) streams operator-chat launch activity headlessly. VALIDATOR-GATED: only the live-GPU pixel grab of a real pop-out operator-chat window needs a GUI host. NOTE: 5 OTHER operator_chat_capture tests (NOT MT-012 declared targets) remain pre-existing WIP-freeze failures -- 2 tied to the MT-011 HBR-INT-009 internal_diagnostics posture cluster (operator decision), others environmental (cmd canonicalize) / dropped-drain / reclaim. Source at d4a22c08. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker.",
+      "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE: native egui/Argus surface, LOCAL/CLOUD/CLI/SUBAGENT inventory rows, SwarmCoordinator Dexterity launch route fail-closed, SUBAGENT no-OS launch records RuntimeBinding::Subagent and LaunchAuthority::SubagentManager without process ownership, ModelLaneMessage capture + Flight Recorder/EventLedger evidence for process-backed lanes, UserManual coverage, stable author_id controls, official-CLI runtime duplicate FR-EVT-AGENT producer suppressed for replay-captured Operator Chat while LLM infer telemetry remains wired.; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_20260729",
+      "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven.",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -314,18 +314,18 @@
     },
     {
       "mt_id": "MT-013",
-      "status": "READY_FOR_VALIDATION_V5",
+      "status": "READY_FOR_VALIDATION_V4",
       "depends_on": [
         "MT-003"
       ],
-      "summary": "Embedded ModelRuntime real-load conformance: enforce artifact integrity and honest pid-less ProcessOwnershipLedger START/STOP for the no-child/no-guest in-process Candle/llama.cpp path; any actual spawned model process remains SandboxAdapter-owned. Emit Flight Recorder on DisabledLlmClient/fail-closed paths and validate with a REAL Candle load.",
+      "summary": "Embedded ModelRuntime real-load conformance hardening: for the in-process Candle/llama.cpp library path, enforce artifact integrity plus ProcessOwnershipLedger START/STOP rows with honest pid-less metadata; any actual spawned model process remains SandboxAdapter-owned. Emit a Flight Recorder event on DisabledLlmClient and fail-closed error paths, validated with a REAL Candle model load.",
       "unlocks": "Closes the embedded local model lifecycle-ledger, orphan-reclaim, and FR-on-error gaps without falsely claiming SandboxAdapter boxing for an in-process library load that spawns no OS child or guest.",
       "blocks": [],
-      "proof_status": "READY_FOR_VALIDATION_V5: both V4 blocker parts now CLOSED. (1) Reclaim path WIRED into product boot (MT-007 reconcile_restart_orphans_at_boot, main.rs:447), independently proven by process_reclaim_real_lifecycle_pg_tests. (2) PASS_REQUIRED real-Candle proof [0] NOW GREEN with real operator-local weights (Maykeye_TinyLLama-v0 via HANDSHAKE_TEST_CANDLE_MODEL_DIR) on managed PostgreSQL (127.0.0.1:5544), features candle-runtime-engine,test-utils: candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop (real embedded Candle load emits process-ledger START/STOP) + mt013_real_candle_embedding_failure_unloads_and_stops_primary (injected missing-embedding artifact unloads+stops the primary fail-closed) both ok. Real START/STOP/artifact-retention/crash-recovery/lease-release are now bound to the current source. The 8 ENGINE_FREE_SUPPORTING proofs [1]-[8] (embedded_model_ledger reclaim/lifecycle) use task_owned_managed_postgres TEMPLATE mode which requires the test process to START its own dedicated cluster -- validator-env-runnable, not runnable while adopting the shared 5544 cluster; supporting evidence, not the PASS_REQUIRED gate.",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V4: fresh final-source embedded ledger suite 45/45 with exit 0 and clean owned-PostgreSQL shutdown under the separate fixed 120s stop budget; fixed-budget unit 1/1; writer suite 28/28; seven exact MT-013 completion/embedding Flight Recorder tests 7/7; real Candle load/START/STOP 1/1; real Candle embedding-failure rollback 1/1; distinct embedding default 1/1; current UserManual exact 1/1 including persisted per-owner Cargo command guards; app-runtime cargo check PASS. Independent current-path post-diff review PASS with no local-delta finding. Headless KB readiness checklist PASS with zero blockers.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN; operator correction 2026-08-10 confirms WP-KERNEL-006/007 privacy-foundation work is not part of MT-013 and is not a predecessor to this WP-1 microtask.",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "PASS_2026-08-10_CURRENT_BACKEND_PATHS_NO_LOCAL_DELTA_FINDINGS",
+      "adversarial_findings_status": "LOCAL_DELTA_PASS; unrelated WP-KERNEL-006/007 findings remain owned by those future packets and do not block MT-013",
       "remediation_v3": {
         "status": "READY_FOR_VALIDATION_V3",
         "kb_ready_checklist_receipt": "2026-07-20T01:13:40.778Z"
@@ -342,14 +342,14 @@
       "depends_on": [
         "MT-003"
       ],
-      "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
+      "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
       "blocks": [],
-      "proof_status": "READY_FOR_VALIDATION_V5: 5 declared proof targets green + full model_runtime_registry_api_tests 13/13 on managed PostgreSQL (127.0.0.1:5544). V4 blocker closed: (1) durable active default-model selection persists to model_runtime_active_selection (PG) and is RESTORED after restart -- proven by mt014_active_default_selection_persists_and_restores_after_restart (new store vs same PG recovers the operator's audited CAS choice B rev2, not the boot candidate A). (2) ModelRuntime panel telemetry wired: local_router.rs::inspect_model_runtime now surfaces real active-steering / tokens-per-sec / VRAM-resident / last-call / engine-internals (was hardcoded Unavailable) with honest per-field typed-Unavailable -- proven by mt014_registry_projection_surfaces_live_runtime_telemetry_through_backend via live GET /model-runtime/registry. Also fixed a REAL production integrity-ORDERING gap: the absent-selection guard masked the structural registry guards (duplicate SHA, adapter/capability drift, orphaned catalog row, uncommitted READY) whenever no default existed; reordered so structural corruption is reported first and absent-default still fails closed (500). 7 formerly-failing mt014_* tests now green; adversarial security review PASS (fail-closed preserved, no new Ok path, precedence test-enforced at model_runtime_registry_api_tests.rs:1282/:1323). No assertion loosened. VALIDATOR-GATED: (a) live-Argus VISUAL panel proof (test_model_runtime_panel_argus) needs a GUI host + Palmistry backend; (b) real in-process Candle telemetry values need candle-runtime-engine + a real model artifact (candle_e2e_smoke --ignored). Source at ac4a4ac4/9d5f2e2d.",
-      "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
+      "proof_status": "READY_FOR_VALIDATION_V5: 5 declared proof targets green + full model_runtime_registry_api_tests 13/13 on managed PostgreSQL (127.0.0.1:5544). V4 blocker closed: (1) durable active default-model selection persists to model_runtime_active_selection (PG) and is RESTORED after restart -- proven by mt014_active_default_selection_persists_and_restores_after_restart (new store vs same PG recovers the operator's audited CAS choice B rev2, not the boot candidate A). (2) ModelRuntime panel telemetry wired: local_router.rs::inspect_model_runtime now surfaces real active-steering / tokens-per-sec / VRAM-resident / last-call / engine-internals (was hardcoded Unavailable) with honest per-field typed-Unavailable -- proven by mt014_registry_projection_surfaces_live_runtime_telemetry_through_backend via live GET /model-runtime/registry. Also fixed a REAL production integrity-ORDERING gap: the absent-selection guard masked the structural registry guards (duplicate SHA, adapter/capability drift, orphaned catalog row, uncommitted READY) whenever no default existed; reordered so structural corruption is reported first and absent-default still fails closed (500). 7 formerly-failing mt014_* tests now green; adversarial security review PASS (fail-closed preserved, no new Ok path, precedence test-enforced at model_runtime_registry_api_tests.rs:1282/:1323). No assertion loosened. VALIDATOR-GATED: (a) live-Argus VISUAL panel proof (test_model_runtime_panel_argus) needs a GUI host + Palmistry backend; (b) real in-process Candle telemetry values need candle-runtime-engine + a real model artifact (candle_e2e_smoke --ignored). Source at ac4a4ac4/9d5f2e2d. UPDATE 2026-07-29: the real in-process Candle telemetry proof is NO LONGER validator-deferred -- mt014_real_candle_registry_commit_failure_rolls_back_and_stops now runs GREEN with real weights (Maykeye_TinyLLama-v0, candle-runtime-engine) on managed PG: real Candle load + forced registry-commit failure rolls back and writes STOP. Only the live-Argus VISUAL panel proof remains GUI-host-gated.",
+      "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - the registry projection behind the ModelRuntime panel is account-scoped. STILL OWED: HBR-PRIV-008 operator-surface scope/denial visibility is BLOCKED on the same Palmistry provenance that blocks live Argus.; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "COMPLETED_INTEGRITY_REORDER_REVIEW_20260729_PASS",
+      "adversarial_findings_status": "REAL_INTEGRITY_ORDERING_GAP_FIXED_AND_REVIEWED_FAILCLOSED_PRESERVED",
       "remediation_v2": {
         "status": "READY_FOR_VALIDATION_V2",
         "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
@@ -371,14 +371,14 @@
       "depends_on": [
         "MT-006"
       ],
-      "summary": "Operator-facing cloud-model access config surface: CLI-bridge/plan auth+login status for Claude Code + GPT/Codex (operator's primary), and BYOK API-key entry (Anthropic/OpenAI) stored in the OS-keychain secrets vault for other users. Gemini excluded (CLI deprecating). Backends exist (WP-KERNEL-004); this builds the config UI. OPERATOR_REQUESTED_ADDITION 2026-07-02.",
+      "summary": "Operator-facing cloud-model access configuration surface: (a) CLI-bridge / subscription-plan auth-and-login status + config for the official-CLI providers the operator uses (Claude Code, GPT/Codex), and (b) a BYOK API-key entry (Anthropic, OpenAI) stored in the existing OS-keychain secrets vault for users who bring their own keys. Gemini is explicitly excluded (CLI deprecating).",
       "unlocks": "Unlocks operator/other-user cloud-model access (plan login + BYOK key) so cloud lanes are reachable from the operator surface and enumerable by the MT-012 picker.",
       "blocks": [],
-      "proof_status": "READY_FOR_VALIDATION_V5: V4 blocker closed. Fixed a REAL production accessibility gap -- the DETACHED cloud-access Settings surface emitted its CLI auth-status + BYOK configured/unavailable state via plain ui.label, which egui does NOT auto-expose as an AccessKit name in an embedded (detached-window) viewport, so an out-of-process Argus client targeting popout-settings could not read the state (acceptance [1]/[4]). settings_dialog.rs render_cloud_models_body now emits the non-secret status text via set_author_id_and_label at both sites (fixed &static literals, no key material). VERIFIED HEADLESS (egui_kittest AccessKit) on this box: test_cloud_models_detached_settings_argus 6/6 (all controls addressable in the detached window; all 3 CLI auth states + BYOK configured/unavailable render; Gemini absent; CLI login operable without stealing focus; screenshot capture-target resolves popout-settings by recorded HWND with title fallback; BYOK key never appears as author_id/label -- canary), test_cloud_models_settings_argus (docked) 6/6. MANDATORY secrets-leakage adversarial review (acceptance [6]): PASS, NO leaks -- key strictly OS-keychain-only (SecretString at HTTP boundary, no read-back route, no store/delete echo, Zeroizing frontend buffer wiped on Save/close), labels strictly non-secret literals, console/Flight-Recorder cloud path carries only provider id + pid (redact_secrets on free-text), password AccessKit value masked to bullets at the egui source. Backend leak/enumeration proofs (cloud_byok_access_config_leak_tests, model_access_route_tests) are pre-existing green at V1 and unchanged by this edit (git diff on backend empty). VALIDATOR-GATED: only the OS raising a real 2nd top-level window + live-pixel PrintWindow grab needs a GUI host (existing test_argus_production_socket_live* on a display). DEFERRED FOLLOW-UPS: (1) HBR-QUIET -- the CLI-login proof spawns the provider's official CLI which currently pops a console window; add CREATE_NO_WINDOW suppression so test runs stay quiet (operator-reported). (2) review MINOR -- extend the canary scan to the AccessKit value channel (defense-in-depth; not a live leak, masked at source). Source at 5ec42f50.",
-      "hbr_status": "PASS_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
-      "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): HBR-QUIET-001 violation REMOVED - CREATE_NEW_CONSOLE gone as an active flag (independently verified), interactive login on ConPTY, login proven still COMPLETABLE by runtime round-trip. Proofs: model_access_route_tests 11/0; test_cloud_models_settings_argus 9/0; test_focus_audit_quiet 7/0; cli_bridge_login_quiet_tests 3/0/1; cargo check --all-targets exit 0; git diff --check clean. Falsifiability DEMONSTRATED by injecting a real CREATE_NEW_CONSOLE defect and observing both gates fail, then removing it. That exercise also EXPOSED and REPAIRED a near-vacuous test: the old created-during-window pid filter missed the regression because Windows 11's default-terminal handoff rendered the console in a pre-existing WindowsTerminal.exe pid. Live detached Settings Argus remains BLOCKED on Palmistry provenance (WP-KERNEL-012).",
+      "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED; HBR-QUIET-001 code-level violation removed (ConPTY, no CREATE_NEW_CONSOLE). HBR-QUIET-004 is NOT declared on this MT and is NOT needed now - there is no foreground exception to declare because the foreground launch is gone. Detached Settings Argus proof remains BLOCKED on authenticated Palmistry provenance (WP-KERNEL-012).",
+      "pre_implementation_adversarial_review_status": "DONE_2026-07-02_task_a0e9015f5c0ee8643",
+      "post_implementation_adversarial_review_status": "COMPLETED_SECRETS_LEAKAGE_LENS_20260729_PASS",
+      "adversarial_findings_status": "NO_SECRET_LEAKS; real accessibility gap fixed; HBR-QUIET CLI-login window + canary value-scan deferred",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -391,14 +391,14 @@
       "depends_on": [
         "MT-014"
       ],
-      "summary": "Dedicated embedding model distinct from the chat model: second embedding-capable local registration + supports_embedding/embedding_dimension product-extension capability; LoomSearchV2 embeds via the registry-resolved embedding model, filters semantic rows by embedding_model, and never falls back to chat profile().model_id. DEFERRED from MT-014 AC-4b (pre-impl review F9).",
+      "summary": "Dedicated embedding model distinct from the chat model: a second local-model registration whose ModelCapabilities declares supports_embedding + embedding dimension as an MT-016 product extension, so LoomSearchV2 embeds via the embedding-capable model resolved from the shared registry rather than via the single chat model's profile().model_id.",
       "unlocks": "Unlocks a separate correctly-dimensioned embedding model for LoomSearchV2 semantic search, decoupled from the chat model.",
       "blocks": [],
-      "proof_status": "READY_FOR_VALIDATION_V5: all 6 declared proof commands green on real managed PostgreSQL (port 5544) at a5f92507; see MT contract validation_v5. Real-embedding-model e2e not run (needs artifact).",
-      "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL",
+      "proof_status": "READY_FOR_VALIDATION_V5: all 6 declared proof commands green on real Handshake-managed PostgreSQL (port 5544) at a5f92507. mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency, mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat, mt016_default_boot_registers_distinct_embedding_model_when_configured, mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model, mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call all PASS; dedicated_embedding_model_behaviors_have_manual_coverage PASS after completing the embedding behavior's Palmistry correlation ref + page HBR-INT-009 tier posture (fix a5f92507). Proofs use the standard real-PG-registry + deterministic-model-response pattern per the MT's own allowance. The V4 blocker (fresh embedding proof did not complete against the MT-014-changed shared surface) is resolved: proofs now run green against current HEAD which includes MT-014's registration changes. NOTE: the additional real-embedding-model e2e (tests/mt016_real_embedding_e2e.rs) requires a real embedding model artifact and was NOT run this pass; the Integration Validator should decide whether real-model proof beyond the deterministic pattern is additionally required. Dependency MT-014 is itself still under V5 remediation.",
+      "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - registry rows are isolated per account. STILL OWED: Embedding artifact, Loom index, and derived search-result non-widening are not yet attached.",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
+      "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior.",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
@@ -407,7 +407,7 @@
     },
     {
       "mt_id": "MT-017",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -422,14 +422,14 @@
         "MT-014",
         "MT-015"
       ],
-      "summary": "WP-1 hardening remediation from the KERNEL_BUILDER adversarial re-proof at HEAD: real ModelLaneCloudConsentScope::SingleRun security semantics, CRDT snapshot-compaction + derived state_vector + real mid-stream cancellation proofs, backend<->frontend diagnostics projection contract pin, UserManual self-consistency/surface-existence truthfulness, routing-policy differentiation, post-checkpoint lease coverage, cross-platform BYOK leak proof, and frontend zeroize.",
+      "summary": "Close the deferred WP-1 hardening gaps discovered during the KERNEL_BUILDER adversarial re-proof of all 16 MTs at HEAD. These are real, evidence-backed gaps that were deliberately NOT folded into their originating MTs because they require design decisions or touch a security boundary.",
       "unlocks": "Closes the evidence-backed gaps that were deliberately not folded into their originating MTs because they need design decisions or touch a security boundary.",
       "blocks": [],
-      "proof_status": "FAIL_V4: The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
+      "proof_status": "READY_FOR_VALIDATION_V5: full declared 22-proof suite GREEN at a single frozen revision efea010a with a clean tree. pass=22 fail=0 false_pass_zero_tests=0. Every step reports a non-zero executed count, so no proof passed vacuously. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker. CAPSTONE STILL OWED: the 22-proof suite must be rerun in full at ONE frozen clean HEAD. The recorded GREEN was at efea010a while current HEAD is 50517aec with ~43 uncommitted files across parallel lanes, so it is stale by construction and cannot be re-declared without a quiet tree.",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
       "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
-      "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
-      "adversarial_findings_status": "OPEN_V4_BLOCKERS_RECORDED_IN_MT_CONTRACT",
+      "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_DIAGNOSTICS_USERMANUAL_AND_RUNTIME_AUDIT_GREEN",
+      "adversarial_findings_status": "PASS_V3_ALL_V2_DEPENDENCY_BLOCKERS_CLOSED_FRESH_NONCE_BOUND_PRODUCER_CONSUMER_AND_VISUAL_PROOFS_ACCEPTED",
       "remediation_v3": {
         "status": "READY_FOR_VALIDATION_V3",
         "kb_ready_checklist_receipt": "2026-07-20T01:18:29.891Z"
@@ -442,51 +442,85 @@
     },
     {
       "mt_id": "MT-018",
-      "status": "READY_FOR_DEV",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-004",
         "MT-005",
         "MT-009"
       ],
-      "summary": "Deferred Layer-2 spec-level fix: resolve the diff-hash (sha256 of JSON diff) vs Yjs-update-hash (sha256 of decoded Yjs binary) conflation in the approved-proposal applied-binding path that makes a Proposal-kind CRDT ModelLaneMessage un-admittable, so proposal-anchored CRDT authority can be proven end-to-end.",
+      "summary": "Resolve the diff-hash vs Yjs-update-hash conflation that makes an approved-proposal-backed (Proposal-kind) CRDT ModelLaneMessage un-admittable, so proposal-anchored CRDT authority can be proven end-to-end.",
       "unlocks": "Gives MT-002/005/009 CRDT admission real positive end-to-end proof for the Proposal-kind path; without it that path can never be exercised and is asserted only by negative tests.",
       "blocks": [],
-      "proof_status": "NOT_STARTED",
-      "hbr_status": "PENDING",
+      "proof_status": "READY_FOR_VALIDATION_V5: all three declared proofs plus five new MT-018 tests pass on real Handshake-managed PostgreSQL. Executed-test counts were verified rather than exit codes, because `cargo test --exact` exits 0 when a filter matches nothing.",
+      "hbr_status": "PENDING; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed on real managed PostgreSQL. Covering this MT: a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source proves a derivative inherits no broader scope than ALL contributing sources (HBR-PRIV-004 mixed-source non-widening), which is the CRDT-proposal-derived knowledge case; ResourceScope::derive_from_sources REFUSES to derive across mixed owners rather than computing a union, because a union would silently widen and a refusal is recoverable. STILL OWED: proposal-lifecycle-specific owner/AccessSpace evidence through approve/apply/promote, and confirmation that the 11/11 focused tests still pass at a frozen tree. NOTE: hbr_status was previously PENDING, which makes PASS illegal under CX-503B1 irrespective of test results - that is why the validator failed this MT despite 11/11 green.",
       "pre_implementation_adversarial_review_status": "PENDING",
-      "post_implementation_adversarial_review_status": "PENDING",
+      "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_ALL_PROOFS_ON_CLEAN_DB",
       "adversarial_findings_status": "PENDING",
       "origin": "Discovered + confirmed by KERNEL_BUILDER during V5 remediation 2026-07-24; deferred here (not folded into MT-004/005/009) because the fix touches the knowledge-CRDT pillar and needs a migration + possible spec enrichment. Layer-1 sync-layer unblock already shipped in MT-004/005/009."
     },
     {
       "mt_id": "MT-019",
-      "status": "READY_FOR_DEV",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-007"
       ],
-      "summary": "Harden the spawned-process reclaim reaper beyond the MT-007 crash->restart boot case: cover the running-app window and decide fail-open vs fail-closed on kill failure. MT-007's blo",
+      "summary": "Harden the spawned-process reclaim reaper beyond the MT-007 crash->restart boot case: cover the running-app window and decide fail-open vs fail-closed on kill failure. MT-007's blocker (generic reclaim wired into boot) is closed and runtime-proven; these are secondary residuals surfaced by adversarial review, deferred so they are not forgotten.",
       "unlocks": [],
       "blocks": [],
-      "proof_status": "READY_FOR_DEV: deferred reclaim-hardening follow-ups from MT-007 two-lens adversarial review.",
-      "hbr_status": "PENDING",
-      "pre_implementation_adversarial_review_status": "N/A",
-      "post_implementation_adversarial_review_status": "N/A",
-      "adversarial_findings_status": "DEFERRED_FROM_MT-007"
+      "proof_status": "READY_FOR_VALIDATION_V5: P-1..P-5 and F1..F7 all implemented and runtime-proven. process_reclaim_real_lifecycle_pg_tests ok 12 passed/0 failed; process_ledger_reclaim_tests 30 passed/1 failed (the 1 is the known pre-existing MT-020 AC-6 defect); six mt019_* --exact each ok 1 passed; user_manual_behavior_coverage_tests ok 16/0; --lib mt019_ hook proofs ok 3/0. || RECLAIM SUITE GREEN (2026-08-04): cargo test --features test-utils --test process_ledger_reclaim_tests => ok. 31 passed; 0 failed; 0 ignored; 0 filtered out (175.84s), FULL suite with no name filter. LOAD-DEPENDENCE IS THE FINDING, recorded so nobody re-diagnoses it: an earlier run of the same suite during heavy parallel builds returned 30 passed/1 failed at 617s, with production_reclaim_kills_real_process_and_durably_closes_postgres_lifecycle failing on KillOutcome::Failed{ error: \"sandbox adapter handshake_native failed to spawn process: ... cannot read executable identity: A device attached to the system is not functioning. (os error 31)\" } instead of Killed. os error 31 is a Windows ERROR_GEN_FAILURE - an OS-level device fault while inspecting a real spawned process, NOT a reclaim-logic defect: the logic reached the kill path correctly and the failure was beneath it. Re-run under light load passed and took 175.84s versus 617s, so this test is sensitive to machine contention. Do not chase it as a code bug; run the reclaim suite when the box is quiet.",
+      "hbr_status": "PENDING; HBR-INT-001 / HBR-INT-005 / HBR-INT-009 / HBR-MAN-004 / HBR-QUIET-003 for MT-019: the full reclaim suite is green including real-process kill and durable PostgreSQL lifecycle closure, which is the HBR-QUIET-003 process-ownership guarantee (no orphan processes after run, failure, staleness or cancel). hbr_status was previously PENDING, which made PASS illegal under CX-503B1 irrespective of the 12/12 the validator saw.",
+      "pre_implementation_adversarial_review_status": "COMPLETE_2026_07_30_PLAN_REQUIRES_REWORK_P1_P2_P3_P4_P5_PREREQUISITES",
+      "post_implementation_adversarial_review_status": "PARENT_REVIEWED_PLUS_PRE_IMPLEMENTATION_ADVERSARIAL_REVIEW_REWORKED_THE_PLAN_BEFORE_CODING",
+      "adversarial_findings_status": "PENDING"
     },
     {
       "mt_id": "MT-020",
-      "status": "READY_FOR_DEV",
-      "summary": "Repair five PRE-EXISTING failing tests in the production_factory lib module that are invisible to MT-017's declared proof set, so the module is honestly green rather than green-by-narrow-filter."
+      "status": "READY_FOR_VALIDATION_V5",
+      "summary": "Repair five PRE-EXISTING failing tests in the production_factory lib module that are invisible to MT-017's declared proof set, so the module is honestly green rather than green-by-narrow-filter.",
+      "depends_on": [],
+      "blocks": [],
+      "proof_status": "READY_FOR_VALIDATION_V5: production_factory module green with NO name filter in BOTH thread modes (32 passed / 0 failed each); reclaim suite 31 passed / 0 failed; both build configurations green. || AC-3 BOTH MODES GREEN (2026-08-04): production_factory tests with NO name filter - default-parallel ok. 32 passed/0 failed (24.70s) AND --test-threads=1 ok. 32 passed/0 failed (10.48s). The validator saw only the serial run. AC-7 BOTH CHECKS CLEAN: cargo check --all-targets (DEFAULT features) and cargo check --features test-utils --all-targets both finished with no errors, proving the shared support module tests/model_lane_crdt_support.rs no longer compiles under default features as an auto-discovered target. AC-6 FULL RECLAIM SUITE GREEN: RECLAIM SUITE GREEN (2026-08-04): cargo test --features test-utils --test process_ledger_reclaim_tests => ok. 31 passed; 0 failed; 0 ignored; 0 filtered out (175.84s), FULL suite with no name filter. LOAD-DEPENDENCE IS THE FINDING, recorded so nobody re-diagnoses it: an earlier run of the same suite during heavy parallel builds returned 30 passed/1 failed at 617s, with production_reclaim_kills_real_process_and_durably_closes_postgres_lifecycle failing on KillOutcome::Failed{ error: \"sandbox adapter handshake_native failed to spawn process: ... cannot read executable identity: A device attached to the system is not functioning. (os error 31)\" } instead of Killed. os error 31 is a Windows ERROR_GEN_FAILURE - an OS-level device fault while inspecting a real spawned process, NOT a reclaim-logic defect: the logic reached the kill path correctly and the failure was beneath it. Re-run under light load passed and took 175.84s versus 617s, so this test is sensitive to machine contention. Do not chase it as a code bug; run the reclaim suite when the box is quiet.",
+      "hbr_status": "HBR-INT-001 and HBR-STOP-003 for MT-020: AC-3 proven in both execution modes and AC-6's full reclaim suite green at 31/0, so the module is honestly green rather than green-by-narrow-filter - which is precisely what this MT exists to establish. HBR-PRIV deliberately NOT declared on MT-020: it repairs pre-existing failing tests in the production_factory module and creates no product resource, so HBR-PRIV-001's not_applicable_when genuinely applies. AC-5 ESTABLISHED 2026-08-04 by mechanism (see ac5_baseline_2026_08_04): 6fd044b0's only functional change to production_factory.rs sets session_start_os_pid for OfficialCli and leaves BYOK on `_ => None`, byte-identical to the previous literal None, with the durability-ack requirement and ledger_pair() untouched - so that commit cannot have introduced the five failures. AC-5 ALSO CONFIRMED EMPIRICALLY 2026-08-04 under Operator authorization: baseline 3bbc72b3 = 26 passed/6 failed with the DURABILITY_ACK_TIMEOUT failures present, current HEAD = 32 passed/0 failed. Mechanism proof and empirical A/B agree.",
+      "pre_implementation_adversarial_review_status": "",
+      "post_implementation_adversarial_review_status": "",
+      "adversarial_findings_status": ""
     },
     {
       "mt_id": "MT-021",
-      "status": "READY_FOR_DEV",
-      "summary": "Close the WP-1 operator-surface gaps: make the WP-1 Orchestration Console swarm-dispatchable, and expose the missing WP-1 controls (cloud consent/export posture, swarm concurrency) in Options/Settings."
+      "status": "READY_FOR_VALIDATION_V5",
+      "summary": "Close the WP-1 operator-surface gaps: make the WP-1 Orchestration Console swarm-dispatchable, and expose the missing WP-1 controls (cloud consent/export posture, swarm concurrency) in Options/Settings.",
+      "depends_on": [],
+      "blocks": [],
+      "proof_status": "READY_FOR_VALIDATION_V5 (AC-3 CONVERGENCE REMEDIATION 2026-08-04): the operator concurrency control now binds to real runtime behaviour in both directions. A lowering that cannot fully apply at once CONVERGES as permits free instead of being silently abandoned at an intermediate value, and a freed permit can no longer admit a spawn above the requested cap. Running sessions are never killed. Proven by 3 new tests, with the fix INVERTED and the failure OBSERVED (left: 2 / right: 1) before restoring GREEN. UserManual suites re-run after the change: behavior_coverage 21/0, api 24/0, storage 12/0.",
+      "hbr_status": "",
+      "pre_implementation_adversarial_review_status": "",
+      "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS",
+      "adversarial_findings_status": ""
     },
     {
       "mt_id": "MT-022",
-      "status": "READY_FOR_DEV",
-      "summary": "Close the WP-1 in-product UserManual coverage gaps that are named packet acceptance criteria, and repoint the HBR-MAN-003 self-consistency check at the canonical UserManual corpus so such gaps cannot recur silently."
+      "status": "READY_FOR_VALIDATION_V5",
+      "summary": "Close the WP-1 in-product UserManual coverage gaps that are named packet acceptance criteria, and repoint the HBR-MAN-003 self-consistency check at the canonical UserManual corpus so such gaps cannot recur silently.",
+      "depends_on": [],
+      "blocks": [],
+      "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-02): all three declared suites GREEN in one run at one tree state, each invoked as an INDEPENDENT command (never &&-chained, which is why the validator's storage suite never ran). user_manual_behavior_coverage_tests ok 17 passed/0 failed (215.00s); user_manual_api_tests ok 24 passed/0 failed (455.24s); user_manual_storage_tests ok 12 passed/0 failed (175.12s); git diff --check clean. No suite executed zero tests. The prior V5 claim of '22 passed/1 failed where the single failure is independently verified PRE-EXISTING' is RETRACTED: a red test is a red test, and the validator was correct to reject that framing.",
+      "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT022: mounted-route registry and manual corpus are code-truthful and self-consistency-gated; HBR-PRIV NOT_APPLICABLE for MT-022 because it changes only in-product UserManual content and its own gate, creating no product resource (HBR-PRIV-001 not_applicable_when).",
+      "pre_implementation_adversarial_review_status": "",
+      "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS",
+      "adversarial_findings_status": ""
+    },
+    {
+      "mt_id": "MT-023",
+      "unlocks": "",
+      "status": "READY_FOR_VALIDATION_V1",
+      "depends_on": [],
+      "summary": "Prove, at runtime, that Handshake can launch a model lane against a worktree-scoped folder running inside a microVM - the second half of the Operator's non-negotiable. The first half (an operator-selected FOLDER really becoming the spawned child's working directory) is already proven by operator_chat_cli_lane_runs_in_operator_selected_cwd, which drives SpawnRequest.working_dir -> CliBridgeConfig.working_dir -> the real child process cwd, with a negative control showing the child does NOT land there when working_dir is absent. This MT covers the VM half, which currently has no live proof.",
+      "blocks": [],
+      "proof_status": "READY_FOR_VALIDATION_V1: final combined source passed the real KVM/Cloud Hypervisor/model/PostgreSQL capstone 1/1 with real generated tokens and no VM/work-root residue; authoritative external real-PG durable registry suite 14/14; three exact UserManual tests 3/3; focused backend/Tauri scope, lifecycle, cancellation, fencing, concurrency and projection gates GREEN; Windows all-target/test checks GREEN; independent combined adversarial review PASS with no open MT-023 blocker; KB readiness checklist PASS with zero blockers.",
+      "hbr_status": "PASS_HBR_INT_QUIET_MAN_STOP_PRIV_SWARM_FINAL_COMBINED_RUNTIME_AND_NEGATIVE_PROOFS_GREEN; WP-KERNEL-006/007 authentication/grants/RLS explicitly excluded by operator direction.",
+      "pre_implementation_adversarial_review_status": "DONE_2026-08-10_CONTRACT_AND_RUNTIME_ATTACK_SURFACES_REVIEWED",
+      "post_implementation_adversarial_review_status": "PASS_2026-08-10_INDEPENDENT_COMBINED_NO_OPEN_BLOCKER",
+      "adversarial_findings_status": "ALL_CONFIRMED_MT023_FINDINGS_REMEDIATED_AND_RECHECKED_GREEN"
     }
   ]
 }
