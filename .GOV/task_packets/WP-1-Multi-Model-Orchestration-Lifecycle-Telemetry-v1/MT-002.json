@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-002",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-08-14T15:26:03.296Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-002.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-001"
     ],
@@ -27,23 +27,24 @@
       "MT-008"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260628-220906",
     "claimed_at_utc": "2026-06-28T22:32:08.601Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260723-205940",
-    "ready_for_validation_at_utc": "2026-07-24T14:33:31Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260814-135053",
+    "ready_for_validation_at_utc": "2026-08-14T15:26:03.296Z",
+    "ready_for_validation_reason": "V5 remediation implemented at 814b5ae4; mandatory checklist PASS; exact five-dimensional PostgreSQL isolation, all declared proof targets, adversarial amendments, and non-host type-check passed. Independent validator review remains pending.",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V5: The mandatory HBR privacy gate remains explicitly PARTIAL, and the MT-specific current-head schema/manual rerun is still owed. The fresh validator attempt timed out during compilation and produced no test verdict, so historical green output cannot establish the current source. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows; one_account_cannot_read_across_its_own_workspaces; an_unattributed_legacy_row_is_denied_not_grandfathered - i.e. durable ModelLane rows are owner-scoped, workspace-narrowed, and pre-0363 unattributed rows are DENIED rather than grandfathered. STILL OWED: MT-002-specific: schema/manual proofs rerun at a frozen tree once packet churn settles.",
-    "kb_ready_checklist_receipt_id": null,
+    "proof_status": "REMEDIATED_V5_PENDING_VALIDATION: commit 814b5ae4; exact five-dimensional ModelLane scope proof passed twice on Handshake-managed PostgreSQL with no skips; all four declared schema, runtime-spawn, negative, and UserManual proof targets passed; ARM64 non-host cargo check passed with blake3/no_neon.",
+    "hbr_status": "HBR-PRIV PASS_PENDING_VALIDATOR: exact owner, Principal, session, AccessSpace, and workspace attribution is proven for run, lane, message, diagnostic, and EventLedger derivatives with owner positives, one-dimension foreign negatives, concurrent disclosure resistance, and immutable final attribution. HBR-INT, HBR-SWARM, and HBR-MAN declared proofs passed on current source.",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-08-14T15:26:03.296Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "REMEDIATED_V5 at 814b5ae4; canonical PostgreSQL and declared proof commands passed; validator verdict pending",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
-    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS",
+    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
+    "adversarial_findings_status": "POST_REVIEW_FALSIFIABILITY_DIAGNOSTIC_EVENTLEDGER_AND_CONCURRENCY_FINDINGS_ADDRESSED_AND_REPROVEN",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
