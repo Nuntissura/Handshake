@@ -1,0 +1,177 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-304",
+  "title": "VF-MT304-FailurePolicyQuarantine",
+  "group": "VF VM workspace fleet reconciler",
+  "clause": "Per-binding consecutive_failures + next_attempt_at_utc, exponential backoff with full jitter capped ~15min, QUARANTINED health after N failures with EventLedger alert + slow retry, never auto-delete a workspace binding, one central error_policy path",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-304.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-303"],
+    "blocks": ["MT-308"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give the fleet reconciler a single, central failure policy so one broken workspace backs off alone, the fleet never floods logs or burns CPU on a poison VM, and NO failure path ever deletes a workspace binding. This is research P3 (errors route to one error_policy callback that owns backoff - never ad-hoc tokio::time::sleep retries inside reconcile bodies), P15 (per-item exponential backoff with full jitter; per-item so one broken object backs off alone; backoff resets on success), and P16 (poison objects are QUARANTINED with a slow retry and an operator alert - K8s has no dead-letter deletion, the max-backoff cap IS the poison handling; Oxide demands per-target stall alarms; NEVER auto-delete - these are user worktrees, not disposable jobs).\n\nSCHEMA (one new migration pair; allocate next free number, descriptive suffix vm_fleet_failure_policy): add columns to worktree_fleet_desired_state (MT-301's table - failure accounting keys off the fleet row because the binding row's lifecycle is owned by worktree_vm_registry and MT-305's tombstones):\n   ALTER TABLE worktree_fleet_desired_state\n       ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0,\n       ADD COLUMN next_attempt_at_utc TIMESTAMPTZ,\n       ADD COLUMN health_state TEXT NOT NULL DEFAULT 'healthy',\n       ADD COLUMN last_failure_reason TEXT,\n       ADD COLUMN quarantined_at_utc TIMESTAMPTZ;\n   ALTER TABLE worktree_fleet_desired_state ADD CONSTRAINT chk_fleet_health CHECK (health_state IN ('healthy','backoff','quarantined'));\n   Partial index for the dispatcher's due-scan: CREATE INDEX ... ON worktree_fleet_desired_state (next_attempt_at_utc) WHERE health_state IN ('backoff','quarantined'); plus .down.sql twin. No new table: the columns live where the SKIP LOCKED claim already locks (MT-302), so failure accounting is race-free under the existing claim.\n\nCENTRAL ERROR POLICY (research P3):\n   pub struct FleetErrorPolicy { pub base_backoff: Duration /* default 5s */, pub backoff_cap: Duration /* default 900s = 15min */, pub quarantine_threshold: u32 /* default 8 */, pub quarantine_retry_interval: Duration /* default 900s */ }\n   pub enum FleetErrorDisposition { RetryAfter { delay: Duration }, Quarantine { alert: FleetQuarantineAlert } }\n   pub fn on_reconcile_error(policy: &FleetErrorPolicy, consecutive_failures: u32, error: &FleetReconcilerError, jitter: f64 /* pre-drawn uniform [0,1) so the function stays pure */) -> FleetErrorDisposition\n   Backoff formula: delay = min(base * 2^n, cap) * jitter (FULL jitter: uniform in [0, computed]); n = consecutive_failures. All error exits from MT-303's executor route through this ONE function - no reconcile body may sleep, retry inline, or compute its own delay (grep-enforced: no tokio::time::sleep in executor.rs/lifecycle.rs).\n   On success: consecutive_failures resets to 0, health_state returns to 'healthy', next_attempt_at_utc clears - in the same claim transaction as the successful pass.\n   On failure: increment consecutive_failures, set next_attempt_at_utc = now + delay, health_state = 'backoff', last_failure_reason = truncated typed error string - same claim transaction, generation-fenced like every fleet write (MT-303 discipline).\n\nQUARANTINE (research P16):\n   When consecutive_failures >= quarantine_threshold: health_state = 'quarantined', quarantined_at_utc = NOW(), append typed EventLedger alert FLEET_WORKSPACE_QUARANTINED { worktree_id, consecutive_failures, last_failure_reason, quarantined_at_utc } (this is the operator alert surface; MT-306 projects it), and continue a SLOW retry every quarantine_retry_interval (~15min) - quarantine is an alerting state, not a stop state (P16: retry forever, slowly, with alarms; silent max-backoff purgatory is the named anti-pattern). Clearing quarantine requires an explicit operator/agent action through a store method clear_quarantine(worktree_id) that resets counters and appends FLEET_QUARANTINE_CLEARED - the reconciler NEVER clears quarantine on its own (MT-303's planner already plans NoOp for Quarantined; this MT wires the health_state into ObservedVmState so the planner sees it).\n   HARD RULE: no failure path deletes or tombstones a fleet row or a workspace binding. Deletion is exclusively MT-305's operator-intent-driven finalizer. Grep proof: no DELETE and no teardown call in the failure-policy module.\n\nDISPATCHER INTEGRATION: MT-302's dispatcher skips rows whose next_attempt_at_utc is in the future (SQL predicate on the claim SELECT), EXCEPT when the trigger source is an explicit desired-state change (a fresh NOTIFY from a desired write bypasses backoff so operator intent is never delayed by a stale backoff window; a tick does not bypass). Backoff gating lives in SQL, not in memory, so a daemon restart preserves backoff state (level-triggered discipline).\n\nRESOURCE PRIVACY: all new columns live on the account/Principal-scoped fleet table (MT-301; resource_scope.rs ResourceScope 147-153) and every read/write goes through the scope-enforcing store - quarantine alerts carry worktree_id and scope attribution so MT-306 renders them only to the owning account (per the WP-1 resource_scope patterns, resource_scope.rs lines 1-42 module rationale).\n\nEXPECTED DIFF SHAPE: one migration pair; new file vm_fleet/error_policy.rs; edits to vm_fleet/executor.rs (route errors through the policy), vm_fleet/reconciler.rs (due-scan predicate + desired-write bypass), vm_fleet/desired_state.rs (new columns on the record + clear_quarantine); tests.\n\nSTEP-BY-STEP:\n1. Read the landed MT-301/302/303 modules and the migration numbering state in the implementing worktree.\n2. Write the migration pair with columns, CHECK, and partial index.\n3. Implement FleetErrorPolicy as a pure function (jitter pre-drawn by caller) + typed disposition.\n4. Route every executor error exit through the policy; update counters in the claim transaction; reset on success.\n5. Implement quarantine entry (threshold, ledger alert, slow retry) and clear_quarantine (explicit, ledger event); surface health_state into ObservedVmState.\n6. Add the SQL due-scan predicate and the desired-write bypass to the dispatcher.\n7. Tests (live PG + fake adapter; Spec-Realism Gate): repeated failure walks the exact backoff sequence within jitter bounds; success resets to healthy; failure N=threshold flips to quarantined exactly once with exactly one alert event; quarantined rows retry at the slow interval and stay quarantined on continued failure; a poison worktree does not delay a healthy worktree's dispatch (per-item isolation); desired-write bypasses backoff, tick does not; daemon restart preserves backoff windows (read from SQL); no failure path deletes any row.\n8. Run proof targets; record measured output. Implementer never marks COMPLETED.",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-306 only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (no modification)",
+      "src/backend/handshake_core/src/sandbox/** (no adapter changes)"
+    ],
+    "acceptance_criteria": [
+      "AC-304-1: Migration adds consecutive_failures, next_attempt_at_utc, health_state (CHECK IN ('healthy','backoff','quarantined')), last_failure_reason, quarantined_at_utc to worktree_fleet_desired_state with the partial due-scan index and a .down.sql twin.",
+      "AC-304-2: One central pure error-policy function computes min(base*2^n, cap) with FULL jitter (cap default 15min); no reconcile body contains inline sleeps or self-computed delays (grep proof: no tokio::time::sleep in executor.rs/lifecycle.rs/error_policy.rs).",
+      "AC-304-3: Failure accounting updates happen inside the same SKIP LOCKED claim transaction as the pass, generation-fenced; success resets counters to healthy in the same transaction.",
+      "AC-304-4: At consecutive_failures >= threshold (default 8) the row flips to 'quarantined' exactly once, appends exactly one FLEET_WORKSPACE_QUARANTINED EventLedger alert, and continues slow retries (~15min) - proven by live test.",
+      "AC-304-5: Quarantine is cleared ONLY by explicit clear_quarantine (which appends FLEET_QUARANTINE_CLEARED); the reconciler never self-clears - proven by test that a quarantined row survives 3 successful-looking slow-retry planning cycles without auto-clear unless the retry pass itself fully succeeds, in which case the success-reset rule applies and the test asserts the chosen semantic: slow-retry SUCCESS resets to healthy (success reset outranks quarantine stickiness) while anything short of full success leaves quarantine intact.",
+      "AC-304-6: Per-item isolation: a live test with one poison worktree and one healthy worktree proves the healthy one dispatches unimpeded (P15 per-item backoff, not global).",
+      "AC-304-7: No failure path deletes, tombstones, or tears down a workspace binding or fleet row (grep proof + code review: no DELETE, no teardown call in error_policy.rs).",
+      "AC-304-8: Backoff state lives in SQL and survives daemon restart; an explicit desired-state write bypasses the backoff window, a resync tick does not - both proven by live test.",
+      "AC-304-9: Proof commands run with per-owner CARGO_TARGET_DIR under ../Handshake_Artifacts/; no SQLite/K8s/Docker/containerd/Nomad identifiers introduced (grep proof)."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-304 cargo test -p handshake_core fleet_error_policy_backoff -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-304 cargo test -p handshake_core fleet_quarantine_lifecycle -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-304 cargo test -p handshake_core fleet_poison_isolation -- --nocapture\"",
+      "bash -lc \"! grep -rn 'tokio::time::sleep' src/backend/handshake_core/src/swarm_orchestration/vm_fleet/executor.rs src/backend/handshake_core/src/swarm_orchestration/vm_fleet/error_policy.rs && echo NO_INLINE_RETRY\"",
+      "bash -lc \"! grep -rnE 'DELETE FROM|teardown_worktree_vm' src/backend/handshake_core/src/swarm_orchestration/vm_fleet/error_policy.rs && echo NO_FAILURE_DELETION\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/desired_state.rs (MT-301 table + store, extended)",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/executor.rs and reconciler.rs (MT-302/303, error routing + due-scan)",
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (scope rationale lines 1-42, ResourceScope 147-153)",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (schema style precedent)"
+    ],
+    "expected_tests": [
+      "unit: backoff sequence 5s,10s,20s,...,cap with jitter bounds asserted statistically over pre-drawn jitter values",
+      "live-PG: failure increments counters in the claim transaction; success resets",
+      "live-PG: threshold crossing quarantines exactly once with exactly one alert event",
+      "live-PG: quarantined row slow-retries and stays quarantined on continued failure; full success resets to healthy",
+      "live-PG: poison worktree does not delay healthy worktree dispatch",
+      "live-PG: desired-write bypasses backoff window; tick respects it; restart preserves windows",
+      "unit/grep-backed: no deletion or teardown in any failure path"
+    ],
+    "implementation_notes": [
+      "IMPLEMENTATION GATE: gated on WP-1 IV verdicts + merge to main (expansion_provenance.implementation_gate); MT-303 must land first.",
+      "The policy function is pure (jitter pre-drawn by the caller) so MT-307 can property-test dispositions deterministically.",
+      "Quarantine semantics decision recorded here: slow-retry FULL success resets to healthy; partial progress does not. This resolves the P16 ambiguity ('require operator action to clear') in favor of self-healing on genuine recovery while keeping operator clearing for stuck cases.",
+      "Failure accounting lives on the fleet desired-state row, not worktree_vm_bindings, so worktree_vm_registry.rs stays untouched and the SKIP LOCKED claim already serializes counter updates.",
+      "last_failure_reason is a truncated display string for operators; the typed error and full context live in the EventLedger records (authority stays with the ledger).",
+      "All Rust; PostgreSQL/EventLedger authority; no SQLite; no K8s/Docker/containerd/Nomad; disk-agnostic paths; no names with spaces.",
+      "Implementer never marks COMPLETED."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Policy/schema MT; quarantine alerts and health states become operator-visible in MT-306's fleet panel. The FLEET_WORKSPACE_QUARANTINED ledger alert is the projection seam."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace fleet > Failure handling (backoff, why a workspace shows 'backoff', when it becomes 'quarantined')",
+      "Workspace fleet > Quarantine recovery (what clears it, why nothing is ever auto-deleted)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Quarantine entry/clear are ledger events here; FR quarantine events land in MT-306. Record DEFERRED-to-MT-306."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED",
+      "note": "FLEET_WORKSPACE_QUARANTINED is itself the alert surface; additionally emit a diagnostic event on every quarantine entry so stall monitoring (Oxide per-target alarm heuristic) has a machine-readable feed."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "No new long-lived process; the policy runs inside the MT-302 daemon whose liveness posture is recorded there."
+    }
+  ],
+  "risk_if_missed": "A single poison workspace retries hot forever (log flood, CPU burn, IO stampede against CH restores) or - worse - a naive dead-letter path deletes a user's workspace binding; operators get no alert when a workspace stalls, reproducing the silent max-backoff purgatory the research basis names as the anti-pattern.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Global instead of per-item backoff: one poison VM stalls the whole fleet's reconciliation.",
+      "RISK-2: Unjittered synchronized retries after a daemon restart produce a thundering herd of simultaneous CH restores.",
+      "RISK-3: A dead-letter-style path deletes or tears down a workspace binding after N failures, destroying user work.",
+      "RISK-4: Quarantine without an alert: workspaces rot in slow-retry purgatory and nobody notices (the named P16 anti-pattern).",
+      "RISK-5: Backoff state kept in memory evaporates on restart, so a restart bypasses every backoff window at once."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): consecutive_failures/next_attempt_at_utc are per-row columns; AC-304-6 poison-isolation live test.",
+      "CTRL-2 (RISK-2): FULL jitter in the one central policy; AC-304-2 formula test with jitter bounds.",
+      "CTRL-3 (RISK-3): No deletion/teardown in any failure path - grep proof AC-304-7 plus MT-305 owning the only legitimate teardown route.",
+      "CTRL-4 (RISK-4): Quarantine entry appends exactly one ledger alert and a diagnostic event; AC-304-4.",
+      "CTRL-5 (RISK-5): Backoff gating is a SQL predicate on the claim SELECT; AC-304-8 restart test."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - P3 (single error_policy callback owns backoff; no ad-hoc sleeps in reconcile bodies), P15 (per-item exponential backoff + full jitter, reset on success, controller-runtime base/cap precedent), P16 (quarantine-not-dead-letter: slow retry forever + operator alert + never auto-delete user worktrees; Oxide per-target stall alarms), P17 (restart stampede control), architecture sketch line 7. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): migrations/0365_worktree_vm_bindings.sql (column/constraint style, failure_reason precedent line 16); worktree_vm_registry.rs (typed-error taxonomy 46-104, fenced-write zero-rows StaleBinding discipline 1104-1162); resource_scope.rs (module rationale 1-42, ResourceScope 147-153); model_lane.rs (reclaim_after_utc timing-column precedent 6573).",
+    "corrections": [
+      "Operator constraints baked in: never delete un-promoted/user work (research operator_constraints 'GC must never delete un-promoted work' generalized here to failure handling), all Rust, no SQLite, no K8s/Docker/containerd/Nomad, gated on WP-1 IV verdicts + merge.",
+      "Quarantine clear semantics (full slow-retry success self-heals; partial progress does not) is a contract-level decision resolving P16's operator-action ambiguity; flagged for operator review at activation refinement."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: microVM workspace fleet reconciler",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

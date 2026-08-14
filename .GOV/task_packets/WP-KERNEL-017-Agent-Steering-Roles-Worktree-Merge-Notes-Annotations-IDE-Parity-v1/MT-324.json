@@ -1,0 +1,182 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-324",
+  "title": "DW-MT324-ExportBundleManifest",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Guest outbox on the volume ridden over the warm-agent protocol; host packs a typed bundle manifest in OCI-descriptor shape; patch payload = git bundle with recorded prerequisite base SHA; blobs into CAS; SLSA-style provenance record appended to EventLedger",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-324.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-322"],
+    "blocks": ["MT-325", "MT-326", "MT-328"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the product-handoff exit ramp: a guest agent working inside a microVM deposits its finished work (code patch, build artifacts, test logs) into an OUTBOX directory on the durable volume, and the host packs that outbox into a typed, content-addressed workspace bundle - blobs in the MT-321 CAS, a manifest in OCI-descriptor shape (P11: every entry is {mediaType, digest, size}; the manifest's own digest names the bundle; the whole structure is a Merkle DAG), the code patch as a git bundle with its prerequisite base SHA recorded (P13: git bundle verify gives a built-in promotion precondition check), and a SLSA-style provenance record appended to the EventLedger (P14: subjects = blob digests; predicate = {workspace-id, VM-id, base-image digest, worktree base SHA, MT-id}; the ledger's append-only property substitutes for DSSE signing in a local-first single-operator product). Export produces PENDING_PROMOTION state only - nothing this MT writes is authority-reachable; that is exclusively MT-325's promotion gate.\n\nEXPECTED DIFF SHAPE: workspace_volumes/export_bundle.rs (manifest types, outbox packer, export orchestration); warm_agent_protocol.rs gains export frames (protocol already at v2 after MT-323); guest agent implements outbox scan/stream; one migration 03NN_export_bundles.sql; tests including a real-VM export round-trip.\n\nDETAILED SPEC:\n1. Outbox convention (guest side, on the volume - never on virtio-fs, per MT-322 policy):\n   /hsk-volume/outbox/<export_id>/ with export_id = UUIDv7 minted by the host when export starts; the guest writes files under that directory, then the session runner triggers MT-323's VolumeFsync (pre-export commit point) before any scan. Path rules: relative entry paths, no spaces, no symlinks (symlink entries are refused during scan - typed error), no entry above the export root (.. rejected).\n2. Protocol frames (warm_agent_protocol.rs; deny_unknown_fields tagged enums WarmAgentHostFrame ~56-71 / WarmAgentGuestFrame ~75-104; 1 MiB frame cap WARM_AGENT_MAX_FRAME_BYTES line 8):\n   Host: ExportScan { request_id, export_id }, ExportRead { request_id, export_id, entry_path, offset, len }\n   Guest: ExportIndex { request_id, entries: Vec<ExportEntryMeta> } with ExportEntryMeta { path, size_bytes, sha256 } (guest hashes AFTER its fsync), ExportChunk { request_id, entry_path, offset, bytes_b64 }, ExportDone { request_id }\n   Chunk payload cap 512 KiB pre-base64 so every frame stays under the 1 MiB cap (line 8). The host re-hashes every streamed entry and REFUSES the export (typed ExportEntryHashMismatch) if host-observed sha256 differs from the guest-declared sha256 - the guest is untrusted (TrustClass::UntrustedAgent, worktree_vm_registry.rs ~249); guest-declared hashes are claims, host hashes are truth. Rejected alternative (recorded): host loop-mounting the raw volume read-only - needs root privileges in WSL and pause/detach churn; the streamed protocol keeps the VM live and unprivileged. Streaming rides the exact same serial-socket frame transport the warm-agent protocol already uses.\n3. Manifest (export_bundle.rs):\n   pub struct WorkspaceBundleManifest { pub schema_id: String  // \"hsk.workspace_bundle_manifest@1\", pub export_id: Uuid, pub workspace_id: String, pub worktree_id: String, pub vm_id: String, pub base_image_digest: Sha256Digest, pub worktree_base_sha: String, pub mt_id: Option<String>, pub entries: Vec<BundleEntry>, pub created_at_utc: DateTime<Utc> }\n   pub struct BundleEntry { pub media_type: String, pub digest: Sha256Digest, pub size_bytes: u64, pub entry_kind: BundleEntryKind, pub path_hint: String }\n   pub enum BundleEntryKind { Patch, Artifact, TestLog }\n   Media types (P11 shape heuristic, no OCI dependency): application/x-hsk-git-bundle+v1, application/x-hsk-artifact, text/x-hsk-test-log. Serialization is canonical JSON (serde_json with BTreeMap-ordered keys, no insignificant whitespace) so the manifest digest is deterministic; the serialized manifest goes into the CAS via put_blob and its digest is THE bundle identity.\n4. Patch payload (P13): the guest creates the git bundle inside the VM on the volume (git ships in the toolchain base image): `git -c core.longpaths=true bundle create /hsk-volume/outbox/<export_id>/patch.gitbundle <base_sha>..HEAD` with the prerequisite base SHA = the worktree base recorded at workspace provisioning; the manifest records worktree_base_sha so MT-325 can run `git bundle verify` against the authoritative repo before any apply. A bundle-less export (Artifact/TestLog-only) is legal; a Patch entry without worktree_base_sha is a refused manifest (typed error).\n5. Persistence + provenance, migration 03NN_export_bundles.sql:\n   CREATE TABLE IF NOT EXISTS export_bundles (\n       export_id UUID PRIMARY KEY,\n       manifest_digest TEXT NOT NULL CHECK (manifest_digest ~ '^sha256:[0-9a-f]{64}$'),\n       volume_id UUID NOT NULL,\n       worktree_id TEXT NOT NULL,\n       worktree_base_sha TEXT,\n       base_image_digest TEXT NOT NULL,\n       mt_ref TEXT,\n       bundle_state TEXT NOT NULL CHECK (bundle_state IN ('exporting', 'pending_promotion', 'promoted', 'denied', 'aborted')),\n       generation BIGINT NOT NULL DEFAULT 1,\n       owner_account_id UUID NOT NULL, actor_principal_id UUID NOT NULL, authenticated_session_id UUID NOT NULL, access_space_id UUID NOT NULL, workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       CONSTRAINT uq_export_manifest UNIQUE (owner_account_id, manifest_digest)\n   ); plus model_lane_resource_scope_registry registration (0365 lines 38-40 pattern). State machine: exporting -> pending_promotion (all blobs CAS-committed + manifest CAS-committed + provenance appended, one transaction for the row flip) | aborted (any failure; partial CAS blobs are inert orphans awaiting MT-326 GC - they are unreferenced AND un-promoted, so the sweeper cannot touch them until their grace path resolves, and export retry re-uses content-addressing so re-streamed identical blobs dedup for free).\n   Provenance record (P14), appended to EventLedger in the same transaction that flips to pending_promotion: subjects = [entry digests + manifest digest]; predicate = { workspace_id, vm_id, base_image_digest, worktree_base_sha, mt_id, protocol_version, exporter: \"hsk.export_bundle@1\" }. This mirrors the existing manifest-provenance discipline of WarmVmSnapshotManifest (warm_agent_protocol.rs ~118-136: source_binding_id + source_binding_generation + non-widening resource_scope) - exports refuse to pack without a resolvable source binding, exactly as durable restore refuses manifests without provenance (comment at ~126-128).\n6. RESOURCE PRIVACY NOTE: export rows and provenance records carry the five scope columns (resource_scope.rs ~854-858), reads filter via sql_predicate (~798); the bundle's scope is DERIVED from its sources (volume binding + base image + worktree binding) via ResourceScope::derive_from_sources (~193-228): mixed-scope sources refuse the export rather than widening (HBR-PRIV-004) - a bundle can never be more visible than the least-visible thing that went into it.\n\nSTEP-BY-STEP:\n1. Read warm_agent_protocol.rs frame enums + manifest provenance (~56-136), worktree_vm_registry.rs binding resolution (durable_binding ~969), MT-321 CAS API, MT-322 volume/binding API, MT-323 fsync + FLUSH_UNVERIFIED flag seam, on post-merge main.\n2. Add export frames to the protocol; implement guest-side outbox scan/hash/stream in the warm-agent binary (rebuild via warm_agent_package.rs pipeline); enforce chunk sizing under the 1 MiB cap.\n3. Implement WorkspaceBundleManifest with canonical serialization and a digest-stability test.\n4. Implement the host packer: mint export_id, trigger pre-export fsync, scan, stream, host-side re-hash, CAS put per entry, manifest CAS put, transactional row flip + EventLedger provenance append. Export REFUSES on a FLUSH_UNVERIFIED workspace (MT-323 flag) - unverified durability must not launder work out.\n5. Migration 03NN_export_bundles.sql against real PostgreSQL.\n6. Tests: real-VM export round-trip (guest writes outbox incl. git bundle -> host packs -> CAS blobs verified -> pending_promotion row + provenance event); hash-mismatch refusal; symlink/traversal refusal; abort leaves inert orphans and retry dedups; scope-derivation refusal on mixed sources; FLUSH_UNVERIFIED refusal.\n7. Run proof targets under scoped CARGO_TARGET_DIR; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/warm_agent_package.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs",
+      "src/backend/handshake_core/migrations/0*_export_bundles.sql",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-327)",
+      ".GOV/**",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (append-only discipline)",
+      "Promotion/apply logic of any kind (MT-325 owns the gate; this MT must not make any digest authority-reachable)",
+      "session_worktrees/** and any repo worktree path"
+    ],
+    "acceptance_criteria": [
+      "AC-324-1: Export frames exist within the v2 protocol; every frame (chunks included) stays under WARM_AGENT_MAX_FRAME_BYTES; encode/decode round-trips proven.",
+      "AC-324-2: A real-VM export round-trip works end to end: guest writes outbox entries including a git bundle, host packs them, all blobs land in CAS integrity-verified, the manifest digest names the bundle, export_bundles row reaches pending_promotion, and the SLSA-style provenance record with subjects+predicate is appended to the EventLedger in the same transaction (Spec-Realism Gate: real VM + real PostgreSQL declared and required).",
+      "AC-324-3: Host re-hashes every streamed entry; a tampered-guest test (declared sha256 != streamed bytes) refuses the export with ExportEntryHashMismatch and no pending_promotion row exists.",
+      "AC-324-4: Outbox scan refuses symlinks and path traversal (.., absolute paths) with typed errors; entry paths are relative, space-free.",
+      "AC-324-5: WorkspaceBundleManifest canonical serialization is digest-stable (same logical manifest always yields the same sha256 across runs and key orderings) and records base_image_digest + worktree_base_sha; a Patch entry without worktree_base_sha refuses.",
+      "AC-324-6: An aborted export leaves only inert CAS orphans and an 'aborted' row - nothing authority-reachable, no partial pending_promotion state; a retry of the same content dedups blobs via content addressing.",
+      "AC-324-7: Export against a FLUSH_UNVERIFIED workspace (MT-323 flag) refuses; export without a resolvable durable source binding refuses (mirrors WarmVmSnapshotManifest provenance discipline).",
+      "AC-324-8: Bundle scope derives from source scopes via derive_from_sources; a mixed-scope source set refuses the export; cross-account export-row reads are denied (live two-account test).",
+      "AC-324-9: Nothing in this MT marks any digest promoted or applies any patch; grep + test prove no PROMOTED event kind is emitted from export code paths.",
+      "AC-324-10: No SQLite, no Docker/containerd deps, no --force deletes, relative space-free stored paths; proof commands run under scoped CARGO_TARGET_DIR; implementer never marks COMPLETED."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_export_roundtrip_real_vm -- --nocapture --ignored\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_export_host_rehash_refuses_tampered_guest -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_manifest_digest_stability -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_export_abort_leaves_inert_orphans -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_export_scope_derivation_refuses_mixed -- --nocapture\"",
+      "bash -lc \"! grep -rInE 'PROMOTED' src/backend/handshake_core/src/workspace_volumes/export_bundle.rs && echo EXPORT_NEVER_PROMOTES\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (frame enums ~56-104, WARM_AGENT_MAX_FRAME_BYTES line 8, WarmVmSnapshotManifest provenance discipline ~118-136; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (durable_binding ~969, TrustClass::UntrustedAgent in worktree_spec ~249; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/workspace_volumes/export_bundle.rs (new)",
+      "src/backend/handshake_core/src/workspace_volumes/cas.rs (MT-321 CAS: put_blob/open_verified)"
+    ],
+    "expected_tests": [
+      "real-VM test: full export round-trip with git bundle, artifacts, test logs; provenance event verified in EventLedger",
+      "adversarial test: guest-declared hash mismatch refuses export; no partial pending_promotion state",
+      "adversarial test: symlink and ../ traversal entries refused at scan",
+      "determinism test: canonical manifest serialization digest-stable across key orders and runs",
+      "test: abort mid-stream leaves 'aborted' row + inert CAS orphans; identical retry dedups",
+      "test: FLUSH_UNVERIFIED workspace refuses export; missing source binding refuses export",
+      "pg test: two-account scope denial on export rows; mixed-scope derivation refusal",
+      "negative test: export code emits no PROMOTED event"
+    ],
+    "implementation_notes": [
+      "Field basis: P11 (OCI descriptor/manifest Merkle-DAG shape - shape only, no OCI dependency), P12 (CAS blobs + Postgres as the action-cache pointer layer: run-id -> manifest digest -> blob digests), P13 (git bundle with prerequisite SHA; bundle verify as promotion precondition - executed in MT-325), P14 (SLSA/in-toto attestation shape; EventLedger append-only substitutes for DSSE locally).",
+      "Trust boundary: the guest is an untrusted agent - guest-declared hashes are cross-checked by host re-hashing; the host never executes anything from the outbox; entries are opaque bytes until MT-325's gate runs its declared checks.",
+      "The streamed-protocol-vs-loop-mount decision is recorded here per [GLOBAL-RESEARCH-052]: loop-mount rejected (root privileges in WSL, pause/detach churn, second host mount path to secure); revisit only if bundle sizes make serial streaming a measured bottleneck.",
+      "Spec-Realism Gate: the round-trip proof requires a real VM and real PostgreSQL; the protocol/manifest unit tests may use fakes but cannot substitute for AC-324-2.",
+      "House rules: all Rust; PostgreSQL/EventLedger authority, no SQLite; no Docker/containerd/K8s deps; artifacts and CARGO_TARGET_DIR under ../Handshake_Artifacts/; disk-agnostic space-free paths; no --force deletes; implementer never marks COMPLETED.",
+      "Resource privacy: bundles inherit intersection scope from their sources and can never widen; export visibility is account/Principal-scoped end to end."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend export MT; pending-export and bundle states surface to the operator in MT-327. Every export decision is reconstructable from export_bundles rows + EventLedger provenance records."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace handoff > Outbox convention (/hsk-volume/outbox/<export_id>/, what agents put where, path rules)",
+      "Workspace handoff > Bundle manifests (entry kinds, media types, manifest digest as bundle identity)",
+      "Workspace handoff > Provenance records (what the EventLedger entry contains, why exports are pending until promoted)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "Export lifecycle FR kinds are added centrally in MT-327; until then export_bundles state transitions + EventLedger provenance records are the reconstruction surface. Record DEFERRED-to-MT-327."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit diagnostic events on hash-mismatch refusal, scan refusal, and abort via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Export streaming is host-driven over the existing serial transport with per-frame progress; a hung stream is visible as a stalled 'exporting' row plus protocol timeouts - liveness capture adds no additional evidence."
+    }
+  ],
+  "risk_if_missed": "Finished agent work stays trapped inside VM volumes with no typed, verifiable way out: handoff degenerates to ad-hoc file copying with no integrity chain, no provenance, no promotion precondition - and MT-325/326 have neither manifests to gate nor a digest graph to fence and collect.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A compromised or buggy guest declares hashes that do not match streamed bytes, or streams symlink/traversal entries, smuggling unintended content into the CAS under trusted-looking digests.",
+      "RISK-2: Manifest serialization is non-canonical, so the same logical bundle yields different digests across runs - breaking dedup, provenance lookups, and MT-325's re-hash gate.",
+      "RISK-3: A crash mid-export leaves a half-packed bundle that later logic (or an operator) mistakes for complete, promoting truncated work.",
+      "RISK-4: The export path quietly becomes a promotion path (writes an authority-reachable state), collapsing the two-phase handoff and bypassing MT-325's verification.",
+      "RISK-5: A bundle assembled from mixed-scope sources (e.g. a shared base image row and a private volume) widens visibility beyond the narrowest source."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): host-side re-hash of every entry with typed refusal; symlink/traversal rejection at scan; adversarial tests for both are named regressions.",
+      "CTRL-2 (RISK-2): canonical JSON serialization with a digest-stability test across shuffled construction orders; manifest digest is computed only from the canonical bytes placed in CAS.",
+      "CTRL-3 (RISK-3): pending_promotion is reachable only via the single transaction that requires all blobs + manifest committed and provenance appended; abort is the only other exit; fault-injection test proves no third state.",
+      "CTRL-4 (RISK-4): export code structurally cannot emit PROMOTED (grep proof + test); bundle_state 'promoted' is writable only by MT-325's gate module.",
+      "CTRL-5 (RISK-5): scope derivation via derive_from_sources refuses mixed scopes; refusal test is a named regression."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P11 (OCI descriptor/manifest shape; ORAS artifact generalization), P12 (CAS + Postgres action-cache pointer layer; Bazel remote-cache shape), P13 (git bundle + prerequisite verify), P14 (SLSA provenance predicate shape; in-toto subjects). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): model_runtime/warm_agent_protocol.rs (WarmAgentHostFrame ~56-71, WarmAgentGuestFrame ~75-104, 1 MiB frame cap line 8, WarmVmSnapshotManifest source-binding provenance + refuse-without-provenance comment ~118-136); swarm_orchestration/worktree_vm_registry.rs (durable_binding ~969, TrustClass::UntrustedAgent ~249); swarm_orchestration/resource_scope.rs (derive_from_sources refusal-not-widening ~193-228).",
+    "corrections": [
+      "Two-phase discipline is contract-level: export NEVER promotes; the PROMOTED event kind is exclusively MT-325's to emit, enforced by grep proof target and module-boundary test.",
+      "Loop-mount host read path rejected in favor of protocol streaming (privilege + churn); decision and revisit-condition recorded per [GLOBAL-RESEARCH-052]."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

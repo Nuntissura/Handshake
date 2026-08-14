@@ -1,0 +1,183 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-322",
+  "title": "DW-MT322-WorkspaceVolumeProvisioning",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Named durable volume = raw ext4 image per workspace attached virtio-blk; disposable qcow2 delta boot disk with backing=base chain; worktree->VM->volume PostgreSQL bindings; durability-critical writes forbidden through virtio-fs",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-322.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-321"],
+    "blocks": ["MT-323", "MT-324", "MT-327", "MT-328"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give every agent workspace a Docker-volume-analog durable disk (research P7): one named durable volume per workspace as a raw ext4 image file attached virtio-blk, plus a per-workspace DISPOSABLE qcow2 delta boot disk whose backing file is an MT-321 base image (P2/P4: Cloud Hypervisor has Rust-native qcow2 backing-chain support since v34 - no QEMU runtime dependency), and extend the durable worktree->VM binding chain to worktree->VM->volume in PostgreSQL. Raw for the durable volume and qcow2 only for the disposable delta is a deliberate crash-consistency split (P9: raw files have no metadata to corrupt; the delta's corruption remedy is 'discard and re-derive'). The source worktree stays virtio-fs read-mostly, and durability-critical writes THROUGH virtio-fs are FORBIDDEN: P1 documents virtiofsd as a per-VM sidecar daemon with no reconnect story (Kata #2315: daemon death hangs the guest mount and kills the sandbox; Kata #2797 catalogs a crash-mode family) - the volume, never the shared directory, is the durability layer for work products.\n\nVERIFIED BASELINE (WP-1 branch, lands on main after merge): today's persistent VM boots with NO disk device at all - persistent_boot_args (sandbox/cloud_hypervisor/adapter.rs ~1713-1753) emits only --api-socket/--kernel/--initramfs/--cmdline/--serial/--console/--cpus/--memory, and the initramfs comment at adapter.rs ~663 states there is no virtio-fs/virtio-pci in the per-exec guest. Both --disk wiring and any virtio-fs worktree share are net-new surfaces; this MT adds ONLY the virtio-blk --disk surface and states the virtio-fs policy for whichever MT later adds the share.\n\nEXPECTED DIFF SHAPE: adapter.rs gains a typed disk-attachment surface threaded into persistent_boot_args; workspace_volumes/ gains volume_provisioning.rs (raw ext4 creation, qcow2 delta derivation, attachment planning); one new migration 03NN_workspace_volume_bindings.sql; WorktreeVmRegistry ensure-path gains an optional volume-attachment spec; tests including at least one REAL Cloud Hypervisor VM boot with an attached volume (Spec-Realism Gate: this MT declares real VM/disk resources).\n\nDETAILED SPEC:\n1. Typed disk surface (adapter.rs + workspace_volumes/volume_provisioning.rs):\n   pub enum VmDiskKind { NamedVolumeRaw, BootDeltaQcow2 { backing_image_digest: Sha256Digest } }\n   pub struct VmDiskAttachment { pub host_path_rel: String, pub kind: VmDiskKind, pub readonly: bool }\n   persistent_boot_args appends, per attachment, \"--disk\" + \"path=<abs_wsl_path>[,readonly=on]\" after the --memory pair (adapter.rs ~1748-1750), converting the runtime-root-relative host path through the same Windows->WSL path plumbing the adapter already uses (warm_agent_package.rs windows_path_to_wsl ~708). Base images attach readonly=on; the delta and the named volume attach writable. Attachment order is deterministic: delta boot disk first, named volume second, so guest device names are stable (/dev/vda delta, /dev/vdb volume).\n2. Volume creation (volume_provisioning.rs):\n   pub struct WorkspaceVolumeSpec { pub workspace_id: String, pub volume_name: String, pub size_bytes: u64 }\n   volume_name validated ^[a-z0-9][a-z0-9_-]{0,62}$ (no spaces, disk-agnostic); layout <runtime_root>/workspace_volumes/volumes/<workspace_id>/<volume_name>.raw and .../deltas/<workspace_id>/boot-gen<N>.qcow2 (MT-321 runtime root; NEVER inside a repo worktree - reuse the MT-321 guard).\n   pub async fn create_named_volume(spec) -> Result<ProvisionedVolume, VolumeError>  // create sparse raw file (File::set_len), then mkfs.ext4 -q via the adapter's existing WSL launcher shape (`wsl.exe -d <distro> -e mkfs.ext4 ...`, config surface CloudHypervisorConfig distro/wsl_exe accessors adapter.rs ~417-425); fsync file + parent dir; idempotent: an existing registered volume file is returned, never re-mkfs'd (re-mkfs of a live volume is data loss).\n   pub async fn derive_boot_delta(base: &BaseImageRecord, workspace_id, generation) -> Result<PathBuf, VolumeError>  // write a minimal qcow2 v3 empty-delta file whose header references the base blob path (CH consumes backing chains natively, P2); primary path is a small Rust qcow2-v3 header writer validated by booting CH against it; recorded fallback: shell out to qemu-img create -f qcow2 -b when present (tool-presence probed, never required). Never open the base blob for write (MT-321 AC-321-7; P4).\n3. Registry extension, migration 03NN_workspace_volume_bindings.sql (append-only; 0365 is never edited):\n   CREATE TABLE IF NOT EXISTS workspace_volume_bindings (\n       volume_id UUID PRIMARY KEY,\n       binding_id UUID,                      -- current worktree_vm_bindings.binding_id when attached; NULL when detached\n       worktree_id TEXT NOT NULL,\n       volume_name TEXT NOT NULL,\n       volume_kind TEXT NOT NULL CHECK (volume_kind IN ('named_raw', 'boot_delta_qcow2')),\n       backing_image_digest TEXT CHECK (backing_image_digest IS NULL OR backing_image_digest ~ '^sha256:[0-9a-f]{64}$'),\n       host_path_rel TEXT NOT NULL CHECK (host_path_rel !~ '\\s' AND host_path_rel !~ '^[A-Za-z]:' AND left(host_path_rel, 1) <> '/'),\n       size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),\n       delta_generation BIGINT NOT NULL DEFAULT 1,\n       volume_state TEXT NOT NULL CHECK (volume_state IN ('provisioning', 'detached', 'attached', 'quarantined')),\n       generation BIGINT NOT NULL DEFAULT 1,\n       owner_account_id UUID NOT NULL,\n       actor_principal_id UUID NOT NULL,\n       authenticated_session_id UUID NOT NULL,\n       access_space_id UUID NOT NULL,\n       workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       CONSTRAINT uq_workspace_volume_name UNIQUE (owner_account_id, workspace_id, volume_name),\n       CONSTRAINT chk_delta_has_backing CHECK (volume_kind <> 'boot_delta_qcow2' OR backing_image_digest IS NOT NULL)\n   ); plus model_lane_resource_scope_registry registration (0365 lines 38-40 pattern) and an index on (owner_account_id, workspace_id, volume_state). The chain worktree->VM->volume resolves as workspace_volume_bindings.binding_id -> worktree_vm_bindings (0365 lines 8-30) -> live handle via the owning adapter; backing_image_digest -> base_image_registry is the P4 child edge that MT-321's has_children seam and MT-326's GC mark phase read.\n   Rust: pub struct WorkspaceVolumeRegistry { pool: PgPool, access: ResourceAccessContext } mirroring WorktreeVmRegistry::new_durable (worktree_vm_registry.rs ~214-225); attach/detach transitions update binding_id + volume_state with generation increment; all reads scope-filtered (resource_scope.rs sql_predicate ~798).\n4. Attachment flow: extend the ensure path (worktree_vm_registry.rs ensure_worktree_vm_with_spec ~268; worktree_spec ~232 currently sets binds: vec![]) with an optional Vec<VmDiskAttachment> carried through ProcessSpec metadata or a new spec field; the per-worktree mutex already held across spawn + durable write also covers the volume attach row-write so a crash cannot leave a VM up with an unrecorded attachment. Detach on teardown transitions volume_state -> 'detached', binding_id -> NULL; the raw file is NEVER deleted by teardown (deletion authority is exclusively MT-326's lease-fenced GC).\n5. virtio-fs policy (P1, binding on later MTs): when a worktree share device is added, it mounts read-mostly; guest tooling MUST write work products, outbox content (MT-324), and anything promised durable onto the virtio-blk volume; a documented guest convention (/hsk-volume mount point) plus a policy test in this MT asserting the attachment planner never marks a virtio-fs-backed path as a durability target.\n6. RESOURCE PRIVACY NOTE: volume rows carry the five scope columns (resource_scope.rs ~854-858) and are stamped/filtered exactly like MT-321 registry rows; a volume derived from a base image inherits scope via ResourceScope::derive_from_sources (~193-228) - mixed-scope derivation refuses rather than widens (HBR-PRIV-004); cross-account volume visibility is a live-tested denial.\n\nSTEP-BY-STEP:\n1. Read adapter.rs persistent_boot_args (~1713-1753), spawn_persistent (~1764+), CloudHypervisorConfig accessors (~417-520), and worktree_vm_registry.rs ensure/teardown paths (~232-320, ~721-935) on post-merge main.\n2. Implement VmDiskKind/VmDiskAttachment and thread --disk args into persistent_boot_args with a unit test over the generated arg vector (mirror the existing ch_remote_args_shape test style, adapter.rs ~7008).\n3. Implement runtime-root layout + create_named_volume (sparse file + WSL mkfs.ext4 + fsync) and derive_boot_delta (Rust qcow2-v3 empty delta writer; CH boot is the integration proof).\n4. Write and apply migration 03NN_workspace_volume_bindings.sql against real PostgreSQL.\n5. Implement WorkspaceVolumeRegistry with attach/detach transitions and scope enforcement.\n6. Wire optional attachments through the ensure path under the existing per-worktree mutex; teardown detaches and never deletes.\n7. Tests: real-VM boot with delta+volume attached, guest mounts /dev/vdb ext4 rw and a written marker survives VM teardown + volume reattach to a fresh VM; delta discard-and-rederive keeps the named volume intact; re-provision idempotency never re-mkfs; scope denial; no-delete-on-teardown proof.\n8. Run proof targets under scoped CARGO_TARGET_DIR; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs",
+      "src/backend/handshake_core/src/sandbox/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs",
+      "src/backend/handshake_core/migrations/0*_workspace_volume_bindings.sql",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-327)",
+      ".GOV/**",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (append-only migration discipline; extend via new table, never edit)",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (protocol changes belong to MT-323/MT-324)",
+      "session_worktrees/** and any repo worktree path (volume bytes live under the product runtime root only)"
+    ],
+    "acceptance_criteria": [
+      "AC-322-1: persistent_boot_args emits deterministic --disk entries (delta first, named volume second; base-backed content readonly=on where attached) and a unit test locks the generated arg vector shape; the no-disk baseline behavior is unchanged when no attachments are requested.",
+      "AC-322-2: create_named_volume produces a sparse raw ext4 image under <runtime_root>/workspace_volumes/volumes/<workspace_id>/<volume_name>.raw with validated no-space names; re-provisioning an existing registered volume is idempotent and NEVER re-runs mkfs (live test proves data survives a second ensure).",
+      "AC-322-3: derive_boot_delta produces a qcow2 delta backed by an MT-321 base blob without ever opening the base for write; a REAL Cloud Hypervisor VM boots from the delta chain (Spec-Realism Gate: real VM/disk proof declared and required).",
+      "AC-322-4: A guest-written marker on the named volume survives VM teardown and is readable after reattaching the volume to a fresh VM (real-VM round-trip test).",
+      "AC-322-5: Deleting or corrupting the delta and re-deriving (delta_generation increment) leaves the named volume byte-identical (discard-and-rederive test, P9 remedy).",
+      "AC-322-6: Migration creates workspace_volume_bindings with scope columns, uq_workspace_volume_name, chk_delta_has_backing, and model_lane_resource_scope_registry registration; applied against real PostgreSQL; worktree->VM->volume resolves via binding_id join to worktree_vm_bindings.",
+      "AC-322-7: Attach/detach transitions run under the same per-worktree mutex as VM spawn/teardown; teardown detaches (binding_id NULL, state 'detached') and a negative test proves the raw volume file still exists afterward - no deletion path exists in this MT.",
+      "AC-322-8: The attachment planner refuses to designate any virtio-fs-backed path as a durability target (typed error + policy test); the /hsk-volume guest convention is documented in the UserManual entry.",
+      "AC-322-9: Cross-account volume reads are denied (live two-account test); volume rows are stamped via ResourceAccessContext and filtered via sql_predicate; derived-volume scope uses derive_from_sources and a mixed-scope attempt refuses rather than widens.",
+      "AC-322-10: No SQLite, no Docker/containerd dependency, no --force deletes, no absolute paths or spaces in stored paths; grep proofs pass; implementer never marks COMPLETED."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_disk_args_shape -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_volume_survives_vm_teardown_reattach -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_delta_discard_rederive_volume_intact -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_volume_binding_scope_denial -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_teardown_never_deletes_volume -- --nocapture\"",
+      "bash -lc \"! grep -rInE '\\-\\-force|rusqlite|sqlite' src/backend/handshake_core/src/workspace_volumes/ && echo CLEAN\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs (persistent_boot_args ~1713-1753 currently no --disk; spawn_persistent ~1764+; CloudHypervisorConfig distro/wsl_exe/work_dir accessors ~417-449; no virtio-fs per comment ~663; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (worktree_spec ~232 binds vec![], ensure_worktree_vm_with_spec ~268, teardown_worktree_vm ~721, new_durable ~214; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (binding table joined by binding_id; scope pattern lines 8-40)",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/warm_agent_package.rs (windows_path_to_wsl ~708, sh_quote ~742 - path conversion plumbing to reuse)"
+    ],
+    "expected_tests": [
+      "unit test: --disk arg vector shape, deterministic ordering, readonly flags",
+      "real-VM test: boot delta+volume chain; guest mounts ext4 volume rw",
+      "real-VM test: marker written in guest survives teardown and reattach to a fresh VM",
+      "test: delta discard + re-derive leaves named volume byte-identical",
+      "test: second create_named_volume for same (owner, workspace, name) is idempotent, no re-mkfs",
+      "pg test: migration + scope registration + worktree->VM->volume join resolution",
+      "pg test: two-account scope denial on volume rows",
+      "negative test: teardown path contains no volume-file deletion; file exists after teardown",
+      "policy test: virtio-fs path refused as durability target"
+    ],
+    "implementation_notes": [
+      "Field basis: P1 (virtio-fs crash modes - never the durability layer), P2 (virtio-blk raw/qcow2, CH Rust-native qcow2 + backing since v34, Firecracker's deliberate virtio-blk-only stance), P4 (backing chains, never write to a base with children, keep chains shallow: exactly base->delta, depth 1), P7 (Docker model: read-only base + disposable writable layer + named durable volume), P9 (raw for durable volume, qcow2 only for disposable delta).",
+      "WSL caveat from research Area 1: volume files must live on the WSL-ext4-visible runtime root, and 'host crash' includes wsl --shutdown teardown; the deep-durability proofs (kill VMM, wsl --shutdown) are MT-323/MT-328 scope - this MT only proves clean-teardown survival.",
+      "Spec-Realism Gate: this MT declares real VM/disk resources - AC-322-3/4/5 must run against a real Cloud Hypervisor VM under WSL; fake-adapter-only proof is insufficient. PG proofs run against real PostgreSQL.",
+      "The qcow2-v3 empty-delta writer is deliberately minimal (header + backing-file reference, no data clusters); CH booting from the derived chain IS its validation. Record the writer-vs-qemu-img decision and probe results in the implementation evidence.",
+      "House rules: all Rust; PostgreSQL/EventLedger authority, no SQLite; no Docker/containerd/K8s deps; disk-agnostic relative stored paths, no spaces; volume files under product runtime root, never repo worktrees; no --force deletes; implementer never marks COMPLETED.",
+      "Resource privacy: volumes, and everything later derived from them (bundles, manifests), stay inside the owning account/Principal scope; reuse resource_scope.rs primitives - never hand-rolled WHERE clauses."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend provisioning MT; the operator-facing volume surface (sizes, states, quota pressure) is MT-327. Provisioning state is reconstructable from workspace_volume_bindings rows and MT-327's FR events."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes > Named durable volumes (raw ext4, /hsk-volume guest mount convention, what survives VM teardown)",
+      "Workspace volumes > Boot deltas (disposable qcow2, discard-and-rederive remedy, base image chains)",
+      "Workspace volumes > virtio-fs policy (worktree share is read-mostly; durability-critical writes go to the volume)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "DW-family FR kinds (volume created/attached/detached) are introduced centrally in MT-327; until then, workspace_volume_bindings rows with generation counters are the reconstruction surface. Record DEFERRED-to-MT-327."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit diagnostic events on mkfs failure, qcow2 derivation failure, and attach/detach row-write failure via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Provisioning operations are short-lived subprocess/SQL steps; VM liveness itself is already covered by the WP-1 handle/lease machinery, not this MT."
+    }
+  ],
+  "risk_if_missed": "Agent work products live only inside disposable VM state or ride virtio-fs (whose sidecar crash modes hang the mount): a VMM or host crash silently destroys completed agent work, and MT-323..326 have no durable disk, no binding chain, and no handoff source to build on.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Idempotent-provision regression re-runs mkfs.ext4 on an existing populated volume, wiping all agent work while reporting success.",
+      "RISK-2: The delta writer or attachment code opens the base image blob for write, silently corrupting every workspace backed by that toolchain image (P4).",
+      "RISK-3: Teardown or a cleanup sweep deletes the raw volume file (treating it like disposable VM scratch under the adapter work_dir), destroying un-promoted work - the exact failure class the whole DW family exists to prevent.",
+      "RISK-4: A crash between VM spawn and the attach row-write (or vice versa) leaves a VM holding a volume with no registry record, making the volume invisible to leases/GC fencing and to the operator surface.",
+      "RISK-5: Durability-critical outputs are routed through the virtio-fs share because it is convenient, reintroducing the P1 crash-mode family."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): create_named_volume checks registry + file existence before mkfs; live test writes data, re-ensures, and proves bytes survive; mkfs only ever runs on a freshly created sparse file.",
+      "CTRL-2 (RISK-2): delta derivation opens the base path read-only; MT-321's write-to-base tripwire extends to this module; real-VM boot proves the readonly attachment.",
+      "CTRL-3 (RISK-3): no code path in this MT unlinks a .raw volume; teardown test asserts file existence afterward; deletion authority exists only in MT-326 behind lease fencing.",
+      "CTRL-4 (RISK-4): attach row-write happens under the same per-worktree mutex and ordering as the WP-1 spawn+durable-write path; a crash-injection test proves the reconcile-visible states are only (recorded+attached) or (recorded+detached), never (attached+unrecorded).",
+      "CTRL-5 (RISK-5): attachment planner types virtio-fs paths as non-durability targets and refuses; policy test is a named regression; guest convention documented in the manual."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P1 (virtiofsd crash modes; Kata #2315/#2797), P2 (virtio-blk raw/qcow2; CH Rust-native qcow2 backing since v34; io_uring qcow2 backend v51), P4 (backing chains; never write to a base with children), P7 (Docker reference model), P9 (raw durable volume vs disposable qcow2 delta), plus Area-1 WSL caveats. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): sandbox/cloud_hypervisor/adapter.rs persistent_boot_args ~1713-1753 (NO --disk today), spawn_persistent ~1764+, CloudHypervisorConfig ~394-520, no-virtio-fs comment ~663, ch_remote_args ~4880; swarm_orchestration/worktree_vm_registry.rs worktree_spec ~232 (binds vec![], NetPolicy::DenyAll), ensure_worktree_vm_with_spec ~268, teardown_worktree_vm ~721, new_durable ~214-225; migrations/0365_worktree_vm_bindings.sql lines 8-40; warm_agent_package.rs windows_path_to_wsl ~708.",
+    "corrections": [
+      "Operator constraints baked in: no QEMU/Docker/containerd runtime dependency (qemu-img allowed only as a probed optional fallback for delta creation, never required); no SQLite; no --force deletes; deletion authority reserved to MT-326.",
+      "Backing chains are fixed at depth 1 (base -> delta) per P4's deep-chain warning; deeper layering is out of scope and must not be added opportunistically."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

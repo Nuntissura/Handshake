@@ -1,0 +1,189 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-306",
+  "title": "VF-MT306-FleetObservabilityGui",
+  "group": "VF VM workspace fleet reconciler",
+  "clause": "Flight Recorder events for reconcile passes/transitions/quarantines with tick-vs-notify trigger-source labels, native egui fleet panel with stable author_id targets showing desired vs observed per workspace, Argus inspectability",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-306.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-302"],
+    "blocks": ["MT-308"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make the fleet reconciler observable to operators and to no-context models: (1) Flight Recorder events for every reconcile pass, lifecycle transition, quarantine entry/clear, and teardown milestone, each labeled with its trigger source (BOOT | TICK | NOTIFY) so drift-caught-by-tick is visible and distinguishable from event-driven work (research P8: 'log which path (tick vs notify) triggered each pass so drift-caught-by-tick is visible'); (2) a native egui fleet panel showing DESIRED vs OBSERVED state per workspace with stable author_id widget targets so parallel models can drive and read the panel deterministically; (3) Argus inspectability so the visual debug suite can capture and assert the panel.\n\nFR EVENTS: define fleet FR event kinds following the existing FR worktree-event naming convention (FR-EVT-SWARM-WORKTREE-* family in swarm_orchestration/events.rs - MT-141's research_provenance pins those at events.rs lines 75-78 in this same WP; re-verify exact lines in the implementing worktree):\n   FR-EVT-FLEET-RECONCILE-PASS { worktree_id, trigger_source, plan_summary, outcome, duration_ms, desired_generation, binding_generation }\n   FR-EVT-FLEET-LIFECYCLE-TRANSITION { worktree_id, from_state, to_state, plan_step, trigger_source }\n   FR-EVT-FLEET-QUARANTINE { worktree_id, entered_or_cleared, consecutive_failures, last_failure_reason }\n   FR-EVT-FLEET-TEARDOWN { worktree_id, step, outcome }\n   Emission points: MT-302's pass-record seam (which already carries the trigger-source label per AC-302-8), MT-303's executor transition points, MT-304's quarantine entry/clear, MT-305's finalizer steps. FR events are projections of the authoritative EventLedger records those MTs already append - never a second source of truth; where a ledger record exists, the FR event carries its reference id.\n\nEGUI FLEET PANEL: a native egui panel (in the app's existing panel/dock system - locate the host surface in the implementing worktree app/src tree; do not invent a parallel windowing path) rendering one row per workspace within the operator's account scope:\n   columns: worktree_id, desired_state (MT-301), observed lifecycle (MT-303 ObservedVmState), health_state + consecutive_failures + next_attempt_at_utc countdown (MT-304), tombstone/archive status (MT-305), last pass trigger source + timestamp, budgets (memory MiB / vcpus) and priority.\n   DESIRED vs OBSERVED divergence is the panel's core visual: rows where desired != converged-observed render with a distinct emphasized style; quarantined rows render with an alert style and expose the last_failure_reason on expansion.\n   Row actions (behind confirmation): set desired Running/Snapshotted, request teardown (MT-305 request_teardown), clear quarantine (MT-304 clear_quarantine). Actions call the typed store/finalizer APIs only - the panel NEVER writes SQL directly and NEVER calls the adapter.\n   STABLE AUTHOR IDS: every interactive widget and every row gets a stable, deterministic author_id (e.g. fleet_panel.row.<worktree_id>.desired_select, fleet_panel.row.<worktree_id>.teardown_button, fleet_panel.summary.converged_count) so parallel models can target widgets without screen-reading (GLOBAL-BUILD-040 stable element identifiers; ids must not contain spaces and must be derivable from worktree_id alone).\n   Data flow: the panel reads a FleetPanelProjection assembled backend-side (scope-filtered through the MT-301 store + registry reads); refresh on FR event arrival or a bounded poll; the panel must never block the UI thread on PostgreSQL - reads go through the app's existing async bridge for backend state.\n   QUIET OPERATION: the panel must not pop windows, steal focus, or hijack input when fleet events arrive (GLOBAL-BUILD-046..049); quarantine alerts surface as in-panel badges, not modal popups.\n\nARGUS INSPECTABILITY: register the fleet panel with the Argus visual-debug surface used by the app's GUI test flow so a model can (a) enumerate the panel's widget tree with author_ids, (b) capture a screenshot/snapshot of the panel state, (c) assert desired-vs-observed values programmatically. GUI verification per GLOBAL-BUILD-026..032: screens readable, controls discoverable, no text overlap, layout responsive, important state (divergence, quarantine) visible; record the verification path so another model can reproduce the UI test.\n\nRESOURCE PRIVACY: the projection is assembled under the operator's ResourceAccessContext; one account's panel can never render another account's workspaces (resource_scope.rs ResourceScope 147-153; scoped list from MT-301 AC-301-4). The Argus surface exposes only the same scoped projection.\n\nEXPECTED DIFF SHAPE: backend - new file vm_fleet/observability.rs (FR event constructors + FleetPanelProjection assembler) and small emission-point edits in reconciler.rs/executor.rs/error_policy.rs/finalizer.rs; app - one new egui panel module + registration in the existing dock/panel registry + Argus registration; tests both sides.\n\nSTEP-BY-STEP:\n1. Read swarm_orchestration/events.rs FR kind definitions and the existing FR emission call sites; read the app's panel registry, async backend bridge, and Argus registration points in the implementing worktree.\n2. Implement FR event kinds + constructors in observability.rs; wire the four emission points; carry ledger reference ids.\n3. Implement FleetPanelProjection (scope-filtered, desired vs observed joined per workspace).\n4. Build the egui panel with the column set, divergence/quarantine styling, stable author_ids, confirmed actions calling typed APIs.\n5. Register with Argus; implement widget-tree enumeration + snapshot capture for the panel.\n6. Tests: backend - FR events emitted at each point with correct trigger-source labels (live PG + fake adapter driving a pass, a transition, a quarantine, a teardown step); projection is scope-filtered (two-account test). GUI - Argus-driven test enumerates author_ids (stable across two launches), asserts divergence rendering for a desired!=observed fixture, asserts quarantine badge, executes a confirmed teardown action and observes request_teardown called; visual verification per GLOBAL-BUILD-026..032 with recorded evidence path. Spec-Realism Gate: backend events against real PostgreSQL; GUI assertions through the real Argus surface, not screenshots eyeballed from memory.\n7. Run proof targets; record measured output. Implementer never marks COMPLETED.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/**",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml",
+      "app/src/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (read-only consumption)",
+      "src/backend/handshake_core/src/sandbox/** (no adapter access from GUI or observability code)",
+      "src/backend/handshake_core/migrations/** (no schema in this MT)"
+    ],
+    "acceptance_criteria": [
+      "AC-306-1: FR event kinds FR-EVT-FLEET-RECONCILE-PASS / -LIFECYCLE-TRANSITION / -QUARANTINE / -TEARDOWN exist following the established FR-EVT-SWARM-* naming convention and are emitted at the four specified points, each carrying the trigger-source label (BOOT | TICK | NOTIFY) where applicable.",
+      "AC-306-2: A drift scenario (state diverged with NOTIFY suppressed) produces a reconcile-pass FR event labeled TICK - proving drift-caught-by-tick is distinguishable - by live test.",
+      "AC-306-3: FR events reference the authoritative EventLedger record ids they project; no FR event is the sole record of a state change (code review + test).",
+      "AC-306-4: The egui fleet panel renders desired vs observed per workspace with divergence emphasis, quarantine badges with expandable failure reason, health/backoff countdown, tombstone status, budgets, and priority.",
+      "AC-306-5: Every interactive widget and row exposes a stable author_id derivable from worktree_id alone, containing no spaces, stable across app launches - proven by an Argus enumeration test run twice.",
+      "AC-306-6: Panel actions (set desired, request teardown, clear quarantine) require confirmation and call only the typed MT-301/304/305 APIs; grep proof shows no SQL and no adapter calls in the panel module.",
+      "AC-306-7: The panel projection is account-scope-filtered; a two-account live test proves no cross-account rows render.",
+      "AC-306-8: The panel is quiet: no focus stealing, no modal popups on event arrival, no UI-thread blocking on PostgreSQL (async bridge only) - verified via the Argus flow and code review.",
+      "AC-306-9: Argus can enumerate the widget tree, capture a panel snapshot, and assert divergence/quarantine state; the GUI verification evidence path (GLOBAL-BUILD-026..032 checks) is recorded so another model can reproduce it."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-306 cargo test -p handshake_core fleet_fr_events -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-306 cargo test -p handshake_core fleet_drift_caught_by_tick -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-306 cargo test -p handshake_core fleet_panel_projection_scope -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-306 cargo test fleet_panel_argus -- --nocapture\"",
+      "bash -lc \"! grep -rnE 'sqlx|query\\(' app/src -l --include='*fleet*' && echo NO_SQL_IN_PANEL\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (FR-EVT-SWARM-WORKTREE-* naming convention; MT-141 pins the worktree kinds at lines 75-78 - re-verify in implementing worktree)",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/** (MT-301..305 emission points and typed APIs)",
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (ResourceScope 147-153 - projection scoping)",
+      "app/src (existing egui panel/dock registry, async backend bridge, Argus registration - locate in implementing worktree)"
+    ],
+    "expected_tests": [
+      "live-PG + fake adapter: each of the four FR emission points fires with correct payload and trigger label",
+      "live-PG: NOTIFY-suppressed drift is caught by tick and labeled TICK",
+      "live-PG two-account test: projection scope filtering",
+      "Argus: author_id enumeration stable across two launches",
+      "Argus: divergence emphasis and quarantine badge assertions on fixtures",
+      "Argus: confirmed teardown action reaches request_teardown; unconfirmed action is a no-op",
+      "GUI verification sweep per GLOBAL-BUILD-026..032 with recorded evidence path"
+    ],
+    "implementation_notes": [
+      "IMPLEMENTATION GATE: gated on WP-1 IV verdicts + merge to main (expansion_provenance.implementation_gate); MT-302 must land first (pass-record seam), and the panel's quarantine/teardown columns degrade gracefully (render as absent) until MT-304/305 land - do not hard-depend on their columns at compile time if they have not merged.",
+      "FR events are projections; EventLedger records from MT-301..305 remain the authority (research constraint: PostgreSQL/EventLedger authority only).",
+      "author_id stability is a product requirement for parallel model coordination (GLOBAL-BUILD-033..045): ids derive from worktree_id, never from row index or render order.",
+      "Trigger-source labeling exists to make resync-tick drift visible (research P8): do not collapse BOOT into TICK; they answer different diagnostic questions.",
+      "No new FR event kinds beyond the four named here without operator sign-off; payload evolution is preferred over kind proliferation (precedent: MT-141 explicitly reuses kinds and extends payloads).",
+      "All Rust including the GUI (egui); no web view, no external dashboard daemon; disk-agnostic paths; no names with spaces.",
+      "Implementer never marks COMPLETED."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "Fleet panel (native egui): desired vs observed per workspace, divergence emphasis, quarantine badges, health/backoff countdown, tombstone status, budgets, priority, confirmed row actions"
+    ],
+    "argus_targets": [
+      "fleet_panel.row.<worktree_id>.desired_select",
+      "fleet_panel.row.<worktree_id>.observed_state",
+      "fleet_panel.row.<worktree_id>.health_badge",
+      "fleet_panel.row.<worktree_id>.teardown_button",
+      "fleet_panel.row.<worktree_id>.clear_quarantine_button",
+      "fleet_panel.summary.converged_count",
+      "fleet_panel.summary.quarantined_count"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace fleet > Fleet panel (reading desired vs observed, divergence emphasis, badges, row actions)",
+      "Workspace fleet > Observability (FR event kinds, trigger-source labels, what tick-labeled drift means)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-VIS-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "This MT IS the FR wiring for the fleet family: four kinds, trigger-source labeled, ledger-referenced. The MT-302..305 DEFERRED-to-MT-306 notes resolve here."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Panel projection assembly failures and Argus registration failures emit diagnostic events via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Observability/GUI MT; the daemon's liveness posture is recorded in MT-302. The panel itself is in-app UI with no separate process."
+    }
+  ],
+  "risk_if_missed": "The fleet is a black box: operators cannot see desired-vs-observed divergence or quarantines, drift caught by the resync tick is indistinguishable from event-driven work (masking event-path bugs, the exact P8 warning), and parallel models have no stable widget targets - forcing fragile screen-reading against GLOBAL-BUILD-045.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: FR events become a second source of truth that drifts from EventLedger records, so replay and panel disagree.",
+      "RISK-2: Panel actions write SQL or call the adapter directly, bypassing scope enforcement, generation fencing, and intent journaling.",
+      "RISK-3: author_ids derive from row order and reshuffle every refresh, breaking every parallel-model automation built on them.",
+      "RISK-4: The panel renders cross-account workspaces through an unscoped projection query.",
+      "RISK-5: Quarantine alerts pop modal/focus-stealing UI while models are driving the app, violating quiet-operation rules."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): FR events carry ledger reference ids and are emitted only where a ledger record exists (AC-306-3).",
+      "CTRL-2 (RISK-2): Actions restricted to typed APIs; grep proof no SQL/adapter in panel module (AC-306-6).",
+      "CTRL-3 (RISK-3): author_ids derive from worktree_id alone; two-launch stability test (AC-306-5).",
+      "CTRL-4 (RISK-4): Projection assembled under ResourceAccessContext; two-account test (AC-306-7).",
+      "CTRL-5 (RISK-5): In-panel badges only; Argus flow + code review verify no focus steal or modal on event arrival (AC-306-8)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - P8 (label tick-vs-notify trigger paths so drift-caught-by-tick is visible in EventLedger; resync as drift correction), P16 (quarantine demands an alert surface operators actually see), architecture sketch lines 2 and 7. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): swarm_orchestration/events.rs FR-EVT-SWARM-WORKTREE-* kind convention (pinned at lines 75-78 by sibling contract MT-141 in this WP; re-verify in implementing worktree); resource_scope.rs (ResourceScope 147-153); vm_fleet emission points are MT-301..305 contract surfaces. GUI obligations trace to operator authority: GLOBAL-BUILD-014 (visual debugging suite), GLOBAL-BUILD-026..032 (GUI verification checks), GLOBAL-BUILD-033..045 (parallel model navigation, stable element identifiers), GLOBAL-BUILD-046..054 (quiet operation).",
+    "corrections": [
+      "Operator constraints baked in: all Rust including GUI (native egui, no web dashboard daemon), PostgreSQL/EventLedger authority (FR is projection), gated on WP-1 IV verdicts + merge.",
+      "Exact egui panel host, async bridge, and Argus registration points are deliberately specified as locate-in-implementing-worktree rather than pinned line numbers, because app/src surfaces were not inspected from this governance worktree; the implementer must anchor them before coding (GLOBAL-NAMING-003 discipline)."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: microVM workspace fleet reconciler",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

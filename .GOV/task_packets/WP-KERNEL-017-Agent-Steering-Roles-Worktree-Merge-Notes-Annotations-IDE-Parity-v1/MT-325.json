@@ -1,0 +1,177 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-325",
+  "title": "DW-MT325-PromotionGate",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Promotion = re-hash blobs against manifest + git bundle verify against the authoritative repo + declared validation checks; only a passing gate appends the PROMOTED EventLedger event that makes digests authority-reachable; failures produce durable typed denial evidence and fail closed",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-325.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-324"],
+    "blocks": ["MT-326", "MT-328"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the single gate through which agent work becomes authority-reachable. A pending bundle (MT-324) is promoted only after three independent verifications pass: (1) INTEGRITY - re-hash every blob against the manifest's declared digests via the CAS verified-read path (P12: integrity verification on read is the CAS contract; the gate re-reads FULLY, never trusts prior writes); (2) PREREQUISITE - `git bundle verify` of the patch payload against the authoritative repository proves the recorded prerequisite base SHA exists there (P13: bundle verify is git's built-in promotion precondition check); (3) DECLARED CHECKS - the typed validation checks declared for the bundle (registered validator commands, e.g. a build or test subset) all pass. Only a fully passing gate appends the PROMOTED event to the EventLedger - the event that makes the bundle's digests reachable from authority state and therefore visible to MT-326's GC mark phase and to downstream merge-back tooling. Every failure fails CLOSED and produces durable typed denial evidence (PROMOTION_DENIED event + denial row): a denial an operator can inspect is recoverable; a silent partial promotion is corruption.\n\nEXPECTED DIFF SHAPE: workspace_volumes/promotion_gate.rs (gate orchestration, check runner, denial evidence types); one migration 03NN_promotion_checks.sql (declared-check registry + denial evidence); tests. No protocol changes, no adapter changes, no GUI.\n\nDETAILED SPEC:\n1. Gate API (promotion_gate.rs):\n   pub struct PromotionGate { pool: PgPool, access: ResourceAccessContext, cas: HostCasStore, authoritative_repo_root: PathBuf }\n   pub async fn promote_bundle(&self, export_id: Uuid) -> Result<PromotionRecord, PromotionDenied>\n   pub struct PromotionRecord { pub export_id: Uuid, pub manifest_digest: Sha256Digest, pub promoted_event_id: i64, pub checks_passed: Vec<CheckOutcome> }\n   pub struct PromotionDenied { pub export_id: Uuid, pub denial_event_id: i64, pub failed_step: PromotionStep, pub evidence: DenialEvidence }\n   pub enum PromotionStep { ManifestLoad, BlobIntegrity, BundleVerify, DeclaredCheck { check_id: String }, StateTransition }\n   pub struct DenialEvidence { pub expected: String, pub observed: String, pub command: Option<String>, pub output_digest: Option<Sha256Digest> }  // full command output goes into CAS as a blob; evidence rows reference it by digest so denial evidence is itself content-addressed and tamper-evident\n2. Gate sequence (strictly ordered, short-circuit on first failure):\n   step 1 ManifestLoad: load the manifest blob via open_verified (a corrupt manifest is itself a denial, not an exception path); parse; assert schema_id hsk.workspace_bundle_manifest@1; assert export_bundles row state == 'pending_promotion' with FOR UPDATE row lock held for the whole gate run (concurrent promote calls serialize; second caller observes final state and returns idempotently).\n   step 2 BlobIntegrity: for every manifest entry, full open_verified read; any IntegrityViolation or missing blob => denial with expected/observed digests.\n   step 3 BundleVerify: if a Patch entry exists: materialize the bundle blob to a temp file under the runtime root and run `git -C <authoritative_repo_root> -c core.longpaths=true bundle verify <tmp_path>` (the -c core.longpaths=true discipline matches MT-141's Windows rule and the WP's established git invocation shape); non-zero exit => denial with stderr captured to CAS. The prerequisite SHA in the manifest must also equal a real commit in the authoritative repo (`git cat-file -e <sha>^{commit}`); mismatch => denial. NOTE: verify only - this gate NEVER fetches, applies, merges, or pushes; applying promoted patches is downstream WM-family/merge-back territory.\n   step 4 DeclaredCheck: checks come from the promotion_checks registry (see 3); each check runs as a command in a scratch working dir with the scoped CARGO_TARGET_DIR from ../Handshake_Artifacts/ (house rule), a wall-clock timeout, captured output CAS-blobbed; any non-zero exit or timeout => denial naming the check_id. Checks never run guest-supplied executables: commands are host-registered templates (check_id -> argv template) that may only reference bundle content as DATA inputs.\n   step 5 StateTransition: one PostgreSQL transaction: export_bundles.bundle_state 'pending_promotion' -> 'promoted' (guarded UPDATE ... WHERE bundle_state = 'pending_promotion') + PROMOTED EventLedger append { export_id, manifest_digest, subject digests, checks_passed, gate_version }. If the guarded update matches zero rows, the gate lost a race - re-read and return the observed terminal state idempotently. Denial path mirrors it: 'pending_promotion' -> 'denied' + PROMOTION_DENIED append + denial row, also one transaction, also guarded.\n3. Declared-check registry, migration 03NN_promotion_checks.sql:\n   CREATE TABLE IF NOT EXISTS promotion_checks (\n       check_id TEXT PRIMARY KEY CHECK (check_id ~ '^[a-z0-9][a-z0-9_-]{0,62}$'),\n       argv_template JSONB NOT NULL,\n       timeout_ms BIGINT NOT NULL CHECK (timeout_ms > 0),\n       enabled BOOLEAN NOT NULL DEFAULT TRUE,\n       owner_account_id UUID NOT NULL, actor_principal_id UUID NOT NULL, authenticated_session_id UUID NOT NULL, access_space_id UUID NOT NULL, workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n   );\n   CREATE TABLE IF NOT EXISTS promotion_denials (\n       denial_id UUID PRIMARY KEY,\n       export_id UUID NOT NULL,\n       failed_step TEXT NOT NULL,\n       expected TEXT NOT NULL,\n       observed TEXT NOT NULL,\n       output_blob_digest TEXT CHECK (output_blob_digest IS NULL OR output_blob_digest ~ '^sha256:[0-9a-f]{64}$'),\n       denial_event_id BIGINT NOT NULL,\n       owner_account_id UUID NOT NULL, actor_principal_id UUID NOT NULL, authenticated_session_id UUID NOT NULL, access_space_id UUID NOT NULL, workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n   ); both registered in model_lane_resource_scope_registry (0365 lines 38-40 pattern).\n4. Fail-closed doctrine: ANY unexpected error inside the gate (IO, SQL, parse, timeout, panic-adjacent) resolves to denial or to unchanged 'pending_promotion' - never to 'promoted'. There is exactly one line of code that can write 'promoted' and exactly one that appends PROMOTED, both inside the step-5 transaction; a module-boundary test plus grep proof enforce that no other module references the PROMOTED append path (this pairs with MT-324's EXPORT_NEVER_PROMOTES proof).\n5. RESOURCE PRIVACY NOTE: gate reads/writes are scope-filtered via ResourceAccessContext::sql_predicate (resource_scope.rs ~798); promotion and denial rows/events inherit the bundle's derived intersection scope (derive_from_sources ~193-228, refusal-not-widening per HBR-PRIV-004); account A can neither promote nor read denials of account B's bundles - both directions live-tested.\n\nSTEP-BY-STEP:\n1. Read MT-324's export_bundle.rs manifest/state machine, MT-321's CAS API, and the EventLedger append API on post-merge main; confirm the authoritative-repo-root resolution used by governed runs.\n2. Implement gate types + the five-step ordered pipeline with FOR UPDATE serialization and guarded state transitions.\n3. Implement the check runner (argv templates, timeout, output-to-CAS) with the scoped CARGO_TARGET_DIR environment.\n4. Migration 03NN_promotion_checks.sql against real PostgreSQL; seed one real default check (e.g. patch-applies-cleanly dry-run: `git apply --check` on a bundle-extracted diff in a scratch clone - still non-mutating).\n5. Tests: happy-path promotion (real PG + real CAS + real git repo with a real bundle); each step's denial (corrupt manifest, corrupt blob, missing prerequisite SHA, failing declared check, transition race) produces typed denial evidence + PROMOTION_DENIED event and leaves state 'denied'; idempotent re-promotion; concurrency race yields one PROMOTED event total; cross-account denial.\n6. Run proof targets under scoped CARGO_TARGET_DIR; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/migrations/0*_promotion_checks.sql",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-327)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (no protocol changes in this MT)",
+      "Any patch APPLY/merge/push path (verify-only gate; applying promoted work is downstream merge-back scope)",
+      "session_worktrees/** and any repo worktree path (gate scratch space lives under the runtime root / ../Handshake_Artifacts/)"
+    ],
+    "acceptance_criteria": [
+      "AC-325-1: promote_bundle runs the five steps strictly ordered with short-circuit denial; a live happy-path test against real PostgreSQL, real CAS blobs, and a real git repository (real bundle, real prerequisite SHA) yields 'promoted' state + one PROMOTED EventLedger event (Spec-Realism Gate satisfied; fixture-only proof insufficient).",
+      "AC-325-2: Blob integrity is proven by full verified re-reads at gate time; a corrupted-after-export blob yields BlobIntegrity denial with expected/observed digests - prior write-time verification is never trusted as gate evidence.",
+      "AC-325-3: git bundle verify runs against the authoritative repo with -c core.longpaths=true; a bundle whose prerequisite SHA is absent from the repo yields BundleVerify denial with CAS-blobbed command output; the gate performs no fetch/apply/merge/push (grep proof over the gate module).",
+      "AC-325-4: Declared checks execute from host-registered argv templates only, under timeout, with output CAS-blobbed; a failing and a timing-out check each yield DeclaredCheck denial naming the check_id; guest-supplied bytes are never executed.",
+      "AC-325-5: State transitions are guarded single-transaction flips; a concurrent double-promote race produces exactly one PROMOTED event and the loser returns idempotently (live concurrency test).",
+      "AC-325-6: Every denial writes a promotion_denials row + PROMOTION_DENIED event in one transaction and leaves bundle_state 'denied'; denial evidence is content-addressed (output digests resolvable in CAS).",
+      "AC-325-7: Exactly one code path can write 'promoted'/append PROMOTED (module-boundary test + grep proof); unexpected internal errors never resolve to 'promoted' (fault-injection test per step).",
+      "AC-325-8: Cross-account promotion attempts and denial-evidence reads are refused (live two-account test); promotion/denial records carry the bundle's derived intersection scope.",
+      "AC-325-9: No SQLite, no Docker/containerd deps, no --force, disk-agnostic space-free paths; check runner uses the scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/.",
+      "AC-325-10: Proof commands run under the scoped CARGO_TARGET_DIR; measured output recorded; implementer never marks COMPLETED."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_promotion_happy_path_real_repo -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_promotion_denies_corrupt_blob -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_promotion_denies_missing_prerequisite -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_promotion_race_single_promoted_event -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_promotion_denial_evidence_content_addressed -- --nocapture\"",
+      "bash -lc \"! grep -rInE 'git (fetch|apply |merge|push)' src/backend/handshake_core/src/workspace_volumes/promotion_gate.rs && echo VERIFY_ONLY_GATE\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/workspace_volumes/promotion_gate.rs (new)",
+      "src/backend/handshake_core/src/workspace_volumes/export_bundle.rs (MT-324 state machine; 'promoted' writable only from the gate)",
+      "src/backend/handshake_core/src/workspace_volumes/cas.rs (open_verified as the only read path the gate uses)",
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (sql_predicate ~798, derive_from_sources ~193-228; lands on main after WP-1 merges)"
+    ],
+    "expected_tests": [
+      "happy path: real repo + real bundle + real PG promotion with PROMOTED event",
+      "denial per step: corrupt manifest, corrupt blob, missing blob, absent prerequisite SHA, failing check, timeout check",
+      "concurrency: two simultaneous promote_bundle calls -> exactly one PROMOTED event, idempotent loser",
+      "idempotency: promote on 'promoted' and on 'denied' returns terminal state without new events",
+      "fault injection: injected IO/SQL error at each step never yields 'promoted'",
+      "security: template-only check execution; a manifest attempting to smuggle an executable path into a check is inert",
+      "pg test: two-account isolation on promote and on denial reads"
+    ],
+    "implementation_notes": [
+      "Field basis: P13 (git bundle verify as the built-in promotion precondition; prerequisite SHA recorded at export), P12 (CAS integrity-verified reads re-run at gate time; Bazel action-cache analogy for pointer rows), P14 (promotion/denial events as the attestation trail; EventLedger append-only in place of DSSE), P11 (manifest digest as the bundle identity being promoted).",
+      "The gate is the authority boundary MT-326 depends on: 'authority-reachable' is DEFINED as 'digest appears in a PROMOTED EventLedger event'; keep that definition in one queryable place (a SQL view or one function) because the GC mark phase must use the identical definition.",
+      "Verify-only discipline: no fetch/apply/merge/push anywhere in the gate; the WM merge-back family consumes promoted bundles later. This boundary is a grep proof target, not a convention.",
+      "Spec-Realism Gate: happy path and bundle-verify denials must use a real git repository and real PostgreSQL; declared-check tests must run at least one real subprocess check.",
+      "House rules: all Rust; PostgreSQL/EventLedger authority, no SQLite; no Docker/containerd/K8s deps; scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/ for the check runner and all proofs; no --force; implementer never marks COMPLETED.",
+      "Resource privacy: gate operations are scope-filtered both at SQL and after deserialization; promotion never widens the bundle's derived scope."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend gate MT; promotion states and denial evidence surface to the operator in MT-327. Every gate decision is a durable EventLedger event plus typed PG rows."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace handoff > Promotion gate (the three verifications, what PROMOTED means, why the gate never applies patches)",
+      "Workspace handoff > Denial evidence (reading promotion_denials, resolving CAS-blobbed command output, retry semantics)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "PROMOTED/PROMOTION_DENIED are EventLedger events in this MT; the FR timeline kinds for the operator surface are added centrally in MT-327. Record DEFERRED-to-MT-327."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit diagnostic events on gate denial and on gate-internal unexpected errors via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "The gate is a bounded host-side pipeline with per-step durable outcomes; a crashed gate leaves 'pending_promotion' unchanged and is simply re-run - liveness capture adds no evidence."
+    }
+  ],
+  "risk_if_missed": "Either nothing ever becomes authority-reachable (handoff dead-ends at pending bundles) or - worse - ad-hoc promotion appears without integrity re-verification and prerequisite checks, letting corrupt or wrong-base work into authority state and giving MT-326's GC a poisoned reachability definition that could both keep garbage forever and expose good work to collection.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A race or crash between the state flip and the PROMOTED append leaves the row and the ledger disagreeing about reachability - the GC mark phase then operates on a lie.",
+      "RISK-2: A manifest or check definition smuggles guest-controlled bytes into subprocess execution (command injection through argv templates or path fields).",
+      "RISK-3: The gate 'promotes' on cached write-time verification without re-reading blobs, missing corruption that occurred between export and promotion.",
+      "RISK-4: Denial evidence is prose-only and mutable, so a denied bundle cannot be audited later and disputed denials are unresolvable.",
+      "RISK-5: A second promotion surface appears (convenience function, test helper leaking into prod paths) that bypasses one or more gate steps."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): row flip and ledger append share one transaction with a guarded UPDATE; race test proves single-event outcome; a reconciliation query (state vs ledger) ships as a named test helper for MT-326 to reuse.",
+      "CTRL-2 (RISK-2): checks are host-registered argv templates; bundle content enters only as data file paths validated against the scratch root; injection attempt test is a named regression.",
+      "CTRL-3 (RISK-3): gate-time full open_verified re-reads are asserted by the corrupted-after-export test; no code path passes write-time results to the gate.",
+      "CTRL-4 (RISK-4): denial evidence rows reference CAS-blobbed command output by digest; evidence is content-addressed and tamper-evident; resolvability live-tested.",
+      "CTRL-5 (RISK-5): single-writer discipline enforced by module boundary + grep proofs on both MT-324 (never promotes) and this MT (only the step-5 transaction promotes)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P13 (git bundle verify as promotion precondition), P12 (CAS integrity-verified reads; Postgres as action-cache pointer layer), P14 (SLSA-style attestation trail; validation gates check subject digests before promotion), P11 (manifest-digest bundle identity), with P17's transactional re-verification discipline foreshadowed for MT-326. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): swarm_orchestration/resource_scope.rs (sql_predicate ~798, derive_from_sources ~193-228, authorize_row ~781); migrations/0365_worktree_vm_bindings.sql scope pattern (lines 17-21, 38-40); git -c core.longpaths=true invocation discipline mirrored from this WP's MT-141 contract and workspace_safety.rs call-site pattern cited there.",
+    "corrections": [
+      "The gate is verify-only by contract: applying promoted patches to the authoritative repo belongs to the WM merge-back family, not the DW family; the boundary is enforced by grep proof, not convention.",
+      "Fail-closed is asymmetric by design: every ambiguous outcome resolves toward 'pending_promotion' or 'denied', never toward 'promoted'; operator recovery is re-running the gate, which is idempotent."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

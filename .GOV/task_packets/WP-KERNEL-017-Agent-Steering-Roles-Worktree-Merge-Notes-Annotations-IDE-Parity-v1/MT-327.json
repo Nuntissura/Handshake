@@ -1,0 +1,187 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-327",
+  "title": "DW-MT327-VolumeObservabilityGui",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Flight Recorder events for volume lifecycle/export/promotion/GC decisions; native egui panel with stable author_id targets for volumes, quota pressure, pending exports, promotion states, and the GC review queue; Argus inspectability",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-327.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-322", "MT-326"],
+    "blocks": ["MT-328"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make the entire DW surface observable and operator-steerable: the Flight Recorder event family for volume lifecycle, export, promotion, and GC decisions (the FR wiring MT-321..326 deliberately deferred here so kinds are designed once, coherently), plus a native egui panel with stable author_id widget targets so parallel models and the operator can inspect and act on volumes, quota pressure, pending exports, promotion states, and the GC review queue without SQL access. Argus inspectability is required: every panel surface registers stable targets so automated GUI verification can drive it ([GLOBAL-BUILD-023..032]). This MT is the DW family's HBR-VIS surface: backend truth stays in PostgreSQL/EventLedger; the panel is a projection, never an authority (no state lives only in the GUI).\n\nEXPECTED DIFF SHAPE: swarm_orchestration/events.rs (or the events module's DW sibling) gains the FR-EVT-DW-* kinds; workspace_volumes/observability.rs emits them from the MT-321..326 seams; app/src/** gains the egui panel + its projection query layer; tests include FR payload round-trips and a GUI verification pass via the project's visual debugging suite.\n\nDETAILED SPEC:\n1. FR event kinds (new kinds are correct here - this is a new product surface; naming mirrors the existing FR-EVT-SWARM-* family in swarm_orchestration/events.rs, whose worktree kinds sit at lines ~75-78 on the WP-1 branch):\n   FR-EVT-DW-VOLUME-CREATED { volume_id, workspace_id, volume_name, size_bytes, base_image_digest? }\n   FR-EVT-DW-VOLUME-ATTACHED / FR-EVT-DW-VOLUME-DETACHED { volume_id, binding_id, vm_id, delta_generation }\n   FR-EVT-DW-FLUSH-GATE { volume_id, ch_version, disk_mode, outcome }  // MT-323 verification + refusal outcomes\n   FR-EVT-DW-REATTACH-VERDICT { volume_id, verdict, delta_generation }\n   FR-EVT-DW-EXPORT-STARTED / FR-EVT-DW-EXPORT-PACKED / FR-EVT-DW-EXPORT-ABORTED { export_id, manifest_digest?, entry_count, total_bytes }\n   FR-EVT-DW-PROMOTED / FR-EVT-DW-PROMOTION-DENIED { export_id, manifest_digest, failed_step?, denial_id? }\n   FR-EVT-DW-GC-CANDIDATE / FR-EVT-DW-GC-DELETED / FR-EVT-DW-GC-RESCUED { candidate_id, object_kind, object_ref, evidence_ref? }\n   FR-EVT-DW-QUOTA-PRESSURE { workspace_id, used_bytes, byte_limit }\n   FR-EVT-DW-STALE-LEASE-ALERT { lease_id, holder_kind, fenced_object_kind, fenced_object_ref }\n   Payload discipline mirrors MT-141's rule: typed serde payload structs, no free-form JSON blobs; FR events are projections of durable PG/EventLedger truth (emit AFTER the durable write commits, carrying the durable row ids, so FR can never claim what the DB does not).\n2. Emission seams (workspace_volumes/observability.rs): one narrow emitter trait injected into the MT-321..326 modules (provisioning, flush gate, export, promotion, GC) so seams stay testable with a capture fake; every emission site is covered by a payload round-trip test.\n3. egui panel (app/src/**, native egui per project GUI stack; panel name DW Volumes):\n   Sections + stable author_id targets (exact ids are contract surface for Argus and parallel models):\n   - dw_volumes_table: per-workspace volumes - name, kind, size, delta generation, state (provisioning/detached/attached/quarantined), attached VM id; row target dw_volume_row_<volume_id>.\n   - dw_quota_bar_<workspace_id>: used vs limit with pressure state; quota-pressure rows visibly flagged.\n   - dw_exports_table: pending exports - export_id, state (exporting/pending_promotion/promoted/denied/aborted), entry count, manifest digest (copyable); row target dw_export_row_<export_id>.\n   - dw_promotions_table: promotion states + denial drill-down: selecting a denied row shows failed_step, expected/observed, and resolves the CAS-blobbed command output (read-only viewer); target dw_denial_view_<denial_id>.\n   - dw_gc_review_table: GC review queue - candidate, object kind/ref, grace deadline, decision; OPERATOR ACTIONS: rescue (dw_gc_rescue_btn_<candidate_id>) and operator_hold (dw_gc_hold_btn_<candidate_id>). Actions call backend commands that write the decision + an EventLedger operator-decision record - the GUI never mutates rows directly, and DELETE is deliberately NOT an available GUI action (deletion remains exclusively the MT-326 sweeper's transactional path; the panel can only make things MORE protected, in keeping with the kept-too-long error direction).\n   - dw_stale_lease_table: stale-lease alerts with release/acknowledge actions (dw_lease_release_btn_<lease_id>, dw_lease_ack_btn_<lease_id>), each writing operator-decision records.\n   Panel is quiet per [GLOBAL-BUILD-QUIET]: no popups, no focus stealing; refresh is poll/notify-driven in the panel's own repaint cycle.\n4. Projection query layer: panel reads go through account-scoped queries (ResourceAccessContext sql_predicate, resource_scope.rs ~798) - the panel of account A shows only account A's volumes/exports/candidates; system-wide GC health (sweep liveness) surfaces as counts only, no cross-account row data. Argus registration: all listed author_id targets registered with the project's Argus inspectability registry so the visual debugging suite can locate them deterministically.\n5. GUI verification (mandatory, [GLOBAL-BUILD-023..032]): drive the panel with the project's visual debugging suite: seed real backend rows (real PG), open the panel, verify readability (no overlap, all states visible), operate rescue/hold/release/ack through the stable targets, verify the backend decision rows + EventLedger records appear, capture screenshots as evidence. Record the verification path so another model can reproduce it.\n6. RESOURCE PRIVACY NOTE: GC visibility, export states, and denial evidence are account/Principal-scoped in the projection layer exactly as in the backend (HBR-PRIV-004; derive_from_sources intersection inheritance ~193-228); a two-account GUI test proves account B's rows are absent from account A's panel - not hidden by filtering in the widget, but absent from the projection query result.\n\nSTEP-BY-STEP:\n1. Read swarm_orchestration/events.rs FR kind + payload conventions (worktree family ~75-78) and the app-side panel/Argus registration conventions in the implementing worktree on post-merge main (the egui panel and Argus registry conventions are app-side surfaces to verify at implementation time; this contract fixes the target ids and behaviors, not the file layout).\n2. Define FR-EVT-DW-* kinds + typed payloads; wire the emitter trait through the MT-321..326 seams with capture-fake tests.\n3. Build the projection query layer (account-scoped, read-only) for volumes, exports, promotions, GC queue, leases, quotas.\n4. Build the egui panel sections with the stable author_id targets and the operator actions (rescue/hold/release/ack only - no delete).\n5. Register Argus targets; run the visual debugging suite pass with seeded real data; capture evidence.\n6. Tests: payload round-trips per kind; emit-after-commit ordering test (FR event carries ids that exist in PG at emission time); two-account projection isolation; action round-trip (button -> backend decision row -> EventLedger record -> panel reflects).\n7. Run proof targets under scoped CARGO_TARGET_DIR; record measured output + screenshot evidence paths under ../Handshake_Artifacts/.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "app/src/**",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/migrations/** (no new tables; this MT projects existing DW tables - operator decisions reuse MT-326's decision columns and EventLedger)",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (no protocol changes)",
+      "Any GUI delete/GC-execute action (the panel may only rescue/hold/release/acknowledge; deletion stays with the MT-326 sweeper)"
+    ],
+    "acceptance_criteria": [
+      "AC-327-1: All FR-EVT-DW-* kinds exist with typed serde payload structs; round-trip tests per kind; kinds and payload fields match this contract's list.",
+      "AC-327-2: Events emit only AFTER the corresponding durable write commits and carry the durable row ids (ordering test proves an FR event never references a row that does not exist).",
+      "AC-327-3: Every MT-321..326 seam emits through the injected emitter trait (capture-fake test per seam: provisioning, flush gate, reattach verdict, export, promotion, GC decision, quota pressure, stale lease).",
+      "AC-327-4: The DW Volumes egui panel renders all six sections with the exact stable author_id targets named in this contract; targets are registered for Argus inspectability.",
+      "AC-327-5: Operator actions rescue/hold (GC) and release/acknowledge (leases) work end-to-end through the stable targets: backend decision rows + EventLedger operator-decision records written, panel reflects the new state (live test through the visual debugging suite against real PostgreSQL - Spec-Realism Gate).",
+      "AC-327-6: No GUI path can delete anything: the panel exposes no delete action and the projection/command layer contains no deletion statements (grep proof + negative test).",
+      "AC-327-7: GUI verification pass completed per [GLOBAL-BUILD-026..032]: screens readable, controls discoverable, no text overlap, states visible; screenshot evidence + reproduction path recorded under ../Handshake_Artifacts/.",
+      "AC-327-8: Two-account isolation at the projection layer: account B's volumes/exports/candidates are absent from account A's query results (not widget-filtered); live test.",
+      "AC-327-9: Panel is quiet: no foreground popups, no focus capture during background refresh ([GLOBAL-BUILD-046..049]); verified in the GUI pass.",
+      "AC-327-10: No SQLite; no new migrations; proof commands under scoped CARGO_TARGET_DIR; implementer never marks COMPLETED."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_fr_event_payload_roundtrips -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_fr_emit_after_commit_ordering -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_projection_two_account_isolation -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_gui_action_roundtrip_rescue_hold_release_ack -- --nocapture\"",
+      "bash -lc \"! grep -rInE 'DELETE FROM|remove_file|remove_dir' app/src/ --include='*dw*' && echo GUI_CANNOT_DELETE\"",
+      "Visual debugging suite pass over the DW Volumes panel with seeded real data; screenshot evidence recorded under ../Handshake_Artifacts/dw_gui_evidence/"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (FR kind/payload conventions; existing worktree family at ~75-78 on the WP-1 branch; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/workspace_volumes/observability.rs (new emitter trait + seam wiring)",
+      "app/src/** (DW Volumes egui panel + projection layer; exact app-side layout and Argus registry conventions verified at implementation time in the implementing worktree)"
+    ],
+    "expected_tests": [
+      "payload round-trip per FR-EVT-DW-* kind",
+      "emit-after-commit ordering: event ids resolve in PG at emission",
+      "capture-fake emission test per backend seam",
+      "two-account projection isolation (absence in query results, not widget filtering)",
+      "GUI action round-trips: rescue, hold, release, acknowledge",
+      "negative: no GUI deletion path",
+      "visual suite pass: readability, discoverability, no overlap, quiet operation"
+    ],
+    "implementation_notes": [
+      "Field basis: research P16/P17/P18 require the review-queue and alert surfaces to be OPERATOR-actionable (GitLab's review queue and containerd's lease model both presume an operator/inspection surface); P14's provenance records are what the denial drill-down renders. The GUI itself follows project GUI conventions, not research-catalog patterns.",
+      "The panel is a projection: every action writes through backend commands into PG/EventLedger; no GUI-local state is authoritative; refresh re-reads projections. This keeps parallel models and the operator coherent ([GLOBAL-BUILD-033..045]).",
+      "The asymmetry is deliberate and load-bearing: GUI actions can only protect (rescue/hold) or administratively resolve (release/ack) - never destroy. Deletion has exactly one home (MT-326's transactional sweeper).",
+      "Stable author_id targets are contract surface: renaming them later is a breaking change for Argus scripts and parallel-model drivers; treat like an API.",
+      "House rules: all Rust (backend and egui panel); PostgreSQL/EventLedger authority, no SQLite; no Docker deps; artifacts + screenshots under ../Handshake_Artifacts/; disk-agnostic paths; implementer never marks COMPLETED; Spec-Realism Gate: GUI action tests run against real PostgreSQL.",
+      "Resource privacy: projection queries are account-scoped at SQL level; system-wide GC health is exposed as scalar counts only."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "DW Volumes panel: dw_volumes_table, dw_quota_bar_<workspace_id>, dw_exports_table, dw_promotions_table (with dw_denial_view_<denial_id>), dw_gc_review_table (dw_gc_rescue_btn_<candidate_id>, dw_gc_hold_btn_<candidate_id>), dw_stale_lease_table (dw_lease_release_btn_<lease_id>, dw_lease_ack_btn_<lease_id>)"
+    ],
+    "argus_targets": [
+      "dw_volumes_table",
+      "dw_exports_table",
+      "dw_promotions_table",
+      "dw_gc_review_table",
+      "dw_stale_lease_table"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes > DW Volumes panel (reading volume states, quota bars, export and promotion states)",
+      "Workspace volumes > GC review actions (rescue, hold; why delete is not a panel action)",
+      "Workspace volumes > Lease alerts (release vs acknowledge, consequences of each)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-VIS-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "This MT IS the DW family's FR wiring: all FR-EVT-DW-* kinds with typed payloads, emitted after durable commit from every MT-321..326 seam."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Panel projection-query failures and action-command failures emit diagnostic events via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "The panel is a stateless projection over durable rows; its absence or crash loses no state and is immediately visible to the operator."
+    }
+  ],
+  "risk_if_missed": "The DW machinery runs blind: no operator can see quota pressure building, exports stuck pending, promotions denied, or GC candidates approaching deletion; stale-lease alerts land nowhere; and the MT-326 review queue - designed around operator decisions - has no surface to decide from, so candidates pile up in operator_hold purgatory or get resolved via raw SQL.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: FR events emit before the durable write commits (or from a failed path), so the Flight Recorder narrates state that never existed - poisoning every downstream trace reconstruction.",
+      "RISK-2: A GUI convenience action (bulk cleanup button, debug delete) grows into a second deletion authority bypassing the MT-326 transactional path.",
+      "RISK-3: The projection layer filters in the widget instead of the query, so cross-account rows travel to the client and leak via debug tooling or Argus dumps.",
+      "RISK-4: author_id targets are renamed casually, silently breaking Argus verification and parallel-model drivers that treat them as API.",
+      "RISK-5: Panel refresh or alert surfacing pops windows / steals focus while agent models are driving the app, violating quiet-operation rules and corrupting automated GUI runs."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): emit-after-commit ordering test per seam; emitter trait takes committed row ids as arguments so an uncommitted emission cannot compile naturally.",
+      "CTRL-2 (RISK-2): grep proof + negative test that the GUI/projection layer contains no deletion statements; the action-command enum has exactly four variants (rescue, hold, release, acknowledge).",
+      "CTRL-3 (RISK-3): two-account test asserts absence from the query RESULT; projection queries are built on sql_predicate, and code review rejects any post-query filtering of scope.",
+      "CTRL-4 (RISK-4): target ids are listed in this contract and asserted by a stability test; renaming requires contract change.",
+      "CTRL-5 (RISK-5): GUI verification pass includes a quiet-operation check (no focus events, no new top-level windows during refresh/alert cycles)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff: P16/P17 (lease + review-queue models presuming an operator decision surface; GitLab online-GC review queues), P18 (quota-pressure signaling), P14 (provenance/denial evidence rendered in drill-down). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): swarm_orchestration/events.rs FR-EVT-SWARM-* worktree kinds at ~75-78 (kind/payload naming conventions mirrored); swarm_orchestration/resource_scope.rs sql_predicate ~798 (projection scoping). UNVERIFIED at authoring time: exact app-side egui panel file layout and Argus registration API - these are app/src conventions to be read in the implementing worktree at implementation start; the contract pins target ids and behaviors, not app file paths.",
+    "corrections": [
+      "FR wiring for MT-321..326 was deliberately deferred to this MT so the DW event family is designed once; the earlier MTs' hbr_int_009 FLIGHT_RECORDER tiers record DEFERRED-to-MT-327, and this MT closes those deferrals.",
+      "GUI deletion is contractually impossible, not just absent: the four-variant action enum and grep proof make 'add a cleanup button' a contract change, preserving MT-326's single deletion authority."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

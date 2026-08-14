@@ -1,0 +1,182 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-328",
+  "title": "DW-MT328-DurabilityProofSuite",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Adversarial durability proofs as named regression tests: VMM kill mid-write + reattach, wsl --shutdown host-teardown survival (operator-gated), GC negative proofs, quota-never-deletes proof; UserManual entries for the volume/handoff surface + manual self-consistency test; three-tier diagnostics posture recording",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-328.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-321", "MT-322", "MT-323", "MT-324", "MT-325", "MT-326", "MT-327"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Close the DW family with an ADVERSARIAL proof suite that attacks the durability and GC-safety claims the earlier MTs made, plus the consolidated UserManual surface and the three-tier diagnostics posture record. The stance is the research catalogs' testing doctrine (reconciler catalog P21: named crash-injection regression cases for the exact field failure modes - e.g. flintlock #326's 'spawn succeeded, process died' - kept forever as named tests): every claim gets a test that tries to BREAK it, and the broken-world scenarios from the durable-volumes catalog (P1 virtiofsd death, P8 ignored flush, P9 delta corruption, P15 GC race, P16/P17/P18 fencing) each map to at least one named proof. This MT adds no new product capability; it hardens, documents, and posture-records what MT-321..327 built. Where earlier MTs already shipped a proof (e.g. MT-323's harness, MT-326's invariant tests), this MT promotes them into the named durability suite and adds the scenarios no single MT owned end-to-end.\n\nEXPECTED DIFF SHAPE: a dedicated test module family src/backend/handshake_core/tests/dw_durability_suite/ (or the crate's test-layout equivalent) with named tests; a small operator-gated harness for the wsl --shutdown scenario; UserManual consolidation for the whole volume/handoff surface + the manual self-consistency test; a diagnostics posture record (typed Rust structure serialized into the test evidence, not a .md file) enumerating the three-tier disposition of every DW surface. No production-code changes except test seams explicitly needed and agreed via the earlier MTs' emitter/trait seams.\n\nDETAILED SPEC:\n1. Named adversarial proofs (all against real resources - Spec-Realism Gate is the point of this MT; every test name below is contract surface):\n   dw328_kill_vmm_midwrite_volume_survives_delta_discarded: boot a real VM (own child) with delta + named volume; guest starts a sustained write stream to the volume AND to its delta-backed rootfs; host SIGKILLs the CH child MID-WRITE (no fsync ack wait - harsher than MT-323's harness); reattach path runs MT-323's unclean gate; PROVE: named volume file intact and mountable, last-fsynced data present, delta discarded cleanly with generation increment, no partial delta reused, binding rows consistent (kill only the session-spawned CH child per [GLOBAL-INSPECT-014]).\n   dw328_wsl_shutdown_host_teardown_survival (OPERATOR-GATED): wsl --shutdown tears down the entire WSL utility VM - other WSL processes included - so this harness NEVER runs unattended: it is a separate ignored-by-default harness gated on HANDSHAKE_ALLOW_WSL_SHUTDOWN_TEST=1 AND an interactive operator confirmation, documented as a manual step per [GLOBAL-BUILD-053/054]. Sequence: write + guest fsync -> graceful-close through step 3 (snapshot) -> operator (or gated harness) runs wsl --shutdown -> restart WSL -> reattach; PROVE: named volume survives the utility-VM teardown (research Area-1 WSL caveat: the second flush layer WSL-VHDX->NTFS is not under our control - the recorded result documents observed behavior and its bounds, and the test asserts the volume's fsynced state, not unflushed host-cache state).\n   dw328_gc_cannot_select_leased (negative): construct every fenced_object_kind under active leases, run full sweep cycles past grace; PROVE zero candidates for leased objects (re-running MT-326's proof inside the suite with richer object mix).\n   dw328_gc_cannot_select_unpromoted (negative): unleased, unreferenced, un-promoted volumes/blobs aged past every timer; full sweep cycles; PROVE the candidate query returns nothing and a tampered hand-inserted candidate is refused at the delete layer (both MT-326 layers exercised through the public seams, not by SQL shortcuts).\n   dw328_quota_pressure_never_deletes: drive a workspace over quota with un-promoted work; PROVE writes block with typed QuotaExceeded, pressure events emit, and a full sweep afterward deletes zero bytes of that workspace's data (byte-level before/after comparison of the volume tree).\n   dw328_export_promote_gc_end_to_end: the happy-path lifecycle as one integration proof: provision -> work -> export -> promote -> detach workspace -> release leases -> age past grace -> sweep; PROVE only the promoted-and-now-unreferenced delta/scratch objects the contract allows are collected, the promoted bundle blobs remain resolvable in CAS, and every FR-EVT-DW-* event MT-327 defines appears in order.\n   dw328_crash_between_gc_commit_and_unlink: re-run MT-326's orphan-not-phantom proof inside the suite.\n2. UserManual consolidation + self-consistency test: consolidate the per-MT manual entries (MT-321..327 target_entries) into a coherent 'Workspace volumes and handoff' manual section covering: base images/CAS, named volumes + /hsk-volume convention, flush gate + unclean recovery, outbox + bundles + provenance, promotion + denial evidence, GC/leases/quotas/alerts, DW Volumes panel usage - written for a no-context model per [GLOBAL-BUILD-002..012] (purpose, workflows, commands, inputs/outputs, failure modes, recovery steps). SELF-CONSISTENCY TEST: a named test walks the manual's machine-checkable claims (commands exist, env vars honored, author_id targets present, table/view names real, event kinds real) and fails on drift - the manual becomes a tested artifact, not prose hope. Manual version bump per HBR-MAN-004.\n   Manual-claims extraction convention: the manual's machine-checkable claims are maintained as a typed claims list in the test module (claim kind + expected symbol/command/target), so the self-consistency test compiles against reality; prose paragraphs are not parsed.\n3. Three-tier diagnostics posture recording: a typed PostureRecord { surface: String, flight_recorder: Disposition, internal_diagnostics: Disposition, palmistry: Disposition, reason: String } serialized (JSON) into the suite's evidence output under ../Handshake_Artifacts/dw_durability_suite/, enumerating every DW surface (CAS, base registry, provisioning, flush gate, close orchestration, export, promotion, GC sweeper, quotas, leases, panel) and asserting in a test that (a) every surface MT-327 wired as FLIGHT_RECORDER=WIRED actually emits in the end-to-end proof, and (b) every DEFERRED disposition recorded by MT-321..326 is now either closed by MT-327 or carries a current reason - stale deferrals fail the test. This makes the hbr_int_009 tier bookkeeping itself machine-verified.\n4. Suite mechanics: real-VM tests are #[ignore]-tagged for plain unit runs and executed by an explicit suite invocation (cargo test ... -- --ignored) so default CI stays fast while the MT verdict requires the full suite; each test seeds and tears down its own scratch runtime root + PG schema state; teardown uses exact-path removal of its own scratch files only (no --force, no recursive deletion of shared roots); suite evidence (timings, outcomes, screenshots from the MT-327 panel where relevant, posture record) lands under ../Handshake_Artifacts/dw_durability_suite/<run_id>/.\n5. RESOURCE PRIVACY NOTE: suite fixtures create their own scratch accounts/Principals; proofs assert scope isolation as part of the end-to-end test (account B observer sees nothing of account A's lifecycle in projections, exports, or GC visibility - HBR-PRIV-004, derive_from_sources intersection semantics resource_scope.rs ~193-228); evidence files contain only scratch-account identifiers.\n\nSTEP-BY-STEP:\n1. Read the shipped MT-321..327 implementations and their existing named tests on post-merge main; inventory which contract proofs already exist vs which this suite must add.\n2. Build the suite skeleton + scratch-environment fixtures (runtime root, PG state, scratch accounts, real VM helpers reusing MT-322/323 test plumbing).\n3. Implement the seven named adversarial proofs; wire the wsl --shutdown harness behind its env + operator gate with manual-step documentation.\n4. Consolidate the UserManual section; implement the typed claims list + self-consistency test; bump manual version.\n5. Implement the PostureRecord enumeration + stale-deferral assertion; generate the evidence output.\n6. Run the full suite (real VM tests included; wsl --shutdown scenario as the documented operator-gated step); record all measured output and evidence under ../Handshake_Artifacts/dw_durability_suite/.\n7. Hand to validation with the suite results; implementer never marks COMPLETED.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/src/workspace_volumes/** (test seams only; no behavior changes)",
+      "src/backend/handshake_core/Cargo.toml",
+      "The UserManual surface files as located in the implementing worktree (verify exact path at implementation start; manual content + version bump)"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** except read-only panel driving through the visual debugging suite (panel changes belong to MT-327)",
+      "src/backend/handshake_core/migrations/** (no schema changes in a proof MT)",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (no protocol changes)",
+      "Behavioral changes to MT-321..327 code (a failing proof is a defect to route back, not to patch around in this MT)"
+    ],
+    "acceptance_criteria": [
+      "AC-328-1: dw328_kill_vmm_midwrite_volume_survives_delta_discarded passes against a real VM: named volume intact with last-fsynced data, delta discarded with generation increment, bindings consistent; only the session-spawned CH child is killed.",
+      "AC-328-2: dw328_wsl_shutdown_host_teardown_survival exists as an operator-gated harness (env gate + interactive confirmation + manual-step documentation); when the operator runs it, the fsynced volume state survives WSL utility-VM teardown and the observed result incl. flush-layer bounds is recorded in evidence.",
+      "AC-328-3: dw328_gc_cannot_select_leased and dw328_gc_cannot_select_unpromoted pass with the full fenced-object mix, exercising both MT-326 invariant layers through public seams; both are named regressions wired into the suite permanently.",
+      "AC-328-4: dw328_quota_pressure_never_deletes proves byte-level preservation of over-quota un-promoted workspaces across full sweep cycles, alongside typed write refusal and pressure events.",
+      "AC-328-5: dw328_export_promote_gc_end_to_end passes: full lifecycle with correct FR-EVT-DW-* event ordering, promoted blobs remaining resolvable, and only contract-permitted objects collected.",
+      "AC-328-6: The consolidated 'Workspace volumes and handoff' UserManual section exists, covers all seven listed topic areas for a no-context model, and the manual version is bumped.",
+      "AC-328-7: The manual self-consistency test walks the typed claims list (commands, env vars, author_id targets, table/view names, event kinds) against reality and passes; introducing a deliberate drift in a test fixture proves it fails (meta-test).",
+      "AC-328-8: The PostureRecord evidence enumerates every DW surface across all three tiers; the stale-deferral assertion passes (all MT-321..326 FR deferrals closed by MT-327 or carrying current reasons); evidence lands under ../Handshake_Artifacts/dw_durability_suite/<run_id>/.",
+      "AC-328-9: Scope isolation is asserted inside the end-to-end proof with a second scratch account observing nothing; suite teardown removes only its own scratch files by exact path (no --force, no recursive shared-root deletion).",
+      "AC-328-10: Full suite results (including the operator-gated harness disposition) are recorded as measured output; the implementer never marks COMPLETED - the validator holds verdict authority over this MT and, through it, the DW family's durability claims."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw328_ -- --nocapture --ignored\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw328_gc_cannot_select_unpromoted -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw328_quota_pressure_never_deletes -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw328_manual_self_consistency -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw328_posture_record_no_stale_deferrals -- --nocapture\"",
+      "Operator-gated manual step (documented): HANDSHAKE_ALLOW_WSL_SHUTDOWN_TEST=1 harness run for dw328_wsl_shutdown_host_teardown_survival with evidence recorded under ../Handshake_Artifacts/dw_durability_suite/"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/dw_durability_suite/ (new named-test family)",
+      "src/backend/handshake_core/src/workspace_volumes/** (MT-321..326 seams under test; no behavior changes)",
+      "MT-327's DW Volumes panel + Argus targets (driven read-only during the end-to-end proof)",
+      "UserManual surface (exact file location verified in the implementing worktree at implementation start)"
+    ],
+    "expected_tests": [
+      "dw328_kill_vmm_midwrite_volume_survives_delta_discarded (real VM, mid-write SIGKILL of own child)",
+      "dw328_wsl_shutdown_host_teardown_survival (operator-gated harness, documented manual step)",
+      "dw328_gc_cannot_select_leased (all fenced kinds)",
+      "dw328_gc_cannot_select_unpromoted (query layer + tampered-candidate delete layer)",
+      "dw328_quota_pressure_never_deletes (byte-level before/after)",
+      "dw328_export_promote_gc_end_to_end (lifecycle + FR ordering + scope-isolation observer)",
+      "dw328_crash_between_gc_commit_and_unlink (orphan-not-phantom)",
+      "dw328_manual_self_consistency (+ meta-test proving it catches drift)",
+      "dw328_posture_record_no_stale_deferrals"
+    ],
+    "implementation_notes": [
+      "Field basis: reconciler catalog P21 (named crash-injection regressions for exact field failure modes; deterministic replay ethos without adopting a simulation runtime) applied to the durable-volumes catalog's failure inventory: P1 (sidecar death), P8 (ignored flush), P9 (delta corruption -> discard remedy), P15 (GC race), P16/P17/P18 (fencing, review, quota). Each named test cites its pattern in a test-level comment.",
+      "Process safety is absolute: kill only session-spawned CH children ([GLOBAL-INSPECT-014]); wsl --shutdown disrupts processes this session did not start, hence the env gate + interactive operator confirmation + manual-step documentation - it never runs unattended or in CI.",
+      "This MT does not fix what it finds: a failing adversarial proof is a defect routed back to the owning MT's surface through the normal defect path; patching product behavior inside the proof MT would blur the validator boundary.",
+      "The suite is the DW family's permanent regression fence: proof-target names are contract surface, and later WPs touching workspace_volumes must keep the suite green.",
+      "House rules: all Rust; real PostgreSQL + real VM/disk resources per the Spec-Realism Gate (this MT exists to enforce it); scoped CARGO_TARGET_DIR and all evidence under ../Handshake_Artifacts/; disk-agnostic paths, no spaces; no --force deletes anywhere including test teardown; implementer never marks COMPLETED.",
+      "Resource privacy: scratch accounts only; the end-to-end proof carries a second-account observer asserting isolation as a first-class outcome, not an afterthought."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [
+      "dw_volumes_table (driven read-only during dw328_export_promote_gc_end_to_end)",
+      "dw_gc_review_table (driven read-only during GC negative proofs)"
+    ],
+    "not_applicable_reason": "No new GUI is created; MT-327's panel is exercised through its stable Argus targets as part of the end-to-end proof, satisfying GUI-verification obligations for the suite."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes and handoff (consolidated section: base images/CAS, named volumes, flush gate + recovery, outbox/bundles/provenance, promotion + denial evidence, GC/leases/quotas/alerts, DW Volumes panel)",
+      "Workspace volumes > Durability proof suite (how to run it, the operator-gated wsl --shutdown step, reading evidence output)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "The end-to-end proof asserts every MT-327 FR-EVT-DW-* kind actually emits in order; the posture record machine-verifies the tier bookkeeping across the whole DW family."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Suite failures surface through normal test output plus the evidence directory; diagnostic-event assertions are included where earlier MTs wired them, else their DEFERRED reasons are re-validated by the posture test."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "The suite is an operator/CI-invoked test run; its liveness is the test runner's own output. The GC-sweeper palmistry disposition it validates belongs to MT-326."
+    }
+  ],
+  "risk_if_missed": "The DW family ships on happy-path proofs only: the first real VMM crash, WSL teardown, GC race, or quota panic meets untested code paths, and the durability promise the whole family exists for fails exactly when invoked - with no manual for recovery and no machine-checked record of which diagnostics were ever wired.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Adversarial tests quietly degrade into happy-path tests (fsync before the 'mid-write' kill, mocked VM instead of real, shortened grace timers that skip the race window), keeping the suite green while the claims go unproven.",
+      "RISK-2: The wsl --shutdown harness runs unattended (CI, background agent) and tears down WSL under an operator's unrelated work.",
+      "RISK-3: A failing proof gets 'fixed' by patching product behavior inside this MT, bypassing the owning MT's validation and blurring who verified what.",
+      "RISK-4: The manual self-consistency test checks only trivial claims, certifying a manual whose operative instructions have drifted.",
+      "RISK-5: Suite teardown of scratch environments deletes shared runtime-root or PG state used by concurrent sessions."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): each adversarial test asserts its own adversity preconditions (e.g. bytes-in-flight counter nonzero at kill time; real-VM marker from the adapter handle; grace timers at contract defaults); a reviewer checklist maps each test to its claimed research failure mode.",
+      "CTRL-2 (RISK-2): double gate (env var + interactive confirmation) with no CI wiring; the harness refuses when stdin is not a TTY; documented as a manual operator step.",
+      "CTRL-3 (RISK-3): forbidden_paths bars behavioral changes; the contract routes failures back as defects; validator cross-checks the diff surface is tests+manual+evidence only.",
+      "CTRL-4 (RISK-4): the typed claims list must cover every command, env var, target id, table/view, and event kind named in the manual section; the meta-test proves drift detection actually fires.",
+      "CTRL-5 (RISK-5): fixtures create per-run scratch roots and schema-scoped PG state; teardown removes only recorded exact paths; a concurrent-run smoke test proves two suite instances do not interfere."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json - durable_volumes_and_handoff patterns P1, P8, P9, P15, P16, P17, P18 as the adversarial-scenario inventory, Area-1 WSL caveats (wsl --shutdown as a host-crash class; the uncontrolled WSL-VHDX->NTFS second flush layer, noted UNVERIFIED-depth in the catalog and bounded accordingly in AC-328-2), and reconciler-catalog P21 (named crash-injection regressions; flintlock #326 as the archetype of asserting observed reality over API success). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): sandbox/cloud_hypervisor/adapter.rs (spawn_persistent ~1764+ retains the Child handle the kill tests must use; discover/reclaim_orphan_vm_dirs ~1252-1280 as the orphan-handling precedent), swarm_orchestration/resource_scope.rs (~193-228 intersection semantics asserted by the observer proof). UNVERIFIED at authoring time: exact UserManual file location in the implementing worktree - verified at implementation start per the allowed_paths note.",
+    "corrections": [
+      "The wsl --shutdown scenario is operator-gated by contract because it disrupts processes outside the session ([GLOBAL-INSPECT-014]); the suite records its disposition rather than requiring unattended execution.",
+      "This MT is proof-and-documentation only: product-behavior changes discovered necessary by failing proofs are routed back to the owning MTs as defects; the contract's forbidden_paths enforce the boundary."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

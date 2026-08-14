@@ -1,0 +1,181 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-323",
+  "title": "DW-MT323-CrashConsistencyFlushGate",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Flush-honoring virtio-blk with a one-time harness proof that Cloud Hypervisor flush reaches host fsync; guest fsync at MT-commit points and pre-export; unclean-shutdown reattach gate (raw keep, delta check-or-discard); graceful close ordering fsync -> pause -> snapshot -> manifest row -> teardown",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-323.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-322"],
+    "blocks": ["MT-328"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make MT-322's durability promise TRUE under crashes, not merely plausible. The central research warning is P8: Firecracker shipped for YEARS acknowledging-and-ignoring guest flush (issue #2172 - guest 'synced' data lived only in the host page cache; PR #2447 added cache_type Writethrough, with Unsafe still the default). Cloud Hypervisor's flush-to-host-fsync path is therefore treated as UNVERIFIED until OUR harness proves it (research marks CH-specific flush semantics UNVERIFIED; class-level behavior verified only for Firecracker). This MT delivers: (a) the flush-semantics verification harness and a gate that refuses durable-volume attachment in any unverified disk mode; (b) guest-agent fsync at MT-commit points and pre-export; (c) the unclean-shutdown reattach gate (P9: named raw volume = keep; qcow2 delta = check-or-discard); (d) the graceful close ordering (P10): guest fsync -> ch-remote pause -> CH snapshot -> manifest/registry row -> teardown.\n\nEXPECTED DIFF SHAPE: workspace_volumes/flush_gate.rs (verification records, reattach gate, close orchestration); a KillAfterFsyncAck harness binary/test; warm_agent_protocol.rs gains volume-fsync frames with a protocol version bump 1->2; the guest warm-agent binary (built via warm_agent_package.rs) implements the new frames; one migration 03NN_volume_flush_verification.sql for verification records; adapter close path gains ordered-close orchestration reusing the existing pause/snapshot plumbing (adapter.rs ch-remote pause ~2522, snapshot ~2544-2548, resume ~3321).\n\nDETAILED SPEC:\n1. Flush verification harness (KillAfterFsyncAck):\n   pub struct FlushVerificationRecord { pub ch_version: String, pub disk_mode: String, pub verified_at_utc: DateTime<Utc>, pub harness_run_id: Uuid, pub outcome: FlushVerificationOutcome }  // Verified | Failed { evidence }\n   Harness sequence (real VM + real disk, own child process only): boot a scratch VM with a scratch raw volume -> guest writes a nonce marker file to the volume -> guest agent issues VolumeFsync and host waits for the ack frame -> host IMMEDIATELY SIGKILLs the Cloud Hypervisor child it spawned (never any process this session did not start, per [GLOBAL-INSPECT-014]) -> host re-reads the raw image (direct file read of the marker region or reattach to a fresh scratch VM) -> marker present = Verified for the (ch_version, disk_mode) tuple. Run the matrix over the disk modes the adapter can emit (default cache and direct=on if exposed). Result rows land in PostgreSQL (03NN_volume_flush_verification.sql: tuple-unique, scope columns, model_lane_resource_scope_registry registration per 0365 lines 38-40) AND an EventLedger record FLUSH_SEMANTICS_VERIFIED is appended; the harness report file goes under ../Handshake_Artifacts/flush_harness/ (never into a repo worktree).\n   GATE: attaching a NamedVolumeRaw in write mode REFUSES (typed error FlushUnverifiedForDiskMode) unless a Verified row exists for the current (ch_version, disk_mode); this is checked at attachment-planning time in the MT-322 planner seam. The gate makes 'we assume flush works' structurally impossible - exactly the P8 lesson.\n2. Guest fsync frames (warm_agent_protocol.rs; both frame enums are #[serde(deny_unknown_fields)] tagged enums, WarmAgentHostFrame ~56-71, WarmAgentGuestFrame ~75-104, WARM_AGENT_PROTOCOL_VERSION = 1 at line 7, 1 MiB frame cap at line 8):\n   Host: VolumeFsync { request_id: String, paths: Vec<String> }  // empty paths = full-volume syncfs\n   Guest: VolumeFsyncResult { request_id: String, synced_paths: u32, error: Option<String> }\n   Version discipline: bump WARM_AGENT_PROTOCOL_VERSION to 2. Host and guest binaries ship in lockstep (the guest binary is packaged per-repo by warm_agent_package.rs, build target ~35, manifest ~103), so live sessions are always version-matched. Snapshot manifests record protocol_version (WarmVmSnapshotManifest ~118-136): restore of a v1-manifest VM remains permitted, but v1 guests are typed fsync-incapable - VolumeFsync against them returns UnsupportedByGuest and the workspace is flagged FLUSH_UNVERIFIED, which blocks export (MT-324 reads this flag). validate_for_restore's version equality check (~183-188) is relaxed to an explicit accepted-versions set {1, 2} with the capability downgrade recorded.\n   Commit points: the session runner calls VolumeFsync (1) at each MT-commit boundary, (2) before any export scan (MT-324 pre-export), (3) as step one of graceful close. NOT per-write: P8 cites Firecracker #2172 measurements showing ~4x throughput penalty for continuous fsync - flush at commit points only.\n3. Unclean-shutdown reattach gate (P9):\n   pub enum ReattachVerdict { CleanKeepAll, UncleanKeepVolumeDiscardDelta { delta_generation_incremented: i64 } }\n   Detection: graceful close writes a clean-close marker row (see 4); on ensure/attach, absence of the marker for a previously-attached volume = unclean. Verdict: named raw volume is ALWAYS kept (optionally e2fsck -p preen via the WSL launcher - preen mode only, never destructive auto-answer flags); the qcow2 delta is check-or-discard, and since no Rust qcow2 checker is in scope, the implemented policy is DISCARD: delete exactly the recorded delta file path (plain remove_file, no --force, no recursion), increment delta_generation, re-derive from base via MT-322. The verdict is recorded on the binding row and surfaced to MT-327.\n4. Graceful close ordering (P10), single orchestration fn close_workspace_vm_gracefully:\n   step 1 guest VolumeFsync (full volume) -> step 2 ch-remote pause (adapter.rs ~2522) -> step 3 CH snapshot (adapter.rs ~2544-2548; snapshot rollback guard machinery ~965-1027 stays authoritative for mid-snapshot failure) -> step 4 durable rows in one PostgreSQL transaction: clean-close marker + snapshot manifest reference + volume_state 'detached' -> step 5 teardown. The order is enforced by a typed state machine (enum CloseState with only-forward transitions) and a command-log test asserting the exact sequence; any step failure fails closed: NO clean-close marker is written (so the next attach takes the unclean path - safe direction) and the P10 rule holds: a crash anywhere loses at most post-last-flush writes, never the volume.\n5. RESOURCE PRIVACY NOTE: flush-verification rows, clean-close markers, and reattach verdicts carry the five scope columns (resource_scope.rs ~854-858) and are filtered via sql_predicate (~798); reattach verdicts for account A volumes are invisible to account B; derived records inherit intersection scope via derive_from_sources (~193-228), refusing mixed-scope derivation (HBR-PRIV-004).\n\nSTEP-BY-STEP:\n1. Read adapter.rs pause/snapshot/resume call sites (~2522, ~2544-2548, ~3321-3338), SnapshotRollback guard (~965-1027), warm_agent_protocol.rs frames and version validation (~6-8, ~56-104, ~172-202), and warm_agent_package.rs build/manifest surfaces (~32-135) on post-merge main.\n2. Add VolumeFsync/VolumeFsyncResult frames, bump protocol version to 2, extend accepted-versions restore logic, and implement the guest side in the warm-agent binary; rebuild the guest package via the existing warm_agent_package.rs pipeline.\n3. Implement the KillAfterFsyncAck harness against a scratch VM + scratch volume; write verification rows + EventLedger record + ../Handshake_Artifacts/flush_harness/ report.\n4. Implement the FlushUnverifiedForDiskMode attachment gate in the MT-322 planner seam.\n5. Implement the clean-close marker, reattach gate with delta-discard path, and close_workspace_vm_gracefully with the typed CloseState machine.\n6. Migration 03NN_volume_flush_verification.sql against real PostgreSQL.\n7. Tests: harness end-to-end (real VM, SIGKILL own CH child, marker survives); gate refuses unverified mode; unclean reattach keeps volume + discards delta + increments generation; close ordering command-log; failed close step leaves no clean-close marker; v1-guest fsync returns UnsupportedByGuest and flags FLUSH_UNVERIFIED.\n8. Run proof targets under scoped CARGO_TARGET_DIR; record measured output including the harness verdict for the current CH version.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/warm_agent_package.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs",
+      "src/backend/handshake_core/migrations/0*_volume_flush_verification.sql",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-327)",
+      ".GOV/**",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (append-only discipline)",
+      "session_worktrees/** and any repo worktree path (harness reports go to ../Handshake_Artifacts/, volume bytes under the runtime root)"
+    ],
+    "acceptance_criteria": [
+      "AC-323-1: The KillAfterFsyncAck harness runs against a REAL Cloud Hypervisor VM and a real raw volume, SIGKILLs only the CH child this harness spawned, and proves the guest-fsynced marker survives; the (ch_version, disk_mode) verification row and FLUSH_SEMANTICS_VERIFIED EventLedger record are written (Spec-Realism Gate: declared real VM/disk proof).",
+      "AC-323-2: Write-mode attachment of a named durable volume fails closed with FlushUnverifiedForDiskMode when no Verified row matches the current (ch_version, disk_mode); live negative test proves the refusal.",
+      "AC-323-3: VolumeFsync/VolumeFsyncResult frames exist; WARM_AGENT_PROTOCOL_VERSION is 2; encode/decode round-trip within the 1 MiB frame cap; host and guest packages are version-locked through the warm_agent_package pipeline.",
+      "AC-323-4: Restore of a v1-protocol snapshot manifest still works; VolumeFsync against a v1 guest returns typed UnsupportedByGuest; the workspace is flagged FLUSH_UNVERIFIED and a test proves MT-324's export seam can read that flag.",
+      "AC-323-5: Unclean-shutdown reattach ALWAYS keeps the named raw volume, discards exactly the recorded delta file path (plain remove_file, no --force, no recursive delete), increments delta_generation, and records the ReattachVerdict on the binding row (live crash-then-reattach test).",
+      "AC-323-6: close_workspace_vm_gracefully enforces fsync -> pause -> snapshot -> transactional manifest/marker rows -> teardown; a command-log test locks the exact sequence and a real-VM test executes it end-to-end.",
+      "AC-323-7: Any close-step failure leaves NO clean-close marker, so the next attach takes the unclean path (fail-safe direction); negative test injects a snapshot failure and proves the marker is absent and the volume intact.",
+      "AC-323-8: Guest fsync fires at MT-commit points and pre-export via the session-runner seam, not per-write; a test asserts commit-point invocation and the absence of continuous-fsync mode (P8 throughput lesson).",
+      "AC-323-9: Verification rows, markers, and verdicts carry the five scope columns and are scope-filtered; two-account denial live-tested; no SQLite; no --force anywhere; harness artifacts land under ../Handshake_Artifacts/flush_harness/ only.",
+      "AC-323-10: Proof commands run under the scoped CARGO_TARGET_DIR; measured output recorded; implementer never marks COMPLETED."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_flush_harness_kill_after_fsync_ack -- --nocapture --ignored\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_flush_gate_refuses_unverified_mode -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_unclean_reattach_keeps_volume_discards_delta -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_graceful_close_ordering -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_close_failure_leaves_no_clean_marker -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core warm_agent_protocol_v2_fsync_frames -- --nocapture\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (WARM_AGENT_PROTOCOL_VERSION line 7, 1 MiB cap line 8, WarmAgentHostFrame ~56-71, WarmAgentGuestFrame ~75-104, WarmVmSnapshotManifest ~118-136, validate_for_restore ~172-202; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs (ch-remote pause ~2522, snapshot ~2544-2548, resume ~3321-3338, SnapshotRollback guard ~965-1027, pending_snapshot_dirs ~808; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/sandbox/cloud_hypervisor/warm_agent_package.rs (guest binary build/manifest pipeline ~32-135, ~160+; lands on main after WP-1 merges)",
+      "src/backend/handshake_core/src/workspace_volumes/flush_gate.rs (new)"
+    ],
+    "expected_tests": [
+      "harness test (real VM, ignored-by-default in plain CI runs, required for this MT's verdict): kill own CH child after fsync ack; marker survives; verification row + EventLedger record written",
+      "negative test: unverified (ch_version, disk_mode) refuses write-mode volume attach",
+      "crash-then-reattach test: volume kept, delta discarded via exact-path remove_file, generation incremented, verdict recorded",
+      "command-log test: close sequence exactly fsync, pause, snapshot, transactional rows, teardown",
+      "fault-injection test: snapshot step failure => no clean-close marker, volume intact",
+      "protocol test: v2 frame round-trip; v1 guest returns UnsupportedByGuest; FLUSH_UNVERIFIED flag readable",
+      "pg test: verification/marker rows scope-filtered across two accounts"
+    ],
+    "implementation_notes": [
+      "Field basis: P8 (Firecracker #2172 flush-ignored years-long defect; PR #2447 Writethrough; fsync at commit points not per-write), P9 (raw keep / qcow2 check-or-discard; discard chosen because no Rust qcow2 checker is in scope), P10 (snapshot-before-teardown; VM snapshots are resume/latency tools - disk durability comes from P8, never from snapshots), P13-reconciler-catalog (CH snapshot is pause-intermediate, not atomic - reuse WP-1's SnapshotRollback guard rather than reimplementing).",
+      "UNVERIFIED discipline: CH flush semantics stay labeled UNVERIFIED in code comments and in the gate error text until the harness Verified row exists for the running CH version; upgrading CH invalidates the tuple and re-runs the harness (ch_version is part of the key).",
+      "Process safety: the harness SIGKILLs ONLY the CH child it spawned ([GLOBAL-INSPECT-014]); wsl --shutdown host-teardown proofs are NOT in this MT - they are MT-328's operator-gated harness.",
+      "e2fsck use is preen mode (-p) via the existing WSL launcher; never -y/-f destructive combinations; a preen failure quarantines the volume (volume_state 'quarantined') for operator decision instead of auto-repairing aggressively.",
+      "House rules: all Rust; PostgreSQL/EventLedger authority, no SQLite; no Docker/containerd/K8s deps; disk-agnostic paths, no spaces; artifacts to ../Handshake_Artifacts/; no --force deletes; implementer never marks COMPLETED; Spec-Realism Gate requires the real-VM harness for the verdict.",
+      "Resource privacy: verification/marker/verdict rows reuse resource_scope.rs stamping and filtering; nothing in the flush surface widens scope."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend durability MT; flush-verification status, reattach verdicts, and quarantine states surface to the operator in MT-327. All decisions are reconstructable from PostgreSQL rows and EventLedger records."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes > Flush verification gate (why attachment can refuse, how to run the harness, what FLUSH_SEMANTICS_VERIFIED means)",
+      "Workspace volumes > Unclean shutdown recovery (volume kept, delta discarded, quarantine on preen failure)",
+      "Workspace volumes > Graceful close ordering (fsync -> pause -> snapshot -> rows -> teardown)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "FLUSH_SEMANTICS_VERIFIED and close/reattach outcomes are durable EventLedger/PG records in this MT; the FR event kinds for the operator timeline are added centrally in MT-327. Record DEFERRED-to-MT-327."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit diagnostic events on flush-gate refusal, unclean reattach, quarantine, and close-step failure via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "The close orchestration spans pause/snapshot of a live VM; if the palmistry liveness surface exists in the implementing worktree, record close-in-progress liveness so a Handshake crash mid-close is distinguishable from a hung snapshot; otherwise DEFERRED-with-reason."
+    }
+  ],
+  "risk_if_missed": "Volumes exist but their durability is theater: guest 'synced' data can sit in the host page cache and vanish on VMM/host death (the exact multi-year Firecracker defect), unclean shutdowns boot corrupt qcow2 deltas, and close paths race snapshot against teardown - agent work is lost precisely when the operator most believes it is safe.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The harness passes once on a developer machine and the gate is then satisfied forever, while a CH upgrade or disk-mode change silently reintroduces ignored-flush behavior.",
+      "RISK-2: The delta-discard path deletes the wrong file (path confusion between delta and named volume), destroying the durable volume it exists to protect.",
+      "RISK-3: A partial graceful close writes the clean-close marker before all steps complete, so the next attach trusts a dirty delta/volume state.",
+      "RISK-4: The protocol version bump breaks restore of existing v1 snapshots or, worse, silently treats fsync-incapable v1 guests as flush-capable.",
+      "RISK-5: The harness kills a process it did not spawn (wrong PID under WSL), violating process-safety policy and potentially killing an operator VM."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): verification key is (ch_version, disk_mode); any tuple change voids the gate; the gate check runs at every attachment planning, not at startup only; test proves refusal after a simulated version change.",
+      "CTRL-2 (RISK-2): discard uses the exact host_path_rel recorded on the delta binding row, asserts volume_kind == 'boot_delta_qcow2' before unlink, and a test proves a mislabeled row refuses deletion.",
+      "CTRL-3 (RISK-3): the clean-close marker is the LAST durable write, inside the step-4 transaction, and fault-injection tests for every earlier step prove marker absence; the state machine has no path to the marker that skips a step.",
+      "CTRL-4 (RISK-4): accepted-versions set is explicit {1,2}; v1 restore test is a named regression; UnsupportedByGuest + FLUSH_UNVERIFIED flagging test proves fsync-incapability is typed, never assumed away.",
+      "CTRL-5 (RISK-5): the harness holds the Child handle of the CH process it spawned and signals through that handle only - never by scanned PID; code review checklist item plus a test asserting no pkill/taskkill-style invocation exists in the harness."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P8 (Firecracker #2172/#2447 flush-ignored defect and Writethrough fix; commit-point fsync), P9 (raw keep / qcow2 check-or-discard; qemu-img check semantics), P10 (fsync -> pause -> snapshot -> manifest -> teardown ordering; snapshots are not the data-durability mechanism), plus the catalog's explicit UNVERIFIED flag on CH flush semantics. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): model_runtime/warm_agent_protocol.rs (version const line 7, frame cap line 8, host/guest frame enums ~56-104, WarmVmSnapshotManifest with source-binding provenance and HBR-PRIV-004 scope ~118-136, validate_for_restore ~172-202); sandbox/cloud_hypervisor/adapter.rs (pause ~2522, snapshot ~2544-2548, resume ~3321-3338, SnapshotRollback ~965-1027); sandbox/cloud_hypervisor/warm_agent_package.rs (lockstep guest-binary packaging ~32-135).",
+    "corrections": [
+      "CH flush semantics are recorded as UNVERIFIED by the research catalog itself; this contract encodes that as a structural attachment gate rather than an implementation note, so no durable volume can be written in an unverified mode.",
+      "Operator constraints baked in: no --force deletes (delta discard is exact-path remove_file with kind assertion); process-kill safety restricted to session-spawned children; wsl --shutdown class proofs deferred to MT-328's operator-gated harness."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

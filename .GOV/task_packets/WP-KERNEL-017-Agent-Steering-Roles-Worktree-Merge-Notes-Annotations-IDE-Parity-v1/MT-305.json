@@ -1,0 +1,178 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-305",
+  "title": "VF-MT305-TeardownFinalizer",
+  "group": "VF VM workspace fleet reconciler",
+  "clause": "Postgres-native finalizer: deleted_at_utc tombstone instead of row DELETE; reconciler drives cleanup (kill VM, release lease, archive snapshot manifest) to completion before archiving the row; idempotent cleanup tolerating never-created VMs; stuck-tombstone alerting",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-305.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-303"],
+    "blocks": ["MT-308"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make workspace removal safe, crash-proof, and auditable by porting the kube-rs finalizer guarantee to PostgreSQL columns (research P4): 'if Apply ever started then Cleanup must succeed before deletion completes', both idempotent, cleanup tolerating 'Apply never having ran at all' - modeled here as a tombstone column instead of Kubernetes metadata. A workspace binding is NEVER removed by SQL DELETE: removal intent writes deleted_at_utc (tombstone); the MT-302/303 reconciler sees the tombstone and drives an ordered cleanup plan to completion - kill the VM, release the lease, archive the snapshot manifest - and only after every cleanup step has verifiably succeeded does the row move to archived. P4's documented failure mode ('object deletes will get stuck while the controller is not running') becomes a first-class alert: stuck tombstones older than a threshold raise an EventLedger alert.\n\nSCHEMA (one migration pair; allocate next free number, suffix vm_fleet_teardown_finalizer):\n   ALTER TABLE worktree_fleet_desired_state\n       ADD COLUMN deleted_at_utc TIMESTAMPTZ,\n       ADD COLUMN cleanup_completed_at_utc TIMESTAMPTZ,\n       ADD COLUMN archived_at_utc TIMESTAMPTZ,\n       ADD COLUMN cleanup_progress JSONB;  -- ordered step ledger snapshot: which finalizer steps have verifiably completed\n   Partial index: CREATE INDEX ... ON worktree_fleet_desired_state (deleted_at_utc) WHERE deleted_at_utc IS NOT NULL AND archived_at_utc IS NULL;  -- the reconciler's tombstone scan + the stuck-tombstone monitor scan\n   Plus .down.sql twin. Rationale for keeping tombstones on the fleet table: worktree_vm_bindings rows already have terminal states ('terminated'/'failed', migration 0365 lines 26-27) driven by worktree_vm_registry.rs mark_terminated_in_transaction (lines 1135-1162); the finalizer ORCHESTRATES that existing terminalization, it does not duplicate it.\n\nFINALIZER SEMANTICS:\n1. request_teardown(worktree_id): store method that sets deleted_at_utc = NOW() (if null), sets desired_state = 'absent', appends EventLedger FLEET_TEARDOWN_REQUESTED, bumps desired_generation, and NOTIFYs (via MT-301 wiring). Idempotent: repeat calls are no-ops returning the existing tombstone timestamp.\n2. The reconciler treats a tombstoned row as desired=absent with finalizer obligations. The cleanup plan (executed through MT-303's plan machinery with intent journaling) is ordered, idempotent, check-then-act:\n   Step T1 KillVm: tear down the bound VM through WorktreeVmRegistry::teardown_worktree_vm (worktree_vm_registry.rs lines 720-933) - this path already handles running, detached (reclaim_detached branch 869-901), and absent-row cases, and marks the binding terminated. MUST tolerate a workspace whose VM was never created (P4: cleanup tolerates Apply never having run): a NotBound result is SUCCESS for this step, not an error.\n   Step T2 ReleaseLease: release/expire the workspace's lease surface - the ModelLane lease records (NewModelLaneLease, model_lane.rs lines 8129-8148) and/or the checkout-lease references stamped into process metadata (production_factory.rs record_start metadata checkout_lease_* fields lines 1298-1306) - through their existing typed APIs in the implementing worktree; never by raw UPDATE against ledger-owned state. If no lease exists: SUCCESS.\n   Step T3 ArchiveSnapshotManifest: if the binding carries latest_snapshot and/or a WarmVmSnapshotManifest, record an EventLedger FLEET_SNAPSHOT_MANIFEST_ARCHIVED event carrying the manifest provenance (source binding id, generation, resource scope - the fields stamped by snapshot_warm_model, worktree_vm_registry.rs lines 654-684) and move/retain the manifest reference in an archived state; snapshot artifacts themselves are NOT deleted by this MT (deletion policy belongs to a future GC family per the durable_volumes catalog's 'GC must never delete un-promoted work' hard rule). If no snapshot exists: SUCCESS.\n   Step T4 Archive: only when T1-T3 have all verifiably succeeded (cleanup_progress records each), set cleanup_completed_at_utc and archived_at_utc, append FLEET_TEARDOWN_COMPLETED. The row REMAINS in the table as an archived tombstone (audit trail); it disappears from all live-fleet queries (every MT-301/302 list/claim query gains 'AND archived_at_utc IS NULL' - part of this MT).\n3. Crash safety: every step journals intent before acting (MT-303 discipline); a daemon crash mid-cleanup resumes from fresh observation on the next pass - cleanup_progress is a hint, re-verification is authoritative (check-then-act, never trust the progress record alone).\n4. STUCK-TOMBSTONE ALERTING (P4 avoid-clause): the resync tick checks for rows where deleted_at_utc < NOW() - threshold (default 30min, configurable) AND archived_at_utc IS NULL, and appends a FLEET_TOMBSTONE_STUCK EventLedger alert (once per escalation interval, not per tick - dedupe via the alert's idempotency key) carrying which cleanup step is blocking and why (from cleanup_progress + last error). This is the 'deletes get stuck while the controller is not running' surface made visible.\n5. NEVER-DELETE GUARANTEE: no code path in vm_fleet/ issues SQL DELETE against fleet rows; row DELETE against worktree_vm_bindings is likewise forbidden (registry terminal states are the registry's own concern). Grep-enforced.\n\nRESOURCE PRIVACY: tombstone, cleanup, and archive operations run inside the owning account's ResourceAccessContext like every fleet write (resource_scope.rs ResourceScope 147-153); archived rows keep their scope columns so audit queries remain scope-filtered; the stuck-tombstone monitor only scans rows within the daemon's own scope.\n\nEXPECTED DIFF SHAPE: one migration pair; new file vm_fleet/finalizer.rs (request_teardown, cleanup plan steps T1-T4, stuck monitor); edits to vm_fleet/desired_state.rs (columns + archived filter on queries), vm_fleet/lifecycle.rs (TearingDown/Gone states now driven by tombstones), vm_fleet/reconciler.rs (tombstone scan in tick); tests.\n\nSTEP-BY-STEP:\n1. Read the landed MT-301..304 modules, worktree_vm_registry.rs teardown paths 720-933, snapshot manifest provenance 605-686, and the lease APIs in the implementing worktree (model_lane.rs 8129-8166 as the anchor).\n2. Write the migration pair.\n3. Implement request_teardown with idempotence + ledger event + NOTIFY.\n4. Implement finalizer steps T1-T4 as MT-303 PlanSteps with intent journaling and check-then-act re-verification; wire tombstoned rows into the planner (TearingDown until T1-T3 done, Gone after archive).\n5. Add 'AND archived_at_utc IS NULL' to every live-fleet query; implement the stuck-tombstone monitor with deduped alerts.\n6. Tests (live PG + fake adapter; Spec-Realism Gate): request_teardown is idempotent; full happy-path teardown archives with all four ledger events in order; never-created-VM teardown succeeds (T1 tolerates NotBound); crash injected after T1 (and after T2) resumes and completes on the next pass; archived rows vanish from list/claim queries but remain queryable for audit within scope; stuck tombstone (fake adapter forced to fail T1 repeatedly) raises exactly one deduped FLEET_TOMBSTONE_STUCK per escalation interval; grep proves zero DELETE statements in vm_fleet/.\n7. Run proof targets; record measured output. Implementer never marks COMPLETED.",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-306 only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (orchestrate its teardown seam; do not modify)",
+      "src/backend/handshake_core/src/sandbox/** (no adapter changes; snapshot artifact deletion is out of scope)"
+    ],
+    "acceptance_criteria": [
+      "AC-305-1: Migration adds deleted_at_utc, cleanup_completed_at_utc, archived_at_utc, cleanup_progress JSONB and the partial tombstone index, with a .down.sql twin; no DELETE-based removal path exists anywhere in vm_fleet/ (grep proof).",
+      "AC-305-2: request_teardown is idempotent (repeat calls no-op), sets desired_state='absent', bumps desired_generation, appends FLEET_TEARDOWN_REQUESTED, and wakes the reconciler via the MT-301 NOTIFY channel.",
+      "AC-305-3: Cleanup executes as ordered idempotent check-then-act steps T1 KillVm -> T2 ReleaseLease -> T3 ArchiveSnapshotManifest -> T4 Archive, each with EventLedger intent journaling; archive happens only after T1-T3 verifiably succeed.",
+      "AC-305-4: T1 treats a never-created VM (NotBound) as success; a live test tears down a workspace that never had a VM and reaches archived.",
+      "AC-305-5: A crash injected between any two cleanup steps resumes and completes on a later pass without duplicating side effects - proven for at least the post-T1 and post-T2 injection points.",
+      "AC-305-6: Archived rows are excluded from every live-fleet list/claim query and remain scope-filtered queryable for audit; a live test proves both.",
+      "AC-305-7: Snapshot manifest archival records provenance (source binding id, generation, resource scope) in FLEET_SNAPSHOT_MANIFEST_ARCHIVED and deletes NO snapshot artifacts (grep proof: no delete_snapshot call in finalizer.rs).",
+      "AC-305-8: Stuck tombstones (older than threshold, unarchived) raise a deduped FLEET_TOMBSTONE_STUCK alert naming the blocking step; proven by live test with a fail-forced fake adapter.",
+      "AC-305-9: All writes are generation-fenced and scope-enforced; proof commands run with per-owner CARGO_TARGET_DIR under ../Handshake_Artifacts/ against real PostgreSQL (Spec-Realism Gate)."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-305 cargo test -p handshake_core fleet_finalizer_happy_path -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-305 cargo test -p handshake_core fleet_finalizer_never_created_vm -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-305 cargo test -p handshake_core fleet_finalizer_crash_resume -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-305 cargo test -p handshake_core fleet_tombstone_stuck_alert -- --nocapture\"",
+      "bash -lc \"! grep -rn 'DELETE FROM' src/backend/handshake_core/src/swarm_orchestration/vm_fleet/ && echo NO_ROW_DELETE\"",
+      "bash -lc \"! grep -rn 'delete_snapshot' src/backend/handshake_core/src/swarm_orchestration/vm_fleet/finalizer.rs && echo NO_SNAPSHOT_DELETION\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (teardown_worktree_vm + inner 720-933 incl. reclaim_detached branches 869-901 and absent-row idempotence 786-853; mark_terminated_in_transaction 1135-1162; warm manifest provenance stamping 654-684)",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (terminal states CHECK lines 26-27)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (NewModelLaneLease 8129-8148, ModelLaneLeaseRecord 8151-8158 - lease release anchor)",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs (checkout_lease_* metadata stamping 1298-1306 - lease reference shape)"
+    ],
+    "expected_tests": [
+      "live-PG: request_teardown idempotence and ledger event",
+      "live-PG + fake adapter: full T1-T4 happy path with ordered ledger events",
+      "live-PG: teardown of a workspace that never had a VM reaches archived",
+      "live-PG + fake adapter: crash after T1 and after T2 each resume to completion",
+      "live-PG: archived rows invisible to live queries, visible to scoped audit query",
+      "live-PG + fail-forced adapter: stuck tombstone raises deduped alert naming the blocking step",
+      "grep-backed: zero DELETE statements and zero snapshot deletions in vm_fleet/"
+    ],
+    "implementation_notes": [
+      "IMPLEMENTATION GATE: gated on WP-1 IV verdicts + merge to main (expansion_provenance.implementation_gate); MT-303 must land first.",
+      "cleanup_progress is a hint for alert diagnostics and resume ordering; re-verification against observed state is authoritative (P2/P4). Never skip a check because progress says it is done.",
+      "Snapshot ARTIFACT deletion is explicitly out of scope: the durable-volumes research catalog's hard rule 'GC must never delete un-promoted work' applies; this MT only archives manifest references with provenance.",
+      "Lease release must go through existing typed APIs; raw UPDATEs against EventLedger-owned lane/lease state are forbidden (ledger is authority).",
+      "The tombstone lives on the fleet row; worktree_vm_bindings keeps its own terminal states via the registry - the finalizer composes, never duplicates.",
+      "All Rust; PostgreSQL/EventLedger authority; no SQLite; no K8s/Docker/containerd/Nomad; no new external daemons; disk-agnostic paths; no names with spaces.",
+      "Implementer never marks COMPLETED."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Finalizer MT; teardown progress and stuck-tombstone alerts become operator-visible in MT-306. The FLEET_TEARDOWN_* and FLEET_TOMBSTONE_STUCK ledger events are the projection seam."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace fleet > Removing a workspace (tombstone model, why removal is not instant, what 'archived' means)",
+      "Workspace fleet > Stuck teardown recovery (reading the stuck-tombstone alert, which step blocked, operator options)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Teardown lifecycle is fully ledger-evented here; FR projection lands in MT-306. Record DEFERRED-to-MT-306."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED",
+      "note": "FLEET_TOMBSTONE_STUCK is the required alert surface; also emit a diagnostic event when any finalizer step fails, naming the step and typed error."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Runs inside the MT-302 daemon; the tombstone scan in the resync tick is itself the liveness check for cleanup progress."
+    }
+  ],
+  "risk_if_missed": "Workspace removal is either a raw DELETE that orphans live VMs, leaks leases, and destroys audit trails, or an unfinished teardown silently stalls forever - the documented kube-rs failure mode ('deletes get stuck while the controller is not running') with no alert surface.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Row DELETE removes the binding before cleanup, orphaning a live CH process that no reconcile pass can ever see again.",
+      "RISK-2: Cleanup crashes mid-sequence and the progress record is trusted over observation, so a re-run skips a step whose effect was actually lost.",
+      "RISK-3: Teardown of a never-created VM errors on NotBound and wedges the tombstone permanently.",
+      "RISK-4: Stuck tombstones accumulate silently while the daemon is down or a step fails forever.",
+      "RISK-5: Finalizer deletes snapshot artifacts, destroying un-promoted work in violation of the GC hard rule."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Tombstone-only removal, grep-proof no DELETE (AC-305-1); archive only after verified cleanup (AC-305-3).",
+      "CTRL-2 (RISK-2): check-then-act re-verification authoritative over cleanup_progress; crash-resume tests at two injection points (AC-305-5).",
+      "CTRL-3 (RISK-3): T1 defines NotBound as success; dedicated never-created-VM test (AC-305-4).",
+      "CTRL-4 (RISK-4): Threshold-based deduped FLEET_TOMBSTONE_STUCK alert naming the blocking step (AC-305-8).",
+      "CTRL-5 (RISK-5): Manifest archival records provenance only; grep-proof no delete_snapshot in finalizer.rs (AC-305-7)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - P4 (finalizer Apply/Cleanup split modeled as a Postgres tombstone column; cleanup-before-delete guarantee; cleanup tolerates Apply-never-ran; stuck-delete alerting), P2 (check-every-property re-verification over progress records), P10 (ordered idempotent steps), P19 (intent journaling), architecture sketch line 6; durable_volumes_and_handoff catalog hard rule 'GC must never delete un-promoted work' (P15-P18 there) applied to snapshot artifacts. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): worktree_vm_registry.rs (teardown paths 720-933: absent-row idempotence 786-853, detached reclaim 869-901, mark_terminated 1135-1162; warm manifest provenance 654-684; snapshot_warm_model compensation 677-684); migrations/0365_worktree_vm_bindings.sql (terminal state CHECK 26-27); model_lane.rs (NewModelLaneLease 8129-8148); production_factory.rs (checkout_lease_* metadata 1298-1306).",
+    "corrections": [
+      "Operator constraints baked in: never delete un-promoted work, PostgreSQL/EventLedger authority, all Rust, no SQLite, no K8s/Docker/containerd/Nomad, gated on WP-1 IV verdicts + merge.",
+      "Physical row retention (archived tombstones kept, not hard-deleted after cleanup) is a contract-level decision favoring audit trail over table size; a future GC/retention family may revisit it under the review-queue + grace-period patterns (durable catalog P17) with explicit operator sign-off."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: microVM workspace fleet reconciler",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

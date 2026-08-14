@@ -1,0 +1,173 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-308",
+  "title": "VF-MT308-FleetManualAndCloseout",
+  "group": "VF VM workspace fleet reconciler",
+  "clause": "UserManual entries for the fleet surface (desired-state model, quarantine recovery, operator override paths), manual self-consistency test, three-tier diagnostics posture recording, cluster-level negative-guard sweep",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-308.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-301", "MT-302", "MT-303", "MT-304", "MT-305", "MT-306", "MT-307"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Close out the VF fleet-reconciler family: write the built-in UserManual entries that let a no-context model (or the operator) understand and operate the fleet surface end to end, prove those entries stay consistent with the code via the manual self-consistency test surface, record the three-tier diagnostics posture for the whole family, and run a cluster-level negative-guard sweep that re-proves the family's hard prohibitions in one place.\n\nWHY A DEDICATED CLOSEOUT MT: MT-301..307 each update their own manual entries incrementally (their user_manual_obligation blocks), but the FAMILY-level narrative - how desired state, the reconciler, lifecycle, failure policy, teardown, and the panel compose into one operating model - has no single owner without this MT, and cross-MT drift (an entry written in MT-301 contradicted by an MT-305 behavior) would otherwise ship silently. The manual is a product surface (GLOBAL-BUILD-002..012: purpose, core workflows, expected inputs/outputs, navigation, safety constraints, common failure modes, recovery steps, operable by a model with no conversation history).\n\nUSERMANUAL ENTRIES (authored/reconciled in the existing user_manual system - the seed + behavior-coverage machinery lives at src/backend/handshake_core/src/user_manual/seed.rs and user_manual/behavior_coverage.rs on the WP-1 branch; anchor exact entry-registration and versioning APIs there before writing):\n   1. 'Workspace fleet > Operating model': the desired-state contract (Running / Snapshotted-means-parked / Absent), who writes desired state (operator via panel, agents via typed API), who converges it (the crowned reconciler), and why observed state can lag (level-triggered passes, backoff windows). Includes the Pending-until-first-heartbeat rule and what a divergence row in the panel means.\n   2. 'Workspace fleet > Quarantine recovery': what quarantine means (N consecutive failures), what keeps happening (slow retry ~15min), how to read last_failure_reason and the FLEET_WORKSPACE_QUARANTINED alert, the two exits (full slow-retry success self-heals; operator clear_quarantine via panel button or typed API), and the guarantee that quarantine never deletes anything.\n   3. 'Workspace fleet > Operator override paths': every manual intervention in one place - set desired state, request teardown, clear quarantine, reading stuck-tombstone alerts and unblocking each finalizer step (T1 kill / T2 lease / T3 manifest), plus the recovery answer for 'the reconciler daemon itself is down' (crown released on session death; restart re-crowns; boot pass re-enqueues everything; nothing is lost because state is level-triggered from PostgreSQL).\n   4. 'Workspace fleet > Safety constraints': never-auto-delete guarantees (failure paths, quarantine, GC posture on snapshot artifacts), resource budgets (MiB/vcpus) and what happens at budget pressure (nothing destructive - budgets gate spawning, never trigger deletion), and the account/Principal scoping of every fleet row and panel view.\n   5. 'Workspace fleet > Common failure modes': spawn-succeeds-then-dies (auto-remediated, what the FR trail looks like), stuck tombstone (alert + which step + operator options), listener gap (self-healing via tick, TICK-labeled drift events), crown contention (second instance waits - expected, not an error).\n   Entries must state startup/run expectations (daemon starts with the app; no separate service to launch - no new external daemons) and cite the panel author_ids for each referenced control so a model can navigate without screenshots.\n\nMANUAL SELF-CONSISTENCY TEST: extend the existing manual verification surface (user_manual/behavior_coverage.rs pattern - it already binds manual claims to behavior ids on the WP-1 branch) so that: every VF manual entry references only (a) FR event kinds that exist (MT-306's four kinds), (b) panel author_ids that exist (MT-306's registry), (c) typed API names that exist (compile-checked references or a registry lookup), and (d) state names that exist (VmLifecycle variants, health_states, desired states). The test fails when a manual entry names a nonexistent surface or when a VF behavior id has no manual coverage - both directions (manual->code and code->manual).\n\nTHREE-TIER DIAGNOSTICS POSTURE RECORDING: produce the family-level record of each MT's hbr_int_009_tier_obligations dispositions as actually landed (FLIGHT_RECORDER: wired in MT-306, deferred notes resolved; INTERNAL_DIAGNOSTICS: contradiction events MT-303, quarantine alerts MT-304, stuck-tombstone + step-failure events MT-305; PALMISTRY: daemon posture from MT-302, N/A elsewhere) in the machine-readable posture format the diagnostics system uses (anchor: the ModelLaneDiagnosticTierStatus/Posture types, model_lane.rs lines 8168-8209, and the diagnostics tier surfaces in the atelier test tree). Every DEFERRED-with-reason left by MT-301..307 must be either resolved or re-recorded with a current reason - no silent expiry.\n\nCLUSTER-LEVEL NEGATIVE-GUARD SWEEP: one test module that re-proves the family's prohibitions across the ENTIRE vm_fleet surface in a single place (so a future MT cannot re-introduce a violation in a corner the original MT's grep missed):\n   NG-1 no SQL DELETE against worktree_fleet_desired_state or worktree_vm_bindings anywhere in vm_fleet/ (MT-301/304/305 rule).\n   NG-2 no direct CloudHypervisorAdapter reference in vm_fleet/ (MT-303 rule: registry seams only).\n   NG-3 no tokio::time::sleep in reconcile/executor/error-policy paths (MT-304 central-policy rule).\n   NG-4 no task::abort on reconcile tasks; select! arms pure-wait only (MT-302 rule; enforced by grep + targeted review checklist emitted as test output).\n   NG-5 no SQLite, kube, k8s_openapi, bollard, containerd, nomad, madsim identifiers in vm_fleet/, app fleet-panel module, or Cargo.toml (whole-family house rule).\n   NG-6 no absolute paths / drive letters / user-profile paths in vm_fleet/ source or SQL (disk-agnostic rule; regex sweep for e.g. '[A-Za-z]:\\\\' and '/home/' and '/Users/').\n   NG-7 no file or folder created by the family carries a space in its name (sweep the diff file list).\n   NG-8 fleet queries exclude archived rows by default (assert every list/claim SQL string contains the archived filter - MT-305 rule).\n   The sweep runs as cargo tests (grep/regex assertions over the source tree are acceptable test bodies for NG guards) plus a recorded manual review checklist for the two guards greps cannot fully prove (NG-4 select! purity, NG-8 query completeness), with reviewer findings written into the test output.\n\nRESOURCE PRIVACY: manual entries and the posture record explicitly document the account/Principal scoping model (fleet rows and panel views are scoped per the WP-1 resource_scope patterns - resource_scope.rs module rationale lines 1-42, ResourceScope 147-153) so future operators/models treat scoping as a documented contract, not an implementation accident.\n\nEXPECTED DIFF SHAPE: user_manual entry additions + version bump; behavior-coverage bindings for VF entries; the negative-guard test module under tests/; the diagnostics posture record through the existing typed surfaces; NO new product runtime behavior (this MT adds documentation, verification, and recording only - any product-code change discovered necessary is a defect to route back to the owning MT, not to fix here).\n\nSTEP-BY-STEP:\n1. Read the landed MT-301..307 modules, their manual entries, user_manual/seed.rs + behavior_coverage.rs registration APIs, and the diagnostics posture types (model_lane.rs 8168-8209).\n2. Author the five family-level manual entries with author_id citations; bump the manual version.\n3. Extend the self-consistency surface with the four reference classes and both coverage directions; fix any drift found by routing content fixes into the entries (code fixes route back to owning MTs as defects).\n4. Record the family diagnostics posture; resolve or re-record every outstanding DEFERRED.\n5. Implement NG-1..NG-8 as the sweep module with the recorded review checklist.\n6. Run the full family test set (MT-301..307 proof targets) once end-to-end as the closeout regression, plus this MT's targets; record measured output.\n7. Implementer never marks COMPLETED - this MT's verdict is the family gate and belongs to the WP validator.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/user_manual/**",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (panel is landed in MT-306; manual references it, never edits it)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/** (no product-behavior changes in closeout; defects route back to owning MTs)",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/migrations/**"
+    ],
+    "acceptance_criteria": [
+      "AC-308-1: Five family-level manual entries exist (operating model, quarantine recovery, operator override paths, safety constraints, common failure modes) with a manual version bump, each operable by a no-context model: purpose, workflows, inputs/outputs, navigation via panel author_ids, safety constraints, failure modes, recovery steps.",
+      "AC-308-2: The manual self-consistency test validates all four reference classes (FR kinds, author_ids, typed API names, state names) in both directions (manual->code, code->manual) and passes; a deliberate broken-reference fixture proves the test actually fails on drift.",
+      "AC-308-3: The three-tier diagnostics posture for the whole VF family is recorded through the existing typed posture surfaces; zero unresolved DEFERRED-with-reason entries remain unrecorded.",
+      "AC-308-4: Negative guards NG-1..NG-8 all pass across the entire vm_fleet surface, fleet panel module, and Cargo.toml; the two review-checklist guards carry recorded reviewer findings in test output.",
+      "AC-308-5: The full MT-301..307 proof-target set passes once end-to-end as the closeout regression, recorded with per-owner CARGO_TARGET_DIR under ../Handshake_Artifacts/.",
+      "AC-308-6: This MT changes no product runtime behavior: the diff touches only user_manual, tests, and posture recording (diff-scope proof target).",
+      "AC-308-7: Manual entries document the never-auto-delete guarantees and the account/Principal scoping contract explicitly.",
+      "AC-308-8: Any drift or defect found during closeout is recorded (test output + completion report) with its owning MT named - never silently fixed out of scope."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-308 cargo test -p handshake_core fleet_manual_consistency -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-308 cargo test -p handshake_core fleet_negative_guards -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-308 cargo test -p handshake_core fleet_diagnostics_posture -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-308 cargo test -p handshake_core vm_fleet -- --nocapture\"",
+      "bash -lc \"git diff --name-only HEAD~1 | grep -vE '^src/backend/handshake_core/(src/user_manual/|tests/|Cargo.toml)' | wc -l | grep -q '^0$' && echo CLOSEOUT_SCOPE_CLEAN\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/user_manual/seed.rs and user_manual/behavior_coverage.rs (entry registration + manual-claims-to-behavior binding machinery - anchor exact APIs in implementing worktree)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (NewModelLaneDiagnosticTierStatus / ModelLaneDiagnosticTierStatusRecord / ModelLaneDiagnosticTierPosture 8168-8209 - posture recording types)",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/** (read-only closeout subject)",
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (module rationale 1-42 - documented scoping contract)"
+    ],
+    "expected_tests": [
+      "manual self-consistency: four reference classes, both directions, plus a failing-fixture proof",
+      "negative-guard sweep NG-1..NG-8 with recorded review checklist output",
+      "diagnostics posture recording round-trip through the typed surfaces",
+      "full-family closeout regression run of MT-301..307 targets",
+      "diff-scope guard proving closeout touched only manual/tests/Cargo.toml"
+    ],
+    "implementation_notes": [
+      "IMPLEMENTATION GATE: gated on WP-1 IV verdicts + merge to main (expansion_provenance.implementation_gate) and on MT-301..307 all reaching validator-accepted state - closeout of an unfinished family is meaningless.",
+      "Defects found here route BACK to the owning MT (reopen/patch under that MT's contract); fixing product code inside the closeout MT would blind the family's per-MT proof story.",
+      "The manual is a first-class product surface for no-context models (GLOBAL-BUILD-002..012); write entries so a model that has never seen this WP can operate the fleet from the manual alone.",
+      "Grep-based negative guards are deliberately duplicated from per-MT proofs: the cluster sweep exists to catch violations introduced AFTER the original MT landed, in corners the original grep did not cover.",
+      "The user_manual seed machinery on the WP-1 branch already contains lease/heartbeat-related manual content (user_manual/seed.rs matched the lease/heartbeat identifier sweep) - reconcile wording with existing entries rather than duplicating them.",
+      "All Rust; PostgreSQL/EventLedger authority; no SQLite; no K8s/Docker/containerd/Nomad; disk-agnostic paths; no names with spaces.",
+      "Implementer never marks COMPLETED; the WP validator's verdict on this MT is the family completion gate."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Closeout MT: manual, verification, and posture recording only. The fleet GUI landed in MT-306; this MT documents and cross-checks it without editing it."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace fleet > Operating model",
+      "Workspace fleet > Quarantine recovery",
+      "Workspace fleet > Operator override paths",
+      "Workspace fleet > Safety constraints",
+      "Workspace fleet > Common failure modes"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Family posture recording: confirm MT-306's FR wiring landed and resolve every FR DEFERRED note left by MT-301..305; no new FR kinds here."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED",
+      "note": "The posture record itself is the diagnostics deliverable: every family diagnostic surface (contradictions, quarantine alerts, stuck tombstones, step failures) is enumerated with its landed disposition."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "No process changes; MT-302's daemon posture is confirmed, not modified."
+    }
+  ],
+  "risk_if_missed": "The fleet family ships as seven islands: no single operating narrative for operators or no-context models, manual entries drift from code with no test catching it, DEFERRED diagnostics notes expire silently, and prohibition regressions (a future DELETE, a direct adapter call, a madsim dependency) land in corners no per-MT grep still watches.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Manual entries describe intended rather than landed behavior, and the self-consistency test checks only that names exist, not that described workflows match reality.",
+      "RISK-2: Closeout quietly patches product code to make guards pass, hollowing out the per-MT proof story.",
+      "RISK-3: The negative-guard sweep is grep-only theater: guards that need semantic review (select! purity, query completeness) get rubber-stamped.",
+      "RISK-4: DEFERRED diagnostics notes are marked resolved without the underlying wiring existing."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Both-direction coverage binding through behavior ids (code->manual direction forces entries for real behaviors) plus the failing-fixture proof (AC-308-2); validator spot-checks one workflow per entry against the live app.",
+      "CTRL-2 (RISK-2): Diff-scope proof target restricts the closeout diff to manual/tests/Cargo.toml (AC-308-6); defects route back by contract (AC-308-8).",
+      "CTRL-3 (RISK-3): NG-4/NG-8 require recorded reviewer findings in test output, named as manual review, never presented as automated proof (AC-308-4).",
+      "CTRL-4 (RISK-4): Posture recording goes through the typed diagnostics surfaces with evidence refs, and the validator cross-checks each resolved DEFERRED against the landing MT's diff (AC-308-3)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - the closeout consolidates the family's pattern commitments: P16 (alert surfaces operators actually see - documented in quarantine recovery), P8 (tick-vs-notify drift visibility - documented in common failure modes), P4 (stuck-tombstone operator options), P14 (crown/restart recovery narrative), architecture sketch line 10 (no K8s/Docker/Nomad/madsim anywhere - enforced by NG-5). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): user_manual/seed.rs and user_manual/behavior_coverage.rs exist and already carry lease/heartbeat-adjacent manual machinery (identifier sweep hit both files); model_lane.rs diagnostics tier types (NewModelLaneDiagnosticTierStatus 8168-8185, ModelLaneDiagnosticTierStatusRecord 8187-8203, ModelLaneDiagnosticTierPosture 8205-8209); resource_scope.rs (module rationale 1-42). Manual obligations trace to operator authority GLOBAL-BUILD-002..012 (built-in model manual) and GLOBAL-BUILD-073 (post-work status synchronization).",
+    "corrections": [
+      "Operator constraints baked in: closeout changes no product runtime behavior; defects route back to owning MTs; gated on WP-1 IV verdicts + merge AND on MT-301..307 validator acceptance.",
+      "Exact user_manual registration APIs and behavior-id vocabulary are anchor-in-implementing-worktree items: seed.rs/behavior_coverage.rs were verified to exist with relevant content, but their APIs were not line-pinned from this governance worktree; the implementer anchors them before writing entries (GLOBAL-NAMING-003 discipline)."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: microVM workspace fleet reconciler",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

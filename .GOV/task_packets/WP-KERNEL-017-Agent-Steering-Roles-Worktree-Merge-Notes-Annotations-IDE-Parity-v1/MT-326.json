@@ -1,0 +1,181 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-326",
+  "title": "DW-MT326-LeaseFencedGc",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "PostgreSQL lease rows fence open workspaces and in-flight exports; GC = periodic SQL mark-and-sweep over promotions UNION bindings UNION leases with review queue + grace period and transactional delete re-verification; quotas are promotion pressure, never auto-delete; un-promoted digests are structurally unreachable to the sweeper",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-326.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-324", "MT-325"],
+    "blocks": ["MT-327", "MT-328"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Reclaim disk space WITHOUT the canonical 'GC ate my data' failure mode. The anti-pattern is explicit in research P15: Docker distribution GC is stop-the-world mark-and-sweep whose docs warn that concurrent uploads during GC can delete layers of in-flight images. The countermeasures are containerd's lease fencing (P16: clients take a lease over everything they are mid-creating; leased content is EXEMPT until release; expiry hints never override an active hold) and GitLab registry's online GC over a Postgres metadata DB (P17: deletions enqueue into review queues, workers RE-VERIFY reachability at review time, unreferenced blobs get a 24h grace period, and the final delete re-checks inside one transaction). Handshake has the identical stack (PostgreSQL as metadata truth), so this MT copies both shapes exactly and adds the operator-grade hard invariant from P18: only objects whose digests appear in a PROMOTED (or expired-and-operator-acknowledged) state are EVER candidates - un-promoted work is STRUCTURALLY unreachable to the sweeper, meaning the candidate SELECT itself cannot return it (fencing by query shape), not merely policy-protected by a filter someone can drop. Quotas are promotion PRESSURE (block writes, force export), never deletion (P18; Kubernetes image-pinning precedent).\n\nEXPECTED DIFF SHAPE: workspace_volumes/gc_lease_fence.rs (lease API, mark-and-sweep, review queue worker, quota pressure); migration 03NN_volume_gc_leases.sql (leases + review queue + quotas); tests. No adapter/protocol/GUI changes (GC review queue surfaces in MT-327).\n\nDETAILED SPEC:\n1. Leases, migration 03NN_volume_gc_leases.sql:\n   CREATE TABLE IF NOT EXISTS volume_gc_leases (\n       lease_id UUID PRIMARY KEY,\n       holder_kind TEXT NOT NULL CHECK (holder_kind IN ('open_workspace', 'inflight_export')),\n       holder_ref UUID NOT NULL,             -- workspace binding_id or export_id\n       fenced_object_kind TEXT NOT NULL CHECK (fenced_object_kind IN ('named_volume', 'boot_delta', 'cas_blob', 'manifest')),\n       fenced_object_ref TEXT NOT NULL,      -- volume_id UUID text or 'sha256:<hex>' digest\n       heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       released_at TIMESTAMPTZ,\n       owner_account_id UUID NOT NULL, actor_principal_id UUID NOT NULL, authenticated_session_id UUID NOT NULL, access_space_id UUID NOT NULL, workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n   ); + partial index ON volume_gc_leases (fenced_object_kind, fenced_object_ref) WHERE released_at IS NULL; + model_lane_resource_scope_registry registration (0365 lines 38-40 pattern).\n   Lease API (gc_lease_fence.rs): acquire_workspace_lease (taken when a workspace opens/attaches, covering its named volume + delta), acquire_export_lease (taken by MT-324 at export start, covering the export's pending CAS blobs + manifest - MT-324's export path is retrofitted to call this at the exporting->pending_promotion seam), release_lease (explicit close/abort), heartbeat_lease. EXPIRY RULE (P16 copy heuristic, hardened): wall-clock lease expiry NEVER applies to un-promoted work; an expired-heartbeat lease over un-promoted objects surfaces as a stale-lease ALERT for operator action (release or acknowledge) - it never auto-releases. Heartbeat expiry may auto-release only leases whose fenced objects are all promotion-reachable (where the fence is belt-and-suspenders anyway).\n2. Reachability definition (single source of truth, shared with MT-325): a SQL view gc_reachable_digests defined as: digests appearing in PROMOTED EventLedger events UNION digests referenced by live registry bindings (base_image_registry rows and their P4 child edges via workspace_volume_bindings.backing_image_digest; workspace_volume_bindings rows not tombstoned; export_bundles rows in 'exporting'/'pending_promotion'/'promoted') UNION objects fenced by unreleased leases. The MARK phase is this view; the code never re-implements reachability in Rust (drift between two definitions is how sweepers eat data).\n3. Review queue + grace period (P17), same migration:\n   CREATE TABLE IF NOT EXISTS gc_review_queue (\n       candidate_id UUID PRIMARY KEY,\n       object_kind TEXT NOT NULL CHECK (object_kind IN ('named_volume', 'boot_delta', 'cas_blob', 'manifest')),\n       object_ref TEXT NOT NULL,\n       first_seen_unreachable_at TIMESTAMPTZ NOT NULL,\n       grace_period_ends_at TIMESTAMPTZ NOT NULL,\n       decision TEXT NOT NULL DEFAULT 'pending' CHECK (decision IN ('pending', 'deleted', 'rescued', 'operator_hold')),\n       decision_evidence JSONB,\n       owner_account_id UUID NOT NULL, actor_principal_id UUID NOT NULL, authenticated_session_id UUID NOT NULL, access_space_id UUID NOT NULL, workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       CONSTRAINT uq_gc_candidate UNIQUE (owner_account_id, object_kind, object_ref)\n   );\n   Sweep cycle (periodic, plain tokio interval - no reconciler framework dependency): (a) MARK: enumerate on-disk/CAS objects and registry rows; (b) CANDIDATES: objects NOT IN gc_reachable_digests AND additionally satisfying the structural invariant below enter the review queue with grace_period_ends_at = now + grace (default 24h, config); (c) DELETE: after grace, inside ONE transaction: re-verify the candidate is still not in gc_reachable_digests, take FOR SHARE on any matching lease rows (an unreleased lease appearing since enqueue = rescue), flip decision -> 'deleted' with evidence; COMMIT; only then unlink the file/blob by exact recorded path (plain remove_file; never directories recursively; never --force semantics). Crash between commit and unlink leaves a benign orphan file that the next MARK re-discovers - the error direction is always 'kept too long', never 'deleted too early'.\n4. STRUCTURAL INVARIANT (the load-bearing clause): the candidate-enqueue SQL contains, in its WHERE clause, EXISTS (a PROMOTED event covering the object) OR EXISTS (an operator-acknowledged expiry record for the object) - i.e. the sweeper's input query is INCAPABLE of returning an un-promoted, un-acknowledged object regardless of lease state, filter bugs elsewhere, or review-queue tampering. Un-promoted work is invisible to GC by construction (P18 hard invariant; K8s image-pinning precedent). This is enforced twice: in the view/query definition AND by a delete-time CHECK-style guard (the delete transaction re-asserts the same predicate). Negative proofs for both layers are named regression tests that MT-328 re-runs.\n5. Quota pressure (P18), same migration: workspace_volume_quotas { owner_account_id, workspace_id, byte_limit, PRIMARY KEY (owner_account_id, workspace_id), scope columns }. Exceeding the limit: (a) new volume-write growth is refused at the provisioning/attach seam (typed QuotaExceeded), (b) a force-export pressure event is emitted for MT-327's surface, (c) NOTHING is deleted - a quota breach on un-promoted volumes cannot trigger any deletion path (negative test).\n6. RESOURCE PRIVACY NOTE: leases, candidates, quotas, and GC decisions carry the five scope columns (resource_scope.rs ~854-858) and reads filter via sql_predicate (~798); the GC worker runs under a SystemScopeAuthority-style system context for cross-account sweeping (resource_scope.rs SystemScopeAuthority ~625-671 pattern: named reason, internal_subsystem), but every operator-visible projection of GC state (review queue, decisions) is account-scoped - account A never sees account B's candidates; GC visibility inherits intersection scope and never widens (HBR-PRIV-004).\n\nSTEP-BY-STEP:\n1. Read MT-321/322/324/325 registry schemas, the PROMOTED event shape, and resource_scope.rs SystemScopeAuthority (~625-671) on post-merge main.\n2. Migration: leases + review queue + quotas + gc_reachable_digests view; apply against real PostgreSQL.\n3. Implement the lease API and retrofit acquire/release calls into the MT-322 attach/close seam and MT-324 export seam.\n4. Implement the sweep worker: MARK via the view, candidate enqueue with the structural predicate, grace-period delete with transactional re-verification + FOR SHARE lease join, post-commit exact-path unlink.\n5. Implement quota checks at the provisioning seam + pressure events.\n6. Tests (real PostgreSQL; real files under a scratch runtime root): leased objects never enqueue; un-promoted objects never enqueue even when unleased AND unreferenced (structural invariant proof at both query and delete layers); promoted-then-unreferenced blobs enqueue, survive grace, delete transactionally; lease appearing mid-grace rescues; crash-after-commit orphan re-discovered not double-deleted; quota breach blocks writes and deletes nothing; stale-lease alert on expired heartbeat over un-promoted work (no auto-release); cross-account review-queue invisibility.\n7. Run proof targets under scoped CARGO_TARGET_DIR; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/migrations/0*_volume_gc_leases.sql",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI belongs to MT-327)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (no protocol changes)",
+      "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (append-only discipline)",
+      "session_worktrees/** and any repo worktree path"
+    ],
+    "acceptance_criteria": [
+      "AC-326-1: volume_gc_leases with partial unreleased-lease index, gc_review_queue with uq_gc_candidate, workspace_volume_quotas, and the gc_reachable_digests view apply against real PostgreSQL with scope columns and registry registration (Spec-Realism Gate: all GC proofs run on real PostgreSQL with real files).",
+      "AC-326-2: Open workspaces and in-flight exports hold leases over their volumes/deltas/pending blobs/manifests; a live test proves a leased object never appears in the review queue while the lease is unreleased.",
+      "AC-326-3: STRUCTURAL INVARIANT proven at the query layer: an un-promoted, un-acknowledged object - even unleased, unreferenced, and past any grace period - is never returned by the candidate-enqueue query (named negative regression test).",
+      "AC-326-4: STRUCTURAL INVARIANT proven at the delete layer: a candidate row hand-inserted for an un-promoted object (simulated tampering) is refused by the delete transaction's re-assertion guard (named negative regression test).",
+      "AC-326-5: Delete is transactional re-verification: re-check against gc_reachable_digests + FOR SHARE lease join + decision flip with evidence in ONE transaction, file unlink only after commit by exact recorded path (no recursion, no --force); a lease appearing mid-grace rescues the candidate ('rescued' decision).",
+      "AC-326-6: Crash between commit and unlink leaves an orphan that the next MARK re-discovers without double-delete or error escalation (crash-injection test).",
+      "AC-326-7: Wall-clock expiry NEVER auto-releases leases over un-promoted objects; expired heartbeats surface a stale-lease alert row/event for operator action (live test).",
+      "AC-326-8: Quota breach blocks new volume growth with typed QuotaExceeded and emits a force-export pressure event; a negative test proves NO deletion path executes on quota breach against un-promoted volumes.",
+      "AC-326-9: Reachability is defined exactly once (the SQL view); grep proof shows no second Rust-side reachability computation; MT-325's promoted-definition helper and this view agree (cross-check test).",
+      "AC-326-10: GC worker uses a named system authority for sweeping while all operator-visible GC projections are account-scoped (two-account invisibility test); no SQLite; no Docker/containerd deps; proof commands under scoped CARGO_TARGET_DIR; implementer never marks COMPLETED."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_gc_leased_object_never_candidate -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_gc_unpromoted_structurally_unreachable_query_layer -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_gc_unpromoted_structurally_unreachable_delete_layer -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_gc_transactional_delete_with_rescue -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_gc_quota_pressure_never_deletes -- --nocapture\"",
+      "bash -lc \"! grep -rInE 'remove_dir_all|\\-\\-force' src/backend/handshake_core/src/workspace_volumes/gc_lease_fence.rs && echo NO_RECURSIVE_OR_FORCE_DELETE\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/workspace_volumes/gc_lease_fence.rs (new)",
+      "src/backend/handshake_core/src/workspace_volumes/export_bundle.rs (MT-324 export seam retrofitted with export leases)",
+      "src/backend/handshake_core/src/workspace_volumes/volume_provisioning.rs (MT-322 attach/close seam retrofitted with workspace leases + quota check)",
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (SystemScopeAuthority ~625-671 for the sweeper's system context, sql_predicate ~798; lands on main after WP-1 merges)"
+    ],
+    "expected_tests": [
+      "test: leased object excluded from candidates for every fenced_object_kind",
+      "negative test (query layer): un-promoted + unleased + unreferenced object never enqueued",
+      "negative test (delete layer): tampered candidate row for un-promoted object refused at delete",
+      "test: promoted-then-unreferenced blob enqueues, survives grace, deletes transactionally with evidence",
+      "test: lease acquired mid-grace produces 'rescued'",
+      "crash-injection test: commit-then-crash-before-unlink orphan re-discovered cleanly",
+      "test: expired heartbeat over un-promoted work alerts, never auto-releases",
+      "test: quota breach refuses growth, emits pressure event, deletes nothing",
+      "test: view-vs-MT-325 promoted-definition agreement",
+      "pg test: two-account review-queue invisibility"
+    ],
+    "implementation_notes": [
+      "Field basis: P15 (Docker distribution stop-the-world GC race - the anti-pattern this design exists to avoid), P16 (containerd leases: leased content exempt until release; expiry as hint not override), P17 (GitLab online GC: Postgres metadata truth, review queues, re-verify at review time, 24h grace, transactional final check), P18 (SQL mark-and-sweep over live refcounts - recomputed each run is crash-robust; quotas as promotion pressure; K8s image-pinning as never-evictable precedent).",
+      "The deletion error direction is a design axiom: every failure mode must degrade to 'kept too long' (orphans, stale candidates, alerts), never 'deleted too early'; any code change that inverts that direction is a defect regardless of tests passing.",
+      "This MT holds the ONLY deletion authority in the DW family (MT-321 CAS has no delete API; MT-322 teardown never deletes; MT-323 deletes only its own recorded delta path on unclean reattach). Keep it that way: new deletion call sites require contract change, not code review discretion.",
+      "Sweep scheduling is a plain periodic tokio interval; the reconciler-catalog patterns (advisory-lock single-writer, watch-channel collapse) may be reused if the fleet reconciler lands first, but this MT must not depend on it.",
+      "House rules: all Rust; PostgreSQL/EventLedger authority, no SQLite; no Docker/containerd/K8s deps (their GC designs are shape heuristics only); disk-agnostic paths; no --force deletes; implementer never marks COMPLETED; Spec-Realism Gate: real PG + real files.",
+      "Resource privacy: sweeper runs under a named system authority; all projections account-scoped; GC decisions inherit intersection scope and never widen."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend GC MT; the review queue, decisions, quota pressure, and stale-lease alerts surface to the operator in MT-327 (which depends on this MT). All GC decisions are durable PG rows with evidence."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes > GC and leases (what fences what, the structural un-promoted invariant, grace periods, rescue)",
+      "Workspace volumes > Quotas (promotion pressure semantics; why quota breach never deletes)",
+      "Workspace volumes > Stale-lease alerts (operator actions: release, acknowledge, hold)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "GC decision FR kinds (candidate/deleted/rescued/quota-pressure/stale-lease) are added centrally in MT-327; until then gc_review_queue rows with decision_evidence are the reconstruction surface. Record DEFERRED-to-MT-327."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit diagnostic events on delete-layer invariant refusal (tampering signal), stale-lease alerts, and sweep-cycle failures via the open diagnostic-event API if present; otherwise DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "The sweep worker is a long-lived periodic task; if the palmistry liveness surface exists, record sweep-cycle liveness so a silently dead GC (disk filling forever) is distinguishable from a quiet one; otherwise DEFERRED-with-reason."
+    }
+  ],
+  "risk_if_missed": "Either disk usage grows without bound (no reclamation at all) or - the catastrophic direction - ad-hoc cleanup scripts appear and delete un-promoted agent work in the exact Docker-registry race the research documents; without lease fencing and the structural invariant, one bad filter deletes the only copy of unfinished work.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A reachability-definition drift between the mark query and any second computation lets the sweeper see a different world than promotion state, deleting reachable objects.",
+      "RISK-2: Wall-clock lease expiry (or a heartbeat outage) auto-releases a fence over un-promoted work, exposing it to the sweeper - the containerd pattern's sharp edge.",
+      "RISK-3: The delete step trusts the enqueue-time verdict and races a new lease/promotion, deleting an object that became reachable during grace (the P15 Docker race, reincarnated).",
+      "RISK-4: Quota enforcement grows a 'just free some space' deletion path under disk pressure, converting pressure into data loss.",
+      "RISK-5: File unlink precedes or joins the DB transaction, so a rollback leaves the row alive but the bytes gone (phantom object)."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): one SQL view is the only reachability definition; grep proof forbids Rust-side recomputation; agreement cross-check with MT-325's definition is a named test.",
+      "CTRL-2 (RISK-2): expiry rule is asymmetric in code: auto-release is only reachable for fully promotion-reachable fenced sets; un-promoted expiry emits alerts and holds; live test proves no auto-release path.",
+      "CTRL-3 (RISK-3): delete re-verifies reachability AND joins leases FOR SHARE inside the delete transaction; mid-grace rescue test is a named regression.",
+      "CTRL-4 (RISK-4): quota code paths contain no unlink/DELETE statements (grep proof) and the quota-breach negative test asserts zero deletions.",
+      "CTRL-5 (RISK-5): unlink strictly after commit, exact recorded path, remove_file only; crash-injection test proves the orphan-not-phantom direction."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P15 (Docker distribution stop-the-world GC race, the named anti-pattern), P16 (containerd lease fencing; expiry hints), P17 (GitLab online GC: review queues, grace period, transactional re-verification over Postgres), P18 (SQL mark-and-sweep vs refcounts; quotas as promotion pressure; K8s image-pinning never-evictable precedent; hard invariant wording 'un-promoted work is structurally unreachable to the sweeper'). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): swarm_orchestration/resource_scope.rs (SystemScopeAuthority ~625-671 with named-reason system contexts, sql_predicate ~798, scope columns ~854-858); migrations/0365_worktree_vm_bindings.sql registry-registration pattern (lines 38-40).",
+    "corrections": [
+      "Operator constraint elevated to structural design: 'GC must never delete un-promoted work' is implemented as query-shape unreachability enforced at two layers, not as a policy filter; both layers carry named negative regression tests that MT-328 re-runs.",
+      "Deletion authority is consolidated here permanently; the contract forbids new deletion call sites elsewhere in the DW family without contract change."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}

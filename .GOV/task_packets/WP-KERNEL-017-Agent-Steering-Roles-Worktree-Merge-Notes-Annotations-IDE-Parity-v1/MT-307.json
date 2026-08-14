@@ -1,0 +1,171 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-307",
+  "title": "VF-MT307-ReconcilerPropertyTests",
+  "group": "VF VM workspace fleet reconciler",
+  "clause": "proptest-state-machine over step() against a reference model with convergence and never-two-live-VMs invariants; trait-mocked CH adapter harness with named crash-injection regressions including spawn-succeeds-then-process-dies; deterministic seeds; no madsim product dependency",
+  "created_at_utc": "2026-08-14T02:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-307.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-303"],
+    "blocks": ["MT-308"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Prove the fleet reconciler's core logic correct under adversarial interleavings, crashes, and stale generations - the verification layer the research basis says the pure-step() design exists to enable (P21: 'the pure-step() design in P20 is what makes the cheap option (proptest over the pure function + a fake CH adapter + fake clock) sufficient without swapping runtimes'). Two deliverables: (A) a proptest-state-machine suite that drives MT-303's pure step() against an abstract reference model, and (B) a deterministic integration harness over a trait-mocked CH adapter with NAMED crash-injection regression cases. Explicitly NO madsim (or any simulation-runtime crate) as a product dependency - the research avoid-clause warns against forcing runtime abstraction through the whole product; determinism comes from planner purity, pre-drawn jitter (MT-304 design), injected clocks, and recorded proptest seeds.\n\n(A) PROPTEST-STATE-MACHINE SUITE (research P21, docs.rs/proptest-state-machine):\n   Reference model: a small abstract fleet - for each worktree: abstract desired (Running/Snapshotted/Absent), abstract observed (subset: NoVm, VmStarting, VmAliveHealthy, VmAliveNoHeartbeat, VmDeadProcess, Paused, Quarantined, Tombstoned, ArchivedGone), plus desired_generation and binding_generation counters.\n   Transitions (proptest-generated command sequences): SetDesired(state), VmDies, HeartbeatArrives, HeartbeatGoesStale, CrashReconcilerMidPlan(step_index), StaleGenerationWrite, RequestTeardown, QuarantineEnter, QuarantineClear, RunOnePass (applies step() to current observed/desired and executes the plan against the model).\n   INVARIANTS (checked after every command):\n   INV-1 CONVERGENCE: from any reachable state, executing converged passes (RunOnePass repeated with no new perturbations) reaches a state where observed matches desired within a bounded number of passes ('one more converged pass reaches desired state' generalized: bound asserted, default <= 3 passes absent failures) - per P21's stated property 'after any sequence of crashes/restarts/stale generations, one more converged pass reaches desired state'.\n   INV-2 SINGLE-VM: at no point do two live VMs exist for one worktree ('never double-spawns a VM for one worktree') - the model counts spawns minus verified kills per worktree and asserts <= 1 live.\n   INV-3 FENCING: a StaleGenerationWrite command never mutates model state (writes with generation < current are rejected), mirroring MT-303 AC-303-6.\n   INV-4 NO-LOSS: a Tombstoned worktree never transitions to ArchivedGone while any cleanup obligation (live VM, unreleased lease, unarchived manifest) remains - MT-305's ordering invariant.\n   INV-5 QUARANTINE-STICKY: Quarantined never exits via RunOnePass alone; only QuarantineClear (or the MT-304 full-success rule, modeled explicitly) exits.\n   Shrinking + seeds: failures must shrink to a minimal transition sequence; the proptest RNG seed configuration is committed so any failure is replayable byte-for-byte (deterministic seeds requirement); failure regressions get persisted via proptest's regression-file mechanism checked into the test tree.\n\n(B) TRAIT-MOCKED ADAPTER HARNESS (research P21, P10/flintlock #326): a MockSandboxAdapter implementing the SandboxAdapter trait (the same trait CloudHypervisorAdapter implements - spawn line 2000, kill 2314, status 2398, snapshot 2444, restore 2649 in adapter.rs; the fake-adapter precedent already exists in the WP-1 test tree per worktree_vm_registry.rs module doc 'fake-adapter-tested seam', line 15) with scriptable failure injection: per-call-site programmable outcomes (Ok, Err, Ok-then-process-vanishes, hang-until-cancelled), a step-recording journal for assertion, and an injected clock for heartbeat freshness.\n   NAMED REGRESSION CASES (each a #[test] with the research citation in a comment):\n   REG-1 spawn_succeeds_then_process_dies: spawn returns Ok, status flips to non-Running before first heartbeat -> planner must hold Pending, then plan cleanup + respawn; VM never reported Running (flintlock #326, P10).\n   REG-2 crash_between_pause_and_snapshot: PausedForSnapshot crash point -> next pass completes capture + resume without data loss (P13).\n   REG-3 crash_between_snapshot_and_resume: snapshot captured, resume lost -> next pass resumes; no second snapshot taken (P13, idempotence P2).\n   REG-4 stale_generation_racing_writer: two planned passes, first commits, second (stale fence) writes zero rows and errors typed (P14 fencing; worktree_vm_registry.rs StaleBinding discipline 1104-1162).\n   REG-5 teardown_of_never_created_vm: tombstone on a workspace with no VM -> archived cleanly (P4; MT-305 AC-305-4).\n   REG-6 restore_hang_cancelled_by_shutdown: restore hangs, shutdown requested -> in-flight step drains per MT-302 semantics, journal shows intent record and no post-cancel side effect (P18/P19).\n   REG-7 double_dispatch_race: two concurrent claims for one worktree -> SKIP LOCKED admits one; the other observes claim-miss; exactly one spawn recorded (INV-2 at the integration layer).\n   Harness rules: mock adapter and injected clock live in test code only (dev-dependencies / #[cfg(test)]); zero product-code changes except where a seam is genuinely missing, in which case the seam addition is the minimal injection point (constructor parameter, not a cfg-gated fork) and is called out in the completion report.\n\nRESOURCE PRIVACY: property and integration tests instantiate scoped contexts (two distinct account scopes in at least one property run) and assert the reference model never observes cross-scope effects, consistent with the resource_scope patterns (resource_scope.rs ResourceScope 147-153); this keeps the privacy invariant under test, not just under code review.\n\nSPEC-REALISM NOTE: the property suite is deliberately pure (that is its power); realism is preserved because (1) the integration harness's fencing/journaling regressions (REG-4 especially) run against REAL PostgreSQL with the mock only at the adapter boundary, and (2) MT-301..305 each carry their own live-PG proofs. Fixture-only proof of the WHOLE family is thereby avoided: this MT's live-PG surface is the fencing/journaling/claim behavior, which is exactly the part PostgreSQL owns.\n\nEXPECTED DIFF SHAPE: new test files under src/backend/handshake_core/tests/ (e.g. vm_fleet_property_tests.rs, vm_fleet_regression_tests.rs) plus a tests-support module for the mock adapter, reference model, and injected clock; proptest + proptest-state-machine added as dev-dependencies in Cargo.toml (dev-dependencies only - grep-enforced); proptest regression files checked in.\n\nSTEP-BY-STEP:\n1. Read MT-303's landed lifecycle.rs/executor.rs, MT-302's dispatcher claim path, the SandboxAdapter trait, and the existing fake-adapter test utilities in the WP-1 test tree (reuse before building - the registry's fake-adapter seam is the starting point).\n2. Build the reference model + transition strategy; wire proptest-state-machine with committed seed configuration.\n3. Implement INV-1..INV-5 checks; run until stable; commit any shrunk regressions.\n4. Build MockSandboxAdapter + injected clock; implement REG-1..REG-7 with research citations in comments.\n5. Wire REG-4 (and the claim race REG-7) against real PostgreSQL.\n6. Run the full suite twice with the same seeds and diff outputs to prove determinism; record measured output.\n7. Implementer never marks COMPLETED.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/** (minimal injection seams only, called out in report)",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (no modification)",
+      "src/backend/handshake_core/src/sandbox/** (mock implements the trait; the real adapter is untouched)",
+      "src/backend/handshake_core/migrations/**"
+    ],
+    "acceptance_criteria": [
+      "AC-307-1: A proptest-state-machine suite drives step() against an abstract reference model through generated command sequences including crashes, restarts, stale generations, teardowns, and quarantine events.",
+      "AC-307-2: INV-1 convergence holds: after any generated perturbation sequence, bounded converged passes (default <= 3) reach desired state - the P21 property stated verbatim in a test comment.",
+      "AC-307-3: INV-2 holds: the model never observes two live VMs for one worktree across any generated sequence.",
+      "AC-307-4: INV-3/INV-4/INV-5 (stale-fence rejection, no-archive-with-obligations, quarantine stickiness) are checked after every command and hold.",
+      "AC-307-5: Failures shrink to minimal sequences and replay deterministically from committed seed configuration; proptest regression files are checked in; the full suite run twice with identical seeds produces identical results (determinism proof target).",
+      "AC-307-6: MockSandboxAdapter implements the SandboxAdapter trait with programmable per-call outcomes including Ok-then-process-vanishes and hang-until-cancelled, plus a call journal and injected clock - test-code only (dev-dependency/#[cfg(test)]), grep-proof no mock in product code paths.",
+      "AC-307-7: Named regressions REG-1..REG-7 exist and pass, each with its research citation in a comment; REG-1 is the flintlock #326 spawn-succeeds-then-process-dies case and asserts the VM is never reported Running.",
+      "AC-307-8: REG-4 and REG-7 run against real PostgreSQL (fencing zero-rows and SKIP LOCKED single-claim proven live), satisfying the Spec-Realism Gate for the parts PostgreSQL owns.",
+      "AC-307-9: No madsim, no simulation-runtime crate, and no K8s/Docker/containerd/Nomad/SQLite identifiers anywhere (grep proof over Cargo.toml including dev-dependencies for madsim specifically).",
+      "AC-307-10: Any product-code injection seam added is minimal (constructor parameter), justified in the completion report, and leaves production behavior unchanged (proven by the existing MT-301..305 test suites still passing)."
+    ],
+    "proof_targets": [
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-307 cargo test -p handshake_core vm_fleet_property -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-307 cargo test -p handshake_core vm_fleet_regression -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-307 cargo test -p handshake_core vm_fleet_property -- --nocapture > ../Handshake_Artifacts/proof/MT-307/run1.txt 2>&1; CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-307 cargo test -p handshake_core vm_fleet_property -- --nocapture > ../Handshake_Artifacts/proof/MT-307/run2.txt 2>&1; diff <(grep -E 'test .* ok|FAILED' ../Handshake_Artifacts/proof/MT-307/run1.txt) <(grep -E 'test .* ok|FAILED' ../Handshake_Artifacts/proof/MT-307/run2.txt) && echo DETERMINISTIC\"",
+      "bash -lc \"! grep -n 'madsim' src/backend/handshake_core/Cargo.toml && echo NO_MADSIM\"",
+      "bash -lc \"! grep -rn 'MockSandboxAdapter' src/backend/handshake_core/src/ && echo MOCK_IS_TEST_ONLY\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/lifecycle.rs + executor.rs (MT-303 planner + executor under test)",
+      "src/backend/handshake_core/src/sandbox/ SandboxAdapter trait (implemented by CloudHypervisorAdapter: spawn 2000, kill 2314, status 2398, snapshot 2444, restore 2649 in cloud_hypervisor/adapter.rs) - mocked, not modified",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (module doc line 15 'fake-adapter-tested seam' - existing fake-adapter test utilities to reuse; StaleBinding fencing 1104-1162 for REG-4 shape)",
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (ResourceScope 147-153 - two-scope property run)"
+    ],
+    "expected_tests": [
+      "property: INV-1..INV-5 over generated sequences with committed seeds and checked-in regression files",
+      "REG-1..REG-7 named regressions with research citations",
+      "live-PG: REG-4 stale fence writes zero rows; REG-7 SKIP LOCKED admits exactly one claimant",
+      "determinism: identical results across two same-seed full runs",
+      "two-scope property run: no cross-account effects observed by the model"
+    ],
+    "implementation_notes": [
+      "IMPLEMENTATION GATE: gated on WP-1 IV verdicts + merge to main (expansion_provenance.implementation_gate); MT-303 must land first. MT-304/305 semantics (quarantine stickiness, finalizer ordering) are modeled abstractly if those MTs have not merged yet, with the model updated when they land - note which version was modeled in the completion report.",
+      "No madsim is a hard rule from the research avoid-clause: 'adopting madsim wholesale... forces runtime abstraction through the whole product; only the reconciler crate needs determinism' - and planner purity makes even that unnecessary.",
+      "Reuse the existing WP-1 fake-adapter utilities before writing a new mock; extend rather than duplicate (GLOBAL-RESEARCH-039 reuse discipline).",
+      "The convergence bound (<= 3 passes) is a contract default; if a legitimate plan legitimately needs more passes (e.g. teardown chains), raise the bound with a comment justifying the exact worst case, never remove the bound.",
+      "All Rust; PostgreSQL for the live-fencing regressions; no SQLite; disk-agnostic paths; no names with spaces; per-owner CARGO_TARGET_DIR under ../Handshake_Artifacts/.",
+      "Implementer never marks COMPLETED."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Test-suite MT; its output surface is test results and checked-in regression files. GUI verification for the fleet lives in MT-306."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace fleet > Verification (what the property invariants guarantee, how to replay a seed, where regression files live)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Test-only MT; no runtime behavior change to record. FR coverage of the tested paths is MT-306's."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Test-only MT; diagnostic surfaces of the product paths are owned by MT-303/304/305."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "No long-lived process is introduced; the harness runs inside cargo test."
+    }
+  ],
+  "risk_if_missed": "The reconciler's correctness rests entirely on example-based tests: interleaving bugs (double spawn under claim races, lost paused snapshots, stale-fence bypasses) ship undetected, and the flintlock #326 class of failure - the single most-cited field bug in the research basis - has no named regression guarding against reintroduction.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The reference model unconsciously mirrors the implementation's bugs (same author, same assumptions), making properties vacuously green.",
+      "RISK-2: Mock adapter or injected clock leaks into product code paths, changing production behavior under test flags.",
+      "RISK-3: Non-deterministic test ordering or unseeded RNG makes failures unreproducible, destroying the suite's diagnostic value.",
+      "RISK-4: The convergence bound is quietly raised or removed when a bug makes convergence slow, converting a correctness property into a no-op.",
+      "RISK-5: madsim or another simulation runtime creeps in as a transitive product dependency."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The model is abstract (state sets, counters) rather than a re-implementation of step(); invariants INV-1..5 are stated from the research properties, not from code behavior; WP validator reviews model-vs-code independence.",
+      "CTRL-2 (RISK-2): Mock lives in test code only; grep proof AC-307-6 + MT-301..305 suites still passing AC-307-10.",
+      "CTRL-3 (RISK-3): Committed seed configuration + two-run diff proof target (AC-307-5).",
+      "CTRL-4 (RISK-4): Bound changes require an in-code justification comment naming the exact worst case; validator checks the diff for silent bound edits.",
+      "CTRL-5 (RISK-5): Cargo.toml grep proof including dev-dependencies (AC-307-9)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - P21 (proptest-state-machine against a reference model; shrink to minimal failing sequence; recorded seed deterministic replay; the two named properties 'one more converged pass reaches desired state' and 'never double-spawns a VM for one worktree'; trait-mocked CH adapter with spawn-succeeds-then-process-dies as a named regression; madsim avoid-clause), P10/flintlock #326 (REG-1), P13 (REG-2/3), P14 (REG-4 fencing), P4 (REG-5), P18/P19 (REG-6), P20 (purity premise), architecture sketch line 10 ('no K8s, Docker, Nomad, or madsim runtime dependency anywhere in the product'). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): worktree_vm_registry.rs (module doc 'fake-adapter-tested' seam line 15 - existing mock precedent; StaleBinding fencing 1104-1162); sandbox/cloud_hypervisor/adapter.rs (SandboxAdapter trait surface: spawn 2000, kill 2314, status 2398, snapshot 2444, restore 2649); resource_scope.rs (ResourceScope 147-153).",
+    "corrections": [
+      "Operator constraints baked in: no madsim product dependency, all Rust, no SQLite/K8s/Docker/containerd/Nomad, deterministic seeds, gated on WP-1 IV verdicts + merge.",
+      "The <= 3 pass convergence bound generalizes P21's 'one more converged pass' to multi-step plans (teardown chains); recorded here as a contract decision so the property cannot be silently weakened."
+    ]
+  },
+  "expansion_provenance": {
+    "added_by": "KERNEL_BUILDER-20260814-004500",
+    "operator_directive": "2026-08-14 operator-directed scope addition: microVM workspace fleet reconciler",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  }
+}
