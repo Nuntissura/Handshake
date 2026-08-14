@@ -3037,6 +3037,21 @@ fn page_model_lane_promotion() -> NewUserManualPage {
             ),
             section(
                 "workflows",
+                "Account and AccessSpace authority",
+                "Promotion runs only through `ModelLaneStore::new_scoped` with complete, \
+                 server-derived `owner_account_id`, `actor_principal_id`, \
+                 `authenticated_session_id`, `access_space_id`, and `workspace_id` authority. \
+                 An approved `ModelLanePromotionDecision`, its EventLedger receipt, and the \
+                 resulting promoted `ModelLaneMessage` inherit those exact five fields; caller \
+                 payloads cannot select or widen them. A foreign account, Principal, session, \
+                 AccessSpace, or workspace cannot discover or consume another scope's decision, \
+                 and the denial occurs before any promoted-message or EventLedger authority \
+                 mutation. The gate durably denies mixed resources from incompatible scopes as \
+                 `InputRefMismatch`; PromotionGate never widens a derived artifact to \
+                 make mixed-source promotion succeed.",
+            ),
+            section(
+                "workflows",
                 "Disagreement and stalled progress",
                 "For `parallel_debate`, cloud/local disagreement stays advisory until a \
                  promotion decision selects the winning `Proposal` or `PromotionRequest` and \
@@ -3081,15 +3096,17 @@ fn page_model_lane_promotion() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-004 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact`. \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact`. \
                  These exercise real PostgreSQL, EventLedger append/replay, schema registry \
                  rows, DB-derived CRDT base/state-vector guards, exact promotion decision and \
                  artifact binding, phantom input-ref denial, direct authority mutation rejection, \
                  duplicate idempotency conflict, deterministic sorted refs, typed message routing, \
-                 and manual parity. \
+                 exact owner/Principal/session/AccessSpace/workspace inheritance, cross-scope \
+                 default denial before mutation, mixed-source non-widening, and manual parity. \
                  There is no SQLite, mock, app/src, app/src-tauri, TypeScript, or structs-only \
                  proof path for Dexterity promotion.",
             ),
