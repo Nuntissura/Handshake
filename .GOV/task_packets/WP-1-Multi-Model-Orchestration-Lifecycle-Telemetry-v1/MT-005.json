@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-005",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T20:05:52.6406078Z",
+  "updated_at_utc": "2026-08-14T20:07:08.150Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002",
       "MT-004"
@@ -24,24 +24,24 @@
       "MT-007",
       "MT-009"
     ],
-    "active": true,
+    "active": false,
     "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260814-200552",
     "claimed_at_utc": "2026-08-14T20:05:52.6406078Z",
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260814-200552",
+    "ready_for_validation_at_utc": "2026-08-14T20:07:08.150Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V5: The ContextBundle handoff privacy contract remains incomplete because foreign-scope consume_context_bundle_for_downstream evidence is not attached. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source - ContextBundle/CRDT-derived references inherit no broader scope than their sources. STILL OWED: ContextBundle handoff-specific evidence (consume_context_bundle_for_downstream under a foreign scope) is not yet attached.",
-    "kb_ready_checklist_receipt_id": null,
-    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "proof_status": "READY_FOR_VALIDATION_V6: product commit 77ee4cc8. Full real-PostgreSQL ContextBundle binary passed 8/8; final exact foreign/mixed-scope consume proof passed 1/1; exact UserManual proof passed 1/1; cargo check, rustfmt, and diff checks passed. The proof covers exact-owner positive consume, all five single-dimension foreign denials without identifier disclosure, same-scope derivation positive control, mixed-source derivation refusal, owner-only post-denial consume, and unchanged ContextBundle/EventLedger row counts. Eight exact test-owned schemas were verified absent after cleanup; isolated Cargo target was cleaned.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_AND_HBR_PRIV_FOR_MT005: exact-scope ContextBundle consumption and mixed-source non-widening are proven through production ModelLaneStore paths on real PostgreSQL/EventLedger; Flight Recorder direct emission remains owned by MT-008 as already declared.",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-005:2026-08-14T20:07:08.150Z",
+    "product_worktree_root_resolution": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "READY_FOR_VALIDATION_V6 at product commit 77ee4cc8; real PostgreSQL 8/8 and exact privacy/manual gates green",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
-    "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FLIGHT_RECORDER_EVENT_EMIT_RECORDED_AS_DEFERRED_TO_MT008",
+    "post_implementation_adversarial_review_status": "COMPLETED_MULTI_LENS_2026-08-14",
+    "adversarial_findings_status": "MIXED_SOURCE_COUNTERFACTUAL_AND_POSITIVE_CONTROL_ADDED; ROOT_INDEPENDENT_REVIEW_NO_BLOCKING_FINDINGS",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
