@@ -1,0 +1,97 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-024",
+  "created_at_utc": "2026-08-14T17:24:19.836Z",
+  "updated_at_utc": "2026-08-14T17:24:19.836Z",
+  "authority_files": [
+    "../handshake_main/AGENTS.md",
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+  ],
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "origin": {
+    "discovered_by": "KERNEL_BUILDER-20260814-135053",
+    "discovered_at_utc": "2026-08-14T17:24:19.836Z",
+    "trigger": "MT-019 full PostgreSQL proof suites passed but their process-exit test cleanup timed out after 60 seconds and left 27 exact knowledge_test schemas; 13 still existed when independently reread and required exact manual cleanup.",
+    "why_a_new_mt": "The defect is owned by tests/knowledge_pg_support.rs and directly belongs to MT-019 test-resource lifecycle, not MT-020 production_factory.rs. The operator requires an unexpected same-WP gap to be retained as a future MT when it does not directly belong to the current MT."
+  },
+  "scope": {
+    "summary": "Make PostgreSQL integration-test schema teardown bounded, exact, and reliably leak-free for the WP-1 process-ledger and real-process lifecycle suites.",
+    "root_cause": "The process-exit cleanup sends many sequential DROP SCHEMA ... CASCADE operations through one psql process under one aggregate 60-second budget. Full MT-019 runs exceeded that shared budget after 10 and 17 schemas, so successful tests could leave large migrated schemas behind.",
+    "owned_files": [
+      "src/backend/handshake_core/tests/knowledge_pg_support.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+      "src/backend/handshake_core/tests/process_ledger_reclaim_tests.rs",
+      "src/backend/handshake_core/tests/process_reclaim_real_lifecycle_pg_tests.rs"
+    ],
+    "forbidden_paths": [
+      "Production PostgreSQL storage or migration behavior",
+      "Broad database, schema-pattern, or cluster deletion",
+      "Suppressing cleanup failures without a bounded observable receipt",
+      "Stopping PostgreSQL or any process not started by this MT"
+    ],
+    "acceptance_criteria": [
+      "AC-1: Cleanup operates only on the exact task-owned schema names returned by the test schema allocator; no wildcard, database-wide, or cluster-wide deletion is permitted.",
+      "AC-2: Every allocated schema receives an independent bounded cleanup opportunity, so one slow DROP cannot consume the cleanup budget for later schemas.",
+      "AC-3: Best-effort process-exit cleanup remains non-panicking and observable, while normal per-test cleanup happens early enough that process exit is only a recovery fence.",
+      "AC-4: Fresh full runs of process_ledger_reclaim_tests and process_reclaim_real_lifecycle_pg_tests pass against Handshake-managed PostgreSQL and an independent canonical pg_namespace reread proves zero schemas allocated by those runs remain.",
+      "AC-5: Failure-path tests prove an individual cleanup timeout/error does not prevent later exact schemas from receiving cleanup attempts and does not target foreign schemas."
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_reclaim_tests -- --nocapture --test-threads=1",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests -- --nocapture --test-threads=1",
+      "Independent psql query of pg_namespace for the exact schema names allocated by both proof runs; expected count: 0",
+      "git diff --check"
+    ],
+    "risk_if_missed": "Repeated full PostgreSQL validation leaks hundreds of migrated objects per schema, bloats the managed catalog and disk, slows later tests, and can make otherwise-correct work appear flaky or blocked."
+  },
+  "implementation_notes": [
+    "Preserve the existing real PostgreSQL authority and exact-schema allocator.",
+    "Prefer normal-scope RAII or explicit teardown; retain process-exit cleanup only as a bounded recovery fence.",
+    "Direct every Cargo target to Handshake_Artifacts and clean it after proof."
+  ],
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-QUIET-003",
+    "HBR-STOP-003"
+  ],
+  "red_team": [
+    "A single larger timeout preserves the aggregate-budget bug and will regress as migrations grow; the budget must be per exact schema or cleanup must occur earlier.",
+    "Dropping every knowledge_test_* schema could delete a parallel agent's live schema; exact allocator-owned names and foreign-schema survival are mandatory.",
+    "A green test binary does not prove cleanup; pg_namespace must be reread independently after process exit."
+  ],
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-019"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "PENDING_IMPLEMENTATION: exact leak reproduced after successful MT-019 full suites; independent cleanup recovered the dedicated proof database to zero matching schemas.",
+    "hbr_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "REQUIRED",
+    "post_implementation_adversarial_review_status": "REQUIRED",
+    "adversarial_findings_status": "PENDING",
+    "kb_ready_checklist_receipt_id": null,
+    "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
+    "last_runtime_status_ref": "DISCOVERED_AFTER_MT019_FULL_SUITES_2026-08-14; 27 captured leaks, 13 independently present, exact cleanup completed, canonical count zero"
+  }
+}

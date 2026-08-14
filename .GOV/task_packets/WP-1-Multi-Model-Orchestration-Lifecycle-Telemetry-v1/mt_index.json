@@ -1,10 +1,10 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-08-14T06:47:34.4011273Z",
-  "total": 23,
-  "range": "MT-001..MT-023",
-  "note": "Projection regenerated from authoritative MT-001..MT-023 JSON contracts after Integration Validator V5 verdicts. Individual MT JSON lifecycle fields and integration_validation_v5_2026_08_14 remain authoritative.",
+  "generated_at_utc": "2026-08-14T17:24:19.836Z",
+  "total": 24,
+  "range": "MT-001..MT-024",
+  "note": "Projection extended through authoritative MT-024 after the MT-019 PostgreSQL test-schema teardown gap was reproduced. Individual MT JSON lifecycle fields remain authoritative.",
   "consolidated_validation_2026_08_14": {
     "source_sha": "df463aa6459d29c82187e7284d86a0bf37575009",
     "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target",
@@ -703,6 +703,21 @@
         "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
         "fail_report": "The mandatory live MicroVM proof cannot start in the current environment: WSL has no /dev/kvm, the contract-declared PostgreSQL ports 59637 and 59647 are closed, and the declared Cargo target directories do not exist. AC-6 forbids substituting deterministic registry tests for the real KVM/model/PostgreSQL path."
       }
+    },
+    {
+      "mt_id": "MT-024",
+      "unlocks": "Reliable leak-free full PostgreSQL lifecycle validation without manual schema cleanup.",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-019"
+      ],
+      "summary": "Make PostgreSQL integration-test schema teardown bounded, exact, and reliably leak-free for the WP-1 process-ledger and real-process lifecycle suites.",
+      "blocks": [],
+      "proof_status": "PENDING_IMPLEMENTATION: exact leak reproduced after successful MT-019 full suites; independent cleanup recovered the dedicated proof database to zero matching schemas.",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "REQUIRED",
+      "post_implementation_adversarial_review_status": "REQUIRED",
+      "adversarial_findings_status": "PENDING"
     }
   ]
 }
