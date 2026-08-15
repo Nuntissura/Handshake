@@ -7,7 +7,7 @@
 //! The contract asks the production `screenshot` tool to grab the live OS window focus-safely. egui
 //! 0.33 does NOT expose a programmatic frame read-back from inside the running `eframe` app (the wgpu
 //! surface is presented to the OS, not handed to the app), so the production capture path uses an OS
-//! window grab. The native shell ships a focus-safe Win32 `PrintWindow`/`BitBlt`-style adapter
+//! window grab. The native shell ships a focus-safe Windows Graphics Capture adapter
 //! ([`capture_window_by_title_and_pid`]) — it NEVER calls `SetForegroundWindow`/`BringWindowToTop` and
 //! never changes Z-order (HBR-QUIET). That OS path needs a real on-screen window and a windowing
 //! environment, so it is GENUINELY UNDRIVEABLE from this headless `cargo test` host and is disclosed as
@@ -90,7 +90,10 @@ pub enum CaptureTarget {
 /// production, a stub in tests); otherwise fall back to title matching. Keeping this a pure function of
 /// `(recorded, is_valid)` is what lets the window-handle-based resolution be proven without a live GPU
 /// or a real window.
-pub fn resolve_capture_target(recorded: Option<isize>, is_valid: impl Fn(isize) -> bool) -> CaptureTarget {
+pub fn resolve_capture_target(
+    recorded: Option<isize>,
+    is_valid: impl Fn(isize) -> bool,
+) -> CaptureTarget {
     match recorded {
         Some(hwnd) if is_valid(hwnd) => CaptureTarget::RecordedHandle(hwnd),
         _ => CaptureTarget::TitleFallback,
@@ -190,7 +193,7 @@ pub const HANDSHAKE_WINDOW_TITLE: &str = "Handshake";
 /// PRODUCTION path (the contract's live OS-window grab). Matches the window whose title is
 /// [`HANDSHAKE_WINDOW_TITLE`] AND whose owning process id is THIS process (red-team: window-title
 /// ambiguity — a multi-window dev session never captures another process's window). Uses Win32
-/// `PrintWindow` with `PW_RENDERFULLCONTENT` over an off-screen memory DC; it NEVER calls
+/// `Windows.Graphics.Capture` for the exact HWND; it NEVER calls
 /// `SetForegroundWindow`/`BringWindowToTop` and never changes Z-order (HBR-QUIET).
 ///
 /// On non-Windows builds, or when no matching window is found / GDI fails, returns a typed
@@ -224,7 +227,10 @@ pub fn capture_handshake_window_target(
     #[cfg(target_os = "windows")]
     {
         let recorded = recorded_window_handle(&window.window_id);
-        match resolve_capture_target(recorded, windows_capture::hwnd_is_capturable_for_this_process) {
+        match resolve_capture_target(
+            recorded,
+            windows_capture::hwnd_is_capturable_for_this_process,
+        ) {
             CaptureTarget::RecordedHandle(hwnd) => windows_capture::capture_recorded_hwnd(hwnd)
                 .map(|capture| capture.with_window_metadata(window)),
             CaptureTarget::TitleFallback => {
@@ -280,34 +286,40 @@ pub fn record_viewport_window_handle(
     }
 }
 
-/// Win32 GDI window capture (focus-safe `PrintWindow`). Windows-only; gated behind `cfg(windows)` so
-/// non-Windows builds never reference the Win32 APIs.
+/// Windows Graphics Capture adapter. Windows-only; gated behind `cfg(windows)` so non-Windows
+/// builds never reference the WinRT/D3D11 APIs.
 #[cfg(target_os = "windows")]
 mod windows_capture {
     use super::{screenshot_from_png, ScreenshotError, ScreenshotResult};
 
-    use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT, TRUE};
-    use windows_sys::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
-        GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
-        HBITMAP, HDC, SRCCOPY,
+    use ::windows_capture::capture::{Context, GraphicsCaptureApiHandler};
+    use ::windows_capture::frame::Frame;
+    use ::windows_capture::graphics_capture_api::InternalCaptureControl;
+    use ::windows_capture::settings::{
+        ColorFormat, CursorCaptureSettings, DirtyRegionSettings, DrawBorderSettings,
+        MinimumUpdateIntervalSettings, SecondaryWindowSettings, Settings,
     };
-    // `PrintWindow` lives under `Win32::Storage::Xps` in windows-sys 0.61; `PW_RENDERFULLCONTENT` is in
-    // `Win32::UI::WindowsAndMessaging`.
-    use windows_sys::Win32::Storage::Xps::PrintWindow;
+    use ::windows_capture::window::Window;
+    use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT, TRUE};
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
-        IsWindowVisible, PW_RENDERFULLCONTENT,
+        EnumWindows, GetWindowRect, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
+        SendMessageTimeoutW, SMTO_ABORTIFHUNG, SMTO_BLOCK, WM_GETTEXT,
     };
+
+    static CAPTURE_IN_FLIGHT: std::sync::atomic::AtomicBool =
+        std::sync::atomic::AtomicBool::new(false);
 
     /// Find the visible top-level window matching `title` owned by `pid`, then capture it focus-safely.
     pub fn capture_window_by_title_and_pid(
         title: &str,
         pid: u32,
     ) -> Result<ScreenshotResult, ScreenshotError> {
-        let hwnd = find_window(title, pid)?;
-        capture_hwnd(hwnd)
+        let title = title.to_owned();
+        supervise_capture(move || {
+            let hwnd = find_window(&title, pid)?;
+            capture_hwnd_inner(hwnd as isize)
+        })
     }
 
     /// MT-008b: whether a recorded handle is still a live, visible window owned by THIS process. The
@@ -330,14 +342,12 @@ mod windows_capture {
 
     /// MT-008b: capture a specific recorded HWND focus-safely, after re-validating it is still a window.
     pub fn capture_recorded_hwnd(hwnd_isize: isize) -> Result<ScreenshotResult, ScreenshotError> {
-        let hwnd = hwnd_isize as HWND;
-        // SAFETY: IsWindow only reads; an already-freed handle returns 0.
-        if unsafe { IsWindow(hwnd) } == 0 {
+        if !hwnd_is_capturable_for_this_process(hwnd_isize) {
             return Err(ScreenshotError(
-                "recorded window handle is no longer a valid window".to_owned(),
+                "recorded window handle is not a visible window owned by this process".to_owned(),
             ));
         }
-        capture_hwnd(hwnd)
+        supervise_capture(move || capture_hwnd_inner(hwnd_isize))
     }
 
     /// MT-008b: resolve the OS window handle for `title` owned by `pid`. When exactly one visible
@@ -401,9 +411,8 @@ mod windows_capture {
         if win_pid != ctx.want_pid {
             return TRUE;
         }
-        let mut buf = [0u16; 512];
-        let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
-        if len > 0 && &buf[..len as usize] == ctx.want_title.as_slice() {
+        let title = bounded_window_title(hwnd);
+        if title.as_deref() == Some(ctx.want_title.as_slice()) {
             let mut rect: RECT = std::mem::zeroed();
             if GetWindowRect(hwnd, &mut rect) != 0 {
                 ctx.matches.push((hwnd, rect));
@@ -458,120 +467,282 @@ mod windows_capture {
             return TRUE;
         }
         // Read the title and compare exactly.
-        let mut buf = [0u16; 512];
-        let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
-        if len > 0 {
-            let got = &buf[..len as usize];
-            if got == ctx.want_title.as_slice() {
-                ctx.found = hwnd;
-                ctx.match_count += 1;
-            }
+        if bounded_window_title(hwnd).as_deref() == Some(ctx.want_title.as_slice()) {
+            ctx.found = hwnd;
+            ctx.match_count += 1;
         }
         TRUE
     }
 
-    /// Capture a specific HWND to PNG bytes via an off-screen memory DC + `PrintWindow`. Focus-safe:
-    /// no foreground/Z-order change.
-    fn capture_hwnd(hwnd: HWND) -> Result<ScreenshotResult, ScreenshotError> {
-        // SAFETY: all handles are checked for null and released/deleted on every exit path below.
-        unsafe {
-            let mut rect: RECT = std::mem::zeroed();
-            if GetWindowRect(hwnd, &mut rect) == 0 {
-                return Err(ScreenshotError("GetWindowRect failed".to_owned()));
-            }
-            let width = (rect.right - rect.left).max(0);
-            let height = (rect.bottom - rect.top).max(0);
-            if width == 0 || height == 0 {
-                return Err(ScreenshotError(
-                    "window has zero area (minimized?)".to_owned(),
-                ));
-            }
+    struct CapturedFrame {
+        rgba: Vec<u8>,
+        width: u32,
+        height: u32,
+    }
 
-            let window_dc: HDC = GetDC(hwnd);
-            if window_dc.is_null() {
-                return Err(ScreenshotError("GetDC failed".to_owned()));
-            }
-            let mem_dc: HDC = CreateCompatibleDC(window_dc);
-            if mem_dc.is_null() {
-                ReleaseDC(hwnd, window_dc);
-                return Err(ScreenshotError("CreateCompatibleDC failed".to_owned()));
-            }
-            let bitmap: HBITMAP = CreateCompatibleBitmap(window_dc, width, height);
-            if bitmap.is_null() {
-                DeleteDC(mem_dc);
-                ReleaseDC(hwnd, window_dc);
-                return Err(ScreenshotError("CreateCompatibleBitmap failed".to_owned()));
-            }
-            let old = SelectObject(mem_dc, bitmap as _);
+    #[derive(Debug, Eq, PartialEq)]
+    struct WindowIdentity {
+        pid: u32,
+        title: Vec<u16>,
+        rect: (i32, i32, i32, i32),
+    }
 
-            // PrintWindow renders the window into the memory DC WITHOUT activating it (focus-safe).
-            // PW_RENDERFULLCONTENT captures GPU-composited (wgpu) client content. Fall back to BitBlt
-            // of the window DC if PrintWindow reports failure.
-            let printed = PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT);
-            if printed == 0 {
-                let copied = BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY);
-                if copied == 0 {
-                    SelectObject(mem_dc, old);
-                    DeleteObject(bitmap as _);
-                    DeleteDC(mem_dc);
-                    ReleaseDC(hwnd, window_dc);
-                    return Err(ScreenshotError(
-                        "PrintWindow and BitBlt both failed".to_owned(),
+    struct OneFrameCapture {
+        sender: Option<std::sync::mpsc::SyncSender<Result<CapturedFrame, String>>>,
+    }
+
+    impl GraphicsCaptureApiHandler for OneFrameCapture {
+        type Flags = std::sync::mpsc::SyncSender<Result<CapturedFrame, String>>;
+        type Error = String;
+
+        fn new(ctx: Context<Self::Flags>) -> Result<Self, Self::Error> {
+            Ok(Self {
+                sender: Some(ctx.flags),
+            })
+        }
+
+        fn on_frame_arrived(
+            &mut self,
+            frame: &mut Frame<'_>,
+            capture_control: InternalCaptureControl,
+        ) -> Result<(), Self::Error> {
+            let result = (|| {
+                let width = frame.width();
+                let height = frame.height();
+                if width == 0 || height == 0 {
+                    return Err("Windows Graphics Capture returned a zero-area frame".to_owned());
+                }
+                let expected_len = (width as usize)
+                    .checked_mul(height as usize)
+                    .and_then(|pixels| pixels.checked_mul(4))
+                    .ok_or_else(|| "capture pixel buffer size overflow".to_owned())?;
+                let buffer = frame
+                    .buffer()
+                    .map_err(|error| format!("failed to map captured D3D11 frame: {error}"))?;
+                let mut packed = Vec::new();
+                packed
+                    .try_reserve_exact(expected_len)
+                    .map_err(|error| format!("capture pixel buffer allocation failed: {error}"))?;
+                let pixels = buffer.as_nopadding_buffer(&mut packed);
+                if pixels.len() != expected_len {
+                    return Err(format!(
+                        "captured frame length mismatch: got {}, expected {expected_len}",
+                        pixels.len()
                     ));
                 }
+                let mut rgba = pixels.to_vec();
+                // The requested capture format is BGRA8. Convert to the image encoder's RGBA8 and
+                // force opacity because the compositor alpha channel is not an Argus privacy mask.
+                for pixel in rgba.chunks_exact_mut(4) {
+                    pixel.swap(0, 2);
+                    pixel[3] = 255;
+                }
+                Ok(CapturedFrame {
+                    rgba,
+                    width,
+                    height,
+                })
+            })();
+            if let Some(sender) = self.sender.take() {
+                let _ = sender.send(result);
             }
-
-            // Read the bitmap bits out as top-down BGRA.
-            let mut info: BITMAPINFO = std::mem::zeroed();
-            info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-            info.bmiHeader.biWidth = width;
-            info.bmiHeader.biHeight = -height; // negative => top-down rows
-            info.bmiHeader.biPlanes = 1;
-            info.bmiHeader.biBitCount = 32;
-            info.bmiHeader.biCompression = BI_RGB;
-
-            let pixel_count = (width as usize) * (height as usize);
-            let mut bgra = vec![0u8; pixel_count * 4];
-            let scanlines = GetDIBits(
-                mem_dc,
-                bitmap,
-                0,
-                height as u32,
-                bgra.as_mut_ptr() as *mut _,
-                &mut info,
-                DIB_RGB_COLORS,
-            );
-
-            // Clean up GDI objects before encoding.
-            SelectObject(mem_dc, old);
-            DeleteObject(bitmap as _);
-            DeleteDC(mem_dc);
-            ReleaseDC(hwnd, window_dc);
-
-            if scanlines == 0 {
-                return Err(ScreenshotError("GetDIBits returned 0 scanlines".to_owned()));
-            }
-
-            // Convert BGRA -> RGBA in place.
-            for px in bgra.chunks_exact_mut(4) {
-                px.swap(0, 2);
-            }
-
-            // Encode to PNG via the `image` crate (already in the graph for the render path).
-            let mut png_bytes: Vec<u8> = Vec::new();
-            {
-                use image::ImageEncoder;
-                image::codecs::png::PngEncoder::new(&mut png_bytes)
-                    .write_image(
-                        &bgra,
-                        width as u32,
-                        height as u32,
-                        image::ExtendedColorType::Rgba8,
-                    )
-                    .map_err(|e| ScreenshotError(format!("PNG encode failed: {e}")))?;
-            }
-            Ok(screenshot_from_png(&png_bytes, width as u32, height as u32))
+            capture_control.stop();
+            Ok(())
         }
+
+        fn on_closed(&mut self) -> Result<(), Self::Error> {
+            if let Some(sender) = self.sender.take() {
+                let _ = sender.send(Err(
+                    "capture target closed before a compositor frame arrived".to_owned(),
+                ));
+            }
+            Ok(())
+        }
+    }
+
+    struct CaptureSlot;
+
+    impl Drop for CaptureSlot {
+        fn drop(&mut self) {
+            CAPTURE_IN_FLIGHT.store(false, std::sync::atomic::Ordering::Release);
+        }
+    }
+
+    /// Supervise target lookup, identity reads, WGC startup, frame acquisition, and shutdown from a
+    /// separate standard thread. Only one capture worker may exist at a time. If Windows permanently
+    /// wedges a worker, the slot remains occupied and later requests fail closed instead of leaking
+    /// one detached thread/resource set per request.
+    fn supervise_capture(
+        task: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError> + Send + 'static,
+    ) -> Result<ScreenshotResult, ScreenshotError> {
+        if CAPTURE_IN_FLIGHT
+            .compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::AcqRel,
+                std::sync::atomic::Ordering::Acquire,
+            )
+            .is_err()
+        {
+            return Err(ScreenshotError(
+                "a Windows Graphics Capture request is already in flight".to_owned(),
+            ));
+        }
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        if let Err(error) = std::thread::Builder::new()
+            .name("handshake-wgc-one-frame".to_owned())
+            .spawn(move || {
+                let _slot = CaptureSlot;
+                let _ = sender.send(task());
+            })
+        {
+            CAPTURE_IN_FLIGHT.store(false, std::sync::atomic::Ordering::Release);
+            return Err(ScreenshotError(format!(
+                "capture supervisor spawn failed: {error}"
+            )));
+        }
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(8))
+            .map_err(|_| {
+                ScreenshotError(
+                    "Windows Graphics Capture lifecycle exceeded the 8-second supervisor bound"
+                        .to_owned(),
+                )
+            })?
+    }
+
+    /// Capture a specific HWND through the Windows compositor. This function runs only inside the
+    /// bounded supervisor thread above. It neither activates nor reorders the window.
+    fn capture_hwnd_inner(hwnd_value: isize) -> Result<ScreenshotResult, ScreenshotError> {
+        let hwnd = hwnd_value as HWND;
+        let expected_identity = window_identity(hwnd)?;
+        if window_identity(hwnd)? != expected_identity {
+            return Err(ScreenshotError(
+                "capture target identity changed before WGC startup".to_owned(),
+            ));
+        }
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let settings = Settings::new(
+            Window::from_raw_hwnd(hwnd.cast()),
+            CursorCaptureSettings::WithoutCursor,
+            DrawBorderSettings::WithoutBorder,
+            SecondaryWindowSettings::Exclude,
+            MinimumUpdateIntervalSettings::Default,
+            DirtyRegionSettings::Default,
+            ColorFormat::Bgra8,
+            sender,
+        );
+        let control = OneFrameCapture::start_free_threaded(settings).map_err(|error| {
+            ScreenshotError(format!("Windows Graphics Capture start failed: {error}"))
+        })?;
+        let frame_result = receiver.recv_timeout(std::time::Duration::from_secs(5));
+        if let Err(error) = control.stop() {
+            return Err(ScreenshotError(format!(
+                "Windows Graphics Capture shutdown failed: {error}"
+            )));
+        }
+        let captured = frame_result
+            .map_err(|_| {
+                ScreenshotError(
+                    "Windows Graphics Capture produced no frame within 5 seconds".to_owned(),
+                )
+            })?
+            .map_err(ScreenshotError)?;
+        if window_identity(hwnd)? != expected_identity {
+            return Err(ScreenshotError(
+                "capture target identity changed while acquiring the compositor frame".to_owned(),
+            ));
+        }
+
+        let mut png_bytes = Vec::new();
+        use image::ImageEncoder;
+        image::codecs::png::PngEncoder::new(&mut png_bytes)
+            .write_image(
+                &captured.rgba,
+                captured.width,
+                captured.height,
+                image::ExtendedColorType::Rgba8,
+            )
+            .map_err(|error| ScreenshotError(format!("PNG encode failed: {error}")))?;
+        Ok(screenshot_from_png(
+            &png_bytes,
+            captured.width,
+            captured.height,
+        ))
+    }
+
+    fn window_identity(hwnd: HWND) -> Result<WindowIdentity, ScreenshotError> {
+        // SAFETY: all calls read state for an arbitrary HWND. A destroyed/recycled handle either
+        // fails or produces a different identity, which the caller rejects.
+        unsafe {
+            if IsWindow(hwnd) == 0 || IsWindowVisible(hwnd) == 0 {
+                return Err(ScreenshotError(
+                    "capture target is no longer a visible window".to_owned(),
+                ));
+            }
+            let mut pid = 0_u32;
+            GetWindowThreadProcessId(hwnd, &mut pid);
+            if pid != GetCurrentProcessId() {
+                return Err(ScreenshotError(
+                    "capture target is no longer owned by this process".to_owned(),
+                ));
+            }
+            let title = bounded_window_title_with_retry(hwnd).ok_or_else(|| {
+                ScreenshotError("capture target has no readable title".to_owned())
+            })?;
+            let mut rect: RECT = std::mem::zeroed();
+            if GetWindowRect(hwnd, &mut rect) == 0
+                || rect.right <= rect.left
+                || rect.bottom <= rect.top
+            {
+                return Err(ScreenshotError(
+                    "capture target has no readable non-zero bounds".to_owned(),
+                ));
+            }
+            Ok(WindowIdentity {
+                pid,
+                title,
+                rect: (rect.left, rect.top, rect.right, rect.bottom),
+            })
+        }
+    }
+
+    /// Read a same-process window title without an unbounded synchronous `WM_GETTEXT`. Windows sends
+    /// `WM_GETTEXT` to same-process windows, so an unresponsive UI thread must be cut off before it can
+    /// stall Argus. Every enumeration and identity check uses this bounded helper.
+    fn bounded_window_title(hwnd: HWND) -> Option<Vec<u16>> {
+        let mut title = [0_u16; 512];
+        let mut copied = 0_usize;
+        // SAFETY: the buffer remains valid for this synchronous call. SMTO_ABORTIFHUNG bounds an
+        // unresponsive receiver; SMTO_BLOCK prevents this worker from dispatching unrelated messages.
+        let sent = unsafe {
+            SendMessageTimeoutW(
+                hwnd,
+                WM_GETTEXT,
+                title.len(),
+                title.as_mut_ptr() as isize,
+                SMTO_ABORTIFHUNG | SMTO_BLOCK,
+                250,
+                &mut copied,
+            )
+        };
+        if sent == 0 || copied == 0 || copied >= title.len() {
+            None
+        } else {
+            Some(title[..copied].to_vec())
+        }
+    }
+
+    /// Identity reads run off the UI thread while the same process may be laying out a large
+    /// Settings or console viewport. A single bounded `WM_GETTEXT` can therefore time out during a
+    /// legitimate short UI-thread stall even though the exact recorded HWND is still valid. Retry
+    /// once after a small backoff; every attempt remains bounded and the caller still compares the
+    /// PID, title, and bounds before and after WGC, so this does not weaken the anti-recycling gate.
+    fn bounded_window_title_with_retry(hwnd: HWND) -> Option<Vec<u16>> {
+        bounded_window_title(hwnd).or_else(|| {
+            std::thread::sleep(std::time::Duration::from_millis(25));
+            bounded_window_title(hwnd)
+        })
     }
 }
 

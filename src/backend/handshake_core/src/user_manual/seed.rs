@@ -3633,14 +3633,16 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  the row's own `owner_session` is refused at WRITE time, before any receipt \
                  exists; an `approver` naming an account the writing store may not write as is \
                  refused with `CX-MM-007`; and at launch time, when the request carries an \
-                 account context, `AccountBoundAuthority::Unattributed` and another account's \
+                 exact account context, `AccountBoundAuthority::Unattributed` and another account's \
                  `AccountBoundAuthority::Account` are both refused with `CX-MM-007` plus the \
                  stable scope reason code (`RESOURCE_SCOPE_UNATTRIBUTED`, \
                  `RESOURCE_SCOPE_OWNER_MISMATCH`, or `RESOURCE_SCOPE_WORKSPACE_MISMATCH`) and \
-                 never the restricted row's identifiers. A launch that carries NO account \
-                 context (a system or legacy-unscoped store) skips that check: that is the \
-                 documented pre-WP-KERNEL-006 residual, shared by every WP-1 table, not a cloud \
-                 exemption. The delegation is checked too: empty `audience_refs`, an audience \
+                 never the restricted row's identifiers. The HTTP grant-launch and revocation \
+                 handlers require the scoped product router, compare its immutable exact scope \
+                 with the durable `ModelLaneStore`, and refuse a missing, incomplete, or mismatched \
+                 scope before recording a ProjectionPlan, ConsentReceipt, lane, denial, or provider \
+                 side effect. A system or legacy-unscoped store cannot mint or consume cloud \
+                 authority. The delegation is checked too: empty `audience_refs`, an audience \
                  entry that is not in `fan_out_targets` (a widening export), a \
                  `source_scope` owned by a different account than the receipt's `approver`, and \
                  an `authorization_receipt_ref` naming a different receipt each fail closed \
@@ -6460,7 +6462,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_command_palette typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog swarm_lane_diagnostics_setting_persists -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_diagnostics_user_manual_entry_is_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_diagnostics_user_manual_entry_is_current -- --exact",
+                "$env:HANDSHAKE_ARGUS_LIVE_BACKEND_READY='1'; $env:HANDSHAKE_DIAGNOSTICS_DIR='<absolute-shared-diagnostics-dir>'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='<absolute-proof-root>'; $env:HANDSHAKE_MT008_ARGUS_PROOF_NONCE='<fresh-single-use-nonce>'; cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live mt008_production_socket_diagnostics_scope_and_detached_capture -- --ignored --exact --test-threads=1"
             ],
             "manual_version": USER_MANUAL_VERSION,
         }))
@@ -6479,13 +6482,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: Some("/swarm/model-lanes/diagnostics/latest".into()),
         http_method: "GET".into(),
         description:
-            "Exact Rust proof targets for the Dexterity Lane Diagnostics native pane, backend diagnostics projection, settings/menu/palette paths, and HBR-INT-009 posture."
+            "Exact Rust proof targets for the Dexterity Lane Diagnostics native pane, backend diagnostics projection, settings/menu/palette paths, five-dimensional privacy scope and metadata-safe denial posture, docked/edge/main-while-detached/constrained-detached visual matrix, renderer/runtime scan, and HBR-INT-009 posture."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; EventLedger rows; diagnostic tier and MT runtime status rows; native Rust app AccessKit/Argus harness."
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; EventLedger rows; diagnostic tier and MT runtime status rows; native Rust app AccessKit/Argus harness. The ignored production-socket proof additionally requires a running Palmistry-ready handshake_core on 127.0.0.1:37501, HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, an absolute shared HANDSHAKE_DIAGNOSTICS_DIR, an absolute HANDSHAKE_PROOF_ARTIFACT_DIR, and a fresh single-use HANDSHAKE_MT008_ARGUS_PROOF_NONCE."
                 .into(),
         expected_output:
-            "A native_swarm_lane_diagnostics projection from ModelLaneStore::diagnostics_projection; GET /swarm/model-lanes/diagnostics/latest and GET /swarm/model-lanes/diagnostics/{run_id}; stable AccessKit author IDs for menu.models.swarm-lane-diagnostics, swarm-lane-diagnostics.surface, run/lane/message filters, payload and promotion drilldowns, and settings.swarm-lane-diagnostics-default-open; lanes and messages linked to EventLedger event IDs, EventLedger-backed FlightRecorder correlation IDs and aliases, trace/span/link IDs, CRDT refs, Locus/Loom/FEMS refs, context bundle refs, memory pack refs, artifact refs, HBR-INT-009 tiers, and MT runtime status refs; projection validation rejects missing author IDs, schema_id mismatch, count mismatch, missing payload/EventLedger/FlightRecorder evidence, missing internal_diagnostics/Palmistry tiers, missing HBR tier state, and deferred tiers without follow_up_ref."
+            "A native_swarm_lane_diagnostics projection from ModelLaneStore::diagnostics_projection; GET /swarm/model-lanes/diagnostics/latest and GET /swarm/model-lanes/diagnostics/{run_id}; stable AccessKit author IDs for menu.models.swarm-lane-diagnostics, swarm-lane-diagnostics.surface, run/lane/message filters, payload and promotion drilldowns, visible active-account/Principal/session/AccessSpace/workspace backend-process-keyed fingerprint rows, explicit exact-scope visibility and metadata-safe denial posture, and settings.swarm-lane-diagnostics-default-open. Fingerprints are stable only within one backend process, preventing offline guessing and persistent cross-run correlation. The production-socket proof publishes a nonce-scoped ten-file bundle: main.png, edge-empty.png, main-detached.png, popout.png, transcript_commitment.json, backend_commitment.json, provenance.json with typed action-id/method/window/target/evidence bindings, evidence_chain.json, visual_inspection.json, and renderer_error_scan.json. Raw scope identifiers remain absent from Argus transcript and capture-bound UI evidence. Lanes and messages remain linked to EventLedger, FlightRecorder, trace/span/link, CRDT, Locus/Loom/FEMS, context bundle, memory pack, artifact, HBR-INT-009 tier, and MT runtime status refs."
                 .into(),
         schema_fields: vec![
             "ModelLaneDiagnosticsProjection".into(),
@@ -6499,6 +6502,18 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "swarm-lane-diagnostics.filter.run".into(),
             "swarm-lane-diagnostics.filter.lane".into(),
             "swarm-lane-diagnostics.filter.message".into(),
+            "swarm-lane-diagnostics.messages.empty".into(),
+            "swarm-lane-diagnostics.privacy.visibility".into(),
+            "swarm-lane-diagnostics.privacy.denial-posture".into(),
+            "resource_scope.owner_account_fingerprint".into(),
+            "resource_scope.actor_principal_fingerprint".into(),
+            "resource_scope.authenticated_session_fingerprint".into(),
+            "resource_scope.access_space_fingerprint".into(),
+            "resource_scope.workspace_fingerprint".into(),
+            "resource_scope.visibility".into(),
+            "resource_scope.denial_posture".into(),
+            "handshake.argus.mt008_visual_inspection@1".into(),
+            "handshake.argus.renderer_runtime_error_scan@1".into(),
             "swarmdiagnostics.open".into(),
             "menu.models.swarm-lane-diagnostics".into(),
             "settings.swarm-lane-diagnostics-default-open".into(),
@@ -6527,6 +6542,11 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "schema_id_mismatch".into(),
             "missing_hbr_tier_state".into(),
             "missing_deferred_follow_up_ref".into(),
+            "foreign_scope_metadata_leak".into(),
+            "stale_or_reused_proof_nonce".into(),
+            "missing_shared_diagnostics_ring".into(),
+            "uncaught_renderer_or_runtime_error".into(),
+            "incomplete_visual_state_matrix".into(),
         ],
         recovery_steps: vec![
             "If the pane shows swarm-lane-diagnostics.error, fetch GET /swarm/model-lanes/diagnostics/{run_id} and inspect the backend projection error first.".into(),
@@ -6536,6 +6556,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "If HBR posture is suspected to be FlightRecorder-only, run swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture before trusting the diagnostics pane.".into(),
             "internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; do not silently skip HBR-INT-009.".into(),
             "The HBR-INT-009 envelope is emitted once per ModelLaneRun (run-level, coverage posture RUN_LEVEL_WIRED, proven by verify_model_lane_behavior_evidence against the run's durable records), not per behavior; a tier that is genuinely unavailable is recorded as NOT_APPLICABLE-with-reason or DEFERRED-with-reason with a follow_up_ref, never fabricated per behavior.".into(),
+            "If the production-socket proof cannot start, first verify the managed PostgreSQL-backed handshake_core is listening on 127.0.0.1:37501, Palmistry readiness is present, and HANDSHAKE_DIAGNOSTICS_DIR names the same absolute directory used by the backend and native child; do not replace this with a mock backend.".into(),
+            "If proof publication rejects the nonce, set HANDSHAKE_MT008_ARGUS_PROOF_NONCE to a new single-use value and rerun the exact ignored test; never overwrite or reuse a published nonce-scoped bundle.".into(),
+            "If renderer_error_scan.json reports any failed event, panic, panic_observed, or ring_publish_failed event, inspect that exact child process in the shared internal_diagnostics ring, remediate the runtime failure, and recapture all four visual states.".into(),
+            "If privacy validation fails, compare the authorized backend resource_scope across owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id; expose only backend-process-keyed opaque fingerprints plus visible denial posture in UI/provenance and rerun the raw-value HTTP/transcript plus encoded/decoded capture scans. Fingerprints are stable only for the backend process and must not be treated as persistent cross-run identifiers.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: swarm_lane_diagnostics_tool_hash,

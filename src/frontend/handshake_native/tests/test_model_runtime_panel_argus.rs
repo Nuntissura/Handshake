@@ -26,11 +26,10 @@ use handshake_native::{
         row_active_selection_author_id, row_adapter_author_id, row_artifact_path_author_id,
         row_audit_author_id, row_author_id, row_default_ineligible_author_id,
         row_dormant_reason_author_id, row_engine_internals_author_id,
-        row_engine_internals_expand_author_id, row_kv_cache_author_id,
-        row_last_call_age_author_id, row_last_call_author_id,
-        row_ledger_link_author_id, row_live_model_author_id, row_locator_author_id,
-        row_lora_author_id, row_revision_author_id, row_role_author_id, row_sha_author_id,
-        row_state_author_id, row_steering_author_id, row_switch_author_id,
+        row_engine_internals_expand_author_id, row_kv_cache_author_id, row_last_call_age_author_id,
+        row_last_call_author_id, row_ledger_link_author_id, row_live_model_author_id,
+        row_locator_author_id, row_lora_author_id, row_revision_author_id, row_role_author_id,
+        row_sha_author_id, row_state_author_id, row_steering_author_id, row_switch_author_id,
         row_tokens_per_second_author_id, row_vram_author_id, status_author_id, surface_author_id,
         take_process_ledger_navigation_request, validate_projection_for_native_surface,
         ModelRuntimeControlAction, ModelRuntimePaneFactory, ModelRuntimeRegistryCell,
@@ -828,18 +827,14 @@ fn mt014_argus_renders_real_pg_live_and_dormant_registry_rows() {
         ) {
             assert_author_id(
                 &harness,
-                &row_engine_internals_expand_author_id(
-                    PRIMARY_MODEL_RUNTIME_PANE_ID,
-                    artifact,
-                ),
+                &row_engine_internals_expand_author_id(PRIMARY_MODEL_RUNTIME_PANE_ID, artifact),
             );
         }
         for (action, availability) in [
             ("unload", &row.unload_action),
             ("adapter-swap", &row.compatible_adapter_swap_action),
         ] {
-            let author_id =
-                row_action_author_id(PRIMARY_MODEL_RUNTIME_PANE_ID, artifact, action);
+            let author_id = row_action_author_id(PRIMARY_MODEL_RUNTIME_PANE_ID, artifact, action);
             if availability.enabled {
                 assert_action_enabled(&harness, &author_id);
             } else {
@@ -1113,14 +1108,9 @@ fn mt014_argus_renders_real_pg_live_and_dormant_registry_rows() {
     );
     let control_request_id = uuid::Uuid::parse_str("0195f783-8ce0-7000-8000-000000000002")
         .expect("fixed control request id");
-    let quiesce = client.quiesce_request(
-        "0195f783-8ce0-7000-8000-000000000001",
-        control_request_id,
-    );
-    assert_eq!(
-        quiesce.url,
-        "http://127.0.0.1:37501/model-runtime/control"
-    );
+    let quiesce =
+        client.quiesce_request("0195f783-8ce0-7000-8000-000000000001", control_request_id);
+    assert_eq!(quiesce.url, "http://127.0.0.1:37501/model-runtime/control");
     assert_eq!(
         quiesce.method,
         handshake_native::backend_client::HttpMethod::Post

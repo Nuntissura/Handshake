@@ -170,6 +170,8 @@ impl ProjectTabBar {
         if !active_still_present {
             if let Some(first) = self.projects.first() {
                 self.active_id = first.id.clone();
+            } else {
+                self.active_id.clear();
             }
         }
         self.fetch_state = FetchState::Idle;
@@ -476,6 +478,7 @@ mod tests {
             bar.projects().is_empty(),
             "empty fetch -> placeholder state"
         );
+        assert!(bar.active_id().is_empty(), "empty fetch clears active id");
         assert_eq!(bar.fetch_state(), &FetchState::Idle);
     }
 

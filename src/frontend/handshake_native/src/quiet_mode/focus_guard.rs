@@ -13,10 +13,10 @@
 //! The shell is proven focus-safe **by construction**, so the strongest, most deterministic proof is
 //! a static guarantee, not a live observation:
 //!
-//! - The native shell calls NO Win32 foreground/input-injection API at all. The only Win32 surface is
-//!   the screenshot capture (`mcp::screenshot`), which uses `PrintWindow(PW_RENDERFULLCONTENT)` /
-//!   `BitBlt` over an **offscreen** memory DC — it changes no Z-order and never activates a window
-//!   (focus-safe by construction; the documented allow-list item).
+//! - The native shell calls NO Win32 foreground/input-injection API at all. Screenshot capture
+//!   (`mcp::screenshot`) uses the exact-HWND Windows Graphics Capture compositor API; it changes no
+//!   Z-order and never activates a window. The reviewed dependency is exactly pinned in Cargo.toml
+//!   and Cargo.lock so a semver-compatible implementation cannot silently change this boundary.
 //! - Detached pop-out windows are created with `egui::ViewportBuilder::with_active(false)`
 //!   (`popout_window.rs`), so the OS does not raise them to the foreground or move focus on creation.
 //! - The MCP steering channel's `focus` action maps to `accesskit::Action::Focus` — **in-app widget
@@ -47,6 +47,11 @@ pub const BANNED_FOCUS_APIS: &[&str] = &[
     "SetActiveWindow",
     "SwitchToThisWindow",
     "AllowSetForegroundWindow",
+    "SetFocus",
+    "SetWindowPos",
+    "ShowWindow",
+    "ShowWindowAsync",
+    "AttachThreadInput",
     "keybd_event",
     "mouse_event",
     "SendInput",
@@ -114,6 +119,11 @@ mod tests {
             "SetForegroundWindow",
             "BringWindowToTop",
             "SetActiveWindow",
+            "SetFocus",
+            "SetWindowPos",
+            "ShowWindow",
+            "ShowWindowAsync",
+            "AttachThreadInput",
             "keybd_event",
             "SendInput",
         ] {

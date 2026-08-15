@@ -200,8 +200,13 @@ fn detached_settings_window_renders_all_cloud_access_controls_with_stable_author
     let window = nodes
         .iter()
         .find(|(a, _, _)| a == "popout-window-settings")
-        .unwrap_or_else(|| panic!("popout-window-settings missing from the detached tree: {ids:?}"));
-    assert_eq!(window.1, "Window", "the detached settings root is Role::Window");
+        .unwrap_or_else(|| {
+            panic!("popout-window-settings missing from the detached tree: {ids:?}")
+        });
+    assert_eq!(
+        window.1, "Window",
+        "the detached settings root is Role::Window"
+    );
     assert_eq!(
         window.2.as_deref(),
         Some("Handshake \u{2013} Settings"),

@@ -1103,7 +1103,8 @@ fn cloud_consent_posture_is_visible_per_lane_and_explicitly_not_wired() {
 
     // One posture row per CONFIGURED lane (BYOK + CLI), each explicitly unavailable.
     for provider in ["anthropic", "openai", "claude_code"] {
-        let line = label_for(&cloud_consent_posture_author_id(provider));
+        let author_id = cloud_consent_posture_author_id(provider);
+        let line = label_for(&author_id);
         assert!(
             line.contains(CLOUD_CONSENT_NOT_WIRED_TOKEN),
             "AC-2: lane '{provider}' renders an explicit not-wired posture: {line}"
@@ -1120,7 +1121,14 @@ fn cloud_consent_posture_is_visible_per_lane_and_explicitly_not_wired() {
                 "lane '{provider}' must not imply a consent verdict ('{forbidden}'): {line}"
             );
         }
-        for leaked in ["workspace", "project", "account", "artifact", "sha256", "receipt"] {
+        for leaked in [
+            "workspace",
+            "project",
+            "account",
+            "artifact",
+            "sha256",
+            "receipt",
+        ] {
             assert!(
                 !lowered.contains(leaked),
                 "lane '{provider}' must not leak restricted metadata ('{leaked}'): {line}"
@@ -1140,6 +1148,26 @@ fn cloud_consent_posture_is_visible_per_lane_and_explicitly_not_wired() {
                 role, "CheckBox",
                 "no consent control may exist: '{author_id}' rendered as a CheckBox"
             );
+            let live_node = harness
+                .root()
+                .children_recursive()
+                .find(|node| node.accesskit_node().author_id() == Some(author_id.as_str()))
+                .unwrap_or_else(|| {
+                    panic!("consent node '{author_id}' disappeared from the live tree")
+                });
+            for forbidden_action in [
+                egui::accesskit::Action::Click,
+                egui::accesskit::Action::SetValue,
+            ] {
+                assert!(
+                    !live_node
+                        .accesskit_node()
+                        .data()
+                        .supports_action(forbidden_action),
+                    "display-only consent node '{author_id}' exposed authority-widening action \
+                     {forbidden_action:?}"
+                );
+            }
         }
     }
 }
@@ -1208,7 +1236,9 @@ fn wp1_settings_author_ids_are_addressable_in_the_live_tree() {
 
 /// Every live node that carries a stable author_id, as owned `(author_id, role, label)` triples — the
 /// same projection an out-of-process Argus client reads.
-fn settings_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String, Option<String>)> {
+fn settings_author_nodes(
+    harness: &Harness<'_, HandshakeApp>,
+) -> Vec<(String, String, Option<String>)> {
     let mut found = Vec::new();
     let root = harness.root();
     for node in root.children_recursive() {
@@ -1230,7 +1260,9 @@ fn settings_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
 /// Click a live node by its stable author_id through AccessKit — the out-of-process steering path.
 fn click_settings_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) {
     harness
-        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(author_id))
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some(author_id)
+        })
         .next()
         .unwrap_or_else(|| panic!("author_id '{author_id}' must be addressable in the live tree"))
         .click_accesskit();
@@ -1470,7 +1502,9 @@ fn open_settings_while_detached_keeps_exactly_one_settings_host() {
     );
     let ids = settings_author_ids(&harness);
     assert_eq!(
-        ids.iter().filter(|id| *id == "popout-window-settings").count(),
+        ids.iter()
+            .filter(|id| *id == "popout-window-settings")
+            .count(),
         1,
         "exactly ONE detached settings window is rendered: {ids:?}"
     );

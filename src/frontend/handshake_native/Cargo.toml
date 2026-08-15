@@ -162,6 +162,11 @@ windows-sys = { version = "0.61", features = [
 # the locked graph (egui_kittest dev-dep pulls 0.25); declared as a Windows runtime dep so the live
 # OS-window capture can encode without the test profile. No new dependency family.
 image = { version = "0.25", default-features = false, features = ["png"] }
+# MT-021: compositor-backed capture for the native Argus screenshot tool. GDI/PrintWindow cannot
+# read eframe's wgpu swapchain and BitBlt captures occluding desktop pixels. This maintained wrapper
+# uses Windows.Graphics.Capture for an exact HWND and exposes a free-threaded, stoppable one-frame
+# path. Windows-only so non-Windows builds do not acquire the Direct3D/WinRT dependency surface.
+windows-capture = "=2.0.1"
 
 [dev-dependencies]
 tempfile = "3"

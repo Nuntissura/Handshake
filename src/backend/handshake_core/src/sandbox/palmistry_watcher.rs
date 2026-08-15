@@ -17,6 +17,32 @@ use std::{
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
+#[derive(Debug)]
+struct PalmistrySpawnStageError {
+    stage: &'static str,
+    source: io::Error,
+}
+
+impl std::fmt::Display for PalmistrySpawnStageError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "Palmistry launch stage `{}` failed: {}",
+            self.stage, self.source
+        )
+    }
+}
+
+impl std::error::Error for PalmistrySpawnStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+fn palmistry_spawn_stage_error(stage: &'static str, source: io::Error) -> io::Error {
+    io::Error::new(source.kind(), PalmistrySpawnStageError { stage, source })
+}
+
 pub const PALMISTRY_WATCHER_ADAPTER_ID: &str = "palmistry_watcher";
 pub const PALMISTRY_BIN_ENV: &str = "HANDSHAKE_PALMISTRY_BIN";
 pub const PALMISTRY_SHA256_ENV: &str = "HANDSHAKE_PALMISTRY_SHA256";
@@ -172,7 +198,8 @@ impl PalmistryWatcherAdapter {
 
     pub fn spawn(spec: &PalmistrySpawnSpec) -> io::Result<SpawnedPalmistry> {
         let (executable, executable_sha256, _executable_guard) =
-            Self::resolve_executable_with_pin()?;
+            Self::resolve_executable_with_pin()
+                .map_err(|error| palmistry_spawn_stage_error("resolve-and-pin", error))?;
         let mut command = Command::new(&executable);
         command
             .env_clear()
@@ -207,14 +234,19 @@ impl PalmistryWatcherAdapter {
             command.creation_flags(palmistry_creation_flags());
         }
 
-        let mut child = command.spawn()?;
+        let mut child = command
+            .spawn()
+            .map_err(|error| palmistry_spawn_stage_error("command-spawn", error))?;
         // The watcher blocks on the exact 32-byte stdin bootstrap before it can write readiness or
         // evidence. `_executable_guard` still denies write/delete sharing while the launched image is
         // verified and remains held until after the signing seed is delivered below.
         if let Err(error) = verify_spawned_image(&child, &executable, &executable_sha256) {
             let _ = child.kill();
             let _ = child.wait();
-            return Err(error);
+            return Err(palmistry_spawn_stage_error(
+                "launched-image-verification",
+                error,
+            ));
         }
         let write_secret = child
             .stdin
@@ -227,7 +259,7 @@ impl PalmistryWatcherAdapter {
         if let Err(error) = write_secret {
             let _ = child.kill();
             let _ = child.wait();
-            return Err(error);
+            return Err(palmistry_spawn_stage_error("signing-pipe-delivery", error));
         }
         let os_creation_time_100ns =
             match crate::sandbox::handshake_native::process_creation_time_100ns(child.id()) {
@@ -235,7 +267,7 @@ impl PalmistryWatcherAdapter {
                 Err(error) => {
                     let _ = child.kill();
                     let _ = child.wait();
-                    return Err(error);
+                    return Err(palmistry_spawn_stage_error("creation-time-query", error));
                 }
             };
         Ok(SpawnedPalmistry {
@@ -484,6 +516,24 @@ mod tests {
         assert_eq!(PALMISTRY_WATCHER_ADAPTER_ID, "palmistry_watcher");
         assert_eq!(PALMISTRY_BIN_ENV, "HANDSHAKE_PALMISTRY_BIN");
         assert_eq!(PALMISTRY_SHA256_ENV, "HANDSHAKE_PALMISTRY_SHA256");
+    }
+
+    #[test]
+    fn spawn_stage_context_preserves_error_kind_and_source() {
+        use std::error::Error as _;
+
+        let error = palmistry_spawn_stage_error(
+            "command-spawn",
+            io::Error::new(io::ErrorKind::PermissionDenied, "access denied fixture"),
+        );
+
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(
+            error.to_string(),
+            "Palmistry launch stage `command-spawn` failed: access denied fixture"
+        );
+        let source = error.source().expect("staged io error preserves source");
+        assert_eq!(source.to_string(), "access denied fixture");
     }
 
     #[test]

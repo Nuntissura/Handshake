@@ -52,17 +52,16 @@ use super::model_lane::{
     dexterity_spawn_model_session_id, CloudExportDelegation, DexterityLaunchAdapterKind,
     DexterityLaunchAdapterRequest, DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
     ModelLaneCloudConsentReceiptRecord, ModelLaneCloudConsentReceiptStatus,
-    ModelLaneCloudConsentScope, ModelLaneCloudConsentTargetBinding, ModelLaneCloudExportPosture,
-    ModelLaneCloudProjectionPlanRecord, ModelLaneCloudProjectionPlanStatus,
-    ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
-    ModelLaneError, ModelLaneKind, ModelLaneLocusBinding, ModelLaneMessageKind,
-    ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryState, ModelLaneRoutingMetadata,
-    ModelLaneRunRecord, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
-    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
+    ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanRecord,
+    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier,
+    ModelLaneDiagnosticTierState, ModelLaneError, ModelLaneKind, ModelLaneLocusBinding,
+    ModelLaneMessageKind, ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryState,
+    ModelLaneRoutingMetadata, ModelLaneRunRecord, ModelLaneStatus, ModelLaneStore, ModelLaneTarget,
+    NewModelLane, NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus,
     NewModelLaneMessage, RuntimeBinding,
 };
-use super::resource_scope::AccountBoundAuthority;
+use super::resource_scope::{AccountBoundAuthority, ExactResourceScopeAttribution};
 use super::routing::ModelLaneRoutingAuthority;
 use super::routing_execution::{
     ModelLaneRoutingDispatchBatch, ModelLaneRoutingExecutionContext,
@@ -1364,6 +1363,31 @@ pub struct OperatorChatLaunchService {
 }
 
 impl OperatorChatLaunchService {
+    fn require_exact_cloud_scope(
+        &self,
+        request_scope: Option<&ExactResourceScopeAttribution>,
+    ) -> Result<ExactResourceScopeAttribution, OperatorChatError> {
+        let store = self.coordinator.model_lane_store().ok_or_else(|| {
+            OperatorChatError::Invalid(
+                "RESOURCE_SCOPE_REQUIRED: operator-chat cloud authority requires a ModelLaneStore"
+                    .into(),
+            )
+        })?;
+        let store_scope = store.access().exact_read_scope().cloned().ok_or_else(|| {
+            OperatorChatError::Invalid(
+                "RESOURCE_SCOPE_REQUIRED: operator-chat cloud authority requires complete account/principal/session/AccessSpace/workspace scope"
+                    .into(),
+            )
+        })?;
+        if request_scope.is_some_and(|scope| scope != &store_scope) {
+            return Err(OperatorChatError::Invalid(
+                "RESOURCE_SCOPE_MISMATCH: HTTP cloud-launch scope differs from the durable ModelLaneStore scope"
+                    .into(),
+            ));
+        }
+        Ok(store_scope)
+    }
+
     /// The live coordinator this service launches through.
     ///
     /// WP-1 MT-021 AC-3: the operator-facing swarm concurrency control must move
@@ -1416,6 +1440,7 @@ impl OperatorChatLaunchService {
         ),
         OperatorChatError,
     > {
+        self.require_exact_cloud_scope(None)?;
         if request.projection_plan.consent_scope != ModelLaneCloudConsentScope::SingleRun {
             return Err(OperatorChatError::Invalid(
                 "operator-chat SingleRun grant requires consent_scope=single_run".into(),
@@ -1487,25 +1512,61 @@ impl OperatorChatLaunchService {
         revoked_by_ref: &str,
         reason: &str,
     ) -> Result<Vec<ModelLaneRecord>, OperatorChatError> {
+        self.require_exact_cloud_scope(None)?;
         Ok(self
             .coordinator
             .revoke_cloud_consent_receipt(consent_receipt_id, revoked_by_ref, reason)
             .await?)
     }
 
+    /// Revoke cloud authority only when the HTTP extractor and durable store
+    /// carry the same immutable five-dimensional resource scope.
+    pub async fn revoke_single_run_cloud_consent_scoped(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+        request_scope: &ExactResourceScopeAttribution,
+    ) -> Result<Vec<ModelLaneRecord>, OperatorChatError> {
+        self.require_exact_cloud_scope(Some(request_scope))?;
+        self.revoke_single_run_cloud_consent(consent_receipt_id, revoked_by_ref, reason)
+            .await
+    }
+
     /// Grant and consume SingleRun cloud authority through the production
     /// coordinator batch boundary. All targets preflight before any factory call.
     pub async fn launch_single_run_cloud_consent(
         &self,
-        mut request: OperatorChatSingleRunCloudLaunchRequest,
+        request: OperatorChatSingleRunCloudLaunchRequest,
     ) -> Result<OperatorChatSingleRunCloudLaunched, OperatorChatError> {
+        self.launch_single_run_cloud_consent_for_scope(request, None)
+            .await
+    }
+
+    /// Consume cloud authority only when the HTTP extractor and durable store
+    /// carry the same immutable five-dimensional resource scope.
+    pub async fn launch_single_run_cloud_consent_scoped(
+        &self,
+        request: OperatorChatSingleRunCloudLaunchRequest,
+        request_scope: &ExactResourceScopeAttribution,
+    ) -> Result<OperatorChatSingleRunCloudLaunched, OperatorChatError> {
+        self.launch_single_run_cloud_consent_for_scope(request, Some(request_scope))
+            .await
+    }
+
+    async fn launch_single_run_cloud_consent_for_scope(
+        &self,
+        mut request: OperatorChatSingleRunCloudLaunchRequest,
+        request_scope: Option<&ExactResourceScopeAttribution>,
+    ) -> Result<OperatorChatSingleRunCloudLaunched, OperatorChatError> {
+        self.require_exact_cloud_scope(request_scope)?;
         if request.selections.len() < 2 {
             return Err(OperatorChatError::Invalid(
                 "operator-chat SingleRun launch requires at least two selections".into(),
             ));
         }
         let mut spawn_requests = Vec::with_capacity(request.selections.len());
-        let mut target_bindings = Vec::with_capacity(request.selections.len());
+        let mut fan_out_targets = Vec::with_capacity(request.selections.len());
         for selection in &request.selections {
             if selection.lane_kind != OperatorChatLaneKind::Cloud {
                 return Err(OperatorChatError::Invalid(
@@ -1513,8 +1574,7 @@ impl OperatorChatLaunchService {
                 ));
             }
             let mut spawn = self.build_spawn_request(selection)?;
-            let provider_kind = cloud_provider_kind_for_request(&spawn)?;
-            let model_session_id = dexterity_spawn_model_session_id(&spawn);
+            cloud_provider_kind_for_request(&spawn)?;
             let contract = spawn.dexterity_launch.as_mut().ok_or_else(|| {
                 OperatorChatError::Invalid(
                     "operator-chat SingleRun launch requires Dexterity contracts".into(),
@@ -1522,21 +1582,23 @@ impl OperatorChatLaunchService {
             })?;
             contract.run_id = request.grant.projection_plan.run_id.clone();
             contract.trace_id = request.grant.projection_plan.trace_id.clone();
+            contract.run_span_id = format!("span-{}-run", request.grant.projection_plan.run_id);
             contract.event_ledger_stream_id =
                 request.grant.projection_plan.event_ledger_stream_id.clone();
-            let requested_model_id = contract
-                .candidate_model_ids
-                .first()
-                .cloned()
-                .unwrap_or_else(|| selection.model_id.clone());
-            target_bindings.push(ModelLaneCloudConsentTargetBinding {
-                lane_id: contract.lane_id.clone(),
-                model_session_id,
-                provider_kind: provider_kind.to_string(),
-                requested_model_id,
-                capability_snapshot_ref: contract.effective_capability_snapshot_ref.clone(),
-                provider_endpoint_ref: contract.adapter_id.clone(),
-            });
+            contract.artifact_namespace = format!(
+                "artifact://operator-chat/{}",
+                request.grant.projection_plan.run_id
+            );
+            contract.memory_pack_ref = format!(
+                "memory-pack://operator-chat/{}",
+                request.grant.projection_plan.run_id
+            );
+            contract.memory_pack_hash = request.grant.projection_plan.payload_sha256.clone();
+            contract.budget_summary_ref = format!(
+                "budget://operator-chat/{}",
+                request.grant.projection_plan.run_id
+            );
+            fan_out_targets.push(format!("provider-endpoint://{}", contract.adapter_id));
             spawn_requests.push(spawn);
         }
         request.grant.projection_plan.consent_scope = ModelLaneCloudConsentScope::SingleRun;
@@ -1544,14 +1606,11 @@ impl OperatorChatLaunchService {
         request.grant.projection_plan.model_session_id = None;
         request.grant.projection_plan.provider_kind = None;
         request.grant.projection_plan.requested_model_id = None;
-        request.grant.projection_plan.target_bindings = target_bindings;
-        request.grant.projection_plan.fan_out_targets = request
-            .grant
-            .projection_plan
-            .target_bindings
-            .iter()
-            .map(|target| format!("provider-endpoint://{}", target.provider_endpoint_ref))
-            .collect();
+        // SingleRun is deliberately run-bound rather than lane-bound. Keep the
+        // lane identity fields and target_bindings empty, while disclosing the
+        // exact provider endpoints through the plan's fan-out/audience gate.
+        request.grant.projection_plan.target_bindings.clear();
+        request.grant.projection_plan.fan_out_targets = fan_out_targets;
         // HBR-PRIV-007: the SingleRun audience is exactly the enumerated launch
         // targets. Deriving it here (rather than trusting the caller's list)
         // means a broadcast grant cannot name an endpoint that is not one of the

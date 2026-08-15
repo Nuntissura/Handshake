@@ -25,6 +25,14 @@ pub const MESSAGE_FILTER_AUTHOR_ID: &str = "swarm-lane-diagnostics.filter.messag
 pub const REFRESH_AUTHOR_ID: &str = "swarm-lane-diagnostics.action.refresh";
 pub const ERROR_AUTHOR_ID: &str = "swarm-lane-diagnostics.error";
 pub const FRESHNESS_AUTHOR_ID: &str = "swarm-lane-diagnostics.freshness";
+pub const PRIVACY_OWNER_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.owner-account";
+pub const PRIVACY_PRINCIPAL_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.actor-principal";
+pub const PRIVACY_SESSION_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.authenticated-session";
+pub const PRIVACY_ACCESS_SPACE_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.access-space";
+pub const PRIVACY_WORKSPACE_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.workspace";
+pub const PRIVACY_VISIBILITY_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.visibility";
+pub const PRIVACY_DENIAL_AUTHOR_ID: &str = "swarm-lane-diagnostics.privacy.denial-posture";
+pub const EMPTY_MESSAGES_AUTHOR_ID: &str = "swarm-lane-diagnostics.messages.empty";
 
 pub type SwarmLaneDiagnosticsCell =
     Arc<Mutex<Option<Result<SwarmLaneDiagnosticsProjection, String>>>>;
@@ -42,6 +50,19 @@ pub struct SwarmLaneDiagnosticsProjection {
     pub active_lease_count: usize,
     pub reclaimable_lease_ids: Vec<String>,
     pub orphan_state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_scope: Option<SwarmLaneDiagnosticsResourceScope>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmLaneDiagnosticsResourceScope {
+    pub owner_account_fingerprint: String,
+    pub actor_principal_fingerprint: String,
+    pub authenticated_session_fingerprint: String,
+    pub access_space_fingerprint: String,
+    pub workspace_fingerprint: String,
+    pub visibility: String,
+    pub denial_posture: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -572,6 +593,66 @@ fn render_projection(
             projection.orphan_state
         ),
     );
+    if let Some(scope) = projection.resource_scope.as_ref() {
+        for (id, author_id, label, value) in [
+            (
+                "privacy-owner-account",
+                PRIVACY_OWNER_AUTHOR_ID,
+                "active account",
+                scope.owner_account_fingerprint.as_str(),
+            ),
+            (
+                "privacy-actor-principal",
+                PRIVACY_PRINCIPAL_AUTHOR_ID,
+                "acting Principal",
+                scope.actor_principal_fingerprint.as_str(),
+            ),
+            (
+                "privacy-authenticated-session",
+                PRIVACY_SESSION_AUTHOR_ID,
+                "authenticated session",
+                scope.authenticated_session_fingerprint.as_str(),
+            ),
+            (
+                "privacy-access-space",
+                PRIVACY_ACCESS_SPACE_AUTHOR_ID,
+                "active AccessSpace",
+                scope.access_space_fingerprint.as_str(),
+            ),
+            (
+                "privacy-workspace",
+                PRIVACY_WORKSPACE_AUTHOR_ID,
+                "workspace",
+                scope.workspace_fingerprint.as_str(),
+            ),
+        ] {
+            tagged_label(
+                ui,
+                ctx.egui_id.with(id),
+                &scoped_author_id(pane_id, author_id),
+                &format!("{label} verified | process-keyed fingerprint {value} | visibility exact-scope only"),
+            );
+        }
+        tagged_label(
+            ui,
+            ctx.egui_id.with("privacy-visibility"),
+            &scoped_author_id(pane_id, PRIVACY_VISIBILITY_AUTHOR_ID),
+            &format!("visibility {} | exact account + Principal + session + AccessSpace + workspace | this read cannot widen sharing", scope.visibility),
+        );
+        tagged_label(
+            ui,
+            ctx.egui_id.with("privacy-denial-posture"),
+            &scoped_author_id(pane_id, PRIVACY_DENIAL_AUTHOR_ID),
+            &format!("denial posture {} | mismatched caller scope: forbidden | foreign stored scope: not found | restricted metadata withheld", scope.denial_posture),
+        );
+    } else {
+        tagged_label(
+            ui,
+            ctx.egui_id.with("privacy-scope-unavailable"),
+            &scoped_author_id(pane_id, ERROR_AUTHOR_ID),
+            "privacy scope unavailable | projection is not authorized for operator display",
+        );
+    }
 
     ui.separator();
     ui.label("Routing lifecycle");
@@ -748,6 +829,14 @@ fn render_projection(
         .is_some_and(|message_id| !visible_message_ids.contains(message_id))
     {
         state.selected_message_id = None;
+    }
+    if visible_message_ids.is_empty() {
+        tagged_label(
+            ui,
+            ctx.egui_id.with("messages-empty"),
+            &scoped_author_id(pane_id, EMPTY_MESSAGES_AUTHOR_ID),
+            "No messages match the active lane/message filters.",
+        );
     }
     for message in projection
         .messages
@@ -1153,6 +1242,26 @@ pub fn validate_projection_for_native_surface(
     }
     if projection.run.run_id.trim().is_empty() {
         return Err("run_id missing".to_owned());
+    }
+    let scope = projection.resource_scope.as_ref().ok_or_else(|| {
+        "diagnostics resource_scope attribution is required before rendering".to_owned()
+    })?;
+    if [
+        scope.owner_account_fingerprint.as_str(),
+        scope.actor_principal_fingerprint.as_str(),
+        scope.authenticated_session_fingerprint.as_str(),
+        scope.access_space_fingerprint.as_str(),
+        scope.workspace_fingerprint.as_str(),
+    ]
+    .iter()
+    .any(|value| value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    {
+        return Err("diagnostics resource_scope attribution fingerprint is invalid".to_owned());
+    }
+    if scope.visibility != "private_exact_scope_only"
+        || scope.denial_posture != "foreign_scope_is_absent_restricted_metadata_withheld"
+    {
+        return Err("diagnostics resource_scope privacy posture is invalid".to_owned());
     }
     register_author_id(
         &mut author_ids,

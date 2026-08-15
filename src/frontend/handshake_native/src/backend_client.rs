@@ -1694,10 +1694,12 @@ impl CloudAccessClient {
     /// `GET /model-access/providers` → the non-secret enumeration snapshot.
     pub async fn enumerate(&self) -> Result<CloudAccessSnapshot, AppError> {
         let url = format!("{}/model-access/providers", self.base_url);
-        // The backend runs both provider-owned status probes concurrently, each
-        // with a five-second hard bound. Leave headroom for loaded hosts and
-        // loopback serialization without making the UI wait indefinitely.
-        let value = get_json_with_timeout(&self.client, &url, &[], Duration::from_secs(12)).await?;
+        // Each provider-owned command has a five-second execution bound, but the authoritative route
+        // also performs keychain access plus lifecycle attach/reap and bounded pipe cleanup.  A live
+        // loaded-host probe measured above ten seconds, so twelve seconds could discard a valid complete
+        // response and leave every CLI lane absent until Settings was reopened.  Keep the request
+        // bounded while allowing the backend's complete fail-closed enumeration to arrive.
+        let value = get_json_with_timeout(&self.client, &url, &[], Duration::from_secs(20)).await?;
         Ok(parse_cloud_access_snapshot(&value))
     }
 
@@ -2584,7 +2586,12 @@ impl ConsoleStreamClient {
 const CONSOLE_STREAM_BUFFER_CAP: usize = 4096;
 
 impl crate::console_stream_pane::ConsoleStreamTransport for ConsoleStreamClient {
-    fn start_tail(&self, buffer: crate::console_stream_pane::ConsoleStreamBuffer) {
+    fn start_tail(
+        &self,
+        buffer: crate::console_stream_pane::ConsoleStreamBuffer,
+        status: crate::console_stream_pane::ConsoleStreamStatus,
+        repaint: crate::console_stream_pane::ConsoleStreamRepaint,
+    ) {
         let url = self.stream_url();
         let client = self.client.clone();
         self.runtime.spawn(async move {
@@ -2595,8 +2602,33 @@ impl crate::console_stream_pane::ConsoleStreamTransport for ConsoleStreamClient 
                     .send()
                     .await;
                 let mut response = match response {
-                    Ok(response) if response.status().is_success() => response,
-                    _ => {
+                    Ok(response) if response.status().is_success() => {
+                        if let Ok(mut current) = status.lock() {
+                            *current =
+                                crate::console_stream_pane::ConsoleStreamConnectionState::Connected;
+                        }
+                        repaint();
+                        response
+                    }
+                    Ok(response) => {
+                        if let Ok(mut current) = status.lock() {
+                            *current =
+                                crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                    format!("HTTP {}", response.status()),
+                                );
+                        }
+                        repaint();
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                    Err(error) => {
+                        if let Ok(mut current) = status.lock() {
+                            *current =
+                                crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                    error.to_string(),
+                                );
+                        }
+                        repaint();
                         // Backend not up yet / transient error: bounded backoff, retry.
                         tokio::time::sleep(Duration::from_secs(2)).await;
                         continue;
@@ -2616,9 +2648,10 @@ impl crate::console_stream_pane::ConsoleStreamTransport for ConsoleStreamClient 
                                     let Some(data) = line.strip_prefix("data:") else {
                                         continue; // event:/id:/comment/keep-alive lines
                                     };
-                                    if let Ok(entry) = serde_json::from_str::<
-                                        crate::console_stream_pane::ConsoleStreamEntry,
-                                    >(data.trim())
+                                    if let Ok(entry) =
+                                        serde_json::from_str::<
+                                            crate::console_stream_pane::ConsoleStreamEntry,
+                                        >(data.trim())
                                     {
                                         if let Ok(mut buffer) = buffer.lock() {
                                             buffer.push_back(entry);
@@ -2626,14 +2659,35 @@ impl crate::console_stream_pane::ConsoleStreamTransport for ConsoleStreamClient 
                                                 buffer.pop_front();
                                             }
                                         }
+                                        repaint();
                                     }
                                 }
                             }
                         }
                         // Stream ended or errored: reconnect after a short delay.
-                        Ok(None) | Err(_) => break,
+                        Ok(None) => break,
+                        Err(error) => {
+                            if let Ok(mut current) = status.lock() {
+                                *current =
+                                    crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                        error.to_string(),
+                                    );
+                            }
+                            repaint();
+                            break;
+                        }
                     }
                 }
+                if let Ok(mut current) = status.lock() {
+                    if matches!(
+                        *current,
+                        crate::console_stream_pane::ConsoleStreamConnectionState::Connected
+                    ) {
+                        *current =
+                            crate::console_stream_pane::ConsoleStreamConnectionState::Connecting;
+                    }
+                }
+                repaint();
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         });

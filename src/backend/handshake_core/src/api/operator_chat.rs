@@ -353,18 +353,38 @@ async fn scoped_launch_session(
 
 async fn scoped_launch_single_run_cloud_consent(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatSingleRunCloudLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    launch_single_run_cloud_consent(state, request).await
+    let service = routing_service(&state)?;
+    let launched = service
+        .launch_single_run_cloud_consent_scoped(request.0, scope.exact())
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(
+        serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
+    ))
 }
 
 async fn scoped_revoke_single_run_cloud_consent(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatSingleRunCloudRevokeRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    revoke_single_run_cloud_consent(state, request).await
+    let service = routing_service(&state)?;
+    let cancelled = service
+        .revoke_single_run_cloud_consent_scoped(
+            &request.consent_receipt_id,
+            &request.revoked_by_ref,
+            &request.reason,
+            scope.exact(),
+        )
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(json!({
+        "consent_receipt_id": request.consent_receipt_id,
+        "cancelled_lanes": cancelled,
+    })))
 }
 
 async fn scoped_fetch_transcript(
@@ -745,36 +765,29 @@ async fn launch_session(
 }
 
 async fn launch_single_run_cloud_consent(
-    State(state): State<OperatorChatState>,
-    Json(request): Json<OperatorChatSingleRunCloudLaunchRequest>,
+    State(_state): State<OperatorChatState>,
+    Json(_request): Json<OperatorChatSingleRunCloudLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let service = routing_service(&state)?;
-    let launched = service
-        .launch_single_run_cloud_consent(request)
-        .await
-        .map_err(launch_api_error)?;
-    Ok(Json(
-        serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
+    Err((
+        StatusCode::FORBIDDEN,
+        Json(json!({
+            "error": "resource_scope_unavailable",
+            "detail": "operator-chat cloud launch requires the scoped product router"
+        })),
     ))
 }
 
 async fn revoke_single_run_cloud_consent(
-    State(state): State<OperatorChatState>,
-    Json(request): Json<OperatorChatSingleRunCloudRevokeRequest>,
+    State(_state): State<OperatorChatState>,
+    Json(_request): Json<OperatorChatSingleRunCloudRevokeRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let service = routing_service(&state)?;
-    let cancelled = service
-        .revoke_single_run_cloud_consent(
-            &request.consent_receipt_id,
-            &request.revoked_by_ref,
-            &request.reason,
-        )
-        .await
-        .map_err(launch_api_error)?;
-    Ok(Json(json!({
-        "consent_receipt_id": request.consent_receipt_id,
-        "cancelled_lanes": cancelled,
-    })))
+    Err((
+        StatusCode::FORBIDDEN,
+        Json(json!({
+            "error": "resource_scope_unavailable",
+            "detail": "operator-chat cloud revocation requires the scoped product router"
+        })),
+    ))
 }
 
 /// GET the captured transcript (ModelLaneMessage rows) for a launched run so the

@@ -48,11 +48,28 @@ pub struct ConsoleStreamEntry {
 /// egui frame thread drains each frame.
 pub type ConsoleStreamBuffer = Arc<Mutex<VecDeque<ConsoleStreamEntry>>>;
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum ConsoleStreamConnectionState {
+    #[default]
+    Offline,
+    Connecting,
+    Connected,
+    Error(String),
+}
+
+pub type ConsoleStreamStatus = Arc<Mutex<ConsoleStreamConnectionState>>;
+pub type ConsoleStreamRepaint = Arc<dyn Fn() + Send + Sync>;
+
 /// Begins (once) a live SSE tail of the backend console into a delivery buffer.
 /// Production wires [`crate::backend_client::ConsoleStreamClient`]; tests can push
 /// entries into the buffer directly (no transport needed).
 pub trait ConsoleStreamTransport: Send + Sync {
-    fn start_tail(&self, buffer: ConsoleStreamBuffer);
+    fn start_tail(
+        &self,
+        buffer: ConsoleStreamBuffer,
+        status: ConsoleStreamStatus,
+        repaint: ConsoleStreamRepaint,
+    );
 }
 
 struct ConsolePaneUiState {
@@ -78,6 +95,7 @@ impl Default for ConsolePaneUiState {
 pub struct ConsoleStreamPaneFactory {
     state: Arc<Mutex<ConsolePaneUiState>>,
     buffer: ConsoleStreamBuffer,
+    status: ConsoleStreamStatus,
     transport: Option<Arc<dyn ConsoleStreamTransport>>,
 }
 
@@ -87,6 +105,7 @@ impl ConsoleStreamPaneFactory {
         Self {
             state: Arc::new(Mutex::new(ConsolePaneUiState::default())),
             buffer: Arc::new(Mutex::new(VecDeque::new())),
+            status: Arc::new(Mutex::new(ConsoleStreamConnectionState::Offline)),
             transport: None,
         }
     }
@@ -96,6 +115,7 @@ impl ConsoleStreamPaneFactory {
         Self {
             state: Arc::new(Mutex::new(ConsolePaneUiState::default())),
             buffer: Arc::new(Mutex::new(VecDeque::new())),
+            status: Arc::new(Mutex::new(ConsoleStreamConnectionState::Connecting)),
             transport: Some(transport),
         }
     }
@@ -106,6 +126,7 @@ impl ConsoleStreamPaneFactory {
         Self {
             state: Arc::new(Mutex::new(ConsolePaneUiState::default())),
             buffer: Arc::new(Mutex::new(entries.into_iter().collect())),
+            status: Arc::new(Mutex::new(ConsoleStreamConnectionState::Offline)),
             transport: None,
         }
     }
@@ -131,7 +152,15 @@ impl ConsoleStreamPaneFactory {
                 }
             };
             if start {
-                transport.start_tail(self.buffer.clone());
+                if let Ok(mut status) = self.status.lock() {
+                    *status = ConsoleStreamConnectionState::Connecting;
+                }
+                let repaint_ctx = ui.ctx().clone();
+                transport.start_tail(
+                    self.buffer.clone(),
+                    self.status.clone(),
+                    Arc::new(move || repaint_ctx.request_repaint()),
+                );
             }
         }
 
@@ -152,6 +181,40 @@ impl ConsoleStreamPaneFactory {
         }
 
         ui.heading("WP-1 Live Orchestration Console");
+        let connection_state = self
+            .status
+            .lock()
+            .map(|state| state.clone())
+            .unwrap_or_else(|_| {
+                ConsoleStreamConnectionState::Error("connection status unavailable".to_owned())
+            });
+        let connection_text = match (&connection_state, state.last_seq) {
+            (ConsoleStreamConnectionState::Connected, Some(seq)) => {
+                format!("Live stream connected · latest event sequence {seq}")
+            }
+            (ConsoleStreamConnectionState::Connected, None) => {
+                "Live stream connected · waiting for orchestration events".to_owned()
+            }
+            (ConsoleStreamConnectionState::Connecting, _) => {
+                "Connecting to live orchestration stream…".to_owned()
+            }
+            (ConsoleStreamConnectionState::Error(error), _) => {
+                format!("Live stream unavailable · retrying: {error}")
+            }
+            (ConsoleStreamConnectionState::Offline, Some(seq)) => {
+                format!("Offline proof data · latest event sequence {seq}")
+            }
+            (ConsoleStreamConnectionState::Offline, None) => {
+                "Live stream is not configured".to_owned()
+            }
+        };
+        let status_row = ui.label(egui::RichText::new(&connection_text).small().weak());
+        set_author_id_and_label(
+            ui,
+            status_row.id,
+            CONSOLE_STREAM_STATUS_AUTHOR_ID,
+            &connection_text,
+        );
         ui.horizontal(|ui| {
             ui.label("Filter:");
             let mut set_filter: Option<Option<ConsoleEntryKind>> = None;
@@ -210,6 +273,7 @@ pub const FILTER_ALL_AUTHOR_ID: &str = "wp1-console.filter.all";
 pub const FILTER_ERRORS_AUTHOR_ID: &str = "wp1-console.filter.errors";
 pub const FILTER_INFO_AUTHOR_ID: &str = "wp1-console.filter.info";
 pub const FILTER_DEBUG_AUTHOR_ID: &str = "wp1-console.filter.debug";
+pub const CONSOLE_STREAM_STATUS_AUTHOR_ID: &str = "wp1-console.stream.status";
 
 /// A filter button that is reliably clickable headlessly: it renders a standard
 /// egui button AND publishes an AccessKit node (Role::Button + Action::Click +
@@ -225,7 +289,20 @@ fn filter_button(ui: &mut egui::Ui, label: &str, author_id: &str) -> bool {
         node.set_author_id(author_id.to_owned());
         node.set_label(label.to_owned());
     });
-    response.clicked()
+    let clicked = response.clicked();
+    if clicked {
+        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), author_id);
+    }
+    clicked
+}
+
+fn set_author_id_and_label(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
+    let author_id = author_id.to_owned();
+    let label = label.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_author_id(author_id);
+        node.set_label(label);
+    });
 }
 
 /// Map backend severity to the reused DebugConsole entry kind so the display

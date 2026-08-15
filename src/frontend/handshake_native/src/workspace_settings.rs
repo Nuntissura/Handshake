@@ -511,7 +511,8 @@ pub const SWARM_RECONCILE_INTERVAL_SETTING: NotYetWiredSetting = NotYetWiredSett
     id: "swarm-reconcile-interval",
     label: "Swarm board auto-reconcile interval",
     fixed_value: "10s",
-    note: "Fixed at 10s and not configurable: the cadence is owned by the backend reconcile loop and \
+    note:
+        "Fixed at 10s and not configurable: the cadence is owned by the backend reconcile loop and \
            no backend route exposes it, so Handshake has no value to bind a control to.",
 };
 
@@ -523,7 +524,8 @@ pub const SWARM_RESOURCE_POLL_INTERVAL_SETTING: NotYetWiredSetting = NotYetWired
     id: "swarm-resource-poll-interval",
     label: "Swarm resource poll interval",
     fixed_value: "1.5s",
-    note: "Fixed at 1.5s and not configurable: the poll cadence is owned by the backend resource \
+    note:
+        "Fixed at 1.5s and not configurable: the poll cadence is owned by the backend resource \
            sampler and no backend route exposes it, so Handshake has no value to bind a control to.",
 };
 
@@ -564,10 +566,12 @@ pub const ABOUT_VERSION: &str = env!("CARGO_PKG_VERSION");
 // with a reqwest implementation that bridges async onto the app's tokio runtime.
 // ===========================================================================
 
-/// The async delivery cell a spawned settings-LOAD task writes into (MT-018): `Ok(Some(blob))` /
-/// `Ok(None)` (first run) / `Err(message)`. Drained (try_lock) on the egui frame thread. A type alias so
-/// the field type stays legible (clippy type_complexity).
-pub type SettingsLoadCell = Arc<Mutex<Option<Result<Option<Value>, String>>>>;
+/// The async delivery cell a spawned settings-LOAD task writes into (MT-018): exact workspace id,
+/// monotonic request generation, and `Ok(Some(blob))` / `Ok(None)` (first run) / `Err(message)`.
+/// Workspace + generation prevent both cross-project and A→B→A late responses from becoming the
+/// active project's authority. Drained
+/// (try_lock) on the egui frame thread. A type alias keeps the field legible (clippy type_complexity).
+pub type SettingsLoadCell = Arc<Mutex<Option<(String, u64, Result<Option<Value>, String>)>>>;
 
 /// The async delivery cell a spawned settings-SAVE task writes into (MT-018): `Ok(())` / `Err(message)`.
 pub type SettingsSaveCell = Arc<Mutex<Option<Result<(), String>>>>;
@@ -864,7 +868,8 @@ mod tests {
     fn swarm_admission_budget_round_trips_and_clamps_a_foreign_value() {
         let default = default_workspace_settings_state();
         assert_eq!(
-            default.swarm_max_actions_per_frame, crate::mcp::MAX_ACTIONS_PER_BURST,
+            default.swarm_max_actions_per_frame,
+            crate::mcp::MAX_ACTIONS_PER_BURST,
             "default budget is the compiled-in ceiling (no extra throttle)"
         );
 

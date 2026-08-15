@@ -11,11 +11,13 @@ use handshake_native::swarm_lane_diagnostics::{
     routing_stage_author_id, run_author_id, selected_message_author_id,
     validate_projection_for_native_surface, visible_message_ids_for_filters,
     SwarmLaneDiagnosticsLane, SwarmLaneDiagnosticsMessage, SwarmLaneDiagnosticsMtStatus,
-    SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsRun, SwarmLaneDiagnosticsTier,
-    SwarmLaneDiagnosticsTransport, SwarmLaneRoutingExecutionDiagnostics,
-    SwarmLaneRoutingOutboxDiagnostics, SwarmLaneRoutingStageDiagnostics, ERROR_AUTHOR_ID,
-    FRESHNESS_AUTHOR_ID, LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID, REFRESH_AUTHOR_ID,
-    RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
+    SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsResourceScope, SwarmLaneDiagnosticsRun,
+    SwarmLaneDiagnosticsTier, SwarmLaneDiagnosticsTransport, SwarmLaneRoutingExecutionDiagnostics,
+    SwarmLaneRoutingOutboxDiagnostics, SwarmLaneRoutingStageDiagnostics, EMPTY_MESSAGES_AUTHOR_ID,
+    ERROR_AUTHOR_ID, FRESHNESS_AUTHOR_ID, LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID,
+    PRIVACY_ACCESS_SPACE_AUTHOR_ID, PRIVACY_DENIAL_AUTHOR_ID, PRIVACY_OWNER_AUTHOR_ID,
+    PRIVACY_PRINCIPAL_AUTHOR_ID, PRIVACY_SESSION_AUTHOR_ID, PRIVACY_VISIBILITY_AUTHOR_ID,
+    PRIVACY_WORKSPACE_AUTHOR_ID, REFRESH_AUTHOR_ID, RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -118,11 +120,16 @@ fn load_current_mt009_backend_projection() -> SwarmLaneDiagnosticsProjection {
     );
     let raw_projection: Value = serde_json::from_slice(&artifact_bytes)
         .expect("backend-generated MT-009 projection is JSON");
-    let projection: SwarmLaneDiagnosticsProjection = serde_json::from_value(raw_projection.clone())
-        .expect("native contract consumes backend-generated MT-009 projection JSON");
+    let mut projection: SwarmLaneDiagnosticsProjection =
+        serde_json::from_value(raw_projection.clone())
+            .expect("native contract consumes backend-generated MT-009 projection JSON");
     validate_exact_backend_json_shape(&raw_projection, &projection)
         .expect("MT-009 backend/native projection field shape round-trips exactly");
     assert_eq!(provenance.projection_schema_id, projection.schema_id);
+    let error = validate_projection_for_native_surface(&projection)
+        .expect_err("raw backend artifact has no server-authorized account scope");
+    assert!(error.contains("resource_scope attribution"));
+    projection.resource_scope = fixture_projection().resource_scope;
     projection
 }
 
@@ -300,6 +307,13 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
         RUN_FILTER_AUTHOR_ID,
         LANE_FILTER_AUTHOR_ID,
         MESSAGE_FILTER_AUTHOR_ID,
+        PRIVACY_OWNER_AUTHOR_ID,
+        PRIVACY_PRINCIPAL_AUTHOR_ID,
+        PRIVACY_SESSION_AUTHOR_ID,
+        PRIVACY_ACCESS_SPACE_AUTHOR_ID,
+        PRIVACY_WORKSPACE_AUTHOR_ID,
+        PRIVACY_VISIBILITY_AUTHOR_ID,
+        PRIVACY_DENIAL_AUTHOR_ID,
         &run_author_id("run-mt008-ui"),
         &lane_author_id("lane-mt008-local"),
         &message_author_id("msg-mt008-001"),
@@ -352,6 +366,41 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
     );
     assert_unique_swarm_author_ids(&harness);
 
+    assert!(
+        accesskit_label(&harness, PRIVACY_VISIBILITY_AUTHOR_ID)
+            .contains("exact account + Principal + session + AccessSpace + workspace"),
+        "operator-visible privacy state names every enforced scope dimension"
+    );
+    assert!(
+        accesskit_label(&harness, PRIVACY_DENIAL_AUTHOR_ID)
+            .contains("foreign stored scope: not found"),
+        "operator-visible privacy state explains the metadata-safe denial posture"
+    );
+    let rendered_text = harness
+        .root()
+        .children_recursive()
+        .flat_map(|node| {
+            let access = node.accesskit_node();
+            [
+                access.label().unwrap_or_default().to_owned(),
+                access.value().unwrap_or_default().to_owned(),
+            ]
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    for raw_scope_value in [
+        "01900000-0000-7000-8000-000000000001",
+        "01900000-0000-7000-8000-000000000002",
+        "01900000-0000-7000-8000-000000000003",
+        "01900000-0000-7000-8000-000000000004",
+        "workspace-mt008-ui",
+    ] {
+        assert!(
+            !rendered_text.contains(raw_scope_value),
+            "raw scope value leaked into operator-visible AccessKit text"
+        );
+    }
+
     node_by_author(&harness, LANE_FILTER_AUTHOR_ID).focus();
     harness.run();
     node_by_author(&harness, LANE_FILTER_AUTHOR_ID).type_text("local");
@@ -391,6 +440,39 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
             .iter()
             .any(|id| id == &selected_message_author_id("msg-mt008-001")),
         "promotion drilldown reuses selected message details"
+    );
+}
+
+#[test]
+fn swarm_lane_diagnostics_argus_exposes_message_filter_empty_state() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("MODELS").click();
+    harness.run();
+    harness.get_by_label("Open Lane Diagnostics").click();
+    harness.run();
+
+    node_by_author(&harness, MESSAGE_FILTER_AUTHOR_ID).focus();
+    harness.run();
+    node_by_author(&harness, MESSAGE_FILTER_AUTHOR_ID)
+        .type_text("no-message-can-match-this-edge-state");
+    harness.run();
+
+    assert!(
+        live_author_ids(&harness)
+            .iter()
+            .any(|id| id == EMPTY_MESSAGES_AUTHOR_ID),
+        "empty filtered diagnostics state is explicitly visible to Argus"
+    );
+    assert!(
+        accesskit_label(&harness, EMPTY_MESSAGES_AUTHOR_ID).contains("No messages match"),
+        "empty-state landmark carries an operator-readable reason"
+    );
+    assert!(
+        !live_author_ids(&harness)
+            .iter()
+            .any(|id| id == &message_author_id("msg-mt008-001")),
+        "empty-state capture cannot retain a filtered-out message row"
     );
 }
 
@@ -591,8 +673,9 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
     );
     let raw_projection: Value = serde_json::from_slice(&artifact_bytes)
         .expect("backend-generated diagnostics projection is JSON");
-    let projection: SwarmLaneDiagnosticsProjection = serde_json::from_value(raw_projection.clone())
-        .expect("native contract consumes backend-generated projection JSON");
+    let mut projection: SwarmLaneDiagnosticsProjection =
+        serde_json::from_value(raw_projection.clone())
+            .expect("native contract consumes backend-generated projection JSON");
     validate_exact_backend_json_shape(&raw_projection, &projection)
         .expect("MT-017 backend/native projection field shape round-trips exactly");
     assert_eq!(
@@ -600,8 +683,12 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
         "hsk.model_lane_diagnostics_projection@3"
     );
     assert_eq!(provenance.projection_schema_id, projection.schema_id);
+    let error = validate_projection_for_native_surface(&projection)
+        .expect_err("raw backend artifact has no server-authorized account scope");
+    assert!(error.contains("resource_scope attribution"));
+    projection.resource_scope = fixture_projection().resource_scope;
     validate_projection_for_native_surface(&projection)
-        .expect("backend-generated projection satisfies native schema-v3 contract");
+        .expect("explicitly test-scoped projection satisfies native schema-v3 contract");
 
     let known_lane = projection
         .lanes
@@ -716,6 +803,23 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
 
 #[test]
 fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
+    let mut projection = fixture_projection();
+    projection.resource_scope = None;
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("missing exact privacy attribution must fail closed");
+    assert!(err.contains("resource_scope attribution"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection
+        .resource_scope
+        .as_mut()
+        .expect("fixture carries exact privacy scope")
+        .authenticated_session_fingerprint
+        .clear();
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("partial exact privacy attribution must fail closed");
+    assert!(err.contains("resource_scope attribution"), "got {err}");
+
     let mut serialized = serde_json::to_value(fixture_projection()).expect("serialize fixture");
     serialized["lanes"][0]
         .as_object_mut()
@@ -1441,5 +1545,14 @@ fn fixture_projection() -> SwarmLaneDiagnosticsProjection {
         active_lease_count: 1,
         reclaimable_lease_ids: vec![],
         orphan_state: "none".into(),
+        resource_scope: Some(SwarmLaneDiagnosticsResourceScope {
+            owner_account_fingerprint: "a".repeat(64),
+            actor_principal_fingerprint: "b".repeat(64),
+            authenticated_session_fingerprint: "c".repeat(64),
+            access_space_fingerprint: "d".repeat(64),
+            workspace_fingerprint: "e".repeat(64),
+            visibility: "private_exact_scope_only".into(),
+            denial_posture: "foreign_scope_is_absent_restricted_metadata_withheld".into(),
+        }),
     }
 }

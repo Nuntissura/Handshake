@@ -437,6 +437,43 @@ pub struct ActionReceiptTracker {
 }
 
 impl ActionReceiptTracker {
+    /// Whether an action receipt is already terminal (or no longer exists). The viewport drain uses
+    /// this to discard a mutation whose bounded waiter timed out before the next input pass, so a
+    /// timed-out SetValue cannot be injected later as an orphan side effect.
+    pub fn is_terminal(&self, action_id: &str) -> bool {
+        let (lock, _) = &*self.inner;
+        lock_unpoisoned(lock)
+            .receipts
+            .get(action_id)
+            .is_none_or(|receipt| receipt.status != ActionReceiptStatus::Queued)
+    }
+
+    /// Read a receipt without waiting or changing its state.
+    pub fn get(&self, action_id: &str) -> Option<ArgusActionReceipt> {
+        let (lock, _) = &*self.inner;
+        lock_unpoisoned(lock).receipts.get(action_id).cloned()
+    }
+
+    /// Release a terminal receipt after the session has finished attribution and optional durable
+    /// persistence. Queued receipts are never removed: the live waiter/viewport still owns them.
+    pub fn release_terminal(&self, action_id: &str) -> bool {
+        let (lock, _) = &*self.inner;
+        let mut state = lock_unpoisoned(lock);
+        let terminal = state
+            .receipts
+            .get(action_id)
+            .is_some_and(|receipt| receipt.status != ActionReceiptStatus::Queued);
+        if !terminal {
+            return false;
+        }
+        state.receipts.remove(action_id);
+        state.postconditions.remove(action_id);
+        state.handler_acknowledgements.remove(action_id);
+        drop(state);
+        clear_registered_action_effect(action_id);
+        true
+    }
+
     pub fn begin(
         &self,
         connection_id: &str,
@@ -547,33 +584,50 @@ impl ActionReceiptTracker {
         action_id: &str,
         after_revision: u64,
         snapshot: &UiTreeSnapshot,
-    ) {
+    ) -> bool {
         let (lock, wake) = &*self.inner;
         let mut state = lock_unpoisoned(lock);
         let Some(receipt) = state.receipts.get(action_id) else {
-            return;
+            return true;
         };
         if receipt.status != ActionReceiptStatus::Queued {
-            return;
+            return true;
         }
         let author_id = receipt.author_id.clone();
         let postcondition = state.postconditions.get(action_id).cloned();
         let outcome = match postcondition {
-            Some(ExpectedPostcondition::SetValue { expected_value }) => snapshot
-                .find_by_author_id(&author_id)
-                .filter(|node| node.value.as_deref() == Some(expected_value.as_str()))
-                .map(|_| Ok(()))
-                .unwrap_or_else(|| Err("set_value exact value was not observed".to_owned())),
+            Some(ExpectedPostcondition::SetValue { expected_value }) => {
+                // Text input mutation is a focus request followed by a text event. The first newer
+                // AccessKit snapshot can therefore still expose the pre-edit value; keep observing
+                // real rendered frames until the exact value appears or the receipt waiter's bounded
+                // timeout marks the action failed. A single intermediate snapshot is not terminal
+                // evidence that the input rejected the action.
+                if snapshot
+                    .find_by_author_id(&author_id)
+                    .is_some_and(|node| node.value.as_deref() == Some(expected_value.as_str()))
+                {
+                    Some(Ok(()))
+                } else {
+                    None
+                }
+            }
             Some(ExpectedPostcondition::HandlerAcknowledgement)
                 if state.handler_acknowledgements.remove(action_id) =>
             {
-                Ok(())
+                Some(Ok(()))
             }
-            Some(ExpectedPostcondition::HandlerAcknowledgement) => {
-                Err("target handler did not acknowledge the requested action effect".to_owned())
-            }
-            None => Err("action postcondition evidence is unavailable".to_owned()),
+            Some(ExpectedPostcondition::HandlerAcknowledgement) => Some(Err(
+                "target handler did not acknowledge the requested action effect".to_owned(),
+            )),
+            None => Some(Err(
+                "action postcondition evidence is unavailable".to_owned()
+            )),
         };
+        let Some(outcome) = outcome else {
+            return false;
+        };
+        state.postconditions.remove(action_id);
+        state.handler_acknowledgements.remove(action_id);
         if let Some(receipt) = state.receipts.get_mut(action_id) {
             receipt.after_revision = Some(after_revision);
             match outcome {
@@ -585,7 +639,9 @@ impl ActionReceiptTracker {
             }
             wake.notify_all();
         }
+        drop(state);
         clear_registered_action_effect(action_id);
+        true
     }
 
     pub fn failed(&self, action_id: &str, error: impl Into<String>) {
@@ -606,6 +662,7 @@ impl ActionReceiptTracker {
     ) {
         let (lock, wake) = &*self.inner;
         let mut state = lock_unpoisoned(lock);
+        let mut transitioned = false;
         if let Some(receipt) = state.receipts.get_mut(action_id) {
             // Applied and failed are terminal. In particular, a late render
             // cannot turn a timeout/failure into a false success.
@@ -615,8 +672,15 @@ impl ActionReceiptTracker {
             receipt.status = status;
             receipt.after_revision = after_revision;
             receipt.error = error;
+            transitioned = true;
             wake.notify_all();
         }
+        if !transitioned {
+            return;
+        }
+        state.postconditions.remove(action_id);
+        state.handler_acknowledgements.remove(action_id);
+        drop(state);
         clear_registered_action_effect(action_id);
     }
 
@@ -639,21 +703,60 @@ impl ActionReceiptTracker {
             }
             let remaining = timeout.saturating_sub(start.elapsed());
             if remaining.is_zero() {
-                return Err(ArgusError::ReceiptTimeout {
+                let error = ArgusError::ReceiptTimeout {
                     action_id: action_id.to_owned(),
-                });
+                };
+                let message = error.to_string();
+                let receipt = state.receipts.get_mut(action_id).expect("receipt exists");
+                receipt.status = ActionReceiptStatus::Failed;
+                receipt.error = Some(message);
+                state.postconditions.remove(action_id);
+                state.handler_acknowledgements.remove(action_id);
+                wake.notify_all();
+                drop(state);
+                clear_registered_action_effect(action_id);
+                return Err(error);
             }
             let (next, result) = wake
                 .wait_timeout(state, remaining)
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
             state = next;
             if result.timed_out() {
-                return Err(ArgusError::ReceiptTimeout {
+                let current = state.receipts.get(action_id).cloned().ok_or_else(|| {
+                    ArgusError::UnknownReceipt {
+                        action_id: action_id.to_owned(),
+                    }
+                })?;
+                if current.status != ActionReceiptStatus::Queued {
+                    return Ok(current);
+                }
+                let error = ArgusError::ReceiptTimeout {
                     action_id: action_id.to_owned(),
-                });
+                };
+                let message = error.to_string();
+                let receipt = state.receipts.get_mut(action_id).expect("receipt exists");
+                receipt.status = ActionReceiptStatus::Failed;
+                receipt.error = Some(message);
+                state.postconditions.remove(action_id);
+                state.handler_acknowledgements.remove(action_id);
+                wake.notify_all();
+                drop(state);
+                clear_registered_action_effect(action_id);
+                return Err(error);
             }
         }
     }
+
+    #[cfg(test)]
+    pub(crate) fn pending_postcondition_count(&self) -> usize {
+        let (lock, _) = &*self.inner;
+        lock_unpoisoned(lock).postconditions.len()
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn registered_action_effect_count() -> usize {
+    lock_unpoisoned(PENDING_ACTION_EFFECTS.get_or_init(|| Mutex::new(HashMap::new()))).len()
 }
 
 fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -864,7 +967,10 @@ mod tests {
         );
         let mut drifted = snapshot.clone();
         drifted.root.children[0].disabled = true;
-        tracker.observe_postcondition(&drift_receipt.action_id, 8, &drifted);
+        assert!(
+            tracker.observe_postcondition(&drift_receipt.action_id, 8, &drifted),
+            "missing handler acknowledgement remains an immediate terminal failure"
+        );
         assert_eq!(
             tracker
                 .wait(&drift_receipt.action_id, Duration::ZERO)
@@ -872,6 +978,7 @@ mod tests {
                 .status,
             ActionReceiptStatus::Failed
         );
+        assert_eq!(tracker.pending_postcondition_count(), 0);
 
         let removal_receipt = tracker.begin(
             "connection-1",
@@ -924,6 +1031,104 @@ mod tests {
                 .status,
             ActionReceiptStatus::Applied
         );
+    }
+
+    #[test]
+    fn set_value_receipt_waits_across_intermediate_snapshots_for_exact_value() {
+        let tracker = ActionReceiptTracker::default();
+        let mut before = tree_with_duplicate(false);
+        before.root.children[0].role = "TextInput".to_owned();
+        before.root.children[0].actions = vec!["Focus".to_owned()];
+        before.root.children[0].value = Some(String::new());
+        let receipt = tracker.begin(
+            "connection-1",
+            "agent-1",
+            MAIN_WINDOW_ID,
+            "target",
+            &UiAction::SetValue {
+                text: "concurrency".to_owned(),
+            },
+            7,
+            &before,
+        );
+
+        assert!(
+            !tracker.observe_postcondition(&receipt.action_id, 8, &before),
+            "the first newer snapshot is intermediate, not terminal failure evidence"
+        );
+        assert_eq!(
+            tracker.get(&receipt.action_id).unwrap().status,
+            ActionReceiptStatus::Queued
+        );
+
+        let mut after = before;
+        after.root.children[0].value = Some("concurrency".to_owned());
+        assert!(tracker.observe_postcondition(&receipt.action_id, 9, &after));
+        let applied = tracker
+            .wait(&receipt.action_id, Duration::ZERO)
+            .expect("exact value makes the receipt terminal");
+        assert_eq!(applied.status, ActionReceiptStatus::Applied);
+        assert_eq!(applied.after_revision, Some(9));
+    }
+
+    #[test]
+    fn wait_timeout_is_atomic_and_late_exact_value_cannot_resurrect_receipt() {
+        let tracker = ActionReceiptTracker::default();
+        let mut snapshot = tree_with_duplicate(false);
+        snapshot.root.children[0].role = "TextInput".to_owned();
+        snapshot.root.children[0].actions = vec!["Focus".to_owned()];
+        snapshot.root.children[0].value = Some("old".to_owned());
+        let receipt = tracker.begin(
+            "connection-1",
+            "agent-1",
+            MAIN_WINDOW_ID,
+            "target",
+            &UiAction::SetValue {
+                text: "replacement".to_owned(),
+            },
+            7,
+            &snapshot,
+        );
+
+        let timeout = tracker.wait(&receipt.action_id, Duration::ZERO);
+        assert!(matches!(timeout, Err(ArgusError::ReceiptTimeout { .. })));
+        let timed_out = tracker
+            .get(&receipt.action_id)
+            .expect("timeout retains its terminal failed receipt for session persistence");
+        assert_eq!(timed_out.status, ActionReceiptStatus::Failed);
+        assert!(timed_out.error.as_deref().unwrap().contains("timed out"));
+        assert_eq!(tracker.pending_postcondition_count(), 0);
+
+        snapshot.root.children[0].value = Some("replacement".to_owned());
+        assert!(tracker.observe_postcondition(&receipt.action_id, 8, &snapshot));
+        assert_eq!(
+            tracker.get(&receipt.action_id).unwrap().status,
+            ActionReceiptStatus::Failed,
+            "a snapshot after the atomic deadline cannot resurrect the receipt"
+        );
+    }
+
+    #[test]
+    fn terminal_receipt_is_released_only_after_explicit_session_cleanup() {
+        let tracker = ActionReceiptTracker::default();
+        let snapshot = tree_with_duplicate(false);
+        let receipt = tracker.begin(
+            "connection-1",
+            "agent-1",
+            MAIN_WINDOW_ID,
+            "target",
+            &UiAction::SetValue {
+                text: "replacement".to_owned(),
+            },
+            7,
+            &snapshot,
+        );
+        assert!(!tracker.release_terminal(&receipt.action_id));
+        tracker.failed(&receipt.action_id, "terminal release test");
+        assert!(tracker.get(&receipt.action_id).is_some());
+        assert!(tracker.release_terminal(&receipt.action_id));
+        assert!(tracker.get(&receipt.action_id).is_none());
+        assert!(!tracker.release_terminal(&receipt.action_id));
     }
 
     #[test]
@@ -1093,10 +1298,7 @@ mod tests {
             ActionReceiptStatus::Applied
         );
         assert_eq!(
-            tracker
-                .wait(&second.action_id, Duration::ZERO)
-                .unwrap()
-                .status,
+            tracker.get(&second.action_id).unwrap().status,
             ActionReceiptStatus::Queued
         );
 

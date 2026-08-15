@@ -7,7 +7,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use std::{str::FromStr, sync::OnceLock};
 use uuid::Uuid;
 
 use crate::api::account_scope::RequestAccountScope;
@@ -16,6 +16,122 @@ use crate::diagnostics::{
 };
 use crate::swarm_orchestration::model_lane::{ModelLaneDiagnosticsProjection, ModelLaneStore};
 use crate::AppState;
+
+#[derive(Debug, Serialize)]
+struct ScopedModelLaneDiagnosticsProjection {
+    #[serde(flatten)]
+    projection: ModelLaneDiagnosticsProjection,
+    resource_scope: PrivacySafeResourceScope,
+}
+
+#[derive(Debug, Serialize)]
+struct PrivacySafeResourceScope {
+    owner_account_fingerprint: String,
+    actor_principal_fingerprint: String,
+    authenticated_session_fingerprint: String,
+    access_space_fingerprint: String,
+    workspace_fingerprint: String,
+    visibility: &'static str,
+    denial_posture: &'static str,
+}
+
+#[derive(Debug)]
+struct ScopeFingerprintError;
+
+impl std::fmt::Display for ScopeFingerprintError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("scope fingerprint key unavailable")
+    }
+}
+
+fn initialize_scope_fingerprint_key(
+    fill: impl FnOnce(&mut [u8; 32]) -> Result<(), ()>,
+) -> Result<[u8; 32], ScopeFingerprintError> {
+    let mut key = [0_u8; 32];
+    fill(&mut key).map_err(|()| ScopeFingerprintError)?;
+    Ok(key)
+}
+
+fn scope_process_key() -> Result<&'static [u8; 32], ScopeFingerprintError> {
+    static PROCESS_KEY: OnceLock<Result<[u8; 32], ScopeFingerprintError>> = OnceLock::new();
+    PROCESS_KEY
+        .get_or_init(|| {
+            initialize_scope_fingerprint_key(|key| getrandom::getrandom(key).map_err(|_| ()))
+        })
+        .as_ref()
+        .map_err(|_| ScopeFingerprintError)
+}
+
+fn scope_fingerprint(value: &str) -> Result<String, ScopeFingerprintError> {
+    Ok(blake3::keyed_hash(scope_process_key()?, value.as_bytes())
+        .to_hex()
+        .to_string())
+}
+
+fn scoped_model_lane_diagnostics(
+    projection: ModelLaneDiagnosticsProjection,
+    scope: &RequestAccountScope,
+) -> Result<ScopedModelLaneDiagnosticsProjection, ModelLaneDiagnosticsApiError> {
+    let exact = scope.exact();
+    let raw_values = [
+        exact.owner_account_id.to_string(),
+        exact.actor_principal_id.to_string(),
+        exact.authenticated_session_id.to_string(),
+        exact.access_space_id.to_string(),
+        exact.workspace_id.to_string(),
+    ];
+    let fingerprints = raw_values
+        .iter()
+        .map(|raw| scope_fingerprint(raw))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(ModelLaneDiagnosticsApiError::integrity)?;
+    let mut projection_value =
+        serde_json::to_value(projection).map_err(ModelLaneDiagnosticsApiError::integrity)?;
+    fn redact_text(text: &mut String, replacements: &[(&str, &str)]) {
+        for (raw, fingerprint) in replacements {
+            *text = text.replace(raw, &format!("[scope-fingerprint:{fingerprint}]"));
+        }
+    }
+    fn redact(value: &mut serde_json::Value, replacements: &[(&str, &str)]) {
+        match value {
+            serde_json::Value::String(text) => redact_text(text, replacements),
+            serde_json::Value::Array(values) => {
+                for value in values {
+                    redact(value, replacements);
+                }
+            }
+            serde_json::Value::Object(values) => {
+                let previous = std::mem::take(values);
+                for (mut key, mut value) in previous {
+                    redact_text(&mut key, replacements);
+                    redact(&mut value, replacements);
+                    values.insert(key, value);
+                }
+            }
+            _ => {}
+        }
+    }
+    let replacements = raw_values
+        .iter()
+        .zip(fingerprints.iter())
+        .map(|(raw, fingerprint)| (raw.as_str(), fingerprint.as_str()))
+        .collect::<Vec<_>>();
+    redact(&mut projection_value, &replacements);
+    let projection = serde_json::from_value(projection_value)
+        .map_err(ModelLaneDiagnosticsApiError::integrity)?;
+    Ok(ScopedModelLaneDiagnosticsProjection {
+        projection,
+        resource_scope: PrivacySafeResourceScope {
+            owner_account_fingerprint: fingerprints[0].clone(),
+            actor_principal_fingerprint: fingerprints[1].clone(),
+            authenticated_session_fingerprint: fingerprints[2].clone(),
+            access_space_fingerprint: fingerprints[3].clone(),
+            workspace_fingerprint: fingerprints[4].clone(),
+            visibility: "private_exact_scope_only",
+            denial_posture: "foreign_scope_is_absent_restricted_metadata_withheld",
+        },
+    })
+}
 
 #[derive(Debug, Deserialize, Default)]
 pub struct DiagnosticsQuery {
@@ -131,7 +247,7 @@ fn model_lane_store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneS
 async fn latest_model_lane_diagnostics(
     State(state): State<AppState>,
     scope: RequestAccountScope,
-) -> Result<Json<ModelLaneDiagnosticsProjection>, ModelLaneDiagnosticsApiError> {
+) -> Result<Json<ScopedModelLaneDiagnosticsProjection>, ModelLaneDiagnosticsApiError> {
     // The inline "globally newest run" probe that used to live here disclosed
     // another account's run id before any store-level scoping applied. Resolving
     // "latest" now happens inside the scoped store, so "latest" means "latest
@@ -142,14 +258,14 @@ async fn latest_model_lane_diagnostics(
         .latest_diagnostics_projection_with_model_catalog(model_catalog.as_deref())
         .await
         .map_err(map_model_lane_diagnostics_error)?;
-    Ok(Json(projection))
+    Ok(Json(scoped_model_lane_diagnostics(projection, &scope)?))
 }
 
 async fn get_model_lane_diagnostics(
     State(state): State<AppState>,
     scope: RequestAccountScope,
     Path(run_id): Path<String>,
-) -> Result<Json<ModelLaneDiagnosticsProjection>, ModelLaneDiagnosticsApiError> {
+) -> Result<Json<ScopedModelLaneDiagnosticsProjection>, ModelLaneDiagnosticsApiError> {
     // The previous inline `SELECT EXISTS(... WHERE run_id = $1)` probe was an
     // unscoped existence oracle: it told any caller whether a run id belonged to
     // somebody. Existence is now decided by the scoped store, which reports a
@@ -160,7 +276,7 @@ async fn get_model_lane_diagnostics(
         .diagnostics_projection_with_model_catalog(&run_id, model_catalog.as_deref())
         .await
         .map_err(map_model_lane_diagnostics_error)?;
-    Ok(Json(projection))
+    Ok(Json(scoped_model_lane_diagnostics(projection, &scope)?))
 }
 
 /// Map a store error to an API error without letting a scope denial leak the
@@ -268,4 +384,20 @@ pub fn routes(state: AppState) -> Router {
             get(get_model_lane_diagnostics),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scope_fingerprint_key_failure_maps_to_fail_closed_internal_error() {
+        let error = initialize_scope_fingerprint_key(|_| Err(()))
+            .expect_err("CSPRNG failure must not fabricate a fingerprint key");
+        let api_error = ModelLaneDiagnosticsApiError::integrity(error);
+
+        assert_eq!(api_error.status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(api_error.code, "MODEL_LANE_DIAGNOSTICS_INTEGRITY_FAILURE");
+        assert_eq!(api_error.detail, "scope fingerprint key unavailable");
+    }
 }

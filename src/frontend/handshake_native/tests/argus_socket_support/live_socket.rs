@@ -357,6 +357,10 @@ pub fn assert_visual_png(png: &[u8], context: &str) {
     let mut colors = std::collections::HashSet::new();
     let mut visible_nonblack = false;
     for pixel in image.pixels() {
+        assert_eq!(
+            pixel[3], 255,
+            "{context} contains a non-opaque capture pixel"
+        );
         colors.insert(pixel.0);
         visible_nonblack |= pixel[3] != 0 && (pixel[0] > 8 || pixel[1] > 8 || pixel[2] > 8);
         if colors.len() > 4 && visible_nonblack {
@@ -782,6 +786,18 @@ pub fn decode_verified_capture(
         response["result"]["sha256"],
         format!("{:x}", Sha256::digest(&png)),
         "{context} sha256 does not match its own bytes"
+    );
+    let decoded = image::load_from_memory(&png)
+        .unwrap_or_else(|error| panic!("{context} PNG did not decode for dimensions: {error}"));
+    assert_eq!(
+        decoded.width() as u64,
+        response["result"]["width"].as_u64().unwrap(),
+        "{context} decoded width differs from capture metadata"
+    );
+    assert_eq!(
+        decoded.height() as u64,
+        response["result"]["height"].as_u64().unwrap(),
+        "{context} decoded height differs from capture metadata"
     );
     assert_visual_png(&png, context);
     png

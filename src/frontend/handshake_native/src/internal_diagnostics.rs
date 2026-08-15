@@ -411,14 +411,6 @@ struct PanicLatch {
 }
 
 impl PanicLatch {
-    fn open(path: &Path) -> io::Result<Self> {
-        let file = OpenOptions::new().read(true).write(true).open(path)?;
-        Ok(Self {
-            map: unsafe { MmapMut::map_mut(&file)? },
-            fired: AtomicBool::new(false),
-        })
-    }
-
     fn signal(&self) {
         if self
             .fired
@@ -452,7 +444,7 @@ impl InternalDiagnostics {
         let mut ring =
             MappedRingWriter::create(&paths.ring, std::process::id(), session_id, launch_nonce)?;
         restrict_diagnostics_path(&paths.ring)?;
-        let panic_latch = PanicLatch::open(&paths.ring)?;
+        let panic_latch = ring.take_panic_latch()?;
         let started = Instant::now();
         let snapshot = InternalDiagnosticsSnapshot {
             schema_id: INTERNAL_DIAGNOSTICS_SCHEMA_ID.to_owned(),
@@ -752,7 +744,7 @@ impl InternalDiagnostics {
     pub async fn launch_palmistry(
         &self,
         backend_base_url: &str,
-    ) -> Result<PalmistryLaunchReceipt, String> {
+    ) -> Result<(PalmistryLaunchReceipt, bool), String> {
         let transport_secret = Zeroizing::new(rand::random::<[u8; 32]>());
         let transport_public = MontgomeryPoint::mul_base_clamped(*transport_secret);
         let request = PalmistryLaunchRequest {
@@ -827,7 +819,7 @@ impl InternalDiagnostics {
                 None,
             ));
         }
-        Ok(receipt)
+        Ok((receipt, rotated))
     }
 
     /// Maintain backend authentication for the whole native session. Every
@@ -835,7 +827,11 @@ impl InternalDiagnostics {
     /// durable: it retries through an initially unavailable backend and keeps
     /// reconciling after success so a later backend restart reattaches the
     /// durable watcher and atomically rotates the live MCP signing secret.
-    pub async fn maintain_palmistry(&self, backend_base_url: &str) {
+    pub async fn maintain_palmistry(
+        &self,
+        backend_base_url: &str,
+        on_signing_secret_rotated: impl Fn() + Send + Sync,
+    ) {
         let mut delay = Duration::from_millis(200);
         self.start_survivor_forwarder(backend_base_url.to_owned());
         loop {
@@ -843,7 +839,10 @@ impl InternalDiagnostics {
                 return;
             }
             match self.launch_palmistry(backend_base_url).await {
-                Ok(_) => {
+                Ok((_, rotated)) => {
+                    if rotated {
+                        on_signing_secret_rotated();
+                    }
                     self.import_pending_survivors(backend_base_url).await;
                     delay = Duration::from_secs(5);
                 }
@@ -1272,18 +1271,31 @@ pub fn read_ring_snapshot_for(
 
 struct MappedRingWriter {
     map: MmapMut,
+    panic_map: Option<MmapMut>,
 }
 
 impl MappedRingWriter {
     fn create(path: &Path, pid: u32, session_id: Uuid, launch_nonce: Uuid) -> io::Result<Self> {
-        let file = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .read(true)
-            .write(true)
-            .open(path)?;
+        let mut options = OpenOptions::new();
+        options.create(true).truncate(true).read(true).write(true);
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ;
+
+            // The backend must authenticate the live ring before it is allowed to launch
+            // Palmistry. Permit that independent read while the mapping remains active, but keep
+            // write and delete sharing denied so another process cannot replace or mutate the
+            // authenticated diagnostics authority.
+            options.share_mode(FILE_SHARE_READ);
+        }
+        let file = options.open(path)?;
         file.set_len(RING_BYTES as u64)?;
         let mut map = unsafe { MmapMut::map_mut(&file)? };
+        // Create the lock-free panic view from the already authenticated handle. Opening a second
+        // write handle by path after this point would either require widening FILE_SHARE_WRITE to
+        // every process or fail on Windows; neither is acceptable for the crash authority.
+        let panic_map = unsafe { MmapMut::map_mut(&file)? };
         map.fill(0);
         map[0..8].copy_from_slice(RING_MAGIC);
         map[OFFSET_VERSION..OFFSET_VERSION + 4]
@@ -1292,7 +1304,21 @@ impl MappedRingWriter {
         map[OFFSET_SESSION_ID..OFFSET_SESSION_ID + 16].copy_from_slice(session_id.as_bytes());
         map[OFFSET_LAUNCH_NONCE..OFFSET_LAUNCH_NONCE + 16].copy_from_slice(launch_nonce.as_bytes());
         map.flush()?;
-        Ok(Self { map })
+        Ok(Self {
+            map,
+            panic_map: Some(panic_map),
+        })
+    }
+
+    fn take_panic_latch(&mut self) -> io::Result<PanicLatch> {
+        let map = self
+            .panic_map
+            .take()
+            .ok_or_else(|| io::Error::other("diagnostics panic mapping was already transferred"))?;
+        Ok(PanicLatch {
+            map,
+            fired: AtomicBool::new(false),
+        })
     }
 
     fn publish(&mut self, snapshot: &InternalDiagnosticsSnapshot) -> io::Result<()> {
@@ -2316,14 +2342,42 @@ mod tests {
         assert!(read_ring_snapshot_for(&path, session_id, 42, Uuid::now_v7()).is_err());
     }
 
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn mapped_ring_allows_independent_read_but_denies_write_and_delete_until_drop() {
+        let dir = tempfile::tempdir().expect("temp diagnostics root");
+        let path = dir.path().join("ring-windows-sharing.bin");
+        let writer = MappedRingWriter::create(&path, 42, Uuid::now_v7(), Uuid::now_v7())
+            .expect("create live mapped ring");
+
+        let bytes = fs::read(&path).expect("backend-style independent read of live ring");
+        assert_eq!(bytes.len(), 262_272);
+        assert_eq!(bytes.len(), RING_BYTES);
+        assert_eq!(&bytes[..8], RING_MAGIC);
+        assert!(
+            OpenOptions::new().write(true).open(&path).is_err(),
+            "live ring must deny a competing writer"
+        );
+        assert!(
+            fs::remove_file(&path).is_err(),
+            "live ring must deny delete/path replacement"
+        );
+
+        drop(writer);
+        fs::remove_file(&path).expect("ring delete succeeds after mapped writer drops");
+    }
+
     #[test]
     fn panic_latch_is_lock_free_and_durably_visible_in_the_ring_header() {
         let dir = tempfile::tempdir().expect("temp diagnostics root");
         let path = dir.path().join("ring-panic.bin");
         let session_id = Uuid::now_v7();
         let nonce = Uuid::now_v7();
-        let writer = MappedRingWriter::create(&path, 77, session_id, nonce).expect("create ring");
-        let latch = PanicLatch::open(&path).expect("open independent panic mapping");
+        let mut writer =
+            MappedRingWriter::create(&path, 77, session_id, nonce).expect("create ring");
+        let latch = writer
+            .take_panic_latch()
+            .expect("transfer independent panic mapping");
         let normal_writer_lock = Mutex::new(writer);
         let _held_normal_writer_lock = normal_writer_lock.lock().unwrap();
         latch.signal();

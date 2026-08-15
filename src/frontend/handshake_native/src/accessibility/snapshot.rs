@@ -276,9 +276,7 @@ pub fn is_sensitive_author_id(author_id: &str) -> bool {
 /// Build a leaf [`UiTreeNode`] (no children yet) from a live AccessKit node + its id.
 fn leaf_node(node_id: accesskit::NodeId, node: &accesskit::Node) -> UiTreeNode {
     let author_id = node.author_id().map(|a| a.to_owned());
-    let sensitive = author_id
-        .as_deref()
-        .is_some_and(is_sensitive_author_id);
+    let sensitive = author_id.as_deref().is_some_and(is_sensitive_author_id);
     let id = author_id
         .clone()
         .unwrap_or_else(|| format!("node:{}", node_id.0));
@@ -625,12 +623,8 @@ mod ui_tree_tests {
         assert_eq!(secret.value, None);
         assert!(!secret.actions.iter().any(|action| action == "SetValue"));
         assert!(!snapshot.to_json().contains(canary));
-        assert!(is_sensitive_author_id(
-            "settings.cloud.byok.anthropic.key"
-        ));
-        assert!(!is_sensitive_author_id(
-            "settings.cloud.byok.openai.save"
-        ));
+        assert!(is_sensitive_author_id("settings.cloud.byok.anthropic.key"));
+        assert!(!is_sensitive_author_id("settings.cloud.byok.openai.save"));
     }
 
     /// The node cap bounds output and appends a single visible overflow marker (no silent truncation,

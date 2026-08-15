@@ -505,6 +505,13 @@ impl PalmistryLaunchError {
             detail: detail.into(),
         }
     }
+
+    fn bad_request_io(stage: &'static str, source: std::io::Error) -> Self {
+        Self::bad_request(format!(
+            "Palmistry request validation stage `{stage}` failed ({:?}): {source}",
+            source.kind()
+        ))
+    }
 }
 
 impl IntoResponse for PalmistryLaunchError {
@@ -1517,7 +1524,9 @@ fn read_survivor_summary(
     // Caller-authenticated timestamp plus record id form the writer's exact durable filename;
     // recovery never performs an attacker-amplifiable full-directory scan.
     let path = survivor_dir.join(format!("survivor-{observed_at_unix_ms}-{record_id}.json"));
-    if is_symlink_or_reparse(&path)? {
+    if is_symlink_or_reparse(&path)
+        .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?
+    {
         return Err(PalmistryLaunchError::bad_request(
             "Palmistry survivor artifact may not be a symlink or reparse point",
         ));
@@ -1931,10 +1940,15 @@ fn validate_request(request: &PalmistryLaunchRequest) -> Result<(), PalmistryLau
         .parent()
         .ok_or_else(|| PalmistryLaunchError::bad_request("ring has no parent"))?;
     let canonical_root = fs::canonicalize(root)
-        .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
-    let canonical_expected = fs::canonicalize(diagnostics_root())
-        .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
-    if canonical_root != canonical_expected || is_symlink_or_reparse(root)? {
+        .map_err(|error| PalmistryLaunchError::bad_request_io("root-canonicalize", error))?;
+    let canonical_expected = fs::canonicalize(diagnostics_root()).map_err(|error| {
+        PalmistryLaunchError::bad_request_io("expected-root-canonicalize", error)
+    })?;
+    if canonical_root != canonical_expected
+        || is_symlink_or_reparse(root).map_err(|error| {
+            PalmistryLaunchError::bad_request_io("root-reparse-inspection", error)
+        })?
+    {
         return Err(PalmistryLaunchError::bad_request(
             "Palmistry diagnostics root is not the canonical owned diagnostics root",
         ));
@@ -1962,16 +1976,23 @@ fn validate_request(request: &PalmistryLaunchRequest) -> Result<(), PalmistryLau
             ));
         }
     }
-    if request.survivor_dir != root.join("survivors") || !request.ring.is_file() {
+    let ring_is_file = fs::metadata(&request.ring)
+        .map_err(|error| PalmistryLaunchError::bad_request_io("ring-metadata", error))?
+        .is_file();
+    if request.survivor_dir != root.join("survivors") || !ring_is_file {
         return Err(PalmistryLaunchError::bad_request(
             "survivor directory or diagnostics ring is invalid",
         ));
     }
-    if fs::canonicalize(&request.survivor_dir)
-        .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?
-        != canonical_root.join("survivors")
-        || is_symlink_or_reparse(&request.survivor_dir)?
-        || is_symlink_or_reparse(&request.ring)?
+    if fs::canonicalize(&request.survivor_dir).map_err(|error| {
+        PalmistryLaunchError::bad_request_io("survivor-directory-canonicalize", error)
+    })? != canonical_root.join("survivors")
+        || is_symlink_or_reparse(&request.survivor_dir).map_err(|error| {
+            PalmistryLaunchError::bad_request_io("survivor-directory-reparse-inspection", error)
+        })?
+        || is_symlink_or_reparse(&request.ring).map_err(|error| {
+            PalmistryLaunchError::bad_request_io("ring-reparse-inspection", error)
+        })?
     {
         return Err(PalmistryLaunchError::bad_request(
             "Palmistry paths may not use symlink or reparse redirection",
@@ -1983,7 +2004,11 @@ fn validate_request(request: &PalmistryLaunchRequest) -> Result<(), PalmistryLau
         &request.shutdown_signal,
         &request.ready_signal,
     ] {
-        if path.exists() && is_symlink_or_reparse(path)? {
+        if path.try_exists().map_err(|error| {
+            PalmistryLaunchError::bad_request_io("signal-existence-check", error)
+        })? && is_symlink_or_reparse(path).map_err(|error| {
+            PalmistryLaunchError::bad_request_io("signal-reparse-inspection", error)
+        })? {
             return Err(PalmistryLaunchError::bad_request(
                 "Palmistry signal path may not be a symlink or reparse point",
             ));
@@ -2000,9 +2025,12 @@ fn validate_request(request: &PalmistryLaunchRequest) -> Result<(), PalmistryLau
             "Palmistry ring identity does not match the authenticated launch",
         ));
     }
-    if request.ready_signal.exists() {
-        fs::remove_file(&request.ready_signal)
-            .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
+    if request.ready_signal.try_exists().map_err(|error| {
+        PalmistryLaunchError::bad_request_io("ready-signal-existence-check", error)
+    })? {
+        fs::remove_file(&request.ready_signal).map_err(|error| {
+            PalmistryLaunchError::bad_request_io("stale-ready-signal-removal", error)
+        })?;
     }
     Ok(())
 }
@@ -2022,7 +2050,8 @@ fn read_ring_snapshot(path: &Path) -> Result<RingSnapshotIdentity, PalmistryLaun
     const HEADER: usize = 128;
     const SLOT: usize = 128 * 1024;
     const TOTAL: usize = HEADER + SLOT * 2;
-    let bytes = fs::read(path).map_err(|e| PalmistryLaunchError::bad_request(e.to_string()))?;
+    let bytes =
+        fs::read(path).map_err(|error| PalmistryLaunchError::bad_request_io("ring-read", error))?;
     if bytes.len() != TOTAL || &bytes[..8] != b"HSKIDG01" {
         return Err(PalmistryLaunchError::bad_request(
             "invalid diagnostics ring",
@@ -2064,9 +2093,8 @@ fn diagnostics_root() -> PathBuf {
     std::env::temp_dir().join("handshake").join("diagnostics")
 }
 
-fn is_symlink_or_reparse(path: &Path) -> Result<bool, PalmistryLaunchError> {
-    let metadata = fs::symlink_metadata(path)
-        .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
+fn is_symlink_or_reparse(path: &Path) -> std::io::Result<bool> {
+    let metadata = fs::symlink_metadata(path)?;
     if metadata.file_type().is_symlink() {
         return Ok(true);
     }
@@ -2548,6 +2576,24 @@ mod tests {
             status: "applied".to_owned(),
             proof: "ab".repeat(32),
         }
+    }
+
+    #[test]
+    fn request_validation_io_context_preserves_stage_kind_and_source_message() {
+        let error = PalmistryLaunchError::bad_request_io(
+            "ring-read",
+            std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "access denied fixture",
+            ),
+        );
+
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert_eq!(error.code, "PALMISTRY_LAUNCH_INVALID");
+        assert_eq!(
+            error.detail,
+            "Palmistry request validation stage `ring-read` failed (PermissionDenied): access denied fixture"
+        );
     }
 
     #[test]

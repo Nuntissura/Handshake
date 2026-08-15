@@ -284,7 +284,9 @@ fn a_live_login_panel_survives_closing_and_reopening_settings_but_loses_the_type
         "settings.cloud.cli.codex.login.confirm",
     ] {
         harness
-            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(author))
+            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+                n.author_id() == Some(author)
+            })
             .next()
             .unwrap_or_else(|| panic!("{author} addressable"))
             .click_accesskit();
@@ -446,7 +448,9 @@ fn in_app_login_panel_renders_the_provider_prompt_and_routes_the_typed_answer() 
         "settings.cloud.cli.claude_code.login.confirm",
     ] {
         harness
-            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(author))
+            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+                n.author_id() == Some(author)
+            })
             .next()
             .unwrap_or_else(|| panic!("{author} addressable"))
             .click_accesskit();

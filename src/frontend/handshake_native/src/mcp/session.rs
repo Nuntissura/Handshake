@@ -38,8 +38,8 @@ use sha2::Sha256;
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
 use crate::mcp::argus::{
-    validate_agent_label, ArgusWindowDescriptor, WindowSnapshotRegistry, ACTION_RECEIPT_TIMEOUT,
-    MAIN_WINDOW_ID,
+    validate_agent_label, ArgusError, ArgusWindowDescriptor, WindowSnapshotRegistry,
+    ACTION_RECEIPT_TIMEOUT, MAIN_WINDOW_ID,
 };
 use crate::mcp::attribution::{agent_id_for_token, ActionLog};
 use crate::mcp::leases::{LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
@@ -152,6 +152,11 @@ pub struct McpSession {
     receipt_provenance: Option<ArgusReceiptProvenance>,
     agent_credentials: AgentCredentialBroker,
     require_agent_credentials: bool,
+    /// Production-only wake for the egui frame loop. A queued action cannot be
+    /// drained by `raw_input_hook` while every viewport is idle unless enqueue
+    /// requests a frame. The callback is deliberately narrower than a window
+    /// activation API: it may schedule repaint, but cannot focus or foreground.
+    action_wake: Option<Arc<dyn Fn(&str) + Send + Sync>>,
 }
 
 static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
@@ -184,6 +189,7 @@ impl McpSession {
             receipt_provenance: None,
             agent_credentials: AgentCredentialBroker::default(),
             require_agent_credentials: false,
+            action_wake: None,
         }
     }
 
@@ -207,6 +213,11 @@ impl McpSession {
     fn with_agent_credentials(mut self, broker: AgentCredentialBroker, required: bool) -> Self {
         self.agent_credentials = broker;
         self.require_agent_credentials = required;
+        self
+    }
+
+    fn with_action_wake(mut self, wake: Option<Arc<dyn Fn(&str) + Send + Sync>>) -> Self {
+        self.action_wake = wake;
         self
     }
 
@@ -397,7 +408,9 @@ impl McpSession {
         request: &McpRequest,
         windows: &WindowSnapshotRegistry,
         channel: &Arc<Mutex<ActionChannel>>,
-        capture: impl FnOnce(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>,
+        capture: impl FnOnce(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>
+            + Send
+            + 'static,
     ) -> McpResponse {
         if !self.token.matches(&request.session_token) {
             return McpResponse::error(
@@ -448,6 +461,42 @@ impl McpSession {
         } else {
             self.agent_id.clone()
         };
+        // Screenshot capture is a compositor/GPU operation, never an ActionChannel mutation. Run it
+        // on Tokio's blocking pool and give dispatch_windowed_request a private unused channel so the
+        // global mutation-admission mutex is not held across capture. The production capture adapter
+        // independently bounds its whole WGC lifecycle to eight seconds.
+        if canonical_method(&request.method) == Some("argus.screenshot") {
+            let owned_request = request.clone();
+            let token = self.token.clone();
+            let windows = windows.clone();
+            let connection_id = self.connection_id.clone();
+            let blocking_capture = tokio::task::spawn_blocking(move || {
+                let mut unused_channel = ActionChannel::new();
+                dispatch_windowed_request(
+                    &owned_request,
+                    &token,
+                    &windows,
+                    &mut unused_channel,
+                    &connection_id,
+                    &authenticated_agent_id,
+                    capture,
+                )
+            });
+            return match tokio::time::timeout(Duration::from_secs(9), blocking_capture).await {
+                Ok(Ok(response)) => response,
+                Ok(Err(error)) => McpResponse::error(
+                    request.id.clone(),
+                    ScreenshotError(format!("screenshot blocking worker failed: {error}")).into(),
+                ),
+                Err(_) => McpResponse::error(
+                    request.id.clone(),
+                    ScreenshotError(
+                        "screenshot request exceeded the 9-second RPC deadline".to_owned(),
+                    )
+                    .into(),
+                ),
+            };
+        }
         match self.decide(request) {
             DispatchPlan::Direct => {
                 let mut channel = lock_channel(channel);
@@ -524,6 +573,16 @@ impl McpSession {
         let Some(action_id) = result.get("action_id").and_then(|value| value.as_str()) else {
             return response;
         };
+        // Enqueue occurs on the transport runtime, which may be the only active
+        // thread while the native shell is idle. Wake one egui pass immediately
+        // so raw_input_hook can drain and causally acknowledge this exact action.
+        let window_id = result
+            .get("window_id")
+            .and_then(|value| value.as_str())
+            .unwrap_or(MAIN_WINDOW_ID);
+        if let Some(wake) = &self.action_wake {
+            wake(window_id);
+        }
         let target = result
             .get("target")
             .and_then(|value| value.as_str())
@@ -550,36 +609,58 @@ impl McpSession {
         let mut receipt = match waited {
             Ok(Ok(receipt)) => receipt,
             Ok(Err(error)) => {
+                let receipt_timed_out = matches!(error, ArgusError::ReceiptTimeout { .. });
                 tracker.failed(action_id, error.to_string());
-                match tracker.wait(action_id, Duration::ZERO) {
-                    Ok(receipt) => receipt,
-                    Err(_) => return McpResponse::error(request.id.clone(), error.into()),
+                if receipt_timed_out {
+                    // Reclaim synchronously by receipt id. The target viewport may have closed after
+                    // enqueue, in which case no matching raw-input pass exists to prune this mutation.
+                    lock_channel(channel).discard_action(action_id);
                 }
+                let receipt = match tracker.wait(action_id, Duration::ZERO) {
+                    Ok(receipt) => receipt,
+                    Err(_) => {
+                        tracker.release_terminal(action_id);
+                        return McpResponse::error(request.id.clone(), error.into());
+                    }
+                };
+                if receipt_timed_out {
+                    // Atomic timeout has already terminalized + cleaned the receipt. Wake the native
+                    // shell so its next pass drops terminal queue/consumed bookkeeping.
+                    if let Some(wake) = &self.action_wake {
+                        wake(window_id);
+                    }
+                }
+                receipt
             }
             Err(error) => {
                 tracker.failed(action_id, format!("receipt waiter failed: {error}"));
                 match tracker.wait(action_id, Duration::ZERO) {
                     Ok(receipt) => receipt,
                     Err(receipt_error) => {
-                        return McpResponse::error(request.id.clone(), receipt_error.into())
+                        tracker.release_terminal(action_id);
+                        return McpResponse::error(request.id.clone(), receipt_error.into());
                     }
                 }
             }
         };
         if !self.durable_receipts {
-            return McpResponse::ok_value(
+            let response = McpResponse::ok_value(
                 request.id.clone(),
                 attributed_receipt_value(&receipt, authenticated_agent_id),
             );
+            tracker.release_terminal(action_id);
+            return response;
         }
         let Some(provenance) = self.receipt_provenance.clone() else {
             let error = "Argus receipt has no authenticated diagnostics provenance".to_owned();
             tracker.set_durability_error(action_id, error.clone());
             receipt.durability_error = Some(error);
-            return McpResponse::ok_value(
+            let response = McpResponse::ok_value(
                 request.id.clone(),
                 attributed_receipt_value(&receipt, authenticated_agent_id),
             );
+            tracker.release_terminal(action_id);
+            return response;
         };
         match persist_argus_receipt(&receipt, authenticated_agent_id, provenance).await {
             Ok(durable) if durable.durable => {
@@ -623,10 +704,12 @@ impl McpSession {
                 );
             }
         }
-        McpResponse::ok_value(
+        let response = McpResponse::ok_value(
             request.id.clone(),
             attributed_receipt_value(&receipt, authenticated_agent_id),
-        )
+        );
+        tracker.release_terminal(action_id);
+        response
     }
 
     /// Build the typed [`ERR_LEASE_TIMEOUT`] (-32004) response for a contended lease.
@@ -899,6 +982,7 @@ pub struct SwarmSafetyState {
     receipt_provenance: Option<ArgusReceiptProvenance>,
     agent_credentials: AgentCredentialBroker,
     require_agent_credentials: bool,
+    action_wake: Option<Arc<dyn Fn(&str) + Send + Sync>>,
 }
 
 impl SwarmSafetyState {
@@ -934,6 +1018,7 @@ impl SwarmSafetyState {
             receipt_provenance: None,
             agent_credentials: AgentCredentialBroker::default(),
             require_agent_credentials: false,
+            action_wake: None,
         }
     }
 
@@ -948,6 +1033,13 @@ impl SwarmSafetyState {
         self.durable_receipts = true;
         self.receipt_provenance = Some(provenance);
         self.require_agent_credentials = true;
+        self
+    }
+
+    /// Install the non-intrusive production frame wake used after a mutation is
+    /// actually queued. Tests and headless callers remain wake-free by default.
+    pub fn with_action_wake(mut self, wake: Arc<dyn Fn(&str) + Send + Sync>) -> Self {
+        self.action_wake = Some(wake);
         self
     }
 
@@ -988,6 +1080,7 @@ impl SwarmSafetyState {
             receipt_provenance: None,
             agent_credentials: AgentCredentialBroker::default(),
             require_agent_credentials: false,
+            action_wake: None,
         }
     }
 
@@ -1009,6 +1102,7 @@ impl SwarmSafetyState {
             receipt_provenance: None,
             agent_credentials: AgentCredentialBroker::default(),
             require_agent_credentials: false,
+            action_wake: None,
         }
     }
 
@@ -1023,6 +1117,7 @@ impl SwarmSafetyState {
                 self.agent_credentials.clone(),
                 self.require_agent_credentials,
             )
+            .with_action_wake(self.action_wake.clone())
     }
 
     /// The shared action log (for diagnostics / tests).
@@ -1234,9 +1329,12 @@ mod tests {
         };
         assert_eq!(batch.action_ids.len(), 1);
         let action_id = batch.action_ids[0].clone();
+        let mut receipt_for_payload = tracker.get(&action_id).expect("queued receipt retained");
         let current = windows.get(MAIN_WINDOW_ID).unwrap();
         let snapshot = current.snapshot.clone();
         let revision = windows.publish(current.window, current.snapshot);
+        receipt_for_payload.after_revision = Some(revision);
+        receipt_for_payload.status = crate::mcp::argus::ActionReceiptStatus::Applied;
         tracker.acknowledge_effect(&action_id);
         tracker.observe_postcondition(&action_id, revision, &snapshot);
 
@@ -1255,14 +1353,15 @@ mod tests {
         assert_eq!(log[0].op_name, "argus.click");
         assert_eq!(log[0].target_key, "btn");
 
-        let final_receipt = tracker
-            .wait(&action_id, Duration::ZERO)
-            .expect("terminal receipt");
-        assert_eq!(final_receipt.agent_label, "agent-two");
+        assert!(
+            tracker.get(&action_id).is_none(),
+            "session releases the terminal receipt after building its response"
+        );
+        assert_eq!(receipt_for_payload.agent_label, "agent-two");
         let durable_payload = argus_durable_receipt_payload(
             uuid::Uuid::nil(),
-            &final_receipt,
-            canonical_receipt_action(&final_receipt.action).unwrap(),
+            &receipt_for_payload,
+            canonical_receipt_action(&receipt_for_payload.action).unwrap(),
             &first_id,
             "applied",
             "proof-canary",
@@ -1294,6 +1393,117 @@ mod tests {
         );
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn queued_idle_mutation_wakes_and_drains_the_real_viewport_channel() {
+        let token = SessionToken::from_hex("secret");
+        let snapshot = Arc::new(Mutex::new(snap()));
+        let channel = Arc::new(Mutex::new(ActionChannel::new()));
+        let windows = WindowSnapshotRegistry::new();
+        windows.publish(
+            ArgusWindowDescriptor {
+                window_id: MAIN_WINDOW_ID.to_owned(),
+                viewport_id: "ROOT".to_owned(),
+                title: HANDSHAKE_WINDOW_TITLE.to_owned(),
+            },
+            snap(),
+        );
+        let wakes = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let wake_channel = Arc::clone(&channel);
+        let wake_windows = windows.clone();
+        let wake_count = Arc::clone(&wakes);
+        let state =
+            SwarmSafetyState::with_window_registry(token, snapshot, windows, Arc::clone(&channel))
+                .with_action_wake(Arc::new(move |window_id| {
+                    assert_eq!(
+                        window_id, MAIN_WINDOW_ID,
+                        "wake must carry the queued target window"
+                    );
+                    wake_count.fetch_add(1, Ordering::SeqCst);
+                    let (batch, tracker) = {
+                        let mut channel = wake_channel
+                            .lock()
+                            .unwrap_or_else(|poisoned| poisoned.into_inner());
+                        let tracker = channel.receipt_tracker();
+                        (
+                            channel.drain_for_viewport(MAIN_WINDOW_ID, egui::ViewportId::ROOT),
+                            tracker,
+                        )
+                    };
+                    assert_eq!(batch.action_ids.len(), 1, "wake drains the queued action");
+                    let current = wake_windows.get(MAIN_WINDOW_ID).expect("main snapshot");
+                    let rendered = current.snapshot.clone();
+                    let revision = wake_windows.publish(current.window, current.snapshot);
+                    for action_id in batch.action_ids {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            &egui::Context::default(),
+                            "btn",
+                        );
+                        tracker.observe_postcondition(&action_id, revision, &rendered);
+                    }
+                }));
+
+        let response = state
+            .session()
+            .dispatch_argus_shared_async(
+                &argus_req(1, "argus.click", "btn", "idle-agent"),
+                &state.windows,
+                &state.channel,
+                targeted_no_capture,
+            )
+            .await
+            .to_json();
+
+        assert_eq!(response["result"]["status"], "applied");
+        assert_eq!(wakes.load(Ordering::SeqCst), 1);
+        assert_eq!(channel.lock().unwrap().pending(), 0);
+
+        let mut unauthorized_request = argus_req(2, "argus.click", "btn", "unauthorized-agent");
+        unauthorized_request.session_token = "wrong-secret".to_owned();
+        let unauthorized = state
+            .session()
+            .dispatch_argus_shared_async(
+                &unauthorized_request,
+                &state.windows,
+                &state.channel,
+                targeted_no_capture,
+            )
+            .await;
+        assert!(unauthorized.is_error_code(crate::mcp::ERR_UNAUTHORIZED));
+        assert_eq!(wakes.load(Ordering::SeqCst), 1, "rejection must not wake");
+
+        let full_channel = Arc::new(Mutex::new(ActionChannel::with_capacity(1)));
+        full_channel
+            .lock()
+            .unwrap()
+            .enqueue(&snap(), "btn", crate::mcp::action::UiAction::Click)
+            .expect("fill bounded action queue");
+        let rejected_wakes = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let rejected_wakes_for_callback = Arc::clone(&rejected_wakes);
+        let full_state = SwarmSafetyState::new(
+            SessionToken::from_hex("secret"),
+            Arc::new(Mutex::new(snap())),
+            full_channel,
+        )
+        .with_action_wake(Arc::new(move |_| {
+            rejected_wakes_for_callback.fetch_add(1, Ordering::SeqCst);
+        }));
+        let queue_full = full_state
+            .session()
+            .dispatch_argus_shared_async(
+                &argus_req(3, "argus.click", "btn", "queued-agent"),
+                &full_state.windows,
+                &full_state.channel,
+                targeted_no_capture,
+            )
+            .await;
+        assert!(queue_full.is_error_code(crate::mcp::ERR_ACTION_QUEUE_FULL));
+        assert_eq!(
+            rejected_wakes.load(Ordering::SeqCst),
+            0,
+            "queue-full rejection must not wake"
+        );
+    }
+
     #[test]
     fn accesskit_receipt_actions_map_to_canonical_durable_actions() {
         assert_eq!(canonical_receipt_action("Click").unwrap(), "argus.click");
@@ -1322,6 +1532,99 @@ mod tests {
             "agent_label": agent_label
         }))
         .expect("valid Argus request")
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn set_value_receipt_timeout_terminalizes_and_drops_the_orphan_action() {
+        let wakes = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let wake_targets = Arc::new(Mutex::new(Vec::<String>::new()));
+        let timeout_wakes = Arc::clone(&wakes);
+        let timeout_wake_targets = Arc::clone(&wake_targets);
+        let state = SwarmSafetyState::new(
+            SessionToken::from_hex("secret"),
+            Arc::new(Mutex::new(snap())),
+            Arc::new(Mutex::new(ActionChannel::new())),
+        )
+        .with_action_wake(Arc::new(move |window_id| {
+            timeout_wakes.fetch_add(1, Ordering::SeqCst);
+            timeout_wake_targets
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push(window_id.to_owned());
+        }));
+        state.windows.publish(
+            ArgusWindowDescriptor {
+                window_id: "popout-settings".to_owned(),
+                viewport_id: format!("{:?}", egui::ViewportId::from_hash_of("settings")),
+                title: "Handshake – Settings".to_owned(),
+            },
+            snap(),
+        );
+        let mut request = argus_req(1, "argus.set_value", "btn", "timeout-agent");
+        request.params.as_object_mut().unwrap().insert(
+            "window_id".to_owned(),
+            serde_json::Value::String("popout-settings".to_owned()),
+        );
+        request.params.as_object_mut().unwrap().insert(
+            "value".to_owned(),
+            serde_json::Value::String("never-rendered".to_owned()),
+        );
+
+        // No viewport drains this action. The production-bounded receipt waiter must terminalize it;
+        // a later viewport pass must then discard it without injecting Focus or Text.
+        let response = state
+            .session()
+            .dispatch_argus_shared_async(
+                &request,
+                &state.windows,
+                &state.channel,
+                targeted_no_capture,
+            )
+            .await
+            .to_json();
+        assert_eq!(response["result"]["status"], "failed", "{response}");
+        assert!(
+            response["result"]["error"]
+                .as_str()
+                .is_some_and(|error| error.contains("timed out")),
+            "{response}"
+        );
+        let action_id = response["result"]["action_id"]
+            .as_str()
+            .expect("failed receipt action id");
+        let tracker = lock_channel(&state.channel).receipt_tracker();
+        assert!(tracker.is_terminal(action_id));
+        assert_eq!(tracker.pending_postcondition_count(), 0);
+        assert_eq!(crate::mcp::argus::registered_action_effect_count(), 0);
+        assert_eq!(
+            wakes.load(Ordering::SeqCst),
+            2,
+            "enqueue and atomic timeout each wake the native shell"
+        );
+        assert_eq!(
+            *wake_targets
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+            vec!["popout-settings", "popout-settings"],
+            "both enqueue and timeout target the exact detached viewport"
+        );
+
+        assert!(
+            tracker.get(action_id).is_none(),
+            "session releases terminal timeout receipt after response correlation"
+        );
+
+        assert_eq!(
+            lock_channel(&state.channel).pending(),
+            0,
+            "timeout synchronously reclaims a mutation even when its detached viewport vanished"
+        );
+        let batch =
+            lock_channel(&state.channel).drain_for_viewport(MAIN_WINDOW_ID, egui::ViewportId::ROOT);
+        assert!(batch.events.is_empty(), "timed-out SetValue was injected");
+        assert!(batch.action_ids.is_empty());
+        assert_eq!(lock_channel(&state.channel).pending(), 0);
+        assert_eq!(crate::mcp::argus::registered_action_effect_count(), 0);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -28,22 +28,21 @@
 //!
 //! ## Screenshot: two sources
 //!
-//! The production [`screenshot`] tool grabs the live OS window via focus-safe Win32 `PrintWindow`
+//! The production [`screenshot`] tool grabs the live OS window via focus-safe Win32 `BitBlt`
 //! ([`screenshot::capture_handshake_window`]) — never `SetForegroundWindow`/`BringWindowToTop` (HBR-QUIET).
 //! That OS path needs a real on-screen window, so it is genuinely undriveable from a headless `cargo
 //! test`; the over-the-wire test injects an offscreen-render closure (`egui_kittest` wgpu render-to-image,
 //! focus-safe by construction) to prove a real, decodable PNG flows through the tool. See the handoff
 //! DEVIATION notes for what is and is not provable in this headless environment.
 //!
-//! ## Why `set_value` is Focus + characters, NOT `Action::SetValue`
+//! ## Why `set_value` is Focus + logical replacement input, NOT `Action::SetValue`
 //!
 //! The contract body asked the `set_value` tool to dispatch `accesskit::Action::SetValue`. MT-026
 //! already proved (and its test asserts) that **egui 0.33 text inputs do not emit `SetValue`** — they
-//! are steered out-of-process by FOCUSING the field and feeding synthetic characters (the path the
-//! MT-001 toolkit spike proved: "typed 10 synthetic chars"). Dispatching `SetValue` to an egui text
-//! input is a no-op. So [`UiAction::SetValue`] resolves to a Focus action plus a text payload the
-//! caller feeds as `egui::Event::Text`; this is the steering path that actually changes the widget,
-//! honoring the contract's INTENT (set a text widget's value by stable id) over its mistaken mechanic.
+//! are steered out-of-process by FOCUSING the field and feeding logical in-app edit events.
+//! Dispatching `SetValue` to an egui text input is a no-op. So [`UiAction::SetValue`] resolves to a
+//! Focus action followed by select-all, clear, and optional replacement text as raw egui events; this
+//! changes the widget exactly (including empty clear) without synthesizing OS input.
 
 pub mod action;
 pub mod argus;
@@ -71,8 +70,8 @@ pub use attribution::{
     agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN,
 };
 pub use binding::{
-    binding_path, remove_binding, remove_binding_if_owned, write_binding, BindingError, McpBinding,
-    BINDING_FILE_NAME,
+    binding_path, read_binding, remove_binding, remove_binding_if_owned, write_binding,
+    BindingError, McpBinding, BINDING_FILE_NAME,
 };
 pub use layout_guard::LayoutGuard;
 pub use leases::{LeaseError, LeaseGuard, LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};

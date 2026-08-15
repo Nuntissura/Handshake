@@ -129,6 +129,36 @@ fn allowlisted_cli_login_command(
     }
 }
 
+/// Apply only fields the operator changed from the startup baseline onto an authoritative settings
+/// document. Objects merge recursively; arrays/scalars replace as one field. This prevents a
+/// pre-authority edit from either being lost to the first GET or overwriting unrelated persisted
+/// settings with startup defaults.
+fn overlay_json_delta(
+    baseline: &serde_json::Value,
+    edited: &serde_json::Value,
+    authoritative: &mut serde_json::Value,
+) {
+    if baseline == edited {
+        return;
+    }
+    match (baseline.as_object(), edited.as_object()) {
+        (Some(baseline), Some(edited)) => {
+            if !authoritative.is_object() {
+                *authoritative = serde_json::json!({});
+            }
+            let target = authoritative
+                .as_object_mut()
+                .expect("authoritative settings object initialized");
+            for (key, edited_value) in edited {
+                let baseline_value = baseline.get(key).unwrap_or(&serde_json::Value::Null);
+                let target_value = target.entry(key.clone()).or_insert(serde_json::Value::Null);
+                overlay_json_delta(baseline_value, edited_value, target_value);
+            }
+        }
+        _ => *authoritative = edited.clone(),
+    }
+}
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
@@ -213,6 +243,10 @@ pub struct HandshakeApp {
     /// In-flight `GET /workspaces` fetch (MT-011). Spawned non-blocking so a slow/absent backend never
     /// stalls the render loop; polled each frame and folded into `project_tabs` when it resolves.
     workspaces_handle: Option<tokio::task::JoinHandle<Result<Vec<ProjectItem>, AppError>>>,
+    /// True only after `GET /workspaces` has completed successfully. The seeded
+    /// `default-project` is startup chrome, never project authority; failed or pending fetches
+    /// therefore cannot trigger project-scoped settings/layout GETs or PUTs.
+    workspaces_authority_resolved: bool,
     /// The top-right MODULE switcher (MT-012): the six MAIN/CKC/INGEST/STAGE/LAB/STUDIO buttons. Owns
     /// only the active module id (the highlight); switching a module mutates the ACTIVE pane's tab list
     /// and active tab via [`HandshakeApp::set_module`]. Serialized into the layout snapshot as
@@ -308,6 +342,10 @@ pub struct HandshakeApp {
     /// by [`close_settings`](HandshakeApp::close_settings) and
     /// [`redock_settings`](HandshakeApp::redock_settings), so a later re-open comes back as the modal.
     settings_detached: bool,
+    /// A detached Redock/Close outcome waits one additional target-viewport pass before teardown. That
+    /// pass publishes and observes the exact Argus mutation receipt before the window registry entry
+    /// and viewport disappear.
+    settings_detached_exit_pending: Option<crate::settings_dialog::SettingsOutcome>,
     /// The live, persisted workspace settings (MT-018): theme, keybindings, view mode, swarm board flag.
     /// Loaded from `GET /workspaces/{id}/settings` on open / workspace change and normalized through
     /// [`crate::workspace_settings::normalize_workspace_settings_state`] (red-team R6/MC6). The settings
@@ -323,9 +361,19 @@ pub struct HandshakeApp {
     /// The project whose settings have been loaded into `workspace_settings`. `None` until the first
     /// load; when it differs from `active_project_id` the next frame loads the new project's settings.
     settings_loaded_project_id: Option<String>,
+    /// Project whose raw settings JSON has been acquired successfully. Unlike
+    /// `settings_loaded_project_id` (request dispatch bookkeeping), this is the save-safety gate.
+    settings_authoritative_project_id: Option<String>,
+    /// Canonical raw JSON retained so PUT preserves fields newer clients do not model.
+    settings_authoritative_raw: Option<serde_json::Value>,
+    /// Typed JSON visible when the current authoritative GET was armed. Operator changes are diffed
+    /// against this baseline and overlaid onto the returned raw document.
+    settings_edit_baseline: Option<serde_json::Value>,
     /// Set true when the settings dialog opens so the one-shot settings LOAD fires once on open (not per
     /// frame). Cleared after the load is dispatched.
     settings_load_pending: bool,
+    /// Monotonic request identity. Workspace id alone cannot reject an A→B→A late response.
+    settings_load_generation: u64,
     /// The async cell a spawned settings-LOAD task writes into: `Ok(Some(blob))` / `Ok(None)` (first
     /// run) / `Err(message)`. Drained (try_lock) each frame so the network `GET` runs OFF the egui UI
     /// thread (HBR-QUIET).
@@ -337,6 +385,10 @@ pub struct HandshakeApp {
     /// 500ms after the last change). `None` when no save is pending. On dialog close, a pending save is
     /// flushed IMMEDIATELY (red-team MC2) so a fast change-then-close never loses the change.
     settings_save_due_at: Option<std::time::Instant>,
+    /// An operator changed the startup settings model before canonical workspace authority arrived.
+    /// The authoritative load must merge that delta before any PUT so neither the operator edit nor
+    /// previously persisted fields are lost.
+    settings_changed_before_authority: bool,
     /// A settings save/load is in flight on a worker; prevents overlapping spawns for one change set.
     settings_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// The last transient settings persistence error, surfaced on the dialog status row (HBR: visible).
@@ -752,6 +804,21 @@ fn settings_detached_window_id() -> String {
     argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY)
 }
 
+/// Resolve a stable Argus window id to the exact egui viewport that owns it. Detached panes and
+/// Settings both use `popout-{durable-key}` externally and `ViewportId::from_hash_of(durable-key)`
+/// internally, so the transport can wake an idle target without foregrounding it.
+fn argus_repaint_viewport_id(window_id: &str) -> egui::ViewportId {
+    if window_id == crate::mcp::MAIN_WINDOW_ID {
+        egui::ViewportId::ROOT
+    } else if let Some(pane_id) = window_id.strip_prefix("popout-") {
+        egui::ViewportId::from_hash_of(pane_id)
+    } else {
+        // An unknown future window remains receipt-bounded and cannot mutate after timeout. Waking the
+        // root lets the shell reconcile registry state without guessing a detached viewport identity.
+        egui::ViewportId::ROOT
+    }
+}
+
 /// The detached Settings window's OS title, in the shared pop-out convention: `"Handshake – Settings"`.
 fn settings_detached_title() -> String {
     popout_title_for(crate::settings_dialog::SETTINGS_WINDOW_LABEL)
@@ -807,8 +874,12 @@ impl HandshakeApp {
             Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
         // Fire-once, non-blocking workspace list fetch (MT-011): the shell opens immediately with the
         // seeded default-project tab; when the fetch resolves, the real workspace tabs replace it.
-        let workspaces_handle =
-            Some(rt.spawn(async { fetch_workspaces(backend_client::BACKEND_BASE_URL).await }));
+        let workspace_repaint = cc.egui_ctx.clone();
+        let workspaces_handle = Some(rt.spawn(async move {
+            let result = fetch_workspaces(backend_client::BACKEND_BASE_URL).await;
+            workspace_repaint.request_repaint();
+            result
+        }));
         // Real transport: the backend's PostgreSQL-authoritative layout REST endpoint, bridged onto
         // this app's tokio runtime handle. No local file authority (CX-503S / Data Posture).
         let transport = WorkbenchLayoutClient::production(rt.handle().clone());
@@ -825,9 +896,12 @@ impl HandshakeApp {
                 let launch_diagnostics = diagnostics.clone();
                 let repaint = cc.egui_ctx.clone();
                 rt_handle.spawn(async move {
-                    repaint.request_repaint();
                     launch_diagnostics
-                        .maintain_palmistry(backend_client::BACKEND_BASE_URL)
+                        .maintain_palmistry(backend_client::BACKEND_BASE_URL, move || {
+                            // The signing secret arrives off-thread. Wake the otherwise-idle shell
+                            // exactly when it changes so the production MCP bind state observes it.
+                            repaint.request_repaint();
+                        })
                         .await;
                 });
                 Some(diagnostics)
@@ -877,6 +951,7 @@ impl HandshakeApp {
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
             workspaces_handle,
+            workspaces_authority_resolved: false,
             // The default seed pane (`pane-a`) is the React `MAIN` module, so the switcher starts on MAIN.
             module_switcher: ModuleSwitcher::new(ModuleId::Main),
             left_rail: LeftRail::new(),
@@ -901,13 +976,21 @@ impl HandshakeApp {
             settings_open: false,
             settings_open_count: 0,
             settings_detached: false,
+            settings_detached_exit_pending: None,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             settings_transport,
             settings_loaded_project_id: None,
+            settings_authoritative_project_id: None,
+            settings_authoritative_raw: None,
+            settings_edit_baseline: Some(
+                crate::workspace_settings::default_workspace_settings_state().to_settings_state(),
+            ),
             settings_load_pending: true,
+            settings_load_generation: 1,
             settings_load_cell: Arc::new(Mutex::new(None)),
             settings_save_cell: Arc::new(Mutex::new(None)),
             settings_save_due_at: None,
+            settings_changed_before_authority: false,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
             swarm_concurrency_client: Some(crate::backend_client::OperatorChatClient::production(
@@ -1086,6 +1169,7 @@ impl HandshakeApp {
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
         let completion = self.mcp_bind_cell.clone();
         let repaint = ctx.clone();
+        let action_repaint = ctx.clone();
         self.rt.handle().spawn(async move {
             let result = crate::mcp::SwarmMcpServer::bind_with_windows(
                 token,
@@ -1093,6 +1177,9 @@ impl HandshakeApp {
                 windows,
                 channel,
                 receipt_provenance,
+                Arc::new(move |window_id| {
+                    action_repaint.request_repaint_of(argus_repaint_viewport_id(window_id));
+                }),
                 capture,
             )
             .await
@@ -1130,13 +1217,7 @@ impl HandshakeApp {
         for pane_id in self.popout_manager.popped_out_ids() {
             let state = self.popout_manager.get(&pane_id)?;
             if state.viewport_id == viewport_id {
-                let label = self
-                    .pane_registry
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-                    .get(&pane_id)
-                    .map(|record| record.pane_type.label())
-                    .unwrap_or_else(|| pane_id.as_ref().to_owned());
+                let label = self.pane_surface_label(&pane_id);
                 return Some(crate::mcp::ArgusWindowDescriptor {
                     window_id: argus_window_id(pane_id.as_ref()),
                     viewport_id: format!("{viewport_id:?}"),
@@ -1145,6 +1226,24 @@ impl HandshakeApp {
             }
         }
         None
+    }
+
+    /// Operator-visible surface hosted by a pane. A pane's durable registry record identifies the
+    /// container; when it has tabs, its active tab is the rendered surface and therefore owns the
+    /// detached-window title and Argus descriptor as well as the body factory.
+    fn pane_surface_label(&self, pane_id: &PaneId) -> String {
+        self.tab_bar_states
+            .get(pane_id)
+            .and_then(|bar| bar.active())
+            .map(|tab| tab.pane_type.label())
+            .or_else(|| {
+                self.pane_registry
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .get(pane_id)
+                    .map(|record| record.pane_type.label())
+            })
+            .unwrap_or_else(|| pane_id.as_ref().to_owned())
     }
 
     /// The Argus descriptor of the detached Settings window (MT-015). `viewport_id` is passed in so the
@@ -1172,10 +1271,98 @@ impl HandshakeApp {
     /// Drop the detached Settings window from the Argus registry and forget its recorded OS window
     /// handle (MT-015), so a capture after re-dock/close can never grab a torn-down window. Mirrors the
     /// merged-back pop-out cleanup in [`ui`](Self::ui).
-    fn release_argus_settings_window(&self) {
+    fn release_argus_settings_window(&mut self) {
         let window_id = settings_detached_window_id();
+        self.fail_consumed_actions_for_window(
+            &window_id,
+            "target window closed before Argus receipt observation",
+        );
         self.mcp_windows.unregister(&window_id);
         crate::mcp::screenshot::clear_window_handle(&window_id);
+    }
+
+    fn fail_consumed_actions_for_window(&mut self, window_id: &str, reason: &str) {
+        let Some(consumed) = self.mcp_consumed_actions.remove(window_id) else {
+            return;
+        };
+        let tracker = match self.mcp_action_channel.lock() {
+            Ok(channel) => channel.receipt_tracker(),
+            Err(poisoned) => poisoned.into_inner().receipt_tracker(),
+        };
+        for (action_id, _) in consumed {
+            tracker.failed(&action_id, reason);
+        }
+    }
+
+    /// Observe the previous rendered pass and drain the next bounded action batch for one exact Argus
+    /// viewport. Root calls this from `raw_input_hook`; immediate child viewports call it at the start
+    /// of their real render callback because eframe does not invoke `App::raw_input_hook` for them.
+    fn pump_argus_viewport_input(
+        window_id: &str,
+        viewport_id: egui::ViewportId,
+        windows: &crate::mcp::WindowSnapshotRegistry,
+        channel: &Arc<Mutex<crate::mcp::ActionChannel>>,
+        consumed_by_window: &mut HashMap<String, Vec<(String, u64)>>,
+        admit_new_actions: bool,
+    ) -> (crate::mcp::DrainedActionBatch, bool) {
+        let published = windows.get(window_id).ok();
+        let published_revision = published.as_ref().map_or(0, |entry| entry.revision);
+        let published_snapshot = published.as_ref().map(|entry| &entry.snapshot);
+        let tracker = match channel.lock() {
+            Ok(channel) => channel.receipt_tracker(),
+            Err(poisoned) => poisoned.into_inner().receipt_tracker(),
+        };
+
+        let mut needs_repaint = false;
+        if let Some(consumed) = consumed_by_window.remove(window_id) {
+            let mut still_waiting = Vec::new();
+            for (action_id, before_revision) in consumed {
+                if tracker.is_terminal(&action_id) {
+                    continue;
+                }
+                if published_revision > before_revision {
+                    if let Some(snapshot) = published_snapshot {
+                        if !tracker.observe_postcondition(&action_id, published_revision, snapshot)
+                        {
+                            still_waiting.push((action_id, before_revision));
+                            needs_repaint = true;
+                        }
+                    } else {
+                        tracker.failed(&action_id, "rendered snapshot evidence is unavailable");
+                    }
+                } else {
+                    still_waiting.push((action_id, before_revision));
+                    needs_repaint = true;
+                }
+            }
+            if !still_waiting.is_empty() {
+                consumed_by_window.insert(window_id.to_owned(), still_waiting);
+            }
+        }
+
+        if !admit_new_actions {
+            return (crate::mcp::DrainedActionBatch::default(), needs_repaint);
+        }
+        let batch = match channel.lock() {
+            Ok(mut channel) => channel.drain_for_viewport(window_id, viewport_id),
+            Err(poisoned) => poisoned
+                .into_inner()
+                .drain_for_viewport(window_id, viewport_id),
+        };
+        if !batch.action_ids.is_empty() {
+            consumed_by_window
+                .entry(window_id.to_owned())
+                .or_default()
+                .extend(
+                    batch
+                        .action_ids
+                        .iter()
+                        .cloned()
+                        .map(|action_id| (action_id, published_revision)),
+                );
+            needs_repaint = true;
+        }
+        (batch, needs_repaint)
     }
 
     fn register_argus_popouts(&self) {
@@ -1183,13 +1370,7 @@ impl HandshakeApp {
             let Some(state) = self.popout_manager.get(&pane_id) else {
                 continue;
             };
-            let label = self
-                .pane_registry
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .get(&pane_id)
-                .map(|record| record.pane_type.label())
-                .unwrap_or_else(|| pane_id.as_ref().to_owned());
+            let label = self.pane_surface_label(&pane_id);
             self.mcp_windows
                 .register(crate::mcp::ArgusWindowDescriptor {
                     window_id: argus_window_id(pane_id.as_ref()),
@@ -1241,6 +1422,9 @@ impl HandshakeApp {
             // Headless/test shell: no background fetch (no runtime to spawn on). A test seeds tabs
             // directly via `project_tabs_mut`.
             workspaces_handle: None,
+            // Headless/test shells explicitly seed the project they exercise and have no production
+            // workspace fetch. Treat that injected state as resolved authority.
+            workspaces_authority_resolved: true,
             module_switcher: ModuleSwitcher::new(ModuleId::Main),
             left_rail: LeftRail::new(),
             left_rail_open: true,
@@ -1269,15 +1453,23 @@ impl HandshakeApp {
             settings_open: false,
             settings_open_count: 0,
             settings_detached: false,
+            settings_detached_exit_pending: None,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub via
             // `set_settings_transport`; without one, the dialog shows the seeded defaults + never does I/O.
             settings_transport: None,
             settings_loaded_project_id: None,
+            settings_authoritative_project_id: Some(DEFAULT_PROJECT_ID.to_owned()),
+            settings_authoritative_raw: Some(
+                crate::workspace_settings::default_workspace_settings_state().to_settings_state(),
+            ),
+            settings_edit_baseline: None,
             settings_load_pending: false,
+            settings_load_generation: 0,
             settings_load_cell: Arc::new(Mutex::new(None)),
             settings_save_cell: Arc::new(Mutex::new(None)),
             settings_save_due_at: None,
+            settings_changed_before_authority: false,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
             swarm_concurrency_client: None,
@@ -1923,9 +2115,7 @@ impl HandshakeApp {
     ) {
         self.factories.insert(
             PaneType::Wp1OrchestrationConsole,
-            Box::new(crate::console_stream_pane::ConsoleStreamPaneFactory::with_entries(
-                entries,
-            )),
+            Box::new(crate::console_stream_pane::ConsoleStreamPaneFactory::with_entries(entries)),
         );
     }
 
@@ -2842,15 +3032,15 @@ impl HandshakeApp {
             self.settings_open_count = self.settings_open_count.wrapping_add(1);
             // Reload the persisted settings on open so the dialog reflects the durable state (and so a
             // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
-            self.settings_load_pending = true;
-            self.settings_loaded_project_id = None;
+            self.arm_settings_load_for_active();
             // MT-015: fetch the (non-secret) cloud-access enumeration so the Cloud Models section shows
             // each provider's configured/unavailable status on open.
             self.cloud_access_refresh_pending = true;
-            // The model-session cap is refreshed after the project settings load: a persisted desired
-            // value is PUT, while an unset value performs a read-only GET. This ordering avoids a stale
-            // GET racing and overwriting the response to the persisted PUT.
-            self.swarm_concurrency_refresh_pending = false;
+            // With a project, refresh after its settings load: a persisted desired value is PUT, while
+            // an unset value performs a read-only GET. This ordering avoids a stale GET racing and
+            // overwriting the response to the persisted PUT. With no project there is no settings load
+            // to trigger that refresh, so read the global coordinator truth immediately.
+            self.swarm_concurrency_refresh_pending = self.active_project_id.is_empty();
         }
     }
 
@@ -2889,6 +3079,7 @@ impl HandshakeApp {
         if !self.settings_detached {
             return false;
         }
+        self.settings_detached_exit_pending = None;
         self.settings_detached = false;
         self.release_argus_settings_window();
         self.cloud_models.clear_key_drafts();
@@ -2897,6 +3088,7 @@ impl HandshakeApp {
 
     pub fn close_settings(&mut self) {
         self.settings_open = false;
+        self.settings_detached_exit_pending = None;
         // MT-015: closing from ANY path (Close control, OS close button on the detached window, a
         // navigation outcome, or a programmatic close) also tears the detached host down, so the next
         // open comes back as the modal and no stale Argus window/handle survives.
@@ -2927,8 +3119,7 @@ impl HandshakeApp {
         transport: Arc<dyn crate::workspace_settings::SettingsTransport>,
     ) {
         self.settings_transport = Some(transport);
-        self.settings_loaded_project_id = None;
-        self.settings_load_pending = true;
+        self.arm_settings_load_for_active();
     }
 
     /// The last transient settings persistence error, if any (MT-018), for tests + the status row.
@@ -3047,18 +3238,59 @@ impl HandshakeApp {
     /// [`SETTINGS_SAVE_DEBOUNCE`] after the LAST change so rapid keybinding edits coalesce. Called by
     /// each wired settings mutation.
     fn schedule_settings_save(&mut self) {
+        if self.settings_authoritative_project_id.as_deref()
+            != Some(self.active_project_id.as_str())
+        {
+            self.settings_changed_before_authority = true;
+        }
         self.settings_save_due_at = Some(std::time::Instant::now() + SETTINGS_SAVE_DEBOUNCE);
+    }
+
+    fn arm_settings_load_for_active(&mut self) {
+        self.settings_load_generation = self.settings_load_generation.wrapping_add(1);
+        self.settings_edit_baseline = Some(self.workspace_settings.to_settings_state());
+        self.settings_authoritative_project_id = None;
+        self.settings_authoritative_raw = None;
+        self.settings_loaded_project_id = None;
+        self.settings_load_pending = true;
     }
 
     /// Spawn the settings `PUT` for the active workspace OFF the egui UI thread (HBR-QUIET), capturing
     /// the current settings blob on the UI thread. The result is drained next frame from
     /// `settings_save_cell`. No-op when no transport/runtime (headless without an injected stub).
     fn flush_settings_save_now(&mut self) {
-        let workspace = self.active_project_id.clone();
-        if workspace.is_empty() {
+        if !self.workspaces_authority_resolved {
+            // Preserve the operator's pending change until project authority arrives.
+            self.schedule_settings_save();
             return;
         }
-        let blob = self.workspace_settings.to_settings_state();
+        let workspace = self.active_project_id.clone();
+        if workspace.is_empty() {
+            self.settings_save_due_at = None;
+            return;
+        }
+        if self.settings_authoritative_project_id.as_deref() != Some(workspace.as_str())
+            || self.settings_authoritative_raw.is_none()
+        {
+            // A PUT is unsafe until the exact project's GET supplies the merge baseline. Preserve
+            // intent across dialog close and the closed-host autoload path.
+            self.settings_changed_before_authority = true;
+            self.schedule_settings_save();
+            return;
+        }
+        let mut blob = self
+            .settings_authoritative_raw
+            .clone()
+            .expect("authoritative raw settings checked above");
+        let fallback = crate::workspace_settings::default_workspace_settings_state();
+        let baseline =
+            crate::workspace_settings::normalize_workspace_settings_state(&blob, &fallback)
+                .to_settings_state();
+        let edited = self.workspace_settings.to_settings_state();
+        overlay_json_delta(&baseline, &edited, &mut blob);
+        // Retain the intended canonical document even if transport fails; a retry must send the same
+        // unknown-field-preserving payload rather than reconstructing it from the typed model.
+        self.settings_authoritative_raw = Some(blob.clone());
         if let (Some(transport), Some(handle)) =
             (self.settings_transport.clone(), self.runtime_handle.clone())
         {
@@ -3084,12 +3316,23 @@ impl HandshakeApp {
 
     fn apply_loaded_workspace_settings(&mut self, blob: Option<serde_json::Value>) {
         let fallback = crate::workspace_settings::default_workspace_settings_state();
-        self.workspace_settings = match blob {
-            Some(value) => {
-                crate::workspace_settings::normalize_workspace_settings_state(&value, &fallback)
-            }
-            None => fallback,
-        };
+        let had_pre_authority_edits = self.settings_changed_before_authority;
+        let mut authoritative = blob.unwrap_or_else(|| fallback.to_settings_state());
+        if had_pre_authority_edits {
+            let baseline = self
+                .settings_edit_baseline
+                .clone()
+                .unwrap_or_else(|| fallback.to_settings_state());
+            let edited = self.workspace_settings.to_settings_state();
+            overlay_json_delta(&baseline, &edited, &mut authoritative);
+        }
+        self.settings_authoritative_raw = Some(authoritative.clone());
+        self.settings_authoritative_project_id = Some(self.active_project_id.clone());
+        self.settings_edit_baseline = None;
+        self.workspace_settings = crate::workspace_settings::normalize_workspace_settings_state(
+            &authoritative,
+            &fallback,
+        );
         self.pending_theme_change = Some(self.workspace_settings.theme.to_hs_theme());
         self.view_mode = match self.workspace_settings.view_mode {
             crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
@@ -3097,6 +3340,10 @@ impl HandshakeApp {
         };
         self.apply_workspace_settings_runtime_defaults();
         self.settings_persist_error = None;
+        if had_pre_authority_edits {
+            self.settings_changed_before_authority = false;
+            self.schedule_settings_save();
+        }
     }
 
     /// WP-1 MT-021: push the persisted per-frame swarm admission budget into the LIVE action channel
@@ -3155,16 +3402,49 @@ impl HandshakeApp {
         if self.capturing_snapshot || self.settings_open {
             return;
         }
+        // `default-project` is only startup chrome while GET /workspaces is unresolved. Never issue
+        // settings persistence against that provisional id, and treat an honestly empty workspace
+        // list as a non-error global-settings state.
+        if !self.workspaces_authority_resolved {
+            return;
+        }
+        if self.active_project_id.is_empty() {
+            if let Ok(mut cell) = self.settings_load_cell.lock() {
+                *cell = None;
+            }
+            if let Ok(mut cell) = self.settings_save_cell.lock() {
+                *cell = None;
+            }
+            self.settings_persist_error = None;
+            self.settings_load_pending = false;
+            self.settings_save_due_at = None;
+            self.settings_loaded_project_id = Some(String::new());
+            self.settings_authoritative_project_id = None;
+            self.settings_authoritative_raw = None;
+            self.settings_edit_baseline = None;
+            self.settings_changed_before_authority = false;
+            return;
+        }
 
         let delivered_load = self
             .settings_load_cell
             .try_lock()
             .ok()
             .and_then(|mut cell| cell.take());
-        if let Some(result) = delivered_load {
+        if let Some((workspace, generation, result)) = delivered_load {
+            if workspace != self.active_project_id || generation != self.settings_load_generation {
+                self.settings_load_pending = true;
+                ctx.request_repaint();
+                return;
+            }
             match result {
                 Ok(blob) => self.apply_loaded_workspace_settings(blob),
-                Err(msg) => self.settings_persist_error = Some(msg),
+                Err(msg) => {
+                    self.settings_persist_error = Some(msg);
+                    // The coordinator cap is global runtime truth, so a failed project-settings load
+                    // must not leave its independent read path stuck in the loading state.
+                    self.swarm_concurrency_refresh_pending = true;
+                }
             }
             ctx.request_repaint();
         }
@@ -3183,6 +3463,11 @@ impl HandshakeApp {
         }
 
         if self.settings_loaded_project_id.as_deref() != Some(self.active_project_id.as_str()) {
+            if self.settings_edit_baseline.is_none() {
+                self.settings_edit_baseline = Some(self.workspace_settings.to_settings_state());
+                self.settings_authoritative_project_id = None;
+                self.settings_authoritative_raw = None;
+            }
             self.settings_load_pending = true;
         }
         if self.settings_load_pending {
@@ -3199,10 +3484,11 @@ impl HandshakeApp {
                         let cell = self.settings_load_cell.clone();
                         let in_flight = self.settings_io_in_flight.clone();
                         let ws = workspace.clone();
+                        let generation = self.settings_load_generation;
                         handle.spawn(async move {
                             let result = transport.load(&ws).map_err(|e| e.to_string());
                             if let Ok(mut slot) = cell.lock() {
-                                *slot = Some(result);
+                                *slot = Some((ws, generation, result));
                             }
                             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
                         });
@@ -3613,7 +3899,10 @@ impl HandshakeApp {
         else {
             return;
         };
-        if self.cli_login_poll_in_flight.load(std::sync::atomic::Ordering::Acquire) {
+        if self
+            .cli_login_poll_in_flight
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
             return;
         }
         let (Some(client), Some(handle)) = (
@@ -3628,10 +3917,9 @@ impl HandshakeApp {
         let in_flight = self.cli_login_poll_in_flight.clone();
         handle.spawn(async move {
             let delivery = match client.poll_cli_login(&session_id).await {
-                Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession {
-                    provider,
-                    snapshot,
-                },
+                Ok(snapshot) => {
+                    crate::backend_client::CloudAccessDelivery::LoginSession { provider, snapshot }
+                }
                 Err(error) => crate::backend_client::CloudAccessDelivery::LoginError {
                     provider,
                     message: format!("Login session unreachable: {error}"),
@@ -3690,6 +3978,11 @@ impl HandshakeApp {
     /// Headlessly (`embed_viewports() == true`, egui_kittest) the SAME closure runs embedded in the
     /// current frame, so the detached surface and its nodes are fully drivable in-process.
     fn drive_settings_detached_window(&mut self, ctx: &egui::Context) {
+        // A pending interactive exit still renders one final child pass. Eframe does not invoke the
+        // app raw_input_hook for immediate child viewports, so this callback itself must observe the
+        // preceding Redock/Close receipt before teardown.
+        let pending_exit = self.settings_detached_exit_pending.take();
+        let had_pending_exit = pending_exit.is_some();
         self.pump_settings_io(ctx);
         let diagnostics_view = self.diagnostics_settings_view();
         // Register before rendering so `argus.list_windows` can enumerate this window even before its
@@ -3717,10 +4010,34 @@ impl HandshakeApp {
             let persist_error = self.settings_persist_error.as_deref();
             let cloud = &mut self.cloud_models;
             let swarm_model_sessions = &self.swarm_model_sessions;
+            let windows = &self.mcp_windows;
+            let action_channel = &self.mcp_action_channel;
+            let consumed_actions = &mut self.mcp_consumed_actions;
             let title_for_window = &title;
             let window_id_for_capture = &window_id;
             ctx.show_viewport_immediate(viewport_id, builder, |ctx, _class| {
-                if ctx.input(|i| i.viewport().close_requested()) {
+                let closing = ctx.input(|input| input.viewport().close_requested());
+                let (batch, needs_repaint) = Self::pump_argus_viewport_input(
+                    window_id_for_capture,
+                    viewport_id,
+                    windows,
+                    action_channel,
+                    consumed_actions,
+                    pending_exit.is_none() && !closing,
+                );
+                for action in &batch.attributed_actions {
+                    if matches!(action.action, crate::mcp::UiAction::SetValue { .. }) {
+                        let id = unsafe { egui::Id::from_high_entropy_bits(action.target_node_id) };
+                        ctx.memory_mut(|memory| memory.request_focus(id));
+                    }
+                }
+                if !batch.events.is_empty() {
+                    ctx.input_mut(|input| input.events.extend(batch.events));
+                }
+                if needs_repaint {
+                    ctx.request_repaint_of(viewport_id);
+                }
+                if closing {
                     close_requested = true;
                 }
                 // Window-root node: an `Area` (NOT a CentralPanel) so the body below owns the sole
@@ -3765,10 +4082,33 @@ impl HandshakeApp {
             });
         }
 
-        if self.apply_settings_outcome(outcome) {
+        if let Some(pending_exit) = pending_exit {
+            // The final child pre-pass above has now observed the prior render and terminalized the
+            // receipt. Interactive exit wins over a simultaneous OS close request.
+            if self.apply_settings_outcome(pending_exit) {
+                ctx.request_repaint();
+            }
+        } else if matches!(
+            outcome,
+            crate::settings_dialog::SettingsOutcome::Redock
+                | crate::settings_dialog::SettingsOutcome::Close
+        ) {
+            let awaits_argus_receipt = self
+                .mcp_consumed_actions
+                .get(&window_id)
+                .is_some_and(|actions| !actions.is_empty());
+            if awaits_argus_receipt {
+                self.settings_detached_exit_pending = Some(outcome);
+                ctx.request_repaint_of(viewport_id);
+            } else if self.apply_settings_outcome(outcome) {
+                // Direct pointer/keyboard operation has no Argus receipt predecessor and remains
+                // immediate; only an actual consumed Argus action pays the final observation pass.
+                ctx.request_repaint();
+            }
+        } else if self.apply_settings_outcome(outcome) {
             ctx.request_repaint();
         }
-        if close_requested {
+        if !had_pending_exit && self.settings_detached_exit_pending.is_none() && close_requested {
             // The OS close button closes settings outright (the surface returns to modal availability on
             // the next open). `close_settings` also unregisters the Argus window + forgets the handle.
             self.close_settings();
@@ -3803,16 +4143,57 @@ impl HandshakeApp {
     /// there is no transport/runtime (headless) — the surface then shows the seeded defaults and never
     /// does I/O.
     fn pump_settings_io(&mut self, ctx: &egui::Context) {
+        // Detached and modal Settings share this function, so this is the central authority gate:
+        // never consume or dispatch project-scoped I/O against provisional startup chrome. Pending
+        // load/save intent remains armed until a successful workspace-list resolution.
+        if !self.workspaces_authority_resolved {
+            return;
+        }
+        if self.active_project_id.is_empty() {
+            if let Ok(mut cell) = self.settings_load_cell.lock() {
+                *cell = None;
+            }
+            if let Ok(mut cell) = self.settings_save_cell.lock() {
+                *cell = None;
+            }
+            self.settings_persist_error = None;
+            self.settings_load_pending = false;
+            self.settings_save_due_at = None;
+            self.settings_loaded_project_id = Some(String::new());
+            self.settings_authoritative_project_id = None;
+            self.settings_authoritative_raw = None;
+            self.settings_edit_baseline = None;
+            self.settings_changed_before_authority = false;
+            if self.swarm_model_sessions.snapshot.is_none()
+                && self.swarm_model_sessions.error.is_none()
+                && !self.swarm_model_sessions.updating
+            {
+                self.swarm_concurrency_refresh_pending = true;
+            }
+            // Cloud-access enumeration and coordinator concurrency are global runtime truth, not
+            // project-scoped persistence, so continue pumping those sections below.
+        }
+
         // 1. Drain a delivered settings LOAD (try_lock; never hold across ui.* — red-team MC1).
         let delivered_load = self
             .settings_load_cell
             .try_lock()
             .ok()
             .and_then(|mut cell| cell.take());
-        if let Some(result) = delivered_load {
+        if let Some((workspace, generation, result)) = delivered_load {
+            if workspace != self.active_project_id || generation != self.settings_load_generation {
+                self.settings_load_pending = true;
+                ctx.request_repaint();
+                return;
+            }
             match result {
                 Ok(blob) => self.apply_loaded_workspace_settings(blob),
-                Err(msg) => self.settings_persist_error = Some(msg),
+                Err(msg) => {
+                    self.settings_persist_error = Some(msg);
+                    // Preserve coordinator observability when the project-settings transport fails.
+                    // There is no persisted value to PUT in this branch, so a GET cannot race one.
+                    self.swarm_concurrency_refresh_pending = true;
+                }
             }
             ctx.request_repaint();
         }
@@ -3866,10 +4247,11 @@ impl HandshakeApp {
                         let cell = self.settings_load_cell.clone();
                         let in_flight = self.settings_io_in_flight.clone();
                         let ws = workspace.clone();
+                        let generation = self.settings_load_generation;
                         handle.spawn(async move {
                             let result = transport.load(&ws).map_err(|e| e.to_string());
                             if let Ok(mut slot) = cell.lock() {
-                                *slot = Some(result);
+                                *slot = Some((ws, generation, result));
                             }
                             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
                         });
@@ -3888,8 +4270,13 @@ impl HandshakeApp {
         // 4. Fire a DUE debounced save (red-team R2). When the quiet period has elapsed, spawn the PUT.
         if let Some(due) = self.settings_save_due_at {
             if std::time::Instant::now() >= due {
-                self.settings_save_due_at = None;
-                self.flush_settings_save_now();
+                if self.settings_changed_before_authority {
+                    // An authoritative GET must merge the pre-authority operator delta first.
+                    ctx.request_repaint_after(SETTINGS_SAVE_DEBOUNCE);
+                } else {
+                    self.settings_save_due_at = None;
+                    self.flush_settings_save_now();
+                }
             } else {
                 // Keep repainting so the debounce window elapses even with no further input.
                 ctx.request_repaint_after(SETTINGS_SAVE_DEBOUNCE);
@@ -3963,6 +4350,7 @@ impl HandshakeApp {
                 self.runtime_handle.clone(),
             ) {
                 let cell = self.cloud_access_cell.clone();
+                let repaint = ctx.clone();
                 handle.spawn(async move {
                     if let Ok(snapshot) = client.enumerate().await {
                         if let Ok(mut slot) = cell.lock() {
@@ -3971,6 +4359,11 @@ impl HandshakeApp {
                             ));
                         }
                     }
+                    // The request can legitimately take longer than ten seconds while the backend
+                    // runs the bounded official-CLI lifecycle probes.  The dispatch-time repaint below
+                    // is therefore long gone before delivery.  Wake the event loop on completion so an
+                    // otherwise-idle Settings window drains the authoritative snapshot next frame.
+                    repaint.request_repaint();
                 });
                 ctx.request_repaint();
             }
@@ -4844,8 +5237,7 @@ impl HandshakeApp {
         //    now differs from active_project_id), else the fresh default remains.
         self.reset_to_default_layout(project_id);
         self.project_tabs.set_active_id(project_id);
-        self.settings_loaded_project_id = None;
-        self.settings_load_pending = true;
+        self.arm_settings_load_for_active();
         true
     }
 
@@ -4872,6 +5264,7 @@ impl HandshakeApp {
                     // Keep the active highlight + active_project_id consistent if the fetch changed the
                     // active id (e.g. the seeded default project is not in the backend list).
                     self.active_project_id = self.project_tabs.active_id().to_owned();
+                    self.workspaces_authority_resolved = true;
                 }
                 Ok(Err(e)) => self.project_tabs.apply_fetch_error(e.to_string()),
                 Err(e) => self
@@ -5122,6 +5515,11 @@ impl HandshakeApp {
         // MT-027: a snapshot-capture pass must not load/save layout or schedule a debounced PUT (the real
         // frame owns persistence). Skip entirely so capturing the live tree has no persistence side effect.
         if self.capturing_snapshot {
+            return;
+        }
+        // The seeded `default-project` is not backend authority. Wait for the real workspace list,
+        // and perform no project-scoped persistence when that list is honestly empty.
+        if !self.workspaces_authority_resolved || self.active_project_id.is_empty() {
             return;
         }
         // ── 1. Load on first frame / project change ─────────────────────────────────────────────
@@ -5703,15 +6101,20 @@ impl HandshakeApp {
         // strips and BEFORE the central pane grid, so egui carves it from the left edge of the remaining
         // area. Colors come from the active MT-003 theme tokens so the rail flips dark<->light.
         //
-        // Point the project tree at the active workspace each frame (a no-op if unchanged); when the
-        // workspace changes this spawns the async document/canvas load on the cloned runtime handle. In
-        // the headless/test shell there is no multi-thread runtime, so the tree renders from
-        // directly-seeded content instead (set via `left_rail_mut().project_tree.set_content`).
+        // Point the project tree only at a workspace proven by a successful `/workspaces` response.
+        // The seeded `default-project` tab is startup chrome, not authority: fetching its content can
+        // leave a visible 404 after the canonical response resolves to an empty list. In that state,
+        // clear and invalidate any provisional load. In the headless/test shell there is no runtime,
+        // so the tree renders from directly-seeded content instead.
         if let Some(handle) = self.runtime_handle.clone() {
-            let active_project = self.active_project_id.clone();
-            self.left_rail
-                .project_tree
-                .set_workspace(&active_project, &handle);
+            if self.workspaces_authority_resolved && !self.active_project_id.is_empty() {
+                let active_project = self.active_project_id.clone();
+                self.left_rail
+                    .project_tree
+                    .set_workspace(&active_project, &handle);
+            } else {
+                self.left_rail.project_tree.clear_workspace();
+            }
         }
         // Drain the shell event bus (MT-014 FIX-B) BEFORE rendering so a document/canvas/bookmark
         // deleted from another surface disappears from the tree this frame with no stale row.
@@ -5950,6 +6353,19 @@ impl HandshakeApp {
         // resolve a stable window id even before that viewport publishes its first tree.
         self.register_argus_popouts();
 
+        // Freeze the operator-visible active surface for each open pop-out before splitting the
+        // mutable tab-state borrow used by the viewport renderer. The title, Argus descriptor, and
+        // body factory must all describe the same active tab for this frame.
+        let popout_surface_labels: HashMap<PaneId, String> = self
+            .popout_manager
+            .popped_out_ids()
+            .into_iter()
+            .map(|pane_id| {
+                let label = self.pane_surface_label(&pane_id);
+                (pane_id, label)
+            })
+            .collect();
+
         // Render every open pop-out into its own deferred viewport. The pane is STILL in the registry,
         // so we render it through the SAME factory + tab-bar path the main split uses (one source of
         // truth). `show_all` drains entries that requested close (Merge Back button or OS close
@@ -5957,23 +6373,52 @@ impl HandshakeApp {
         let registry = self.pane_registry.clone();
         let factories = &self.factories;
         let tab_bar_states = &mut self.tab_bar_states;
+        let argus_windows = &self.mcp_windows;
+        let argus_channel = &self.mcp_action_channel;
+        let argus_consumed = &mut self.mcp_consumed_actions;
         let fallback_key = PaneType::Placeholder(String::new());
         // Resolve the detached-window title from the registry's surface label, so it reads
         // "Handshake – <pane_type_label>" (e.g. "Handshake – Workspace"). Falls back to the pane id
         // string only if the record vanished (defensive; should not happen while popped out).
         let title_registry = registry.clone();
+        let title_labels = popout_surface_labels.clone();
         let title_for = move |pane_id: &PaneId| -> String {
-            let label = title_registry
-                .lock()
-                .expect("pane registry mutex poisoned")
-                .get(pane_id)
-                .map(|r| r.pane_type.label())
-                .unwrap_or_else(|| pane_id.as_ref().to_owned());
+            let label = title_labels.get(pane_id).cloned().unwrap_or_else(|| {
+                title_registry
+                    .lock()
+                    .expect("pane registry mutex poisoned")
+                    .get(pane_id)
+                    .map(|r| r.pane_type.label())
+                    .unwrap_or_else(|| pane_id.as_ref().to_owned())
+            });
             popout_title_for(&label)
         };
         let merged_back = self
             .popout_manager
             .show_all(ctx, title_for, |ctx, _class, pane_id| {
+                let window_id = argus_window_id(pane_id.as_ref());
+                let viewport_id = egui::ViewportId::from_hash_of(pane_id.as_ref());
+                let closing = ctx.input(|input| input.viewport().close_requested());
+                let (batch, needs_repaint) = Self::pump_argus_viewport_input(
+                    &window_id,
+                    viewport_id,
+                    argus_windows,
+                    argus_channel,
+                    argus_consumed,
+                    !closing,
+                );
+                for action in &batch.attributed_actions {
+                    if matches!(action.action, crate::mcp::UiAction::SetValue { .. }) {
+                        let id = unsafe { egui::Id::from_high_entropy_bits(action.target_node_id) };
+                        ctx.memory_mut(|memory| memory.request_focus(id));
+                    }
+                }
+                if !batch.events.is_empty() {
+                    ctx.input_mut(|input| input.events.extend(batch.events));
+                }
+                if needs_repaint {
+                    ctx.request_repaint_of(viewport_id);
+                }
                 Self::render_popout_body(
                     ctx,
                     pane_id,
@@ -5990,10 +6435,15 @@ impl HandshakeApp {
                 // title. The viewport's own outer screen rect (converted to pixels) disambiguates
                 // same-title siblings. Runs inside the child viewport's render pass (the only place its
                 // outer_rect is known); cheap after the first record (see record_viewport_window_handle).
-                let label = registry
-                    .lock()
-                    .ok()
-                    .and_then(|reg| reg.get(pane_id).map(|rec| rec.pane_type.label()))
+                let label = popout_surface_labels
+                    .get(pane_id)
+                    .cloned()
+                    .or_else(|| {
+                        registry
+                            .lock()
+                            .ok()
+                            .and_then(|reg| reg.get(pane_id).map(|rec| rec.pane_type.label()))
+                    })
                     .unwrap_or_else(|| pane_id.as_ref().to_owned());
                 let title = popout_title_for(&label);
                 let outer_px = popout_outer_rect_px(ctx);
@@ -6005,6 +6455,10 @@ impl HandshakeApp {
             });
         for pane_id in merged_back {
             let window_id = argus_window_id(pane_id.as_ref());
+            self.fail_consumed_actions_for_window(
+                &window_id,
+                "target window closed before Argus receipt observation",
+            );
             self.mcp_windows.unregister(&window_id);
             // MT-008b: forget the OS handle so a future capture never grabs a torn-down window.
             crate::mcp::screenshot::clear_window_handle(&window_id);
@@ -6121,13 +6575,22 @@ impl HandshakeApp {
             };
             let node_id = guard.accesskit_id(pane_id).map(|n| n.0).unwrap_or(0);
             let pane_egui_id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
+            // Match the docked SplitLayoutWidget path exactly: the registry record identifies the
+            // pane itself, while the active tab identifies the surface currently rendered in it.
+            // Selecting the factory from `record.pane_type` made a detached multi-tab pane render its
+            // original surface even though its tab strip and main-window body showed the active one.
+            let mut effective_record = record.clone();
+            if let Some(active_tab) = tab_bar_states.get(pane_id).and_then(|bar| bar.active()) {
+                effective_record.pane_type = active_tab.pane_type.clone();
+                effective_record.content_id = active_tab.content_id.clone();
+            }
             let factory = factories
-                .get(&record.pane_type)
+                .get(&effective_record.pane_type)
                 .or_else(|| factories.get(fallback_key))
                 .expect("placeholder fallback factory always registered")
                 .as_ref();
             let role = factory.accesskit_role();
-            let label = record.pane_type.label();
+            let label = effective_record.pane_type.label();
             let locked = record.lock_state == LockState::Locked;
 
             // Carve, from the TOP: MT-013 header strip, then MT-007 tab strip, then the body — the SAME
@@ -6191,7 +6654,7 @@ impl HandshakeApp {
             }
 
             let render_ctx = PaneRenderContext {
-                record,
+                record: &effective_record,
                 egui_id: pane_egui_id,
             };
             let mut child = ui.new_child(
@@ -6219,61 +6682,16 @@ impl eframe::App for HandshakeApp {
         let Some(window) = self.argus_window_for_viewport(raw_input.viewport_id) else {
             return;
         };
-
-        // The Argus egui output plugin published the previous REAL rendered pass after egui produced
-        // its FullOutput. This pre-pass hook uses that monotonic revision to confirm mutations that
-        // were consumed by the viewport one pass earlier.
-        let published_revision = self
-            .mcp_windows
-            .get(&window.window_id)
-            .map(|entry| entry.revision)
-            .unwrap_or(0);
-        let published_snapshot = self
-            .mcp_windows
-            .get(&window.window_id)
-            .ok()
-            .map(|entry| entry.snapshot);
-
-        let tracker = match self.mcp_action_channel.lock() {
-            Ok(channel) => channel.receipt_tracker(),
-            Err(poisoned) => poisoned.into_inner().receipt_tracker(),
-        };
-        if let Some(consumed) = self.mcp_consumed_actions.remove(&window.window_id) {
-            let mut still_waiting = Vec::new();
-            for (action_id, before_revision) in consumed {
-                if published_revision > before_revision {
-                    if let Some(snapshot) = &published_snapshot {
-                        tracker.observe_postcondition(&action_id, published_revision, snapshot);
-                    } else {
-                        tracker.failed(&action_id, "rendered snapshot evidence is unavailable");
-                    }
-                } else {
-                    still_waiting.push((action_id, before_revision));
-                }
-            }
-            if !still_waiting.is_empty() {
-                self.mcp_consumed_actions
-                    .insert(window.window_id.clone(), still_waiting);
-            }
-        }
-
-        let batch = match self.mcp_action_channel.lock() {
-            Ok(mut channel) => channel.drain_for_viewport(&window.window_id, raw_input.viewport_id),
-            Err(poisoned) => poisoned
-                .into_inner()
-                .drain_for_viewport(&window.window_id, raw_input.viewport_id),
-        };
-        if !batch.events.is_empty() {
-            raw_input.events.extend(batch.events);
-            self.mcp_consumed_actions
-                .entry(window.window_id)
-                .or_default()
-                .extend(
-                    batch
-                        .action_ids
-                        .into_iter()
-                        .map(|action_id| (action_id, published_revision)),
-                );
+        let (batch, needs_repaint) = Self::pump_argus_viewport_input(
+            &window.window_id,
+            raw_input.viewport_id,
+            &self.mcp_windows,
+            &self.mcp_action_channel,
+            &mut self.mcp_consumed_actions,
+            true,
+        );
+        raw_input.events.extend(batch.events);
+        if needs_repaint {
             ctx.request_repaint();
         }
     }
@@ -6306,24 +6724,24 @@ impl eframe::App for HandshakeApp {
                 }
             }
         }
-        if !self.mcp_bind_attempted
-            && !self.mcp_bind_in_flight
-            && self.mcp_bind_attempts < 6
-            && self
-                .mcp_bind_retry_at
-                .is_none_or(|retry_at| std::time::Instant::now() >= retry_at)
-            && self
+        if !self.mcp_bind_attempted && !self.mcp_bind_in_flight {
+            let signing_ready = self
                 .internal_diagnostics
                 .as_ref()
                 .and_then(|diagnostics| diagnostics.argus_signing_secret())
-                .is_some()
-        {
-            self.mcp_bind_attempts += 1;
-            if !self.spawn_mcp_server(ctx) {
-                let backoff = 200_u64.saturating_mul(1_u64 << self.mcp_bind_attempts.min(4));
-                self.mcp_bind_retry_at =
-                    Some(std::time::Instant::now() + std::time::Duration::from_millis(backoff));
-                ctx.request_repaint_after(std::time::Duration::from_millis(backoff));
+                .is_some();
+            if signing_ready
+                && self
+                    .mcp_bind_retry_at
+                    .is_none_or(|retry_at| std::time::Instant::now() >= retry_at)
+            {
+                self.mcp_bind_attempts = self.mcp_bind_attempts.saturating_add(1);
+                if !self.spawn_mcp_server(ctx) {
+                    let backoff = 200_u64.saturating_mul(1_u64 << self.mcp_bind_attempts.min(4));
+                    self.mcp_bind_retry_at =
+                        Some(std::time::Instant::now() + std::time::Duration::from_millis(backoff));
+                    ctx.request_repaint_after(std::time::Duration::from_millis(backoff));
+                }
             }
         }
         self.ui(ctx);
@@ -6371,12 +6789,112 @@ mod causal_argus_receipt_tests {
     use super::*;
     use crate::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
     use crate::mcp::action::UiAction;
+
+    #[test]
+    fn argus_mutation_wake_targets_the_exact_owned_viewport() {
+        assert_eq!(
+            argus_repaint_viewport_id(crate::mcp::MAIN_WINDOW_ID),
+            egui::ViewportId::ROOT
+        );
+        assert_eq!(
+            argus_repaint_viewport_id("popout-settings"),
+            settings_detached_viewport_id()
+        );
+        assert_eq!(
+            argus_repaint_viewport_id("popout-pane-a"),
+            egui::ViewportId::from_hash_of("pane-a")
+        );
+        assert_eq!(
+            argus_repaint_viewport_id("unknown-window"),
+            egui::ViewportId::ROOT
+        );
+    }
     use crate::mcp::argus::{
         register_action_effect, ActionEffectRegistration, ActionReceiptStatus,
         ActionReceiptTracker, MAIN_WINDOW_ID,
     };
     use crate::stash_shelf::{DrawerActionTarget, DrawerCardKind};
     use std::time::Duration;
+
+    #[test]
+    fn pre_authority_settings_delta_preserves_unedited_authoritative_fields() {
+        let baseline = serde_json::json!({
+            "theme": "dark",
+            "settings": {"view_mode": "nsfw", "resource_sampling_enabled": true}
+        });
+        let edited = serde_json::json!({
+            "theme": "light",
+            "settings": {"view_mode": "nsfw", "resource_sampling_enabled": true}
+        });
+        let mut authoritative = serde_json::json!({
+            "theme": "dark",
+            "settings": {"view_mode": "sfw", "resource_sampling_enabled": false},
+            "future_field": "preserved"
+        });
+
+        overlay_json_delta(&baseline, &edited, &mut authoritative);
+
+        assert_eq!(authoritative["theme"], "light");
+        assert_eq!(authoritative["settings"]["view_mode"], "sfw");
+        assert_eq!(
+            authoritative["settings"]["resource_sampling_enabled"],
+            false
+        );
+        assert_eq!(authoritative["future_field"], "preserved");
+    }
+
+    #[test]
+    fn settings_flush_preserves_unknown_raw_fields_and_custom_theme_tokens() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let mut raw = app.workspace_settings.to_settings_state();
+        raw["custom_theme_tokens"] = serde_json::json!({"accent": "#123456"});
+        raw["future_field"] = serde_json::json!({"retained": true});
+        app.settings_authoritative_raw = Some(raw);
+        app.settings_authoritative_project_id = Some(DEFAULT_PROJECT_ID.to_owned());
+        app.workspace_settings.theme = crate::workspace_settings::WorkspaceTheme::Light;
+
+        app.flush_settings_save_now();
+
+        let intended = app
+            .settings_authoritative_raw
+            .expect("flush retains intended canonical payload");
+        assert_eq!(intended["theme"], "light");
+        assert_eq!(intended["custom_theme_tokens"]["accent"], "#123456");
+        assert_eq!(intended["future_field"]["retained"], true);
+    }
+
+    #[test]
+    fn settings_edit_after_workspace_resolution_still_waits_for_settings_baseline() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.arm_settings_load_for_active();
+        app.workspace_settings.theme = crate::workspace_settings::WorkspaceTheme::Light;
+        app.schedule_settings_save();
+
+        assert!(app.settings_changed_before_authority);
+        app.flush_settings_save_now();
+        assert!(app.settings_authoritative_raw.is_none());
+        assert!(app.settings_save_due_at.is_some());
+    }
+
+    #[test]
+    fn stale_same_workspace_settings_generation_cannot_become_authority() {
+        let ctx = egui::Context::default();
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.settings_open = true;
+        let stale_generation = app.settings_load_generation;
+        app.arm_settings_load_for_active();
+        *app.settings_load_cell.lock().unwrap() = Some((
+            DEFAULT_PROJECT_ID.to_owned(),
+            stale_generation,
+            Ok(Some(serde_json::json!({"theme": "light"}))),
+        ));
+
+        app.pump_settings_io(&ctx);
+
+        assert!(app.settings_authoritative_raw.is_none());
+        assert!(app.settings_authoritative_project_id.is_none());
+        assert!(app.settings_load_pending);
+    }
 
     fn confirm_snapshot() -> UiTreeSnapshot {
         UiTreeSnapshot {
@@ -6446,6 +6964,55 @@ mod causal_argus_receipt_tests {
         assert_eq!(
             terminal.error.as_deref(),
             Some("click target handler did not acknowledge the requested action effect")
+        );
+    }
+
+    #[test]
+    fn opening_settings_without_a_project_arms_the_independent_coordinator_read() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.active_project_id.clear();
+        app.swarm_concurrency_refresh_pending = false;
+
+        app.open_settings();
+
+        assert!(
+            app.swarm_concurrency_refresh_pending,
+            "a global coordinator GET is armed when no project-settings load can run"
+        );
+        assert_eq!(
+            app.last_swarm_concurrency_request, None,
+            "opening without a project never synthesizes a persisted-value PUT"
+        );
+    }
+
+    #[test]
+    fn failed_settings_load_falls_back_to_coordinator_read_without_a_persisted_put() {
+        let ctx = egui::Context::default();
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.settings_open = true;
+        app.swarm_concurrency_refresh_pending = false;
+        app.workspace_settings.swarm_model_sessions_max_concurrent = Some(8);
+        *app.settings_load_cell.lock().unwrap() = Some((
+            DEFAULT_PROJECT_ID.to_owned(),
+            app.settings_load_generation,
+            Err("load failed".to_owned()),
+        ));
+
+        app.pump_settings_io(&ctx);
+
+        assert_eq!(app.settings_persist_error(), Some("load failed"));
+        assert_eq!(
+            app.last_swarm_concurrency_request, None,
+            "a failed load supplies no authoritative persisted value and cannot issue a PUT"
+        );
+        assert_eq!(
+            app.swarm_model_sessions.error.as_deref(),
+            Some("backend unavailable"),
+            "the independent GET path ran and reported its honest unavailable state"
+        );
+        assert!(
+            !app.swarm_concurrency_refresh_pending,
+            "the fallback GET request was consumed in the same settings pump"
         );
     }
 }

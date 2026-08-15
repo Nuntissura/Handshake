@@ -340,6 +340,31 @@ impl ProjectTree {
         self.spawn_load(runtime);
     }
 
+    /// Clear project-scoped content when the shell has no canonical workspace authority. This also
+    /// invalidates and disconnects any seeded/provisional workspace load so a late result cannot
+    /// restore stale rows or a stale 404 after `/workspaces` resolves to an empty list.
+    pub fn clear_workspace(&mut self) {
+        if self.workspace_id.is_none()
+            && self.rx.is_none()
+            && self.documents.is_empty()
+            && self.canvases.is_empty()
+            && self.bookmarks.is_empty()
+            && !self.loading
+            && self.error.is_none()
+        {
+            return;
+        }
+        self.load_id = self.load_id.wrapping_add(1);
+        self.workspace_id = None;
+        self.rx = None;
+        self.documents.clear();
+        self.canvases.clear();
+        self.bookmarks.clear();
+        self.width_cache.clear();
+        self.loading = false;
+        self.error = None;
+    }
+
     /// Spawn the async document + canvas fetch for the current workspace on `runtime`, stamping a
     /// fresh `load_id`. Results arrive on `self.rx`; [`poll`](Self::poll) applies them only if the
     /// `load_id` still matches (staleness rejection).
@@ -1212,5 +1237,26 @@ mod tests {
         tree.poll();
         assert_eq!(tree.documents().len(), 1);
         assert_eq!(tree.documents()[0].id, "new");
+    }
+
+    #[test]
+    fn clear_workspace_invalidates_provisional_load_and_visible_error() {
+        let mut tree = ProjectTree::new();
+        let (_tx, rx) = std::sync::mpsc::channel();
+        tree.workspace_id = Some("default-project".to_owned());
+        tree.rx = Some(rx);
+        tree.load_id = 7;
+        tree.loading = true;
+        tree.error = Some("http: non-success status 404 Not Found".to_owned());
+        tree.documents = vec![DocumentSummary::new("stale", "Stale")];
+
+        tree.clear_workspace();
+
+        assert_eq!(tree.workspace_id(), None);
+        assert_eq!(tree.load_id, 8, "in-flight provisional result is stale");
+        assert!(tree.rx.is_none(), "provisional receiver is disconnected");
+        assert!(tree.documents().is_empty());
+        assert!(!tree.is_loading());
+        assert!(tree.error().is_none());
     }
 }

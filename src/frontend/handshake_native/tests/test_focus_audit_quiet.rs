@@ -11,11 +11,9 @@
 //       HARD FAIL.
 //   (b) POSITIVE INVARIANTS — asserts the pop-out viewports use `with_active(false)` (no focus theft
 //       on creation), that NO viewport requests `with_active(true)` / `with_focused(true)`, and that
-//       the only Win32 surface (the screenshot capture) uses focus-safe `PrintWindow`/`BitBlt` over
-//       an offscreen DC.
-//   (c) ALLOW-LIST PROOF — the one disclosed allow-list item (MT-027 screenshot: PrintWindow /
-//       PW_RENDERFULLCONTENT / BitBlt over an offscreen memory DC, focus-safe by construction) is
-//       present and uses no banned API.
+//       the screenshot capture uses the focus-safe Windows Graphics Capture API for an exact HWND.
+//   (c) ALLOW-LIST PROOF — the one disclosed allow-list item (MT-027/MT-021 compositor capture,
+//       focus-safe by construction) is present and uses no banned API.
 //
 // WHY SOURCE-AUDIT, NOT A LIVE WINDOWS HOOK: a live WINEVENT_SYSTEM_FOREGROUND / WH_KEYBOARD_LL hook
 // needs a real on-screen window and a windowing session, which the headless `cargo test` host does
@@ -43,6 +41,10 @@ fn src_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
 }
 
+fn crate_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
 /// Where the proof report is written (no spaces in the path — CX-109A).
 fn artifacts_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -61,6 +63,11 @@ const BANNED_FOCUS_APIS: &[&str] = &[
     "SetActiveWindow",
     "SwitchToThisWindow",
     "AllowSetForegroundWindow",
+    "SetFocus",
+    "SetWindowPos",
+    "ShowWindow",
+    "ShowWindowAsync",
+    "AttachThreadInput",
     "keybd_event",
     "mouse_event",
     "SendInput",
@@ -316,7 +323,7 @@ fn no_focus_stealing_or_input_injection_api_in_source() {
         "files_scanned": scanned,
         "banned_apis": BANNED_FOCUS_APIS,
         "allow_list": [
-            "mcp/screenshot.rs: PrintWindow(PW_RENDERFULLCONTENT)/BitBlt over an offscreen memory DC — focus-safe by construction (no Z-order/activation change)"
+            "mcp/screenshot.rs: Windows.Graphics.Capture for an exact HWND — focus-safe by construction (no Z-order/activation change)"
         ],
     });
     write_report(&report);
@@ -390,9 +397,31 @@ fn popout_viewports_do_not_steal_focus() {
     );
 }
 
-/// ALLOW-LIST PROOF (AC-030-04 intent): the ONE Win32 surface in the shell (the screenshot capture)
-/// is the documented focus-safe allow-list item — it uses PrintWindow/BitBlt and references NO banned
-/// API in executable code.
+/// Palmistry returns the Argus signing secret asynchronously. An idle native window must schedule a
+/// quiet future frame while that secret is absent; otherwise the successful backend authentication
+/// can remain unseen forever and the production MCP binding is never published.
+#[test]
+fn palmistry_secret_rotation_wakes_idle_window_without_foregrounding() {
+    let app = src_dir().join("app.rs");
+    let raw = std::fs::read_to_string(&app)
+        .unwrap_or_else(|error| panic!("read {} failed: {error}", app.display()));
+    let code = strip_comments_and_literals(&raw);
+    assert!(
+        code.contains("maintain_palmistry(")
+            && code.contains("move ||")
+            && code.contains("repaint.request_repaint()"),
+        "Palmistry secret rotation must explicitly wake the idle shell"
+    );
+    assert!(
+        !code.contains("mcp_bind_attempts < 6"),
+        "transient MCP bind failures must not permanently disable retries"
+    );
+}
+
+/// ALLOW-LIST PROOF (AC-030-04 intent): the screenshot capture is the documented focus-safe
+/// allow-list item. It uses compositor-backed capture for the exact recorded HWND, has a bounded
+/// no-frame timeout, contains no GDI/PrintWindow desktop-pixel fallback, and references no banned
+/// focus API in executable code.
 #[test]
 fn screenshot_capture_is_focus_safe_allow_list_item() {
     let shot = src_dir().join("mcp").join("screenshot.rs");
@@ -400,17 +429,58 @@ fn screenshot_capture_is_focus_safe_allow_list_item() {
         .unwrap_or_else(|e| panic!("read {} failed: {e}", shot.display()));
     let code = strip_comments_and_literals(&raw);
 
-    assert!(
-        code.contains("PrintWindow"),
-        "screenshot.rs no longer uses PrintWindow — verify the capture is still focus-safe",
-    );
+    for forbidden in ["BitBlt", "PrintWindow", "WM_PRINT", "GetWindowDC"] {
+        assert!(
+            !code.contains(forbidden),
+            "screenshot capture must not use the GDI/desktop-pixel fallback `{forbidden}`"
+        );
+    }
+    for required in [
+        "OneFrameCapture::start_free_threaded",
+        "Window::from_raw_hwnd",
+        "recv_timeout",
+        "Duration::from_secs(5)",
+        "hwnd_is_capturable_for_this_process",
+        "checked_mul",
+        "try_reserve_exact",
+        "pixels.len() != expected_len",
+        "pixel[3] = 255",
+        "control.stop()",
+        "window_identity(hwnd)",
+        "Duration::from_secs(8)",
+        "SendMessageTimeoutW",
+        "SMTO_ABORTIFHUNG",
+        "CAPTURE_IN_FLIGHT",
+        "compare_exchange",
+    ] {
+        assert!(
+            code.contains(required),
+            "screenshot.rs lost required bounded/correct capture invariant `{required}`"
+        );
+    }
     for api in BANNED_FOCUS_APIS {
         assert!(
             !line_any_has_identifier(&code, api),
             "screenshot.rs (the focus-safe allow-list item) now calls banned API {api}",
         );
     }
-    println!("PASS: screenshot capture uses focus-safe PrintWindow/BitBlt; no banned API in code");
+    let manifest =
+        std::fs::read_to_string(crate_root().join("Cargo.toml")).expect("read native Cargo.toml");
+    assert!(
+        manifest.contains("windows-capture = \"=2.0.1\""),
+        "the reviewed WGC dependency must remain exactly pinned"
+    );
+    let lock =
+        std::fs::read_to_string(crate_root().join("Cargo.lock")).expect("read native Cargo.lock");
+    assert!(
+        lock.contains("name = \"windows-capture\"")
+            && lock.contains("version = \"2.0.1\"")
+            && lock.contains(
+                "checksum = \"09046acbe9b6d039cde50e8c8178d95bb0f9b33ed7feccc4465dadc5404b31b4\""
+            ),
+        "Cargo.lock must retain the reviewed windows-capture 2.0.1 checksum"
+    );
+    println!("PASS: screenshot capture uses bounded focus-safe Windows Graphics Capture only; no GDI fallback or banned focus API in code");
 }
 
 fn line_any_has_identifier(code: &str, ident: &str) -> bool {

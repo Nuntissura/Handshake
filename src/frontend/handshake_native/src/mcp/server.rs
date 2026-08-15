@@ -35,7 +35,9 @@
 //! - Bounded line length on reads — a malicious client cannot OOM the server with one huge line.
 //! - Named-pipe bind failure is non-fatal — the server continues TCP-only and records that honestly.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
@@ -60,6 +62,37 @@ pub const MAX_REQUESTS_PER_SEC: u32 = 100;
 /// Max bytes in a single newline-delimited request line. A request larger than this is rejected (the
 /// connection is closed) so a malicious client cannot exhaust memory with one unbounded line.
 pub const MAX_LINE_BYTES: usize = 1 << 20; // 1 MiB
+
+#[cfg(not(test))]
+const BINDING_PUBLICATION_TIMEOUT: Duration = Duration::from_secs(5);
+#[cfg(test)]
+const BINDING_PUBLICATION_TIMEOUT: Duration = Duration::from_millis(100);
+static BINDING_PUBLICATION_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+#[cfg(test)]
+static TEST_DELAY_AFTER_BINDING_VERIFY_MS: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+struct BindingPublicationAdmission;
+
+impl BindingPublicationAdmission {
+    fn acquire() -> std::io::Result<Self> {
+        BINDING_PUBLICATION_IN_FLIGHT
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::WouldBlock,
+                    "mcp binding publication is already in flight",
+                )
+            })?;
+        Ok(Self)
+    }
+}
+
+impl Drop for BindingPublicationAdmission {
+    fn drop(&mut self) {
+        BINDING_PUBLICATION_IN_FLIGHT.store(false, Ordering::Release);
+    }
+}
 
 /// A handle to the running MCP transport. Holds the bound endpoint info (for tests/discovery) and the
 /// shutdown signal. Dropping it (or calling [`Self::shutdown`]) stops the accept loops + removes the
@@ -121,6 +154,7 @@ impl SwarmMcpServer {
         windows: WindowSnapshotRegistry,
         channel: Arc<Mutex<ActionChannel>>,
         receipt_provenance: ArgusReceiptProvenance,
+        action_wake: Arc<dyn Fn(&str) + Send + Sync>,
         capture: Arc<
             dyn Fn(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>
                 + Send
@@ -128,7 +162,8 @@ impl SwarmMcpServer {
         >,
     ) -> std::io::Result<Self> {
         let safety = SwarmSafetyState::with_window_registry(token, snapshot, windows, channel)
-            .with_durable_receipts(receipt_provenance);
+            .with_durable_receipts(receipt_provenance)
+            .with_action_wake(action_wake);
         Self::bind_with_targeted_safety(safety, capture).await
     }
 
@@ -152,6 +187,7 @@ impl SwarmMcpServer {
                 + Sync,
         >,
     ) -> std::io::Result<Self> {
+        let publication_admission = BindingPublicationAdmission::acquire()?;
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let tcp_addr = listener.local_addr()?.to_string();
         let (shutdown_tx, _) = broadcast::channel(1);
@@ -161,7 +197,88 @@ impl SwarmMcpServer {
             capture,
         };
 
-        // Spawn the TCP accept loop (detached background task — HBR-QUIET).
+        // Reserve the named-pipe endpoint before publication, but do not accept any connection until
+        // the discovery artifact is verified. TCP is likewise held as an unspawned listener here.
+        #[cfg(target_os = "windows")]
+        let (pipe_name, first_pipe) = Self::prepare_named_pipe();
+        #[cfg(not(target_os = "windows"))]
+        let pipe_name = None;
+
+        let binding = McpBinding {
+            tcp_addr,
+            pipe_name: pipe_name.clone(),
+            token: state.safety.token.as_hex().to_owned(),
+            pid: std::process::id(),
+        };
+        let binding_for_write = binding.clone();
+        let mut publication_task = tokio::task::spawn_blocking(move || {
+            let path = binding::write_binding(&binding_for_write)?;
+            let observed = binding::read_binding()?;
+            if observed != binding_for_write {
+                return Err(binding::BindingError(format!(
+                    "canonical reread mismatch after publishing {}",
+                    path.display()
+                )));
+            }
+            #[cfg(test)]
+            {
+                let delay_ms = TEST_DELAY_AFTER_BINDING_VERIFY_MS.swap(0, Ordering::AcqRel);
+                if delay_ms > 0 {
+                    std::thread::sleep(Duration::from_millis(delay_ms));
+                }
+            }
+            Ok(path)
+        });
+        let publication =
+            tokio::time::timeout(BINDING_PUBLICATION_TIMEOUT, &mut publication_task).await;
+        let published_path = match publication {
+            Ok(Ok(Ok(path))) => path,
+            Ok(Ok(Err(error))) => {
+                let binding_for_cleanup = binding.clone();
+                tokio::spawn(async move {
+                    let _admission = publication_admission;
+                    let _ = tokio::task::spawn_blocking(move || {
+                        binding::remove_binding_if_owned(&binding_for_cleanup)
+                    })
+                    .await;
+                });
+                return Err(std::io::Error::other(format!(
+                    "mcp binding publication failed: {error}"
+                )));
+            }
+            Ok(Err(error)) => {
+                let binding_for_cleanup = binding.clone();
+                tokio::spawn(async move {
+                    let _admission = publication_admission;
+                    let _ = tokio::task::spawn_blocking(move || {
+                        binding::remove_binding_if_owned(&binding_for_cleanup)
+                    })
+                    .await;
+                });
+                return Err(std::io::Error::other(format!(
+                    "mcp binding publisher task failed: {error}"
+                )));
+            }
+            Err(_) => {
+                let binding_for_cleanup = binding.clone();
+                tokio::spawn(async move {
+                    let _admission = publication_admission;
+                    let _ = publication_task.await;
+                    let _ = tokio::task::spawn_blocking(move || {
+                        binding::remove_binding_if_owned(&binding_for_cleanup)
+                    })
+                    .await;
+                });
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "mcp binding publication exceeded the 5 second startup deadline",
+                ));
+            }
+        };
+        drop(publication_admission);
+        tracing::info!(path = %published_path.display(), tcp = %binding.tcp_addr, "mcp binding written and verified");
+
+        // Only a verified, discoverable server may begin accepting connections.
         {
             let state = state.clone();
             let mut shutdown_rx = shutdown_tx.subscribe();
@@ -178,39 +295,15 @@ impl SwarmMcpServer {
                                     }
                                 });
                             }
-                            Err(e) => {
-                                tracing::warn!(error = %e, "mcp tcp accept failed");
-                            }
+                            Err(e) => tracing::warn!(error = %e, "mcp tcp accept failed"),
                         }
                     }
                 }
                 tracing::debug!("mcp tcp accept loop stopped");
             });
         }
-
-        // Windows named pipe (non-fatal on failure — TCP-only fallback).
-        let pipe_name = Self::spawn_named_pipe(&state, &shutdown_tx);
-
-        let binding = McpBinding {
-            tcp_addr,
-            pipe_name,
-            token: state.safety.token.as_hex().to_owned(),
-            pid: std::process::id(),
-        };
-        let binding_for_write = binding.clone();
-        match tokio::task::spawn_blocking(move || binding::write_binding(&binding_for_write)).await
-        {
-            Ok(Ok(path)) => {
-                tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written")
-            }
-            Ok(Err(e)) => {
-                tracing::warn!(error = %e, "mcp binding file write failed (server still running)")
-            }
-            Err(error) => tracing::warn!(
-                error = %error,
-                "mcp binding writer task failed (server still running)"
-            ),
-        }
+        #[cfg(target_os = "windows")]
+        Self::spawn_named_pipe(&state, &shutdown_tx, pipe_name.as_deref(), first_pipe);
 
         Ok(Self {
             binding,
@@ -230,27 +323,40 @@ impl SwarmMcpServer {
     /// Spawn the Windows named-pipe accept loop. Returns the pipe name on success, `None` (TCP-only) on
     /// any bind failure (non-fatal — red-team: named-pipe exhaustion must not crash the server).
     #[cfg(target_os = "windows")]
-    fn spawn_named_pipe(
-        state: &ServerState,
-        shutdown_tx: &broadcast::Sender<()>,
-    ) -> Option<String> {
+    fn prepare_named_pipe() -> (
+        Option<String>,
+        Option<tokio::net::windows::named_pipe::NamedPipeServer>,
+    ) {
         use tokio::net::windows::named_pipe::ServerOptions;
 
         let pipe_name = format!(r"\\.\pipe\handshake_swarm_{}", std::process::id());
-        // Try to create the first pipe instance up front so a bind failure is reported as TCP-only now.
-        let first = match ServerOptions::new()
+        match ServerOptions::new()
             .first_pipe_instance(true)
             .create(&pipe_name)
         {
-            Ok(server) => server,
-            Err(e) => {
-                tracing::warn!(error = %e, pipe = %pipe_name, "named pipe bind failed; running TCP-only");
-                return None;
+            Ok(server) => (Some(pipe_name), Some(server)),
+            Err(error) => {
+                tracing::warn!(error = %error, pipe = %pipe_name, "named pipe bind failed; running TCP-only");
+                (None, None)
             }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn spawn_named_pipe(
+        state: &ServerState,
+        shutdown_tx: &broadcast::Sender<()>,
+        pipe_name: Option<&str>,
+        first: Option<tokio::net::windows::named_pipe::NamedPipeServer>,
+    ) {
+        use tokio::net::windows::named_pipe::ServerOptions;
+
+        let (Some(pipe_name), Some(first)) = (pipe_name, first) else {
+            return;
         };
 
         let state = state.clone();
-        let name = pipe_name.clone();
+        let name = pipe_name.to_owned();
         let mut shutdown_rx = shutdown_tx.subscribe();
         tokio::spawn(async move {
             let mut server = first;
@@ -288,16 +394,6 @@ impl SwarmMcpServer {
             }
             tracing::debug!("mcp named-pipe accept loop stopped");
         });
-        Some(pipe_name)
-    }
-
-    /// No named pipe on non-Windows builds (TCP-only).
-    #[cfg(not(target_os = "windows"))]
-    fn spawn_named_pipe(
-        _state: &ServerState,
-        _shutdown_tx: &broadcast::Sender<()>,
-    ) -> Option<String> {
-        None
     }
 
     /// The bound localhost TCP address (e.g. `127.0.0.1:54321`).
@@ -750,5 +846,62 @@ mod tests {
             allowed >= 5,
             "the initial full bucket is honored; allowed {allowed}"
         );
+    }
+
+    #[test]
+    fn timed_out_publication_removes_late_binding_and_releases_admission() {
+        let _env_guard = binding::BINDING_ENV_GUARD
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let root =
+            std::env::temp_dir().join(format!("hsk_mcp_late_publication_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("create late-publication test root");
+        #[cfg(target_os = "windows")]
+        let app_data_var = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let app_data_var = "XDG_DATA_HOME";
+        let previous = std::env::var_os(app_data_var);
+        std::env::set_var(app_data_var, &root);
+
+        TEST_DELAY_AFTER_BINDING_VERIFY_MS.store(250, Ordering::Release);
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("build publication-timeout runtime");
+        let state = test_state("secret-token-1234567890");
+        let result = runtime.block_on(SwarmMcpServer::bind_with_targeted_safety(
+            state.safety,
+            state.capture,
+        ));
+        let error = match result {
+            Ok(_) => panic!("late publication must time out"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+
+        runtime.block_on(async {
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+            loop {
+                if !BINDING_PUBLICATION_IN_FLIGHT.load(Ordering::Acquire)
+                    && !binding::binding_path().exists()
+                {
+                    break;
+                }
+                assert!(
+                    tokio::time::Instant::now() < deadline,
+                    "late publication cleanup did not remove the binding and release admission"
+                );
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        });
+        drop(BindingPublicationAdmission::acquire().expect("admission is reusable after cleanup"));
+
+        match previous {
+            Some(value) => std::env::set_var(app_data_var, value),
+            None => std::env::remove_var(app_data_var),
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

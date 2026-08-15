@@ -34,6 +34,8 @@
 //! PostgreSQL, observed to fail, and then restored — the quoted text is the
 //! observed panic message, not a prediction.
 
+#![cfg(feature = "test-utils")]
+
 mod knowledge_pg_support;
 
 use std::{
@@ -47,6 +49,13 @@ use std::{
 
 use async_trait::async_trait;
 
+use handshake_core::api::account_scope::ProductLocalResourceScope;
+use handshake_core::api::operator_chat::{routes, scoped_routes, OperatorChatState};
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+};
+use handshake_core::model_runtime::catalog::ModelCatalog;
+
 use handshake_core::model_runtime::{
     CancellationToken, Embedding, GenerateRequest, KvCacheHandle, LoraStackHandle,
     ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError, ProviderKind,
@@ -54,9 +63,10 @@ use handshake_core::model_runtime::{
 };
 use handshake_core::process_ledger::{
     drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
-    NoopOverflowSink, PostgresProcessLedgerStore,
+    NoopOverflowSink, PostgresProcessLedgerStore, ProcessLedgerError,
 };
 
+use axum::Extension;
 use handshake_core::swarm_orchestration::model_lane::{
     CloudExportDelegation, LaunchAuthority, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
@@ -65,14 +75,20 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan, NewModelLaneRun,
     RuntimeBinding,
 };
+use handshake_core::swarm_orchestration::operator_chat::{
+    OperatorChatLaneKind, OperatorChatLaunchService, OperatorChatSelection,
+    OperatorChatSingleRunCloudConsentGrant, OperatorChatSingleRunCloudLaunchRequest,
+};
 use handshake_core::swarm_orchestration::resource_scope::{
     stored_resource_scope_from_row, AccessSpaceRef, AccountBoundAuthority, ActorPrincipalId,
-    AuthenticatedSessionRef, OwnerAccountId, ResourceAccessContext, ResourceScope,
-    ResourceScopeQuery, StoredResourceScope, WorkspaceScopeRef, RESOURCE_SCOPE_SELECT_COLUMNS,
+    AuthenticatedSessionRef, ExactResourceScopeAttribution, OwnerAccountId, ResourceAccessContext,
+    ResourceScope, ResourceScopeQuery, StoredResourceScope, WorkspaceScopeRef,
+    RESOURCE_SCOPE_SELECT_COLUMNS,
 };
 use handshake_core::swarm_orchestration::{
     CloudLaneFactoryConfig, CloudLiveRuntime, CloudRuntimeBuilder, ModelInstanceId,
-    ModelSessionFactory, ProductionModelSessionFactory, SpawnRequest,
+    ModelSessionFactory, ProductionModelSessionFactory, RecordingSwarmSink, RunBudget,
+    SpawnRequest, SwarmConfig, SwarmCoordinator,
 };
 use serde_json::json;
 use sqlx::PgPool;
@@ -105,6 +121,193 @@ async fn pg_pool(test_name: &str) -> PgPool {
 
 fn scope_for(owner: OwnerAccountId) -> ResourceScope {
     ResourceScope::new(owner, ActorPrincipalId::mint())
+}
+
+fn exact_scope_for(slug: &str) -> (ResourceScope, ExactResourceScopeAttribution) {
+    let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new(format!("workspace-mt006-{slug}"))
+                .expect("nonblank workspace scope"),
+        );
+    let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+        .expect("the fixture supplies all five scope dimensions");
+    (scope, exact)
+}
+
+#[derive(Debug, Default)]
+struct NoopRecorder;
+
+#[async_trait]
+impl FlightRecorder for NoopRecorder {
+    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
+
+async fn cloud_launch_service(
+    pool: &PgPool,
+    store: ModelLaneStore,
+) -> (
+    Arc<OperatorChatLaunchService>,
+    LedgerBatcher,
+    tokio::task::JoinHandle<Result<(), ProcessLedgerError>>,
+    Arc<AtomicUsize>,
+) {
+    let process_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    process_store
+        .apply_migration()
+        .await
+        .expect("real PostgreSQL ProcessLedger authority is ready");
+    let (ledger, writer) = LedgerBatcher::spawn(
+        process_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig {
+            capacity: 16,
+            batch_size: 1,
+            flush_interval: Duration::from_millis(1),
+        },
+    );
+    let provider_calls = Arc::new(AtomicUsize::new(0));
+    let factory = ProductionModelSessionFactory::new(
+        ledger.clone(),
+        CloudLaneFactoryConfig {
+            anthropic: Some(Arc::new(CountingScopeCloudBuilder {
+                calls: provider_calls.clone(),
+            })),
+            openai: Some(Arc::new(CountingScopeCloudBuilder {
+                calls: provider_calls.clone(),
+            })),
+            official_cli: None,
+            official_cli_by_provider: Default::default(),
+        },
+        None,
+    )
+    .with_durable_worktree_vm_store(&store);
+    let coordinator = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(2)),
+        Arc::new(factory),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger.clone(),
+        store,
+    );
+    let service = Arc::new(OperatorChatLaunchService::new(
+        Arc::new(coordinator),
+        ModelCatalog::empty(),
+        Arc::new(NoopRecorder),
+    ));
+    (service, ledger, writer, provider_calls)
+}
+
+fn single_run_grant(
+    slug: &str,
+    source_scope: AccountBoundAuthority,
+) -> OperatorChatSingleRunCloudConsentGrant {
+    let receipt = receipt_id(slug);
+    let mut plan = projection_plan(slug, source_scope, Some(receipt.clone()));
+    plan.consent_scope = ModelLaneCloudConsentScope::SingleRun;
+    plan.lane_id = None;
+    plan.model_session_id = None;
+    plan.provider_kind = None;
+    plan.requested_model_id = None;
+    plan.target_bindings.clear();
+    let now = chrono::Utc::now();
+    OperatorChatSingleRunCloudConsentGrant {
+        projection_plan: plan,
+        consent_receipt_id: receipt,
+        approved_by_ref: "operator://mt006/http-scope-proof".into(),
+        approved_at_utc: now.to_rfc3339(),
+        valid_from_utc: (now - chrono::Duration::minutes(1)).to_rfc3339(),
+        valid_until_utc: (now + chrono::Duration::hours(12)).to_rfc3339(),
+        consent_idempotency_key: format!("idem-consent-http-{slug}"),
+        diagnostic_payload: json!({"scope_boundary": "http_exact"}),
+    }
+}
+
+fn empty_launch_request(
+    slug: &str,
+    source_scope: AccountBoundAuthority,
+) -> OperatorChatSingleRunCloudLaunchRequest {
+    OperatorChatSingleRunCloudLaunchRequest {
+        grant: single_run_grant(slug, source_scope),
+        selections: Vec::new(),
+    }
+}
+
+fn two_lane_launch_request(
+    slug: &str,
+    source_scope: AccountBoundAuthority,
+    working_dirs: [&str; 2],
+) -> OperatorChatSingleRunCloudLaunchRequest {
+    let selection = |ordinal: usize| OperatorChatSelection {
+        lane_kind: OperatorChatLaneKind::Cloud,
+        model_id: if ordinal == 1 {
+            "gpt-4o-mini".into()
+        } else {
+            "claude-sonnet-4".into()
+        },
+        cloud_provider: Some(if ordinal == 1 {
+            "openai".into()
+        } else {
+            "anthropic".into()
+        }),
+        cli_provider: None,
+        working_dir: working_dirs[ordinal - 1].into(),
+        worktree_id: Some(format!("wtc-multi-model-orchestration-v1-{ordinal}")),
+        prompt: format!("MT-006 exact-scope cloud proof lane {ordinal}"),
+        owner_session: "KERNEL_BUILDER-MT006-HTTP".into(),
+        parent_session_id: "KERNEL_BUILDER-MT006".into(),
+        work_packet_id: Some(WP_ID.into()),
+        micro_task_id: Some(MT_ID.into()),
+    };
+    OperatorChatSingleRunCloudLaunchRequest {
+        grant: single_run_grant(slug, source_scope),
+        selections: vec![selection(1), selection(2)],
+    }
+}
+
+async fn start_scoped_server(
+    state: OperatorChatState,
+    exact: ExactResourceScopeAttribution,
+) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind scoped operator-chat proof listener");
+    let addr = listener.local_addr().expect("scoped listener address");
+    let product_scope =
+        ProductLocalResourceScope::from_exact(exact).expect("valid product-local scope");
+    let app = scoped_routes(state).layer(Extension(product_scope));
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("serve scoped operator-chat proof");
+    });
+    (format!("http://{addr}"), handle)
+}
+
+async fn start_unscoped_server(state: OperatorChatState) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind unscoped operator-chat proof listener");
+    let addr = listener.local_addr().expect("unscoped listener address");
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, routes(state))
+            .await
+            .expect("serve unscoped operator-chat proof");
+    });
+    (format!("http://{addr}"), handle)
 }
 
 fn account_store(pool: &PgPool, scope: &ResourceScope) -> ModelLaneStore {
@@ -451,6 +654,344 @@ async fn lane_row_refs(pool: &PgPool, lane: &str) -> (String, String, String) {
             .to_string(),
         record["status"].as_str().unwrap_or_default().to_string(),
     )
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CloudAuthorityCounts {
+    plans: i64,
+    receipts: i64,
+    events: i64,
+}
+
+async fn cloud_authority_counts(pool: &PgPool) -> CloudAuthorityCounts {
+    let plans: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_cloud_projection_plans")
+        .fetch_one(pool)
+        .await
+        .expect("count cloud projection plans");
+    let receipts: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_cloud_consent_receipts")
+            .fetch_one(pool)
+            .await
+            .expect("count cloud consent receipts");
+    let events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = ANY($1)",
+    )
+    .bind(vec![
+        "model_lane_cloud_projection_plan",
+        "model_lane_cloud_consent_receipt",
+        "model_lane_cloud_consent_denial",
+        "model_lane_terminal",
+    ])
+    .fetch_one(pool)
+    .await
+    .expect("count cloud EventLedger rows");
+    CloudAuthorityCounts {
+        plans,
+        receipts,
+        events,
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unscoped_cloud_grant_fails_before_postgres_or_provider_authority() {
+    let pool = pg_pool("unscoped HTTP cloud grant denial").await;
+    let (service, ledger, writer, provider_calls) =
+        cloud_launch_service(&pool, legacy_store(&pool)).await;
+    let denied = service
+        .grant_single_run_cloud_consent(single_run_grant(
+            "unscoped-http",
+            unattributed("LEGACY_UNSCOPED_HTTP"),
+        ))
+        .await
+        .expect_err("an unscoped store must not mint cloud authority");
+    assert!(
+        denied.to_string().contains("RESOURCE_SCOPE_REQUIRED"),
+        "the denial must be stable and must not disclose a resource id: {denied}"
+    );
+    assert_eq!(
+        cloud_authority_counts(&pool).await,
+        CloudAuthorityCounts {
+            plans: 0,
+            receipts: 0,
+            events: 0,
+        },
+        "scope denial must happen before ProjectionPlan, ConsentReceipt, or EventLedger authority"
+    );
+    assert_eq!(
+        provider_calls.load(Ordering::SeqCst),
+        0,
+        "an unscoped grant must fail before a provider builder side effect"
+    );
+    let state = OperatorChatState::production().with_launch_service(service);
+    let (base, server) = start_unscoped_server(state).await;
+    let response = reqwest::Client::new()
+        .post(format!(
+            "{base}/operator-chat/cloud/single-run/grant-launch"
+        ))
+        .json(&empty_launch_request(
+            "unscoped-http-route",
+            unattributed("UNSCOPED_HTTP_ROUTE"),
+        ))
+        .send()
+        .await
+        .expect("send unscoped Axum cloud launch");
+    assert_eq!(response.status().as_u16(), 403);
+    let body: serde_json::Value = response.json().await.expect("unscoped denial JSON");
+    assert_eq!(body["error"], "resource_scope_unavailable");
+    assert_eq!(
+        cloud_authority_counts(&pool).await,
+        CloudAuthorityCounts {
+            plans: 0,
+            receipts: 0,
+            events: 0,
+        },
+        "unscoped Axum denial must leave PostgreSQL and EventLedger untouched"
+    );
+    assert_eq!(provider_calls.load(Ordering::SeqCst), 0);
+    server.abort();
+    ledger.begin_close();
+    let outcome = drain_and_join_ledger_writer(&ledger, writer, Duration::from_secs(5)).await;
+    assert!(matches!(outcome, LedgerDrainJoinOutcome::Flushed));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store() {
+    let pool = pg_pool("HTTP cloud launch exact scope binding").await;
+    let (store_scope, store_exact) = exact_scope_for("http-store");
+    let (foreign_scope, foreign_exact) = exact_scope_for("http-foreign");
+    let (service, ledger, writer, provider_calls) =
+        cloud_launch_service(&pool, account_store(&pool, &store_scope)).await;
+    let state = OperatorChatState::production().with_launch_service(service);
+
+    let (foreign_base, foreign_server) =
+        start_scoped_server(state.clone(), foreign_exact.clone()).await;
+    let foreign_response = reqwest::Client::new()
+        .post(format!(
+            "{foreign_base}/operator-chat/cloud/single-run/grant-launch"
+        ))
+        .json(&empty_launch_request(
+            "http-foreign",
+            approver_for(&foreign_scope),
+        ))
+        .send()
+        .await
+        .expect("send foreign scoped cloud launch");
+    assert_eq!(foreign_response.status().as_u16(), 400);
+    let foreign_body: serde_json::Value =
+        foreign_response.json().await.expect("foreign denial JSON");
+    assert_eq!(foreign_body["error"], "bad_request");
+    assert!(
+        foreign_body["detail"]
+            .as_str()
+            .is_some_and(|detail| detail.contains("RESOURCE_SCOPE_MISMATCH")),
+        "the handler must compare its extracted exact scope with the store: {foreign_body}"
+    );
+    assert_eq!(
+        cloud_authority_counts(&pool).await,
+        CloudAuthorityCounts {
+            plans: 0,
+            receipts: 0,
+            events: 0,
+        }
+    );
+    assert_eq!(
+        provider_calls.load(Ordering::SeqCst),
+        0,
+        "foreign HTTP scope must fail before provider dispatch"
+    );
+    foreign_server.abort();
+
+    // Positive control: matching exact scope drives the complete shipped
+    // Axum -> service -> coordinator -> provider -> PostgreSQL path.
+    let checkout_one = tempfile::tempdir().expect("create first real checkout directory");
+    let checkout_two = tempfile::tempdir().expect("create second real checkout directory");
+    let checkout_one_path = checkout_one.path().to_string_lossy();
+    let checkout_two_path = checkout_two.path().to_string_lossy();
+    let (owner_base, owner_server) = start_scoped_server(state.clone(), store_exact).await;
+    let owner_response = reqwest::Client::new()
+        .post(format!(
+            "{owner_base}/operator-chat/cloud/single-run/grant-launch"
+        ))
+        .json(&two_lane_launch_request(
+            "http-owner",
+            approver_for(&store_scope),
+            [checkout_one_path.as_ref(), checkout_two_path.as_ref()],
+        ))
+        .send()
+        .await
+        .expect("send owner scoped cloud launch");
+    let owner_status = owner_response.status().as_u16();
+    let owner_body: serde_json::Value = owner_response.json().await.expect("owner launch JSON");
+    assert_eq!(owner_status, 200, "owner launch failed: {owner_body}");
+    assert_eq!(
+        owner_body["instance_ids"]
+            .as_array()
+            .expect("launched instance ids")
+            .len(),
+        2
+    );
+    assert_eq!(
+        provider_calls.load(Ordering::SeqCst),
+        2,
+        "the exact owner reaches each enumerated provider target once"
+    );
+    let lane_rows: Vec<(serde_json::Value,)> =
+        sqlx::query_as("SELECT record_json FROM model_lanes WHERE run_id = $1 ORDER BY lane_id")
+            .bind(run_id("http-owner"))
+            .fetch_all(&pool)
+            .await
+            .expect("read exact-owner lane identities");
+    assert_eq!(lane_rows.len(), 2);
+    let distinct = |field: &str| {
+        lane_rows
+            .iter()
+            .map(|(record,)| {
+                record[field]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("lane record requires {field}"))
+                    .to_string()
+            })
+            .collect::<BTreeSet<_>>()
+    };
+    assert_eq!(
+        distinct("lane_id").len(),
+        2,
+        "lane identities stay distinct"
+    );
+    assert_eq!(
+        distinct("model_session_id").len(),
+        2,
+        "model-session identities stay distinct"
+    );
+    assert_eq!(
+        distinct("model_id"),
+        BTreeSet::from([
+            "model://dexterity/byok_cloud/gpt-4o-mini".to_string(),
+            "model://dexterity/byok_cloud/claude-sonnet-4".to_string(),
+        ]),
+        "model identities stay distinct"
+    );
+    assert_eq!(
+        distinct("provider_kind"),
+        BTreeSet::from(["openai".to_string(), "anthropic".to_string()]),
+        "provider identities stay distinct"
+    );
+    let owner_counts = cloud_authority_counts(&pool).await;
+    assert_eq!(
+        (owner_counts.plans, owner_counts.receipts),
+        (1, 1),
+        "one ProjectionPlan and one ConsentReceipt are durable"
+    );
+    assert!(
+        owner_counts.events >= 2,
+        "the exact owner launch must append ProjectionPlan/ConsentReceipt EventLedger authority"
+    );
+    let stored_scope = stored_scope_without_predicate(
+        &pool,
+        "model_lane_cloud_projection_plans",
+        "projection_plan_id",
+        owner_body["projection_plan_id"]
+            .as_str()
+            .expect("projection plan id"),
+    )
+    .await;
+    assert_eq!(
+        stored_scope,
+        StoredResourceScope::from(&store_scope),
+        "the HTTP owner scope must survive the full launch into PostgreSQL"
+    );
+
+    let receipt = owner_body["consent_receipt_id"]
+        .as_str()
+        .expect("consent receipt id")
+        .to_string();
+    let before_foreign_revoke = cloud_authority_counts(&pool).await;
+    let (foreign_revoke_base, foreign_revoke_server) =
+        start_scoped_server(state, foreign_exact).await;
+    let foreign_revoke = reqwest::Client::new()
+        .post(format!(
+            "{foreign_revoke_base}/operator-chat/cloud/single-run/revoke"
+        ))
+        .json(&json!({
+            "consent_receipt_id": receipt,
+            "revoked_by_ref": "operator://mt006/foreign-context",
+            "reason": "foreign context must not revoke"
+        }))
+        .send()
+        .await
+        .expect("send foreign scoped revoke");
+    assert_eq!(foreign_revoke.status().as_u16(), 400);
+    let foreign_revoke_body: serde_json::Value = foreign_revoke
+        .json()
+        .await
+        .expect("foreign revoke denial JSON");
+    assert!(
+        foreign_revoke_body["detail"]
+            .as_str()
+            .is_some_and(|detail| detail.contains("RESOURCE_SCOPE_MISMATCH")),
+        "foreign context must fail at the exact scope/store boundary: {foreign_revoke_body}"
+    );
+    let still_running: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lanes WHERE run_id = $1 AND status = 'running'",
+    )
+    .bind(run_id("http-owner"))
+    .fetch_one(&pool)
+    .await
+    .expect("count owner lanes after foreign revoke denial");
+    assert_eq!(
+        still_running, 2,
+        "foreign revoke must not mutate owner lanes"
+    );
+    let receipt_state: (String, bool, Option<String>) = sqlx::query_as(
+        "SELECT status, approved, revoked_at_utc \
+         FROM model_lane_cloud_consent_receipts \
+         WHERE consent_receipt_id = $1",
+    )
+    .bind(&receipt)
+    .fetch_one(&pool)
+    .await
+    .expect("read receipt after foreign revoke denial");
+    assert_eq!(receipt_state.0, "approved");
+    assert!(receipt_state.1);
+    assert_eq!(receipt_state.2, None);
+    assert_eq!(
+        cloud_authority_counts(&pool).await,
+        before_foreign_revoke,
+        "foreign revoke must not mutate ProjectionPlan, ConsentReceipt, or EventLedger authority"
+    );
+    assert_eq!(provider_calls.load(Ordering::SeqCst), 2);
+    foreign_revoke_server.abort();
+
+    let owner_revoke = reqwest::Client::new()
+        .post(format!(
+            "{owner_base}/operator-chat/cloud/single-run/revoke"
+        ))
+        .json(&json!({
+            "consent_receipt_id": receipt,
+            "revoked_by_ref": "operator://mt006/owner-context",
+            "reason": "owner ends cloud grant"
+        }))
+        .send()
+        .await
+        .expect("send owner scoped revoke");
+    assert_eq!(owner_revoke.status().as_u16(), 200);
+    let owner_revoke_body: serde_json::Value =
+        owner_revoke.json().await.expect("owner revoke JSON");
+    assert_eq!(
+        owner_revoke_body["cancelled_lanes"]
+            .as_array()
+            .expect("cancelled lanes")
+            .len(),
+        2,
+        "the exact owner revokes every covered live lane"
+    );
+    owner_server.abort();
+    ledger.begin_close();
+    let outcome = drain_and_join_ledger_writer(&ledger, writer, Duration::from_secs(5)).await;
+    assert!(
+        matches!(outcome, LedgerDrainJoinOutcome::Flushed),
+        "HTTP scope proof must leave no detached ledger writer: {outcome:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------

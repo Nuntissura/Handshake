@@ -1062,6 +1062,9 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(menu_nodes, 7, "seven top-level menu buttons in the live tree");
+        assert_eq!(
+            menu_nodes, 7,
+            "seven top-level menu buttons in the live tree"
+        );
     }
 }

@@ -451,7 +451,9 @@ fn swarm_accessible_models_leaves_dispatch_through_accesskit() {
     // Open MODELS the way a swarm agent does: an AccessKit Click on the stable `menu-models` node,
     // NOT a synthetic pointer position.
     harness
-        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some("menu-models"))
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("menu-models")
+        })
         .next()
         .expect("the MODELS menu button is addressable by its stable author_id")
         .click_accesskit();

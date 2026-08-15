@@ -14,9 +14,16 @@ use handshake_native::console_stream_pane::{
     ConsoleStreamEntry, FILTER_ALL_AUTHOR_ID, FILTER_ERRORS_AUTHOR_ID,
 };
 use handshake_native::debug_console::console_row_author_id;
-use handshake_native::pane_registry::PaneType;
+use handshake_native::pane_registry::{PaneId, PaneType};
+use handshake_native::popout_window::{popout_title_for, popout_window_author_id};
 
-fn entry(seq: u64, severity: &str, category: &str, subject: &str, detail: &str) -> ConsoleStreamEntry {
+fn entry(
+    seq: u64,
+    severity: &str,
+    category: &str,
+    subject: &str,
+    detail: &str,
+) -> ConsoleStreamEntry {
     ConsoleStreamEntry {
         seq,
         ts_unix_ms: 0,
@@ -77,10 +84,18 @@ fn wp1_console_pane_renders_streamed_entries_with_stable_author_ids_and_filters(
     let entries = vec![
         entry(0, "info", "model_lane_launch", "lane-1", "lane spawned"),
         entry(1, "info", "model_lane_status", "lane-1", "lane ready"),
-        entry(2, "error", "model_lane_status", "lane-1", "lane failed: boom"),
+        entry(
+            2,
+            "error",
+            "model_lane_status",
+            "lane-1",
+            "lane failed: boom",
+        ),
     ];
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app_with_entries(entries));
+    let mut harness = Harness::builder().build_state(
+        |ctx, a: &mut HandshakeApp| a.ui(ctx),
+        app_with_entries(entries),
+    );
     open_console(&mut harness);
 
     // The MODELS -> Open Console menu opened a native WP-1 console tab.
@@ -127,8 +142,48 @@ fn wp1_console_pane_renders_streamed_entries_with_stable_author_ids_and_filters(
     let restored = live_author_ids(&harness);
     for index in 0..3 {
         assert!(
-            restored.iter().any(|id| id == &console_row_author_id(index)),
+            restored
+                .iter()
+                .any(|id| id == &console_row_author_id(index)),
             "Show All restores row {index}: {restored:?}"
         );
     }
+}
+
+#[test]
+fn wp1_console_active_tab_keeps_its_factory_and_title_when_host_pane_is_popped_out() {
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_entries(Vec::new()),
+    );
+    open_console(&mut harness);
+
+    let pane_id: PaneId = harness
+        .state()
+        .tab_bar_states()
+        .iter()
+        .find_map(|(pane_id, bar)| {
+            bar.active()
+                .is_some_and(|tab| tab.pane_type == PaneType::Wp1OrchestrationConsole)
+                .then(|| pane_id.clone())
+        })
+        .expect("Open Console leaves the console tab active in one pane");
+
+    harness.state_mut().request_pop_out(pane_id.clone());
+    harness.run();
+    harness.run();
+
+    let authors = live_author_ids(&harness);
+    assert!(
+        authors.iter().any(|id| id == FILTER_ALL_AUTHOR_ID),
+        "detached active console tab must render the console factory, not the pane record's original factory: {authors:?}"
+    );
+    let window_author_id = popout_window_author_id(pane_id.as_ref());
+    let window = node_by_author(&harness, &window_author_id);
+    let expected_title = popout_title_for(&PaneType::Wp1OrchestrationConsole.label());
+    assert_eq!(
+        window.accesskit_node().label(),
+        Some(expected_title),
+        "detached window title must describe the active console surface"
+    );
 }

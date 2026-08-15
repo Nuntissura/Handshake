@@ -6,6 +6,7 @@ mod model_lane_crdt_support;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
+    Extension,
 };
 use futures::stream;
 use handshake_core::kernel::context_bundle::ContextBundle;
@@ -267,15 +268,22 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
     // store, so rows seeded with a NULL owner are invisible to it and the HTTP
     // leg below would assert against an empty projection. Seed as a real owning
     // account and send that account's scope on the request.
-    let diagnostics_owner =
-        handshake_core::swarm_orchestration::resource_scope::OwnerAccountId::mint();
-    let store = ModelLaneStore::new_scoped(
-        pool.clone(),
-        handshake_core::swarm_orchestration::resource_scope::ResourceScope::new(
-            diagnostics_owner,
-            handshake_core::swarm_orchestration::resource_scope::ActorPrincipalId::mint(),
-        ),
-    );
+    use handshake_core::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+        OwnerAccountId, ResourceScope, WorkspaceScopeRef,
+    };
+    let diagnostics_owner = OwnerAccountId::mint();
+    let diagnostics_scope = ResourceScope::new(diagnostics_owner, ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new(workspace_id.to_string())
+                .expect("diagnostics workspace is nonblank"),
+        );
+    let diagnostics_exact =
+        ExactResourceScopeAttribution::try_from_resource_scope(&diagnostics_scope)
+            .expect("diagnostics fixture carries exact five-dimensional scope");
+    let store = ModelLaneStore::new_scoped(pool.clone(), diagnostics_scope);
     let model_id = handshake_core::model_runtime::ModelId::new_v7();
     let model_id_text = model_id.to_string();
     let model_registration = handshake_core::model_runtime::ModelRegistration {
@@ -1102,7 +1110,12 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         )),
         postgres_pool: pool.clone(),
     };
-    let app = handshake_core::api::diagnostics::routes(state);
+    let app = handshake_core::api::diagnostics::routes(state.clone()).layer(Extension(
+        handshake_core::api::account_scope::ProductLocalResourceScope::from_exact(
+            diagnostics_exact.clone(),
+        )
+        .expect("install exact product diagnostics scope"),
+    ));
     let response = app
         .clone()
         .oneshot(
@@ -1119,23 +1132,26 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .expect("mounted diagnostics route responds");
     assert_eq!(response.status(), StatusCode::OK);
 
-    // Negative control for the scope header added above: without it this route
-    // must refuse. Otherwise the header could be decorative and this leg would
-    // still pass against a route that enforces nothing (HBR-PRIV-002).
-    let unscoped = app
+    // A caller assertion may only equal the server-owned scope. It cannot select
+    // another owner, and the denial remains identifier-free.
+    let wrong_owner_assertion = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+                .header(
+                    "x-handshake-owner-account",
+                    OwnerAccountId::mint().as_uuid().to_string(),
+                )
                 .body(Body::empty())
-                .expect("build unscoped diagnostics request"),
+                .expect("build wrong-owner diagnostics request"),
         )
         .await
-        .expect("unscoped diagnostics route responds");
+        .expect("wrong-owner diagnostics route responds");
     assert_eq!(
-        unscoped.status(),
+        wrong_owner_assertion.status(),
         StatusCode::FORBIDDEN,
-        "the mounted diagnostics route must refuse a caller that declares no owning account"
+        "a caller assertion cannot replace the server-owned account"
     );
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -1147,6 +1163,60 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         "hsk.model_lane_diagnostics_projection@3"
     );
     assert_eq!(http_projection.run.run_id, "run-mt008-diag");
+    let http_json: serde_json::Value =
+        serde_json::from_slice(&body).expect("read scoped diagnostics response JSON");
+    let exact_scope_values = [
+        diagnostics_exact.owner_account_id.to_string(),
+        diagnostics_exact.actor_principal_id.to_string(),
+        diagnostics_exact.authenticated_session_id.to_string(),
+        diagnostics_exact.access_space_id.to_string(),
+        diagnostics_exact.workspace_id.to_string(),
+    ];
+    let safe_scope = http_json["resource_scope"]
+        .as_object()
+        .expect("HTTP diagnostics exposes a typed privacy-safe scope contract");
+    assert_eq!(
+        safe_scope.len(),
+        7,
+        "privacy-safe scope has no raw-id fields"
+    );
+    let fingerprints = [
+        "owner_account_fingerprint",
+        "actor_principal_fingerprint",
+        "authenticated_session_fingerprint",
+        "access_space_fingerprint",
+        "workspace_fingerprint",
+    ]
+    .map(|field| {
+        let value = safe_scope[field]
+            .as_str()
+            .unwrap_or_else(|| panic!("privacy-safe scope omitted {field}"));
+        assert!(
+            value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "{field} must be a keyed opaque fingerprint"
+        );
+        value
+    });
+    assert_eq!(
+        fingerprints
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        5,
+        "distinct exact scope dimensions must have distinct fingerprints"
+    );
+    assert_eq!(safe_scope["visibility"], "private_exact_scope_only");
+    assert_eq!(
+        safe_scope["denial_posture"],
+        "foreign_scope_is_absent_restricted_metadata_withheld"
+    );
+    let http_text = String::from_utf8_lossy(&body);
+    for raw_scope_value in &exact_scope_values {
+        assert!(
+            !http_text.contains(raw_scope_value),
+            "privacy-safe HTTP projection leaked an actual exact-scope value"
+        );
+    }
     let http_known_lane = http_projection
         .lanes
         .iter()
@@ -1170,6 +1240,138 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .routing_executions
         .iter()
         .any(|execution| execution.status == "cancelled"));
+
+    // Re-host the same route under authorities that differ in exactly one
+    // dimension. Every request must be absent-shaped, proving actor/session/
+    // AccessSpace are enforced even though callers cannot override those
+    // server-owned dimensions with headers.
+    let mut wrong_owner_scope = diagnostics_exact.clone();
+    wrong_owner_scope.owner_account_id = OwnerAccountId::mint();
+    let mut wrong_actor_scope = diagnostics_exact.clone();
+    wrong_actor_scope.actor_principal_id = ActorPrincipalId::mint();
+    let mut wrong_session_scope = diagnostics_exact.clone();
+    wrong_session_scope.authenticated_session_id = AuthenticatedSessionRef::mint();
+    let mut wrong_access_space_scope = diagnostics_exact.clone();
+    wrong_access_space_scope.access_space_id = AccessSpaceRef::mint();
+    let mut wrong_workspace_scope = diagnostics_exact.clone();
+    wrong_workspace_scope.workspace_id =
+        WorkspaceScopeRef::new("workspace-mt008-foreign").expect("foreign workspace nonblank");
+    for (dimension, foreign_scope) in [
+        ("owner_account_id", wrong_owner_scope),
+        ("actor_principal_id", wrong_actor_scope),
+        ("authenticated_session_id", wrong_session_scope),
+        ("access_space_id", wrong_access_space_scope),
+        ("workspace_id", wrong_workspace_scope),
+    ] {
+        let foreign_app = handshake_core::api::diagnostics::routes(state.clone()).layer(Extension(
+            handshake_core::api::account_scope::ProductLocalResourceScope::from_exact(
+                foreign_scope,
+            )
+            .expect("install complete foreign diagnostics scope"),
+        ));
+        let response = foreign_app
+            .oneshot(
+                Request::builder()
+                    .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+                    .body(Body::empty())
+                    .expect("build foreign exact-scope diagnostics request"),
+            )
+            .await
+            .expect("foreign exact-scope diagnostics route responds");
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "foreign {dimension} must not distinguish a protected run from absence"
+        );
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read foreign exact-scope denial");
+        let denial = String::from_utf8_lossy(&body);
+        for protected in ["run-mt008-diag", "lane-mt008-local", "msg-mt008"] {
+            assert!(
+                !denial.contains(protected),
+                "foreign {dimension} denial leaked protected identifier {protected}"
+            );
+        }
+    }
+
+    // Account/AccessSpace switches can overlap while separate native clients are
+    // still reading. Drive those authorities concurrently against the same real
+    // PostgreSQL state: the authorized projection must retain its exact scope
+    // while both foreign reads remain absent-shaped and metadata-free.
+    let authorized_app = handshake_core::api::diagnostics::routes(state.clone()).layer(Extension(
+        handshake_core::api::account_scope::ProductLocalResourceScope::from_exact(
+            diagnostics_exact.clone(),
+        )
+        .expect("install concurrent authorized diagnostics scope"),
+    ));
+    let mut concurrent_foreign_owner = diagnostics_exact.clone();
+    concurrent_foreign_owner.owner_account_id = OwnerAccountId::mint();
+    let foreign_owner_app =
+        handshake_core::api::diagnostics::routes(state.clone()).layer(Extension(
+            handshake_core::api::account_scope::ProductLocalResourceScope::from_exact(
+                concurrent_foreign_owner,
+            )
+            .expect("install concurrent foreign-owner diagnostics scope"),
+        ));
+    let mut concurrent_foreign_space = diagnostics_exact.clone();
+    concurrent_foreign_space.access_space_id = AccessSpaceRef::mint();
+    let foreign_space_app =
+        handshake_core::api::diagnostics::routes(state.clone()).layer(Extension(
+            handshake_core::api::account_scope::ProductLocalResourceScope::from_exact(
+                concurrent_foreign_space,
+            )
+            .expect("install concurrent foreign-AccessSpace diagnostics scope"),
+        ));
+    let request = || {
+        Request::builder()
+            .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+            .body(Body::empty())
+            .expect("build concurrent diagnostics request")
+    };
+    let (authorized, foreign_owner, foreign_space) = tokio::join!(
+        authorized_app.oneshot(request()),
+        foreign_owner_app.oneshot(request()),
+        foreign_space_app.oneshot(request()),
+    );
+    let authorized = authorized.expect("concurrent authorized diagnostics response");
+    let foreign_owner = foreign_owner.expect("concurrent foreign-owner diagnostics response");
+    let foreign_space = foreign_space.expect("concurrent foreign-Space diagnostics response");
+    assert_eq!(authorized.status(), StatusCode::OK);
+    assert_eq!(foreign_owner.status(), StatusCode::NOT_FOUND);
+    assert_eq!(foreign_space.status(), StatusCode::NOT_FOUND);
+    let authorized_body = axum::body::to_bytes(authorized.into_body(), usize::MAX)
+        .await
+        .expect("read concurrent authorized diagnostics body");
+    let authorized_json: serde_json::Value =
+        serde_json::from_slice(&authorized_body).expect("concurrent authorized body is JSON");
+    assert_eq!(
+        authorized_json["resource_scope"],
+        http_json["resource_scope"],
+        "concurrent foreign account/Space reads cannot change the authorized privacy-safe scope commitment"
+    );
+    let authorized_text = String::from_utf8_lossy(&authorized_body);
+    for raw_scope_value in &exact_scope_values {
+        assert!(
+            !authorized_text.contains(raw_scope_value),
+            "concurrent authorized response leaked an actual exact-scope value"
+        );
+    }
+    for (dimension, response) in [
+        ("owner_account_id", foreign_owner),
+        ("access_space_id", foreign_space),
+    ] {
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read concurrent foreign diagnostics denial");
+        let denial = String::from_utf8_lossy(&body);
+        for protected in ["run-mt008-diag", "lane-mt008-local", "msg-mt008"] {
+            assert!(
+                !denial.contains(protected),
+                "concurrent foreign {dimension} denial leaked {protected}"
+            );
+        }
+    }
     coordinator
         .drain_all()
         .await

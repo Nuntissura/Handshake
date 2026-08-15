@@ -28,6 +28,9 @@
 
 #![cfg(target_os = "windows")]
 
+use handshake_native::console_stream_pane::{
+    CONSOLE_STREAM_STATUS_AUTHOR_ID, FILTER_ALL_AUTHOR_ID,
+};
 use handshake_native::model_runtime_panel::{
     empty_author_id, error_author_id, refresh_author_id, row_action_author_id,
     row_active_selection_author_id, row_adapter_author_id, row_artifact_path_author_id,
@@ -50,7 +53,10 @@ use handshake_native::popout_window::popout_window_author_id;
 use handshake_native::settings_dialog::{
     cloud_byok_key_author_id, cloud_byok_remove_author_id, cloud_byok_save_author_id,
     cloud_byok_status_author_id, cloud_cli_login_author_id, cloud_cli_status_author_id,
-    CLOSE_AUTHOR_ID, SETTINGS_DIALOG_AUTHOR_ID,
+    cloud_consent_posture_author_id, swarm_model_session_option_author_id, CLOSE_AUTHOR_ID,
+    CLOUD_CONSENT_STATUS_AUTHOR_ID, SETTINGS_DIALOG_AUTHOR_ID, SETTINGS_POPOUT_AUTHOR_ID,
+    SETTINGS_REDOCK_AUTHOR_ID, SETTINGS_SEARCH_AUTHOR_ID, SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID,
+    SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
 };
 
 #[path = "argus_socket_support/live_socket.rs"]
@@ -59,8 +65,8 @@ mod live_socket;
 use live_socket::{
     assert_bytes_exclude, assert_not_applied, collect_author_ids, contains_author_id,
     decode_verified_capture, node_by_author_id, node_is_disabled, node_supports, node_text,
-    pane_id_hosting, require_node, wait_for_author_id, wait_for_author_id_between, LiveApp,
-    SURFACE_TIMEOUT,
+    pane_id_hosting, require_node, wait_for_author_id, wait_for_author_id_between, wait_for_window,
+    LiveApp, SURFACE_TIMEOUT,
 };
 
 /// Every status string the production ModelRuntime panel can render. A live proof must recognise the
@@ -1004,6 +1010,425 @@ fn production_socket_settings_cloud_access_login_states_and_no_secret_disclosure
     app.write_proof_artifact(
         "argus_production_socket_settings_cloud_provenance.json",
         &serde_json::to_vec_pretty(&provenance).expect("serialize Settings provenance"),
+    );
+
+    app.shutdown();
+}
+
+/// WP-1 MT-021 V5 remediation: exercise the exact operator surfaces through the authenticated
+/// production Argus/Palmistry path. This is deliberately separate from the deterministic Settings
+/// tests: the acceptance gap was evidence from the running shell in both window hosts, not another
+/// in-process assertion over the same widget code.
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
+            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+            HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
+#[test]
+fn mt021_production_settings_consent_concurrency_and_console_main_detached() {
+    let mut app = LiveApp::start("mt021_settings_console");
+
+    let cold_navigation_started = std::time::Instant::now();
+    app.open_models_menu_leaf("menu.models.settings");
+    let cold_navigation_receipt_round_trip_ms =
+        cold_navigation_started.elapsed().as_millis() as u64;
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        SETTINGS_DIALOG_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+
+    // Narrow the real Settings list to the two concurrency controls. The model-session row must
+    // report backend truth; loading/unavailable text is not accepted for this live proof.
+    app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        SETTINGS_SEARCH_AUTHOR_ID,
+        Some(("value", serde_json::json!("concurrency"))),
+    );
+    let coordinator_deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+    let mut last_coordinator_status = "not rendered".to_owned();
+    let concurrency = loop {
+        let observed = app.client.poll_inspect("main");
+        let root = &observed["snapshot"]["root"];
+        if contains_author_id(root, SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID) {
+            if let Some(status) = node_by_author_id(root, SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID) {
+                last_coordinator_status = node_text(status);
+                if last_coordinator_status.starts_with("Requested:")
+                    && last_coordinator_status.contains("In force:")
+                    && last_coordinator_status.contains("Fully applied:")
+                    && last_coordinator_status.contains("Live sessions:")
+                {
+                    break observed;
+                }
+            }
+        }
+        assert!(
+            std::time::Instant::now() < coordinator_deadline,
+            "model-session control never loaded coordinator truth: `{last_coordinator_status}`"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    };
+    let root = &concurrency["snapshot"]["root"];
+    let status_before = node_text(require_node(root, SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID));
+    assert!(
+        status_before.starts_with("Requested:")
+            && status_before.contains("In force:")
+            && status_before.contains("Fully applied:")
+            && status_before.contains("Live sessions:"),
+        "model-session control did not render live coordinator truth: `{status_before}`"
+    );
+    let original_requested = status_before
+        .strip_prefix("Requested: ")
+        .and_then(|value| value.split_whitespace().next())
+        .and_then(|value| value.parse::<usize>().ok())
+        .expect("live coordinator status exposes its numeric requested cap");
+    let current_text = node_text(require_node(root, SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID));
+    assert_eq!(
+        current_text.trim(),
+        original_requested.to_string(),
+        "ComboBox selection must reflect the backend's requested cap"
+    );
+    let target = if original_requested == 2 { 4 } else { 2 };
+
+    // Change the cap through the actual ComboBox popup. The post-action status can only reach the
+    // requested value after the frontend PUT has traversed the production backend route.
+    app.client.mutation_on_live_surface(
+        "argus.click",
+        "main",
+        SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID,
+        None,
+    );
+    let option_id = swarm_model_session_option_author_id(target);
+    wait_for_author_id(&mut app.client, "main", &option_id, SURFACE_TIMEOUT);
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &option_id, None);
+
+    let deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+    let status_after = loop {
+        let observed = app.client.poll_inspect("main");
+        if let Some(node) = node_by_author_id(
+            &observed["snapshot"]["root"],
+            SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
+        ) {
+            let text = node_text(node);
+            if text.contains(&format!("Requested: {target}"))
+                && text.contains("In force:")
+                && !text.contains("loading")
+                && !text.contains("unavailable")
+            {
+                break text;
+            }
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "live coordinator status never reflected requested cap {target}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    };
+    let main_concurrency_shot = app.client.screenshot("main");
+    let main_concurrency_png = decode_verified_capture(
+        &main_concurrency_shot,
+        "main",
+        app.child_pid,
+        "MT-021 Settings concurrency main-window capture",
+    );
+
+    // Switch the same live surface to Cloud Models and prove the exact explicit-unavailable posture.
+    // The state is label-only: it offers no action capable of granting or widening access.
+    app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        SETTINGS_SEARCH_AUTHOR_ID,
+        Some(("value", serde_json::json!("cloud"))),
+    );
+    // The summary and static BYOK posture rows render before the asynchronous provider enumeration
+    // returns.  The production backend probes both official CLIs while serving that enumeration, so
+    // observing only the summary is not proof that the configured CLI lanes have arrived.  Wait for
+    // every contract lane before taking the single snapshot used for the assertions and capture.
+    for provider in ["openai", "anthropic", "claude_code", "codex"] {
+        wait_for_author_id(
+            &mut app.client,
+            "main",
+            &cloud_consent_posture_author_id(provider),
+            SURFACE_TIMEOUT,
+        );
+    }
+    let cloud = wait_for_author_id(
+        &mut app.client,
+        "main",
+        CLOUD_CONSENT_STATUS_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    let cloud_root = &cloud["snapshot"]["root"];
+    let consent_summary = node_text(require_node(cloud_root, CLOUD_CONSENT_STATUS_AUTHOR_ID));
+    assert!(
+        consent_summary.contains("NOT WIRED")
+            && consent_summary.contains("Nothing here grants, widens, or records consent"),
+        "consent summary fabricated or widened posture: `{consent_summary}`"
+    );
+    for provider in ["openai", "anthropic", "claude_code", "codex"] {
+        let author_id = cloud_consent_posture_author_id(provider);
+        let row = require_node(cloud_root, &author_id);
+        let text = node_text(row);
+        assert!(
+            text.contains("NOT WIRED") && text.contains("no posture is shown and none is assumed"),
+            "{provider} posture was not explicitly unavailable: `{text}`"
+        );
+        assert!(
+            !node_supports(row, "Click") && !node_supports(row, "SetValue"),
+            "{provider} posture exposed an authority-widening action: {row}"
+        );
+        for forbidden in [
+            "account_id",
+            "access_space_id",
+            "project_id",
+            "resource_id",
+            "artifact://",
+        ] {
+            assert!(
+                !text.contains(forbidden),
+                "{provider} posture leaked restricted metadata marker `{forbidden}`: `{text}`"
+            );
+        }
+    }
+    let main_cloud_shot = app.client.screenshot("main");
+    let main_cloud_png = decode_verified_capture(
+        &main_cloud_shot,
+        "main",
+        app.child_pid,
+        "MT-021 Settings consent main-window capture",
+    );
+
+    // Move the same Settings state into its real detached OS window. Inspect cloud posture there,
+    // then change the persisted search query and inspect the live concurrency status in that host.
+    app.client
+        .mutation_on_live_surface("argus.click", "main", SETTINGS_POPOUT_AUTHOR_ID, None);
+    wait_for_window(&mut app.client, "popout-settings", true);
+    let detached_cloud = wait_for_author_id(
+        &mut app.client,
+        "popout-settings",
+        CLOUD_CONSENT_STATUS_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    assert!(
+        node_text(require_node(
+            &detached_cloud["snapshot"]["root"],
+            CLOUD_CONSENT_STATUS_AUTHOR_ID,
+        ))
+        .contains("NOT WIRED"),
+        "detached Settings lost the explicit consent posture"
+    );
+    let detached_cloud_shot = app.client.screenshot("popout-settings");
+    let detached_cloud_png = decode_verified_capture(
+        &detached_cloud_shot,
+        "popout-settings",
+        app.child_pid,
+        "MT-021 Settings consent detached-window capture",
+    );
+
+    app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "popout-settings",
+        SETTINGS_SEARCH_AUTHOR_ID,
+        Some(("value", serde_json::json!("concurrency"))),
+    );
+    let detached_concurrency = wait_for_author_id(
+        &mut app.client,
+        "popout-settings",
+        SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    let detached_status = node_text(require_node(
+        &detached_concurrency["snapshot"]["root"],
+        SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
+    ));
+    assert!(
+        detached_status.contains(&format!("Requested: {target}"))
+            && detached_status.contains("In force:"),
+        "detached Settings did not preserve live coordinator truth: `{detached_status}`"
+    );
+    let detached_concurrency_shot = app.client.screenshot("popout-settings");
+    let detached_concurrency_png = decode_verified_capture(
+        &detached_concurrency_shot,
+        "popout-settings",
+        app.child_pid,
+        "MT-021 Settings concurrency detached-window capture",
+    );
+    app.client.mutation_on_live_surface(
+        "argus.click",
+        "popout-settings",
+        SETTINGS_REDOCK_AUTHOR_ID,
+        None,
+    );
+    wait_for_window(&mut app.client, "popout-settings", false);
+
+    // Restore the persisted coordinator setting through the same operator/backend path used for
+    // the proof. A live E2E must not leave the shared product runtime in a different policy state.
+    app.client.mutation_on_live_surface(
+        "argus.click",
+        "main",
+        SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID,
+        None,
+    );
+    let original_option_id = swarm_model_session_option_author_id(original_requested);
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        &original_option_id,
+        SURFACE_TIMEOUT,
+    );
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &original_option_id, None);
+    let restore_deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+    let restored_status = loop {
+        let observed = app.client.poll_inspect("main");
+        if let Some(node) = node_by_author_id(
+            &observed["snapshot"]["root"],
+            SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
+        ) {
+            let text = node_text(node);
+            if text.contains(&format!("Requested: {original_requested}"))
+                && text.contains("In force:")
+                && !text.contains("loading")
+                && !text.contains("unavailable")
+            {
+                break text;
+            }
+        }
+        assert!(
+            std::time::Instant::now() < restore_deadline,
+            "live coordinator status never restored requested cap {original_requested}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    };
+    app.client
+        .mutation_on_live_surface("argus.click", "main", CLOSE_AUTHOR_ID, None);
+
+    // Finally use the operator-facing MODELS leaf this MT added, then inspect/capture the console in
+    // main and detached windows. Clicking its filter proves the console is steerable, not decorative.
+    app.open_models_menu_leaf("menu.models.wp1-orchestration-console");
+    let console = wait_for_author_id(
+        &mut app.client,
+        "main",
+        FILTER_ALL_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    let console_pane_id = pane_id_hosting(
+        &console["snapshot"]["root"],
+        &PaneType::Wp1OrchestrationConsole.label(),
+    );
+    let stream_deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+    let stream_status = loop {
+        let observed = app.client.poll_inspect("main");
+        if let Some(status) = node_by_author_id(
+            &observed["snapshot"]["root"],
+            CONSOLE_STREAM_STATUS_AUTHOR_ID,
+        ) {
+            let text = node_text(status);
+            if text.starts_with("Live stream connected") {
+                break text;
+            }
+        }
+        assert!(
+            std::time::Instant::now() < stream_deadline,
+            "WP-1 console never reported a connected production SSE stream"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    };
+    assert!(
+        stream_status.contains("event sequence")
+            || stream_status.contains("waiting for orchestration events"),
+        "connected console must report an event cursor or an honest empty state: `{stream_status}`"
+    );
+    app.client
+        .mutation_on_live_surface("argus.click", "main", FILTER_ALL_AUTHOR_ID, None);
+    let console_main_shot = app.client.screenshot("main");
+    let console_main_png = decode_verified_capture(
+        &console_main_shot,
+        "main",
+        app.child_pid,
+        "MT-021 Orchestration Console main-window capture",
+    );
+    let console_window = app.pop_out_pane(&console_pane_id);
+    wait_for_author_id(
+        &mut app.client,
+        &console_window,
+        FILTER_ALL_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    let console_detached_shot = app.client.screenshot(&console_window);
+    let console_detached_png = decode_verified_capture(
+        &console_detached_shot,
+        &console_window,
+        app.child_pid,
+        "MT-021 Orchestration Console detached-window capture",
+    );
+    app.merge_back_pane(&console_pane_id);
+
+    for (name, bytes) in [
+        (
+            "argus_mt021_settings_concurrency_main.png",
+            main_concurrency_png,
+        ),
+        ("argus_mt021_settings_consent_main.png", main_cloud_png),
+        (
+            "argus_mt021_settings_consent_detached.png",
+            detached_cloud_png,
+        ),
+        (
+            "argus_mt021_settings_concurrency_detached.png",
+            detached_concurrency_png,
+        ),
+        ("argus_mt021_console_main.png", console_main_png),
+        ("argus_mt021_console_detached.png", console_detached_png),
+    ] {
+        app.write_proof_artifact(name, &bytes);
+    }
+    let transcript = app.client.assert_transcript_is_secret_free(&[]);
+    app.write_proof_artifact("argus_mt021_settings_console_transcript.json", &transcript);
+    let provenance = serde_json::json!({
+        "schema_id": "handshake.argus.mt021_production_provenance@1",
+        "mt_id": "MT-021",
+        "child_pid": app.child_pid,
+        "authenticated_agent_id": app.authenticated_agent_id,
+        "cold_optional_flight_recorder": {
+            "measurement": "first operator navigation with two applied durable Argus receipts",
+            "round_trip_ms": cold_navigation_receipt_round_trip_ms,
+        },
+        "navigation": [
+            "menu-models",
+            "menu.models.settings",
+            "settings.popout",
+            "settings.redock",
+            "menu.models.wp1-orchestration-console",
+            "ctx-menu.pane.pop_out",
+        ],
+        "coordinator": {
+            "status_before": status_before,
+            "original_requested": original_requested,
+            "requested_target": target,
+            "status_after": status_after,
+            "detached_status": detached_status,
+            "restored_status": restored_status,
+        },
+        "privacy": {
+            "consent_summary": consent_summary,
+            "explicit_unavailable": true,
+            "authority_widening_action_offered": false,
+            "restricted_metadata_markers_absent": true,
+        },
+        "captures": [
+            "argus_mt021_settings_concurrency_main.png",
+            "argus_mt021_settings_consent_main.png",
+            "argus_mt021_settings_consent_detached.png",
+            "argus_mt021_settings_concurrency_detached.png",
+            "argus_mt021_console_main.png",
+            "argus_mt021_console_detached.png",
+        ],
+    });
+    app.write_proof_artifact(
+        "argus_mt021_settings_console_provenance.json",
+        &serde_json::to_vec_pretty(&provenance).expect("serialize MT-021 provenance"),
     );
 
     app.shutdown();

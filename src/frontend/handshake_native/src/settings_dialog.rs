@@ -1176,9 +1176,12 @@ fn render_search_and_sections(
     // Persistence error row (HBR: important state visible; surfaces a save/load failure).
     if let Some(err) = persist_error {
         ui.add_space(4.0);
-        ui.colored_label(
-            ui.visuals().error_fg_color,
-            format!("Settings sync error: {err}"),
+        ui.add(
+            egui::Label::new(
+                egui::RichText::new(format!("Settings sync error: {err}"))
+                    .color(ui.visuals().error_fg_color),
+            )
+            .wrap(),
         );
     }
 
@@ -1192,6 +1195,7 @@ fn render_search_and_sections(
             .max_height(max_body_height)
             .auto_shrink([false, false])
             .show(ui, |ui| {
+                ui.set_width(ui.available_width());
                 outcome = render_sections(
                     ui,
                     &query,
@@ -1591,15 +1595,15 @@ fn render_sections(
                 // Cloud Models block guards against.
                 if !model_session_query {
                     ui.separator();
-                    ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Concurrent swarm action budget");
-                        ui.label(
-                            egui::RichText::new(
+                        ui.add(
+                            egui::Label::new(egui::RichText::new(
                                 "Persisted + live. Max queued swarm/Argus actions admitted per frame when several agents drive the shell at once. Lower it to serialize concurrent agents; it can only tighten the built-in flood ceiling, never raise it.",
                             )
                             .small()
-                            .weak(),
+                            .weak()).wrap(),
                         );
                     });
                     let current =
@@ -1629,15 +1633,15 @@ fn render_sections(
                 }
 
                 ui.separator();
-                ui.horizontal(|ui| {
+                ui.vertical(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Concurrent model sessions");
-                        ui.label(
-                            egui::RichText::new(
+                        ui.add(
+                            egui::Label::new(egui::RichText::new(
                                 "Project-persisted desired cap, applied through the live SwarmCoordinator. Lowering is cooperative: running model sessions are never killed to make the number converge.",
                             )
                             .small()
-                            .weak(),
+                            .weak()).wrap(),
                         );
                         let status_text = match (&swarm_model_sessions.snapshot, &swarm_model_sessions.error) {
                             (Some(snapshot), error) => format!(
@@ -2006,14 +2010,14 @@ fn render_cloud_models_body(
     cloud: &mut CloudModelsSettingsState,
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
-    ui.label(
-        egui::RichText::new(
+    ui.add(
+        egui::Label::new(egui::RichText::new(
             "Configure cloud model access. Your subscription PLAN via the official CLI (Claude Code, \
              GPT/Codex) is the primary path; a BYOK API key is available if you bring your own. \
              Gemini is not offered.",
         )
         .small()
-        .weak(),
+        .weak()).wrap(),
     );
 
     // ---- BYOK: per-provider password key entry stored only in the OS keychain. ----
@@ -2038,7 +2042,7 @@ fn render_cloud_models_body(
         );
     }
     for row in &byok_rows {
-        ui.horizontal(|ui| {
+        ui.vertical(|ui| {
             ui.vertical(|ui| {
                 ui.label(&row.label);
                 let status_text = if row.configured {
@@ -2116,12 +2120,11 @@ fn render_cloud_models_body(
     );
     let cli_rows = cloud.snapshot().cli_bridge.clone();
     for row in &cli_rows {
-        ui.horizontal(|ui| {
+        ui.vertical(|ui| {
             ui.vertical(|ui| {
                 ui.label(&row.label);
                 let status_label = row.auth_status.label();
-                let status =
-                    ui.label(egui::RichText::new(status_label).small().strong());
+                let status = ui.label(egui::RichText::new(status_label).small().strong());
                 // Explicit AccessKit label so the CLI-bridge auth status (logged-in / logged-out /
                 // expired / unavailable) is out-of-process readable in the DETACHED window too (embedded
                 // egui viewports do not auto-emit plain-label text). Non-secret text only. MT-015 v4.
@@ -2131,14 +2134,17 @@ fn render_cloud_models_body(
                     &cloud_cli_status_author_id(&row.provider),
                     status_label,
                 );
-                ui.label(
-                    egui::RichText::new(if row.hint.is_empty() {
-                        "Provider-owned CLI auth; Handshake stores no credential."
-                    } else {
-                        row.hint.as_str()
-                    })
-                    .small()
-                    .weak(),
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new(if row.hint.is_empty() {
+                            "Provider-owned CLI auth; Handshake stores no credential."
+                        } else {
+                            row.hint.as_str()
+                        })
+                        .small()
+                        .weak(),
+                    )
+                    .wrap(),
                 );
             });
             let login = ui.button("Log in…");
@@ -2160,11 +2166,11 @@ fn render_cloud_models_body(
     // seed) plus the CLI-bridge rows. De-duplicated by provider id so a provider offering both a BYOK
     // key and a CLI login shows one posture row, not two.
     let mut consent_lanes: Vec<(String, String)> = Vec::new();
-    for row in byok_rows.iter().map(|r| (&r.provider, &r.label)).chain(
-        cli_rows
-            .iter()
-            .map(|r| (&r.provider, &r.label)),
-    ) {
+    for row in byok_rows
+        .iter()
+        .map(|r| (&r.provider, &r.label))
+        .chain(cli_rows.iter().map(|r| (&r.provider, &r.label)))
+    {
         if !consent_lanes.iter().any(|(p, _)| p == row.0) {
             consent_lanes.push((row.0.clone(), row.1.clone()));
         }
@@ -2282,7 +2288,8 @@ fn render_cli_login_panel(
             .max_height(180.0)
             .id_salt(("settings.cloud.cli.login.transcript", provider.as_str()))
             .show(ui, |ui| {
-                let transcript = ui.label(egui::RichText::new(&transcript_text).monospace().small());
+                let transcript =
+                    ui.label(egui::RichText::new(&transcript_text).monospace().small());
                 set_author_id_and_label(
                     ui,
                     transcript.id,
@@ -2292,38 +2299,40 @@ fn render_cli_login_panel(
             });
 
         if !panel.state.is_terminal() {
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 let field = ui.add(
                     egui::TextEdit::singleline(&mut panel.input)
                         .id(cloud_cli_login_input_egui_id(&provider))
-                        .desired_width(240.0)
+                        .desired_width(f32::INFINITY)
                         .hint_text("Answer the prompt above"),
                 );
                 set_author_id(ui, field.id, &cloud_cli_login_input_author_id(&provider));
 
                 let submitted_with_enter =
                     field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                let send = ui.button("Send");
-                let send_author = cloud_cli_login_send_author_id(&provider);
-                set_author_id(ui, send.id, &send_author);
-                if (send.clicked() || submitted_with_enter) && outcome.is_none() {
-                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &send_author);
-                    let input = std::mem::take(&mut panel.input);
-                    outcome = Some(SettingsOutcome::CliBridgeLoginInputSubmitted {
-                        provider: provider.clone(),
-                        input,
-                    });
-                }
+                ui.vertical(|ui| {
+                    let send = ui.button("Send");
+                    let send_author = cloud_cli_login_send_author_id(&provider);
+                    set_author_id(ui, send.id, &send_author);
+                    if (send.clicked() || submitted_with_enter) && outcome.is_none() {
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &send_author);
+                        let input = std::mem::take(&mut panel.input);
+                        outcome = Some(SettingsOutcome::CliBridgeLoginInputSubmitted {
+                            provider: provider.clone(),
+                            input,
+                        });
+                    }
 
-                let stop = ui.button("Stop login");
-                let stop_author = cloud_cli_login_stop_author_id(&provider);
-                set_author_id(ui, stop.id, &stop_author);
-                if stop.clicked() && outcome.is_none() {
-                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &stop_author);
-                    outcome = Some(SettingsOutcome::CliBridgeLoginStopRequested {
-                        provider: provider.clone(),
-                    });
-                }
+                    let stop = ui.button("Stop login");
+                    let stop_author = cloud_cli_login_stop_author_id(&provider);
+                    set_author_id(ui, stop.id, &stop_author);
+                    if stop.clicked() && outcome.is_none() {
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &stop_author);
+                        outcome = Some(SettingsOutcome::CliBridgeLoginStopRequested {
+                            provider: provider.clone(),
+                        });
+                    }
+                });
             });
         } else {
             let close = ui.button("Close");
@@ -2392,16 +2401,38 @@ fn render_cloud_consent_posture(ui: &mut egui::Ui, lanes: &[(String, String)]) {
          The backend exposes no consent/export-posture route yet, so Handshake shows no posture and \
          assumes none. Nothing here grants, widens, or records consent.",
     );
-    let summary = ui.label(egui::RichText::new(&summary_text).small().weak());
-    set_author_id_and_label(ui, summary.id, CLOUD_CONSENT_STATUS_AUTHOR_ID, &summary_text);
+    // `selectable_labels` is enabled in Handshake's egui style, which upgrades a plain Label to
+    // click-and-drag sense and therefore advertises AccessKit `Click`.  This posture is deliberately
+    // display-only: pin `selectable(false)` so the accessibility contract cannot imply an authority-
+    // widening interaction that the product does not implement.
+    let summary = ui.add(
+        egui::Label::new(egui::RichText::new(&summary_text).small().weak())
+            .selectable(false)
+            .wrap(),
+    );
+    set_author_id_and_label(
+        ui,
+        summary.id,
+        CLOUD_CONSENT_STATUS_AUTHOR_ID,
+        &summary_text,
+    );
 
     for (provider, label) in lanes {
         let line = cloud_consent_posture_line(label);
         // Plain `ui.label` text is NOT auto-emitted into the AccessKit tree of the DETACHED settings
         // viewport (embedded viewports only auto-emit interactive widgets), so — exactly like the BYOK
         // and CLI status rows — the posture text is attached as an explicit label. Non-secret text only.
-        let row = ui.label(egui::RichText::new(&line).small());
-        set_author_id_and_label(ui, row.id, &cloud_consent_posture_author_id(provider), &line);
+        let row = ui.add(
+            egui::Label::new(egui::RichText::new(&line).small())
+                .selectable(false)
+                .wrap(),
+        );
+        set_author_id_and_label(
+            ui,
+            row.id,
+            &cloud_consent_posture_author_id(provider),
+            &line,
+        );
     }
 }
 
@@ -2577,7 +2608,10 @@ mod tests {
             SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID,
             "settings.swarm-max-actions-per-frame"
         );
-        assert_eq!(CLOUD_CONSENT_STATUS_AUTHOR_ID, "settings.cloud.consent.status");
+        assert_eq!(
+            CLOUD_CONSENT_STATUS_AUTHOR_ID,
+            "settings.cloud.consent.status"
+        );
         assert_eq!(
             cloud_consent_posture_author_id("anthropic"),
             "settings.cloud.consent.anthropic.posture"

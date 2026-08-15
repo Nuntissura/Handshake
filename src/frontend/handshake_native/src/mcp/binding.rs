@@ -122,6 +122,18 @@ pub fn write_binding(binding: &McpBinding) -> Result<PathBuf, BindingError> {
     Ok(path)
 }
 
+/// Read and parse the canonical discovery artifact.
+///
+/// Callers use this after publication when successful startup requires proof that the canonical
+/// file contains their exact endpoint and token, rather than merely trusting a completed write.
+pub fn read_binding() -> Result<McpBinding, BindingError> {
+    let path = binding_path();
+    let body = std::fs::read_to_string(&path)
+        .map_err(|error| BindingError(format!("read {}: {error}", path.display())))?;
+    serde_json::from_str(&body)
+        .map_err(|error| BindingError(format!("parse {}: {error}", path.display())))
+}
+
 /// Remove the binding file (called on graceful shutdown so an agent does not connect to a closed port).
 /// Missing-file is success (idempotent). Other I/O errors are returned for the caller to log.
 pub fn remove_binding() -> Result<(), BindingError> {
@@ -437,10 +449,11 @@ fn restrict_to_owner_windows(path: &std::path::Path) {
 }
 
 #[cfg(test)]
+pub(crate) static BINDING_ENV_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
 mod tests {
     use super::*;
-
-    static BINDING_ENV_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn binding_round_trips_through_json_with_pipe() {

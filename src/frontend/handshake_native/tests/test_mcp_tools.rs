@@ -7,9 +7,9 @@
 //!   READ  -> `list_widgets` returns the live MT-026 UI-tree JSON (root, widget_count, nested children).
 //!   ACT   -> `click_widget` on a real widget's stable `author_id` dispatches an AccessKit ActionRequest
 //!            that reaches the egui frame loop and CHANGES OBSERVABLE UI STATE.
-//!   ACT   -> `set_value` on the bottom-rail text input focuses it + feeds characters (the egui-real
-//!            text path, MT-026-proven — egui has no SetValue for text inputs); the value is read back
-//!            from a fresh snapshot.
+//!   ACT   -> `set_value` on the bottom-rail text input focuses it, selects/clears the prior value,
+//!            and inserts the exact replacement (the egui-real text path — no OS input); replacement
+//!            and empty clearing are read back from fresh snapshots.
 //!   SEE   -> `screenshot` renders the live frame to a real PNG (focus-safe wgpu offscreen render),
 //!            base64-encoded; the bytes decode as a valid image.
 //!   AUTH  -> a request with a wrong/missing `session_token` is rejected with JSON-RPC `-32001`.
@@ -194,8 +194,8 @@ fn test_mcp_click_widget() {
     );
 }
 
-/// AC: `set_value` with the key of the bottom-rail TextInput focuses it and feeds the characters; the
-/// widget's value changes to the provided string, read back via a fresh `list_widgets` snapshot.
+/// AC: `set_value` with the key of the bottom-rail TextInput replaces its entire value exactly,
+/// including replacement of a non-empty value and clearing to empty.
 #[test]
 fn test_mcp_set_value() {
     let token = SessionToken::from_hex("session-secret");
@@ -219,7 +219,7 @@ fn test_mcp_set_value() {
         "rail input starts empty; got {before_value:?}"
     );
 
-    // ACT: set_value through the MCP tool (Focus + characters).
+    // ACT: set_value through the MCP tool (Focus + logical select-all/clear + replacement).
     let response = dispatch_request(
         &req(
             "set_value",
@@ -239,8 +239,7 @@ fn test_mcp_set_value() {
     // Focus is the egui-real action for a text input (MT-026 DEVIATION: egui has no SetValue).
     assert_eq!(response.to_json()["result"]["action"], "Focus");
 
-    // Drain the Focus action + Text payload into the harness; run a frame to focus the field, then a
-    // second frame so the typed text is committed into the widget's value.
+    // Drain only in-app raw egui events into the harness; no OS keyboard input is synthesized.
     for event in channel.drain_into_events() {
         harness.event(event);
     }
@@ -253,9 +252,87 @@ fn test_mcp_set_value() {
         after_value, "hello swarm",
         "set_value changed the TextInput value"
     );
+    assert!(harness.ctx.input(|input| {
+        !input.keys_down.contains(&egui::Key::A) && !input.keys_down.contains(&egui::Key::Backspace)
+    }));
+
+    // Move focus to a different REAL widget before replacing the non-empty value. This proves the
+    // SetValue path acquires focus itself; it does not pass merely because the TextEdit stayed focused
+    // after the seed operation.
+    let theme_node_id = accesskit::NodeId(
+        snapshot
+            .find_by_author_id(THEME_TOGGLE_AUTHOR_ID)
+            .expect("theme toggle in live snapshot")
+            .node_id,
+    );
+    harness.event(egui::Event::AccessKitActionRequest(
+        accesskit::ActionRequest {
+            action: accesskit::Action::Focus,
+            target: theme_node_id,
+            data: None,
+        },
+    ));
+    harness.run();
+    let rail_egui_id = unsafe { egui::Id::from_high_entropy_bits(rail_node_id.0) };
+    assert!(
+        !harness.ctx.memory(|memory| memory.has_focus(rail_egui_id)),
+        "rail TextEdit is genuinely unfocused before replacement"
+    );
+
+    let replacement = dispatch_request(
+        &req(
+            "set_value",
+            serde_json::json!({ "target": RAIL_INPUT_AUTHOR_ID, "value": "replacement" }),
+            "session-secret",
+        ),
+        &token,
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(replacement.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    assert_eq!(
+        harness_node_value(&harness, rail_node_id).unwrap_or_default(),
+        "replacement",
+        "set_value replaces a non-empty value instead of appending"
+    );
+    assert!(harness.ctx.input(|input| {
+        !input.keys_down.contains(&egui::Key::A) && !input.keys_down.contains(&egui::Key::Backspace)
+    }));
+
+    let clear = dispatch_request(
+        &req(
+            "set_value",
+            serde_json::json!({ "target": RAIL_INPUT_AUTHOR_ID, "value": "" }),
+            "session-secret",
+        ),
+        &token,
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(clear.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    assert_eq!(
+        harness_node_value(&harness, rail_node_id).unwrap_or_default(),
+        "",
+        "empty set_value clears the entire non-empty value"
+    );
+    assert!(harness.ctx.input(|input| {
+        !input.keys_down.contains(&egui::Key::A) && !input.keys_down.contains(&egui::Key::Backspace)
+    }));
 
     println!(
-        "PASS test_mcp_set_value: rail input value before={before_value:?} after={after_value:?} (set via set_value on '{RAIL_INPUT_AUTHOR_ID}')"
+        "PASS test_mcp_set_value: rail input value before={before_value:?}, seeded={after_value:?}, replaced, then cleared via set_value on '{RAIL_INPUT_AUTHOR_ID}'"
     );
 }
 
@@ -502,6 +579,58 @@ fn wire_runtime() -> tokio::runtime::Runtime {
         .enable_all()
         .build()
         .expect("build wire test runtime")
+}
+
+/// Discovery publication is part of successful startup. A listener that cannot publish its
+/// canonical binding must shut its accept loops down and return an error so the shell can retry.
+#[test]
+fn test_mcp_bind_fails_closed_when_binding_cannot_be_published() {
+    let tmp_root =
+        std::env::temp_dir().join(format!("hsk_mcp_binding_failure_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp_root);
+    std::fs::create_dir_all(&tmp_root).expect("create failure-test root");
+    let blocked_app_data = tmp_root.join("not-a-directory");
+    std::fs::write(
+        &blocked_app_data,
+        b"file blocks handshake directory creation",
+    )
+    .expect("create blocking file");
+
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&blocked_app_data);
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let result = wire_runtime().block_on(async {
+        let capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> =
+            Arc::new(|| {
+                Ok(handshake_native::mcp::screenshot::screenshot_from_png(
+                    b"foobar", 4, 3,
+                ))
+            });
+        SwarmMcpServer::bind(
+            SessionToken::generate(),
+            snapshot,
+            Arc::new(Mutex::new(ActionChannel::new())),
+            capture,
+        )
+        .await
+    });
+    let error = match result {
+        Ok(_) => panic!("bind must fail when discovery cannot be published"),
+        Err(error) => error,
+    };
+    assert!(
+        error.to_string().contains("binding publication failed"),
+        "unexpected fail-closed error: {error}"
+    );
+    assert!(
+        !blocked_app_data
+            .join("handshake")
+            .join(binding::BINDING_FILE_NAME)
+            .exists(),
+        "failed startup must not leave a canonical discovery artifact"
+    );
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp_root);
 }
 
 /// AC (transport): a `list_widgets` call OVER THE WIRE with the correct HMAC token returns the live

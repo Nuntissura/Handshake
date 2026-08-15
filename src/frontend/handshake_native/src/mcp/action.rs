@@ -73,10 +73,9 @@ pub enum UiAction {
     ShowContextMenu,
     /// Move keyboard focus to the widget (egui `Action::Focus`).
     Focus,
-    /// Set a text widget's value. egui 0.33 has no `SetValue` action for text inputs (see the module
-    /// docs); this resolves to a Focus action plus the `text` payload the frame loop feeds as
-    /// `egui::Event::Text` after the field is focused. The `text` is carried here so the caller has a
-    /// single typed action to dispatch.
+    /// Replace a text widget's value. egui 0.33 has no `SetValue` action for text inputs (see the
+    /// module docs); this resolves to a Focus action plus deterministic in-app select-all, clear, and
+    /// optional replacement-text events. No OS keyboard input is synthesized.
     SetValue { text: String },
     /// Scroll the widget (or its scroll container) into view (egui `Action::ScrollIntoView`).
     Scroll,
@@ -85,9 +84,8 @@ pub enum UiAction {
 }
 
 impl UiAction {
-    /// The AccessKit `Action` this UI action dispatches. `SetValue` dispatches `Focus` (then the
-    /// caller feeds text — see the module docs); `Select` maps to `Focus` (egui's row-selection
-    /// primitive).
+    /// The AccessKit `Action` this UI action dispatches. `SetValue` dispatches `Focus` before the
+    /// channel feeds logical replacement events (see the module docs); `Select` maps to `Focus`.
     pub fn accesskit_action(&self) -> accesskit::Action {
         match self {
             UiAction::Click => accesskit::Action::Click,
@@ -99,8 +97,8 @@ impl UiAction {
         }
     }
 
-    /// The text payload to feed as `egui::Event::Text` AFTER the action's request is dispatched, for
-    /// actions that carry one (`SetValue`). `None` for actions with no text payload.
+    /// The exact replacement payload the channel applies after focus + select-all + clear.
+    /// `Some("")` means clear; `None` means the action carries no text replacement.
     pub fn text_payload(&self) -> Option<&str> {
         match self {
             UiAction::SetValue { text } => Some(text.as_str()),
@@ -361,6 +359,16 @@ impl ActionChannel {
         self.receipts.clone()
     }
 
+    /// Remove one queued action by its durable receipt id. The bounded RPC timeout calls this before
+    /// releasing the terminal receipt so a mutation addressed to a viewport that has already closed
+    /// cannot occupy queue capacity or drive an idle-root repaint loop forever.
+    pub fn discard_action(&mut self, action_id: &str) -> bool {
+        let before = self.queue.len();
+        self.queue
+            .retain(|queued| queued.action_id.as_deref() != Some(action_id));
+        self.queue.len() != before
+    }
+
     /// Drain up to the live admission budget ([`Self::burst_limit`], default [`MAX_ACTIONS_PER_BURST`],
     /// lowerable from Settings > Swarm) pending actions into a list of `egui::Event`s the frame
     /// loop feeds to egui this frame. For each drained action: the `AccessKitActionRequest` event,
@@ -404,6 +412,22 @@ impl ActionChannel {
         // produce a torn budget within one frame.
         let burst_limit = self.burst_limit();
         while let Some(queued) = self.queue.pop_front() {
+            if let Some(action_id) = queued.action_id.as_deref() {
+                if self.receipts.is_terminal(action_id) {
+                    // Terminal cleanup is window-independent. A closed pop-out will never drain its
+                    // own window again, but any live viewport pass must still reclaim its queue slot.
+                    if queued.window_id == window_id {
+                        if let Some(viewport_id) = viewport_id {
+                            if matches!(&queued.action, UiAction::Click | UiAction::ShowContextMenu)
+                            {
+                                terminal_dropped_actions
+                                    .insert((viewport_id, queued.author_id.clone()));
+                            }
+                        }
+                    }
+                    continue;
+                }
+            }
             if queued.window_id != window_id || taken >= burst_limit {
                 retained.push_back(queued);
                 continue;
@@ -445,7 +469,42 @@ impl ActionChannel {
                 .events
                 .push(egui::Event::AccessKitActionRequest(queued.outcome.request));
             if let Some(text) = queued.outcome.text_payload {
-                batch.events.push(egui::Event::Text(text));
+                // `set_value` is replacement, not cursor insertion. Egui 0.33 exposes Focus for a
+                // TextInput but no AccessKit SetValue, so drive the equivalent logical edit entirely
+                // through this frame's raw egui input: focus, select all, clear, then insert the exact
+                // requested value. Clearing first makes an empty value a real clear operation and
+                // prevents a non-empty field from becoming `old + requested`.
+                batch.events.push(egui::Event::Key {
+                    key: egui::Key::A,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::COMMAND,
+                });
+                batch.events.push(egui::Event::Key {
+                    key: egui::Key::A,
+                    physical_key: None,
+                    pressed: false,
+                    repeat: false,
+                    modifiers: egui::Modifiers::COMMAND,
+                });
+                batch.events.push(egui::Event::Key {
+                    key: egui::Key::Backspace,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                batch.events.push(egui::Event::Key {
+                    key: egui::Key::Backspace,
+                    physical_key: None,
+                    pressed: false,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                if !text.is_empty() {
+                    batch.events.push(egui::Event::Text(text));
+                }
             }
             if let Some(action_id) = queued.action_id {
                 batch.action_ids.push(action_id.clone());
@@ -608,7 +667,7 @@ mod tests {
     }
 
     #[test]
-    fn drain_emits_request_then_text_and_respects_burst_cap() {
+    fn drain_emits_focus_select_all_clear_then_replacement_and_respects_burst_cap() {
         let snap = fixture_snapshot();
         let mut chan = ActionChannel::new();
         chan.enqueue(
@@ -620,11 +679,67 @@ mod tests {
         )
         .expect("enqueue set_value");
         let events = chan.drain_into_events();
-        // One AccessKitActionRequest (Focus) followed by one Text event.
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 6);
         assert!(matches!(events[0], egui::Event::AccessKitActionRequest(_)));
-        assert!(matches!(&events[1], egui::Event::Text(t) if t == "abc"));
+        assert!(matches!(
+            events[1],
+            egui::Event::Key {
+                key: egui::Key::A,
+                pressed: true,
+                modifiers: egui::Modifiers::COMMAND,
+                ..
+            }
+        ));
+        assert!(matches!(
+            events[2],
+            egui::Event::Key {
+                key: egui::Key::A,
+                pressed: false,
+                modifiers: egui::Modifiers::COMMAND,
+                ..
+            }
+        ));
+        assert!(matches!(
+            events[3],
+            egui::Event::Key {
+                key: egui::Key::Backspace,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+                ..
+            }
+        ));
+        assert!(matches!(
+            events[4],
+            egui::Event::Key {
+                key: egui::Key::Backspace,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+                ..
+            }
+        ));
+        assert!(matches!(&events[5], egui::Event::Text(t) if t == "abc"));
         assert_eq!(chan.pending(), 0, "drained");
+
+        let mut clear = ActionChannel::new();
+        clear
+            .enqueue(
+                &snap,
+                "field",
+                UiAction::SetValue {
+                    text: String::new(),
+                },
+            )
+            .expect("enqueue clear");
+        let clear_events = clear.drain_into_events();
+        assert_eq!(clear_events.len(), 5, "empty replacement emits no Text");
+        assert!(matches!(
+            clear_events[4],
+            egui::Event::Key {
+                key: egui::Key::Backspace,
+                pressed: false,
+                ..
+            }
+        ));
 
         // Burst cap: enqueue more than MAX_ACTIONS_PER_BURST clicks; one drain takes at most the cap.
         let mut chan = ActionChannel::new();
@@ -808,5 +923,32 @@ mod tests {
                 .status,
             crate::mcp::argus::ActionReceiptStatus::Applied
         );
+    }
+
+    #[test]
+    fn terminal_set_value_is_dropped_even_by_legacy_window_drain() {
+        let snap = fixture_snapshot();
+        let mut channel = ActionChannel::new();
+        let (_, receipt) = channel
+            .enqueue_argus(
+                &snap,
+                MAIN_WINDOW_ID,
+                "field",
+                UiAction::SetValue {
+                    text: "must-not-arrive".to_owned(),
+                },
+                "connection-1",
+                "agent-1",
+                7,
+            )
+            .expect("enqueue SetValue");
+        channel
+            .receipt_tracker()
+            .failed(&receipt.action_id, "receipt timed out before drain");
+
+        let batch = channel.drain_for_window(MAIN_WINDOW_ID);
+        assert!(batch.events.is_empty());
+        assert!(batch.action_ids.is_empty());
+        assert_eq!(channel.pending(), 0);
     }
 }
