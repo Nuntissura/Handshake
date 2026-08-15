@@ -22,7 +22,7 @@
   "title": "B8-MT-123-Make-Isolated-Test-Schema-Teardown-Crash-Safe-And-Reclaim-The-Leaked-Backlog",
   "group": "B-Backend",
   "created_at_utc": "2026-08-12T11:50:00Z",
-  "updated_at_utc": "2026-08-12T11:58:00Z",
+  "updated_at_utc": "2026-08-13T22:45:30.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,12 +31,14 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260813-224157",
+    "claimed_at_utc": "2026-08-13T22:45:30.000Z",
+    "parallel_coder_agent": "019ffd4c-8a78-7821-afc4-d453853d4b34",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Measured directly on 2026-08-12 while bringing the managed cluster up for MT-118 proof. The managed_pgdata directory for database handshake (oid 16384) holds 1,814,397 files / 19.1 GB, and an unclean-shutdown recovery spent over 900 seconds fsyncing it before accepting a single connection. Every PostgreSQL-backed proof in this work packet pays that startup tax, including the MT-108 capstone sweep."

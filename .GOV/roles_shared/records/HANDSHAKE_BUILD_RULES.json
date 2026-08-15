@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.9.0",
+  "version": "1.11.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-07-26T04:35:00.000Z",
+  "updated_at": "2026-08-15T00:00:00.000Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -26,28 +26,25 @@
     "note": "No HANDSHAKE_BUILD_RULES.md projection exists by default. Markdown is generated only on explicit operator request, per CX-205L, [GLOBAL-GOVARTIFACTS-001/002/003], and operator feedback feedback_no_default_md_files."
   },
   "test_environment_prerequisites": {
-    "note": "Machine-local prerequisites the WP test suites require to run. EXPAND this list as new requirements appear, and INTEGRATE it into PostgreSQL provisioning / setup tooling / CI where needed so it does not stay prose-only (operator order 2026-06-18). A required extension that is absent MUST fail loud at migration/test time, never silently degrade a capability.",
-    "postgres_extensions": [
+    "note": "Machine-local prerequisites the WP test suites require to run. Master Spec v02.205 supersedes the former PostgreSQL-extension prerequisite model. Integrate SurrealDB capabilities into Handshake-managed setup and CI; a required capability that is absent MUST fail loud at schema-rollout/test time, never silently degrade.",
+    "surrealdb_capabilities": [
       {
-        "name": "pgvector",
-        "min_version": "0.8.0",
-        "required_for": "WP-KERNEL-009 MT-264 LoomSearchV2 semantic + hybrid search (pgvector cosine HNSW kNN over 768-dim embeddings). Migration 0336 runs CREATE EXTENSION IF NOT EXISTS vector and FAILS LOUD if absent.",
-        "install_note": "NOT bundled with stock PostgreSQL. Built from source on this machine (MSVC BuildTools 2022, nmake /F Makefile.win against PGROOT) and installed as vector.dll + vector.control + vector--*.sql into C:/Program Files/PostgreSQL/16/{lib,share/extension}. Any other machine or CI runner executing the suite must provide pgvector >= 0.8.0.",
-        "added_at_utc": "2026-06-18",
-        "added_by": "OPERATOR"
+        "name": "surrealdb_vector_index_and_search",
+        "required_for": "LoomSearchV2 and knowledge semantic/hybrid search over declared embedding dimensions.",
+        "verification": "A real managed SurrealDB namespace/database creates the required vector indexes and passes measured similarity-search behavior; no pgvector extension or PostgreSQL service is installed or contacted."
       },
       {
-        "name": "pg_trgm",
-        "required_for": "WP-KERNEL-009 MT-264 fuzzy/typo/substring search (GIN trigram) and general fuzzy matching.",
-        "install_note": "Ships with PostgreSQL contrib; CREATE EXTENSION IF NOT EXISTS pg_trgm."
+        "name": "surrealdb_live_queries",
+        "required_for": "Scoped reactive updates formerly expressed through PostgreSQL LISTEN/NOTIFY.",
+        "verification": "Authenticated record-user live-query tests prove delivery, reconnect/resubscribe and cross-account denial."
       },
       {
-        "name": "pgcrypto",
-        "required_for": "Pre-existing WP requirement (crypto/UUID helpers used by tests).",
-        "install_note": "Ships with PostgreSQL contrib; CREATE EXTENSION IF NOT EXISTS pgcrypto."
+        "name": "surrealkit_rollouts",
+        "required_for": "Versioned SCHEMAFULL SurrealQL rollout, application activation, completion and rollback.",
+        "verification": "Start/activate/complete/rollback and interrupted-rollout recovery pass against a fresh managed SurrealDB."
       }
     ],
-    "expansion_directive": "When a future WP/MT introduces a new test-time prerequisite (DB extension, system library, toolchain component), add it here AND wire its ensure-present + fail-loud check into the migration/test path and any PG provisioning/setup script — do not leave the requirement implicit."
+    "expansion_directive": "When a future WP/MT introduces a new test-time prerequisite (database capability, system library, toolchain component), add it here AND wire its ensure-present + fail-loud check into the SurrealKit rollout/test path and Handshake-managed SurrealDB setup — do not leave the requirement implicit. PostgreSQL dependencies or extensions are forbidden."
   },
   "citation_kinds": {
     "codex": "rule ID in .GOV/codex/Handshake_Codex_v1.4.md (CX-*)",
@@ -136,7 +133,7 @@
       "novelty": "NEW",
       "trigger": "WP touches any resource authorization or discovery boundary",
       "applicability": {
-        "predicate_text": "WP exposes or consumes resources through PostgreSQL, storage, filesystem, resource broker, API, search, model retrieval, tool calls, previews, exports, synchronization, or UI queries",
+        "predicate_text": "WP exposes or consumes resources through SurrealDB, storage, filesystem, resource broker, API, search, model retrieval, tool calls, previews, exports, synchronization, or UI queries",
         "tags": [
           "authorization",
           "default_deny",
@@ -786,7 +783,7 @@
           "cargo_target_dir"
         ]
       },
-      "required_action": "CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped database, because divergent migration sets across worktrees fail sqlx checksum validation on a shared one.",
+      "required_action": "CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
       "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
       "citations": [
         {
@@ -1573,6 +1570,16 @@
       "version": "1.8.0",
       "at_utc": "2026-07-26T04:35:00.000Z",
       "change": "Added PRIV as the permanent Account-Bound Resource Privacy pillar with HBR-PRIV-001 through HBR-PRIV-008. Every folder, file, PostgreSQL row/namespace, project, asset, artifact, memory, model context, log, trace, index, thumbnail, cache, derivative, export, and remote object must carry stable account/Principal/AccessSpace/ResourceGrant scope; default-deny enforcement and cross-account/same-project-private negative proof are mandatory; derived outputs cannot widen source scope; audit and metadata surfaces cannot leak restricted existence; revocation/context switching is bounded; and future shared-workspace/SaaS/MCP delegation uses the same resource identity and scope model. Operator approval: ilja260720260635."
+    },
+    {
+      "version": "1.10.0",
+      "at_utc": "2026-08-15T00:00:00.000Z",
+      "change": "Aligned current build gates with Master Spec v02.204: SurrealDB is the sole product database; vector search, live queries and SurrealKit rollouts replace PostgreSQL extensions/LISTEN-NOTIFY/sqlx migration proof; privacy boundaries name SurrealDB record-user permissions plus ResourceBroker; proof databases are WP-scoped SurrealDB namespace/database pairs. Historical change entries remain unchanged."
+    },
+    {
+      "version": "1.11.0",
+      "at_utc": "2026-08-15T15:43:08.415Z",
+      "change": "Aligned current build gates with Master Spec v02.205: SurrealDB is the exclusive database authority; EventLedger persistence fully transfers to SurrealDB; PostgreSQL and SQLite provide no connectivity, import, reconciliation, fallback, fixture, cache or proof path. The current authority initializes from a clean SurrealDB genesis. Historical change entries remain unchanged."
     }
   ]
 }

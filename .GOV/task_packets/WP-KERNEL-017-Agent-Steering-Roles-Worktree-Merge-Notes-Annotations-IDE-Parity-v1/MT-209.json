@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -14,7 +23,7 @@
   "title": "AC-MT209-AnchorDriftTestSuite",
   "group": "AC Annotation core",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-209.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -27,14 +36,15 @@
   "lifecycle": {
     "status": "PENDING",
     "depends_on": [
-      "MT-204"
+      "MT-204",
+      "MT-334"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Adversarially prove the MT-204 re-anchor engine survives the full drift catalogue that breaks naive line-number anchors — edit above / inside / below the anchored region, whole-file reformat, region deletion (must ORPHAN), region move (must REANCHOR with confidence), duplicate-snippet ambiguity (must NOT mis-attach), a 10k-line re-anchor sweep within a bounded-window perf budget, and determinism on repeat runs. This is the safety net that makes 'annotations survive edits' a measured fact, not a claim.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/tests/annotation_anchor_drift_tests.rs holding the adversarial catalogue; (b) a small deterministic drift-corpus generator (in-test helper: seeded, no RNG, no fixture files on disk required); (c) a [[test]] registration in Cargo.toml. This is a TEST-ONLY MT: it exercises the REAL MT-204 engine (and MT-202 anchor construction) — NO product-code edits, NO mocks of the engine, NO storage/route dependency (the engine is I/O-free so the suite runs without PostgreSQL).\n\nSCENARIO CATALOGUE (each asserts the EXPLICIT outcome, never a silent mis-attach):\n1. EDIT-ABOVE: insert/delete lines strictly above the anchored region; expect REANCHORED with the region's text preserved and a shifted line_range (confidence high). \n2. EDIT-BELOW: change lines strictly below the region; expect REANCHORED, ideally via the stage-1 content_hash fast path (region bytes unchanged).\n3. EDIT-INSIDE: modify a few characters inside the region; expect REANCHORED via fuzzy quote/context with a confidence BELOW the exact-match case but above the floor, OR OUTDATED if below floor — assert the outcome is explicit and the confidence is reported.\n4. WHOLE-FILE REFORMAT: reflow/reindent the entire file (whitespace + wrapping) without changing the region's semantic text; expect REANCHORED via quote/context (the position map is destroyed, so this proves the multi-selector fallback earns its keep).\n5. REGION DELETION: delete the anchored region entirely; expect ORPHANED (never a mis-attach to nearby code).\n6. REGION MOVE: move the exact region to a distant part of the file; expect REANCHORED to the new location with a reported confidence (the quote/context selectors find it; the position map does not).\n7. DUPLICATE-SNIPPET AMBIGUITY: create two identical copies of the region; assert the engine either picks the unique position-hint-closest copy OR returns OUTDATED/ORPHANED — it MUST NOT mis-attach to the wrong copy (the one forbidden result).\n8. 10K-LINE SWEEP PERF: anchor into a 10 000-line synthetic file, apply an edit, and re-anchor; assert the re-anchor completes within a documented bounded-window budget (env-overridable, e.g. ANNOTATION_REANCHOR_BUDGET_MS) AND that the search was window-bounded (not O(file)) — the Hypothesis short-generic-quote perf proof.\n9. DETERMINISM: run every scenario TWICE and assert byte-identical outcomes (same variant, same confidence, same chosen candidate under ties).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read reanchor.rs (ReanchorOutcome, ReanchorConfig floor/window/ambiguity) and anchor.rs (from_live_selection / from_diff_selection, LineRange half-open) before writing.\n2. Build the seeded deterministic corpus generator (counter-based, like the MT-045 in-process synth-file approach: (0..10_000).map lines) with a helper to apply each drift transform.\n3. Author one test per scenario asserting the explicit outcome + reported confidence; include a multi-byte UTF-8 variant of the inside-edit and move cases.\n4. Add the perf-budget scenario with an env override and a bounded-window assertion; separate corpus construction (not timed) from the measured re-anchor call via Instant::now() placed AFTER setup (MT-045 CTRL-2 discipline).\n5. Add the determinism repeat-run assertion across the catalogue.\n6. Register [[test]] and run; record measured re-anchor timings; if the host is loaded, use the env budget override and record the measured value, not just PASS (MT-045 RISK-1/CTRL-1 discipline).",
+    "summary": "GOAL: Adversarially prove the MT-204 re-anchor engine survives the full drift catalogue that breaks naive line-number anchors — edit above / inside / below the anchored region, whole-file reformat, region deletion (must ORPHAN), region move (must REANCHOR with confidence), duplicate-snippet ambiguity (must NOT mis-attach), a 10k-line re-anchor sweep within a bounded-window perf budget, and determinism on repeat runs. This is the safety net that makes 'annotations survive edits' a measured fact, not a claim.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/tests/annotation_anchor_drift_tests.rs holding the adversarial catalogue; (b) a small deterministic drift-corpus generator (in-test helper: seeded, no RNG, no fixture files on disk required); (c) a [[test]] registration in Cargo.toml. This is a TEST-ONLY MT: it exercises the REAL MT-204 engine (and MT-202 anchor construction) — NO product-code edits, NO mocks of the engine, NO storage/route dependency (the engine is I/O-free so the suite runs without SurrealDB).\n\nSCENARIO CATALOGUE (each asserts the EXPLICIT outcome, never a silent mis-attach):\n1. EDIT-ABOVE: insert/delete lines strictly above the anchored region; expect REANCHORED with the region's text preserved and a shifted line_range (confidence high). \n2. EDIT-BELOW: change lines strictly below the region; expect REANCHORED, ideally via the stage-1 content_hash fast path (region bytes unchanged).\n3. EDIT-INSIDE: modify a few characters inside the region; expect REANCHORED via fuzzy quote/context with a confidence BELOW the exact-match case but above the floor, OR OUTDATED if below floor — assert the outcome is explicit and the confidence is reported.\n4. WHOLE-FILE REFORMAT: reflow/reindent the entire file (whitespace + wrapping) without changing the region's semantic text; expect REANCHORED via quote/context (the position map is destroyed, so this proves the multi-selector fallback earns its keep).\n5. REGION DELETION: delete the anchored region entirely; expect ORPHANED (never a mis-attach to nearby code).\n6. REGION MOVE: move the exact region to a distant part of the file; expect REANCHORED to the new location with a reported confidence (the quote/context selectors find it; the position map does not).\n7. DUPLICATE-SNIPPET AMBIGUITY: create two identical copies of the region; assert the engine either picks the unique position-hint-closest copy OR returns OUTDATED/ORPHANED — it MUST NOT mis-attach to the wrong copy (the one forbidden result).\n8. 10K-LINE SWEEP PERF: anchor into a 10 000-line synthetic file, apply an edit, and re-anchor; assert the re-anchor completes within a documented bounded-window budget (env-overridable, e.g. ANNOTATION_REANCHOR_BUDGET_MS) AND that the search was window-bounded (not O(file)) — the Hypothesis short-generic-quote perf proof.\n9. DETERMINISM: run every scenario TWICE and assert byte-identical outcomes (same variant, same confidence, same chosen candidate under ties).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read reanchor.rs (ReanchorOutcome, ReanchorConfig floor/window/ambiguity) and anchor.rs (from_live_selection / from_diff_selection, LineRange half-open) before writing.\n2. Build the seeded deterministic corpus generator (counter-based, like the MT-045 in-process synth-file approach: (0..10_000).map lines) with a helper to apply each drift transform.\n3. Author one test per scenario asserting the explicit outcome + reported confidence; include a multi-byte UTF-8 variant of the inside-edit and move cases.\n4. Add the perf-budget scenario with an env override and a bounded-window assertion; separate corpus construction (not timed) from the measured re-anchor call via Instant::now() placed AFTER setup (MT-045 CTRL-2 discipline).\n5. Add the determinism repeat-run assertion across the catalogue.\n6. Register [[test]] and run; record measured re-anchor timings; if the host is loaded, use the env budget override and record the measured value, not just PASS (MT-045 RISK-1/CTRL-1 discipline).",
     "allowed_paths": [
       "src/backend/handshake_core/tests/annotation_anchor_drift_tests.rs",
       "src/backend/handshake_core/Cargo.toml ([[test]] registration for annotation_anchor_drift_tests only)"
@@ -52,7 +62,7 @@
       "The 10k-line sweep completes within a documented, env-overridable bounded-window budget (ANNOTATION_REANCHOR_BUDGET_MS) and asserts the search was window-bounded, not whole-file; corpus construction is separated from the measured re-anchor call (not timed).",
       "Every scenario asserts an EXPLICIT ReanchorOutcome and its reported confidence; no scenario tolerates a silent mis-attach.",
       "Determinism: every scenario run twice yields byte-identical outcomes (variant + confidence + chosen candidate).",
-      "The suite is TEST-ONLY: no src/backend/handshake_core/src/** edit; a discovered defect is recorded as an MT-204 finding, not patched in this MT. It runs without PostgreSQL (the engine is I/O-free)."
+      "The suite is TEST-ONLY: no src/backend/handshake_core/src/** edit; a discovered defect is recorded as an MT-204 finding, not patched in this MT. It runs without SurrealDB (the engine is I/O-free)."
     ],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_anchor_drift -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
@@ -82,7 +92,7 @@
       "Separate corpus construction from the measured re-anchor (Instant::now() AFTER setup) so the budget measures only the engine, not fixture building (MT-045 RISK-2/CTRL-2). Accept an env budget override and RECORD the measured value, not just PASS (MT-045 RISK-1/CTRL-1) so a loaded host does not create a permanent red without hiding the real number.",
       "The duplicate-snippet test is the single most important case: the one outcome the engine must never produce is a confident mis-attach to the wrong identical copy. Assert unique-position-winner OR OUTDATED/ORPHANED.",
       "Whole-file reformat is the case that proves the multi-selector design over a single position selector: after a reformat the line map is worthless, and only the quote/context selectors can recover the anchor — if this passes, the Hypothesis redundancy earned its cost.",
-      "Because the MT-204 engine is I/O-free, this suite needs no PostgreSQL and no route — it is pure and fast, which is also why it can run twice for the determinism assertion cheaply."
+      "Because the MT-204 engine is I/O-free, this suite needs no SurrealDB and no route — it is pure and fast, which is also why it can run twice for the determinism assertion cheaply."
     ]
   },
   "gui_obligation": {
@@ -141,8 +151,22 @@
     "source": "Operator-verified annotation research 2026-07-21: the drift catalogue is the concrete failure set the Hypothesis fuzzy-anchoring + Gerrit/robot-comment + umputun/revdiff explicit-orphan designs exist to survive (edit above/inside/below, reformat, deletion->orphan, move->reanchor, duplicate ambiguity->no-misattach); the bounded-window perf case is the Hypothesis short-generic-quote hazard measured, not assumed. Grounding audit of wtc-native-editors-v1: the MT-204 reanchor engine (ReanchorOutcome, ReanchorConfig) and MT-202 anchor construction as the units under test; the MT-045 large-doc perf-proof discipline (.GOV WP-KERNEL-012) reused verbatim — in-process seeded synth corpus, Instant-after-setup timing separation, env budget override with recorded measured value, real-impl-no-mock.",
     "corrections": [
       "This suite tests CORRECTNESS OF TARGET, not just re-anchor success: a green 'REANCHORED' that points at the wrong duplicate is a FAILURE the suite must catch.",
-      "It is deliberately TEST-ONLY over the I/O-free engine so it needs no PostgreSQL and runs fast enough to execute twice for the determinism proof; storage/route drift behavior is covered by MT-203/MT-205 tests.",
+      "It is deliberately TEST-ONLY over the I/O-free engine so it needs no SurrealDB and runs fast enough to execute twice for the determinism proof; storage/route drift behavior is covered by MT-203/MT-205 tests.",
       "A defect surfaced here belongs to MT-204: the test-only boundary keeps the engine fix under MT-204's acceptance, preventing an unreviewed product patch from landing in a test MT."
     ]
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

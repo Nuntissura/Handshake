@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-338",
+  "title": "SD-MT338-ProductRepositoryPort-B",
+  "group": "SurrealDB authority migration",
+  "clause": "Translate process ledger, MT executor, session checkpoints, role mailbox, swarm recovery, Flight Recorder repositories and diagnostics manifests to typed SurrealDB repositories.",
+  "created_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-338.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-334"
+    ],
+    "blocks": [
+      "MT-339"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Translate process ledger, MT executor, session checkpoints, role mailbox, swarm recovery, Flight Recorder repositories and diagnostics manifests to typed SurrealDB repositories. This contract implements Master Spec v02.205. PostgreSQL, PgPool, sqlx-postgres, PostgreSQL SQL/DDL/RLS/LISTEN-NOTIFY/JSONB/pgvector and DATABASE_URL are forbidden as product-runtime authority. EventLedger semantic contracts remain authoritative but their persistence is SurrealDB-native. The current PostgreSQL database contains no valuable live information; no PostgreSQL connection, import, fallback, or proof path is allowed.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/backend/handshake_core/src/mt_executor/**",
+      "src/backend/handshake_core/src/session_checkpoint/**",
+      "src/backend/handshake_core/src/role_mailbox_v1/**",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/backend/handshake_core/src/flight_recorder/**",
+      "src/backend/handshake_core/src/diagnostics/**",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/memory/**",
+      "src/backend/handshake_core/src/self_improve/**",
+      "src/backend/handshake_core/src/distillation/**",
+      "src/backend/handshake_core/src/model_manual/**",
+      "src/backend/handshake_core/src/dependency_policy/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/spec/master-spec-v02.203/**",
+      "Any PostgreSQL write/fallback/dual-authority runtime path",
+      "SQLite authority, cache, fallback or proof paths"
+    ],
+    "acceptance_criteria": [
+      "All listed operational/governance repositories use SurrealDB-native typed queries and transactions with no direct PgPool or raw SQLx.",
+      "Lease, queue, idempotency, recovery and terminal-settlement invariants are preserved under concurrent real-runtime tests.",
+      "Every row/record carries and enforces account, Principal, session, AccessSpace and workspace scope through MT-333.",
+      "Crash recovery proves canonical SurrealDB state, not logs or UI projections, drives reconstruction."
+    ],
+    "proof_targets": [
+      "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",
+      "Run repository tripwires for PostgreSQL/sqlx/PgPool/PostgresDatabase and classify every remaining hit as historical documentation or a removal target; no connected legacy path is allowed.",
+      "Run with a scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/handshake-cargo-target/ and retain measured output outside the repo."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/backend/handshake_core/src/mt_executor/**",
+      "src/backend/handshake_core/src/session_checkpoint/**",
+      "src/backend/handshake_core/src/role_mailbox_v1/**",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/backend/handshake_core/src/flight_recorder/**",
+      "src/backend/handshake_core/src/diagnostics/**",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/memory/**",
+      "src/backend/handshake_core/src/self_improve/**",
+      "src/backend/handshake_core/src/distillation/**",
+      "src/backend/handshake_core/src/model_manual/**",
+      "src/backend/handshake_core/src/dependency_policy/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "expected_tests": [
+      "All listed operational/governance repositories use SurrealDB-native typed queries and transactions with no direct PgPool or raw SQLx.",
+      "Lease, queue, idempotency, recovery and terminal-settlement invariants are preserved under concurrent real-runtime tests.",
+      "Every row/record carries and enforces account, Principal, session, AccessSpace and workspace scope through MT-333.",
+      "Crash recovery proves canonical SurrealDB state, not logs or UI projections, drives reconstruction."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend/data migration contract; operator surfaces are consolidated in MT-345."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Storage authority > SurrealDB",
+      "Recovery and migration > SurrealDB"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "risk_if_missed": "A remaining PostgreSQL physical assumption can create a hidden second authority, false completion proof, privacy bypass, replay divergence or runtime startup dependency.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "SURREALDB_AUTHORITY_PIVOT_V1",
+    "risks": [
+      "A PostgreSQL path survives behind a feature flag, fixture, direct pool consumer or fallback.",
+      "A root/system SurrealDB session makes privacy tests pass while bypassing record permissions.",
+      "EventLedger or projection behavior changes during physical-store translation.",
+      "A hidden PostgreSQL connection, feature, fixture or proof path survives the pivot."
+    ],
+    "minimum_controls": [
+      "Compile and runtime tripwires plus exhaustive classified source inventory.",
+      "Privacy proof uses authenticated record users and ResourceBroker, never administrative credentials.",
+      "Real-runtime atomicity, replay, restart and reconciliation proofs.",
+      "Zero PostgreSQL connectivity, dependencies, runtime modes, fixtures or proof targets; fresh SurrealDB initialization is the only authority path."
+    ]
+  },
+  "research_provenance": {
+    "source": "Official SurrealDB Rust SDK, permissions/RLS, live-query and SurrealKit rollout documentation checked 2026-08-15; project product-code and completed-packet audits recorded in WP017 refinement.",
+    "selected_approach": "Handshake-managed SurrealDB, official Rust SDK, SCHEMAFULL typed records, record-user permissions plus ResourceBroker, live queries, SurrealKit rollouts, preserved EventLedger semantics.",
+    "rejected_options": [
+      "PostgreSQL fallback or dual authority",
+      "Root/system-user privacy proof",
+      "Blind textual SQL translation",
+      "Re-labeling historical PostgreSQL validation as SurrealDB proof"
+    ]
+  }
+}

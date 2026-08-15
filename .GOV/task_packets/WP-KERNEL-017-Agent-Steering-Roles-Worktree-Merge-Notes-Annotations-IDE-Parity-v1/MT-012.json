@@ -14,7 +14,7 @@
   "title": "SC-MT012-SessionHooksEngine",
   "group": "SC Session runtime core",
   "created_at_utc": "2026-07-22T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-012.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -26,13 +26,17 @@
   },
   "lifecycle": {
     "status": "PENDING",
-    "depends_on": ["MT-009", "MT-011"],
+    "depends_on": [
+      "MT-009",
+      "MT-011",
+      "MT-334"
+    ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Build Handshake Session Hooks - HANDSHAKE-OWNED, vendor-agnostic hooks on agent-session lifecycle and tool events. OPERATOR FRAMING (2026-07-22): hooks are an engine capability of the wrapper, NOT a passthrough to any vendor CLI's hook system (Claude Code hooks/CLAUDE.md conventions were research input only; --bare launches deliberately skip vendor hooks so Handshake's hooks are the single behavior layer). Operators (and later, governed automations) define hooks once and they fire identically whether the session runs on the Claude lane, Codex lane, ACP lane, or a future open-source lane.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/hooks.rs (+ storage submodule): HookDefinition { hook_id, version, hook_point, matcher (lane_kind?, role_id?, wp/mt scope?, tool_class? - all optional AND-combined), action, blocking (bool), timeout_ms, fail_mode (FailClosed|FailOpen), enabled, provenance }; PG-backed hook registry with CRUD API + HTTP routes (pattern: RO MT-081 role registry); a HookDispatcher subscribed to the SC MT-009 SessionEventBus and called synchronously at blocking hook points.\n\nHOOK POINTS (v1 catalogue): SessionStart (blocking capable - can veto launch), TurnStart, SteerDelivered, ToolCallRequested (blocking - runs BEFORE SessionToolGate policy evaluation completes, may contribute Deny; never may widen an MT-011 Deny to Allow), ToolCallCompleted, SignalReceived (hsk.mt_signal@1 arrivals), SessionEnd, MergeProposed (WM MT-145 seam). ACTIONS (v1): RunCommand (executes inside a sandbox adapter with the session's workspace scope, output captured + ledgered, hard timeout), EmitEvent (publish typed event to bus + FR), HttpCallback (POST to operator-configured local endpoint, bounded body, no external hosts by default), Decision (blocking points only: Continue | Block(reason)).\n\nSEMANTICS: blocking hooks run in registration order with a per-hook timeout; FailClosed hook timeout/error = Block at blocking points; FailOpen = Continue with a typed warning event; non-blocking hooks run async off the bus with lag protection (HBR-SWARM-002 no-silent-loss - overflow is a typed SubscriberLagged event, never a dropped hook without record). Every hook firing is ledgered (hook_id, point, decision, duration). Hooks NEVER execute with wider filesystem scope than the session's workspace; RunCommand rides the sandbox adapters.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read SC MT-009 (SessionEventBus + event types) and MT-011 (ToolGate) contracts + code; enumerate the concrete bus events backing each hook point.\n2. Define HookDefinition/HookPoint/HookAction/HookDecision types + serde + JSON schema (hsk.session_hook@1); PG migration for the registry (additive).\n3. Implement registry CRUD (Rust API + axum routes + IPC read) with ledgered mutations, versioning, enable/disable.\n4. Implement HookDispatcher: synchronous invocation path for blocking points (SessionStart, ToolCallRequested) wired into the session launch path (SC MT-007) and the MT-011 gate pipeline (hook may add Deny, never override gate Deny); async path for non-blocking points off the bus.\n5. Implement actions: RunCommand via sandbox adapter with workspace-scoped mounts + timeout + output capture; EmitEvent; HttpCallback (localhost/allowlist only by default); Decision plumbing.\n6. Recording: FR events per firing (RD MT-161 kinds), ledger rows, hook outcomes visible in the RD MT-166 audit surface join.\n7. Tests: ordering, timeout fail-closed vs fail-open, blocking veto at SessionStart and ToolCallRequested, no-widen-gate-deny invariant, async lag handling, sandbox scope containment for RunCommand.",
+    "summary": "GOAL: Build Handshake Session Hooks - HANDSHAKE-OWNED, vendor-agnostic hooks on agent-session lifecycle and tool events. OPERATOR FRAMING (2026-07-22): hooks are an engine capability of the wrapper, NOT a passthrough to any vendor CLI's hook system (Claude Code hooks/CLAUDE.md conventions were research input only; --bare launches deliberately skip vendor hooks so Handshake's hooks are the single behavior layer). Operators (and later, governed automations) define hooks once and they fire identically whether the session runs on the Claude lane, Codex lane, ACP lane, or a future open-source lane.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/hooks.rs (+ storage submodule): HookDefinition { hook_id, version, hook_point, matcher (lane_kind?, role_id?, wp/mt scope?, tool_class? - all optional AND-combined), action, blocking (bool), timeout_ms, fail_mode (FailClosed|FailOpen), enabled, provenance }; SurrealDB-backed hook registry with CRUD API + HTTP routes (pattern: RO MT-081 role registry); a HookDispatcher subscribed to the SC MT-009 SessionEventBus and called synchronously at blocking hook points.\n\nHOOK POINTS (v1 catalogue): SessionStart (blocking capable - can veto launch), TurnStart, SteerDelivered, ToolCallRequested (blocking - runs BEFORE SessionToolGate policy evaluation completes, may contribute Deny; never may widen an MT-011 Deny to Allow), ToolCallCompleted, SignalReceived (hsk.mt_signal@1 arrivals), SessionEnd, MergeProposed (WM MT-145 seam). ACTIONS (v1): RunCommand (executes inside a sandbox adapter with the session's workspace scope, output captured + ledgered, hard timeout), EmitEvent (publish typed event to bus + FR), HttpCallback (POST to operator-configured local endpoint, bounded body, no external hosts by default), Decision (blocking points only: Continue | Block(reason)).\n\nSEMANTICS: blocking hooks run in registration order with a per-hook timeout; FailClosed hook timeout/error = Block at blocking points; FailOpen = Continue with a typed warning event; non-blocking hooks run async off the bus with lag protection (HBR-SWARM-002 no-silent-loss - overflow is a typed SubscriberLagged event, never a dropped hook without record). Every hook firing is ledgered (hook_id, point, decision, duration). Hooks NEVER execute with wider filesystem scope than the session's workspace; RunCommand rides the sandbox adapters.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read SC MT-009 (SessionEventBus + event types) and MT-011 (ToolGate) contracts + code; enumerate the concrete bus events backing each hook point.\n2. Define HookDefinition/HookPoint/HookAction/HookDecision types + serde + JSON schema (hsk.session_hook@1); SurrealKit SCHEMAFULL SurrealQL rollout for the registry (additive).\n3. Implement registry CRUD (Rust API + axum routes + IPC read) with ledgered mutations, versioning, enable/disable.\n4. Implement HookDispatcher: synchronous invocation path for blocking points (SessionStart, ToolCallRequested) wired into the session launch path (SC MT-007) and the MT-011 gate pipeline (hook may add Deny, never override gate Deny); async path for non-blocking points off the bus.\n5. Implement actions: RunCommand via sandbox adapter with workspace-scoped mounts + timeout + output capture; EmitEvent; HttpCallback (localhost/allowlist only by default); Decision plumbing.\n6. Recording: FR events per firing (RD MT-161 kinds), ledger rows, hook outcomes visible in the RD MT-166 audit surface join.\n7. Tests: ordering, timeout fail-closed vs fail-open, blocking veto at SessionStart and ToolCallRequested, no-widen-gate-deny invariant, async lag handling, sandbox scope containment for RunCommand.",
     "allowed_paths": [
       "src/backend/handshake_core/src/agent_sessions/hooks.rs",
       "src/backend/handshake_core/src/agent_sessions/mod.rs",
@@ -100,8 +104,21 @@
     ],
     "not_applicable_reason": null
   },
-  "hbr_obligations": ["HBR-INT-003", "HBR-INT-009", "HBR-SWARM-001", "HBR-SWARM-002", "HBR-QUIET-001", "HBR-QUIET-003", "HBR-STOP-001", "HBR-STOP-003"],
-  "hbr_int_009_tier_obligations": ["flight_recorder", "internal_diagnostics", "palmistry"],
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics",
+    "palmistry"
+  ],
   "risk_if_missed": "Automation around sessions stays vendor-coupled (or nonexistent): behaviors like pre-launch checks, tool-call tripwires, and completion side-effects would have to be reimplemented per vendor CLI, breaking the engine-wrapper promise.",
   "handoff": {
     "coder_session": null,
@@ -130,5 +147,28 @@
   "research_provenance": {
     "source": "Operator vendor-agnostic-engine directive 2026-07-22 (hooks are Handshake capabilities, not vendor passthrough); Claude Code hooks taxonomy from the 2026-07-21 research pass as prior art (SessionStart/Stop/PreToolUse shapes) - concept only; SC MT-009 bus + MT-011 gate as the delivery seams.",
     "corrections": []
+  },
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

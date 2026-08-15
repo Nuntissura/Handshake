@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -13,9 +22,9 @@
   "mt_id": "MT-321",
   "title": "DW-MT321-BaseImageRegistryCas",
   "group": "DW Durable workspace volumes and handoff",
-  "clause": "Content-addressed read-only base rootfs images: digest-named CAS files with atomic temp+rename writes and integrity-verified reads, plus a PostgreSQL base-image registry (one row per toolchain version); bases with children are never writable",
+  "clause": "Content-addressed read-only base rootfs images: digest-named CAS files with atomic temp+rename writes and integrity-verified reads, plus a SurrealDB base-image registry (one row per toolchain version); bases with children are never writable",
   "created_at_utc": "2026-08-14T02:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-321.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -28,22 +37,28 @@
   },
   "lifecycle": {
     "status": "PENDING",
-    "depends_on": [],
-    "blocks": ["MT-322", "MT-328"],
+    "depends_on": [
+      "MT-334"
+    ],
+    "blocks": [
+      "MT-322",
+      "MT-328",
+      "MT-330"
+    ],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Create the storage foundation of the DW family: a host-side content-addressed store (CAS) for immutable blobs plus a PostgreSQL registry of read-only base rootfs images, one registered image per toolchain version. This is the Docker-image-layer analog from research P7 rebuilt Rust-native with zero Docker/containerd/OCI dependency: the OCI descriptor/manifest layout (P11) and the cacache write discipline (P12: temp-file write, fsync, atomic rename, integrity re-verification on every read, 'never gives corrupted data') are format/shape heuristics only. Base images are what MT-322's per-workspace qcow2 delta boot disks point at via backing-file chains, so the P4 rule is absolute from day one: a base image that has children is NEVER opened for write - modifying a backing file invalidates every overlay (QEMU block-driver doc cited in P4). Everything is account/Principal-scoped from the first row: the registry table carries the same five resource-scope columns as worktree_vm_bindings (migrations/0365_worktree_vm_bindings.sql lines 17-21) and registers itself in model_lane_resource_scope_registry exactly like 0365 lines 38-40.\n\nEXPECTED DIFF SHAPE: new module family src/backend/handshake_core/src/workspace_volumes/ (mod.rs, cas.rs, base_image_registry.rs, runtime_root.rs) wired into lib.rs; one new append-only migration (next free sequence number at implementation time, name pattern 03NN_base_image_registry.sql - WP-1's 0365 is the current tail on the feature branch); tests under src/backend/handshake_core/tests/. No adapter, protocol, or GUI changes in this MT.\n\nDETAILED SPEC:\n1. Digest type (cas.rs):\n   pub struct Sha256Digest([u8; 32]);\n   - Display/serde as lowercase hex with mandatory \"sha256:\" prefix (OCI descriptor digest shape, P11); FromStr rejects wrong prefix, wrong length, uppercase, non-hex. Ord + Hash derived so digests key BTreeMaps deterministically.\n2. Runtime root resolution (runtime_root.rs):\n   pub fn resolve_workspace_volumes_root() -> Result<PathBuf, WorkspaceVolumesError>\n   Resolution order: explicit config value > HANDSHAKE_RUNTIME_ROOT env (trimmed, non-empty) > platform data dir fallback. HARD GUARD: the resolved root MUST NOT be inside any git repo worktree - walk ancestors and refuse (typed error WorkspaceVolumesError::RootInsideRepoWorktree) if any ancestor contains a .git file or directory. Workspace volume bytes live under the product runtime root, never inside repo worktrees. All stored paths are RELATIVE to this root (disk-agnostic per [GLOBAL-PORTABILITY]); no drive letters, no spaces in any generated file or directory name. Layout: <root>/workspace_volumes/cas/sha256/<64-hex>, <root>/workspace_volumes/cas/tmp/<uuid>.partial.\n3. CAS store (cas.rs):\n   pub struct HostCasStore { root: PathBuf }\n   pub fn put_blob(&self, reader: impl Read) -> Result<(Sha256Digest, u64), CasError>  // stream-hash into cas/tmp/<uuid>.partial, fsync the file, atomic rename to cas/sha256/<hex>, fsync the parent directory, then set the blob file read-only\n   pub fn open_verified(&self, digest: &Sha256Digest) -> Result<VerifiedBlobReader, CasError>  // reader that hashes while streaming and returns CasError::IntegrityViolation { expected, observed } at EOF on mismatch - callers structurally cannot obtain unverified full reads\n   pub fn blob_path(&self, digest: &Sha256Digest) -> PathBuf; pub fn contains(&self, digest: &Sha256Digest) -> io::Result<bool>\n   Concurrency: two concurrent put_blob calls with identical content converge on one blob (rename onto an existing identical target is success, not error); a crash mid-put leaves only a *.partial in cas/tmp which a startup sweep of files older than a threshold removes (plain remove_file on exact paths - no recursive delete, no --force semantics anywhere). No delete API for cas/sha256/ blobs exists in this MT at all; deletion authority arrives only with MT-326's lease-fenced GC.\n4. Registry (base_image_registry.rs) + migration 03NN_base_image_registry.sql:\n   CREATE TABLE IF NOT EXISTS base_image_registry (\n       base_image_id UUID PRIMARY KEY,\n       image_digest TEXT NOT NULL CHECK (image_digest ~ '^sha256:[0-9a-f]{64}$'),\n       toolchain_id TEXT NOT NULL CHECK (length(btrim(toolchain_id)) > 0 AND toolchain_id !~ '\\s'),\n       image_format TEXT NOT NULL CHECK (image_format IN ('raw', 'qcow2')),\n       size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),\n       cas_path_rel TEXT NOT NULL CHECK (cas_path_rel !~ '\\s' AND cas_path_rel !~ '^[A-Za-z]:' AND left(cas_path_rel, 1) <> '/'),\n       read_only BOOLEAN NOT NULL DEFAULT TRUE CHECK (read_only),\n       owner_account_id UUID NOT NULL,\n       actor_principal_id UUID NOT NULL,\n       authenticated_session_id UUID NOT NULL,\n       access_space_id UUID NOT NULL,\n       workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       CONSTRAINT uq_base_image_owner_toolchain UNIQUE (owner_account_id, toolchain_id),\n       CONSTRAINT uq_base_image_owner_digest UNIQUE (owner_account_id, image_digest)\n   );\n   plus INSERT INTO model_lane_resource_scope_registry (table_name) VALUES ('base_image_registry') ON CONFLICT (table_name) DO NOTHING; (mirror of 0365 lines 38-40). Rows are immutable-by-convention: registering a new toolchain version is a new toolchain_id row; there is no UPDATE path for image_digest.\n   pub struct BaseImageRecord { base_image_id: Uuid, image_digest: Sha256Digest, toolchain_id: String, image_format: BaseImageFormat, size_bytes: i64, cas_path_rel: String, scope: StoredResourceScope, created_at: DateTime<Utc> }\n   pub struct BaseImageRegistry { pool: PgPool, access: ResourceAccessContext }  // same durable-store shape as WorktreeVmRegistry::new_durable (worktree_vm_registry.rs lines 214-225)\n   pub async fn register_base_image(&self, toolchain_id, digest, format, size_bytes) -> Result<BaseImageRecord, BaseImageError>  // insert stamped via ResourceAccessContext::write_scope / insert_columns (resource_scope.rs lines 849-852)\n   pub async fn resolve_by_toolchain(&self, toolchain_id) -> Result<Option<BaseImageRecord>, BaseImageError>  // read filtered in SQL via ResourceAccessContext::sql_predicate (resource_scope.rs line 798), rows re-authorized after deserialization via authorize_row (line 781)\n5. Never-write-to-a-base enforcement (P4):\n   - CAS blob files are chmod'd read-only after rename (best-effort on Windows host FS; the authoritative guard is the API surface).\n   - No function in workspace_volumes:: opens a cas/sha256/ path with write access; a #[test] greps the module for OpenOptions::write(true) usage against cas blob paths as a tripwire, and a runtime test asserts that put_blob of different content NEVER lands on an existing digest path.\n   - MT-322 records base->delta child edges in its binding table; the registry gains (in this MT) pub async fn has_children stub returning a typed NotYetTracked error so MT-322/MT-326 must wire it before any removal logic can compile against it.\n6. RESOURCE PRIVACY NOTE (applies to every DW MT): base images, volumes, bundles, manifests, and GC visibility are account/Principal-scoped. Rows carry the five scope columns (resource_scope.rs OWNER_ACCOUNT_COLUMN..WORKSPACE_COLUMN, lines 854-858); reads are SQL-filtered via sql_predicate (line 798); derived artifacts inherit scope through ResourceScope::derive_from_sources (lines 193-228), which REFUSES mixed-scope derivation rather than computing a widening union (HBR-PRIV-004: 'a refusal is recoverable; a silent widening is a leak').\n\nSTEP-BY-STEP:\n1. Read (post-WP-1-merge main) sandbox/cloud_hypervisor/adapter.rs config surface (CloudHypervisorConfig, lines ~394-520) and migrations/0365_worktree_vm_bindings.sql; confirm the next free migration sequence number.\n2. Implement Sha256Digest with full parse/format/serde tests.\n3. Implement runtime_root.rs with the repo-worktree rejection guard and env/config resolution order.\n4. Implement HostCasStore: put_blob (temp+fsync+rename+dir-fsync+read-only), open_verified (streaming re-hash), contains, blob_path, startup partial-sweep.\n5. Write migration 03NN_base_image_registry.sql; run it against the real development PostgreSQL.\n6. Implement BaseImageRegistry over PgPool + ResourceAccessContext with scope-stamped insert and scope-filtered reads.\n7. Tests (Spec-Realism Gate: registry tests hit real PostgreSQL via the crate's existing DB test harness; CAS tests hit the real filesystem under a scratch runtime root): atomic put, concurrent duplicate put convergence, corrupted-blob read rejection, crash-partial sweep, cross-account read denial, uq_base_image_owner_toolchain conflict surfaces as typed error, runtime-root-inside-worktree rejection.\n8. Run proof targets under the scoped CARGO_TARGET_DIR; record measured output.",
+    "summary": "GOAL: Create the storage foundation of the DW family: a host-side content-addressed store (CAS) for immutable blobs plus a SurrealDB registry of read-only base rootfs images, one registered image per toolchain version. This is the Docker-image-layer analog from research P7 rebuilt Rust-native with zero Docker/containerd/OCI dependency: the OCI descriptor/manifest layout (P11) and the cacache write discipline (P12: temp-file write, fsync, atomic rename, integrity re-verification on every read, 'never gives corrupted data') are format/shape heuristics only. Base images are what MT-322's per-workspace qcow2 delta boot disks point at via backing-file chains, so the P4 rule is absolute from day one: a base image that has children is NEVER opened for write - modifying a backing file invalidates every overlay (QEMU block-driver doc cited in P4). Everything is account/Principal-scoped from the first row: the registry table carries the same five resource-scope columns as worktree_vm_bindings (migrations/0365_worktree_vm_bindings.sql lines 17-21) and registers itself in model_lane_resource_scope_registry exactly like 0365 lines 38-40.\n\nEXPECTED DIFF SHAPE: new module family src/backend/handshake_core/src/workspace_volumes/ (mod.rs, cas.rs, base_image_registry.rs, runtime_root.rs) wired into lib.rs; one new append-only migration (next free sequence number at implementation time, name pattern 03NN_base_image_registry.surql - WP-1's 0365 is the current tail on the feature branch); tests under src/backend/handshake_core/tests/. No adapter, protocol, or GUI changes in this MT.\n\nDETAILED SPEC:\n1. Digest type (cas.rs):\n   pub struct Sha256Digest([u8; 32]);\n   - Display/serde as lowercase hex with mandatory \"sha256:\" prefix (OCI descriptor digest shape, P11); FromStr rejects wrong prefix, wrong length, uppercase, non-hex. Ord + Hash derived so digests key BTreeMaps deterministically.\n2. Runtime root resolution (runtime_root.rs):\n   pub fn resolve_workspace_volumes_root() -> Result<PathBuf, WorkspaceVolumesError>\n   Resolution order: explicit config value > HANDSHAKE_RUNTIME_ROOT env (trimmed, non-empty) > platform data dir fallback. HARD GUARD: the resolved root MUST NOT be inside any git repo worktree - walk ancestors and refuse (typed error WorkspaceVolumesError::RootInsideRepoWorktree) if any ancestor contains a .git file or directory. Workspace volume bytes live under the product runtime root, never inside repo worktrees. All stored paths are RELATIVE to this root (disk-agnostic per [GLOBAL-PORTABILITY]); no drive letters, no spaces in any generated file or directory name. Layout: <root>/workspace_volumes/cas/sha256/<64-hex>, <root>/workspace_volumes/cas/tmp/<uuid>.partial.\n3. CAS store (cas.rs):\n   pub struct HostCasStore { root: PathBuf }\n   pub fn put_blob(&self, reader: impl Read) -> Result<(Sha256Digest, u64), CasError>  // stream-hash into cas/tmp/<uuid>.partial, fsync the file, atomic rename to cas/sha256/<hex>, fsync the parent directory, then set the blob file read-only\n   pub fn open_verified(&self, digest: &Sha256Digest) -> Result<VerifiedBlobReader, CasError>  // reader that hashes while streaming and returns CasError::IntegrityViolation { expected, observed } at EOF on mismatch - callers structurally cannot obtain unverified full reads\n   pub fn blob_path(&self, digest: &Sha256Digest) -> PathBuf; pub fn contains(&self, digest: &Sha256Digest) -> io::Result<bool>\n   Concurrency + dedup (hardened 2026-08-14): two concurrent put_blob calls with identical content converge on one blob. Windows rename semantics spelled out - rename onto an existing READ-ONLY destination ERRORS on Windows, so the dedup path is an explicit dance: check-exists -> full-hash-verify the existing blob -> on verified match treat as success and discard the temp file; on hash MISMATCH (corrupt existing bytes; content-addressing makes replacement always-safe) atomically heal: clear the read-only bit, temp+rename over the corrupt file, re-mark read-only, emit a diagnostic event - this closes the poisoned-blob-forever hole. put_blob exposes a pre-return commit hook so callers (MT-324 export seam) can commit their per-digest MT-326 lease BEFORE a dedup hit is reported as success - a dedup hit must never count as success ahead of its lease commit, or the sweeper can race the export. A crash mid-put leaves only a *.partial in cas/tmp which a startup sweep of files older than a threshold removes (plain remove_file on exact paths - no recursive delete, no --force semantics anywhere). No delete API for cas/sha256/ blobs exists in this MT at all; deletion authority arrives only with MT-326's lease-fenced GC.\n4. Registry (base_image_registry.rs) + migration 03NN_base_image_registry.surql:\n   SCHEMAFULL semantic field inventory for base_image_registry (\n       base_image_id UUID PRIMARY KEY,\n       image_digest TEXT NOT NULL CHECK (image_digest ~ '^sha256:[0-9a-f]{64}$'),\n       toolchain_id TEXT NOT NULL CHECK (length(btrim(toolchain_id)) > 0 AND toolchain_id !~ '\\s'),\n       image_format TEXT NOT NULL CHECK (image_format IN ('raw', 'qcow2')),\n       size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),\n       cas_path_rel TEXT NOT NULL CHECK (cas_path_rel !~ '\\s' AND cas_path_rel !~ '^[A-Za-z]:' AND left(cas_path_rel, 1) <> '/'),\n       read_only BOOLEAN NOT NULL DEFAULT TRUE CHECK (read_only),\n       owner_account_id UUID NOT NULL,\n       actor_principal_id UUID NOT NULL,\n       authenticated_session_id UUID NOT NULL,\n       access_space_id UUID NOT NULL,\n       workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       CONSTRAINT uq_base_image_owner_toolchain UNIQUE (owner_account_id, toolchain_id),\n       CONSTRAINT uq_base_image_owner_digest UNIQUE (owner_account_id, image_digest)\n   );\n   Define authenticated record-user table/field PERMISSIONS and re-authorize through ResourceBroker exact scope; the former 0365 registry insert is an audit anchor only. Rows are immutable-by-convention: registering a new toolchain version is a new toolchain_id row; there is no UPDATE path for image_digest.\n   pub struct BaseImageRecord { base_image_id: Uuid, image_digest: Sha256Digest, toolchain_id: String, image_format: BaseImageFormat, size_bytes: i64, cas_path_rel: String, scope: StoredResourceScope, created_at: DateTime<Utc> }\n   pub struct BaseImageRegistry { pool: SurrealDbClient, access: ResourceAccessContext }  // same durable-store shape as WorktreeVmRegistry::new_durable (worktree_vm_registry.rs lines 214-225)\n   pub async fn register_base_image(&self, toolchain_id, digest, format, size_bytes) -> Result<BaseImageRecord, BaseImageError>  // insert stamped via ResourceAccessContext::write_scope / insert_columns (resource_scope.rs lines 849-852)\n   pub async fn resolve_by_toolchain(&self, toolchain_id) -> Result<Option<BaseImageRecord>, BaseImageError>  // read filtered by authenticated SurrealQL permissions via authenticated record-user SurrealQL permissions plus ResourceBroker exact-scope authorization (resource_scope.rs line 798), rows re-authorized after deserialization via authorize_row (line 781)\n5. Never-write-to-a-base enforcement (P4):\n   - CAS blob files are chmod'd read-only after rename (best-effort on Windows host FS; the authoritative guard is the API surface).\n   - No function in workspace_volumes:: opens a cas/sha256/ path with write access; a #[test] greps the module for OpenOptions::write(true) usage against cas blob paths as a tripwire, and a runtime test asserts that put_blob of different content NEVER lands on an existing digest path.\n   - MT-322 records base->delta child edges in its binding table; the registry gains (in this MT) pub async fn has_children stub returning a typed NotYetTracked error so MT-322/MT-326 must wire it before any removal logic can compile against it.\n6. RESOURCE PRIVACY NOTE (applies to every DW MT): base images, volumes, bundles, manifests, and GC visibility are account/Principal-scoped. Rows carry the five scope columns (resource_scope.rs OWNER_ACCOUNT_COLUMN..WORKSPACE_COLUMN, lines 854-858); reads are SQL-filtered via ResourceBroker authorization filter (line 798); derived artifacts inherit scope through ResourceScope::derive_from_sources (lines 193-228), which REFUSES mixed-scope derivation rather than computing a widening union (HBR-PRIV-004: 'a refusal is recoverable; a silent widening is a leak').\n\nSTEP-BY-STEP:\n1. Read (post-WP-1-merge main) sandbox/cloud_hypervisor/adapter.rs config surface (CloudHypervisorConfig, lines ~394-520) and migrations/0365_worktree_vm_bindings.sql; confirm the next free migration sequence number.\n2. Implement Sha256Digest with full parse/format/serde tests.\n3. Implement runtime_root.rs with the repo-worktree rejection guard and env/config resolution order.\n4. Implement HostCasStore: put_blob (temp+fsync+rename+dir-fsync+read-only), open_verified (streaming re-hash), contains, blob_path, startup partial-sweep.\n5. Write migration 03NN_base_image_registry.surql; run it against the real development SurrealDB.\n6. Implement BaseImageRegistry over SurrealDbClient + ResourceAccessContext with scope-stamped insert and scope-filtered reads.\n7. Tests (Spec-Realism Gate: registry tests hit real SurrealDB via the crate's existing DB test harness; CAS tests hit the real filesystem under a scratch runtime root): atomic put, concurrent duplicate put convergence, corrupted-blob read rejection, crash-partial sweep, cross-account read denial, uq_base_image_owner_toolchain conflict surfaces as typed error, runtime-root-inside-worktree rejection.\n8. Run proof targets under the scoped CARGO_TARGET_DIR; record measured output.",
     "allowed_paths": [
       "src/backend/handshake_core/src/workspace_volumes/**",
       "src/backend/handshake_core/src/lib.rs",
-      "src/backend/handshake_core/migrations/0*_base_image_registry.sql",
+      "src/backend/handshake_core/migrations/0*_base_image_registry.surql",
       "src/backend/handshake_core/tests/**",
       "src/backend/handshake_core/Cargo.toml"
     ],
     "forbidden_paths": [
-      "app/src/** (GUI belongs to MT-327)",
+      "src/frontend/handshake_native/src/** and app/src/** (GUI belongs to MT-327)",
       ".GOV/**",
       "src/backend/handshake_core/src/sandbox/cloud_hypervisor/** (disk attachment wiring belongs to MT-322)",
       "src/backend/handshake_core/src/model_runtime/warm_agent_protocol.rs (protocol changes belong to MT-323/MT-324)",
@@ -54,42 +69,44 @@
       "AC-321-2: HostCasStore::put_blob streams to cas/tmp/<uuid>.partial, fsyncs the file, atomically renames into cas/sha256/<hex>, fsyncs the parent directory, then marks the blob read-only; a live test proves no partially-written blob is ever visible under cas/sha256/.",
       "AC-321-3: Two concurrent put_blob calls with identical content converge to one blob without error; a crash-simulating test leaves only cas/tmp/*.partial which the startup sweep removes with plain remove_file (no recursive delete, no --force).",
       "AC-321-4: open_verified re-hashes on read and a live test with a deliberately corrupted blob file yields CasError::IntegrityViolation naming expected and observed digests; no API returns unverified full blob content.",
-      "AC-321-5: Migration creates base_image_registry with the five resource-scope columns, the digest/format/no-spaces/relative-path CHECK constraints, uq_base_image_owner_toolchain, uq_base_image_owner_digest, and the model_lane_resource_scope_registry registration; applied against real PostgreSQL (Spec-Realism Gate: fixture-only proof insufficient).",
-      "AC-321-6: register_base_image stamps rows through ResourceAccessContext write scope; resolve_by_toolchain filters via sql_predicate and re-authorizes rows via authorize_row; a live two-account test proves account A cannot read account B's base image row.",
+      "AC-321-5: A SurrealKit rollout defines SCHEMAFULL base_image_registry with full resource-scope fields, digest/format/no-spaces/relative-path ASSERT rules, owner/toolchain and owner/digest indexes, authenticated record-user PERMISSIONS, and real-SurrealDB proof.",
+      "AC-321-6: register_base_image stamps records through ResourceAccessContext; resolve_by_toolchain uses account-scoped SurrealQL plus record-user PERMISSIONS and re-authorizes through ResourceBroker; a live two-account test proves isolation.",
       "AC-321-7: No code path in workspace_volumes opens a registered cas/sha256/ blob for write; blob files are read-only after commit; the write-to-base tripwire test fails closed.",
       "AC-321-8: resolve_workspace_volumes_root refuses a root inside any git repo worktree with a typed error (live test), honors config > HANDSHAKE_RUNTIME_ROOT > platform-dir order, and every DB-stored path is relative with no spaces and no drive letter.",
       "AC-321-9: Zero SQLite anywhere: no rusqlite/sqlite crate appears in Cargo.toml or the lockfile diff; grep proof target passes. No Docker/containerd/OCI-registry dependency is added; OCI/cacache are shape heuristics only.",
-      "AC-321-10: All proof commands run with the per-owner scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/ and measured output is recorded; the implementer does not mark this MT COMPLETED (validator verdict authority only)."
+      "AC-321-10: All proof commands run with the per-owner scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/handshake-cargo-target/ and measured output is recorded; the implementer does not mark this MT COMPLETED (validator verdict authority only).",
+      "AC-321-11: put_blob's dedup-hit path full-hash-verifies the existing blob before reporting success and atomically heals a corrupt existing blob via clear-read-only + temp+rename + re-mark-read-only with a diagnostic event (live test with a pre-corrupted blob); the pre-return commit hook lets export leases commit before dedup success is reported (Windows rename-onto-read-only-destination error semantics handled explicitly)."
     ],
     "proof_targets": [
-      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_cas_atomic_put -- --nocapture\"",
-      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_cas_integrity_violation_on_corrupt_read -- --nocapture\"",
-      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_base_image_registry_scope_denial -- --nocapture\"",
-      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/cargo_target/handshake_core_dw} cargo test -p handshake_core dw_runtime_root_rejects_repo_worktree -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt321} cargo test -p handshake_core dw_cas_atomic_put -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt321} cargo test -p handshake_core dw_cas_integrity_violation_on_corrupt_read -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt321} cargo test -p handshake_core dw_cas_dedup_verifies_and_heals_corrupt_existing -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt321} cargo test -p handshake_core dw_base_image_registry_scope_denial -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=${HANDSHAKE_CARGO_TARGET_DIR:-../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt321} cargo test -p handshake_core dw_runtime_root_rejects_repo_worktree -- --nocapture\"",
       "bash -lc \"! grep -rInE 'rusqlite|sqlite' src/backend/handshake_core/src/workspace_volumes/ && echo NO_SQLITE\"",
       "bash -lc \"! grep -rInE '\\-\\-force' src/backend/handshake_core/src/workspace_volumes/ && echo NO_FORCE_DELETES\""
     ],
     "code_surfaces": [
       "src/backend/handshake_core/src/workspace_volumes/ (new module family: cas.rs, base_image_registry.rs, runtime_root.rs, mod.rs)",
       "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (scope-column + registry-registration pattern to mirror, lines 8-40; path lands on main after WP-1 merges)",
-      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (ResourceAccessContext sql_predicate ~798, insert_columns ~849, scope column consts ~854-858, derive_from_sources ~193-228; lands on main after WP-1 merges)"
+      "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs (ResourceAccessContext authorization semantics translated by MT-338, insert_columns ~849, scope column consts ~854-858, derive_from_sources ~193-228; lands on main after WP-1 merges)"
     ],
     "expected_tests": [
       "cas test: put_blob atomicity - no partial blob visible under cas/sha256/ at any point (observer thread)",
       "cas test: concurrent identical puts converge; distinct contents never collide onto one path",
       "cas test: corrupted blob read returns IntegrityViolation with expected/observed digests",
       "cas test: startup sweep removes stale cas/tmp/*.partial only, touches nothing under cas/sha256/",
-      "pg test: migration applies; scope columns present; model_lane_resource_scope_registry row exists",
-      "pg test: two-account scope isolation - reads filtered in SQL, re-authorized in Rust",
-      "pg test: duplicate (owner, toolchain_id) registration surfaces typed conflict error",
+      "SurrealDB test: migration applies; scope columns present; model_lane_resource_scope_registry row exists",
+      "SurrealDB test: two-account scope isolation - reads filtered by authenticated SurrealQL permissions, re-authorized in Rust",
+      "SurrealDB test: duplicate (owner, toolchain_id) registration surfaces typed conflict error",
       "root test: runtime root inside a git worktree is refused with typed error"
     ],
     "implementation_notes": [
       "Field basis: P12 (cacache/sccache/Bazel CAS: /cas/<sha256> blobs, temp+rename atomic, integrity-verified reads), P11 (OCI descriptor digest shape as JSON heuristic), P4 (never write to a base with children), P7 (Docker reference model: read-only content-addressed base layers). All heuristics only - no cacache crate requirement, no Docker/containerd/OCI dependency.",
-      "House rules: all Rust; PostgreSQL/EventLedger authority only, no SQLite; disk-agnostic relative paths with no spaces; volume/CAS bytes under the product runtime root, never inside repo worktrees; no --force deletes; implementer never marks COMPLETED.",
-      "Spec-Realism Gate: registry proofs run against real PostgreSQL through the crate's existing DB test harness; CAS proofs touch the real filesystem under a scratch runtime root. Fixture-only proof is insufficient.",
+      "House rules: all Rust; SurrealDB/EventLedger authority only, no SQLite; disk-agnostic relative paths with no spaces; volume/CAS bytes under the product runtime root, never inside repo worktrees; no --force deletes; implementer never marks COMPLETED.",
+      "Spec-Realism Gate: registry proofs run against real SurrealDB through the crate's existing DB test harness; CAS proofs touch the real filesystem under a scratch runtime root. Fixture-only proof is insufficient.",
       "Deletion authority is deliberately absent from this MT: the only path that may ever unlink a cas/sha256/ blob is MT-326's lease-fenced GC, where un-promoted digests are structurally unreachable to the sweeper.",
-      "Resource privacy: mirror WorktreeVmRegistry::new_durable's PgPool + ResourceAccessContext shape (worktree_vm_registry.rs lines 214-225); scope stamping and filtering reuse resource_scope.rs primitives verbatim - do not hand-roll WHERE clauses.",
+      "Resource privacy: mirror WorktreeVmRegistry::new_durable's SurrealDbClient + ResourceAccessContext shape (worktree_vm_registry.rs lines 214-225); scope stamping and filtering reuse resource_scope.rs primitives verbatim - do not hand-roll WHERE clauses.",
       "Windows/WSL: CAS lives on the host-visible runtime root; ext4-image creation and WSL specifics are MT-322's concern - this MT is filesystem-portable Rust only."
     ]
   },
@@ -100,7 +117,7 @@
     "trace_projection_required_when_non_ui": true,
     "surfaces": [],
     "argus_targets": [],
-    "not_applicable_reason": "Backend storage-foundation MT; the operator-facing volume/handoff surface is MT-327. CAS and registry activity is reconstructable from PostgreSQL rows and the FR events MT-327 adds."
+    "not_applicable_reason": "Backend storage-foundation MT; the operator-facing volume/handoff surface is MT-327. CAS and registry activity is reconstructable from SurrealDB rows and the FR events MT-327 adds."
   },
   "user_manual_obligation": {
     "required": true,
@@ -116,6 +133,8 @@
     "HBR-INT-001",
     "HBR-INT-009",
     "HBR-SWARM-002",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
     "HBR-PRIV-004",
     "HBR-MAN-004",
     "HBR-STOP-003"
@@ -124,7 +143,7 @@
     {
       "tier": "FLIGHT_RECORDER",
       "expected_disposition": "DEFERRED_WITH_REASON",
-      "note": "DW-family FR event kinds are introduced centrally in MT-327 (volume lifecycle/export/promotion/GC); this MT's registry writes are durable PostgreSQL rows already reconstructable without FR. Record DEFERRED-to-MT-327."
+      "note": "DW-family FR event kinds are introduced centrally in MT-327 (volume lifecycle/export/promotion/GC); this MT's registry writes are durable SurrealDB rows already reconstructable without FR. Record DEFERRED-to-MT-327."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
@@ -157,13 +176,13 @@
       "CTRL-1 (RISK-1): temp+fsync+rename+dir-fsync write path with an observer-thread test proving no partial visibility; open_verified re-hashes every read and is the only full-read API.",
       "CTRL-2 (RISK-2): read-only chmod after commit, no write-capable API over cas/sha256/, write-to-base tripwire test, and has_children seam reserved so MT-322/326 must wire child tracking before any removal logic exists.",
       "CTRL-3 (RISK-3): resolve_workspace_volumes_root walks ancestors and fails closed on any .git ancestor; live test asserts the rejection; all DB paths are root-relative.",
-      "CTRL-4 (RISK-4): inserts go through ResourceAccessContext::insert_columns, reads through sql_predicate + authorize_row; two-account denial test is a named regression."
+      "CTRL-4 (RISK-4): inserts go through ResourceAccessContext::insert_columns, reads through ResourceBroker authorization filter + authorize_row; two-account denial test is a named regression."
     ]
   },
   "research_provenance": {
-    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P4 (never write to a base with children), P7 (Docker image/volume reference model), P11 (OCI descriptor {mediaType, digest, size} shape), P12 (cacache/Bazel CAS: temp+rename atomic writes, integrity-verified reads). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): migrations/0365_worktree_vm_bindings.sql (five scope columns lines 17-21, model_lane_resource_scope_registry registration lines 38-40); swarm_orchestration/resource_scope.rs (derive_from_sources ~193-228 refuses widening per HBR-PRIV-004, sql_predicate ~798, insert_columns ~849, scope column consts ~854-858); swarm_orchestration/worktree_vm_registry.rs (new_durable PgPool+ResourceAccessContext shape ~214-225).",
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json, catalog durable_volumes_and_handoff, patterns P4 (never write to a base with children), P7 (Docker image/volume reference model), P11 (OCI descriptor {mediaType, digest, size} shape), P12 (cacache/Bazel CAS: temp+rename atomic writes, integrity-verified reads). Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (paths land on main after WP-1 merges; frozen candidate df463aa6): migrations/0365_worktree_vm_bindings.sql (five scope columns lines 17-21, model_lane_resource_scope_registry registration lines 38-40); swarm_orchestration/resource_scope.rs (derive_from_sources ~193-228 refuses widening per HBR-PRIV-004, authorization semantics translated by MT-338, insert_columns ~849, scope column consts ~854-858); swarm_orchestration/worktree_vm_registry.rs (new_durable SurrealDbClient+ResourceAccessContext shape ~214-225).",
     "corrections": [
-      "Operator constraints baked in: all Rust; no Docker/containerd/K8s dependencies (OCI/cacache are shape heuristics only); PostgreSQL/EventLedger authority, no SQLite; no --force deletes; GC deletion authority deferred entirely to MT-326's lease-fenced design.",
+      "Operator constraints baked in: all Rust; no Docker/containerd/K8s dependencies (OCI/cacache are shape heuristics only); SurrealDB/EventLedger authority, no SQLite; no --force deletes; GC deletion authority deferred entirely to MT-326's lease-fenced design.",
       "Implementation gate: this contract is authored during the WP-1 IV validation freeze; the cited code anchors are on the WP-1 feature branch, not yet on main."
     ]
   },
@@ -172,5 +191,45 @@
     "operator_directive": "2026-08-14 operator-directed scope addition: durable workspace volumes and content-addressed product handoff pipeline",
     "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
     "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  },
+  "hardening_pass_2026_08_14": [
+    {
+      "finding": "CAS-RACES",
+      "fix": "put_blob dedup-hit now full-hash-verifies the existing blob, atomically heals corrupt bytes via temp+rename with a diagnostic event, and exposes a pre-return commit hook so MT-326 export leases commit before dedup success is reported; AC-321-11 + dw_cas_dedup_verifies_and_heals_corrupt_existing proof added."
+    },
+    {
+      "finding": "F19-WINDOWS-RENAME",
+      "fix": "Windows rename-onto-existing semantics spelled out: check-exists + verify-hash + treat-as-success dance; rename onto read-only destination errors on Windows, heal path clears/restores the read-only bit."
+    },
+    {
+      "finding": "CARGO-PATH",
+      "fix": "Proof CARGO_TARGET_DIR moved to ../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt321 with env override retained."
+    },
+    {
+      "finding": "HBR-PRIV",
+      "fix": "hbr_obligations harmonized to include HBR-PRIV-001 and HBR-PRIV-002 alongside HBR-PRIV-004."
+    },
+    {
+      "finding": "GUI-TREE",
+      "fix": "forbidden_paths GUI pointer corrected from app/src/** alone to src/frontend/handshake_native/src/** and app/src/**."
+    },
+    {
+      "finding": "NEW-MT-330",
+      "fix": "blocks gains MT-330 (base image builder depends on this MT's CAS + registry)."
+    }
+  ],
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

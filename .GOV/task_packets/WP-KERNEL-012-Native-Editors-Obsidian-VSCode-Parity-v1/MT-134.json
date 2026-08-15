@@ -19,10 +19,10 @@
   },
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-134",
-  "title": "E12-MT-134-Wire-The-MT-028-Lease-Registry-Into-The-Widget-Mutation-Path-It-Was-Built-For",
+  "title": "E12-MT-134-Align-The-Widget-Lease-Wait-With-The-ActionChannel-In-Flight-Window",
   "group": "E12-Swarm",
   "created_at_utc": "2026-08-13T12:20:00Z",
-  "updated_at_utc": "2026-08-13T17:50:00Z",
+  "updated_at_utc": "2026-08-14T01:43:03.758Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-134.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,23 +31,26 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "scope": {
-    "summary": "src/frontend/handshake_native/src/mcp/leases.rs implements a complete 468-line LeaseRegistry - waiting acquisition, per-acquire timeout backstop, and deadlock-free ordered multi-key acquisition - and it has ZERO call sites anywhere outside its own file. The widget-mutation RPC path never acquires a lease. Instead ActionChannel::enqueue fails fast with ActionError::TargetBusy, which tools.rs:314 maps to ERR_LEASE_TIMEOUT (-32004). The substrate was built and never connected.",
+    "summary": "The LeaseRegistry is already wired into the widget-mutation RPC path, but its exclusive guard ends after dispatch while ActionChannel keeps the same target busy until post-render acknowledgement. A later agent can therefore acquire the registry lease and immediately receive ActionError::TargetBusy from the still-busy channel. Align the two serialization windows by retaining the per-target registry guard while boundedly retrying only the channel's typed TargetBusy response above the ActionChannel borrow; release the channel mutex before every await and preserve ActionChannel as the terminal-lifetime authority.",
     "evidence": {
-      "zero_call_sites": "grep for acquire_all / .acquire( across src/frontend/handshake_native/src excluding leases.rs returns NOTHING. The registry is dead code by wiring, not by design.",
-      "what_happens_instead": "action.rs:1077-1093 scans queue + in_flight for a conflicting lease and returns Err(ActionError::TargetBusy) IMMEDIATELY. There is no wait and no deadline.",
+      "registry_call_sites": "mcp/session.rs routes click_widget and set_value through DispatchPlan::ExclusiveWrite and calls LeaseRegistry::try_acquire on the synchronous path and LeaseRegistry::acquire_async on the shared async server path.",
+      "window_mismatch": "The registry guard is released when dispatch returns, while ActionChannel::enqueue scans queue plus in_flight and returns ActionError::TargetBusy until post-render acknowledgement. The second serialization window outlives the first.",
       "the_failing_proof": "test_swarm_concurrency::test_swarm_concurrency_n5. Its own comment states the contract: \"Under a generous timeout the lease only WAITS; every mutation must enqueue.\" All five agents target shell.chrome.theme-toggle / the rail input concurrently, and agents 0, 1 and 2 each got {\"code\":-32004,\"message\":\"widget 'shell.chrome.theme-toggle' already has an unacknowledged mutation\"} on action 0. The test asserts queued == true.",
-      "the_registry_already_does_the_right_thing": "leases.rs documents waiting acquisition (:157-158, :21), the timeout as a SECONDARY backstop rather than the primary mechanism (:38-39), and acquire_all sorting keys so the classic ABBA deadlock is eliminated by construction (:35-37). None of that is reachable today."
+      "the_registry_already_does_the_right_thing": "leases.rs provides waiting acquisition and a timeout backstop. The missing behavior is a bounded wait for the longer-lived ActionChannel transaction after the registry lease has been acquired."
     },
     "the_constraint_that_makes_this_architectural": {
       "why_a_retry_loop_inside_dispatch_request_CANNOT_work": "dispatch_request (tools.rs:344-350) is SYNCHRONOUS and holds `channel: &mut ActionChannel` for its whole body. Waiting there would block while holding the exclusive borrow the frame loop needs in order to drain the queue and RELEASE the very lease being waited on. It would not merely be slow - it would deadlock.",
-      "where_the_wait_must_live": "Above the channel borrow, at the async server layer that owns the channel lock (mcp/server.rs), so the lock is RELEASED between attempts and the frame loop can make progress. Any implementer who tries the obvious in-dispatch retry first will lose a cycle to this; it is recorded so they do not.",
-      "second_design_question": "A lease guard must live until the action TERMINALIZES (applied / rejected / indeterminate), not until enqueue returns - otherwise a second agent acquires while the first action is still in flight and the torn-state guarantee is gone. Decide explicitly whether the guard is carried on the pending action record and dropped at acknowledgement, or whether the existing queue+in_flight scan stays the authority and the registry only provides the WAIT. The second is much smaller and may be sufficient; state which was chosen and why."
+      "where_the_wait_must_live": "In McpSession::dispatch_shared_async, above each short ActionChannel mutex borrow. Each retry attempt may resolve and enqueue while holding the mutex, but the mutex must be dropped before the async delay so the frame loop can acknowledge the prior action.",
+      "guard_lifetime_decision": "Keep ActionChannel queue plus in_flight state as the authority from successful enqueue through terminal acknowledgement. Hold the registry guard across bounded TargetBusy retries only until the new action enqueues or the single request deadline expires. This forms a gap-free handoff: while retrying the registry guard excludes another session; enqueue records the new channel transaction while the channel mutex is held; after enqueue the channel transaction already excludes the target before the registry guard drops. Carrying a registry guard inside pending/in_flight records would duplicate ActionChannel's established terminal-lifetime authority and couple the async lease registry to render acknowledgement without adding exclusion."
     },
     "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
       "src/frontend/handshake_native/src/mcp/server.rs",
+      "src/frontend/handshake_native/src/mcp/session.rs",
       "src/frontend/handshake_native/src/mcp/tools.rs",
       "src/frontend/handshake_native/src/mcp/action.rs",
       "src/frontend/handshake_native/src/mcp/leases.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
       "src/frontend/handshake_native/tests/**"
     ],
     "forbidden_paths": [
@@ -56,18 +59,19 @@
       "app/src/**"
     ],
     "acceptance_criteria": {
-      "AC-134-1": "A mutating RPC whose target is busy WAITS for the lease instead of returning -32004 immediately, up to a documented deadline. The wait must not hold the ActionChannel borrow.",
+      "AC-134-1": "After winning the per-widget registry lease, a mutating RPC that encounters ActionChannel::TargetBusy waits and retries instead of returning -32004 immediately. Registry acquisition plus channel-busy retries share one documented request deadline, and no ActionChannel mutex guard or borrow is held across an await.",
       "AC-134-2": "test_swarm_concurrency::test_swarm_concurrency_n5 passes: five concurrent agents, every mutation enqueued, no torn state, each response carrying its own agent_id.",
-      "AC-134-3": "The timeout still FIRES. Prove it RED: hold a lease past the deadline and show -32004 is still returned. A wait that can never time out is a hang, not a fix.",
-      "AC-134-4": "No lock is held across an await, and no ordering exists by which two multi-key operations can deadlock. If acquire_all is used, its ordered-acquisition property must be preserved rather than re-implemented at the call site.",
-      "AC-134-5": "The guard lifetime decision from scope.the_constraint_that_makes_this_architectural.second_design_question is recorded in this contract with its rationale before implementation starts."
+      "AC-134-3": "The single request deadline still fires for both registry contention and a channel transaction that remains busy. Prove both paths return typed -32004 within the configured bound; a wait that can never time out is a hang, not a fix.",
+      "AC-134-4": "No ActionChannel mutex guard or borrow is held across an await. The change remains per-resource: two agents targeting different widgets do not wait on each other's registry lease, and no new multi-key ordering is introduced.",
+      "AC-134-5": "The guard lifetime decision is recorded in scope.the_constraint_that_makes_this_architectural.guard_lifetime_decision and the implementation preserves that gap-free registry-to-channel handoff.",
+      "AC-134-6": "The in-product UserManual states that same-widget mutations wait until the current post-render acknowledgement completes, may return typed -32004 at the bounded deadline, and different-widget mutations remain independently leased."
     },
     "proof_targets": {
       "PT-134-1": "test_swarm_concurrency green at n5.",
-      "PT-134-2": "The AC-134-3 RED run showing the deadline still returns -32004.",
+      "PT-134-2": "Focused RED-path tests show both a held registry lease and a persistently busy ActionChannel return typed -32004 within the configured single request deadline.",
       "PT-134-3": "A concurrency proof that two agents targeting DIFFERENT widgets never block each other - otherwise the fix has serialized the whole surface instead of per-resource leasing."
     },
-    "risk_if_missed": "HBR-SWARM parallel steering does not work under contention. Any two agents touching the same widget lose actions with a bare -32004, and the operator-facing symptom is a swarm that silently drops work. The registry that would fix it already exists and is inert.",
+    "risk_if_missed": "HBR-SWARM parallel steering does not work under contention. Same-widget agents lose actions during the registry-to-channel lifetime gap even though both serialization mechanisms individually work.",
     "CORRECTION_2026_08_13": {
       "schema_id": "hsk.mt_scope_correction@1",
       "recorded_at_utc": "2026-08-13T17:50:00Z",
@@ -81,21 +85,51 @@
       },
       "what_this_MT_should_actually_decide": "Whether the exclusive lease should be HELD until the action terminalizes (aligning the two windows, so the wait covers the period that actually blocks), or whether the channel TargetBusy should itself become a bounded wait. The first is a lifetime change to the guard; the second changes fail-fast semantics inside the channel. Either way the earlier framing - \"wire up an unwired registry\" - is not the work.",
       "what_survives_from_the_original_filing": "The deadlock CONSTRAINT still holds and is still the trap: dispatch_request (tools.rs:344-350) is synchronous and holds &mut ActionChannel for its whole body, so a wait placed there blocks the frame loop that would release what is being waited on. Any fix that lengthens a hold must not lengthen it across that borrow.",
-      "status_note": "The acceptance criteria below were written against the wrong premise and must be re-authored before implementation. AC-134-1 in particular asks to make a busy mutation \"WAIT instead of returning -32004 immediately\", which is already true at the lease layer and false only at the channel layer."
+      "status_note": "SUPERSEDED by RESCOPE_2026_08_13 after operator granted scope expansion; the canonical scope summary, evidence, design decision, acceptance criteria, proof targets, and allowed paths above are now re-authored against the verified two-window mechanism."
+    },
+    "RESCOPE_2026_08_13": {
+      "schema_id": "hsk.mt_scope_rescope@1",
+      "recorded_at_utc": "2026-08-13T22:44:53.692Z",
+      "rescoping_session": "KERNEL_BUILDER-20260813-224157",
+      "operator_authority": "Scope expansion explicitly granted in the live 2026-08-14 objective for all rescope MTs.",
+      "selected_approach": "Bounded TargetBusy retry in McpSession::dispatch_shared_async while retaining the per-target registry guard and dropping the ActionChannel mutex before every await.",
+      "rejected_approach": "Attaching LeaseGuard to ActionChannel pending/in_flight records was rejected because ActionChannel already owns terminal-lifetime exclusion; duplicating that ownership would couple rendering acknowledgement to the registry without closing an additional race.",
+      "deadline_contract": "Registry acquisition and channel-busy retry consume one request deadline derived from McpSession::lease_timeout.",
+      "proof_contract": "n5 same-widget success, registry-timeout -32004, channel-busy-timeout -32004, different-widget independence, and UserManual self-consistency.",
+      "publication_handoff_scope_expansion": {
+        "recorded_at_utc": "2026-08-14T01:33:45.747Z",
+        "operator_authority": "Scope expansion explicitly granted in the live 2026-08-14 objective for all rescope MTs.",
+        "added_allowed_path": "src/frontend/handshake_native/src/app.rs",
+        "reason": "Gap-free snapshot-to-channel serialization requires the production post-render publisher to hold the snapshot lock while acknowledging ActionChannel transactions and publishing that same tree. Without this path, a waiter can observe target-free channel state against the pre-render snapshot."
+      }
     }
   },
   "lifecycle": {
-    "status": "NEEDS_RESCOPE_PREMISE_CORRECTED",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260813-224157",
+    "claimed_at_utc": "2026-08-13T22:44:53.692Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260813-224157",
+    "ready_for_validation_at_utc": "2026-08-14T01:43:03.758Z",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Isolated while clearing MT-108 AC-108-3. test_swarm_concurrency was UNROUTED in the MT-127 table; root-caused to the MT-028 lease registry having zero call sites. Not fixed inline because the wait cannot live where the failure surfaces - dispatch_request holds &mut ActionChannel, so waiting there deadlocks against the frame loop that would release the lease. That is a design decision, not a patch. CORRECTED 2026-08-13: the premise was wrong. The registry IS wired via try_acquire in session.rs; the original investigation grepped only for acquire_all / .acquire( and treated that negative as proof of absence. See scope.CORRECTION_2026_08_13 for what is actually true."
+    "creation_reason": "Isolated while clearing MT-108 AC-108-3. test_swarm_concurrency was UNROUTED in the MT-127 table; root-caused to the MT-028 lease registry having zero call sites. Not fixed inline because the wait cannot live where the failure surfaces - dispatch_request holds &mut ActionChannel, so waiting there deadlocks against the frame loop that would release the lease. That is a design decision, not a patch. CORRECTED 2026-08-13: the premise was wrong. The registry IS wired via try_acquire in session.rs; the original investigation grepped only for acquire_all / .acquire( and treated that negative as proof of absence. See scope.CORRECTION_2026_08_13 for what is actually true.",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260813-224157",
+      "implemented_at_utc": "2026-08-14T01:43:03.758Z",
+      "result": "The async mutation path retains the per-target registry guard while retrying only provenance-tagged ActionChannel TargetBusy responses. Snapshot and channel acquisition are nonblocking, ordered snapshot-to-channel, and share one absolute deadline. The post-render publisher acknowledges and publishes under the same ordered critical section, closing stale-tree enqueue.",
+      "runtime_proof": "test_swarm_concurrency: 11 passed / 0 failed. n5 completed all 100 mutations with five distinct attributed agents and zero lease leaks; three additional isolated repetitions completed in 7.07s, 6.68s, and 6.48s, followed by a full-suite n5 at 6.89s. Held registry, held snapshot, held channel, persistent TargetBusy, combined registry-to-channel deadline, fresh disabled target, and different-widget paths all passed.",
+      "supporting_proof": "mcp::session::tests 5/5; mcp::tools::tests 15/15; UserManual suite 41/41; aarch64-pc-windows-msvc cargo check exit 0; product and governance git diff --check exit 0.",
+      "adversarial_review": "Final independent adversarial review PASS with no actionable MT-134 blocker after two prior FAIL reviews drove stale-snapshot, bounded-lock, deadline-falsifier, timing-stability, and canonical-scope remediations.",
+      "ready_checklist": "KB_READY_CHECKLIST_RECEIPT emitted PASS with zero blockers.",
+      "validation_boundary": "Implementation handoff only. validator_verdict remains null and completed_by remains null; only the integration validator may complete MT-134."
+    }
   },
   "hbr_obligations": {
     "SWARM": "This IS the HBR-SWARM contention path. Attribution must survive: each response keeps its own agent_id.",

@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -14,7 +23,7 @@
   "title": "MM-MT106-ModelToModelPolicy",
   "group": "MM Model-to-model orchestration",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-106.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -28,17 +37,20 @@
     "status": "PENDING",
     "active": false,
     "depends_on": [
-      "MT-101"
+      "MT-081",
+      "MT-101",
+      "MT-103",
+      "MT-334"
     ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: The deny-by-default policy layer for model-to-model orchestration: WHICH parent roles/sessions may spawn WHICH lanes/roles, per-parent concurrent-children cap, per-parent budget ceiling, allowed workspace modes, and steer/interrupt capability flags. Policy rows are versioned and ledgered; the operator has an override surface (config + API). MT-101 defines the evaluator trait (co-designed); this MT ships the real config-backed, PG-versioned implementation that MT-101 (spawn) and MT-102 (steer/interrupt) handlers evaluate.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/m2m_policy/ (mod.rs + rules.rs + store.rs + evaluator.rs); one new numbered migration pair for `m2m_policy_rules` (versioned rows) and `m2m_policy_decisions` is NOT a table (decisions go to the process_ledger like every other action); config schema additions under `model_to_model.policy.*`; an operator-facing HTTP API surface (list/get/put rules) following the existing handshake_core API router conventions; registration of the evaluator into the MT-101 model_tools registry at startup. Tests.\n\nDETAILED SPEC:\n1. Rule shape (rules.rs): `M2mPolicyRule { rule_id, version, parent_selector (role_id | session_id | any), child_role_selector (role_id | any), allowed_lanes: [lane ids validated against ModelLaneStore], allowed_workspace_modes: [worktree|worktree_vm|none], max_concurrent_children: u32, budget_ceiling { max_child_tokens?, max_child_cost?, max_child_wall_secs? }, may_steer: bool, may_interrupt: bool, orphan_on_parent_termination_allowed: bool, enabled: bool, created_by, created_at_utc }`. Selectors resolve against the MT-081/MT-086 role registry.\n2. Deny-by-default: evaluation with zero matching enabled rules = DENY. Rule matching is most-specific-wins (session > role > any); ties broken by newest version; a matching rule with enabled=false is an explicit deny that shadows broader allows.\n3. Versioning + ledgering: rules are immutable rows — every change inserts a new version, never updates in place; the store answers `rules_as_of(timestamp)` so any past decision is re-derivable. Every rule change writes a process_ledger row (who, what changed, old/new version). Every EVALUATION (allow and deny) is ledgered by the calling handler with the rule_id+version that decided it (MT-101/102 obligation, restated here).\n4. Evaluator (evaluator.rs): implements the MT-101 trait: `evaluate_spawn(parent_ctx, SpawnWorkerInput) -> PolicyDecision`, `evaluate_steer(parent_ctx, child_ctx, kind: steer|interrupt) -> PolicyDecision`. PolicyDecision carries decision, rule_id, version, denial reason enum (NoMatchingRule, RoleNotAllowed, LaneNotAllowed, WorkspaceModeNotAllowed, ConcurrentChildrenCapReached, BudgetCeilingExceeded, SteerNotAllowed, InterruptNotAllowed, RuleDisabled). Concurrent-children counting reads MT-103 live lineage.\n5. Operator override surface: (a) config file layer — `model_to_model.policy.rules` seeds baseline rules at startup (seed = insert-if-absent by rule_id, versioned like any change); (b) HTTP API — GET /m2m/policy/rules, GET /m2m/policy/rules/{rule_id}, PUT /m2m/policy/rules/{rule_id} (inserts new version); API is operator-plane only (same auth posture as other operator config APIs), NEVER exposed as a model tool. A kill switch `model_to_model.policy.global_disable` forces DENY for all model-initiated spawn/steer instantly.\n6. Budget ceiling semantics: the ceiling CLAMPS requested budgets in MT-101 (grant = min(request, ceiling)); ConcurrentChildrenCapReached is evaluated against live children count at spawn time; the policy cap is per-parent and sits UNDER the coordinator's global semaphore/lifetime caps — policy can only narrow, never widen, coordinator enforcement.\n\nSECURITY FRAME (binding): this is the authorization brain of the privilege-escalation surface. No model-facing write path to rules may exist; the evaluator fails CLOSED (store error => DENY, ledgered); policy narrows but never bypasses SwarmCoordinator caps/ceilings/leases/consent gates.\n\nSTEP-BY-STEP:\n1. Read the MT-101 evaluator trait, MT-103 lineage queries, model_lane.rs lane ids, role registry seam (MT-081/086), existing API router + migration conventions.\n2. Author migration for m2m_policy_rules (immutable versioned rows, indexes on selectors + enabled).\n3. Implement rules.rs types + matching (most-specific-wins, explicit-deny shadowing) and store.rs (insert-new-version, rules_as_of, seed-from-config).\n4. Implement evaluator.rs with fail-closed store-error handling and live concurrent-children counting.\n5. Implement the operator HTTP API (list/get/put) + global_disable kill switch.\n6. Register evaluator at startup; tests per expected_tests.",
+    "summary": "GOAL: The deny-by-default policy layer for model-to-model orchestration: WHICH parent roles/sessions may spawn WHICH lanes/roles, per-parent concurrent-children cap, per-parent budget ceiling, allowed workspace modes, and steer/interrupt capability flags. Policy rows are versioned and ledgered; the operator has an override surface (config + API). MT-101 defines the evaluator trait (co-designed); this MT ships the real config-backed, SurrealDB-versioned implementation that MT-101 (spawn) and MT-102 (steer/interrupt) handlers evaluate.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/m2m_policy/ (mod.rs + rules.rs + store.rs + evaluator.rs); one new numbered SurrealKit SCHEMAFULL SurrealQL rollout for `m2m_policy_rules` (versioned rows) and `m2m_policy_decisions` is NOT a table (decisions go to the process_ledger like every other action); config schema additions under `model_to_model.policy.*`; an operator-facing HTTP API surface (list/get/put rules) following the existing handshake_core API router conventions; registration of the evaluator into the MT-101 model_tools registry at startup. Tests.\n\nDETAILED SPEC:\n1. Rule shape (rules.rs): `M2mPolicyRule { rule_id, version, parent_selector (role_id | session_id | any), child_role_selector (role_id | any), allowed_lanes: [lane ids validated against ModelLaneStore], allowed_workspace_modes: [worktree|worktree_vm|none], max_concurrent_children: u32, budget_ceiling { max_child_tokens?, max_child_cost?, max_child_wall_secs? }, may_steer: bool, may_interrupt: bool, orphan_on_parent_termination_allowed: bool, enabled: bool, created_by, created_at_utc }`. Selectors resolve against MT-081 role-registry data; MT-086 is a downstream role-assignment consumer of this policy.\n2. Deny-by-default: evaluation with zero matching enabled rules = DENY. Rule matching is most-specific-wins (session > role > any); ties broken by newest version; a matching rule with enabled=false is an explicit deny that shadows broader allows.\n3. Versioning + ledgering: rules are immutable rows — every change inserts a new version, never updates in place; the store answers `rules_as_of(timestamp)` so any past decision is re-derivable. Every rule change writes a process_ledger row (who, what changed, old/new version). Every EVALUATION (allow and deny) is ledgered by the calling handler with the rule_id+version that decided it (MT-101/102 obligation, restated here).\n4. Evaluator (evaluator.rs): implements the MT-101 trait: `evaluate_spawn(parent_ctx, SpawnWorkerInput) -> PolicyDecision`, `evaluate_steer(parent_ctx, child_ctx, kind: steer|interrupt) -> PolicyDecision`. PolicyDecision carries decision, rule_id, version, denial reason enum (NoMatchingRule, RoleNotAllowed, LaneNotAllowed, WorkspaceModeNotAllowed, ConcurrentChildrenCapReached, BudgetCeilingExceeded, SteerNotAllowed, InterruptNotAllowed, RuleDisabled). Concurrent-children counting reads MT-103 live lineage.\n5. Operator override surface: (a) config file layer — `model_to_model.policy.rules` seeds baseline rules at startup (seed = insert-if-absent by rule_id, versioned like any change); (b) HTTP API — GET /m2m/policy/rules, GET /m2m/policy/rules/{rule_id}, PUT /m2m/policy/rules/{rule_id} (inserts new version); API is operator-plane only (same auth posture as other operator config APIs), NEVER exposed as a model tool. A kill switch `model_to_model.policy.global_disable` forces DENY for all model-initiated spawn/steer instantly.\n6. Budget ceiling semantics: the ceiling CLAMPS requested budgets in MT-101 (grant = min(request, ceiling)); ConcurrentChildrenCapReached is evaluated against live children count at spawn time; the policy cap is per-parent and sits UNDER the coordinator's global semaphore/lifetime caps — policy can only narrow, never widen, coordinator enforcement.\n\nSECURITY FRAME (binding): this is the authorization brain of the privilege-escalation surface. No model-facing write path to rules may exist; the evaluator fails CLOSED (store error => DENY, ledgered); policy narrows but never bypasses SwarmCoordinator caps/ceilings/leases/consent gates.\n\nSTEP-BY-STEP:\n1. Read the MT-101 evaluator trait, MT-103 lineage queries, model_lane.rs lane ids, MT-081 role-registry seam, existing API router + migration conventions.\n2. Author the SurrealKit SurrealQL rollout for m2m_policy_rules (immutable versioned rows, indexes on selectors + enabled).\n3. Implement rules.rs types + matching (most-specific-wins, explicit-deny shadowing) and store.rs (insert-new-version, rules_as_of, seed-from-config).\n4. Implement evaluator.rs with fail-closed store-error handling and live concurrent-children counting.\n5. Implement the operator HTTP API (list/get/put) + global_disable kill switch.\n6. Register evaluator at startup; tests per expected_tests.",
     "allowed_paths": [
       "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/**",
       "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
-      "src/backend/handshake_core/migrations/** (next free numeric prefix only; paired .down.sql)",
+      "src/backend/handshake_core/migrations/** (next free numeric SurrealKit SurrealQL rollout only)",
       "src/backend/handshake_core/src/api/** (operator policy routes only, following existing router conventions)",
       "src/backend/handshake_core/tests/m2m_policy/**"
     ],
@@ -49,7 +61,7 @@
       "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (policy narrows under coordinator caps; coordinator is untouched)"
     ],
     "acceptance_criteria": [
-      "m2m_policy_rules migration (up+down) green on managed PostgreSQL; rows are immutable versions (no UPDATE path in the store).",
+      "m2m_policy_rules migration (up+down) green on managed SurrealDB; rows are immutable versions (no UPDATE path in the store).",
       "Deny-by-default proven: zero matching rules => DENY(NoMatchingRule); disabled matching rule shadows broader allows.",
       "Most-specific-wins matching (session > role > any, newest version tiebreak) covered by unit tests across the selector matrix.",
       "Evaluator enforces: role/lane/workspace-mode allowlists, per-parent concurrent-children cap (counted from MT-103 live lineage), budget ceiling clamp, may_steer/may_interrupt flags — each with a typed denial reason.",
@@ -70,14 +82,14 @@
       "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/rules.rs (new)",
       "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/store.rs (new)",
       "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/evaluator.rs (new)",
-      "src/backend/handshake_core/migrations/<next>_m2m_policy_rules.sql (+ .down.sql) (new)",
+      "src/backend/handshake_core/migrations/<next>_m2m_policy_rules.surql (new SurrealKit rollout)",
       "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (reference: lane id validation)",
       "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (reference: live children count)"
     ],
     "expected_tests": [
       "unit: selector matrix (session/role/any x allow/deny/disabled) most-specific-wins outcomes",
       "unit: budget clamp math and each typed denial reason",
-      "integration (managed PG): versioned insert, rules_as_of reproduction, seed-from-config idempotency",
+      "integration (managed SurrealDB): versioned insert, rules_as_of reproduction, seed-from-config idempotency",
       "integration: evaluator wired into MT-101 spawn handler — allowed spawn passes, each denial reason reachable",
       "fault: store error => DENY ledgered",
       "negative: model tool channel does not expose policy read/write; kill switch forces DENY"
@@ -85,10 +97,10 @@
     "implementation_notes": [
       "Policy decisions are ledger rows, not a decisions table: reuse the process_ledger like every other governed action to keep one audit spine.",
       "Seeding from config must be idempotent and versioned so a config edit + restart produces exactly one new version per changed rule, not duplicates.",
-      "Selector resolution against the role registry (MT-081/086) should tolerate unknown role ids in rules with a typed validation warning at load (rule inert until the role exists) rather than crashing startup.",
+      "Selector resolution against the MT-081 role registry should tolerate unknown role ids in rules with a typed validation warning at load (rule inert until the role exists) rather than crashing startup.",
       "The layering statement matters for audits: coordinator caps are the hard outer wall (unchangeable by policy); m2m policy is the narrower inner wall an operator tunes.",
       "Operator GUI for policy editing is future work (the API is the contract surface); MT-107 GUI shows decisions, not rule editing.",
-      "Cross-family seams (reference only): MT-081/086 role registry, MT-101/102 evaluation call sites, MT-103 lineage counting."
+      "Cross-family seams: MT-081 role registry and MT-103 lineage are prerequisites; MT-101/102 are evaluation call sites; MT-086 is a downstream role-assignment consumer."
     ]
   },
   "gui_obligation": {
@@ -143,5 +155,19 @@
   "research_provenance": {
     "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: model_lane.rs (lane ids, ModelLaneAuthority/RoutingPolicy precedent for policy enums), mcp/gate.rs (deny-by-default gate decision precedent: evaluate_kernel_tool_gate_decision), migrations/ conventions, process_ledger/ (single audit spine). External precedent: RBAC most-specific-wins with explicit-deny (cloud IAM conventions), immutable versioned policy rows (policy-as-data audit practice), kill-switch pattern for agent authorization layers.",
     "corrections": []
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

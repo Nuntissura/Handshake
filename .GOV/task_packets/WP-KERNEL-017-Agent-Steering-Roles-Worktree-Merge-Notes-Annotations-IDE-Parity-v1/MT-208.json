@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -14,7 +23,7 @@
   "title": "AC-MT208-AnnotationSeamProof",
   "group": "AC Annotation core",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-208.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -33,14 +42,15 @@
       "MT-204",
       "MT-205",
       "MT-206",
-      "MT-207"
+      "MT-207",
+      "MT-334"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Prove the annotation core is a REUSABLE SEAM, not a leaf of the editors: the whole family compiles and its full test set passes with ZERO inbound imports from the rich_editor / code_editor / notes modules, the dependency direction is ENFORCED (by a test or a cargo-deny rule, not just convention), a minimal test-only seam consumer demonstrates Studio/Stage-style adoption by importing only the public annotation API, and the public API is documented. This is the closeout gate that makes the earlier 'seam law' grep pre-checks a hard, permanent guard.\n\nEXPECTED DIFF SHAPE: (a) a dependency-direction enforcement artifact — EITHER a compile/test-time guard (tests/annotation_seam_guard.rs that fails if annotations/ or storage/annotations.rs imports editor/notes modules) OR a cargo-deny / cargo-machete-style rule (deny.toml or the incumbent architecture-lint mechanism, e.g. the [package.metadata.handshake.*_isolation] pattern already in Cargo.toml) — pick the mechanism the repo already uses for direction enforcement and cite it; (b) a minimal test-only seam consumer (tests/annotation_seam_consumer.rs) that constructs, anchors, persists, lists, re-anchors, and reads annotations using ONLY the public annotations API (no editor/notes types), standing in for a future Studio/Stage adopter; (c) public API rustdoc on the annotations module (mod.rs) enumerating the seam's exported surface and the seam law; (d) the [[test]] registrations. NO product behavior change; NO edits to MT-201..207 logic beyond additive `pub` exposure needed for the public surface.\n\nDETAILED SPEC:\n1. Dependency-direction proof: the annotations core (src/backend/handshake_core/src/annotations/** + storage/annotations.rs + api/annotations.rs boundary) may import std, serde, uuid, chrono, sha2/hex, similar, the chosen fuzzy crate, thiserror, sqlx (storage layer only), axum (api layer only), and the mcp gate types (tool layer only). It may NOT import from rich_editor, code_editor, notes, knowledge_document, loom, or atelier. Enforce this as a hard guard: a test that scans the module's `use` graph OR a cargo-deny [[bans]]/architecture rule OR the incumbent [package.metadata.handshake.*_isolation] source-glob mechanism (Cargo.toml already carries an inspector_read_isolation block of this exact shape — reuse that mechanism). The guard FAILS the build/test if a forbidden inbound edge appears.\n2. Full-family compile + test: `cargo build -p handshake_core` and the annotation test set (annotation_record, annotation_anchor, annotation_reanchor, annotation_store, annotation_routes, annotation_tools, annotation_fix_apply) all pass; record the aggregate PASS.\n3. Seam consumer example: tests/annotation_seam_consumer.rs exercises a full lifecycle (create operator + model annotation, anchor from supplied text, persist, list with a filter, re-anchor after an edit, apply-fix plan) importing ONLY `handshake_core::annotations::*` (and the store trait) — demonstrating a Studio/Stage surface can adopt the core with no editor dependency. It must compile and pass against managed PostgreSQL (or record a typed NEEDS_MANAGED_RESOURCE_PROOF for the persistence half while the pure half still runs).\n4. Public API docs: mod.rs rustdoc lists the exported types/traits/functions that constitute the seam (Annotation, AnnotationAnchor, ReanchorOutcome, AnnotationStore, the tool entrypoints, the fix-apply planner) and states the seam law + the dependency-direction rule; `cargo doc` builds without warnings for the module.\n5. Direction, not just absence: the guard proves annotations does not depend on the editors (outbound clean) AND documents that the editors/Studio/Stage depend on annotations (inbound adoption) — the reuse direction the whole family exists to establish.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read Cargo.toml [package.metadata.handshake.inspector_read_isolation] (the incumbent source-glob isolation mechanism) and any existing deny.toml / architecture-lint test to choose the enforcement mechanism the repo already uses.\n2. Implement the dependency-direction guard with that mechanism over the annotation source globs.\n3. Add any additive `pub` exposure MT-201..207 need for a clean public surface (no logic change).\n4. Write tests/annotation_seam_consumer.rs using only the public API.\n5. Write the mod.rs public-API rustdoc + seam law.\n6. Register [[test]] blocks; run the full annotation suite + the guard; record aggregate PASS or typed blockers.",
+    "summary": "GOAL: Prove the annotation core is a REUSABLE SEAM, not a leaf of the editors: the whole family compiles and its full test set passes with ZERO inbound imports from the rich_editor / code_editor / notes modules, the dependency direction is ENFORCED (by a test or a cargo-deny rule, not just convention), a minimal test-only seam consumer demonstrates Studio/Stage-style adoption by importing only the public annotation API, and the public API is documented. This is the closeout gate that makes the earlier 'seam law' grep pre-checks a hard, permanent guard.\n\nEXPECTED DIFF SHAPE: (a) a dependency-direction enforcement artifact — EITHER a compile/test-time guard (tests/annotation_seam_guard.rs that fails if annotations/ or storage/annotations.rs imports editor/notes modules) OR a cargo-deny / cargo-machete-style rule (deny.toml or the incumbent architecture-lint mechanism, e.g. the [package.metadata.handshake.*_isolation] pattern already in Cargo.toml) — pick the mechanism the repo already uses for direction enforcement and cite it; (b) a minimal test-only seam consumer (tests/annotation_seam_consumer.rs) that constructs, anchors, persists, lists, re-anchors, and reads annotations using ONLY the public annotations API (no editor/notes types), standing in for a future Studio/Stage adopter; (c) public API rustdoc on the annotations module (mod.rs) enumerating the seam's exported surface and the seam law; (d) the [[test]] registrations. NO product behavior change; NO edits to MT-201..207 logic beyond additive `pub` exposure needed for the public surface.\n\nDETAILED SPEC:\n1. Dependency-direction proof: the annotations core (src/backend/handshake_core/src/annotations/** + storage/annotations.rs + api/annotations.rs boundary) may import std, serde, uuid, chrono, sha2/hex, similar, the chosen fuzzy crate, thiserror, official SurrealDB Rust SDK (storage layer only), axum (api layer only), and the mcp gate types (tool layer only). It may NOT import from rich_editor, code_editor, notes, knowledge_document, loom, or atelier. Enforce this as a hard guard: a test that scans the module's `use` graph OR a cargo-deny [[bans]]/architecture rule OR the incumbent [package.metadata.handshake.*_isolation] source-glob mechanism (Cargo.toml already carries an inspector_read_isolation block of this exact shape — reuse that mechanism). The guard FAILS the build/test if a forbidden inbound edge appears.\n2. Full-family compile + test: `cargo build -p handshake_core` and the annotation test set (annotation_record, annotation_anchor, annotation_reanchor, annotation_store, annotation_routes, annotation_tools, annotation_fix_apply) all pass; record the aggregate PASS.\n3. Seam consumer example: tests/annotation_seam_consumer.rs exercises a full lifecycle (create operator + model annotation, anchor from supplied text, persist, list with a filter, re-anchor after an edit, apply-fix plan) importing ONLY `handshake_core::annotations::*` (and the store trait) — demonstrating a Studio/Stage surface can adopt the core with no editor dependency. It must compile and pass against managed SurrealDB (or record a typed NEEDS_MANAGED_RESOURCE_PROOF for the persistence half while the pure half still runs).\n4. Public API docs: mod.rs rustdoc lists the exported types/traits/functions that constitute the seam (Annotation, AnnotationAnchor, ReanchorOutcome, AnnotationStore, the tool entrypoints, the fix-apply planner) and states the seam law + the dependency-direction rule; `cargo doc` builds without warnings for the module.\n5. Direction, not just absence: the guard proves annotations does not depend on the editors (outbound clean) AND documents that the editors/Studio/Stage depend on annotations (inbound adoption) — the reuse direction the whole family exists to establish.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read Cargo.toml [package.metadata.handshake.inspector_read_isolation] (the incumbent source-glob isolation mechanism) and any existing deny.toml / architecture-lint test to choose the enforcement mechanism the repo already uses.\n2. Implement the dependency-direction guard with that mechanism over the annotation source globs.\n3. Add any additive `pub` exposure MT-201..207 need for a clean public surface (no logic change).\n4. Write tests/annotation_seam_consumer.rs using only the public API.\n5. Write the mod.rs public-API rustdoc + seam law.\n6. Register [[test]] blocks; run the full annotation suite + the guard; record aggregate PASS or typed blockers.",
     "allowed_paths": [
       "src/backend/handshake_core/tests/annotation_seam_guard.rs (dependency-direction guard, if the test-based mechanism is chosen)",
       "src/backend/handshake_core/tests/annotation_seam_consumer.rs (minimal Studio/Stage-style adopter)",
@@ -58,7 +68,7 @@
     "acceptance_criteria": [
       "A hard dependency-direction guard exists (a test that scans the use-graph, a cargo-deny rule, OR the incumbent [package.metadata.handshake.*_isolation] source-glob mechanism) that FAILS the build/test if the annotation core imports rich_editor/code_editor/notes/knowledge_document/loom/atelier — the seam law is enforced, not merely grep-checked.",
       "cargo build -p handshake_core succeeds and the full annotation test set (annotation_record, annotation_anchor, annotation_reanchor, annotation_store, annotation_routes, annotation_tools, annotation_fix_apply) passes; the aggregate result is recorded.",
-      "tests/annotation_seam_consumer.rs exercises a full annotation lifecycle importing ONLY the public annotations API (no editor/notes types) and compiles + passes (persistence half against managed PostgreSQL or a typed NEEDS_MANAGED_RESOURCE_PROOF), demonstrating Studio/Stage-style adoption.",
+      "tests/annotation_seam_consumer.rs exercises a full annotation lifecycle importing ONLY the public annotations API (no editor/notes types) and compiles + passes (persistence half against managed SurrealDB or a typed NEEDS_MANAGED_RESOURCE_PROOF), demonstrating Studio/Stage-style adoption.",
       "The annotations mod.rs carries public-API rustdoc enumerating the exported seam surface and stating the seam law + dependency-direction rule; cargo doc builds the module without warnings.",
       "Any `pub` changes to MT-201..207 modules are additive exposure only — no behavior change (grep/diff-provable).",
       "The guard demonstrably fails when a forbidden inbound edge is introduced (a negative check: temporarily adding a use of a code_editor type makes the guard red), proving it is a real gate, not a no-op.",
@@ -138,7 +148,7 @@
       "CTRL-1 (RISK-1): guard_fails_on_injected_forbidden_edge temporarily introduces a code_editor use and asserts the guard goes red, then removes it — proving the gate is real; the guard runs in the test/build, not as a manual grep.",
       "CTRL-2 (RISK-2): The seam consumer imports ONLY `handshake_core::annotations::*` + the store trait and no editor/notes path; public_surface_is_sufficient_no_private_reach asserts the lifecycle compiles with only public items.",
       "CTRL-3 (RISK-3): The guard scans the transitive use-graph of the annotation source globs (or the isolation mechanism covers transitive edges), not just direct imports; a note documents the transitive coverage.",
-      "CTRL-4 (RISK-4): The seam consumer's persistence lifecycle runs against managed PostgreSQL or records a typed NEEDS_MANAGED_RESOURCE_PROOF — never a silent skip or mock presented as adoption.",
+      "CTRL-4 (RISK-4): The seam consumer's persistence lifecycle runs against managed SurrealDB or records a typed NEEDS_MANAGED_RESOURCE_PROOF — never a silent skip or mock presented as adoption.",
       "CTRL-5 (RISK-5): `pub` changes are additive exposure of already-validated entrypoints only; a diff/grep proof shows no new raw constructor bypassing MT-201 validation and no behavior change."
     ]
   },
@@ -149,5 +159,19 @@
       "Adoption is proven by an executing seam consumer over the PUBLIC API, not by assertion; a consumer that reaches private types would falsely pass.",
       "Prefer the incumbent [package.metadata.handshake.*_isolation] / architecture-lint mechanism over introducing cargo-deny unless cargo-deny is already wired into the repo's checks."
     ]
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

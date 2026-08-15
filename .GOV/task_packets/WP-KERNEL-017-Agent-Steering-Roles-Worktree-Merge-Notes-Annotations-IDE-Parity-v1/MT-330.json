@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "The pre-pivot PostgreSQL base-image registry/DDL/proof design in MT-321/322.",
+    "implementation_rule": "Base-image registry and build receipts use MT-331..334 SurrealDB boundaries and record-user privacy; no PostgreSQL fallback or proof.",
+    "postgresql_data_migration": "NOT_REQUIRED: no valuable live information exists in PostgreSQL; no connection, import, fallback or proof path is allowed."
+  },
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-330",
+  "title": "DW-MT330-DeterministicBaseImageBuilder",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Build reproducible, content-addressed, read-only microVM base images and register them in SurrealDB.",
+  "created_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-330.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-321",
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "blocks": [
+      "MT-322",
+      "MT-329"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Create a Rust-owned base-image builder from pinned, content-addressed inputs and a declared toolchain manifest. Normalize timestamps/order/ownership, build raw or qcow2 output under the external runtime root, hash and verify the final image, commit it to MT-321 CAS as read-only, and atomically register toolchain, digest, size, format, dependency/SBOM and build receipt records in SurrealDB. A failed or nondeterministic build never becomes selectable.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "runtime downloads without pinned digests",
+      "Docker/containerd/Kubernetes dependency",
+      "SurrealDB/SQLite authority"
+    ],
+    "acceptance_criteria": [
+      "Two clean builds from the same manifest produce the same digest or a typed nondeterminism failure with a file-level difference report.",
+      "Every dependency is pinned and recorded; offline rebuild succeeds from the managed content-addressed acquisition cache.",
+      "Image is verified, read-only and registered in SurrealDB only after full success; partial outputs remain unreachable and are safely swept.",
+      "MT-322 can resolve the registered toolchain and create a delta without ever opening the base for write."
+    ],
+    "proof_targets": [
+      "Two independent deterministic builds and digest comparison.",
+      "Offline rebuild and corrupt-input rejection.",
+      "Authenticated SurrealDB registry reread and cross-account denial."
+    ],
+    "code_surfaces": [
+      "workspace_volumes base-image builder and CAS",
+      "SurrealDB base-image registry",
+      "managed dependency/SBOM acquisition"
+    ],
+    "expected_tests": [
+      "deterministic double build",
+      "pinned input mismatch",
+      "crash before registry commit",
+      "read-only base consumption"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend builder; MT-327/345 own operator surfaces."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes > Building base images"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "risk_if_missed": "Mutable or nondeterministic base images invalidate child overlays, prevent reproducible agent workspaces and corrupt provenance.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DURABLE_WORKSPACE_V1",
+    "risks": [
+      "unpinned input changes image",
+      "partial image becomes selectable",
+      "base is later mutated",
+      "registry scope leaks image inventory"
+    ],
+    "minimum_controls": [
+      "content-addressed pinned inputs and double-build proof",
+      "commit registry last",
+      "read-only CAS/API tripwire",
+      "record-user plus ResourceBroker denial test"
+    ]
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
+  }
+}

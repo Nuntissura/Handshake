@@ -1,0 +1,157 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL/PgPool/sqlx/SQL-DDL/RLS/JSONB proof or implementation assumption in the pre-pivot DW design.",
+    "implementation_rule": "Durable workspace records, leases, snapshots and recovery state use MT-331..334 SurrealDB boundaries; privacy proof uses MT-333 record-user context plus ResourceBroker.",
+    "postgresql_data_migration": "NOT_REQUIRED: no valuable live information exists in PostgreSQL; no connection, import, fallback or proof path is allowed."
+  },
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-329",
+  "title": "DW-MT329-CrashRecoveryAndReattachProof",
+  "group": "DW Durable workspace volumes and handoff",
+  "clause": "Prove crash-safe durable-volume recovery, workspace reattachment and no-loss handoff against canonical SurrealDB state.",
+  "created_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-329.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-322",
+      "MT-323",
+      "MT-324",
+      "MT-325",
+      "MT-326",
+      "MT-327",
+      "MT-328",
+      "MT-334"
+    ],
+    "blocks": [
+      "MT-346"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Run the DW family recovery matrix: graceful close, VMM kill, guest crash, host-process crash, interrupted export, interrupted promotion and restart. Reattach the exact named durable volume from SurrealDB registry/lease state, verify filesystem and CAS hashes, resume incomplete exports idempotently, and prove unpromoted work is never swept. VM snapshots are resume accelerators only; durable volume bytes plus SurrealDB/EventLedger state are authority.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_volumes/**",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "SurrealDB/SQLite authority or fallback",
+      "force-delete or unscoped recursive cleanup"
+    ],
+    "acceptance_criteria": [
+      "Each failure point is injected live and recovery is driven from SurrealDB canonical rows plus verified filesystem/CAS state.",
+      "Unpromoted leased work survives every crash and GC cycle; promotion is idempotent and never duplicates EventLedger receipts.",
+      "Cross-account reattach is denied by record permissions and ResourceBroker.",
+      "A clean restart reattaches the correct volume/worktree/VM identity and reproduces the last committed state hash."
+    ],
+    "proof_targets": [
+      "Focused real-runtime DW crash/restart matrix with scoped external artifacts and CARGO_TARGET_DIR.",
+      "SurrealDB canonical reread of registry, lease, promotion and EventLedger heads after each recovery."
+    ],
+    "code_surfaces": [
+      "workspace_volumes recovery/reconcile modules",
+      "CloudHypervisor workspace attachment seam",
+      "SurrealDB volume/lease registries"
+    ],
+    "expected_tests": [
+      "graceful close and reattach",
+      "kill during guest flush/export/promotion",
+      "GC while export lease held",
+      "two-account reattach denial"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "workspace recovery and reattach state"
+    ],
+    "argus_targets": [
+      "recoverable, recovering, recovered and blocked states"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Workspace volumes > Crash recovery and reattach"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "risk_if_missed": "A workspace can appear durable while crashes orphan, leak or garbage-collect unpromoted operator work.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DURABLE_WORKSPACE_V1",
+    "risks": [
+      "registry says attached while bytes are stale",
+      "GC races an interrupted export",
+      "snapshot is mistaken for data authority",
+      "cross-account reattach leaks work"
+    ],
+    "minimum_controls": [
+      "canonical SurrealDB reread plus hash verification",
+      "lease-fenced GC with second reachability check",
+      "volume bytes and EventLedger remain authority",
+      "record-user plus ResourceBroker denial proof"
+    ]
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
+  }
+}

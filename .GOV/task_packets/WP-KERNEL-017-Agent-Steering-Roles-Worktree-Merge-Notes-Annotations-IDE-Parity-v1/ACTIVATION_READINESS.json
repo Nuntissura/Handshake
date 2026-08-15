@@ -1,20 +1,20 @@
 {
  "schema_id": "hsk.activation_readiness@1",
  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
- "generated_at_utc": "2026-07-22T00:00:00Z",
- "state_source": "RECOMPUTED_FROM_STUB_REFINEMENT_MT_CONTRACTS",
- "verdict": "PREP_COMPLETE_AWAITING_UPSTREAM_MERGES",
+ "generated_at_utc": "2026-08-15T00:00:00Z",
+ "state_source": "RECOMPUTED_FROM_STUB_REFINEMENT_139_MT_CONTRACTS_SURREALDB_EXPANSION",
+ "verdict": "PAPERWORK_REPAIRED_NOT_READY_FOR_ACTIVATION",
  "ready_for_downstream_launch": "NO",
- "ready_for_downstream_launch_reason": "Operator decision 2026-07-21: WP-KERNEL-017 activates ONLY after WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1, WP-CKC-posekit-overhaul, and WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 are validated and merged. This session prepared stub + research + refinement + full MT set. Next-session activation completes: re-check MT grounding against post-merge main, resolve open contract points (OCP-017-001..006), author + merge the spec enrichment (GLOBAL-BUILD-083), obtain USER_SIGNATURE, promote stub -> official packet (just create-task-packet), move Task Board entry from STUB, create worktree + feat branch, launch implementation.",
- "user_signature": null,
+ "ready_for_downstream_launch_reason": "NO. The operator-directed 2026-08-15 SurrealDB expansion is incorporated in Master Spec v02.205, the WP017 refinement/stub and MT-331..346, and USER_SIGNATURE ilja150820261604 now covers the full preserved-plus-expanded scope. Activation gates remain: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1, WP-CKC-posekit-overhaul and WP-KERNEL-012 must be validated and merged; the packet must be re-grounded, current HBR obligations recomputed, packet/index inconsistencies resolved, the official packet promoted, scheduling/traceability synchronized and the implementation worktree created before launch.",
+ "user_signature": "ilja150820261604",
  "prepared_artifacts": {
   "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
   "refinement": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json",
   "microtask_contracts": {
-   "count": 105,
-   "id_range": "MT-001..MT-290 (contiguous within domain ranges; headroom left below each domain ceiling)",
-   "gui_mt_count": 24,
-   "argus_mt_count": 24,
+   "count": 139,
+   "id_range": "MT-001..MT-346 across declared domain ranges; gaps are reserved family headroom",
+   "gui_mt_count": 29,
+   "argus_mt_count": 29,
    "index": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/_MT_INDEX.json",
    "domains": {
     "session_runtime_core": "MT-001..014 (14)",
@@ -30,24 +30,39 @@
     "notes_annotation_ui": "MT-221..226 (6)",
     "native_prose_diff": "MT-241..245 (5)",
     "ts_notes_editor_removal": "MT-261..264 (4)",
-    "ide_parity_gap_closure": "MT-281..290 (10)"
+    "ide_parity_gap_closure": "MT-281..290 (10)",
+    "vm_workspace_fleet_reconciler": "MT-301..308 (8)",
+    "durable_workspace_volumes_and_handoff": "MT-321..330 (10)",
+    "surrealdb_authority_migration": "MT-331..346 (16)"
    },
-   "validation_state_2026_07_22": "All 105 contracts parse; unique mt_ids; filenames match; schema/wp_id/lifecycle invariants hold; scope.summary/allowed_paths/acceptance_criteria/proof_targets non-empty; HBR ids within HANDSHAKE_BUILD_RULES vocabulary; red_team >=3 risks+controls per MT; all intra-WP depends_on references resolve."
+   "validation_state_2026_08_15": "All 139 contracts and the rebuilt index parse with unique mt_ids. MT-329 and MT-330 close the previously declared-but-missing durable-workspace range. Database-affected WP017 MTs are patched to v02.205 SurrealDB while database-neutral MTs remain unchanged; MT-331..346 cover implementation/remediation/proof. Historical completed WPs/MTs were audited only and not rewritten. DAG/schema/current-grounding validation is still an activation gate and no validator verdict is claimed here."
   }
  },
  "known_blockers_and_gates": [
+  "OPERATOR-HOLD: operator decision 2026-08-14 keeps this WP unactivated; the 2026-08-15 SurrealDB scope expansion is incorporated but does not waive activation prerequisites.",
+  "SURREALDB-PIVOT: Master Spec v02.205 and MT-331..346 require SurrealDB-exclusive runtime authority. Database-affected WP017 MTs are patched to SurrealDB; database-neutral MTs are preserved. Activation must verify no PostgreSQL physical instruction or proof path remains executable.",
   "UPSTREAM: WP-1 / WP-CKC-posekit / WP-KERNEL-012 validation + merge (operator-ordered activation precondition).",
-  "TR-GATE-RED: TS-editor removal gate (MT-261) currently RED - WP-KERNEL-012 MT-045 perf evidence failing as of 2026-07-22; MT-262/263 unstartable until GREEN.",
-  "DIAG-DEFERRED: internal_diagnostics/Palmistry tier wiring types DEFERRED until WP-KERNEL-015 ships (RD MT-164 manifest records posture).",
-  "SPEC-ENRICHMENT-PENDING: master-spec sections for this WP authored+merged at activation (refinement OCP-017-006).",
-  "GROUNDING-RECHECK: all contracts grounded against wtc worktrees as of 2026-07-21/22; re-verify cited anchors against post-merge main at activation."
+  "UPSTREAM-STATUS-RECONCILIATION: operator reports WP-CKC-posekit work finished and waiting on the other two WPs, while current machine-readable packet/runtime/Task Board projections still show IN_PROGRESS; reconcile canonical terminal validation and merge evidence before activation.",
+    "CURRENT-AUTHORITY-REFRESH: the July MT set was authored against HANDSHAKE_BUILD_RULES v1.5.0; recompute all obligations against current v1.11.0, including exclusive SurrealDB capability/privacy proof, PRIV, SWARM-005/006, MAN-004, Windows-safe commands, scoped CARGO_TARGET_DIR, and the single external artifact root.",
+  "DESIGN-OCP: resolve transport-neutral core schema OCP-017-007 and Rust-only/product-governance-boundary OCP-017-008 before coder launch; MT-001 and MT-261 are not launch-authoritative until repaired.",
+  "TR-GATE-RECHECK: re-read current WP-KERNEL-012 parity/performance proof and all other MT-261 removal predicates after upstream merge; July 2026 RED state is historical, not current proof.",
+  "DIAG-OWNERSHIP-RECHECK: re-resolve current HBR-INT-009 internal_diagnostics/Palmistry ownership and availability during post-merge grounding; the July WP-KERNEL-015 assumption is not activation proof.",
+    "SPEC-ENRICHMENT-REGROUNDING: Master Spec v02.205 now carries the exclusive SurrealDB enrichment; activation must verify those anchors remain current after upstream merges rather than authoring a second enrichment.",
+  "SCHEDULING-TRACEABILITY-PENDING: WP-KERNEL-017 remains a Task Board STUB and has no Build Order or WP traceability-registry row; USER_SIGNATURE is satisfied, but create/synchronize those surfaces only during activation after the remaining scope and readiness gates are satisfied.",
+  "GROUNDING-RECHECK: all contracts carry initial wtc-worktree grounding dated 2026-07-21/22; re-verify every cited path, type, API, migration, route, test, and acceptance seam against post-merge main at activation.",
+  "RESEARCH-REFRESH: the two external research passes are dated 2026-07-21; refresh current official CLI/app-server/ACP/library contracts and record the selected/rejected approach before implementation."
  ],
  "activation_steps": [
+  "verify_master_spec_v02_205_surrealdb_bundle_and_pointer",
+  "verify_mt_331_through_346_and_packet_wide_surrealdb_supersession",
+  "reconcile_canonical_upstream_status_and_terminal_merge_evidence",
   "verify_upstream_wps_validated_and_merged",
+  "refresh_current_external_research_and_record_basis",
   "recheck_mt_grounding_against_post_merge_main",
-  "resolve_open_contract_points_OCP-017-001..006",
-  "author_and_merge_spec_enrichment",
-  "obtain_user_signature",
+  "resolve_open_contract_points_OCP-017-001..009",
+  "recompute_current_HBR_privacy_manual_and_proof_obligations_for_every_MT",
+    "verify_v02_205_spec_enrichment_against_post_merge_main",
+  "run_current_contract_schema_dependency_DAG_and_activation_readiness_validators",
   "create_official_work_packet_contract (just create-task-packet)",
   "move_task_board_entry_from_stub_to_ready_for_dev",
   "create_worktree_and_feature_branch",

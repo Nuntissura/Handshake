@@ -14,7 +14,7 @@
   "title": "SC-MT013-SessionScheduling",
   "group": "SC Session runtime core",
   "created_at_utc": "2026-07-22T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-013.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -26,13 +26,18 @@
   },
   "lifecycle": {
     "status": "PENDING",
-    "depends_on": ["MT-006", "MT-007", "MT-012"],
+    "depends_on": [
+      "MT-006",
+      "MT-007",
+      "MT-012",
+      "MT-334"
+    ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Cron/scheduling for steerable agent sessions as a Handshake engine capability. The swarm layer already has a scheduler seam (swarm_orchestration/schedule.rs with FR-EVT-SWARM-SCHED-SPINUP-FIRED / SCHED-TEARDOWN-FIRED events, verified in the WP-1 worktree) that spins resources up and down; this MT extends it so OPERATOR-DEFINED SCHEDULES can launch full agent sessions - role injected, task payload composed, workspace bound - on cron expressions, on any lane, vendor-agnostically (Claude and GPT lanes first, future lanes automatically covered because scheduling targets the SC MT-007 session API, never a vendor CLI directly).\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/schedule.rs (+ registry storage): SessionSchedule { schedule_id, version, cron_expr (5-field, evaluated in configured timezone), enabled, launch_spec { role_id, task_payload_ref (MT contract ref | prompt ref | none), lane_preference, workspace_mode (worktree|worktree_vm|none), budget }, overlap_policy (Skip|Queue|Concurrent(cap)), misfire_policy (RunOnce|Skip), teardown_policy (max_runtime, idle_timeout), provenance }; PG-backed registry (RO MT-081 registry pattern) with CRUD API + HTTP routes + IPC read; a scheduler loop integrated with the EXISTING swarm schedule seam (extend swarm_orchestration/schedule.rs; do not build a parallel scheduler).\n\nSEMANTICS: fire -> compose launch via RO MT-083 (role + task + workspace) -> spawn via the sanctioned coordinator path (SC MT-007 -> SwarmCoordinator) -> SessionStart hooks fire (SC MT-012, no special path) -> session is a normal steerable session (operator can attach/steer it live). Overlap policy governs the case where the previous scheduled run is still alive (default Skip with typed SKIPPED_OVERLAP event - bounded, HBR-SWARM-001). Misfires (Handshake down at fire time) follow misfire_policy with a typed event either way - never silent. Teardown: max_runtime enforced via supervisor (SC MT-005) graceful stop; every scheduled spawn/skip/misfire/teardown is FR-evented (reuse SCHED-* kinds + RD MT-161 additions where needed) and ledgered.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read swarm_orchestration/schedule.rs in the WP-1 worktree; record its current trigger/teardown model and extend rather than replace (verify the seam names at implementation time against post-merge main).\n2. Define SessionSchedule types + hsk.session_schedule@1 JSON schema + PG migration (additive); cron parsing via a maintained crate (e.g. croner/cron - select with a recorded comparison; deterministic next-fire computation, DST-safe in configured timezone).\n3. Registry CRUD (API + routes + IPC read) with ledgered mutations, enable/disable, version history.\n4. Scheduler loop: tick source integrated with the existing schedule seam; at fire: overlap check -> compose (RO MT-083) -> spawn (SC MT-007) -> record run row linking schedule_id -> session_id.\n5. Overlap/misfire/teardown policies implemented + typed events for every non-launch outcome.\n6. Tests: cron next-fire correctness incl. DST boundary, overlap Skip/Queue/Concurrent-cap, misfire both policies, teardown max_runtime via fake adapter, schedule->session ledger linkage; live proof: one real scheduled launch on an available lane (or typed NEEDS_MANAGED_RESOURCE_PROOF).",
+    "summary": "GOAL: Cron/scheduling for steerable agent sessions as a Handshake engine capability. The swarm layer already has a scheduler seam (swarm_orchestration/schedule.rs with FR-EVT-SWARM-SCHED-SPINUP-FIRED / SCHED-TEARDOWN-FIRED events, verified in the WP-1 worktree) that spins resources up and down; this MT extends it so OPERATOR-DEFINED SCHEDULES can launch full agent sessions - role injected, task payload composed, workspace bound - on cron expressions, on any lane, vendor-agnostically (Claude and GPT lanes first, future lanes automatically covered because scheduling targets the SC MT-007 session API, never a vendor CLI directly).\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/schedule.rs (+ registry storage): SessionSchedule { schedule_id, version, cron_expr (5-field, evaluated in configured timezone), enabled, launch_spec { role_id, task_payload_ref (MT contract ref | prompt ref | none), lane_preference, workspace_mode (worktree|worktree_vm|none), budget }, overlap_policy (Skip|Queue|Concurrent(cap)), misfire_policy (RunOnce|Skip), teardown_policy (max_runtime, idle_timeout), provenance }; SurrealDB-backed registry (RO MT-081 registry pattern) with CRUD API + HTTP routes + IPC read; a scheduler loop integrated with the EXISTING swarm schedule seam (extend swarm_orchestration/schedule.rs; do not build a parallel scheduler).\n\nSEMANTICS: fire -> compose launch via RO MT-083 (role + task + workspace) -> spawn via the sanctioned coordinator path (SC MT-007 -> SwarmCoordinator) -> SessionStart hooks fire (SC MT-012, no special path) -> session is a normal steerable session (operator can attach/steer it live). Overlap policy governs the case where the previous scheduled run is still alive (default Skip with typed SKIPPED_OVERLAP event - bounded, HBR-SWARM-001). Misfires (Handshake down at fire time) follow misfire_policy with a typed event either way - never silent. Teardown: max_runtime enforced via supervisor (SC MT-005) graceful stop; every scheduled spawn/skip/misfire/teardown is FR-evented (reuse SCHED-* kinds + RD MT-161 additions where needed) and ledgered.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read swarm_orchestration/schedule.rs in the WP-1 worktree; record its current trigger/teardown model and extend rather than replace (verify the seam names at implementation time against post-merge main).\n2. Define SessionSchedule types + hsk.session_schedule@1 JSON schema + SurrealKit SCHEMAFULL SurrealQL rollout (additive); cron parsing via a maintained crate (e.g. croner/cron - select with a recorded comparison; deterministic next-fire computation, DST-safe in configured timezone).\n3. Registry CRUD (API + routes + IPC read) with ledgered mutations, enable/disable, version history.\n4. Scheduler loop: tick source integrated with the existing schedule seam; at fire: overlap check -> compose (RO MT-083) -> spawn (SC MT-007) -> record run row linking schedule_id -> session_id.\n5. Overlap/misfire/teardown policies implemented + typed events for every non-launch outcome.\n6. Tests: cron next-fire correctness incl. DST boundary, overlap Skip/Queue/Concurrent-cap, misfire both policies, teardown max_runtime via fake adapter, schedule->session ledger linkage; live proof: one real scheduled launch on an available lane (or typed NEEDS_MANAGED_RESOURCE_PROOF).",
     "allowed_paths": [
       "src/backend/handshake_core/src/agent_sessions/schedule.rs",
       "src/backend/handshake_core/src/agent_sessions/mod.rs",
@@ -101,8 +106,20 @@
     ],
     "not_applicable_reason": null
   },
-  "hbr_obligations": ["HBR-INT-003", "HBR-INT-009", "HBR-SWARM-001", "HBR-SWARM-002", "HBR-QUIET-001", "HBR-STOP-001", "HBR-STOP-003"],
-  "hbr_int_009_tier_obligations": ["flight_recorder", "internal_diagnostics", "palmistry"],
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics",
+    "palmistry"
+  ],
   "risk_if_missed": "Recurring governed work (nightly validation runs, scheduled maintenance sessions, future self-hosting routines) has no engine-level home and would be improvised per vendor or left manual.",
   "handoff": {
     "coder_session": null,
@@ -131,5 +148,28 @@
   "research_provenance": {
     "source": "Operator vendor-agnostic-engine directive 2026-07-22 (cron is a wrapper capability); verified existing seam swarm_orchestration/schedule.rs + FR-EVT-SWARM-SCHED-SPINUP/TEARDOWN-FIRED (WP-1 worktree); RO MT-083 composition + SC MT-007 session API as launch path.",
     "corrections": []
+  },
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

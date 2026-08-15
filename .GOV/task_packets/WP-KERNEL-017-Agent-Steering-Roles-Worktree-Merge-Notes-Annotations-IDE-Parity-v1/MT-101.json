@@ -14,7 +14,7 @@
   "title": "MM-MT101-GovernedSpawnToolSurface",
   "group": "MM Model-to-model orchestration",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-13T23:49:25Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-101.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -28,9 +28,7 @@
     "status": "PENDING",
     "active": false,
     "depends_on": [
-      "MT-007",
-      "MT-086",
-      "MT-106"
+      "MT-007"
     ],
     "blocks": [],
     "validator_verdict": "PENDING"

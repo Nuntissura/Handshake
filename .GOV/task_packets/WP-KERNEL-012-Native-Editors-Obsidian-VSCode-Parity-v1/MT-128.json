@@ -22,7 +22,7 @@
   "title": "E7-MT-128-Give-The-MT-043-Live-Child-A-Wall-Clock-Budget-That-Is-Not-1.4-Seconds-From-Reaping-Itself",
   "group": "E7-Swarm-Proof",
   "created_at_utc": "2026-08-13T06:15:00Z",
-  "updated_at_utc": "2026-08-13T06:15:00Z",
+  "updated_at_utc": "2026-08-13T22:45:30.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -68,14 +68,16 @@
     "risk_if_missed": "MT-120 and every future change guarded by this suite become unverifiable on a working machine: the proof reds for reasons unrelated to the code under test, and the honest response - re-run until quiet - is exactly the habit that hides a real regression."
   },
   "lifecycle": {
-    "status": "NOT_STARTED",
-    "active": false,
+    "status": "CLAIMED",
+    "active": true,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260813-224157",
+    "claimed_at_utc": "2026-08-13T22:45:30.000Z",
+    "parallel_coder_agent": "019ffd4c-927a-7871-8e1b-1e85fdf0916e",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Isolated at runtime while re-proving AC-120-3 after the MT-120 per-request-credential fix. The residual red is a hard-coded 24s wall-clock budget against a ~23.0s measured child body, NOT an MT-120 defect: the panic site (:3366, wall-clock reap) differs from the pre-MT-120 failure (document_saved attribution), and the same binary writes PROOF_PASS with all 54 gates green when the machine is quiet. Filed as its own microtask per the Operator standing rule so the finding is not absorbed into MT-120 or lost."

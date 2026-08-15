@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -13,9 +22,9 @@
   "mt_id": "MT-301",
   "title": "VF-MT301-FleetDesiredStateSchema",
   "group": "VF VM workspace fleet reconciler",
-  "clause": "PostgreSQL desired-state schema + typed Rust rows for the microVM workspace fleet (Running/Snapshotted/Absent, resource budgets, priority), NOTIFY wake-up wiring on binding/lease/desired-state writes, typed EventLedger events for desired-state changes",
+  "clause": "SurrealDB desired-state schema + typed Rust rows for the microVM workspace fleet (Running/Snapshotted/Absent, resource budgets, priority), live-query change event wake-up wiring on binding/lease/desired-state writes, typed EventLedger events for desired-state changes",
   "created_at_utc": "2026-08-14T02:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-301.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -28,13 +37,18 @@
   },
   "lifecycle": {
     "status": "PENDING",
-    "depends_on": [],
-    "blocks": ["MT-302", "MT-308"],
+    "depends_on": [
+      "MT-334"
+    ],
+    "blocks": [
+      "MT-302",
+      "MT-308"
+    ],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Give the microVM workspace fleet a durable, PostgreSQL-authoritative DESIRED-STATE layer that the MT-302 reconciler daemon can diff against OBSERVED state. Today the WP-1 primitives record only observed/ownership state: worktree_vm_bindings (migration 0365_worktree_vm_bindings.sql lines 8-30) stores binding_state IN ('active','snapshotted','terminated','failed') with a generation BIGINT fencing column (line 15, incremented at worktree_vm_registry.rs persist_handle_in_transaction ~line 1077 'generation = worktree_vm_bindings.generation + 1'), and ModelLane rows carry heartbeat_at_utc / lease_expires_at_utc / reclaim_after_utc / restart_generation (model_lane.rs lines 6571-6574, monotonic restart_generation enforcement ~lines 5832-5851). Nothing anywhere says what the fleet SHOULD look like. This MT adds: (1) a worktree_fleet_desired_state table with per-worktree desired workspace state (Running / Snapshotted / Absent), resource budget (memory MiB, vcpus), and scheduling priority; (2) LISTEN/NOTIFY wake-up wiring (trigger functions) on desired-state writes, worktree_vm_bindings writes, and lease writes, carrying a key-only hint payload (research P7: NOTIFY is a hint, never a queue - the reconciler always re-reads full rows); (3) typed EventLedger events for every desired-state change so fleet intent is replayable; (4) typed Rust rows + a scope-enforcing store module. All Rust, PostgreSQL/EventLedger authority only, NO SQLite anywhere, no Kubernetes/Docker/containerd/Nomad dependencies (heuristics only, per the recorded research basis), no new external daemons.\n\nRESOURCE PRIVACY: fleet rows are account/Principal-scoped exactly like worktree_vm_bindings. The table carries owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id columns matching resource_scope.rs (OwnerAccountId line 53, ActorPrincipalId line 60, AuthenticatedSessionRef line 67, AccessSpaceRef line 73, WorkspaceScopeRef line 117, ResourceScope struct lines 147-153) and the store re-authorizes every deserialized row via stored_resource_scope_from_row + an exact-scope check, mirroring WorktreeVmDurableStore::require_scope (worktree_vm_registry.rs lines 1004-1019) and its load path (lines 1164-1207). The table is registered in model_lane_resource_scope_registry exactly as migration 0365 does at lines 38-40.\n\nEXPECTED DIFF SHAPE: one new migration pair (allocate the next free migration number in the implementing worktree at implementation time; numbering >= 0366 since 0365 is taken on the WP-1 branch), a new module src/backend/handshake_core/src/swarm_orchestration/vm_fleet/desired_state.rs (module dir vm_fleet/ with mod.rs registered from swarm_orchestration/mod.rs), typed EventLedger event constructors, and tests. No edits to worktree_vm_registry.rs semantics; only additive triggers on its table.\n\nDETAILED SPEC:\n1. Migration NNNN_vm_fleet_desired_state.sql (name final; number allocated at implementation):\n   CREATE TABLE IF NOT EXISTS worktree_fleet_desired_state (\n       desired_id UUID PRIMARY KEY,\n       worktree_id TEXT NOT NULL,\n       desired_state TEXT NOT NULL,\n       memory_budget_mib INTEGER NOT NULL,\n       vcpu_budget INTEGER NOT NULL,\n       priority INTEGER NOT NULL DEFAULT 0,\n       desired_generation BIGINT NOT NULL DEFAULT 1,\n       owner_account_id UUID NOT NULL,\n       actor_principal_id UUID NOT NULL,\n       authenticated_session_id UUID NOT NULL,\n       access_space_id UUID NOT NULL,\n       workspace_id TEXT NOT NULL,\n       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n       CONSTRAINT chk_fleet_desired_worktree CHECK (length(btrim(worktree_id)) > 0),\n       CONSTRAINT chk_fleet_desired_state CHECK (desired_state IN ('running','snapshotted','absent')),\n       CONSTRAINT chk_fleet_desired_memory CHECK (memory_budget_mib > 0),\n       CONSTRAINT chk_fleet_desired_vcpu CHECK (vcpu_budget > 0),\n       CONSTRAINT uq_fleet_desired_scope UNIQUE (owner_account_id, workspace_id, worktree_id)\n   );\n   plus indexes (owner_account_id, workspace_id, desired_state) and (actor_principal_id), plus INSERT INTO model_lane_resource_scope_registry (table_name) VALUES ('worktree_fleet_desired_state') ON CONFLICT (table_name) DO NOTHING; matching 0365 lines 32-40. Provide the .down.sql twin.\n2. NOTIFY wiring (same migration): one trigger function hsk_vm_fleet_notify() RETURNS trigger that executes pg_notify('hsk_vm_fleet_changed', payload) where payload is a compact JSON hint {\"worktree_id\": ..., \"owner_account_id\": ..., \"workspace_id\": ..., \"source_table\": TG_TABLE_NAME} and NOTHING else - no state, no action verbs (research P6/P7: level-triggered core, edge-triggered wake-up; a lost NOTIFY must never lose work because the resync tick re-reads everything). Attach AFTER INSERT OR UPDATE OR DELETE triggers to worktree_fleet_desired_state AND worktree_vm_bindings. For lease writes: the WP-1 lease surface is EventLedger-backed ModelLane state (NewModelLaneLease, model_lane.rs lines 8129-8148; ModelLaneLeaseRecord lines 8151-8158) rather than a bespoke lease table; wire the notify into the fleet store's own Rust write path for lease-affecting fleet operations (store emits pg_notify on the same channel after commit) and document in code why the trigger cannot sit on a ledger-internal table. If the implementing worktree exposes a physical lease/heartbeat table for lanes, attach the same trigger there instead; decide from the code, not from this contract.\n3. Typed Rust rows (vm_fleet/desired_state.rs):\n   pub enum FleetDesiredState { Running, Snapshotted, Absent } with as_str()/parse() exactly in the WorktreeVmBindingState style (worktree_vm_registry.rs lines 106-140), serde snake_case, parse failure = typed error (never a panic, never a silent default).\n   pub struct FleetResourceBudget { pub memory_mib: i32, pub vcpus: i32 }\n   pub struct FleetDesiredStateRecord { pub desired_id: Uuid, pub worktree_id: String, pub desired_state: FleetDesiredState, pub budget: FleetResourceBudget, pub priority: i32, pub desired_generation: i64 }\n   pub struct FleetDesiredStateStore { pool: PgPool, access: ResourceAccessContext } with:\n   pub async fn upsert_desired(&self, worktree_id: &str, desired: FleetDesiredState, budget: FleetResourceBudget, priority: i32) -> Result<FleetDesiredStateRecord, FleetDesiredStateError>  // ON CONFLICT (owner_account_id, workspace_id, worktree_id) DO UPDATE ... desired_generation = worktree_fleet_desired_state.desired_generation + 1, guarded by the same exact-scope WHERE predicate shape as persist_handle_in_transaction (worktree_vm_registry.rs lines 1058-1096)\n   pub async fn load_desired(&self, worktree_id: &str) -> Result<Option<FleetDesiredStateRecord>, FleetDesiredStateError>\n   pub async fn list_desired(&self) -> Result<Vec<FleetDesiredStateRecord>, FleetDesiredStateError>  // scope-filtered in SQL AND re-authorized per row after deserialization\n   pub async fn remove_desired(&self, worktree_id: &str) -> ...  // sets desired_state='absent', never DELETEs (row removal is MT-305 finalizer territory)\n4. EventLedger events: typed constructors for FLEET_DESIRED_STATE_SET / FLEET_DESIRED_STATE_CLEARED appended through the existing EventLedger write path used by ModelLane records (model_lane.rs event_ledger_stream_id / event_ledger_seq / event_stream_version fields, e.g. lines 8140 and 8154-8157), payload = { worktree_id, desired_state, memory_budget_mib, vcpu_budget, priority, desired_generation }. Ledger append and row upsert commit in the same transaction where the existing ledger API permits; otherwise ledger-first with the row write carrying the ledger event id, and a code comment stating which ordering was possible and why.\n5. HOUSE RULES baked in: no SQLite (PostgreSQL only), no Kubernetes/Docker/containerd/Nomad crates or daemons, no new external daemons, disk-agnostic paths only (no absolute paths, no drive letters), no file or folder names with spaces, all proof commands run with per-owner scoped CARGO_TARGET_DIR under the external artifacts root ../Handshake_Artifacts/.\n\nSTEP-BY-STEP:\n1. Read worktree_vm_registry.rs lines 1-200 (error/state/record types) and 1003-1310 (WorktreeVmDurableStore scope + SQL shapes), migration 0365 in full, resource_scope.rs in full, and the current highest migration number in the implementing worktree.\n2. Write the migration + .down.sql with the table, constraints, indexes, notify trigger function, triggers, and resource-scope registry insert.\n3. Create vm_fleet/mod.rs + vm_fleet/desired_state.rs with the enums, records, error type, and FleetDesiredStateStore; register vm_fleet in swarm_orchestration/mod.rs.\n4. Wire the EventLedger typed events for desired-state changes.\n5. Write tests against real PostgreSQL (Spec-Realism Gate: fixture-only proof is insufficient): upsert bumps desired_generation; cross-account row invisible; cross-workspace row invisible; scope-mismatched upsert affects zero rows; NOTIFY fires on desired-state write and on a worktree_vm_bindings write (LISTEN in test, assert hint payload has key fields only); parse() rejects unknown desired_state.\n6. Run proof targets; record measured output. Implementer never marks COMPLETED - the WP validator advances the verdict.",
+    "summary": "GOAL: Give the microVM workspace fleet a durable, SurrealDB-authoritative DESIRED-STATE layer that the MT-302 reconciler daemon can diff against OBSERVED state. Today the WP-1 primitives record only observed/ownership state: worktree_vm_bindings (migration 0365_worktree_vm_bindings.sql lines 8-30) stores binding_state IN ('active','snapshotted','terminated','failed') with a generation BIGINT fencing column (line 15, incremented at worktree_vm_registry.rs persist_handle_in_transaction ~line 1077 'generation = worktree_vm_bindings.generation + 1'), and ModelLane rows carry heartbeat_at_utc / lease_expires_at_utc / reclaim_after_utc / restart_generation (model_lane.rs lines 6571-6574, monotonic restart_generation enforcement ~lines 5832-5851). Nothing anywhere says what the fleet SHOULD look like. This MT adds: (1) a worktree_fleet_desired_state table with per-worktree desired workspace state (Running / Snapshotted / Absent), resource budget (memory MiB, vcpus), and scheduling priority; (2) account-scoped SurrealDB live-query subscriptions over desired-state, binding and lease records, treating change events only as wake-up hints (research P7: live-query change event is a hint, never a queue - the reconciler always re-reads full rows); (3) typed EventLedger events for every desired-state change so fleet intent is replayable; (4) typed Rust rows + a scope-enforcing store module. All Rust, SurrealDB/EventLedger authority only, NO SQLite anywhere, no Kubernetes/Docker/containerd/Nomad dependencies (heuristics only, per the recorded research basis), no new external daemons.\n\nRESOURCE PRIVACY: fleet rows are account/Principal-scoped exactly like worktree_vm_bindings. The table carries owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id columns matching resource_scope.rs (OwnerAccountId line 53, ActorPrincipalId line 60, AuthenticatedSessionRef line 67, AccessSpaceRef line 73, WorkspaceScopeRef line 117, ResourceScope struct lines 147-153) and the store re-authorizes every deserialized row via stored_resource_scope_from_row + an exact-scope check, mirroring WorktreeVmDurableStore::require_scope (worktree_vm_registry.rs lines 1004-1019) and its load path (lines 1164-1207). The SCHEMAFULL table carries record-user table/field PERMISSIONS and remains re-authorized through ResourceBroker exact-scope checks; the former PostgreSQL scope-registry row is an audit anchor only, not an implementation target.\n\nEXPECTED DIFF SHAPE: one new SurrealKit-managed SCHEMAFULL SurrealQL rollout (allocate the next free rollout number in the implementing worktree at implementation time), a new module src/backend/handshake_core/src/swarm_orchestration/vm_fleet/desired_state.rs (module dir vm_fleet/ with mod.rs registered from swarm_orchestration/mod.rs), typed EventLedger event constructors, and tests. Preserve worktree_vm_registry.rs domain semantics while porting its durable binding repository in MT-338; use live-query subscriptions, never database triggers or notification channels.\n\nDETAILED SPEC:\n1. SurrealKit rollout NNNN_vm_fleet_desired_state.surql: define `worktree_fleet_desired_state` SCHEMAFULL with desired_id, worktree_id, desired_state, memory_budget_mib, vcpu_budget, priority, desired_generation, the complete resource-scope fields, and created/updated datetimes. Field ASSERT rules enforce non-empty worktree id, the running/snapshotted/absent state set, positive budgets and one logical record per account/workspace/worktree. Define scoped indexes and authenticated record-user PERMISSIONS; ResourceBroker still re-authorizes every deserialized record. Rollback moves only to the preceding SurrealDB rollout stage.\n2. Live-query wake-up wiring: subscribe with authenticated record-user sessions to account-scoped desired-state, binding and lease changes. Treat events as non-authoritative hints; every reconcile fresh-reads canonical records, a reconnect performs a bounded full resync, and the periodic resync remains correctness authority. No trigger function, pg_notify channel, or post-commit notification write exists. Tests force subscription loss/reconnect and prove the host write commits independently while accounts cannot observe each other's events.\n3. Typed Rust rows (vm_fleet/desired_state.rs):\n   pub enum FleetDesiredState { Running, Snapshotted, Absent } with as_str()/parse() exactly in the WorktreeVmBindingState style (worktree_vm_registry.rs lines 106-140), serde snake_case, parse failure = typed error (never a panic, never a silent default).\n   pub struct FleetResourceBudget { pub memory_mib: i32, pub vcpus: i32 }\n   pub struct FleetDesiredStateRecord { pub desired_id: Uuid, pub worktree_id: String, pub desired_state: FleetDesiredState, pub budget: FleetResourceBudget, pub priority: i32, pub desired_generation: i64 }\n   pub struct FleetDesiredStateStore { pool: SurrealDbClient, access: ResourceAccessContext } with:\n   pub async fn upsert_desired(&self, worktree_id: &str, desired: FleetDesiredState, budget: FleetResourceBudget, priority: i32) -> Result<FleetDesiredStateRecord, FleetDesiredStateError>  // conditional SurrealDB transaction updates the account/workspace/worktree record and increments desired_generation only after exact ResourceBroker scope authorization\n   pub async fn load_desired(&self, worktree_id: &str) -> Result<Option<FleetDesiredStateRecord>, FleetDesiredStateError>\n   pub async fn list_desired(&self) -> Result<Vec<FleetDesiredStateRecord>, FleetDesiredStateError>  // filtered by authenticated record-user SurrealQL permissions AND re-authorized through ResourceBroker after deserialization\n   pub async fn remove_desired(&self, worktree_id: &str) -> ...  // sets desired_state='absent' AND bumps desired_generation (it is an intent write), never DELETEs (row removal is MT-305 finalizer territory)\n   INTENT-ONLY GENERATION RULE: desired_generation is bumped ONLY by intent writes (upsert_desired, remove_desired, and MT-305's request_teardown); no bookkeeping or failure-accounting write path may ever touch it - MT-302/304's backoff-bypass comparison (desired_generation > last_attempted_desired_generation) depends on this invariant.\n   SINGLE DOORWAY: lane checkout is the one entrance to the fleet - when a model-lane checkout binds a worktree, the checkout path writes/updates the desired row (desired_state='running', budgets from lane config) through upsert_desired; no code path may boot a workspace VM without a desired row existing first. Companion reconciler rule (consumed by MT-302/303): a worktree_vm_bindings row WITHOUT a matching fleet desired row is ADOPTED - a desired row is created from the observed binding and a typed EventLedger FLEET_BINDING_ADOPTED alert is appended - never silently ignored and never killed for being undeclared.\n4. EventLedger events: typed constructors for FLEET_DESIRED_STATE_SET / FLEET_DESIRED_STATE_CLEARED appended through the existing EventLedger write path used by ModelLane records (model_lane.rs event_ledger_stream_id / event_ledger_seq / event_stream_version fields, e.g. lines 8140 and 8154-8157), payload = { worktree_id, desired_state, memory_budget_mib, vcpu_budget, priority, desired_generation }. Ledger append and row upsert commit in the same transaction where the existing ledger API permits; otherwise ledger-first with the row write carrying the ledger event id, and a code comment stating which ordering was possible and why.\n5. HOUSE RULES baked in: no SQLite (SurrealDB only), no Kubernetes/Docker/containerd/Nomad crates or daemons, no new external daemons, disk-agnostic paths only (no absolute paths, no drive letters), no file or folder names with spaces, all proof commands run with per-owner scoped CARGO_TARGET_DIR under the external artifacts root ../Handshake_Artifacts/.\n\nSTEP-BY-STEP:\n1. Read worktree_vm_registry.rs lines 1-200 (error/state/record types) and 1003-1310 (WorktreeVmDurableStore scope + SQL shapes), migration 0365 in full, resource_scope.rs in full, and the current highest migration number in the implementing worktree.\n2. Write the SurrealKit SCHEMAFULL SurrealQL rollout with fields, ASSERT rules, indexes and record-user PERMISSIONS; implement official-SDK live-query subscriptions plus reconnect/resync without triggers or notification channels.\n3. Create vm_fleet/mod.rs + vm_fleet/desired_state.rs with the enums, records, error type, and FleetDesiredStateStore; register vm_fleet in swarm_orchestration/mod.rs.\n4. Wire the EventLedger typed events for desired-state changes.\n5. Write tests against real SurrealDB (Spec-Realism Gate: fixture-only proof is insufficient): upsert bumps desired_generation; cross-account row invisible; cross-workspace row invisible; scope-mismatched upsert affects zero rows; live-query change event fires on desired-state write and on a worktree_vm_bindings write (SurrealDB live query in test, assert hint payload has key fields only); parse() rejects unknown desired_state.\n6. Run proof targets; record measured output. Implementer never marks COMPLETED - the WP validator advances the verdict.",
     "allowed_paths": [
       "src/backend/handshake_core/migrations/**",
       "src/backend/handshake_core/src/swarm_orchestration/vm_fleet/**",
@@ -43,28 +57,31 @@
       "src/backend/handshake_core/Cargo.toml"
     ],
     "forbidden_paths": [
-      "app/src/** (GUI belongs to MT-306 only)",
+      "src/frontend/handshake_native/** (GUI belongs to MT-306 only)",
       ".GOV/**",
-      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (consume, do not modify; additive SQL triggers on its table live in the new migration)",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (consume, do not modify; equivalent wake-up behavior is implemented with scoped SurrealDB live queries and bounded resynchronization; database triggers are forbidden)",
       "src/backend/handshake_core/src/sandbox/** (adapter is consumed read-only by later MTs)"
     ],
     "acceptance_criteria": [
-      "AC-301-1: Migration creates worktree_fleet_desired_state with desired_state CHECK IN ('running','snapshotted','absent'), memory_budget_mib > 0, vcpu_budget > 0, priority, desired_generation BIGINT DEFAULT 1, full five-column resource scope, UNIQUE (owner_account_id, workspace_id, worktree_id), and registers the table in model_lane_resource_scope_registry; a .down.sql twin reverses it.",
+      "AC-301-1: A SurrealKit rollout defines SCHEMAFULL worktree_fleet_desired_state with desired_state ASSERTed to running|snapshotted|absent, positive memory/vCPU budgets, priority, desired_generation default 1, full resource scope, scoped indexes and record-user PERMISSIONS; rollback targets only the preceding SurrealDB rollout stage.",
       "AC-301-2: FleetDesiredState { Running, Snapshotted, Absent } is serde snake_case with as_str()/parse(); parse() of an unknown value returns a typed error proven by test.",
-      "AC-301-3: FleetDesiredStateStore::upsert_desired increments desired_generation on conflict and its UPDATE is guarded by the exact-scope predicate; a live PostgreSQL test proves a scope-mismatched upsert affects zero rows and surfaces a typed scope error.",
-      "AC-301-4: All store reads are scope-filtered in SQL and re-authorized per row after deserialization (stored_resource_scope_from_row + exact-scope check); a live test proves a second account cannot read or enumerate the first account's fleet rows.",
-      "AC-301-5: pg_notify('hsk_vm_fleet_changed', ...) fires on writes to worktree_fleet_desired_state and worktree_vm_bindings; the payload carries only identifying hint fields (worktree_id, owner_account_id, workspace_id, source_table) and no actionable state - proven by a LISTEN-based live test.",
+      "AC-301-3: FleetDesiredStateStore::upsert_desired increments desired_generation through a conditional SurrealDB transaction guarded by exact ResourceBroker scope; a live SurrealDB test proves a scope-mismatched upsert affects zero records and surfaces a typed scope error.",
+      "AC-301-4: All reads use account/workspace-scoped SurrealQL plus authenticated record-user PERMISSIONS and are re-authorized after deserialization; a live test proves a second account cannot read or enumerate the first account's fleet records.",
+      "AC-301-5: Authenticated SurrealDB live-query subscriptions receive account-scoped key/change hints for desired-state and binding records; events carry no actionable state, and a live two-account test proves account A never receives account B changes.",
       "AC-301-6: Every desired-state change appends a typed EventLedger event (FLEET_DESIRED_STATE_SET / FLEET_DESIRED_STATE_CLEARED) carrying worktree_id, desired_state, budgets, priority, desired_generation.",
-      "AC-301-7: remove_desired writes desired_state='absent' and never issues a SQL DELETE against the fleet table; grep proof target confirms no DELETE FROM worktree_fleet_desired_state in the module.",
+      "AC-301-7: remove_desired writes desired_state='absent' and never issues a SurrealQL DELETE against the fleet table; grep proof target confirms no DELETE FROM worktree_fleet_desired_state in the module.",
       "AC-301-8: Zero SQLite, Kubernetes, Docker, containerd, or Nomad dependencies introduced; proof target greps Cargo.toml and the new module for the forbidden identifiers.",
-      "AC-301-9: Proof commands run with per-owner scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/ and tests execute against a real PostgreSQL database (Spec-Realism Gate), not fixtures only."
+      "AC-301-9: Proof commands run with per-owner scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/handshake-cargo-target/ and tests execute against a real SurrealDB database (Spec-Realism Gate), not fixtures only.",
+      "AC-301-10: desired_generation is bumped by intent writes only; non-intent bookkeeping updates do not create a new desired generation. Live-query events are hints and may fire for broader changes without affecting correctness because the reconciler re-reads canonical state.",
+      "AC-301-11: A forced live-query subscription failure or disconnect never aborts a desired-state or binding transaction; reconnect-with-backoff performs a bounded account-scoped resync and tests prove the committed write is recovered.",
+      "AC-301-12: Lane checkout writes/updates the desired row through upsert_desired (single doorway), and the adopt-with-alert contract for bindings-without-desired-rows exists as a store-level helper appending a typed FLEET_BINDING_ADOPTED event - both proven by live test."
     ],
     "proof_targets": [
-      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-301 cargo test -p handshake_core fleet_desired_state -- --nocapture\"",
-      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/cargo_target/MT-301 cargo test -p handshake_core fleet_notify_hint -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt301 cargo test -p handshake_core fleet_desired_state -- --nocapture\"",
+      "bash -lc \"CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt301 cargo test -p handshake_core fleet_notify_hint -- --nocapture\"",
       "bash -lc \"! grep -rn 'DELETE FROM worktree_fleet_desired_state' src/backend/handshake_core/src/swarm_orchestration/vm_fleet/ && echo NO_ROW_DELETE\"",
       "bash -lc \"! grep -rniE 'rusqlite|sqlite|kube|k8s_openapi|bollard|containerd|nomad' src/backend/handshake_core/src/swarm_orchestration/vm_fleet/ && echo NO_FORBIDDEN_DEPS\"",
-      "bash -lc \"grep -n 'model_lane_resource_scope_registry' src/backend/handshake_core/migrations/*vm_fleet_desired_state*.sql && echo SCOPE_REGISTERED\""
+      "grep the SurrealKit rollout for SCHEMAFULL table/field definitions and record-user PERMISSIONS, then run the two-account real-SurrealDB isolation/live-query test"
     ],
     "code_surfaces": [
       "src/backend/handshake_core/migrations/0365_worktree_vm_bindings.sql (table lines 8-30, generation default line 15, scope registry insert lines 38-40) - schema shape to mirror",
@@ -73,16 +90,16 @@
       "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (heartbeat_at_utc/lease_expires_at_utc/reclaim_after_utc/restart_generation 6571-6574, NewModelLaneLease 8129-8148, ledger linkage fields 8154-8157)"
     ],
     "expected_tests": [
-      "live-PG test: upsert then re-upsert bumps desired_generation from 1 to 2 and updates budgets",
-      "live-PG test: second account context cannot load or list the first account's fleet rows",
-      "live-PG test: scope-mismatched upsert (wrong session/access-space) affects zero rows and errors typed",
-      "live-PG LISTEN test: desired-state write and worktree_vm_bindings write each produce one hsk_vm_fleet_changed notification with hint-only payload",
-      "live-PG test: desired-state change appends the typed EventLedger event with correct payload",
+      "live-SurrealDB test: upsert then re-upsert bumps desired_generation from 1 to 2 and updates budgets",
+      "live-SurrealDB test: second account context cannot load or list the first account's fleet rows",
+      "live-SurrealDB test: scope-mismatched upsert (wrong session/access-space) affects zero rows and errors typed",
+      "live-SurrealDB SurrealDB live query test: desired-state write and worktree_vm_bindings write each produce one hsk_vm_fleet_changed notification with hint-only payload",
+      "live-SurrealDB test: desired-state change appends the typed EventLedger event with correct payload",
       "unit test: FleetDesiredState::parse rejects unknown strings with a typed error"
     ],
     "implementation_notes": [
       "IMPLEMENTATION GATE: do not start until WP-1 Integration Validator batch verdicts return and the WP-1 feature branch merges to main - the primitives this MT builds on (worktree_vm_bindings, resource_scope, ledger types) live on that branch (frozen candidate df463aa6). See expansion_provenance.implementation_gate.",
-      "NOTIFY is a wake-up hint only (research P7): nothing in the payload may be treated as a work item; the MT-302 reconciler re-reads full rows on every pass. Do not add payload fields 'to be helpful'.",
+      "live-query change event is a wake-up hint only (research P7): nothing in the payload may be treated as a work item; the MT-302 reconciler re-reads full rows on every pass. Do not add payload fields 'to be helpful'.",
       "Never DELETE fleet rows here: Absent is a desired state the reconciler converges to; physical row lifecycle (tombstones) belongs to MT-305.",
       "Migration numbering: 0365 is the highest verified fleet-relevant number on the WP-1 branch; allocate the actual next free number in the implementing worktree at implementation time and keep the descriptive suffix vm_fleet_desired_state.",
       "Disk-agnostic discipline: no absolute paths, no drive letters, no user-profile paths anywhere in code, SQL, or tests; artifacts root is the relative ../Handshake_Artifacts/.",
@@ -104,7 +121,7 @@
     "manual_version_bump_required": "YES",
     "target_entries": [
       "Workspace fleet > Desired state model (Running / Snapshotted / Absent, budgets, priority)",
-      "Workspace fleet > How fleet intent is recorded (EventLedger events, NOTIFY wake-up channel)"
+      "Workspace fleet > How fleet intent is recorded (EventLedger events, live-query change event wake-up channel)"
     ],
     "not_applicable_reason": null
   },
@@ -114,6 +131,7 @@
     "HBR-SWARM-002",
     "HBR-PRIV-001",
     "HBR-PRIV-002",
+    "HBR-PRIV-004",
     "HBR-MAN-004",
     "HBR-STOP-003"
   ],
@@ -131,7 +149,7 @@
     {
       "tier": "PALMISTRY",
       "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
-      "note": "Pure schema/store MT with no long-lived process; liveness capture adds no evidence beyond PostgreSQL state and ledger events."
+      "note": "Pure schema/store MT with no long-lived process; liveness capture adds no evidence beyond SurrealDB state and ledger events."
     }
   ],
   "risk_if_missed": "The reconciler family has no desired-state source of truth: MT-302..305 would have to infer intent from observed bindings, which is exactly the edge-triggered anti-pattern the research basis rejects, and fleet intent would be unreplayable and unscoped.",
@@ -145,7 +163,7 @@
     "required": true,
     "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
     "risks": [
-      "RISK-1: NOTIFY payload grows actionable state and a consumer acts on it directly, so a dropped notification (disconnect, PgBouncer transaction pooling) silently loses a fleet action.",
+      "RISK-1: live-query change event payload grows actionable state and a consumer acts on it directly, so a dropped notification (disconnect, PgBouncer transaction pooling) silently loses a fleet action.",
       "RISK-2: Fleet rows written without the exact five-column resource scope leak one account's workspace topology to another account or to an unscoped reader.",
       "RISK-3: A DELETE-based remove path erases desired state before the reconciler converges, orphaning a live VM with no record of what it should become.",
       "RISK-4: desired_generation is not bumped on upsert, so MT-303 generation fencing cannot reject stale reconcile plans built against superseded intent."
@@ -158,10 +176,10 @@
     ]
   },
   "research_provenance": {
-    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - P6 (level-triggered core, edge-triggered wake-up), P7 (LISTEN/NOTIFY is a hint, not a queue; jobs live in tables), P14 (Postgres-native single-writer with generation fencing), architecture sketch lines 1-2. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (these paths land on main after WP-1 merges; frozen candidate df463aa6): migrations/0365_worktree_vm_bindings.sql (table lines 8-30, generation BIGINT DEFAULT 1 line 15, state CHECK lines 26-27, unique scope lines 28-29, scope registry insert lines 38-40); swarm_orchestration/worktree_vm_registry.rs (WorktreeVmBindingState 106-140, require_scope 1004-1019, pg_advisory_xact_lock begin_serialized 1035-1046, generation+1 upsert 1048-1102, scoped loads 1164-1303); swarm_orchestration/resource_scope.rs (scope newtypes 53-117, ResourceScope 147-153); swarm_orchestration/model_lane.rs (heartbeat_at_utc/lease_expires_at_utc/reclaim_after_utc/restart_generation 6571-6574, NewModelLaneLease 8129-8148, ModelLaneLeaseRecord ledger linkage 8151-8158).",
+    "source": "Research basis: .GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json reconciler_rust_patterns catalog - P6 (level-triggered core, edge-triggered wake-up), P7 (SurrealDB live queries is a hint, not a queue; jobs live in tables), P14 (SurrealDB-native single-writer with generation fencing), architecture sketch lines 1-2. Verified current code on the WP-1 feature branch worktree wtc-multi-model-orchestration-v1 (these paths land on main after WP-1 merges; frozen candidate df463aa6): migrations/0365_worktree_vm_bindings.sql (table lines 8-30, generation BIGINT DEFAULT 1 line 15, state CHECK lines 26-27, unique scope lines 28-29, scope registry insert lines 38-40); swarm_orchestration/worktree_vm_registry.rs (WorktreeVmBindingState 106-140, require_scope 1004-1019, pg_advisory_xact_lock begin_serialized 1035-1046, generation+1 upsert 1048-1102, scoped loads 1164-1303); swarm_orchestration/resource_scope.rs (scope newtypes 53-117, ResourceScope 147-153); swarm_orchestration/model_lane.rs (heartbeat_at_utc/lease_expires_at_utc/reclaim_after_utc/restart_generation 6571-6574, NewModelLaneLease 8129-8148, ModelLaneLeaseRecord ledger linkage 8151-8158).",
     "corrections": [
-      "Operator constraints baked in from the research file operator_constraints block: all Rust, no SQLite, PostgreSQL/EventLedger authority, no K8s/Docker/containerd/Nomad dependencies, implementation gated on WP-1 IV verdicts.",
-      "Lease NOTIFY wiring is specified conditionally because the WP-1 lease surface is EventLedger-backed ModelLane state, not a verified standalone physical table; the implementer must decide the attachment point from the merged code, not from this contract."
+      "Operator constraints baked in from the research file operator_constraints block: all Rust, no SQLite, SurrealDB/EventLedger authority, no K8s/Docker/containerd/Nomad dependencies, implementation gated on WP-1 IV verdicts.",
+      "Lease live-query change event wiring is specified conditionally because the WP-1 lease surface is EventLedger-backed ModelLane state, not a verified standalone physical table; the implementer must decide the attachment point from the merged code, not from this contract."
     ]
   },
   "expansion_provenance": {
@@ -169,5 +187,47 @@
     "operator_directive": "2026-08-14 operator-directed scope addition: microVM workspace fleet reconciler",
     "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
     "implementation_gate": "Implementation MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 Integration Validator batch verdicts return and its feature branch merges to main, because the microVM primitives (CloudHypervisorAdapter, WorktreeVmRegistry, snapshot manifests) live on that branch (frozen candidate df463aa6)."
+  },
+  "hardening_pass_2026_08_14": {
+    "applied": [
+      {
+        "finding": "BACKOFF-BYPASS",
+        "fix": "desired_generation declared intent-only (upsert/remove/request_teardown bump it, remove_desired now explicitly bumps); fleet trigger gains column-guarded WHEN clause excluding non-intent columns."
+      },
+      {
+        "finding": "GUI-TREE",
+        "fix": "forbidden_paths GUI entry retargeted from app/src/** to src/frontend/handshake_native/**."
+      },
+      {
+        "finding": "LANE-DOORWAY",
+        "fix": "Single-doorway rule added (lane checkout writes desired row); adopt-with-alert rule for bindings without desired rows (FLEET_BINDING_ADOPTED); AC-301-12."
+      },
+      {
+        "finding": "live-query change event-PRIVACY",
+        "fix": "Per-account live-query change event channel derived from row scope in trigger; exception-tolerant trigger body with forced-failure commit test; AC-301-5 rewritten, AC-301-11 added."
+      },
+      {
+        "finding": "CARGO-PATH",
+        "fix": "Proof commands moved to ../Handshake_Artifacts/handshake-cargo-target/kb-wp017-mt301."
+      },
+      {
+        "finding": "HBR-PRIV",
+        "fix": "HBR-PRIV-004 added to hbr_obligations."
+      }
+    ]
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

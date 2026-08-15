@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -14,7 +23,7 @@
   "title": "MM-MT103-ParentChildSessionRegistry",
   "group": "MM Model-to-model orchestration",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-103.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -28,15 +37,16 @@
     "status": "PENDING",
     "active": false,
     "depends_on": [
-      "MT-101"
+      "MT-101",
+      "MT-334"
     ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Durable parent-child session lineage: a PostgreSQL-backed registry of who spawned whom, with a max-depth limit, cycle prevention, and a cascade policy when a parent terminates. This is the canonical lineage source consumed by MT-102 (steer scope), MT-105 (notification routing), MT-107 (session tree GUI), and MT-108 (cascade proof).\n\nEXPECTED DIFF SHAPE: One new numbered migration pair (up + .down.sql) in src/backend/handshake_core/migrations/ creating table `swarm_session_lineage`; a new module src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (store + queries + depth/cycle guards + cascade executor); wiring in the MT-101 spawn handler (attach on spawn) and coordinator terminal-state observation (detach + cascade on parent termination). Tests.\n\nDETAILED SPEC:\n1. Table `swarm_session_lineage` rows: `parent_session_id` (text, not null), `child_session_id` (text, not null, unique), `spawned_by_actor` (text: `model:<parent_session_id>` | `operator` | `scheduler`), `role_id` (text nullable), `created_at_utc` (timestamptz), `terminated_at_utc` (timestamptz nullable), plus `cascade_policy` (text: `orphan` | `cascade_cancel`) captured at attach time. Indexes on parent_session_id and child_session_id. Paired down migration.\n2. Max depth: config `model_to_model.max_spawn_depth` default 2 (operator > orchestrator model > worker; a worker may not spawn by default). Attach computes the chain depth by walking parents; exceeding depth returns typed `DepthExceeded` and the MT-101 handler rejects the spawn BEFORE calling spawn_session.\n3. Cycle prevention: attach rejects any row where child_session_id already appears in the caller's ancestor chain (typed `LineageCycle`). Because child ids are coordinator-minted fresh ids, a cycle indicates id reuse or spoofing and is also ledgered as an anomaly.\n4. Cascade policy on parent termination: default `cascade_cancel` — when a parent session reaches a terminal state, all live children are cancelled through the coordinator's existing cancellation/teardown path (never direct process kill), depth-first, each cancellation ledgered. `orphan` mode (per-spawn opt-in, policy-gated by MT-106) leaves children running with `spawned_by_actor` attribution intact and marks the row orphaned.\n5. FR events: stamp attach and detach using existing SwarmFrEventId events enriched with lineage payload fields (parent_session_id, depth, cascade_policy); NEW event kinds (e.g. a dedicated lineage-attach id) belong to MT-161's FR-kind seam — this MT only enriches payloads of existing SESSION-SPAWNED / SESSION-CANCELLED / SESSION-COMPLETED / SESSION-FAILED events and records registry rows.\n6. Read API for consumers: `children_of(parent)`, `parent_of(child)`, `ancestor_chain(child)`, `live_tree(root)` — used by MT-102 lineage checks and the MT-107 tree GUI.\n\nSECURITY FRAME (binding): lineage rows are attribution evidence — attach/detach happen server-side in the spawn/terminate paths only; no tool or model can write lineage rows directly. Depth limit and cycle guard bound recursive self-spawning (HBR-SWARM-001/002: a runaway orchestrator cannot build an unbounded tree even under the coordinator's global caps).\n\nSTEP-BY-STEP:\n1. Read the latest migration number in src/backend/handshake_core/migrations/ and take the next free prefix; author up + down SQL.\n2. Implement session_lineage.rs store with attach/detach/queries and depth/cycle guards; PostgreSQL only (no SQLite path on this write surface).\n3. Wire attach into the MT-101 spawn handler (after policy pass, before spawn_session; roll back the row if spawn_session rejects).\n4. Wire detach + cascade into the coordinator terminal-state event observation (subscribe to session terminal events; do not modify coordinator internals beyond the existing event/observer seam).\n5. Implement cascade_cancel depth-first cancellation via coordinator cancellation API; ledger each cancelled child.\n6. Tests per expected_tests.",
+    "summary": "GOAL: Durable parent-child session lineage: a SurrealDB-backed registry of who spawned whom, with a max-depth limit, cycle prevention, and a cascade policy when a parent terminates. This is the canonical lineage source consumed by MT-102 (steer scope), MT-105 (notification routing), MT-107 (session tree GUI), and MT-108 (cascade proof).\n\nEXPECTED DIFF SHAPE: One new numbered SurrealKit SCHEMAFULL SurrealQL rollout in src/backend/handshake_core/migrations/ defining `swarm_session_lineage`; a new module src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (store + queries + depth/cycle guards + cascade executor); wiring in the MT-101 spawn handler (attach on spawn) and coordinator terminal-state observation (detach + cascade on parent termination). Tests.\n\nDETAILED SPEC:\n1. Table `swarm_session_lineage` rows: `parent_session_id` (text, not null), `child_session_id` (text, not null, unique), `spawned_by_actor` (text: `model:<parent_session_id>` | `operator` | `scheduler`), `role_id` (text nullable), `created_at_utc` (timestamptz), `terminated_at_utc` (timestamptz nullable), plus `cascade_policy` (text: `orphan` | `cascade_cancel`) captured at attach time. Indexes on parent_session_id and child_session_id. Rollback metadata targets only the preceding SurrealDB rollout stage.\n2. Max depth: config `model_to_model.max_spawn_depth` default 2 (operator > orchestrator model > worker; a worker may not spawn by default). Attach computes the chain depth by walking parents; exceeding depth returns typed `DepthExceeded` and the MT-101 handler rejects the spawn BEFORE calling spawn_session.\n3. Cycle prevention: attach rejects any row where child_session_id already appears in the caller's ancestor chain (typed `LineageCycle`). Because child ids are coordinator-minted fresh ids, a cycle indicates id reuse or spoofing and is also ledgered as an anomaly.\n4. Cascade policy on parent termination: default `cascade_cancel` — when a parent session reaches a terminal state, all live children are cancelled through the coordinator's existing cancellation/teardown path (never direct process kill), depth-first, each cancellation ledgered. `orphan` mode (per-spawn opt-in, policy-gated by MT-106) leaves children running with `spawned_by_actor` attribution intact and marks the row orphaned.\n5. FR events: stamp attach and detach using existing SwarmFrEventId events enriched with lineage payload fields (parent_session_id, depth, cascade_policy); NEW event kinds (e.g. a dedicated lineage-attach id) belong to MT-161's FR-kind seam — this MT only enriches payloads of existing SESSION-SPAWNED / SESSION-CANCELLED / SESSION-COMPLETED / SESSION-FAILED events and records registry rows.\n6. Read API for consumers: `children_of(parent)`, `parent_of(child)`, `ancestor_chain(child)`, `live_tree(root)` — used by MT-102 lineage checks and the MT-107 tree GUI.\n\nSECURITY FRAME (binding): lineage rows are attribution evidence — attach/detach happen server-side in the spawn/terminate paths only; no tool or model can write lineage rows directly. Depth limit and cycle guard bound recursive self-spawning (HBR-SWARM-001/002: a runaway orchestrator cannot build an unbounded tree even under the coordinator's global caps).\n\nSTEP-BY-STEP:\n1. Read the latest migration number in src/backend/handshake_core/migrations/ and take the next free prefix; author the SurrealKit SCHEMAFULL SurrealQL rollout.\n2. Implement session_lineage.rs store with attach/detach/queries and depth/cycle guards; SurrealDB only (no SQLite path on this write surface).\n3. Wire attach into the MT-101 spawn handler (after policy pass, before spawn_session; roll back the row if spawn_session rejects).\n4. Wire detach + cascade into the coordinator terminal-state event observation (subscribe to session terminal events; do not modify coordinator internals beyond the existing event/observer seam).\n5. Implement cascade_cancel depth-first cancellation via coordinator cancellation API; ledger each cancelled child.\n6. Tests per expected_tests.",
     "allowed_paths": [
-      "src/backend/handshake_core/migrations/** (next free numeric prefix only; paired .down.sql)",
+      "src/backend/handshake_core/migrations/** (next free numeric SurrealKit SurrealQL rollout only)",
       "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs",
       "src/backend/handshake_core/src/swarm_orchestration/model_tools/**",
       "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
@@ -49,7 +59,7 @@
       "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (observe via existing event seam only; no internal edits)"
     ],
     "acceptance_criteria": [
-      "Migration creates swarm_session_lineage with the specced columns/indexes and a working down migration; runs green against managed PostgreSQL.",
+      "Migration creates swarm_session_lineage with the specced columns/indexes and a working down migration; runs green against managed SurrealDB.",
       "Every MT-101 model-initiated spawn writes exactly one lineage row server-side; no tool surface can write lineage rows directly.",
       "Spawn attempts beyond model_to_model.max_spawn_depth (default 2) are rejected with typed DepthExceeded BEFORE spawn_session is called.",
       "Cycle attach attempts are rejected with typed LineageCycle and ledgered as an anomaly.",
@@ -61,10 +71,10 @@
       "cargo test -p handshake_core session_lineage -- --nocapture",
       "cargo test -p handshake_core lineage_depth_exceeded_rejected -- --nocapture",
       "cargo test -p handshake_core lineage_cascade_cancel_depth_first -- --nocapture",
-      "cargo sqlx migrate run && cargo sqlx migrate revert (or the project's migration runner equivalent) green against managed PostgreSQL"
+      "cargo official SurrealDB Rust SDK migrate run && cargo official SurrealDB Rust SDK migrate revert (or the project's migration runner equivalent) green against managed SurrealDB"
     ],
     "code_surfaces": [
-      "src/backend/handshake_core/migrations/<next>_swarm_session_lineage.sql (+ .down.sql) (new)",
+      "src/backend/handshake_core/migrations/<next>_swarm_session_lineage.surql (new SurrealKit rollout)",
       "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (new)",
       "src/backend/handshake_core/src/swarm_orchestration/model_tools/spawn_tool.rs (wire attach)",
       "src/backend/handshake_core/src/swarm_orchestration/events.rs (reference: SwarmFrEventId payload enrichment)",
@@ -72,9 +82,9 @@
     ],
     "expected_tests": [
       "unit: depth calculation over a synthetic chain; cycle detection over a forged ancestor set",
-      "integration (managed PG): attach on spawn, row rolled back when spawn_session rejects",
-      "integration (managed PG): cascade_cancel on parent termination cancels grandchildren before children, all ledgered",
-      "integration (managed PG): orphan policy leaves child live with orphaned row state",
+      "integration (managed SurrealDB): attach on spawn, row rolled back when spawn_session rejects",
+      "integration (managed SurrealDB): cascade_cancel on parent termination cancels grandchildren before children, all ledgered",
+      "integration (managed SurrealDB): orphan policy leaves child live with orphaned row state",
       "negative: direct lineage write from a tool surface is impossible (no such API exported)"
     ],
     "implementation_notes": [
@@ -136,5 +146,19 @@
   "research_provenance": {
     "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: migrations/ directory layout (numeric-prefix pairs, e.g. 0019_kernel_session_queue, 0021_kernel_process_lifecycle), ids.rs SpawnRequest.parent_session_id (existing lineage attribution field), coordinator.rs (terminal states, CancellationToken, teardown ownership), events.rs (SESSION-CANCELLED/COMPLETED/FAILED events to enrich). External precedent: process-group/cgroup cascade semantics and Claude Code subagent lifecycle (children bounded by parent lifetime by default).",
     "corrections": []
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

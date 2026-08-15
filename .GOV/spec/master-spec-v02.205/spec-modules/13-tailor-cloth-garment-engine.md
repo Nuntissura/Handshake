@@ -1,0 +1,13697 @@
+---
+schema: handshake.indexed_spec.module@1
+spec_version: "v02.205"
+bundle_id: "master-spec-v02.205"
+module_id: "13"
+section_id: "13"
+title: "13. Tailor -- Cloth & BodyKit Creative Module"
+source_baseline_version: "v02.194"
+source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md"
+source_body_original_sha256: "68890d4c67fdb7315319337f7d4eae1d95d4c92e0c145e49348cde21431e4d9b"
+body_sha256: "a002b194d27d8d136a18f36a9a9be6782a1952bbfe25406eac98931ff6ec4d2f"
+metadata_rule: "frontmatter is machine metadata; body follows after this block"
+---
+# 13. Tailor -- Cloth & BodyKit Creative Module [TAI-SECTION-001]
+
+Tailor is the Handshake-native creative module for garments AND parametric bodies. It comprises exactly TWO submodules under one module authority:
+
+- **Cloth** (sub-sections 13.1-13.15) — the garment-authoring and cloth-simulation engine (a Marvelous-Designer-equivalent "detailer").
+- **BodyKit** (sub-sections 13.16-13.27) — the parametric body engine that replaces Daz Studio in the production pipeline: decoupled region morph channels, extreme body ranges, skeleton/skinning, genital modules, skin/texture system, and Blender/UE export lanes.
+
+Tailor attaches to the kernel like the atelier module: a `handshake_core::tailor` domain module bound to Handshake-managed SurrealDB/EventLedger authority, CRDT collaboration, the sandbox->validation->promotion lifecycle, canonical kernel actions, and model lanes, plus a standalone UI-agnostic `tailor-solver` Rust crate reached only through typed solver traits. The solver owns three deliberately distinct lanes: a deterministic CPU-f64 reference oracle, a wgpu interactive XPBD lane, and a CPU-f64 final-quality nonlinear lane with finite-thickness contact. This section is product LAW. The canonical authority for every Cloth type, field, unit, event, schema-id, table, migration, validation check, and promotion-equivalence rule is sub-section 13.14 as extended by 13.28-13.36 and the v02.204 authority override below; where earlier text conflicts with the v02.204 authority override, the override wins. BodyKit canonical contracts live in 13.16 and are likewise extended by 13.28-13.36 without forking shared authority. The research packages `.GOV/reference/cloth_engine_research/` and `.GOV/reference/tailor_bodykit_research/` are non-normative provenance only; operator-stated body requirements (OBR-001..004) bind through the normative clauses in 13.16-13.36.
+
+## 13.0 SurrealDB Authority Override (v02.204) [TAI-SDB-001]
+
+The clauses in this sub-section are the canonical Tailor storage and data-schema contract. They
+override every incompatible physical-storage phrase, code sample, DDL fragment, test instruction,
+or migration filename elsewhere in Section 13, including text that previously called 13.14,
+13.16, or 13.28-13.36 canonical. Older PostgreSQL, `sqlx`, `PgPool`, `JSONB`, RLS, `pgvector`,
+`LISTEN`/`NOTIFY`, and SQL-migration wording is retained only as legacy design provenance and as a
+field-by-field inventory that must be translated. It does not authorize a PostgreSQL runtime,
+fallback, dual-write mode, proof path, dependency, or second authority.
+
+**[TAI-SDB-002] Runtime authority.** Tailor and BodyKit durable authority MUST use the
+Handshake-managed SurrealDB service through the official SurrealDB Rust SDK and the kernel's typed
+authority-store abstraction. `AppState` supplies that shared SurrealDB authority client; Tailor
+MUST NOT create a private database connection, use `PgPool`, issue `sqlx` queries, accept a
+PostgreSQL connection URL, or attempt PostgreSQL connectivity for migration or verification.
+PostgreSQL drivers, runtime lifecycle code, environment variables, configuration keys, startup
+modes, provisioning scripts, health checks, and proof fixtures MUST be retired from the active
+Tailor dependency and acceptance surface. SQLite remains prohibited for authority, caches,
+fixtures offered as runtime proof, and tests that claim production-storage equivalence. There is
+no PostgreSQL fallback, dual authority, import lane, or transitional runtime.
+
+**[TAI-SDB-003] Schema translation.** Every canonical `tailor_*` and `bodykit_*` relation named in
+this module remains the same semantic entity and uses the same stable schema IDs, prefixed string
+identifiers, field names, units, status domains, foreign-reference meaning, timestamps, retention
+rules, and EventLedger links, but MUST be implemented as a SurrealDB `SCHEMAFULL` table. A legacy
+SQL column maps to a typed SurrealDB field; `JSONB` maps to typed object or array fields validated
+against the named Handshake schema rather than an opaque JSON string; SQL foreign keys map to
+typed record references plus explicit application and schema assertions; SQL `CHECK`, `UNIQUE`,
+and ordinary indexes map to equivalent SurrealDB field assertions and indexes. Record IDs MAY use
+SurrealDB record identifiers internally, but the specified domain ID value and prefix remain
+stable at every API, EventLedger, import/export, and receipt boundary.
+
+**[TAI-SDB-004] EventLedger atomicity and concurrency.** The EventLedger remains the semantic
+mutation authority and replay source, and its event records, idempotency records, stream heads,
+and replay metadata MUST be persisted in SurrealDB. Every accepted Tailor or BodyKit mutation MUST
+execute its entity changes, SurrealDB-persisted EventLedger append, idempotency-key claim,
+revision/precondition check, and any projection-head update in one SurrealDB transaction. Duplicate
+idempotency keys return the prior receipt without a second mutation or event. Concurrent writes
+MUST use an expected-revision or equivalent compare-and-set precondition and fail closed on
+conflict. Replay from an empty SurrealDB namespace/database MUST reconstruct the same authoritative
+state, ordering, stable IDs, privacy scope, and terminal receipt outcomes required by the existing
+clauses.
+
+**[TAI-SDB-005] Privacy and resource scope.** Every authority table defaults to `PERMISSIONS NONE`
+and grants only explicit authenticated record-user `SELECT`, `CREATE`, `UPDATE`, and `DELETE`
+expressions for the owning account, project, role, and resource scope. Sensitive fields additionally
+use field-level permissions where visibility is narrower than the record. The kernel
+`ResourceBroker` remains the required application-layer authorization gate for artifacts, derived
+data, model contexts, exports, logs, and live-query subscriptions. Root, system, namespace, or
+database-owner credentials bypass record permissions and therefore MUST NOT be used as privacy,
+tenant-isolation, or least-privilege proof; those proofs MUST execute with authenticated record-user
+sessions and adversarial cross-account/project cases.
+
+**[TAI-SDB-006] Queries, subscriptions, and vectors.** Query and repository code MUST use typed
+SurrealQL through the official SDK. SurrealDB live queries replace any PostgreSQL
+`LISTEN`/`NOTIFY` design while preserving reconnect, resume, ordering, scope, and deduplication
+requirements. Where an existing Tailor/BodyKit behavior requires semantic vector retrieval, the
+embedding remains a typed vector field with a SurrealDB vector index and explicit filtered search;
+vector candidates MUST still pass record-user permissions and `ResourceBroker` authorization.
+Non-vector indexes retain their specified lookup, uniqueness, ordering, and performance intent.
+
+**[TAI-SDB-007] Fresh schema initialization and activation.** Tailor and BodyKit MUST initialize
+their SurrealDB `SCHEMAFULL` tables, typed fields, assertions, indexes, permissions, EventLedger
+records, and projection heads from a clean SurrealDB namespace/database. The initialization ships
+as a SurrealKit rollout with explicit `start`, initialize, verify, cold-authority activation,
+`complete`, and `rollback` stages. Activation MUST occur only after the empty authority passes the
+schema, transaction, EventLedger, privacy, index, and restart checks in [TAI-SDB-008]. The dated
+`.sql`/`.down.sql` names and fenced PostgreSQL DDL retained below are non-executable semantic
+inventories and historical provenance only; they MUST NOT be executed, connected to, parsed as
+migration input, or used as a data-import source. No PostgreSQL data migration, reconciliation,
+dual read, dual write, compatibility bridge, or authority cutover exists. Rollback returns to an
+unactivated or prior SurrealDB schema state and MUST NOT select or contact PostgreSQL.
+
+**[TAI-SDB-008] Test and acceptance proof.** Tailor storage acceptance MUST provision an isolated
+SurrealDB namespace/database, apply the SurrealKit rollout, execute real official-SDK calls, and
+prove create/read/update/delete, transaction rollback, idempotent retry, optimistic conflict,
+EventLedger append/replay, restart recovery, live-query reconnect, index behavior, retention, and
+authenticated record-user privacy. Mock repositories, translated SQL text, root-authenticated
+queries, PostgreSQL fixtures, or inspection of a retired PostgreSQL schema cannot substitute for
+this runtime proof. Acceptance MUST also prove that active Tailor startup, configuration, and tests
+contain no PostgreSQL connection attempt or runtime dependency.
+
+**[TAI-SDB-009] Legacy-name preservation.** Historical work-packet names, migration identifiers,
+source paths, and quoted implementation examples containing PostgreSQL-family terms remain valid
+only as provenance locators. When such a locator is cited by new work, the implementation MUST
+apply the mappings in [TAI-SDB-002] through [TAI-SDB-008] and MUST record the SurrealDB replacement
+artifact; it MUST NOT recreate the superseded backend.
+
+## 13.1 Overview, Scope, and Model-First Differentiator
+
+---
+
+### 1. What Tailor Is
+
+Tailor is the Handshake-native garment-authoring and cloth-simulation creative module. It is a
+kernel-attached creative module in the same architectural position as the atelier module
+(`src/atelier/`): a domain subdirectory under `handshake_core` that receives `AppState` by
+reference, emits `KernelEventType` variants to the EventLedger, operates through the kernel
+sandbox and `PromotionGate`, and persists authority records to Handshake-managed SurrealDB through
+the official SurrealDB Rust SDK and the kernel's typed authority-store abstraction.
+
+Tailor MUST consist of two compile units, shared by BOTH submodules:
+
+1. **`handshake_core::tailor`** (`src/tailor/`) — the kernel-bound creative module: authority
+   storage, EventLedger emission, CRDT collaborative editing, sandbox dispatch, promotion gate
+   integration, model-lane binding, and REST API surface (`src/api/tailor.rs`). The BodyKit
+   submodule lives at `src/tailor/bodykit/` inside this compile unit (13.16).
+
+2. **`tailor-solver`** — a standalone Rust workspace crate with no dependency on `handshake_core`.
+   It contains the XPBD cloth simulation loop, WGSL compute shaders, `wgpu` device management,
+   rigid collision proxies (via `rapier`/`parry`), and the `ClothSolver` trait that forms the
+   crate's public boundary. `handshake_core::tailor` calls into `tailor-solver` only through
+   `ClothSolver`. BodyKit geometry/deformation/soft-tissue code lives in `tailor-solver/src/body/`
+   in this same crate — one solver world for cloth, body soft tissue, and rigid proxies (13.20).
+
+The term **cloth** MUST be used inside `tailor-solver` for cloth physics types (`ClothSolver`,
+`ClothParticle`, `ClothConstraint`, `ClothBodyProxy`), and **Body** for body physics/geometry
+types (`BodyMesh`, `BodyChannelEvaluator`, `BodySoftTissue`). The term **Garment** / **Body** /
+**Tailor** MUST be used for all domain, feature, event, table, and schema-id identifiers in
+`handshake_core::tailor` and in the REST/MCP API surface. This dual-terminology rule resolves the
+physics-vs-domain naming tension throughout the system; it is not a inconsistency.
+
+---
+
+### 2. Feature Scope
+
+#### 2.1 In Scope
+
+Tailor MUST implement the following capability groups, each corresponding to a downstream spec
+sub-section. Rows above the BodyKit divider belong to the Cloth submodule; BodyKit capability
+groups are governed by sub-sections 13.16-13.27 (overview/authority, decoupled region channels,
+skeleton/skinning/posing, corrective engine, soft tissue, genital modules, skin/texture, face,
+Cloth bridge, model-first body API, export lanes, and GUI/archetypes/validation):
+
+| Capability group | Sub-section |
+|---|---|
+| 2D sewing-pattern authoring: panels, darts, pleats, Bézier edges, grain | T-PATTERN-SCHEMA |
+| Seam and sewing constraints, including M:N ratio gathering | T-SEAM-CONSTRAINTS |
+| Anisotropic fabric model: weft/warp/shear/buckling, normalized [0,1] LLM surface | T-FABRIC-MODEL |
+| Three solver lanes: CPU-f64 reference oracle, wgpu interactive XPBD, CPU-f64 final-quality nonlinear finite-thickness contact | T-SOLVER-CORE; 13.29 |
+| Self-collision and inter-layer spacing | T-COLLISION |
+| Avatar and body-proxy binding for fit and collision | T-AVATAR-BINDING |
+| Keyframeable physical properties and animation timeline | T-ANIMATION |
+| Rigid trim coupling: buttons, zippers, lacing, pattern-to-trim conversion | T-TRIM-RIGID |
+| UV-from-pattern: ARAP flatten, island packing, grain-accurate UVs | T-UV-TEXTURE |
+| Garment authority storage: `tailor_*` SurrealDB `SCHEMAFULL` tables, EventLedger | T-ASSET-AUTHORITY |
+| Import/export interoperability: OBJ, FBX, Alembic, glTF, GarmentCode JSON | T-PIPELINE-INTEROP |
+| LLM-steerable garment authoring via `TailorModelAdapter` and MCP tools | T-MODEL-LANE |
+| Sandbox, validation gate (~35 checks), and `PromotionGate` integration | T-KERNEL-INTEGRATION |
+| WGSL compute shader architecture | T-WGSL-SHADERS |
+| Validation check catalog (`TailorValidationDescriptor`) | T-VALIDATION |
+
+The capability baselines for any "full parity" claim MUST be the pinned Marvelous Designer 2026.0
+and Daz Studio 6.25 inventories registered under 13.28. Inventory rows are independent product
+requirements, not a prose ceiling and not satisfied by the existence of a microtask. Internal
+hole contours, turned seams, sublayers, piping, per-face materials, print repeats, tape measures,
+export topology, grading, seam allowances/notches/annotations, styles/colorways, native final
+rendering, print layout, down fill, groom/fur, and the professional workspaces in 13.31-13.32 are
+in scope. A capability may be an explicit accepted exclusion only when it is non-core and the
+qualification registry records the reason and operator-approved limitation; a required row can
+never be converted to an exclusion merely because implementation is expensive or a vendor calls
+it an extension. All deliberate Tailor exceedances remain in scope and are recorded separately
+from parity rows so they cannot mask a missing vendor-baseline capability.
+
+#### 2.2 Out of Scope
+
+The following are explicitly out of scope for Tailor:
+
+- **SQLite.** Tailor MUST NOT introduce any SQLite dependency anywhere — not in `tailor-solver`,
+  not in tests, not as a development cache. The `no_sqlite_tripwire` and SurrealDB-only startup
+  tripwire in [TAI-SDB-002] apply to the Tailor module without exception.
+
+- **External cloth-authoring applications.** Tailor is a Handshake-native module. It MUST NOT
+  require a Marvelous Designer, CLO3D, or any other subscription-gated or platform-locked tool at
+  runtime. Interoperability with those tools' export formats (OBJ, FBX, `.zprj` pattern JSON) is
+  in scope as import/export; runtime dependency on them is not.
+
+- **Bevy / Avian as a production dependency.** Bevy and Avian physics MAY be used exclusively
+  inside `tailor-solver/examples/testbed/` as a throwaway interactive viewport for constraint
+  validation during solver development. They MUST NOT appear in `tailor-solver/src/` or in any
+  dependency of `handshake_core`.
+
+- **OpenAI / Anthropic / Google as required infrastructure.** The model-lane binding
+  (`TailorModelAdapter`) MUST use the kernel's existing `LlmClient` trait and model-lane registry.
+  No specific LLM provider is required; the existing Ollama and OpenAI-compatible adapters
+  already registered in the kernel are sufficient. Tailor MUST NOT add a provider-specific
+  dependency.
+
+- **WebView/Tauri as the Tailor product surface.** Tailor MUST integrate with the Handshake native
+  Rust shell and canonical kernel action registry. Any legacy Tauri command is compatibility-only,
+  MUST map deterministically to a canonical action descriptor, and MUST NOT become a second
+  Tailor authority or a direct `tailor-solver` mutation path.
+
+- **Legacy SQL migrations.** Tailor MUST use SurrealKit rollouts per [TAI-SDB-007]. Numbered
+  `0NNN_*` and dated `.sql`/`.down.sql` migrations are forbidden for new Tailor implementation;
+  names retained later in this module are provenance locators for the schema inventory they
+  previously introduced. See T-CONTRACTS §migration-naming as translated by [TAI-SDB-007].
+
+---
+
+### 3. The Model-First Differentiator
+
+Tailor's defining differentiator over all current cloth-authoring tools, including Marvelous
+Designer 2026.0, is **model-steerability as a first-class design constraint**, not a post-hoc
+plugin.
+
+#### 3.1 The Gap Tailor Fills
+
+As of 2026.0, Marvelous Designer's AI features are limited to a cloud-gated AI Pose Generator
+(Beta) and an AI Image Generator texture plugin. It has no LLM-steerable sewing-pattern authoring
+and no structured JSON API a model can call to propose, edit, or validate a garment. The research
+field has independently demonstrated this pipeline is achievable — ChatGarment (CVPR 2025),
+NGL-Prompter (arXiv 2602.20700, Feb 2026), GarmentDiffusion (IJCAI 2025), and
+Design2GarmentCode (CVPR 2025) each prove that a VLM or diffusion model can produce a valid
+structured garment representation from text, image, or sketch input. Handshake is the first
+production system to own this pipeline natively inside kernel model-lane infrastructure.
+
+The non-normative research provenance for this differentiator is `cloth_engine_research/00-overview.md`
+(T-OVERVIEW.differentiator) and `cloth_engine_research/02-md-feature-map.md`
+(T-MD-FEATURES.group-11-ai-model-steerability). This sub-section states the normative
+requirements that make the differentiator real.
+
+#### 3.2 Normative Model-Steerability Requirements
+
+**[TAI-OVR-001]** Tailor MUST provide a `TailorModelAdapter` that implements the kernel's
+`ModelAdapter` trait and is registered in the model-lane registry. It MUST accept a
+`ContextBundle` containing a `GarmentSpec` (schema id `hsk.tailor.garment_spec@1`) and a
+natural-language constraint description, invoke an LLM via the `LlmClient` trait, and extract a
+`GarmentSpec` from `artifact_payload`.
+
+**[TAI-OVR-002]** `GarmentSpec` MUST be the single type shared between the LLM's primary output
+surface, the solver's primary input surface, and the typed SurrealDB object field
+`tailor_garments.spec_json`. It MUST derive `schemars::JsonSchema` so its MCP `inputSchema` is
+auto-generated without manual schema maintenance.
+
+**[TAI-OVR-003]** `GarmentSpec` MUST use centimetres for all physical lengths (field names MUST
+carry a `_cm` suffix on every length field), normalized `[0.0, 1.0]` for fabric stiffness
+parameters (where `1.0` = stiffest), and `f32` for the `gather_ratio` field on `SeamSpec`
+(defined as `from_length / to_length`, valid range `(0.0, 20.0]`). These unit conventions MUST
+NOT be changed without a new major schema version increment. See T-CONTRACTS §garment-spec for
+the full canonical type.
+
+**[TAI-OVR-004]** A model-authored `GarmentSpec` MUST NOT be written directly to a SurrealDB
+authority record. It MUST enter the kernel sandbox (`SandboxAdapter` trait, process-tier by default),
+be validated by the `TailorValidationDescriptor` (the ~35-check catalog in T-CONTRACTS
+§validation), and pass the `PromotionGate` (`PromotionDecisionV1: Accepted`) before the garment
+row receives `status = 'promoted'`. This lifecycle is not optional and MUST NOT be bypassed for
+model-authored garments regardless of LLM confidence.
+
+**[TAI-OVR-005]** The `SimulationReceipt` type (schema id `hsk.tailor.simulation_receipt@1`) MUST
+be returned to the model as MCP `structuredContent` after every simulate or validate call. It MUST
+include `validation_findings` carrying the stable `code` values from T-CONTRACTS §validation, a
+`severity` of `"blocking" | "advisory" | "info"`, and an optional `suggested_fix` with a
+JSON-pointer `field_path` into `GarmentSpec` and a `suggested_value`. This gives the model a
+deterministic self-correction loop without natural-language interpretation of error text.
+
+**[TAI-OVR-006]** Promotion equivalence MUST be tier-specific. Same-lane deterministic replays
+use exact topology, ordered semantic invariants, and the measured tolerance profile locked for
+that lane. Interactive-GPU qualification uses outcome and invariant tolerances across supported
+adapters. Final-quality qualification uses CPU-f64 accepted-step certificates, contact residuals,
+strain bounds, and triangle-level artifact comparison. A cross-tier `0.1 mm` per-vertex rule is
+prohibited because the lanes use different algorithms and convergence objectives. Content hashes
+remain same-input/same-build idempotency and EventLedger fingerprinting evidence, not a substitute
+for geometric or physical equivalence.
+
+**[TAI-OVR-007]** Every garment authoring session MUST be fully reproducible from EventLedger
+receipts alone. A replay of the `Tailor*` event sequence for a garment MUST reconstruct the
+complete authority state of that garment without reference to chat history, session context, or
+agent-local memory.
+
+#### 3.3 Contrast with Marvelous Designer
+
+| Capability dimension | Marvelous Designer 2026.0 | Tailor (this spec) |
+|---|---|---|
+| LLM-steerable pattern authoring | None | Required: `TailorModelAdapter` + MCP tools |
+| Structured garment JSON API | None (GUI-only) | `GarmentSpec` (`hsk.tailor.garment_spec@1`) |
+| Sandbox + validation gate | None | Required: ~35-check `TailorValidationDescriptor` |
+| EventLedger audit trail | None | Required: every mutation emits a `Tailor*` event |
+| CRDT collaborative editing | Cloud sync only (CLO-SET) | Required: `TailorPanelCrdtUpdateRecorded` |
+| Promotion equivalence (cross-backend) | N/A | Required: lane-specific `TailorQualificationProfileV1` metrics and receipts; `MeshComparator` only where that profile selects vertex comparison |
+| Operator-only control | GUI-first | Model-first; operator is a participant, not the only actor |
+
+Tailor MUST NOT replicate MD's GUI-first interaction model as its design center. The native Rust
+GUI and backend/model action routes are peer projections over the same kernel authority; neither
+WebView IPC nor direct solver calls are an authoring authority.
+
+---
+
+### 4. Kernel Creative Module Framing
+
+Tailor is a **creative module** in the Handshake kernel, not a standalone application and not a
+plugin. This framing has the following normative consequences.
+
+**[TAI-OVR-008]** `handshake_core::tailor` MUST follow the atelier module pattern:
+- A `src/tailor/` directory with `mod.rs` defining `TailorEngineError` and `event_family`
+  constants.
+- Storage glue in `src/tailor/storage_glue.rs` (parallel to `storage/kb003_storage.rs`).
+- Axum routes in `src/api/tailor.rs` registered in `api/mod.rs`.
+- All module files receive `AppState` (and thus the shared SurrealDB authority client, `LlmClient`, `SandboxRunner`,
+  `PromotionGate`, and CRDT infrastructure) by reference. No separate initialization is permitted.
+
+**[TAI-OVR-009]** `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, `CubeCL`, or any WGSL
+dependency. All GPU code is isolated in the `tailor-solver` workspace crate. `handshake_core`
+accesses the solver only through the `ClothSolver: Send + Sync` trait boundary defined in
+`tailor-solver/src/lib.rs`.
+
+**[TAI-OVR-010]** The `tailor-solver` crate MUST be a Cargo workspace member in the Handshake
+monorepo, not a separately versioned external crate, so solver and kernel are always tested
+together.
+
+**[TAI-OVR-011]** The Tailor module MUST NOT be activated as a build-target work packet until the
+Handshake kernel governance baseline (WP-KERNEL-009 and its successors) is stable enough that the
+sandbox, promotion gate, and CRDT surfaces it depends on are not simultaneously under active
+structural change. The `tailor-solver` crate MAY be prototyped in isolation before the kernel is
+ready, because it has no `handshake_core` dependency.
+
+**[TAI-OVR-012]** EventLedger event variants for Tailor MUST follow the canonical addition list in
+T-CONTRACTS §event-types. The Tailor module adds variants to `KernelEventType` in
+`kernel/mod.rs` (wire format `TAILOR_*` SCREAMING_SNAKE_CASE via `as_str()`) and registers every
+variant in `required_first_slice_events()`. No variant from the superseded-names list in
+T-CONTRACTS §event-types MUST appear in new code.
+
+**[TAI-OVR-013]** SurrealDB `SCHEMAFULL` tables for Tailor MUST preserve prefixed string domain
+IDs (e.g., `garment_id = "GAR-{uuid_v7}"`, `avatar_id = "AVT-{uuid_v7}"`) at all public and
+receipt boundaries. The legacy SQL migrations `0332_media_asset_tiers.sql` and
+`0334_loom_canvas_boards.sql` remain provenance for that naming convention only. Database-generated
+opaque UUIDs that erase the required prefix are off-convention and MUST NOT be used.
+
+**[TAI-OVR-014]** Every Tailor authority record MUST carry a required typed
+`event_ledger_event_id` reference to `kernel_event_ledger`. Every create or mutating update MUST
+enter the SurrealDB-only authority guard and the transaction required by [TAI-SDB-004]; a
+PostgreSQL or SQLite authority mode MUST fail closed. The canonical table set is defined in
+T-CONTRACTS §tables as translated by [TAI-SDB-003]; no additional tables are authoritative until
+they appear there or in a subsequent normative amendment to that section.
+
+---
+
+### 5. Build-Order Summary
+
+The build order for the Tailor module is normative:
+
+1. **`tailor-solver` foundations (independent).** The shared types, CPU-f64 reference oracle,
+   wgpu interactive XPBD lane, CPU-f64 final-quality lane, fixtures, certificates and lane-specific
+   comparators MAY be developed in the standalone workspace before kernel integration. This does
+   not require a running Handshake kernel, but production profiles remain input-lock gated.
+
+2. **Kernel prerequisite gate.** `handshake_core::tailor` MUST NOT be authored or integrated until
+   the sandbox (`SandboxAdapter`), `PromotionGate`, and CRDT layer are stable against concurrent
+   kernel work packets.
+
+3. **`handshake_core::tailor` module.** Domain types, storage glue, EventLedger binding, CRDT
+   documents, model adapter, and sandbox adapter are authored and integration-tested against the
+   kernel primitives.
+
+4. **Canonical actions and native surfaces.** Registered kernel action handlers, backend/model
+   routes, native surface descriptors, UserManual anchors and Argus/AccessKit proof are integrated
+   after step 3. Compatibility adapters may follow only after canonical action parity passes.
+
+---
+
+### 6. Non-Normative Research Provenance
+
+The design decisions in this module are grounded in the following non-normative research sources,
+available in `cloth_engine_research/`:
+
+- `00-overview.md` (T-OVERVIEW) — vision, Handshake-native constraints, differentiator, OSS
+  landscape, module topology, build order, risks.
+- `02-md-feature-map.md` (T-MD-FEATURES) — complete Marvelous Designer 2026.0 feature taxonomy
+  with difficulty ratings and moat flags; the requirements ceiling for feature coverage.
+- `16-contracts.md` (T-CONTRACTS) — the canonical authority for all types, field names, units,
+  event variants, schema IDs, table definitions, migration naming, validation check catalog,
+  and promotion-equivalence resolution. All normative requirements in this and all other Tailor
+  sub-sections MUST use T-CONTRACTS as the contract surface; where any other research topic
+  conflicts with T-CONTRACTS, T-CONTRACTS wins.
+
+These documents are reference material, not product law. This spec sub-section and its siblings
+are product law.
+
+---
+file_id: tailor-spec-02-architecture
+spec_id: TAILOR-SPEC-02
+title: "Architecture: tailor-solver Crate + handshake_core::tailor Module"
+status: draft
+section: "### <N>.<i> Architecture: tailor-solver Crate + handshake_core::tailor Module"
+provenance_research:
+  - "T-CODEBASE (01-codebase-inventory.md)"
+  - "T-CLOTH-SOLVER (04-cloth-solver.md)"
+  - "T-KERNEL-INTEGRATION (10-kernel-integration.md)"
+  - "T-CONTRACTS (16-contracts.md) — canonical authority for all types, names, events, schemas"
+updated_at: "2026-06-17"
+---
+
+## 13.2 Architecture: tailor-solver Crate + handshake_core::tailor Module
+
+This section specifies the two-component architecture of the Tailor garment engine: the
+standalone `tailor-solver` Rust crate that owns all GPU physics, and the
+`handshake_core::tailor` module that owns all kernel authority. These two components MUST remain
+strictly separated at a defined trait boundary. No exceptions to the separation are
+permitted by this spec.
+
+Non-normative provenance: `T-CODEBASE`, `T-CLOTH-SOLVER`, and `T-KERNEL-INTEGRATION` in the
+research package at
+`wt-gov-kernel/.GOV/reference/cloth_engine_research/` contain design rationale, OSS evidence,
+and implementation sketches. `T-CONTRACTS` (`16-contracts.md`) is the canonical authority for
+every type name, event variant, wire string, schema ID, table name, migration name, and
+validation check cited in this section. Where any research-package document conflicts with
+`T-CONTRACTS`, `T-CONTRACTS` governs.
+
+---
+
+##### <N>.<i>.1 Crate Split and Dependency Direction
+
+**ARCH-001.** The garment engine MUST be implemented as exactly two units:
+
+1. `tailor-solver` — a standalone Rust crate (Cargo workspace member) that implements
+   XPBD cloth physics via wgpu v29 / WGSL compute shaders.
+2. `handshake_core::tailor` — a domain module in the `handshake_core` crate
+   (source path `src/tailor/`) that owns all PostgreSQL authority, EventLedger receipts,
+   CRDT collaboration, sandbox lifecycle, promotion gate binding, and model-lane surfaces.
+
+**ARCH-002.** Dependency direction MUST be one-way: `handshake_core::tailor` depends on
+`tailor-solver` via a trait object (`Box<dyn ClothSolver>` or `Arc<dyn ClothSolver>`).
+`tailor-solver` MUST NOT depend on `handshake_core`, `sqlx`, `tauri`, or any Handshake
+kernel crate. Circular dependencies are forbidden.
+
+**ARCH-003.** No file in `handshake_core` other than `src/tailor/solver_binding.rs`
+MUST import or reference anything from the `tailor-solver` crate. This is the single kernel
+entry point for GPU physics.
+
+**ARCH-004.** `wgpu`, `wgsl_to_wgpu`, `bytemuck`, `encase`, `parry3d`, and any other GPU or
+physics-geometry dependency MUST appear only in `tailor-solver/Cargo.toml`. They MUST NOT be
+added to `handshake_core/Cargo.toml`.
+
+**Rationale.** `handshake_core` has no GPU compute dependency today (verified in `T-CODEBASE`
+`FACT-NO-GPU`). Introducing `wgpu` into the kernel crate would pull Naga, SPIR-V toolchains,
+and platform GPU SDK bindings into every build of the application, including CI runs that
+do not exercise the cloth solver.
+
+---
+
+##### <N>.<i>.2 The ClothSolver Trait (Canonical Boundary Contract)
+
+**ARCH-005.** `tailor-solver` MUST expose the following public trait as its primary boundary.
+The canonical form is authoritative; implementations MUST match it exactly.
+
+```rust
+// tailor-solver/src/lib.rs
+
+/// The sole boundary between handshake_core::tailor and the GPU physics crate.
+/// Two implementors are required: ClothSolverGpu (wgpu) and ClothSolverCpu (test/no-GPU
+/// fallback). Both must implement this trait identically.
+#[async_trait::async_trait]
+pub trait ClothSolver: Send + Sync {
+    /// One-time initialization: upload GarmentSpec mesh and material to the GPU.
+    /// MUST be called before simulate(). Calling simulate() without a prior successful
+    /// load_garment() MUST return ClothSolverError::NotLoaded.
+    async fn load_garment(
+        &mut self,
+        mesh: SolverMesh,
+        material: FabricMaterial,
+    ) -> Result<(), ClothSolverError>;
+
+    /// Run the XPBD simulation for n_frames. Returns the final simulated mesh state.
+    /// MUST be deterministic per-backend: identical inputs, same GPU backend and driver,
+    /// MUST produce identical SolverResult byte-for-byte.
+    async fn simulate(
+        &mut self,
+        n_frames: u32,
+        params: SimRunParams,
+    ) -> Result<SolverResult, ClothSolverError>;
+
+    /// Upload keyframeable material parameter overrides for the current substep
+    /// (MD MOAT-4: per-frame solidify, pressure, shrinkage, tack compliance).
+    /// MAY be called between simulate() calls for animation runs.
+    fn update_params(&mut self, frame_params: MaterialFrameParams);
+
+    /// Unload the current garment and free all GPU buffers. After unload(),
+    /// simulate() MUST return ClothSolverError::NotLoaded until load_garment() is called again.
+    async fn unload(&mut self);
+
+    /// SHA-256 of the final position buffer from the most recent simulate() call.
+    /// MUST return None if no simulation has completed since the last load_garment().
+    /// Used for same-backend idempotency only — MUST NOT be used for cross-backend
+    /// promotion equivalence (see ARCH-031).
+    fn last_content_hash(&self) -> Option<[u8; 32]>;
+
+    /// Human-readable solver version string recorded in tailor_simulation_runs.solver_version.
+    fn solver_version(&self) -> &str;
+}
+```
+
+**ARCH-006.** `SimRunParams`, `MaterialFrameParams`, `SolverResult`, `SolverMesh`,
+`FabricMaterial`, and `ClothSolverError` MUST be defined in `tailor-solver/src/` and
+re-exported from `tailor-solver/src/lib.rs`. They are the only types that cross the crate
+boundary.
+
+**ARCH-007.** `SolverMesh` (canonical name; supersedes `SolverMeshV1` from research topic `03`)
+MUST be defined in `tailor-solver/src/mesh.rs` and MUST be producible from a `GarmentSpec`
+(defined in `tailor-solver/src/spec.rs`) via a `GarmentSpec::to_solver_mesh()` method or
+equivalent triangulation pipeline. `GarmentSpec` is the authority garment type
+(see `T-CONTRACTS` `[T-CONTRACTS.garment-spec]`); `SolverMesh` is its physics-runtime
+derivative.
+
+**ARCH-008.** `SolverResult` MUST contain at minimum:
+
+```rust
+// tailor-solver/src/lib.rs (or src/types.rs)
+pub struct SolverResult {
+    /// Final particle positions, flat [f32; N*3], metres or centimetres per GarmentSpec units.
+    pub positions: Vec<f32>,
+    pub normals:   Vec<f32>,
+    pub uvs:       Vec<f32>,
+    pub indices:   Vec<u32>,
+    /// SHA-256 of positions bytes. Same-backend idempotency only; see ARCH-031.
+    pub content_hash: [u8; 32],
+    pub n_frames:     u32,
+    pub gpu_mem_peak: u64,
+}
+```
+
+**ARCH-009.** `ClothSolverError` MUST be a `thiserror`-derived enum. It MUST include at least
+the variants `NotLoaded`, `NoAdapter` (no suitable GPU adapter found), `GpuError(String)`,
+`MeshInvalid(String)`, and `Timeout`. The kernel-side `TailorEngineError` wraps
+`ClothSolverError` but MUST NOT re-export it directly to callers outside `solver_binding.rs`.
+
+---
+
+##### <N>.<i>.3 tailor-solver Crate: Internal Module Layout
+
+**ARCH-010.** The `tailor-solver` crate MUST follow this module layout. Additions are
+permitted; removal of required modules is not.
+
+```text
+tailor-solver/
+  Cargo.toml               -- [package] name = "tailor-solver"; no handshake_core dep
+  build.rs                 -- wgsl_to_wgpu codegen: generates Rust bind-group structs from
+                              WGSL via naga; eliminates runtime bind-group alignment bugs
+  src/
+    lib.rs                 -- pub trait ClothSolver; pub use of all public types
+    spec.rs                -- GarmentSpec + all sub-types (canonical garment type per T-CONTRACTS)
+    mesh.rs                -- SolverMesh, SeamConstraintRecord; GarmentSpec -> mesh triangulation
+    solver.rs              -- ClothSolverGpu: wgpu Device/Queue, pipeline init, substep dispatch
+    solver_cpu.rs          -- ClothSolverCpu: CPU fallback; required for tests and no-GPU CI
+    constraints.rs         -- constraint graph build + greedy graph coloring; color partition
+                              ranges stored here; coloring computed once at load_garment()
+    material.rs            -- FabricMaterial, GpuSimParams, MaterialFrameParams;
+                              normalized FabricProperties -> raw XPBD compliance mapping
+    body/
+      proxy.rs             -- ClothBodyProxy, CollisionCapsule, CollisionSphere (mm);
+                              GpuCapsule/GpuSphere GPU upload types (bytemuck::Pod)
+    self_collision.rs      -- SpatialHash; neighbor list management; broad phase
+    types.rs               -- GpuParticle, GpuStretchConstraint, GpuBendConstraint,
+                              GpuSeamConstraint (bytemuck::Pod + bytemuck::Zeroable)
+    compare.rs             -- MeshComparator: tolerance-based promotion equivalence (ARCH-031)
+    error.rs               -- ClothSolverError (thiserror)
+  shaders/
+    predict.wgsl
+    stretch.wgsl
+    bend.wgsl
+    seam.wgsl
+    self_collide.wgsl
+    body_collide.wgsl
+    velocity.wgsl
+    hash_build.wgsl
+  examples/
+    bevy_testbed.rs        -- Bevy 0.18 throwaway viewport for visual solver testing ONLY;
+                              MUST NOT be a library dependency; gated behind [[example]]
+  tests/
+    determinism.rs         -- per-backend determinism integration test (required; see ARCH-030)
+    constraint_correctness.rs
+```
+
+**ARCH-011.** The `tailor-solver` crate MUST compile with the following mandatory dependencies
+and no others in `[dependencies]` without explicit justification in the work packet:
+
+```toml
+[dependencies]
+wgpu        = "29"
+bytemuck    = { version = "1", features = ["derive"] }
+encase      = { version = "0.8", features = ["glam"] }
+glam        = "0.29"
+parry3d     = "0.17"
+thiserror   = "2"
+tracing     = "0.1"
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+schemars    = { version = "0.8", features = ["derive"] }
+async-trait = "0.1"
+
+[build-dependencies]
+wgsl_to_wgpu = "0.15"
+
+[features]
+cuda = ["cubecl"]                  # optional CubeCL fast path; NOT required for MVP
+
+[dev-dependencies]
+# test/example-only:
+bevy        = { version = "0.18", optional = true, features = ["bevy_render"] }
+```
+
+`schemars` is required because `GarmentSpec` in `spec.rs` derives `JsonSchema` so the MCP
+`inputSchema` is auto-generated (see `T-CONTRACTS` `[T-CONTRACTS.garment-spec]`). Bevy
+MUST be `dev-dependencies` only and MUST NOT appear in `[dependencies]`.
+
+**ARCH-012.** WGSL shaders MUST be compiled into the binary at build time via
+`wgpu::include_wgsl!()` or `wgsl_to_wgpu` codegen. Shaders MUST NOT be read from disk at
+runtime. This ensures the solver binary is self-contained and portable.
+
+---
+
+##### <N>.<i>.4 handshake_core::tailor Module: Internal Layout
+
+**ARCH-013.** `handshake_core::tailor` MUST follow the `src/atelier/` creative-module pattern
+exactly. It MUST be declared as `pub mod tailor;` in `src/lib.rs` gated behind the
+`runtime-full` feature. The module layout MUST be:
+
+```text
+src/tailor/
+  mod.rs              -- TailorEngineError, TailorEngineResult<T>; re-exports
+  event_family.rs     -- all tailor.* event_family string constants (ARCH-017)
+  schemas.rs          -- all hsk.tailor.* schema-id constants (ARCH-018)
+  garment.rs          -- garment authority row CRUD; status transitions
+  solver_binding.rs   -- TailorSandboxAdapter (SandboxAdapter impl); THE ONLY file that
+                         imports tailor-solver crate types
+  simulation.rs       -- SimulationRun row management; artifact bundle assembly
+  material.rs         -- tailor_material_presets CRUD; preset->compliance mapping invocation
+  validation.rs       -- TailorValidationDescriptor wrapping KB003 ValidationDescriptor;
+                         full ~35-check catalog (T-CONTRACTS [T-CONTRACTS.validation])
+  crdt_bridge.rs      -- garment-specific CRDT document helpers (panel CRDT sub-tree)
+  avatar.rs           -- tailor_avatars + tailor_body_proxies CRUD
+  wardrobe.rs         -- tailor_wardrobe CRUD
+  model_adapter.rs    -- TailorModelAdapter (ModelAdapter impl; LLM garment authoring)
+  storage_glue.rs     -- all tailor_* sqlx queries using PgPool directly (mirror of
+                         storage/kb003_storage.rs pattern)
+  api.rs              -- Axum Router with tailor/* HTTP endpoints
+```
+
+**ARCH-014.** `src/tailor/mod.rs` MUST declare:
+
+```rust
+// src/tailor/mod.rs
+
+pub type TailorEngineResult<T> = Result<T, TailorEngineError>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum TailorEngineError {
+    #[error("storage: {0}")]
+    Storage(#[from] sqlx::Error),
+    #[error("solver: {0}")]
+    Solver(#[from] tailor_solver::ClothSolverError),
+    #[error("validation: {0}")]
+    Validation(String),
+    #[error("promotion rejected: {0}")]
+    PromotionRejected(String),
+    #[error("not found: {0}")]
+    NotFound(String),
+    #[error("event ledger: {0}")]
+    EventLedger(String),
+    #[error("forbidden storage mode")]
+    ForbiddenStorage,
+    #[error("garment spec: {0}")]
+    GarmentSpec(String),
+}
+```
+
+**ARCH-015.** Every Tailor authority write function in `storage_glue.rs` MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` as its first statement, identical to
+the pattern in `storage/kb003_storage.rs`. SQLite is forbidden as a Tailor authority backend.
+Failure to call the tripwire is a correctness defect, not a style issue.
+
+**ARCH-016.** `handshake_core::tailor` receives `AppState` (or `AppState.postgres_pool:
+sqlx::PgPool`) by reference or clone at construction time. It MUST NOT initialize a separate
+database pool. It MUST consume `AppState.llm_client: Arc<dyn LlmClient>` for all LLM calls
+(per HSK-TRAIT-004). It MUST NOT implement `LlmClient` or `ModelRuntime`.
+
+---
+
+##### <N>.<i>.5 Canonical Naming: Event Variants, Wire Strings, Schema IDs, Event-Family Constants
+
+All names in this section are authoritative per `T-CONTRACTS`. Implementations MUST use these
+exact identifiers.
+
+**ARCH-017.** `event_family.rs` MUST declare the following constants and no others for MVP scope.
+Additional families may be added per the `T-CONTRACTS` `[T-CONTRACTS.event-types]` list for
+non-MVP features.
+
+```rust
+// src/tailor/event_family.rs
+pub const TAILOR_GARMENT:    &str = "tailor.garment";
+pub const TAILOR_SIMULATION: &str = "tailor.simulation";
+pub const TAILOR_PANEL_CRDT: &str = "tailor.panel.crdt";
+pub const TAILOR_MATERIAL:   &str = "tailor.material";
+pub const TAILOR_AVATAR:     &str = "tailor.avatar";
+pub const TAILOR_BODY_PROXY: &str = "tailor.body_proxy";
+pub const TAILOR_REFIT:      &str = "tailor.refit";
+pub const TAILOR_TRIM:       &str = "tailor.trim";
+pub const TAILOR_UV:         &str = "tailor.uv";
+pub const TAILOR_TEXTURE:    &str = "tailor.texture";
+pub const TAILOR_ANIMATION:  &str = "tailor.animation";
+pub const TAILOR_WARDROBE:   &str = "tailor.wardrobe";
+pub const TAILOR_EXPORT:     &str = "tailor.export";
+pub const TAILOR_BODY:       &str = "tailor.body";      // BodyKit submodule (13.16)
+```
+
+**ARCH-018.** `schemas.rs` MUST declare the following schema-ID constants. The namespace is
+`hsk.tailor.*` for all Tailor-domain authority records. The single permitted `hsk.cloth.*`
+exception covers the two solver-crate-internal physics payloads that never become authority rows.
+
+```rust
+// src/tailor/schemas.rs
+pub const SCHEMA_TAILOR_GARMENT_SPEC_V1:    &str = "hsk.tailor.garment_spec@1";
+pub const SCHEMA_TAILOR_MATERIAL_PRESET_V1: &str = "hsk.tailor.material_preset@1";
+pub const SCHEMA_TAILOR_AVATAR_V1:          &str = "hsk.tailor.avatar@1";
+pub const SCHEMA_TAILOR_BODY_PROXY_V1:      &str = "hsk.tailor.body_proxy@1";
+pub const SCHEMA_TAILOR_TRIM_V1:            &str = "hsk.tailor.trim@1";
+pub const SCHEMA_TAILOR_TRIM_PLACEMENT_V1:  &str = "hsk.tailor.trim_placement@1";
+pub const SCHEMA_TAILOR_PBR_MATERIAL_V1:    &str = "hsk.tailor.pbr_material@1";
+pub const SCHEMA_TAILOR_GRAPHIC_LAYER_V1:   &str = "hsk.tailor.graphic_layer@1";
+pub const SCHEMA_TAILOR_UV_ISLAND_V1:       &str = "hsk.tailor.uv_island@1";
+pub const SCHEMA_TAILOR_ANIMATION_DRAFT_V1: &str = "hsk.tailor.garment_animation_draft@1";
+pub const SCHEMA_TAILOR_REFIT_REQUEST_V1:   &str = "hsk.tailor.refit_request@1";
+pub const SCHEMA_TAILOR_SIM_RECEIPT_V1:     &str = "hsk.tailor.simulation_receipt@1";
+
+// Allowed hsk.cloth.* exception — solver-crate-internal physics payloads only:
+pub const SCHEMA_CLOTH_SOLVER_REQUEST_V1:   &str = "hsk.cloth.solver_request@1";
+pub const SCHEMA_CLOTH_SOLVER_RESULT_V1:    &str = "hsk.cloth.solver_result@1";
+```
+
+Schema IDs from research topics `09`, `10`, `13`, and `15` that use the `hsk.cloth.*` namespace
+for Tailor-domain authority records (e.g. `hsk.cloth.garment_draft@1`) are superseded and MUST
+NOT appear in implementation files.
+
+**ARCH-019.** The following `KernelEventType` variants MUST be added to the enum in
+`kernel/mod.rs` and MUST be registered in `required_first_slice_events()`. Variant names are
+`Tailor*` PascalCase; wire strings produced by `as_str()` are `TAILOR_*` SCREAMING_SNAKE_CASE.
+Superseded names from research topics are listed for reconciliation; they MUST NOT be used.
+
+```rust
+// Additions to KernelEventType (kernel/mod.rs):
+
+// Garment lifecycle
+TailorGarmentDraftProposed,       // "TAILOR_GARMENT_DRAFT_PROPOSED"
+TailorGarmentDraftUpdated,        // "TAILOR_GARMENT_DRAFT_UPDATED"
+TailorGarmentValidationRecorded,  // "TAILOR_GARMENT_VALIDATION_RECORDED"
+                                  //   supersedes: TailorGarmentValidated (01/03/04),
+                                  //               TailorPatternValidated (01)
+TailorGarmentPromoted,            // "TAILOR_GARMENT_PROMOTED"
+TailorGarmentPromotionRejected,   // "TAILOR_GARMENT_PROMOTION_REJECTED"
+
+// Simulation run lifecycle
+TailorSimRunRequested,            // "TAILOR_SIM_RUN_REQUESTED"
+TailorSimRunStarted,              // "TAILOR_SIM_RUN_STARTED"
+TailorSimRunCompleted,            // "TAILOR_SIM_RUN_COMPLETED"
+TailorSimRunRejected,             // "TAILOR_SIM_RUN_REJECTED"
+
+// CRDT collaborative editing
+TailorPanelCrdtUpdateRecorded,    // "TAILOR_PANEL_CRDT_UPDATE_RECORDED"
+                                  //   supersedes: TailorGarmentCrdtUpdateRecorded (03/04),
+                                  //               TailorCrdtUpdateRecorded (09)
+TailorPanelCrdtSnapshotRecorded,  // "TAILOR_PANEL_CRDT_SNAPSHOT_RECORDED"
+TailorPanelAiEditProposalRecorded,// "TAILOR_PANEL_AI_EDIT_PROPOSAL_RECORDED"
+TailorPanelAiEditProposalDecided, // "TAILOR_PANEL_AI_EDIT_PROPOSAL_DECIDED"
+TailorCrdtConflictDetected,       // "TAILOR_CRDT_CONFLICT_DETECTED"
+
+// Material / fabric presets
+TailorMaterialPresetRecorded,     // "TAILOR_MATERIAL_PRESET_RECORDED"
+                                  //   supersedes: TailorMaterialLibraryUpdated (01/03)
+TailorMaterialPresetUpdated,      // "TAILOR_MATERIAL_PRESET_UPDATED"
+TailorMaterialPresetRejected,     // "TAILOR_MATERIAL_PRESET_REJECTED"
+TailorGarmentMaterialAssigned,    // "TAILOR_GARMENT_MATERIAL_ASSIGNED"
+
+// Avatar / body proxy
+TailorAvatarCreated,              // "TAILOR_AVATAR_CREATED"
+TailorAvatarMeasurementsExtracted,// "TAILOR_AVATAR_MEASUREMENTS_EXTRACTED"
+                                  //   supersedes: BodyProxyMeasurementsExtracted (07, missing prefix)
+TailorBodyProxyCreated,           // "TAILOR_BODY_PROXY_CREATED"
+                                  //   supersedes: BodyProxyCreated (07, missing prefix)
+TailorBodyProxyUpdated,           // "TAILOR_BODY_PROXY_UPDATED"
+
+// Wardrobe grouping
+TailorWardrobeCreated,            // "TAILOR_WARDROBE_CREATED"
+TailorWardrobeGarmentAdded,       // "TAILOR_WARDROBE_GARMENT_ADDED"
+TailorWardrobeGarmentRemoved,     // "TAILOR_WARDROBE_GARMENT_REMOVED"
+```
+
+Each variant MUST be registered in `required_first_slice_events()` immediately after being
+added to the enum. A variant present in the enum but absent from `required_first_slice_events()`
+is a correctness defect.
+
+---
+
+##### <N>.<i>.6 GarmentSpec: Canonical Type Location and Rules
+
+**ARCH-020.** The canonical garment type is `GarmentSpec`. It MUST be defined in
+`tailor-solver/src/spec.rs`. It MUST derive `serde::Serialize`, `serde::Deserialize`, and
+`schemars::JsonSchema`. Its full field definition is specified in `T-CONTRACTS`
+`[T-CONTRACTS.garment-spec]` and is reproduced there verbatim; the spec sub-section is
+non-normative for field details — `T-CONTRACTS` governs.
+
+**ARCH-021.** `GarmentSpec` MUST carry `schema_id: String` with value
+`"hsk.tailor.garment_spec@1"` (from `SCHEMA_TAILOR_GARMENT_SPEC_V1`). Status, lifecycle
+timestamps, and promotion metadata MUST NOT be fields on `GarmentSpec`; they live on the
+`tailor_garments` Postgres row (`status` column with CHECK domain `draft | sandbox_pending |
+simulated | validated | promoted | rejected | archived`).
+
+**ARCH-022.** All length fields in `GarmentSpec` MUST use centimetres and MUST carry the `_cm`
+suffix (e.g. `vertices_cm`, `depth_cm`, `interval_cm`, `translation_cm`). Normalized `[0.0,
+1.0]` vertex coordinates are rejected for the authority spec; they MUST NOT appear in
+`GarmentSpec` or `PanelSpec`. The only permitted non-unit-scaled fabric fields are the two
+physically LLM-legible exceptions: `density_g_m2` (grams per square metre) and
+`collision_thickness_mm` (millimetres), both of which carry explicit unit suffixes.
+
+**ARCH-023.** The canonical seam gather field MUST be named `gather_ratio: f32`
+(defined as `from_length / to_length`). The name `ratio` from research topics `10` and `15`
+is superseded. Valid range is `(0.0, 20.0]`; the `GATHER_RATIO_RANGE` validation check
+(ARCH-033) enforces this.
+
+**ARCH-024.** `FabricProperties` MUST use normalized `[0.0, 1.0]` values for all dimensionless
+parameters (the LLM-facing surface). The non-linear mapping from normalized values to raw
+XPBD compliance MUST be performed by the preset/decoder layer in `tailor-solver/src/material.rs`
+at `SolverMesh` build time and MUST NOT be stored twice in any authority row.
+
+**ARCH-025.** Edge curves in `PanelSpec` MUST use the typed `EdgeShape` enum
+(`Straight | Quadratic { control_cm } | Cubic { control_a_cm, control_b_cm } | Arc { curvature }`).
+The string-keyed `curve_type: "bezier"` form from research topic `10` is superseded and MUST NOT
+appear in any implementation.
+
+---
+
+##### <N>.<i>.7 TailorSandboxAdapter: Solver Bridge
+
+**ARCH-026.** `src/tailor/solver_binding.rs` MUST define `TailorSandboxAdapter` implementing
+the kernel's `SandboxAdapter` trait. `TailorSandboxAdapter` MUST hold an
+`Arc<dyn ClothSolver>` (or `Arc<Mutex<dyn ClothSolver>>`) to call the physics crate. It MUST
+NOT hold a `ClothSolverGpu` directly, so that the CPU fallback can be injected for tests.
+
+**ARCH-027.** `TailorSandboxAdapter::run()` is synchronous in the `SandboxAdapter` trait
+contract (per `T-CODEBASE` `[T-CODEBASE.sandbox]`). Where `ClothSolver::simulate()` is async,
+`TailorSandboxAdapter::run()` MUST bridge to the async runtime via
+`tokio::runtime::Handle::current().block_on(async { ... })`. This impedance is a known design
+consequence of the existing synchronous `SandboxAdapter` trait; the implementation MUST
+document this in a code comment and note it as a candidate for trait upgrade in the work packet
+tracker.
+
+**ARCH-028.** `TailorSandboxAdapter::run()` MUST call `self.pre_check(run, policy, ...)` as
+its first action, passing the required `SandboxCapability` set. The cloth solver requires
+`LocalFilesystemRead` and `LocalFilesystemWrite` (for mesh artifact staging). It MUST NOT
+request `NetworkAccess`. Any policy denial MUST be returned as `AdapterRunOutcome::Denied`
+without invoking the solver.
+
+**ARCH-029.** On successful completion, `TailorSandboxAdapter::run()` MUST return
+`AdapterRunOutcome::Completed { artifact_refs }` where `artifact_refs` contains the paths to
+the simulated vertex buffer, normal buffer, UV buffer, and index buffer files written to the
+sandbox workspace scratch path. Paths MUST be relative to the sandbox workspace root, not
+absolute machine-local paths.
+
+---
+
+##### <N>.<i>.8 Determinism and Promotion Equivalence
+
+**ARCH-030.** Per-backend determinism is required and MUST be tested. The `tests/determinism.rs`
+integration test in `tailor-solver` MUST verify that calling `simulate()` twice on the same
+`ClothSolverGpu` instance with identical inputs produces `SolverResult` values where
+`content_hash` is identical. This test MUST pass in CI (it runs on whatever GPU backend is
+available in the CI environment).
+
+**ARCH-031.** Cross-backend promotion equivalence MUST use the selected
+`TailorQualificationProfileV1`, not `content_hash` comparison. When the profile selects vertex
+comparison, `MeshComparator` MUST be defined in `tailor-solver/src/compare.rs` and implement this
+component contract from `T-CONTRACTS` `[T-CONTRACTS.determinism]`:
+
+```rust
+// tailor-solver/src/compare.rs
+
+pub struct MeshComparatorResult {
+    pub equivalent: bool,
+    pub max_vertex_deviation_mm: f32,
+    pub mean_vertex_deviation_mm: f32,
+    /// All topology invariants that did not match (empty if all match).
+    pub topology_mismatches: Vec<String>,
+}
+
+/// Canonical promotion equivalence check.
+/// Primary: per-vertex Euclidean deviation <= epsilon_mm for all vertices,
+///          in canonical vertex order (topology-derived, stored at garment load time).
+/// Secondary (exact): vertex_count, triangle_count, seam_edge_pair_count, panel_count.
+/// Verdict: equivalent iff all secondary invariants match AND max deviation <= epsilon_mm.
+pub fn compare(
+    a: &SolverResult,
+    b: &SolverResult,
+    epsilon_mm: f32,
+) -> MeshComparatorResult { ... }
+```
+
+The caller MUST resolve `epsilon_mm` from the versioned `TailorQualificationProfileV1` selected
+for the same solver lane and comparison kind and MUST record the profile id, version, and hash in
+the validation receipt. The `PromotionGate` MUST call `MeshComparator::compare(a, b, epsilon_mm)`
+only when that profile selects vertex comparison. It MUST NOT compare `content_hash` values for
+cross-backend or cross-driver promotion decisions.
+
+**ARCH-032.** For animated simulation runs (runs where `MaterialFrameParams` are updated per
+frame), `MeshComparator::compare()` MUST additionally accept a shape-envelope mode: per-frame
+bounding box within the profile-resolved `bbox_epsilon_mm` plus `SEAMS_CLOSED` check passing, as
+the promotion equivalence basis. This is required because wind turbulence uses functions whose
+cross-vendor float precision differs and exact per-vertex reproduction is not achievable
+cross-backend for animated runs.
+
+---
+
+##### <N>.<i>.9 Validation Descriptor
+
+**ARCH-033.** `src/tailor/validation.rs` MUST define `TailorValidationDescriptor` wrapping the
+KB003 `ValidationDescriptor`. It MUST register all checks from the `T-CONTRACTS`
+`[T-CONTRACTS.validation]` catalog relevant to the garment's active feature set (trims,
+multi-layer, refit, material preset). The check catalog contains approximately 35 checks
+across fast, mesh, post-simulation, multi-layer, trim, material-preset, and refit stages.
+Two severities only: `Blocking` (any failure prevents promotion) and `Advisory`
+(recorded and visible; blocks only when `treat_advisory_as_blocking = true` in
+`PromotionGateInputs`).
+
+Each check MUST carry the canonical `code` string from `T-CONTRACTS` (e.g. `PANEL_CLOSURE`,
+`GATHER_RATIO_RANGE`, `SEAMS_CLOSED`, `NO_INTERPENETRATION`) so the model can pattern-match
+the code in `ValidationFinding` and self-correct the `GarmentSpec`.
+
+`ValidationReport::aggregate_blocks_promotion()` (existing kernel method) MUST be used as the
+sole promotion decision driver. Tailor MUST NOT implement a parallel promotion logic path.
+
+---
+
+##### <N>.<i>.10 Migration Naming
+
+**ARCH-034.** All Tailor Postgres migrations MUST use the dated convention:
+
+```text
+migrations/YYYY_MM_DD_tailor_<topic>.sql
+migrations/YYYY_MM_DD_tailor_<topic>.down.sql   (required reverse pair)
+```
+
+The date is the authoring date at implementation time. Numbered `0NNN_*` migrations are
+forbidden for Tailor because the numbered integer namespace is contested by parallel work
+packets; `0334_loom_canvas_boards.sql` already occupies position 0334
+(per `T-CONTRACTS` `FACT-2`). Every forward migration MUST ship a `.down.sql` reverse pair
+(per `T-CONTRACTS` `FACT-3`, following the `2026_05_18_fems_pinned` precedent).
+
+Suggested per-topic migration files (dated at authoring):
+
+```text
+YYYY_MM_DD_tailor_garments.sql
+YYYY_MM_DD_tailor_material_presets.sql
+YYYY_MM_DD_tailor_avatars.sql
+YYYY_MM_DD_tailor_body_proxies.sql
+YYYY_MM_DD_tailor_simulation_runs.sql
+YYYY_MM_DD_tailor_refit_runs.sql
+YYYY_MM_DD_tailor_trims.sql
+YYYY_MM_DD_tailor_texture_tables.sql
+YYYY_MM_DD_tailor_wardrobe.sql
+YYYY_MM_DD_tailor_garments_animation_col.sql    -- ALTER TABLE ADD COLUMN animation_json
+```
+
+---
+
+##### <N>.<i>.11 Table Primary Keys and Id Prefixes
+
+**ARCH-035.** All Tailor Postgres tables MUST use `TEXT PRIMARY KEY` with prefixed string IDs
+(per `T-CONTRACTS` `FACT-4`). The `UUID PRIMARY KEY DEFAULT gen_random_uuid()` form is
+off-convention and MUST NOT be used. Canonical prefix assignments:
+
+| Table | PK column | Id prefix |
+|---|---|---|
+| `tailor_garments` | `garment_id` | `GAR-` |
+| `tailor_garment_crdt_docs` | composite: `(garment_id, crdt_document_id)` | `CRDT-GAR-{garment_id}` |
+| `tailor_material_presets` | `preset_id` | `MAT-` |
+| `tailor_avatars` | `avatar_id` | `AVT-` |
+| `tailor_body_proxies` | `body_proxy_id` | `BPX-` |
+| `tailor_simulation_runs` | `sim_run_id` | `SIM-` |
+| `tailor_refit_runs` | `refit_run_id` | `RFT-` |
+| `tailor_trims` | `trim_id` | `TRIM-` |
+| `tailor_trim_placements` | `placement_id` | `PLAC-` |
+| `tailor_zippers` | `zipper_id` | `ZIP-` |
+| `tailor_lacings` | `lacing_id` | `LACE-` |
+| `tailor_uv_islands` | `island_id` | `UVI-` |
+| `tailor_pbr_materials` | `material_id` | `PBR-` |
+| `tailor_graphic_layers` | `layer_id` | `GLYR-` |
+| `tailor_material_assignments` | `assignment_id` | `ASGN-` |
+| `tailor_wardrobe` | `wardrobe_id` | `WRD-` |
+
+The `CSIM-` prefix from research topic `10` for simulation run IDs is superseded; `SIM-` is
+canonical.
+
+**ARCH-036.** Every Tailor authority table row MUST carry `event_ledger_event_id TEXT NOT NULL`
+as a foreign-key reference to `kernel_event_ledger.event_id`. A row MUST NOT be inserted
+without a prior `NewKernelEvent` emission whose returned `event_id` populates this column.
+
+---
+
+##### <N>.<i>.12 Extension Points in Existing Files
+
+**ARCH-037.** The following existing `handshake_core` files MUST be modified to integrate the
+Tailor module. No other existing file MUST be modified without explicit justification in the
+work packet.
+
+| File | Required addition |
+|---|---|
+| `src/kernel/mod.rs` | Add all `KernelEventType` variants from ARCH-019; register each in `required_first_slice_events()` |
+| `src/lib.rs` | Add `pub mod tailor;` gated behind `runtime-full` feature |
+| `src/api/mod.rs` | Add `pub mod tailor;` import; merge `tailor::routes(state.clone())` in `routes()` |
+| `src/storage/mod.rs` | Add new `Database` trait methods: `list_garments`, `get_garment`, `save_garment`, `update_garment_status` (at minimum) |
+| `src/storage/postgres.rs` | Concrete `impl Database` for new methods, following the EventLedger INSERT + `ON CONFLICT (idempotency_key) DO NOTHING` pattern from `storage/postgres.rs` ~line 3454 |
+
+**ARCH-038.** Business logic MUST NOT be placed in GUI, IPC, CLI, MCP or compatibility wrappers.
+Every Tailor route MUST be a thin adapter to a registered canonical action handler receiving
+`AppState`. All garment/body authoring, simulation, rendering, validation and promotion logic
+MUST reside in `handshake_core::tailor` or the explicitly injected compute crates.
+
+---
+
+##### <N>.<i>.13 Build Integration
+
+**ARCH-039.** `tailor-solver` MUST be added to the Handshake Cargo workspace as a member or
+referenced via `path =` in `handshake_core/Cargo.toml`. The crate MUST be gated behind a
+`cloth-solver` Cargo feature in `handshake_core/Cargo.toml` so that CI builds that do not
+exercise GPU code can skip `tailor-solver` compilation:
+
+```toml
+# handshake_core/Cargo.toml (relevant additions)
+[features]
+cloth-solver = ["dep:tailor-solver"]
+runtime-full = ["cloth-solver", ...]
+
+[dependencies.tailor-solver]
+path = "../tailor-solver"   # or workspace member path
+optional = true
+```
+
+`src/tailor/solver_binding.rs` MUST be compiled only when the `cloth-solver` feature is active
+(`#[cfg(feature = "cloth-solver")]`). When the feature is inactive, `TailorSandboxAdapter` MUST
+NOT exist, and any call site that would reference it MUST produce a compile error, not a silent
+no-op.
+
+**ARCH-040.** `CARGO_TARGET_DIR` for all Tailor crate builds MUST be
+`../Handshake_Artifacts/handshake-cargo-target` (following the existing `justfile` convention).
+This MUST NOT be changed or overridden in `tailor-solver/Cargo.toml`.
+
+---
+
+##### <N>.<i>.14 Required Tests
+
+**ARCH-041.** The `tailor-solver` crate MUST include these test modules at a minimum:
+
+- `tests/determinism.rs`: verifies that two `simulate()` calls with identical inputs on the
+  same backend produce identical `content_hash` (ARCH-030).
+- `tests/constraint_correctness.rs`: unit tests for each constraint type verifying that
+  a single-constraint simulation converges to the expected rest length or angle within
+  tolerance.
+- A `ClothSolverCpu` integration test that exercises the full `ClothSolver` trait without a
+  GPU device, confirming the fallback path is exercisable in CI.
+
+**ARCH-042.** `handshake_core` MUST include a test that constructs a minimal `GarmentSpec`
+(single rectangular panel, one seam, cotton preset), passes it through
+`GarmentSpec::to_solver_mesh()`, verifies the resulting `SolverMesh` has the expected particle
+count and constraint count, and confirms the `PANEL_CLOSURE` and `SEAM_EDGE_REF` fast
+pre-solver validation checks pass. This test MUST NOT require a live Postgres connection or a
+GPU device.
+
+---
+
+##### <N>.<i>.15 Constraints and Prohibitions Summary
+
+For implementors, this is the non-exhaustive list of hard prohibitions derived from the above
+requirements. Each maps to the governing rule.
+
+| Prohibited action | Governing rule |
+|---|---|
+| Adding `sqlx`, `tauri`, or any `handshake_core` type to `tailor-solver/Cargo.toml` | ARCH-002 |
+| Importing `tailor-solver` types in any file other than `solver_binding.rs` | ARCH-003 |
+| Adding `wgpu` to `handshake_core/Cargo.toml` | ARCH-004 |
+| Using `UUID PRIMARY KEY DEFAULT gen_random_uuid()` in any Tailor migration | ARCH-035 |
+| Using numbered `0NNN_*` migration filenames for Tailor | ARCH-034 |
+| Using `hsk.cloth.*` schema IDs for Tailor-domain authority records | ARCH-018 |
+| Using superseded event variant names (`TailorGarmentValidated`, `TailorCrdtUpdateRecorded`, `CSIM-` prefix, `GARMENT_*` wire strings without `TAILOR_` prefix) | ARCH-019 |
+| Using `gather_ratio` field name `ratio` | ARCH-023 |
+| Using string `curve_type` for edge shapes instead of `EdgeShape` enum | ARCH-025 |
+| Comparing `content_hash` for cross-backend promotion equivalence | ARCH-031 |
+| Inserting a Tailor authority row without calling `guard_authority_write()` first | ARCH-015 |
+| Emitting an event with a `Tailor*` variant not registered in `required_first_slice_events()` | ARCH-019 |
+| Placing business logic in Tauri command wrappers | ARCH-038 |
+| Bevy appearing in `[dependencies]` (not `[dev-dependencies]`) of `tailor-solver` | ARCH-011 |
+
+---
+file_id: tailor-spec-solver-core
+section_id: solver
+title: "XPBD Solver Core (WGSL/wgpu)"
+status: draft
+updated_at: "2026-06-17"
+provenance_sources:
+  - "cloth_engine_research/04-cloth-solver.md (T-CLOTH-SOLVER) — non-normative design rationale and OSS evidence"
+  - "cloth_engine_research/16-contracts.md (T-CONTRACTS) — canonical authority for all names, types, and contracts cited below"
+contracts_authority: "16-contracts.md [T-CONTRACTS]"
+---
+
+## 13.3 XPBD Solver Core (WGSL/wgpu)
+
+---
+
+##### <N>.<i>.1 Scope and Placement
+
+This sub-section specifies the `tailor-solver` standalone Rust crate: the XPBD substepping
+algorithm, constraint projection pipeline executed as WGSL compute shaders via wgpu, constraint
+parallelism strategy (graph coloring / Jacobi), `SolverMode` variants including the
+Chebyshev+Gauss-Seidel upgrade path, and per-backend determinism requirements.
+
+**Out of scope here:** GarmentSpec authoring (see §<garment-authoring>), body-proxy collision
+geometry (see §<collision>), fabric material preset mapping (see §<fabric-models>), and
+sandbox/promotion EventLedger integration (see §<kernel-integration>).
+
+**Canonical contract authority.** All type names, field names, schema IDs, event variants, table
+names, and migration conventions cited in this sub-section are governed by T-CONTRACTS
+(`16-contracts.md`). Where a name here differs from a name in the research source file
+(`04-cloth-solver.md`), T-CONTRACTS wins.
+
+---
+
+##### <N>.<i>.2 Crate Identity and Isolation Contract
+
+The physics solver MUST be implemented as a standalone Rust workspace member named
+**`tailor-solver`**.
+
+The `tailor-solver` crate MUST NOT import `handshake_core`, `tauri`, any PostgreSQL driver, or any
+EventLedger primitive. It is UI-agnostic and kernel-agnostic. The sole coupling point to
+`handshake_core` is `src/tailor/solver_binding.rs` (the `TailorSandboxAdapter`), which imports
+`tailor-solver` — never the reverse.
+
+Physics-internal types (`ClothSolver`, `ClothParticle`, `ClothConstraint`, `GpuParticle`,
+`GpuSimParams`, `SolverMesh`, `MeshComparator`) MUST use the `Cloth*` / `Gpu*` naming convention
+for physics-layer types. Domain-facing types (`GarmentSpec`, `SolverResult`, `SimRunParams`)
+use `Garment*` / `Solver*` / `Sim*` naming. See T-CONTRACTS §[T-CONTRACTS.naming].
+
+The `ClothSolver` public trait MUST be defined in `tailor-solver/src/lib.rs`. The primary
+implementation is `ClothSolverGpu` (wgpu WGSL backend). A `ClothSolverCpu` fallback
+implementation SHOULD be provided for environments without GPU access; it MUST implement the same
+trait and satisfy the selected lane qualification profile (§<N>.<i>.7, 13.29).
+
+The crate's required dependencies are:
+
+```toml
+# tailor-solver/Cargo.toml  (canonical; all versions as of 2026-06-17)
+[dependencies]
+wgpu        = "29"
+bytemuck    = { version = "1", features = ["derive"] }
+encase      = { version = "0.8", features = ["glam"] }
+glam        = "0.29"
+parry3d     = "0.17"
+thiserror   = "2"
+tracing     = "0.1"
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+schemars    = { version = "0.8", features = ["derive"] }
+
+[features]
+multigrid = []          # gates SolverMode::Multigrid / MGPBD backend (§<N>.<i>.6)
+cuda      = ["cubecl"]  # optional CubeCL fast path; never required for correctness
+
+[build-dependencies]
+wgsl_to_wgpu = "0.15"   # build.rs: compile-time WGSL→Rust bind-group structs
+```
+
+Bevy MUST NOT appear as a crate dependency. It is permitted only in `[[example]]` targets gated
+behind an optional feature (e.g. `bevy-testbed`) so the solver lib compiles without it.
+
+---
+
+##### <N>.<i>.3 XPBD Algorithm: Normative Substep Loop
+
+The solver MUST implement Extended Position-Based Dynamics (XPBD) as defined by Macklin, Müller,
+and Chentanez (MIG 2016). The Lagrange multiplier form is mandatory: per-constraint `lambda`
+state MUST be maintained across iterations within a substep and reset to zero at the start of
+each substep. This makes constraint stiffness independent of substep size — a prerequisite for
+stable keyframeable material parameters (§<N>.<i>.5).
+
+The normative per-frame loop is:
+
+```
+for each frame (dt_frame):
+    # 1. External forces and position prediction
+    for each particle i:
+        v[i]          += dt_sub * w[i] * f_ext[i]   # gravity + wind
+        x_pred[i]      = x[i] + dt_sub * v[i]
+
+    # 2. Substep loop
+    for sub in 0..n_substeps:
+        dt_sub = dt_frame / n_substeps
+        alpha_tilde[c] = compliance[c] / (dt_sub * dt_sub)   # per constraint
+
+        # Reset Lagrange multipliers at substep start
+        for each constraint c:
+            lambda[c] = 0.0
+
+        # 3. Constraint solve (n_iters iterations per substep)
+        for iter in 0..n_iters:
+            for each constraint c (dispatched by color partition — see §<N>.<i>.4):
+                C          = constraint_value(c, x_pred)
+                grad_C     = constraint_gradient(c, x_pred)
+                w_sum      = Σ w[i] * |grad_C[i]|²  for i in c.particles
+                delta_lam  = -(C + alpha_tilde[c] * lambda[c]) / (w_sum + alpha_tilde[c])
+                lambda[c] += delta_lam
+                x_pred[i] += w[i] * grad_C[i] * delta_lam   for each i in c.particles
+
+        # 4. Collision response (after constraint solve, each substep)
+        body_collision_response(x_pred)     # cloth vs avatar capsule/sphere proxies
+        self_collision_response(x_pred)     # cloth vs cloth (§<N>.<i>.8)
+
+        # 5. Velocity update
+        for each particle i:
+            v[i] = (x_pred[i] - x[i]) / dt_sub
+            x[i] = x_pred[i]
+
+    # 6. Velocity damping (once per frame, after all substeps)
+    apply_velocity_damping(v, damping_coeff)
+```
+
+**Compliance convention.** `compliance = 0.0` produces a rigid (inextensible) constraint.
+`compliance > 0.0` is elastic; larger values yield softer behavior. The solver MUST accept
+compliance values in the range used by the XPBD anisotropic fabric model: `1e-9` (near-rigid
+denim/leather) to `1e-3` (very soft chiffon/spandex). The mapping from normalized
+`FabricProperties` fields (the LLM-facing `[0,1]` surface in `GarmentSpec`) to raw compliance
+is owned exclusively by the fabric preset/decoder layer (§<fabric-models>) and MUST NOT be
+duplicated in this crate.
+
+**Substep vs. iteration budget.** The solver MUST prefer increasing `n_substeps` over increasing
+`n_iters` as the primary convergence lever, consistent with Macklin et al. (2019) "Small Steps
+in Physics Simulation." Default values for `SimMode::Fitting` SHOULD be `n_substeps = 10`,
+`n_iters = 5`. Default values for `SimMode::Animation` SHOULD be `n_substeps = 4`, `n_iters = 3`.
+These defaults MUST be overridable via `SimRunParams` (§<N>.<i>.5).
+
+---
+
+##### <N>.<i>.4 Constraint Types
+
+###### <N>.<i>.4.1 Anisotropic Stretch and Shear
+
+The solver MUST implement separate compliance values for weft (U grain), warp (V grain), and
+shear (UV diagonal) stretch directions. Isotropic distance-only constraints MUST NOT be the sole
+stretch representation: they cannot reproduce the weft/warp stiffness split that is a core
+differentiator from MD.
+
+The anisotropic formulation MUST use per-triangle Green strain components in Voigt notation.
+For a mesh triangle with rest-frame edge vectors `(du, dv)` and deformed vectors `(eu, ev)`:
+
+```
+C_u(x)  = |eu| - |du|             # weft stretch
+C_v(x)  = |ev| - |dv|             # warp stretch
+C_uv(x) = eu·ev / (|eu|·|ev|)    # shear angle
+```
+
+Each component MUST carry its own GPU-resident compliance value
+(`compliance_u`, `compliance_v`, stored in `GpuStretchConstraint`). The anisotropic blend within
+a single edge constraint is achieved by interpolating using `grain_cos` (cosine of the angle
+between the edge and the U grain axis, stored in `GpuStretchConstraint.grain_cos`).
+
+The mathematical reference for this formulation is: "XPBD Simulation of Constitutive Materials
+with Exponential Strain Tensor" (ACM MIG 2025, doi:10.1145/3769047.3769050).
+
+###### <N>.<i>.4.2 Dihedral Bending (Weft/Warp, Buckling)
+
+Bending constraints MUST be dihedral (angular), operating on four particles forming two adjacent
+triangles sharing an interior edge:
+
+```
+C_bend(x1,x2,x3,x4) = acos( n1·n2 / (|n1|·|n2|) ) - theta_rest
+```
+
+where `n1`, `n2` are face normals and `theta_rest` is the rest dihedral angle.
+
+Separate compliance values for bending along edges aligned with the U grain
+(`GpuBendConstraint.compliance_u`) and V grain (`GpuBendConstraint.compliance_v`) MUST be stored
+and applied based on `GpuBendConstraint.edge_grain`.
+
+The **buckling ratio** (MD Buckling Ratio/Stiffness equivalent) MUST be implemented as a
+non-linear compliance ramp: at dihedral angles below `buckle_ratio` threshold use
+`compliance_u` / `compliance_v`; at angles exceeding the threshold switch to
+`GpuBendConstraint.buckle_alpha` (the stiff-side compliance). Both fields MUST be stored in
+`GpuBendConstraint` and uploaded to the GPU per-garment-load.
+
+###### <N>.<i>.4.3 Seam / Sewing Distance Constraints
+
+Each seam MUST be realized as a set of edge-pair distance constraints. The canonical
+`SeamSpec.gather_ratio` field (T-CONTRACTS §[T-CONTRACTS.garment-spec], range `(0.0, 20.0]`) MUST
+control the rest-length scaling: `rest_length_gpu = edge_rest_length / gather_ratio`. The GPU
+struct is `GpuSeamConstraint` with field `ratio: f32` derived from `gather_ratio`.
+
+M:N gathering MUST be implemented by resampling both seam edges to equal vertex count `N` at
+`SolverMesh` generation time and emitting `N` point constraints — storing the scalar
+`gather_ratio` is sufficient in the authority spec; no M:N integer pair is stored.
+
+###### <N>.<i>.4.4 Stitch / Tack Point Constraints
+
+Point constraints between trim attachment tacks and cloth particles MUST be supported with
+per-tack compliance (`tack_compliance: f32`) uploadable via `MaterialFrameParams` (§<N>.<i>.5).
+This enables animated tack compliance (MD 2025.2 animated stitching/unstitching parity).
+
+###### <N>.<i>.4.5 Volume / Pressure Constraint
+
+A soft global volume constraint MUST be supported for inflatable garments. The target volume
+`pressure_target: f32` MUST be part of `GpuSimParams` so it is uploadable per-substep,
+enabling keyframeable pressure (MD 2025.2 parity). Compliance for the volume constraint MUST be
+large (soft); the default value SHOULD be `1e-3`.
+
+---
+
+##### <N>.<i>.5 Solver Parameters and Keyframeable State
+
+The following canonical types are normative. They are defined in `tailor-solver/src/lib.rs` and
+carry `serde` + `schemars::JsonSchema` derives. Schema IDs from T-CONTRACTS §[T-CONTRACTS.schema-ids]:
+physics-internal payloads crossing the `ClothSolver` trait boundary use
+`hsk.cloth.solver_request@1` and `hsk.cloth.solver_result@1`; the simulation receipt stored in
+`tailor_simulation_runs` uses `hsk.tailor.simulation_receipt@1`.
+
+```rust
+// tailor-solver/src/lib.rs
+
+/// Parameters fixed for the duration of one simulation run.
+/// Schema id (internal): hsk.cloth.solver_request@1
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct SimRunParams {
+    /// Substeps per animation frame. Primary convergence lever. Must be >= 1.
+    pub n_substeps:  u32,
+    /// Constraint solver iterations per substep. Must be >= 1.
+    pub n_iters:     u32,
+    /// Seconds per frame (e.g. 1.0/30.0 for 30 fps).
+    pub dt_frame:    f32,
+    /// Fitting = high accuracy (n_substeps=10, n_iters=5 default).
+    /// Animation = stable real-time (n_substeps=4, n_iters=3 default).
+    pub mode:        SolverMode,
+    /// Deterministic seed for wind/perturbation noise. Must be stored in
+    /// tailor_simulation_runs.seed so re-runs use the same seed.
+    pub seed:        u64,
+    /// Versioned qualification profile that resolves lane-specific comparison metrics/tolerances.
+    pub qualification_profile_id: QualificationProfileId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize,
+         schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SolverMode {
+    /// High-accuracy XPBD with Gauss-Seidel via graph-colored constraint partitions.
+    Fitting,
+    /// Stable real-time XPBD, same algorithm, lower substep/iter budget.
+    Animation,
+    /// Chebyshev-accelerated Gauss-Seidel (MGPBD-style upgrade).
+    /// Requires the `multigrid` feature flag. Falls back to Fitting if the feature
+    /// is absent. Intended for high-resolution (> 10k particles) or high-stiffness cloth
+    /// where standard XPBD Gauss-Seidel stalls at 300+ iterations.
+    ChebyshevGs,
+}
+
+/// Keyframeable material state uploaded to GpuSimParams once per substep (MD 2025.2 parity).
+/// Enables parameter animation without re-uploading the full constraint buffer.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct MaterialFrameParams {
+    /// 0.0 = soft (compliance-governed); 1.0 = rigid (near-zero compliance isotropic).
+    pub solidify_blend:  f32,
+    /// Inflation volume target. 0.0 = no inflation.
+    pub pressure_target: f32,
+    /// Weft (U) shrinkage rate per frame.
+    pub shrink_u:        f32,
+    /// Warp (V) shrinkage rate per frame.
+    pub shrink_v:        f32,
+    /// Tack/stitch point compliance (all tacks share one global value this frame).
+    pub tack_compliance: f32,
+}
+
+/// Output of one ClothSolver::simulate call.
+/// Schema id (internal): hsk.cloth.solver_result@1
+#[derive(Debug, Clone)]
+pub struct SolverResult {
+    /// Final particle positions as flat [x0,y0,z0, x1,y1,z1, ...].
+    pub positions:    Vec<f32>,
+    /// Final vertex normals (same layout as positions).
+    pub normals:      Vec<f32>,
+    /// UV coordinates from input mesh (unchanged by simulation).
+    pub uvs:          Vec<f32>,
+    /// Triangle index buffer.
+    pub indices:      Vec<u32>,
+    /// SHA-256 of positions bytes.
+    /// PURPOSE: same-machine idempotency and EventLedger fingerprint ONLY.
+    /// MUST NOT be used as a cross-backend promotion equivalence check
+    /// (see §<N>.<i>.7 and T-CONTRACTS §[T-CONTRACTS.determinism]).
+    pub content_hash: [u8; 32],
+    /// Number of frames simulated.
+    pub n_frames:     u32,
+    /// Peak GPU memory used in bytes.
+    pub gpu_mem_peak: u64,
+}
+```
+
+`GpuSimParams` (the GPU-resident UBO written at every substep) MUST include at minimum:
+`dt_sub: f32`, `n_particles: u32`, `gravity: [f32; 3]`, `damping: f32`,
+`collision_dist: f32`, `friction: f32`, `pressure_target: f32`, `solidify_blend: f32`,
+`shrink_u: f32`, `shrink_v: f32`, `wind: [f32; 3]`, and a deterministic noise seed.
+All fields that appear in `MaterialFrameParams` MUST map 1:1 to a field in `GpuSimParams` so
+that `update_params` requires only a single uniform buffer write, not a constraint buffer rebuild.
+
+---
+
+##### <N>.<i>.6 SolverMode: Gauss-Seidel (Standard) and Chebyshev+GS (Upgrade)
+
+**Standard path — `SolverMode::Fitting` and `SolverMode::Animation`.**
+The solver MUST implement parallel Gauss-Seidel constraint projection via constraint graph
+coloring (§<N>.<i>.4, §<N>.<i>.9). This is the required baseline. All constraint types defined
+in §<N>.<i>.4 MUST be available in this mode.
+
+**Upgrade path — `SolverMode::ChebyshevGs`.**
+The solver SHOULD implement a Chebyshev-accelerated Gauss-Seidel solver as the `ChebyshevGs`
+mode, gated by the `multigrid` Cargo feature. The design reference is MGPBD (Multigrid
+Accelerated Global XPBD, arxiv:2505.13390, SIGGRAPH 2025): the Chebyshev smoother converges
+high-resolution or high-stiffness cloth to `1e-4` accuracy where standard Gauss-Seidel stalls
+at 300+ iterations. The XRTailor implementation (real-time garment simulation for XR) confirms
+this improvement for garment-scale meshes.
+
+Requirements for `ChebyshevGs`:
+- The same `ClothSolver` trait, `GarmentMesh`, and `SolverResult` types MUST be used; the mode
+  MUST NOT require a different garment upload format.
+- The Chebyshev acceleration coefficient schedule MUST be stored in `SimRunParams`-derived state
+  (not hard-coded); the implementation MAY add optional fields to `SimRunParams` for tuning when
+  the `multigrid` feature is active.
+- If the `multigrid` feature is absent and `SolverMode::ChebyshevGs` is requested, the solver
+  MUST fall back to `SolverMode::Fitting` and MUST emit a `tracing::warn!` logging the fallback.
+- `ChebyshevGs` MUST satisfy the same determinism requirements as the standard solver
+  (§<N>.<i>.7): per-backend reproducibility, color-partition dispatch, seeded noise.
+
+The `multigrid` feature MUST be disabled by default in `Cargo.toml`. It is an optional
+performance enhancement, not a correctness dependency.
+
+---
+
+##### <N>.<i>.7 Per-Backend Determinism
+
+**Requirement.** The solver MUST be deterministic **per-backend**: given the same GPU backend
+(Vulkan, Metal, or DX12), the same driver version, the same `SimRunParams` (including `seed`),
+and the same input `GarmentMesh`, two successive calls to `ClothSolver::simulate` on the same
+machine MUST produce identical `SolverResult.positions` bytes and identical `content_hash`.
+
+**Cross-backend determinism is NOT required and MUST NOT be asserted.** WGSL compiled via Naga
+to SPIR-V (Vulkan), MSL (Metal), and HLSL (DX12) does not guarantee identical floating-point
+sub-expression ordering across backends. The `content_hash` MUST NOT be compared across backends
+for promotion equivalence.
+
+**Profile-selected vertex comparison uses `MeshComparator`, never hash equality.** The
+`MeshComparator` type MUST be implemented in `tailor-solver/src/compare.rs` as a pure function
+with no external dependencies. Its component contract (from T-CONTRACTS
+§[T-CONTRACTS.determinism]):
+
+```rust
+// tailor-solver/src/compare.rs
+
+pub struct MeshCompareResult {
+    /// Max per-vertex Euclidean position deviation in mm.
+    pub max_deviation_mm: f32,
+    /// Mean per-vertex Euclidean position deviation in mm.
+    pub mean_deviation_mm: f32,
+    /// Secondary topology invariants (must all be true for equivalence).
+    pub vertex_count_match:    bool,
+    pub triangle_count_match:  bool,
+    pub seam_edge_pair_match:  bool,
+    pub panel_count_match:     bool,
+    /// True iff all secondary invariants match AND max_deviation_mm <= epsilon_mm.
+    pub equivalent:            bool,
+}
+
+/// Compare two SolverResult meshes for promotion equivalence.
+/// Vertices MUST be in the canonical order determined by mesh topology +
+/// constraint coloring (computed once at garment load; see §<N>.<i>.9).
+///
+/// epsilon_mm: position tolerance in millimetres, resolved from the selected
+/// TailorQualificationProfileV1 for this lane/comparison kind; no universal default.
+/// For animated runs with wind, use the profile-resolved bbox_epsilon_mm instead.
+pub fn compare(
+    a: &SolverResult,
+    b: &SolverResult,
+    epsilon_mm: f32,
+) -> MeshCompareResult {
+    // Implementation: iterate vertex pairs in canonical order,
+    // compute Euclidean distance, track max and mean.
+    // Check secondary invariants: vertex_count, triangle_count, seam pair count,
+    // panel count (derived from index buffer structure).
+    // equivalent = secondary_all_match && max_deviation_mm <= epsilon_mm
+    unimplemented!()
+}
+
+/// Shape-envelope comparison for animated runs with wind turbulence.
+/// Accepts if per-frame bounding box deviates <= bbox_epsilon_mm AND seams are closed.
+pub fn compare_envelope(
+    a: &SolverResult,
+    b: &SolverResult,
+    bbox_epsilon_mm: f32,
+) -> bool {
+    unimplemented!()
+}
+```
+
+The `ValidationRunner` in `handshake_core` (§<kernel-integration>) MUST call
+`MeshComparator::compare` (or `compare_envelope` for animated runs) — NEVER `content_hash`
+equality — when re-running a simulation to confirm promotion-gate reproducibility.
+
+**Four concrete determinism requirements the implementation MUST satisfy:**
+
+1. **Fixed budget.** `n_substeps` and `n_iters` MUST be fixed per run (stored in
+   `tailor_simulation_runs`). Adaptive substep or adaptive iteration strategies MUST NOT be
+   used in the promotion-eligible path.
+2. **Stable constraint order.** Constraint graph coloring MUST be computed once at `load_garment`
+   time from mesh topology and stored as CPU-side `stretch_colors: Vec<(u32, u32)>` and
+   `bend_colors: Vec<(u32, u32)>` index ranges. The color partition order MUST be deterministic
+   from mesh connectivity (not from random initialization). It MUST be stable across re-loads of
+   the same garment.
+3. **Seeded noise.** All stochastic inputs (wind turbulence, positional perturbation for
+   degeneracy breaking) MUST be generated from the deterministic `SimRunParams.seed` value.
+   The seed MUST be stored in `tailor_simulation_runs` and replayed identically on re-run.
+4. **Race-free writes.** Color-partition GPU dispatch (§<N>.<i>.9) MUST ensure that within any
+   single dispatch, no two workgroups write to the same particle. This eliminates write-race
+   non-determinism. Atomic float operations MUST NOT be used for delta accumulation (WGSL does
+   not support `atomicAdd<f32>`; see also wgpu issue #5329).
+
+---
+
+##### <N>.<i>.8 wgpu Backend and WGSL Compute Pipeline
+
+###### <N>.<i>.8.1 Backend Coverage
+
+The solver MUST compile and run correctly on all wgpu backends available on the Handshake
+primary deployment target (Windows: Vulkan + DX12; macOS: Metal; Linux: Vulkan). WASM/WebGPU
+MUST be considered a secondary target; no WASM-specific code path is required but the crate MUST
+NOT use non-WASM-safe APIs in the main library (only in `[[example]]` targets).
+
+The GPU adapter MUST be requested with `PowerPreference::HighPerformance`. If no adapter is
+found, `ClothSolverGpu::new()` MUST return `ClothSolverError::NoAdapter` and the kernel MUST
+fall back to `ClothSolverCpu`.
+
+###### <N>.<i>.8.2 Shader Compilation
+
+All WGSL shaders MUST be validated at compile time using `wgsl_to_wgpu` (version `0.15` in
+`build.rs`). This generates typesafe Rust bind-group structs from WGSL layout declarations and
+MUST catch bind-group alignment bugs before runtime. Shaders MUST be embedded via
+`wgpu::include_wgsl!` so they are bundled with the binary; no runtime shader file loading
+is permitted.
+
+Workgroup size for all 1D physics compute dispatches MUST be **64 threads** (matching the GPU
+warp/wave size on AMD and NVIDIA for coalesced memory access). The dispatch count for a buffer
+of `N` elements MUST be `ceil(N / 64)`.
+
+###### <N>.<i>.8.3 GPU Data Layout
+
+All GPU-visible structs MUST derive `bytemuck::Pod` and `bytemuck::Zeroable`. Struct fields
+MUST be aligned to `std430` (WGSL storage buffer) rules; use `encase` where padding is
+non-trivial. The canonical GPU struct set is:
+
+```rust
+// tailor-solver/src/types.rs
+
+/// One particle slot. Stride: 80 bytes.
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuParticle {
+    pub position:      [f32; 4],   // xyz + w=unused (vec4 alignment)
+    pub velocity:      [f32; 4],   // xyz + w=unused
+    pub position_pred: [f32; 4],   // predicted position after external forces
+    pub delta:         [f32; 4],   // accumulated position correction (Jacobi mode)
+    pub normal:        [f32; 4],   // vertex normal xyz + w=unused
+    pub inv_mass:      f32,        // 0.0 = pinned (infinite mass)
+    pub uv:            [f32; 2],   // UV for grain direction lookup
+    pub _pad:          f32,
+}
+
+/// Anisotropic stretch constraint (one per mesh edge). Stride: 32 bytes.
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuStretchConstraint {
+    pub i0:           u32,
+    pub i1:           u32,
+    pub rest_length:  f32,         // centimetres (matches GarmentSpec units)
+    pub compliance_u: f32,         // weft compliance (alpha_u)
+    pub compliance_v: f32,         // warp compliance (alpha_v)
+    pub grain_cos:    f32,         // cos(edge angle vs U grain) for aniso blend
+    pub _pad:         [f32; 2],
+}
+
+/// Dihedral bending constraint (one per interior edge). Stride: 48 bytes.
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuBendConstraint {
+    pub i0: u32, pub i1: u32, pub i2: u32, pub i3: u32,
+    pub rest_angle:   f32,         // theta_rest (radians)
+    pub compliance_u: f32,         // weft bend compliance
+    pub compliance_v: f32,         // warp bend compliance
+    pub edge_grain:   f32,         // grain direction flag for aniso selection
+    pub buckle_ratio: f32,         // dihedral angle threshold for stiffening
+    pub buckle_alpha: f32,         // stiff-side compliance
+    pub _pad:         [f32; 2],
+}
+
+/// Seam distance constraint. Stride: 32 bytes.
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuSeamConstraint {
+    pub i0:          u32,
+    pub i1:          u32,
+    pub rest_length: f32,          // centimetres
+    pub ratio:       f32,          // derived from SeamSpec.gather_ratio
+    pub compliance:  f32,
+    pub _pad:        [f32; 3],
+}
+
+/// Per-substep uniform buffer (keyframeable state). One write per substep.
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuSimParams {
+    pub dt_sub:          f32,
+    pub n_particles:     u32,
+    pub gravity:         [f32; 3],
+    pub damping:         f32,
+    pub collision_dist:  f32,      // millimetres (matches ClothBodyProxy units)
+    pub friction:        f32,
+    pub pressure_target: f32,      // keyframeable
+    pub solidify_blend:  f32,      // keyframeable
+    pub shrink_u:        f32,      // keyframeable
+    pub shrink_v:        f32,      // keyframeable
+    pub wind:            [f32; 3],
+    pub noise_seed:      u32,      // deterministic seed fragment for this substep
+    pub _pad:            f32,
+}
+```
+
+Persistent Lagrange multiplier state MUST be stored in a separate GPU storage buffer
+(`buf_lambdas`) with one `f32` slot per constraint. This buffer MUST be zeroed at the start of
+each substep (via a zero-fill compute pass or `wgpu::Queue::write_buffer`).
+
+###### <N>.<i>.8.4 Compute Pass Sequence Per Substep
+
+The following passes MUST be dispatched in this order within each substep. No pass MUST be
+reordered. All passes within one substep MUST be encoded into a single `wgpu::CommandEncoder`
+and submitted as one `wgpu::CommandBuffer` to ensure GPU ordering:
+
+| Pass | Shader file | Dispatch | Notes |
+|---|---|---|---|
+| 1. Predict | `predict.wgsl` | `ceil(N/64)` | External forces + position prediction + shrinkage |
+| 2. Hash build | `hash_build.wgsl` | `ceil(N/64)` | Spatial hash for self-collision broad phase |
+| 3. Stretch solve | `stretch.wgsl` | `ceil(C_s/64)` per color | Repeated once per color partition |
+| 4. Bend solve | `bend.wgsl` | `ceil(C_b/64)` per color | Repeated once per color partition |
+| 5. Seam solve | `seam.wgsl` | `ceil(C_seam/64)` | Single pass (seams are few; no coloring needed) |
+| 6. Self-collision | `self_collide.wgsl` | `ceil(N/64)` | Spatial hash narrow phase |
+| 7. Body collision | `body_collide.wgsl` | `ceil(N/64)` | Cloth vs avatar capsule/sphere proxies |
+| 8. Velocity update | `velocity.wgsl` | `ceil(N/64)` | v = (x_pred - x) / dt; x = x_pred |
+
+Passes 3 and 4 MUST each be dispatched once per color partition, parameterized by the
+`(start, count)` index range for that partition (stored in `stretch_colors` / `bend_colors`
+CPU-side vectors). The color range MUST be passed to the shader via a push constant or a
+per-dispatch uniform buffer write. The shader MUST use the range to select only constraints
+in the current color partition.
+
+Body-proxy capsule and sphere data MUST be uploaded from `ClothBodyProxy`
+(T-CONTRACTS §[T-CONTRACTS.body-proxy]) at `load_garment` time, not rebuilt per-substep.
+The fixed GPU arrays are `GpuCapsule[32]` and `GpuSphere[16]` (maximum sizes from T-COLLISION);
+if a body proxy exceeds these limits, `load_garment` MUST return
+`ClothSolverError::BodyProxyCapacityExceeded`.
+
+---
+
+##### <N>.<i>.9 Constraint Graph Coloring
+
+The solver MUST build a constraint graph at `load_garment` time and apply greedy graph coloring
+before uploading constraint buffers to the GPU. This is the canonical parallelism strategy for
+WGSL XPBD (confirmed by `jspdown/cloth` and `ccincotti3/webgpu_cloth_simulator` reference
+implementations, and required by the absence of `atomicAdd<f32>` in WGSL baseline — see wgpu
+issue #5329).
+
+**Coloring algorithm.** Particles are graph nodes. Each constraint that references two particles
+is a graph edge. A greedy graph coloring algorithm MUST assign a color to each constraint such
+that no two same-color constraints share a particle. The coloring algorithm MUST be deterministic
+from mesh connectivity (not seeded with random state) so the resulting color order is stable
+across garment reloads (§<N>.<i>.7 point 2).
+
+**Post-coloring buffer layout.** Constraints MUST be sorted by color in the GPU storage buffer.
+The CPU MUST store `Vec<(u32, u32)>` color-partition ranges (start index, count) for stretch and
+bend constraint types separately. These ranges drive the per-color dispatch loop in §<N>.<i>.8.4.
+
+**Expected color count.** For typical garment meshes (triangulated Delaunay grids), greedy
+coloring produces 4–12 colors, yielding 4–12 sequential GPU dispatches per iteration. This is
+acceptable. An optional future optimization (not required for MVP) may apply supernodal graph
+clustering (ACM C&G 2022, doi:10.1016/j.cag.2022.10.009) to reduce color count.
+
+**Jacobi delta accumulation.** Within a single color-partition dispatch, all constraint threads
+write to non-overlapping particle slots (guaranteed by the coloring), so direct writes to
+`deltas[i]` in WGSL are race-free. A separate apply pass (reading `deltas` and `delta_cnt` to
+produce averaged position corrections) MUST be used when the Jacobi averaging scheme is active.
+Atomic scatter (`atomicAdd` on `f32`) MUST NOT be used, as WGSL does not support it.
+
+---
+
+##### <N>.<i>.10 `ClothSolver` Public Trait
+
+The following trait definition is normative. All method signatures, including async boundaries
+and error type, MUST match exactly:
+
+```rust
+// tailor-solver/src/lib.rs
+
+#[async_trait::async_trait]
+pub trait ClothSolver: Send + Sync {
+    /// One-time garment upload: mesh, constraints, body proxy, color partitions → GPU buffers.
+    /// Subsequent calls replace the current garment.
+    async fn load_garment(
+        &mut self,
+        mesh:     GarmentMesh,
+        material: FabricMaterial,
+    ) -> Result<(), ClothSolverError>;
+
+    /// Simulate n_frames frames. Returns final mesh state as SolverResult.
+    async fn simulate(
+        &mut self,
+        n_frames: u32,
+        params:   SimRunParams,
+    ) -> Result<SolverResult, ClothSolverError>;
+
+    /// Upload keyframeable material state for the next substep batch.
+    /// Called by the animation timeline pump (§<animation>) between frames.
+    fn update_params(&mut self, params: MaterialFrameParams);
+
+    /// Free GPU buffers for the current garment.
+    async fn unload(&mut self);
+
+    /// SHA-256 of last simulate() final position buffer.
+    /// Returns None if no simulation has run since load_garment().
+    fn last_content_hash(&self) -> Option<[u8; 32]>;
+}
+```
+
+`GarmentMesh` (defined in `tailor-solver/src/mesh.rs`) is the triangulated solver mesh built
+from a `GarmentSpec`. It carries the particle array, all constraint arrays with color partitions,
+the `ClothBodyProxy` capsule/sphere data, and grain UV layout. It MUST NOT carry lifecycle
+metadata (`status`, `created_at`) — those live on the `tailor_garments` Postgres row.
+
+`FabricMaterial` (defined in `tailor-solver/src/material.rs`) carries the decoded raw XPBD
+compliance values built from `GarmentSpec.fabric` via the preset/decoder layer (§<fabric-models>).
+It MUST NOT carry normalized `[0,1]` values — the decoding MUST happen before `load_garment`.
+
+`ClothSolverError` MUST be a `thiserror`-derived enum covering at minimum:
+`NoAdapter`, `DeviceError(wgpu::Error)`, `ShaderCompile(String)`,
+`BodyProxyCapacityExceeded`, `MeshEmpty`, `MeshDegenerate(String)`, `SimTimeout`,
+`ContentHashMismatch` (for same-machine idempotency failures only — not cross-backend).
+
+---
+
+##### <N>.<i>.11 EventLedger Integration Boundary
+
+The `tailor-solver` crate MUST NOT emit EventLedger events. Event emission is the exclusive
+responsibility of `src/tailor/solver_binding.rs` in `handshake_core`.
+
+On `ClothSolver::simulate` completion, `TailorSandboxAdapter` (the kernel binding) MUST emit:
+
+| Outcome | Event variant | Wire string |
+|---|---|---|
+| Success | `TailorSimRunCompleted` | `"TAILOR_SIM_RUN_COMPLETED"` |
+| Solver error | `TailorSimRunRejected` | `"TAILOR_SIM_RUN_REJECTED"` |
+
+Event `event_family` MUST be `"tailor.simulation"` (T-CONTRACTS §[T-CONTRACTS.event-types],
+constant `TAILOR_SIMULATION`). The event payload MUST include:
+`n_frames: u32`, `content_hash: String` (hex-encoded), `gpu_mem_peak_bytes: u64`,
+`solver_version: String` (crate version), `sim_run_id: String` (the `SIM-` prefixed id from
+`tailor_simulation_runs`).
+
+The `TailorSimRunCompleted` / `TailorSimRunRejected` variants MUST be registered in
+`required_first_slice_events()` in `kernel/mod.rs` (T-CONTRACTS §[T-CONTRACTS.event-types]).
+
+The `tailor_simulation_runs` table row for this run MUST be written before the event is emitted
+(write-then-event ordering, consistent with the kernel convention). The table uses the
+`SIM-{uuid_v7}` id prefix (T-CONTRACTS §[T-CONTRACTS.tables]). The migration file MUST follow
+the dated convention: `migrations/YYYY_MM_DD_tailor_simulation_runs.sql` with a `.down.sql`
+reverse pair (T-CONTRACTS §[T-CONTRACTS.migration-naming]).
+
+---
+
+##### <N>.<i>.12 Validation Checks Owned by This Sub-Section
+
+The following checks from the T-CONTRACTS §[T-CONTRACTS.validation] catalog are triggered by or
+gate on solver outputs. They are listed here for cross-reference; the canonical definitions and
+severity classifications are in T-CONTRACTS.
+
+| Check code | Stage | Triggered by |
+|---|---|---|
+| `MESH_NOT_EMPTY` | post | `SolverResult.positions` non-empty |
+| `NO_DEGENERATE_TRIS` | post | Triangle area check on output mesh |
+| `SEAMS_CLOSED` | post | Seam constraint pair separation <= 1 mm in final frame |
+| `NO_INTERPENETRATION` | post | Cloth particle vs body capsule/sphere SDF >= -0.5 mm |
+| `SELF_INTERSECTION` | post | Self-collision pair count below explosion limit |
+| `DRAPE_CONVERGED` | post | Final kinetic energy below convergence threshold |
+| `PRESET_NO_NAN` | preset | No NaN/Inf in drape-test positions |
+| `PRESET_STRETCH_NONZERO` | preset | Stretch compliance != 0 |
+| `PRESET_DENSITY_POS` | preset | `density_g_m2 > 0` |
+
+The `MeshComparator` result MUST be attached to the `ValidationReport` when the
+`ValidationRunner` re-runs a sim for promotion: `max_deviation_mm`, `mean_deviation_mm`, and
+`equivalent: bool` MUST be stored in the run receipt (schema `hsk.tailor.simulation_receipt@1`).
+
+---
+
+##### <N>.<i>.13 Non-Normative Provenance
+
+The design rationale, OSS evidence, WGSL code sketches, and algorithm pseudocode in
+`04-cloth-solver.md` (T-CLOTH-SOLVER) are non-normative background for this sub-section.
+Where any name, field, or contract in T-CLOTH-SOLVER conflicts with T-CONTRACTS (`16-contracts.md`),
+T-CONTRACTS is authoritative and this sub-section follows T-CONTRACTS. Specific superseded names
+from T-CLOTH-SOLVER applied here:
+
+- `TailorGarmentValidated` (04) → `TailorGarmentValidationRecorded` (T-CONTRACTS §[T-CONTRACTS.event-types])
+- `TailorSimRunStarted`/`TailorSimRunCompleted`/`TailorSimRunRejected` — canonical forms retained
+- `SolverMeshV1` (04 prose) → `SolverMesh` (canonical name; no `V1` suffix on the mesh type)
+- `SimMode` (04) → `SolverMode` (canonical name; `Fitting`/`Animation`/`ChebyshevGs` variants)
+- `tailor_material_library` (04, handshake-binding section) → `tailor_material_presets`
+  (T-CONTRACTS §[T-CONTRACTS.tables])
+- `GarmentCrdtUpdateRecorded` / `TailorGarmentCrdtUpdateRecorded` (04) →
+  `TailorPanelCrdtUpdateRecorded` (T-CONTRACTS §[T-CONTRACTS.event-types])
+
+## 13.4 Collision: Body, Self, Multi-Layer, Exaggerated Proportions
+
+<!-- id: collision -->
+<!-- source research (non-normative provenance): .GOV/reference/cloth_engine_research/05-collision.md -->
+<!-- canonical contracts: .GOV/reference/cloth_engine_research/16-contracts.md (T-CONTRACTS) -->
+
+---
+
+##### Overview
+
+This section specifies the collision subsystem of the `tailor-solver` crate. It covers four concerns:
+cloth-vs-body collision (capsule proxy primary; SDF secondary), self-collision (curvature culling +
+spatial hash), multi-layer garment ordering, and exaggerated-proportion robustness (large-bust
+inter-collider overlap and tunneling). All type names, table names, event variants, schema IDs, and
+migration names are the canonical forms from T-CONTRACTS. The research package
+`.GOV/reference/cloth_engine_research/05-collision.md` is non-normative provenance; where any
+detail in that file conflicts with T-CONTRACTS, T-CONTRACTS governs.
+
+---
+
+##### Body-Proxy Authority
+
+**[COL-BODY-001]** The body proxy authority type MUST be `ClothBodyProxy` defined in
+`tailor-solver/src/body/proxy.rs`. It MUST carry a capsule list (`Vec<CollisionCapsule>`) and a
+sphere list (`Vec<CollisionSphere>`). All lengths and radii MUST be stored in **millimetres**. The
+type MUST derive `serde::{Serialize, Deserialize}` and `schemars::JsonSchema`.
+
+```rust
+// tailor-solver/src/body/proxy.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ClothBodyProxy {
+    pub body_proxy_id: String,   // "BPX-{uuid_v7}"
+    pub avatar_id:     String,   // "AVT-{uuid_v7}"
+    /// Capsule chain (body segments). All distances in MILLIMETRES.
+    pub capsules:      Vec<CollisionCapsule>,
+    /// Sphere sub-proxies (breast/bust sub-volumes, joint spheres). MILLIMETRES.
+    pub spheres:       Vec<CollisionSphere>,
+    pub thickness_mm:  f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CollisionCapsule {
+    pub joint_name: String,
+    pub p0_mm:      [f32; 3],
+    pub p1_mm:      [f32; 3],
+    pub radius_mm:  f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CollisionSphere {
+    pub bone:       String,
+    pub center_mm:  [f32; 3],
+    pub radius_mm:  f32,
+}
+```
+
+**[COL-BODY-002]** The GPU upload types for the real-time substep loop MUST be `GpuCapsule` and
+`GpuSphere`, both `#[repr(C)]` and `bytemuck::Pod`. `GpuCapsule` MUST store endpoint `a` and `b`
+each as `[f32; 4]` (`.xyz` = position, `.w` = radius or padding). `GpuSphere` MUST store `center`
+as `[f32; 4]` (`.xyz` = center, `.w` = radius). The fixed-size GPU arrays MUST be bounded at
+**max 32 capsules** and **max 16 spheres** per body proxy to fit a single WGSL bind group.
+
+```rust
+// tailor-solver/src/body/gpu.rs
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuCapsule {
+    pub a: [f32; 4],  // .xyz = endpoint a, .w = radius
+    pub b: [f32; 4],  // .xyz = endpoint b, .w = padding
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuSphere {
+    pub center: [f32; 4],  // .xyz = center, .w = radius
+}
+```
+
+**[COL-BODY-003]** The authority JSONB for body proxy geometry MUST be stored in
+`tailor_body_proxies.proxy_json` as a serialized `ClothBodyProxy`. The Postgres table MUST use
+`TEXT PRIMARY KEY` with prefix `BPX-` (T-CONTRACTS FACT-4). The `avatar_id` column MUST reference
+`tailor_avatars(avatar_id)`. There MUST NOT be a `garment_id` foreign key on `tailor_body_proxies`;
+the garment-to-proxy link is via `tailor_garments.body_proxy_id`.
+
+```sql
+-- migration: 2026_MM_DD_tailor_body_proxies.sql  (dated convention; T-CONTRACTS.migration-naming)
+-- 2026_MM_DD_tailor_body_proxies.down.sql reverse pair is required.
+CREATE TABLE IF NOT EXISTS tailor_body_proxies (
+    body_proxy_id           TEXT PRIMARY KEY,             -- "BPX-{uuid_v7}"
+    avatar_id               TEXT NOT NULL REFERENCES tailor_avatars (avatar_id),
+    workspace_id            TEXT NOT NULL,
+    proxy_json              JSONB NOT NULL,               -- serialized ClothBodyProxy
+    mode                    TEXT NOT NULL DEFAULT 'capsule'
+        CHECK (mode IN ('capsule', 'capsule_sphere', 'capsule_sdf', 'sdf')),
+    breast_proxy_mode       TEXT
+        CHECK (breast_proxy_mode IS NULL OR
+               breast_proxy_mode IN ('standard', 'multi_sphere', 'sdf_fallback')),
+    sdf_artifact_ref        TEXT,
+    lores_mesh_artifact_ref TEXT,
+    joint_hierarchy_json    JSONB,
+    collision_thickness_mm  FLOAT NOT NULL DEFAULT 2.5,
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_body_proxies_avatar
+    ON tailor_body_proxies (avatar_id);
+```
+
+**[COL-BODY-004]** Every `tailor_body_proxies` INSERT MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` before writing. SQLite writes to body proxy
+tables are PROHIBITED (`no_sqlite_tripwire`).
+
+**[COL-BODY-005]** `tailor_avatars` MUST exist as the avatar-identity authority table before any
+`tailor_body_proxies` row can be inserted (FK constraint). The migration for `tailor_avatars` MUST
+be applied before the migration for `tailor_body_proxies`. The canonical `tailor_avatars` DDL is
+defined in T-CONTRACTS `[T-CONTRACTS.body-proxy]` and is not repeated here; this section only
+adds collision-specific requirements on top of it.
+
+---
+
+##### Cloth-vs-Body Collision: Primary Mode (Capsule + Sphere Proxy)
+
+**[COL-CAPSULE-001]** The primary body-collision mode MUST be the capsule + sphere proxy resolved
+entirely in WGSL compute shaders on GPU. There MUST NOT be a CPU readback per substep for body
+collision resolution.
+
+**[COL-CAPSULE-002]** The body-collision compute pass (`collision_body.wgsl`) MUST be a
+**pre-constraint pass**: it MUST execute at the beginning of each XPBD substep, before any stretch,
+bend, or seam constraint is solved. This ordering prevents large velocity impulses from being
+imparted to cloth particles by fast-moving collision objects.
+
+**[COL-CAPSULE-003]** The WGSL shader MUST bind capsule and sphere buffers via storage bindings
+and a uniform parameter struct. The `CollisionParams` uniform MUST carry `num_capsules: u32`,
+`num_spheres: u32`, `thickness: f32`.
+
+```wgsl
+// tailor-solver/shaders/collision_body.wgsl  (canonical binding layout)
+struct GpuCapsule { a: vec4<f32>, b: vec4<f32> }
+struct GpuSphere  { center: vec4<f32> }
+
+struct CollisionParams {
+    num_capsules: u32,
+    num_spheres:  u32,
+    thickness:    f32,
+    _pad:         f32,
+}
+
+@group(1) @binding(0) var<storage, read> capsules:         array<GpuCapsule>;
+@group(1) @binding(1) var<storage, read> spheres:          array<GpuSphere>;
+@group(1) @binding(2) var<uniform>       collision_params:  CollisionParams;
+```
+
+**[COL-CAPSULE-004]** The capsule correction kernel MUST compute the closest point on the capsule
+segment to the cloth particle position and push the particle outward by `(radius + thickness)` when
+the distance is below that sum. The distance computation MUST clamp the projection parameter `t` to
+`[0.0, 1.0]` to handle endpoint degeneracy.
+
+**[COL-CAPSULE-005]** The sphere correction kernel MUST push the cloth particle radially outward to
+`(sphere_radius + thickness)` when the particle is inside that distance from the sphere center.
+
+**[COL-CAPSULE-006]** The body-collision pass workgroup size MUST be 64 threads. The dispatch
+covers all cloth particles (`ceil(N_particles / 64)` workgroups).
+
+---
+
+##### Cloth-vs-Body Collision: Secondary Mode (SDF)
+
+**[COL-SDF-001]** The secondary body-collision mode MUST be a baked signed-distance-field (SDF)
+volume stored as a `texture3d<f32>` on GPU. This mode MUST be used when `tailor_body_proxies.mode`
+is `'capsule_sdf'` or `'sdf'`.
+
+**[COL-SDF-002]** The SDF resolution MUST default to **64×64×64 voxels** covering the bounding box
+of the avatar body region. The SDF MUST be re-baked when the avatar pose changes by more than a
+configurable pose-change threshold. SDF baking MUST NOT occur in the real-time substep loop; it
+MUST run as a pre-simulation bake pass.
+
+**[COL-SDF-003]** The SDF collision-response kernel MUST apply the correction:
+`x_corrected = x + (delta - sdf(x)) * grad_sdf(x)` where `delta` is the collision thickness
+margin and `grad_sdf` is the trilinearly interpolated central-difference gradient of the SDF
+texture. This MUST run as a pre-constraint pass in the same position in the substep pipeline as the
+capsule pass (`[COL-CAPSULE-002]`).
+
+**[COL-SDF-004]** The SDF mode MUST be selected automatically by `ClothBodyProxy::select_collision_mode()`
+when the breast proxy sphere count exceeds 6 and the total capsule count exceeds 10. Manual override
+is permitted via `tailor_body_proxies.mode`.
+
+**[COL-SDF-005]** GPU SDF baking MUST use a jump-flooding or sphere-tracing approach. CPU-side
+O(N_voxels × N_triangles) naive baking MUST NOT be used in interactive sessions. SDF bake artifacts
+MUST be stored via `tailor_body_proxies.sdf_artifact_ref`.
+
+---
+
+##### Proxy Construction with Parry (CPU Pre-Processing Only)
+
+**[COL-PARRY-001]** The `parry3d` crate (dimforge, Apache-2.0) MUST be used **only on the CPU** for
+pre-simulation proxy construction and for broad-phase AABB culling during validation. It MUST NOT be
+invoked inside the real-time substep loop.
+
+**[COL-PARRY-002]** Avatar capsule proxy hierarchies MUST be built by `build_avatar_proxy()` in
+`src/tailor/body/parry_build.rs` (within `handshake_core::tailor`). The function takes an imported
+avatar mesh and a skeleton, assigns one `CollisionCapsule` per limb bone, and decomposes breast
+bones into sphere approximations via V-HACD convex decomposition (`parry3d::transformation::vhacd`).
+
+**[COL-PARRY-003]** The `parry3d` BVH (`Bvh`) MUST be used for broad-phase cloth-vs-body AABB
+culling in the validation `CollisionValidationCheck` (see `[COL-VALIDATE-001]`). The dynamic BVH
+variant SHOULD be preferred for animated avatar pose baking.
+
+**[COL-PARRY-004]** The `parry3d` dependency MUST be declared in `tailor-solver/Cargo.toml`. It
+MUST NOT be a dependency of `handshake_core` directly; proxy construction and validation call the
+`tailor-solver` crate boundary.
+
+---
+
+##### Self-Collision: Curvature Culling Pre-Filter
+
+**[COL-SELF-001]** Self-collision resolution MUST be preceded by a curvature-culling pre-filter
+pass that identifies geometrically flat cloth regions and excludes their particles from the spatial
+hash. Flat regions are collision-inactive and MUST NOT enter the narrow-phase hash query.
+
+**[COL-SELF-002]** The curvature metric MUST be the h²-normalised discrete Laplace-Beltrami
+operator mean curvature `H(v)` computed per vertex over the triangulated cloth mesh. A vertex is
+classified as **active** (collision candidate) when `|H(v)| > curvature_threshold`; otherwise it is
+**inactive** and skipped. The `curvature_threshold` parameter MUST be exposed in `ClothSimConfig`
+with a default that achieves 40–70% reduction of active particles for typical flat-panel garments.
+
+**[COL-SELF-003]** The curvature pass MUST run in a dedicated WGSL compute shader
+(`shaders/curvature_cull.wgsl`) that writes a per-particle `active_flags: array<u32>` buffer.
+Workgroup size MUST be 64.
+
+---
+
+##### Self-Collision: Spatial Hash GPU Architecture
+
+**[COL-SELF-004]** The narrow-phase self-collision pass MUST use a GPU spatial hash built over
+**active particles only** (those with `active_flags[i] == 1`). The hash cell size MUST be
+`2 * r_particle` (twice the per-particle collision radius). The table size MUST be set to at least
+`2 * num_active_particles` at simulation startup to bound collision rate; it MUST be configurable
+in `ClothSimConfig`.
+
+**[COL-SELF-005]** The spatial hash MUST be constructed on CPU using the canonical four-step
+algorithm: (1) count particles per cell into `count_buffer`; (2) prefix-sum to produce
+`cell_start`; (3) scatter particle indices into `particle_list`; (4) upload `cell_start` and
+`particle_list` to GPU storage buffers. The hash function MUST be:
+
+```rust
+fn hash_coords(xi: i32, yi: i32, zi: i32, table_size: u32) -> u32 {
+    ((xi as u32).wrapping_mul(92837111)
+     ^ (yi as u32).wrapping_mul(689287499)
+     ^ (zi as u32).wrapping_mul(283923481))
+    % table_size
+}
+```
+
+**[COL-SELF-006]** The WGSL self-collision query shader MUST query the **27 neighbouring cells**
+(3×3×3 neighbourhood) for each active particle. For each candidate pair `(i, j)` with `j > i`,
+the shader MUST apply an XPBD distance constraint with rest distance `2 * r_particle` and compliance
+`alpha_self_collision / dt_substep^2`.
+
+**[COL-SELF-007]** Self-collision constraint application MUST use **Jacobi iteration with delta
+accumulation**: each particle writes its positional correction `Δx` to a separate `delta_pos` buffer
+using atomic integer operations (fixed-point encoding: multiply by 10 000, cast to `i32`, then
+`atomicAdd`). The main position buffer MUST be updated in a separate averaging pass after all
+constraints for the substep are collected. Direct scatter-writes to `pred_pos` within the query
+shader are PROHIBITED to avoid data races.
+
+**[COL-SELF-008]** Velocity-level friction damping MUST be applied per self-collision pair as:
+`dx_i += d * (friction_factor * delta_v) * dt_substep` where `friction_factor` is configurable in
+`ClothSimConfig` in `[0.0, 1.0]`.
+
+**[COL-SELF-009]** WGSL `f32` atomics MUST NOT be assumed universally available. The implementation
+MUST use fixed-point integer atomics (`i32`) as the default path. An f32-atomic fast path MAY be
+enabled at runtime when the `shader-atomic-float` wgpu feature is detected.
+
+---
+
+##### Multi-Layer Garment Collision
+
+**[COL-LAYER-001]** Each garment in a multi-layer stack MUST carry a non-negative integer
+`layer_index` stored in `tailor_garments.layer_index` (0 = innermost). Garments MUST be simulated
+in ascending `layer_index` order: inner garments are draped first, then each outer garment is
+draped against the already-settled inner layers.
+
+**[COL-LAYER-002]** Inter-layer collision MUST be resolved as a constraint between outer-garment
+particles and a spatial hash built over inner-garment particles. The rest distance for each
+inter-layer distance constraint MUST be `thickness_inner + thickness_outer` (the sum of both
+garments' `FabricProperties.collision_thickness_mm` values), not zero.
+
+**[COL-LAYER-003]** The inter-layer collision pass MUST execute **after** body collision and after
+intra-garment constraint solving, once per substep. The outer garment's inter-layer spatial hash
+MUST use the same construction algorithm as the self-collision hash (`[COL-SELF-004]` through
+`[COL-SELF-005]`).
+
+**[COL-LAYER-004]** Inter-layer collision direction MUST be enforced asymmetrically: outer-garment
+particles MUST stay outside inner-garment particles, but inner-garment particles are not pushed by
+outer-garment particles. This prevents the inner layer from being driven upward by the outer layer.
+
+**[COL-LAYER-005]** A post-simulation inter-layer penetration check MUST be run as the
+`INTERLAYER_SPACING` validation check (T-CONTRACTS `[T-CONTRACTS.validation]`): no inter-layer
+particle pair may be closer than `(t_inner + t_outer - tolerance)` in the final simulated frame.
+This check is **Blocking** severity; failure prevents promotion.
+
+**[COL-LAYER-006]** When inter-layer penetration contour length exceeds a configurable threshold
+after the full substep budget, the simulation result MUST be flagged in the `SimulationReceipt`
+with a `INTERLAYER_SPACING` finding at `Advisory` severity and `recommended_action:
+edit_and_resimulate`. Contour-length measurement is a post-sim check, not a runtime constraint.
+
+---
+
+##### Exaggerated-Proportion Robustness
+
+This section addresses avatars with a large bust volume (production target: cup size G–K+ or
+equivalent) on a narrow rib cage. Three failure modes are specified and each MUST be mitigated.
+
+###### Failure Mode 1: Inter-Collider Overlap Jitter
+
+**[COL-BUST-001]** When two or more body-proxy spheres partially overlap and a cloth particle
+receives simultaneously contradictory push corrections from them, the implementation MUST NOT sum
+the correction vectors. It MUST apply the **maximum-magnitude correction** only: accumulate all
+sphere correction vectors, then apply the one with the largest Euclidean magnitude.
+
+```wgsl
+// In collision_body_pass — accumulate sphere corrections, apply only the largest.
+var best_correction = vec3(0.0);
+var best_mag: f32 = 0.0;
+for (var i = 0u; i < collision_params.num_spheres; i++) {
+    let corr = sphere_correction(pred_pos_xyz, spheres[i], collision_params.thickness);
+    let mag  = length(corr);
+    if mag > best_mag {
+        best_mag        = mag;
+        best_correction = corr;
+    }
+}
+pos += best_correction;
+```
+
+**[COL-BUST-002]** A minimum inter-sphere spacing constraint MUST be enforced during proxy
+construction: adjacent breast-proxy spheres MUST be at least `0.5 * max(radius_a, radius_b)` apart
+(center-to-center). Proxy JSON that violates this constraint MUST be rejected by the
+`AVATAR_BINDING` fast pre-solver check.
+
+###### Failure Mode 2: Under-Bust Cloth Tunneling
+
+**[COL-BUST-003]** When `tailor_body_proxies.breast_proxy_mode` is `'multi_sphere'` or
+`'sdf_fallback'` (i.e., the avatar proxy contains breast sphere sub-volumes), the body-collision
+pass MUST run **twice per substep**: once for the main body capsule chain, and a second time
+resolving residual penetrations from the breast sphere set. This doubled pass MUST be gated on the
+`breast_proxy_mode` flag and MUST NOT apply to standard (non-bust) proxies.
+
+**[COL-BUST-004]** Breast-sphere bones MUST be identifiable by joint name convention. The proxy
+builder MUST tag any bone whose name contains `"breast"`, `"bust"`, `"BreastL"`, `"BreastR"`,
+`"LeftBreast"`, or `"RightBreast"` (case-insensitive) as a breast bone. The WGSL pass MUST branch
+on a `has_breast_spheres: u32` uniform flag.
+
+###### Failure Mode 3: Under-Bust Crease Penetration
+
+**[COL-BUST-005]** Body-collision resolution MUST precede stretch constraint solving within each
+substep (already enforced by `[COL-CAPSULE-002]`). For large-bust avatars, the pre-constraint
+ordering MUST be verified during validation: the `NO_INTERPENETRATION` check
+(T-CONTRACTS `[T-CONTRACTS.validation]`) MUST report failure if any cloth particle is deeper than
+`-0.5 mm` inside any body capsule or sphere in the **final simulated frame**.
+
+###### Proxy Decomposition for Large-Bust Avatars
+
+**[COL-BUST-006]** The canonical multi-sphere breast proxy decomposition MUST allocate **three
+spheres per breast side** (primary volume, lower-quadrant volume, under-bust capping volume) plus
+**one sternum capsule** guarding the inter-breast cleavage gap. This decomposition MUST be the
+default output of `build_avatar_proxy()` when V-HACD convex decomposition of the breast sub-mesh
+yields three or more convex parts per side. The resulting proxy MUST not exceed the global 16-sphere
+budget (`[COL-BODY-002]`).
+
+```json
+// Canonical large-bust proxy decomposition (illustrative geometry; actual values from V-HACD):
+{
+  "left_breast": [
+    { "bone": "LeftBreast",    "center_mm": [0, 0, 0],     "radius_mm": 80.0 },
+    { "bone": "LeftBreast",    "center_mm": [0, -40, 15],  "radius_mm": 60.0 },
+    { "bone": "LeftBreastLow", "center_mm": [0, -20, 0],   "radius_mm": 50.0 }
+  ],
+  "right_breast": [
+    { "bone": "RightBreast",    "center_mm": [0, 0, 0],    "radius_mm": 80.0 },
+    { "bone": "RightBreast",    "center_mm": [0, -40, 15], "radius_mm": 60.0 },
+    { "bone": "RightBreastLow", "center_mm": [0, -20, 0],  "radius_mm": 50.0 }
+  ],
+  "sternum_gap": [
+    { "joint_name": "Sternum", "p0_mm": [-20, 50, 0], "p1_mm": [-20, -20, 0], "radius_mm": 15.0 }
+  ]
+}
+```
+
+**[COL-BUST-007]** The SDF fallback (`[COL-SDF-004]`) MUST be triggered automatically when the
+breast proxy sphere count exceeds 6. The SDF volume for this mode SHOULD cover only the
+torso-to-breast bounding region (not the full body) to keep bake cost within the GPU budget.
+
+---
+
+##### EventLedger Events
+
+**[COL-EVENT-001]** The following `KernelEventType` variants MUST be used for collision lifecycle
+events (canonical wire strings per T-CONTRACTS `[T-CONTRACTS.event-types]`):
+
+| Variant | Wire string (`as_str()`) | Trigger |
+|---|---|---|
+| `TailorBodyProxyCreated` | `"TAILOR_BODY_PROXY_CREATED"` | New `tailor_body_proxies` row inserted |
+| `TailorBodyProxyUpdated` | `"TAILOR_BODY_PROXY_UPDATED"` | Proxy geometry changed (CRDT edit or rebuild) |
+| `TailorAvatarCreated` | `"TAILOR_AVATAR_CREATED"` | New `tailor_avatars` row inserted |
+| `TailorAvatarMeasurementsExtracted` | `"TAILOR_AVATAR_MEASUREMENTS_EXTRACTED"` | Anthropometric measurements extracted from imported mesh |
+
+Superseded variants MUST NOT be used: `TailorProxyCreated`, `TailorProxyUpdated`,
+`BodyProxyCreated`, `BodyProxyMeasurementsExtracted`, `TAILOR_PROXY_CREATED`,
+`TAILOR_PROXY_UPDATED`, `TAILOR_COLLISION_PASS_RAN`, `TAILOR_TUNNELING_DETECTED`.
+
+**[COL-EVENT-002]** `event_family` constants for collision events MUST use the canonical dot-namespaced
+form from `src/tailor/event_family.rs`:
+
+```rust
+pub const TAILOR_BODY_PROXY: &str = "tailor.body_proxy";
+pub const TAILOR_AVATAR:     &str = "tailor.avatar";
+```
+
+**[COL-EVENT-003]** Every collision-lifecycle event MUST be emitted via
+`NewKernelEvent::builder(task_run_id, session_run_id, KernelEventType::Tailor*, KernelActor::System("tailor"))`
+and MUST carry the `aggregate("tailor_body_proxy", proxy_id)` or `aggregate("tailor_avatar", avatar_id)`
+call as appropriate, before `.build()`.
+
+---
+
+##### Schema IDs
+
+**[COL-SCHEMA-001]** The body-proxy schema ID MUST be `"hsk.tailor.body_proxy@1"` (constant
+`SCHEMA_TAILOR_BODY_PROXY_V1` in `src/tailor/schemas.rs`). The avatar schema ID MUST be
+`"hsk.tailor.avatar@1"` (`SCHEMA_TAILOR_AVATAR_V1`). Use of `"hsk.cloth.*"` schema IDs for
+authority body-proxy or avatar records is PROHIBITED (T-CONTRACTS `[T-CONTRACTS.schema-ids]`).
+
+---
+
+##### Validation Checks
+
+**[COL-VALIDATE-001]** The `TailorValidationDescriptor` for collision MUST include the following
+checks from the canonical catalog (T-CONTRACTS `[T-CONTRACTS.validation]`). Severity and stage are
+as defined there and reproduced here for collision-specific traceability:
+
+| Code | Severity | Stage | What it asserts |
+|---|---|---|---|
+| `AVATAR_BINDING` | Blocking | fast | `AvatarBinding.avatar_id` exists in `tailor_avatars` |
+| `NO_INTERPENETRATION` | Blocking | post | No cloth particle deeper than −0.5 mm inside any body capsule/sphere in the final frame |
+| `INTERLAYER_SPACING` | Blocking | post | No inter-layer pair closer than `t_inner + t_outer − tolerance` |
+| `SELF_INTERSECTION` | Advisory | post | Self-collision pair count below mesh-explosion limit |
+
+**[COL-VALIDATE-002]** The `NO_INTERPENETRATION` check MUST NOT run on intermediate substep frames.
+It MUST only evaluate the final position buffer of the completed draping phase. Applying this check
+to mid-simulation frames is PROHIBITED, as particles legitimately pass through brief inter-collider
+states during initial draping.
+
+**[COL-VALIDATE-003]** `ValidationReport::aggregate_blocks_promotion()` is the sole promotion gate.
+Any `Blocking` failure in the collision checks above MUST prevent `TailorGarmentPromoted` from being
+emitted. The `SimulationReceipt` (schema `hsk.tailor.simulation_receipt@1`) MUST carry each
+failing check as a `ValidationFinding` with the stable `code` value and an optional
+`suggested_fix { field_path, suggested_value }` pointing into `GarmentSpec` or `ClothBodyProxy`
+JSON for model self-correction.
+
+**[COL-VALIDATE-004]** Collision re-run qualification MUST use the comparison method and measured
+tolerances selected by the versioned `TailorQualificationProfileV1` for that solver lane.
+When the profile selects vertex comparison it MUST use `MeshComparator::compare(a, b,
+epsilon_mm)` from `tailor-solver/src/compare.rs`. SHA-256 `content_hash` equality is prohibited.
+
+---
+
+##### Sandbox and Kernel Binding
+
+**[COL-KERNEL-001]** The WGSL collision shaders MUST run inside the `TailorSandboxAdapter`
+(`src/tailor/solver_binding.rs` within `handshake_core::tailor`). The adapter MUST declare
+`AdapterIsolationTier::Process` with `SandboxCapability::Device` to permit `wgpu` device creation.
+No collision GPU dispatch MAY occur outside the sandbox boundary.
+
+**[COL-KERNEL-002]** Body proxy geometry (capsule and sphere buffers) MUST be uploaded to GPU
+storage buffers at simulation start and MUST NOT be modified while a substep loop is in progress.
+Proxy updates during animation (pose-driven capsule repositioning) MUST be double-buffered.
+
+**[COL-KERNEL-003]** The `tailor-solver` crate MUST NOT depend on `handshake_core`. Collision
+proxy types (`ClothBodyProxy`, `GpuCapsule`, `GpuSphere`) live in `tailor-solver`. The kernel
+binding module `handshake_core::tailor` adapts them for EventLedger and Postgres authority writes.
+
+---
+
+##### Model-Lane Steerability
+
+**[COL-MODEL-001]** The `TailorModelAdapter` MUST expose a `suggest_collision_proxy` tool call.
+The tool accepts avatar topology context (bone hierarchy, breast morph target magnitude,
+`measurements_mm_json`) and returns a `ClothBodyProxy` JSON proposal. The proposal MUST go through
+the sandbox → validation → promotion pipeline before it becomes the authority proxy row. A model
+MUST NOT write directly to `tailor_body_proxies` bypassing the EventLedger.
+
+**[COL-MODEL-002]** An operator-facing suggestion field `garment_proxy_suggestion JSONB` MUST be
+present on `tailor_avatars` to store the model's proxy proposal before operator review. The field
+is nullable; a non-null value signals that an unreviewed suggestion is pending. On operator
+confirmation the suggestion is promoted to a `tailor_body_proxies` row via
+`TailorBodyProxyCreated`.
+
+---
+
+##### Migration Naming
+
+**[COL-MIG-001]** Body-proxy and avatar migrations MUST follow the dated naming convention
+(T-CONTRACTS `[T-CONTRACTS.migration-naming]`). The required files are:
+
+```text
+migrations/2026_MM_DD_tailor_avatars.sql
+migrations/2026_MM_DD_tailor_avatars.down.sql
+migrations/2026_MM_DD_tailor_body_proxies.sql
+migrations/2026_MM_DD_tailor_body_proxies.down.sql
+```
+
+`MM` and `DD` MUST be the authoring date of the migration at implementation time, not this
+research date. The `tailor_avatars` migration MUST precede the `tailor_body_proxies` migration.
+Numbered `0NNN_*` migration names are PROHIBITED for all Tailor tables.
+
+---
+
+##### Non-Normative Implementation Notes
+
+The following are design rationale and implementation guidance, not requirements.
+
+The capsule-primary / SDF-secondary layering follows the Velvet CUDA XPBD architecture, where an
+SDF pre-stabilization pass runs before the constraint loop. The curvature-culling pre-filter derives
+from Efficient Self-Collision Culling for Real-Time Cloth Simulation Using Discrete Curvature
+Analysis (MDPI Mathematics 14(9) 1504, April 2026), which reports 40–70% particle reduction. The
+multi-sphere breast proxy pattern is documented in production pipelines for iClone/CC4 (32-body
+budget, breast bone sub-proxy setup), Unreal Chaos Cloth (per-bone capsule list), and Daz dForce
+community workarounds. The maximum-magnitude correction for overlapping spheres is a
+Handshake-specific solution to the jitter produced when two opposing push vectors cancel to near
+zero; the alternative (weighted average by penetration depth) may be adopted in a future revision
+if the maximum-magnitude heuristic proves unstable for three or more simultaneous penetrations.
+The Jacobi delta-accumulation approach for self-collision is taken from ccincotti3/webgpu_cloth_simulator
+and from Carmen Cincotti's XPBD cloth tutorial series. Graph coloring (ccincotti3/jspdown) is an
+admissible future optimization for high-performance mode and does not change any authority contract.
+
+## 13.5 Fabric & Material Models
+
+<!-- id: fabric  |  KERNEL_BUILDER: renumber heading on assembly -->
+<!-- Non-normative provenance: research package T-FABRIC-MODELS (06-fabric-models.md),
+     reconciled by T-CONTRACTS (16-contracts.md). All canonical names, schema-ids, event
+     variants, table names, and PK forms come from T-CONTRACTS; the research file supplies
+     the OSS evidence and calibration data that grounds the requirements below. -->
+
+---
+
+##### <N>.<i>.1 Scope
+
+This section specifies the **Fabric & Material Model** subsystem of the Tailor engine: the
+anisotropic physical properties that control how a garment drapes, stretches, bends, and
+interacts with the body proxy in the XPBD solver. It covers:
+
+- The six-scalar anisotropic compliance representation (`ClothMaterialCompliance`) used inside
+  the `tailor-solver` crate and on the GPU.
+- The `FabricProperties` normalized [0,1] surface that models and operators author inside
+  `GarmentSpec`.
+- The `tailor_material_presets` Postgres table as the authority preset library, including
+  the bundled system presets.
+- The non-linear mapping from normalized surface to raw compliance applied at solver-mesh
+  build time.
+- EventLedger events, validation checks, and the sandbox->validation->promotion lifecycle
+  for model-authored presets.
+
+This section does not specify the XPBD solver loop, constraint coloring, or GPU mesh pipeline
+(see the Cloth Solver section). It does not specify trim, zipper, or lacing stiffness, which
+are properties of `ClothTrimAttachment`, not `FabricMaterial`.
+
+---
+
+##### <N>.<i>.2 Anisotropic Compliance Model
+
+**<N>.<i>.2.1 Full orthotropic split is mandatory.**
+
+The Tailor solver MUST implement full orthotropic XPBD compliance with independent parameters
+for weft, warp, and shear axes. Scalar-multiply shortcuts (a single `stretch_resistance` with
+`warp_resistance_scale` / `weft_resistance_scale` multipliers, as used by GarmentCode
+`stiff_ochra.json`) MUST NOT be used as the internal compliance representation; they are
+rejected because they cannot express fabrics whose weft and warp have genuinely independent
+stiffness curves (e.g., bias-cut silk or non-woven composite panels).
+
+**<N>.<i>.2.2 Canonical raw compliance struct.**
+
+The solver crate MUST define `ClothMaterialCompliance` in `tailor-solver/src/material.rs`
+exactly as follows. Field names, field count, and the unit conventions (m²/N for stretch;
+dimensionless ratio for buckling) are normative; the containing crate MUST NOT introduce
+alternative field names or combine these into a smaller set.
+
+```rust
+// tailor-solver/src/material.rs
+// No handshake_core deps — standalone crate.
+
+/// Anisotropic XPBD compliance for a single fabric.
+/// Stretch fields: m²/N (divided by rest_length^2 at constraint init — see §<N>.<i>.4).
+/// Bend fields: same unit family, divided by rest_area.
+/// Buckling fields: dimensionless ratio / absolute compliance addend.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ClothMaterialCompliance {
+    /// In-plane stretch compliance, weft axis (cross-grain). Denim ≈ 5e-8; silk ≈ 2e-4.
+    pub stretch_weft: f32,
+    /// In-plane stretch compliance, warp axis (along-grain).
+    pub stretch_warp: f32,
+    /// In-plane shear compliance (diagonal deformation).
+    pub stretch_shear: f32,
+    /// Out-of-plane bending compliance, weft-direction edges.
+    pub bend_weft: f32,
+    /// Out-of-plane bending compliance, warp-direction edges.
+    pub bend_warp: f32,
+    /// Fraction of max bend angle at which reduced-stiffness term activates. [0,1].
+    /// 0 = no buckling transition; 1 = buckles at any bend angle (sharp wrinkles).
+    pub buckling_ratio: f32,
+    /// Additional compliance added at the buckled corner. Dimensionless addend.
+    pub buckling_stiffness: f32,
+}
+```
+
+**<N>.<i>.2.3 Per-fabric physical parameters.**
+
+The solver crate MUST define `ClothMaterialPhysics` in `tailor-solver/src/material.rs`.
+The internal unit for density is kg/m² (SI); the g/m² LLM-facing input MUST be converted
+at the API boundary (divide by 1000).
+
+```rust
+/// Per-fabric physical parameters: mass, collision, dynamics.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ClothMaterialPhysics {
+    /// Surface density, kg/m². Cotton: 0.10–0.20; Denim: 0.28–0.45; Silk: 0.02–0.06.
+    pub density_kg_per_m2: f32,
+    /// Collision envelope, metres. Default 0.0025 (2.5 mm).
+    pub collision_thickness_m: f32,
+    /// Coulomb friction, cloth–avatar contact. [0,1].
+    pub friction: f32,
+    /// Coulomb friction, cloth–cloth self-collision. [0,1].
+    pub self_friction: f32,
+    /// Rayleigh-like velocity damping per substep. [0,1].
+    pub internal_damping: f32,
+    /// Air resistance coefficient. [0,∞).
+    pub air_drag: f32,
+    /// Inflation pressure target ratio. 0 = no pressure.
+    pub pressure: f32,
+    /// Stiffness blend: 0 = fully soft; 1 = fully rigid (solidify mode).
+    pub solidify: f32,
+    /// Weft shrinkage multiplier. 1.0 = no shrink; 0.9 = 10% shrink.
+    pub shrinkage_weft: f32,
+    /// Warp shrinkage multiplier.
+    pub shrinkage_warp: f32,
+}
+
+/// Complete fabric material descriptor consumed by the solver.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct FabricMaterial {
+    pub compliance: ClothMaterialCompliance,
+    pub physics: ClothMaterialPhysics,
+    /// Grain direction, radians from panel horizontal. Controls weft/warp axis alignment.
+    pub grain_angle_rad: f32,
+}
+```
+
+**<N>.<i>.2.4 GPU buffer layout.**
+
+The WGSL solver MUST consume material via a `MaterialParams` uniform at
+`@group(0) @binding(2)`. The Rust mirror type MUST be `repr(C)` + `bytemuck::Pod` so the
+CPU can upload it without unsafe pointer arithmetic. Field order MUST match the WGSL struct
+byte-for-byte. The padding field `_pad: f32` is normative (16-byte alignment requirement).
+
+```rust
+// tailor-solver/src/gpu/material_uniform.rs
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MaterialParamsGpu {
+    // Compliance pack — 6 × f32
+    pub stretch_weft:      f32,
+    pub stretch_warp:      f32,
+    pub stretch_shear:     f32,
+    pub bend_weft:         f32,
+    pub bend_warp:         f32,
+    pub buckling_ratio:    f32,
+    // Physics pack — 6 × f32
+    pub density_kg_per_m2: f32,
+    pub friction:          f32,
+    pub self_friction:     f32,
+    pub internal_damping:  f32,
+    pub air_drag:          f32,
+    pub pressure:          f32,
+    // Keyframeable props — 4 × f32
+    pub solidify:          f32,
+    pub shrinkage_weft:    f32,
+    pub shrinkage_warp:    f32,
+    pub _pad:              f32,   // 16-byte alignment; MUST remain at index 15
+}
+```
+
+The WGSL uniform block MUST declare the same field set and order as `MaterialParamsGpu`.
+The anisotropic dispatch functions `stretch_compliance(dir_uv: vec2<f32>) -> f32` and
+`bend_compliance(is_weft_edge: u32) -> f32` MUST be the sole entry points from constraint
+shaders into the material uniform; constraint shaders MUST NOT read compliance fields
+directly.
+
+**<N>.<i>.2.5 Grain direction and weft/warp axis tagging.**
+
+The mesh generation pipeline MUST tag each edge and triangle with a `uv_axis` attribute
+computed from the 2D pattern UV coordinates at mesh generation time. When `grain_angle_rad`
+is non-zero, the weft/warp coordinate frame MUST be rotated before the compliance lookup.
+Without this tagging, the solver MUST fall back to isotropic compliance using
+`(stretch_weft + stretch_warp) / 2.0`; it MUST NOT silently apply the wrong axis.
+
+**<N>.<i>.2.6 Keyframeable material properties.**
+
+The solver MUST support per-frame overrides for `solidify`, `shrinkage_weft`,
+`shrinkage_warp`, and `pressure` via a `MaterialKeyframe` struct. When one or more
+keyframe tracks are active, the solver loop MUST upload an updated `MaterialParamsGpu`
+uniform at the start of each frame. Keyframes MUST be stored in the EventLedger
+(event `TailorMaterialPresetRecorded` for initial; future animated-preset events per
+the T-ANIMATION section) so the animation state is reproducible from authority storage alone.
+
+```rust
+/// Per-frame material override for animated properties. None = use base FabricMaterial.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MaterialKeyframe {
+    pub frame: u32,
+    pub shrinkage_weft: Option<f32>,
+    pub shrinkage_warp: Option<f32>,
+    pub solidify:       Option<f32>,
+    pub pressure:       Option<f32>,
+}
+```
+
+---
+
+##### <N>.<i>.3 FabricProperties — Normalized LLM Surface
+
+**<N>.<i>.3.1 Two-layer design is normative.**
+
+The Tailor system MUST maintain a strict two-layer design:
+
+| Layer | Type | Values | Who authors it | Where it lives |
+|---|---|---|---|---|
+| **LLM surface** | `FabricProperties` | Normalized [0,1] | Models, operators | `GarmentSpec.fabric` (JSONB) |
+| **Solver layer** | `ClothMaterialCompliance` + `ClothMaterialPhysics` | Raw compliance / SI units | Preset decoder | `tailor_material_presets` + solver mesh |
+
+The mapping between layers MUST be applied exactly once, at `SolverMesh` build time
+(`handshake_core::tailor::mesh::build_solver_mesh`). Raw compliance values MUST NOT be
+stored inside `GarmentSpec`; normalized values MUST NOT be passed to the solver or GPU.
+
+**<N>.<i>.3.2 Canonical FabricProperties type.**
+
+`FabricProperties` is defined in `tailor-solver/src/spec.rs` as part of `GarmentSpec`
+(T-CONTRACTS §[T-CONTRACTS.garment-spec]). The normative field set is:
+
+```rust
+/// Fabric properties — normalized [0.0, 1.0] LLM-facing surface.
+/// 1.0 = stiffest / most resistant. Decoded to raw XPBD compliance at SolverMesh build time.
+/// Two fields are NOT normalized (they are physical and LLM-legible in real units):
+///   density_g_m2          g/m², [5, 2000]
+///   collision_thickness_mm mm,  [0.1, 5]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(description = "Fabric properties, normalized [0,1]. Weft=cross-grain, Warp=along-grain.")]
+pub struct FabricProperties {
+    /// Named preset applied first; explicit fields below override per-field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<FabricPreset>,
+    pub stretch_weft:           f32,   // [0,1]; 1 = near-inextensible (leather)
+    pub stretch_warp:           f32,
+    pub shear:                  f32,
+    pub bending_weft:           f32,   // [0,1]; 1 = stiff bending (denim)
+    pub bending_warp:           f32,
+    pub buckling_ratio:         f32,   // [0,1]; 1 = fine wrinkles (silk)
+    pub density_g_m2:           f32,   // g/m²; NOT normalized
+    pub collision_thickness_mm: f32,   // mm;   NOT normalized
+    pub friction:               f32,   // [0,1]
+    pub internal_damping:       f32,   // [0,1]
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FabricPreset {
+    Cotton, Denim, Silk, Jersey, Leather, Satin, Linen, Wool, Spandex, Chiffon, Canvas, Rubber,
+}
+```
+
+`FabricPreset` variants MUST correspond 1:1 to `slug` values of `is_system_preset = true`
+rows in `tailor_material_presets`. The decoder MUST resolve the preset row first, then apply
+per-field overrides from `FabricProperties` before producing `ClothMaterialCompliance`.
+
+**<N>.<i>.3.3 Non-linear (logarithmic) mapping is mandatory.**
+
+The mapping from normalized field `v ∈ [0,1]` to raw compliance `α` MUST be non-linear.
+A linear map is rejected because stretch compliance spans roughly six orders of magnitude
+(`1e-9` for leather to `1e-3` for chiffon); a linear interpolation over that range
+produces meaningless values in most of [0,1].
+
+The REQUIRED mapping for stretch and bending fields is logarithmic interpolation between
+the per-axis bounds `[α_min, α_max]` stored in the preset or in a hard-coded
+axis-type bound table:
+
+```
+α = α_max * (α_min / α_max)^(1 - v)      where v = normalized value ∈ [0,1], v=1 → α_min (stiffest)
+```
+
+This is equivalent to: `α = exp(log(α_max) + v * (log(α_min) - log(α_max)))`.
+
+The implementation MUST live in `handshake_core::tailor::material_decoder` (or an equivalent
+module in `tailor-solver` if the decoder has no kernel deps) and MUST be applied during
+`build_solver_mesh`. The decoder MUST NOT be inlined at call sites.
+
+**<N>.<i>.3.4 Compliance normalization by rest geometry.**
+
+The XPBD compliance `α` stored in presets and produced by the decoder MUST be interpreted
+as a **physical-unit stiffness target**, not a direct solver-space compliance.
+At constraint initialization, the solver MUST normalize:
+
+- Stretch constraint: `α_effective = α_raw / rest_length^2`
+- Bend constraint:   `α_effective = α_raw / rest_area`
+
+where `rest_length` is the edge rest length and `rest_area` is the average area of the two
+triangles sharing the dihedral edge. This normalization makes the compliance
+mesh-resolution-independent. Solvers that pass `α_raw` directly to the XPBD update equation
+without this normalization will produce mesh-resolution-dependent drape and MUST NOT be
+promoted to production.
+
+---
+
+##### <N>.<i>.4 tailor_material_presets — Postgres Authority
+
+**<N>.<i>.4.1 Single canonical table.**
+
+The material preset authority MUST reside in a single Postgres table named
+`tailor_material_presets`. The alternative names `tailor_material_library` and
+`tailor_material` that appear in prior research drafts are superseded and MUST NOT be used
+(T-CONTRACTS §[T-CONTRACTS.tables]).
+
+**<N>.<i>.4.2 Schema.**
+
+The migration creating this table MUST follow the dated naming convention
+`<YYYY>_<MM>_<DD>_tailor_material_presets.sql` + `…down.sql` (T-CONTRACTS
+§[T-CONTRACTS.migration-naming]). A numbered `0NNN_tailor_material_presets.sql` MUST NOT
+be used. The table schema is:
+
+```sql
+-- Migration: <YYYY>_<MM>_<DD>_tailor_material_presets.sql
+-- Reverse:   <YYYY>_<MM>_<DD>_tailor_material_presets.down.sql
+
+CREATE TABLE IF NOT EXISTS tailor_material_presets (
+    preset_id             TEXT PRIMARY KEY,             -- "MAT-{uuid_v7}"
+    workspace_id          TEXT NOT NULL,
+    name                  TEXT NOT NULL,
+    slug                  TEXT NOT NULL,                -- kebab-case; unique per workspace
+    description           TEXT,
+    -- Raw anisotropic compliance (ClothMaterialCompliance as JSONB).
+    -- Field names MUST match ClothMaterialCompliance exactly.
+    compliance_json       JSONB NOT NULL,
+    -- ClothMaterialPhysics as JSONB (density_kg_per_m2, collision_thickness_m, etc.).
+    physics_json          JSONB NOT NULL,
+    grain_angle_rad       DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    is_system_preset      BOOLEAN NOT NULL DEFAULT false,
+    event_ledger_event_id TEXT NOT NULL
+        REFERENCES kernel_event_ledger(event_id),
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (workspace_id, slug)
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_material_presets_workspace
+    ON tailor_material_presets (workspace_id, is_system_preset);
+```
+
+Primary key MUST use the `TEXT PRIMARY KEY` with the `MAT-` prefix, consistent with the
+`TEXT PRIMARY KEY` convention established in recent kernel migrations (T-CONTRACTS
+§[T-CONTRACTS.tables], FACT-4). The `UUID PRIMARY KEY DEFAULT gen_random_uuid()` form is
+off-convention and MUST NOT be used.
+
+Every `tailor_material_presets` INSERT MUST call `guard_authority_write(AuthorityMode::PostgresPrimary)`
+before the sqlx query. SQLite writes to this table MUST NOT be permitted.
+
+**<N>.<i>.4.3 Bundled system presets.**
+
+The migration MUST seed the following system presets (`is_system_preset = true`).
+The `compliance_json` and `physics_json` values below are the canonical starting calibration;
+they MUST be validated against the drape test suite before the migration is merged, and
+updated in-migration if calibration changes. All compliance values are the pre-normalization
+raw physical-unit targets (applied after rest-geometry normalization per §<N>.<i>.3.4).
+
+```json
+[
+  {
+    "slug": "cotton",
+    "name": "Cotton",
+    "compliance_json": {
+      "stretch_weft": 5e-6, "stretch_warp": 4e-6, "stretch_shear": 2e-5,
+      "bend_weft": 3e-3, "bend_warp": 3e-3,
+      "buckling_ratio": 0.6, "buckling_stiffness": 0.0
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.15, "collision_thickness_m": 0.0025,
+      "friction": 0.4, "self_friction": 0.2, "internal_damping": 0.05,
+      "air_drag": 0.01, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "silk",
+    "name": "Silk",
+    "compliance_json": {
+      "stretch_weft": 2e-4, "stretch_warp": 1.5e-4, "stretch_shear": 8e-4,
+      "bend_weft": 8e-2, "bend_warp": 8e-2,
+      "buckling_ratio": 0.9, "buckling_stiffness": 0.0
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.04, "collision_thickness_m": 0.001,
+      "friction": 0.1, "self_friction": 0.05, "internal_damping": 0.02,
+      "air_drag": 0.005, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "denim",
+    "name": "Denim",
+    "compliance_json": {
+      "stretch_weft": 5e-8, "stretch_warp": 3e-8, "stretch_shear": 1e-7,
+      "bend_weft": 5e-5, "bend_warp": 4e-5,
+      "buckling_ratio": 0.1, "buckling_stiffness": 0.5
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.35, "collision_thickness_m": 0.003,
+      "friction": 0.55, "self_friction": 0.4, "internal_damping": 0.1,
+      "air_drag": 0.02, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "leather",
+    "name": "Leather",
+    "compliance_json": {
+      "stretch_weft": 5e-9, "stretch_warp": 5e-9, "stretch_shear": 2e-8,
+      "bend_weft": 8e-6, "bend_warp": 8e-6,
+      "buckling_ratio": 0.05, "buckling_stiffness": 0.8
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.50, "collision_thickness_m": 0.004,
+      "friction": 0.65, "self_friction": 0.5, "internal_damping": 0.15,
+      "air_drag": 0.03, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "jersey",
+    "name": "Jersey / Knit",
+    "compliance_json": {
+      "stretch_weft": 1e-4, "stretch_warp": 5e-5, "stretch_shear": 3e-4,
+      "bend_weft": 2e-2, "bend_warp": 2e-2,
+      "buckling_ratio": 0.85, "buckling_stiffness": 0.0
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.13, "collision_thickness_m": 0.002,
+      "friction": 0.35, "self_friction": 0.15, "internal_damping": 0.04,
+      "air_drag": 0.008, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "wool",
+    "name": "Wool",
+    "compliance_json": {
+      "stretch_weft": 2e-6, "stretch_warp": 1.5e-6, "stretch_shear": 5e-6,
+      "bend_weft": 4e-3, "bend_warp": 4e-3,
+      "buckling_ratio": 0.5, "buckling_stiffness": 0.1
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.25, "collision_thickness_m": 0.0035,
+      "friction": 0.5, "self_friction": 0.35, "internal_damping": 0.08,
+      "air_drag": 0.015, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "chiffon",
+    "name": "Chiffon",
+    "compliance_json": {
+      "stretch_weft": 5e-4, "stretch_warp": 4e-4, "stretch_shear": 1.5e-3,
+      "bend_weft": 1.5e-1, "bend_warp": 1.5e-1,
+      "buckling_ratio": 0.95, "buckling_stiffness": 0.0
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.025, "collision_thickness_m": 0.0008,
+      "friction": 0.05, "self_friction": 0.02, "internal_damping": 0.01,
+      "air_drag": 0.003, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "canvas",
+    "name": "Canvas",
+    "compliance_json": {
+      "stretch_weft": 8e-9, "stretch_warp": 6e-9, "stretch_shear": 2e-8,
+      "bend_weft": 3e-5, "bend_warp": 3e-5,
+      "buckling_ratio": 0.05, "buckling_stiffness": 0.9
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.45, "collision_thickness_m": 0.004,
+      "friction": 0.6, "self_friction": 0.45, "internal_damping": 0.12,
+      "air_drag": 0.025, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  },
+  {
+    "slug": "rubber",
+    "name": "Rubber",
+    "compliance_json": {
+      "stretch_weft": 1e-4, "stretch_warp": 1e-4, "stretch_shear": 5e-4,
+      "bend_weft": 1e-3, "bend_warp": 1e-3,
+      "buckling_ratio": 0.0, "buckling_stiffness": 0.0
+    },
+    "physics_json": {
+      "density_kg_per_m2": 0.30, "collision_thickness_m": 0.003,
+      "friction": 0.75, "self_friction": 0.6, "internal_damping": 0.2,
+      "air_drag": 0.01, "pressure": 0.0, "solidify": 0.0,
+      "shrinkage_weft": 1.0, "shrinkage_warp": 1.0
+    }
+  }
+]
+```
+
+System presets (`is_system_preset = true`) MUST NOT be deleted by user-facing operations.
+A soft-delete column SHOULD NOT be added; instead, custom forks via `tailor_fabric_preset_fork`
+should be the operator's path to modified archetypes.
+
+**<N>.<i>.4.4 Per-panel preset override.**
+
+`PanelSpec` MAY carry an optional `material_preset_id: Option<String>` referencing
+`tailor_material_presets.preset_id`. When present, it overrides the garment-level
+`GarmentSpec.fabric` for that panel only. The authority assignment row lives in
+`tailor_material_assignments` (T-CONTRACTS §[T-CONTRACTS.tables]).
+
+---
+
+##### <N>.<i>.5 EventLedger Integration
+
+**<N>.<i>.5.1 Canonical event variants.**
+
+All material-preset mutations MUST emit the following `KernelEventType` variants
+(T-CONTRACTS §[T-CONTRACTS.event-types]). Wire strings are the `as_str()` SCREAMING_SNAKE_CASE form.
+
+| Variant | Wire string | Trigger |
+|---|---|---|
+| `TailorMaterialPresetRecorded` | `TAILOR_MATERIAL_PRESET_RECORDED` | New preset created (system seed or user) |
+| `TailorMaterialPresetUpdated` | `TAILOR_MATERIAL_PRESET_UPDATED` | Mutable field edit on existing preset |
+| `TailorMaterialPresetRejected` | `TAILOR_MATERIAL_PRESET_REJECTED` | Sandbox drape validation failed |
+| `TailorGarmentMaterialAssigned` | `TAILOR_GARMENT_MATERIAL_ASSIGNED` | Preset linked to a garment/panel |
+
+The superseded variant names `TailorMaterialPresetDeleted` and `TailorMaterialLibraryUpdated`
+from prior drafts MUST NOT be added to `KernelEventType`.
+
+**<N>.<i>.5.2 event_family constants.**
+
+Material events MUST use the `event_family` constant `tailor.material`
+(`src/tailor/event_family.rs`: `pub const TAILOR_MATERIAL: &str = "tailor.material";`).
+
+**<N>.<i>.5.3 Preset creation pattern.**
+
+Every preset write MUST follow the kernel authority write pattern:
+
+```rust
+// src/tailor/material.rs  (handshake_core::tailor)
+pub async fn create_preset(
+    pool:           &PgPool,
+    actor:          KernelActor,
+    task_run_id:    &str,
+    session_run_id: &str,
+    req:            CreateFabricPresetRequest,
+) -> TailorResult<FabricPresetRow> {
+    guard_authority_write(AuthorityMode::PostgresPrimary)?;   // no-SQLite tripwire
+
+    let row = sqlx::query_as!(FabricPresetRow, /* INSERT … RETURNING */ )
+        .fetch_one(pool)
+        .await?;
+
+    let event = NewKernelEvent::builder(
+        task_run_id, session_run_id,
+        KernelEventType::TailorMaterialPresetRecorded,
+        actor,
+    )
+    .aggregate("tailor_material_preset", &row.preset_id)
+    .idempotency_key(&format!("tailor-preset-{}", row.preset_id))
+    .payload(serde_json::json!({
+        "preset_id":   row.preset_id,
+        "workspace_id": req.workspace_id,
+        "slug":        req.slug,
+        "name":        req.name,
+        "compliance_summary": {
+            "stretch_weft": req.compliance.stretch_weft,
+            "bend_weft":    req.compliance.bend_weft,
+        }
+    }))
+    .source_component("tailor::material")
+    .build()?;
+
+    insert_kernel_event(pool, event).await?;
+    Ok(row)
+}
+```
+
+Schema ID for the preset payload MUST be `hsk.tailor.material_preset@1`
+(T-CONTRACTS §[T-CONTRACTS.schema-ids]: `SCHEMA_TAILOR_MATERIAL_PRESET_V1`).
+
+---
+
+##### <N>.<i>.6 Sandbox, Validation, and Promotion for Model-Authored Presets
+
+**<N>.<i>.6.1 Model-authored presets MUST pass drape validation before promotion.**
+
+When the model lane emits a new or forked preset, the proposed `FabricMaterial` JSON MUST
+enter the sandbox pipeline. Direct writes to `tailor_material_presets` that bypass the
+sandbox MUST NOT be permitted from the model lane.
+
+**<N>.<i>.6.2 Drape test specification.**
+
+The sandbox validation test for a fabric preset MUST be:
+
+- Mesh: a 0.5 m × 0.5 m square cloth panel, 5 mm particle distance (~10,000 triangles).
+- Simulation: 1 second of drape under standard gravity (9.81 m/s²), 30 substeps per frame,
+  at 30 fps, against a horizontal plane collision object.
+- Pass condition: all `PRESET_*` blocking checks pass (see §<N>.<i>.6.3).
+
+A coarser preview path (`cloth_preview_material`) MAY run a reduced test
+(0.1 s, ~200 particles, 10 substeps) for real-time UI feedback without sandbox/promotion.
+The preview path MUST NOT be used as the promotion gate.
+
+**<N>.<i>.6.3 Applicable validation checks.**
+
+The following checks from the canonical `ValidationDescriptor` catalog
+(T-CONTRACTS §[T-CONTRACTS.validation]) apply to preset drape validation:
+
+| Code | Severity | What it asserts |
+|---|---|---|
+| `PRESET_NO_NAN` | Blocking | No NaN or Inf in drape-test particle positions at any substep |
+| `PRESET_STRETCH_NONZERO` | Blocking | All six compliance scalars != 0.0 (zero diverges the solver) |
+| `PRESET_DENSITY_POS` | Blocking | `density_kg_per_m2 > 0` |
+| `PRESET_BBOX_PLAUSIBLE` | Advisory | Drape-test bounding box within expected range for the claimed archetype |
+| `FABRIC_RANGE` | Blocking | Normalized `FabricProperties` fields in [0.0, 1.0]; `density_g_m2` in [5, 2000]; `collision_thickness_mm` in [0.1, 5] |
+
+Any `Blocking` failure MUST emit `TailorMaterialPresetRejected` with a diagnostic JSON
+payload naming the failed check code. The `ValidationFinding.code` values MUST use the
+exact codes from the catalog above so the model can pattern-match and self-correct.
+
+**<N>.<i>.6.4 Self-correction contract.**
+
+The `SimulationReceipt` returned after a failed preset validation MUST include
+`ValidationFinding` entries with `code`, `severity`, and where applicable a
+`suggested_fix { field_path, suggested_value }` using a JSON-pointer path into the
+`FabricProperties` struct. The `recommended_action` MUST be `correct_spec_first` when
+`FABRIC_RANGE` fails, or `edit_and_resimulate` when `PRESET_BBOX_PLAUSIBLE` fails.
+Schema ID for the receipt is `hsk.tailor.simulation_receipt@1`.
+
+---
+
+##### <N>.<i>.7 Model-First API Surface
+
+**<N>.<i>.7.1 The LLM MUST NOT reason about raw compliance values.**
+
+MCP tool definitions for fabric presets MUST expose only the `FabricProperties` normalized
+[0,1] surface plus `density_g_m2` and `collision_thickness_mm` (the two physical-unit
+fields retained for LLM legibility). Raw compliance scalars (`stretch_weft: 5e-8`) MUST NOT
+appear in MCP tool input schemas.
+
+**<N>.<i>.7.2 Required MCP tools.**
+
+The following MCP tools MUST be registered in the Tailor model lane:
+
+`tailor_fabric_preset_create` — Create a new workspace preset from a named archetype with
+optional normalized-field overrides. Required inputs: `workspace_id`, `name`,
+`fabric_archetype` (one of the system preset slugs or `"custom"`). Optional:
+`fabric_properties` (partial `FabricProperties`; overrides archetype defaults per field).
+The archetype MUST resolve to the corresponding `tailor_material_presets` system preset row,
+which supplies the raw compliance base; per-field overrides apply after logarithmic decode.
+
+`tailor_fabric_preset_fork` — Clone an existing preset by `preset_id` with a new name and
+optional `FabricProperties` field overrides. MUST follow the same sandbox->validation->
+promotion flow as `tailor_fabric_preset_create`.
+
+`tailor_fabric_preset_list` — Return workspace presets as a structured array with
+`preset_id`, `slug`, `name`, `is_system_preset`, and a `compliance_summary` containing the
+key differentiating normalized values (`bending_weft`, `stretch_weft`, `density_g_m2`).
+MUST NOT return raw compliance scalars.
+
+`tailor_garment_panel_assign_material` — Link a `preset_id` to a specific `panel_id` in a
+garment, writing to `tailor_material_assignments` and emitting `TailorGarmentMaterialAssigned`.
+
+**<N>.<i>.7.3 ContextBundle fabric hint.**
+
+When the kernel constructs a `ContextBundle` for garment authoring, it MUST include:
+
+- The current workspace preset list (slugs, names, key normalized summaries).
+- The `FabricProperties` currently assigned to each panel in the garment being edited.
+- A `FabricMaterialHint` derived from the `GarmentSpec.natural_description` field when
+  present (e.g., `"leather corset"` → archetype: `leather`, high friction suggestion).
+
+The model MUST use this bundle to select or tune presets without needing to know raw
+compliance numbers.
+
+---
+
+##### <N>.<i>.8 CRDT Collaborative Editing
+
+Concurrent edits to the same `tailor_material_presets` row MUST be merged via the kernel's
+CRDT layer. The CRDT conflict resolution strategy for presets MUST be last-write-wins
+per-property-key, where each compliance or physics scalar is an independent CRDT map entry
+(matching the YJS `Map` semantics in the kernel's `yjs_bridge`). Edits MUST be recorded
+via `TailorMaterialPresetUpdated`. `TailorCrdtConflictDetected` MUST be emitted when a
+conflict is detected during merge; the merge MUST NOT silently discard either side without
+recording the conflict event.
+
+---
+
+##### <N>.<i>.9 Constraints and Invariants
+
+The following invariants are system-enforced and MUST be maintained at all times:
+
+1. **Schema-ID namespace.** The schema ID constant for material preset payloads is
+   `hsk.tailor.material_preset@1` (`SCHEMA_TAILOR_MATERIAL_PRESET_V1`). The namespace
+   `hsk.cloth.*` MUST NOT be used for any Tailor-domain authority record
+   (T-CONTRACTS §[T-CONTRACTS.schema-ids]).
+
+2. **Single table name.** The table name is `tailor_material_presets` only.
+   `tailor_material_library` and `tailor_material` are superseded aliases and MUST be
+   treated as errors if found in new code.
+
+3. **Density unit boundary.** `density_g_m2` (g/m²) on the LLM surface; `density_kg_per_m2`
+   (kg/m²) in the solver and Postgres. The divide-by-1000 conversion MUST be applied
+   exactly once, at the API boundary in `handshake_core::tailor::material_decoder`.
+
+4. **Buckling is required in professional solver profiles.** The nonlinear bending model for
+   full `buckling_ratio` behavior (SIGGRAPH MIG 2025, ACM DOI 10.1145/3769047.3769050) MUST be
+   implemented and qualified in `InteractiveGpuXpbd` and `FinalCpuBarrierF64`. A declared reduced
+   interactive profile MAY omit it only when capability discovery reports the downgrade and the
+   result is blocked from professional/final qualification. `buckling_ratio` remains a stored
+   field in `FabricProperties` and `ClothMaterialCompliance`.
+
+5. **No trim stiffness on FabricMaterial.** Trim and tack stiffness is a property of
+   `ClothTrimAttachment`, not `FabricMaterial`. Proposals to add trim stiffness fields to
+   `ClothMaterialCompliance` or `FabricProperties` MUST be rejected.
+
+6. **Profile-resolved preset promotion equivalence.** When the sandbox re-runs a drape test,
+   it MUST use the lane-specific comparison method and measured tolerances selected by
+   `TailorQualificationProfileV1`; `MeshComparator` is used only where that profile selects
+   vertex comparison. Content-hash equality MUST NOT be used as a cross-backend criterion.
+
+---
+
+##### <N>.<i>.10 Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Compliance calibration values are mesh-resolution-dependent | Wrong drape at non-default particle densities | Rest-geometry normalization per §<N>.<i>.3.4 is mandatory; drape test suite MUST include tests at 3 mm and 10 mm particle spacing |
+| Weft/warp axis tagging absent from mesher | Anisotropy silently degrades to isotropic | Mesher MUST assert `uv_axis` presence; solver MUST log a warning and apply isotropic fallback if tag missing |
+| Logarithmic decode produces values outside solver-safe range | Solver divergence | Decoder MUST clamp output to `[1e-10, 1.0]` and emit an `Advisory` `ValidationFinding` if clamping occurred |
+| Drape test too slow for interactive preset editing (~100–500 ms) | Poor UX for iterative tuning | Expose `cloth_preview_material` (coarse, no sandbox) for UI; gate promotion on full drape test only |
+| A reduced interactive profile omits nonlinear buckling | Hero-asset visual quality and false-parity gap | Capability discovery labels the downgrade, professional/final qualification is blocked, and the operator is routed to a profile with nonlinear buckling |
+
+---
+
+*Non-normative provenance: The OSS evidence, compliance calibration tables, WGSL examples,
+and GarmentCode / nikhilr612/xpbdrs / Velvet / webgpu_cloth_simulator reference
+implementations that informed the requirements above are documented in
+`T-FABRIC-MODELS` (`06-fabric-models.md`) and `T-CONTRACTS` (`16-contracts.md`) in the
+research package at `.GOV/reference/cloth_engine_research/`. The research files are
+non-normative; this section is the authority.*
+
+## 13.6 Garment Authoring: Patterns, Seams, Parametric/Model-First
+
+> **Sub-section id:** `garment`
+> **File:** `06-garment-authoring.md`
+> **Contract authority:** T-CONTRACTS (`.GOV/reference/cloth_engine_research/16-contracts.md`).
+> All type names, field names, units, event variants, schema IDs, table names, migration naming,
+> validation check codes, and promotion-equivalence rules cited below are verbatim from T-CONTRACTS
+> and supersede any conflicting names in the research files (`03-garment-authoring.md` and siblings).
+> The research files are non-normative provenance; this sub-section is product LAW.
+
+---
+
+##### <N>.<i>.1 Scope
+
+This sub-section governs the garment authoring layer of the Tailor engine: the canonical data
+representation for 2D sewing patterns and seams (`GarmentSpec`), the pattern-to-3D pipeline, the
+three-tier parametric/LLM-emittable authoring surface, GarmentCode interop, CRDT collaborative
+editing of panel geometry, and the sandbox-to-promotion lifecycle for model-authored garments.
+
+Downstream subsystems (XPBD solver, collision, fabric models, auto-fit, UV, trims, animation) are
+governed by their own sub-sections and consume the types defined here.
+
+---
+
+##### <N>.<i>.2 Canonical Garment Type: `GarmentSpec`
+
+**[GAR-001]** The canonical authority type for a garment definition MUST be `GarmentSpec` (not
+`GarmentSpecV1`, not `GarmentDraftV1`). It MUST live in `tailor-solver/src/spec.rs` as the shared
+compute payload. The kernel action descriptors in 13.30 own operator/model invocation,
+authorization and receipts. T-CONTRACTS [T-CONTRACTS.garment-spec] is the definitive resolution
+of all prior drift across the research package.
+
+**[GAR-002]** `GarmentSpec` MUST derive `serde::Serialize`, `serde::Deserialize`, and
+`schemars::JsonSchema` so the MCP `inputSchema` is auto-generated and the type is
+LLM-emittable without a hand-authored schema.
+
+**[GAR-003]** `GarmentSpec` MUST carry `schema_id: String` whose value is the constant
+`hsk.tailor.garment_spec@1` (from `src/tailor/schemas.rs`; see [GAR-SCHEMA-IDS]).
+The field MUST be present on every serialized instance so receivers can version-check
+without type introspection.
+
+**[GAR-004]** Garment identity MUST use `garment_id: String` with the prefixed form `"GAR-{uuid_v7}"`.
+The `UUID PRIMARY KEY DEFAULT gen_random_uuid()` form is PROHIBITED (T-CONTRACTS FACT-4).
+
+**[GAR-005]** Status (`draft | sandbox_pending | simulated | validated | promoted | rejected |
+archived`) MUST NOT appear on `GarmentSpec`. Status is lifecycle metadata and MUST live only on
+the `tailor_garments.status` Postgres column. Model-emitted specs MUST NOT set status fields.
+
+**[GAR-006]** The complete canonical `GarmentSpec` Rust definition is:
+
+```rust
+// tailor-solver/src/spec.rs
+// Standalone crate; no handshake_core deps. THIS is the canonical garment type.
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+/// Canonical garment specification.
+/// LLM primary output type, solver primary input type, and Postgres authority JSONB.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Complete garment: panels, seams, darts, pleats, fabric, avatar binding.")]
+pub struct GarmentSpec {
+    /// Constant "hsk.tailor.garment_spec@1".
+    pub schema_id: String,
+    /// Prefixed id: "GAR-{uuid_v7}".
+    pub garment_id: String,
+    pub workspace_id: String,
+    pub name: String,
+    pub garment_type: GarmentType,
+    /// 2D pattern panels. All coordinates in centimetres.
+    pub panels: Vec<PanelSpec>,
+    /// Seam definitions joining panel edges. Use gather_ratio for gather/pleat sewing.
+    pub seams: Vec<SeamSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub darts: Vec<DartSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pleats: Vec<PleatSpec>,
+    /// Fabric physical properties — normalized [0,1] LLM-facing surface.
+    pub fabric: FabricProperties,
+    /// Avatar/body-proxy binding for fit and collision.
+    pub avatar: AvatarBinding,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trim_placements: Vec<TrimPlacementRef>,
+    /// Optional natural-language description; aids LLM edit coherence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub natural_description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GarmentType {
+    Tshirt, Shirt, Jacket, Blazer, Dress, Skirt, Pants, Shorts,
+    Bodice, Cape, Hood, Sleeve, Custom,
+}
+```
+
+---
+
+##### <N>.<i>.3 Units Contract
+
+**[GAR-UNITS-001]** All length quantities in `GarmentSpec`, `PanelSpec`, `SeamSpec`, `DartSpec`,
+`PleatSpec`, `EdgeShape`, `Vec2Cm`, and `Transform3D` MUST be in centimetres (cm). The `_cm`
+suffix MUST appear on every length field name to make the unit self-documenting.
+
+**[GAR-UNITS-002]** The authority body-proxy (`tailor_body_proxies`, `ClothBodyProxy`) MUST store
+lengths in millimetres. The `BodyMeasurements` struct in `GarmentSpec.avatar.measurements_cm`
+MUST use centimetres as the LLM-facing convenience surface and MUST be converted at the boundary
+before writing to `tailor_body_proxies`. The `_mm` / `_cm` suffixes MUST be present on every
+measurement field to make the unit boundary explicit.
+
+**[GAR-UNITS-003]** Normalized [0,1] coordinates MUST NOT appear in authority `GarmentSpec`
+instances. The ChatGarment-style 76-float normalized parametric vector (T-CONTRACTS
+[T-CONTRACTS.garment-spec] "Tier-1 pre-decode") is a pre-decode convenience representation only
+and MUST be decoded to cm `GarmentSpec` before storage or solver invocation.
+
+**[GAR-UNITS-004]** The canonical 2D panel point type is `Vec2Cm { x: f32, y: f32 }`. The 6D
+panel placement type is `Transform3D { translation_cm: [f32; 3], rotation: [f32; 4] }`. Rust
+implementations MUST use these exact names.
+
+---
+
+##### <N>.<i>.4 Panel Representation
+
+**[GAR-PANEL-001]** Each 2D sewing panel MUST be represented by a `PanelSpec` with an explicit
+vertex array (`vertices_cm: Vec<Vec2Cm>`, panel-local coordinates in cm, counter-clockwise
+winding) and an ordered directed edge list (`edges: Vec<EdgeSpec>`) that closes the outline loop.
+
+**[GAR-PANEL-002]** Panel vertices MUST be in counter-clockwise winding order. Clockwise panels
+MUST be auto-corrected at authoring time and MAY be reported with the `WINDING` advisory check
+(see [GAR-VALIDATION]). The WINDING check is advisory, not blocking.
+
+**[GAR-PANEL-003]** Every `PanelSpec` MUST carry a `panel_id: String` that is stable and
+kebab-case within the garment (e.g. `"front-bodice"`, `"back-panel"`). The panel ID is the
+reference key used by `SeamSpec`, `DartSpec`, `PleatSpec`, and the UV island tables.
+
+**[GAR-PANEL-004]** Every `PanelSpec` MUST carry a `placement: Transform3D` for its initial 3D
+draping pose. This is not optional — the solver requires a starting position for every panel.
+
+**[GAR-PANEL-005]** `PanelSpec::grain_angle_deg: Option<f32>` specifies the fabric grain direction
+as degrees from panel horizontal. `None` means isotropic. The grain angle governs UV island
+orientation and anisotropic fabric material direction in the solver.
+
+**[GAR-PANEL-006]** The minimum valid panel area MUST be greater than 1.0 cm^2. The `MIN_PANEL_AREA`
+blocking check (see [GAR-VALIDATION]) enforces this gate before solver invocation.
+
+**[GAR-PANEL-007]** The canonical `PanelSpec` Rust definition is:
+
+```rust
+// tailor-solver/src/spec.rs
+
+/// 2D point in panel-local coordinate space, in CENTIMETRES.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Vec2Cm { pub x: f32, pub y: f32 }
+
+/// 6D placement of a panel in 3D space (initial draping pose).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Transform3D {
+    /// Translation in centimetres.
+    pub translation_cm: [f32; 3],
+    /// Unit quaternion [x, y, z, w].
+    pub rotation: [f32; 4],
+}
+
+/// Edge shape in panel-local 2D (cm). Typed enum — supersedes string curve_type forms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EdgeShape {
+    Straight,
+    Quadratic { control_cm: Vec2Cm },
+    Cubic { control_a_cm: Vec2Cm, control_b_cm: Vec2Cm },
+    Arc { curvature: f32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct EdgeSpec {
+    /// [start, end] indices into the parent panel's vertices_cm array.
+    pub endpoints: [u32; 2],
+    pub shape: EdgeShape,
+    /// Fold seam angle in degrees (fold seam lines; None = standard cut edge).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold_angle_deg: Option<f32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "2D pattern panel; vertices in centimetres, counter-clockwise.")]
+pub struct PanelSpec {
+    /// Kebab-case id unique within the garment, e.g. "front-bodice".
+    pub panel_id: String,
+    /// Outline vertices in panel-local 2D space, CENTIMETRES, counter-clockwise. Min 3.
+    pub vertices_cm: Vec<Vec2Cm>,
+    /// Ordered directed edges closing the outline loop.
+    pub edges: Vec<EdgeSpec>,
+    /// 6D placement for initial draping.
+    pub placement: Transform3D,
+    /// Fabric grain direction, degrees from panel horizontal. None = isotropic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grain_angle_deg: Option<f32>,
+    /// Optional per-panel material preset id (tailor_material_presets.preset_id).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material_preset_id: Option<String>,
+}
+```
+
+---
+
+##### <N>.<i>.5 Edge Shape Contract
+
+**[GAR-EDGE-001]** Edge shape MUST be represented by the typed `EdgeShape` enum with variants
+`Straight`, `Quadratic`, `Cubic`, and `Arc`. The string `curve_type` form from research file `10`
+is PROHIBITED for authority types.
+
+**[GAR-EDGE-002]** `EdgeShape::Quadratic { control_cm: Vec2Cm }` represents a quadratic Bezier
+edge with one control point in panel-local cm coordinates.
+
+**[GAR-EDGE-003]** `EdgeShape::Cubic { control_a_cm: Vec2Cm, control_b_cm: Vec2Cm }` represents
+a cubic Bezier edge with two control points in panel-local cm coordinates.
+
+**[GAR-EDGE-004]** `EdgeShape::Arc { curvature: f32 }` represents a circular arc; positive
+curvature bends left relative to the edge direction.
+
+**[GAR-EDGE-005]** All Bezier control points and arc parameters MUST be expressed in panel-local
+2D cm coordinates, not in 3D world-space coordinates. The `PanelSpec::placement` transform
+handles the conversion to 3D for solver invocation.
+
+**[GAR-EDGE-006]** `EdgeSpec::endpoints: [u32; 2]` MUST reference valid indices into the parent
+`PanelSpec::vertices_cm` array. The `SEAM_EDGE_REF` and `PANEL_CLOSURE` blocking checks
+(see [GAR-VALIDATION]) enforce this gate.
+
+---
+
+##### <N>.<i>.6 Seam Representation
+
+**[GAR-SEAM-001]** Each stitch joining two panel edges MUST be represented by a `SeamSpec`.
+Every `SeamSpec` MUST reference two `SeamEndpoint` values (`from` and `to`), each identifying
+a `panel_id` and an `edge_index` into that panel's `edges` array.
+
+**[GAR-SEAM-002]** The gathering ratio field MUST be named `gather_ratio: f32` on `SeamSpec`.
+The alternative field name `ratio` from research file `10`/`15` is PROHIBITED for authority types.
+
+**[GAR-SEAM-003]** `gather_ratio` is defined as `from_edge_length / to_edge_length`. A value of
+`1.0` means a flat seam. A value greater than `1.0` means the `from` edge is gathered onto the
+shorter `to` edge. The valid range MUST be `(0.0, 20.0]`. The `GATHER_RATIO_RANGE` blocking check
+enforces this gate.
+
+**[GAR-SEAM-004]** The solver MUST represent M:N gathering by resampling both seam edges to equal
+vertex count N at mesh-generation time and emitting N point-distance constraints with rest-length
+zero. The `gather_ratio` scalar MUST be carried forward on `SeamConstraintRecord` for compliance
+scaling. The "M:N int pair" alternative is PROHIBITED as a stored authority field.
+
+**[GAR-SEAM-005]** `SeamEndpoint::range: Option<[f32; 2]>` permits partial-edge (Free) sewing
+for partial seams. The range values MUST be in [0.0, 1.0] representing normalized arc-length
+positions along the referenced edge.
+
+**[GAR-SEAM-006]** The canonical `SeamSpec` Rust definition is:
+
+```rust
+// tailor-solver/src/spec.rs
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SeamKind { Join, Fold, Tack }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SeamEndpoint {
+    pub panel_id: String,
+    /// Index into PanelSpec::edges.
+    pub edge_index: u32,
+    /// Optional sub-range [0.0,1.0] for partial-edge (Free) sewing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<[f32; 2]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Seam joining two panel edges. gather_ratio = from_length/to_length.")]
+pub struct SeamSpec {
+    pub seam_id: String,
+    pub kind: SeamKind,
+    pub from: SeamEndpoint,
+    pub to: SeamEndpoint,
+    /// Gathering ratio = from_length / to_length. 1.0 = flat seam. (0.0, 20.0].
+    /// CANONICAL field name — supersedes `ratio` from research file 10/15.
+    pub gather_ratio: f32,
+}
+```
+
+---
+
+##### <N>.<i>.7 Darts and Pleats
+
+**[GAR-DART-001]** A dart (wedge removal for 3D panel shaping) MUST be represented by `DartSpec`
+with `panel_id`, `tip_vertex: u32` (index into the panel's vertex array), `opening_edges: [u32; 2]`
+(indices into the panel's edge array), and `depth_cm: f32`. The solver MUST add zero-rest-length
+distance constraints between the two dart edge vertex sequences.
+
+**[GAR-PLEAT-001]** A pleat MUST be represented by `PleatSpec` with `panel_id`, `kind: PleatKind`
+(`knife | box | accordion`), `count: u32`, `depth_cm: f32`, `interval_cm: f32`, and
+`fold_angle_deg: f32`. Pleats are derived panel mutations expanded at mesh-generation time.
+
+```rust
+// tailor-solver/src/spec.rs
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DartSpec {
+    pub dart_id: String,
+    pub panel_id: String,
+    pub tip_vertex: u32,
+    pub opening_edges: [u32; 2],
+    pub depth_cm: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PleatSpec {
+    pub pleat_id: String,
+    pub panel_id: String,
+    pub kind: PleatKind,
+    pub count: u32,
+    pub depth_cm: f32,
+    pub interval_cm: f32,
+    pub fold_angle_deg: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PleatKind { Knife, Box, Accordion }
+```
+
+---
+
+##### <N>.<i>.8 Fabric Properties
+
+**[GAR-FAB-001]** Fabric physical properties on `GarmentSpec` MUST be represented by
+`FabricProperties` with all dimensionless parameters normalized to [0.0, 1.0] where 1.0 means
+stiffest/most resistant. This is the LLM-facing surface (from T-CONTRACTS [T-CONTRACTS.garment-spec],
+the `09` form). Raw anisotropic XPBD compliance values MUST NOT appear in `GarmentSpec`; they live
+in `tailor_material_presets` and the solver crate only.
+
+**[GAR-FAB-002]** The mapping from normalized [0,1] `FabricProperties` to raw XPBD compliance
+MUST be non-linear (logarithmic, because compliance spans approximately `1e-9` to `1e-3`). This
+mapping MUST be owned by the preset/decoder layer (governed by the fabric-models sub-section) and
+applied when building the `SolverMesh` material buffer. It MUST NOT be stored twice.
+
+**[GAR-FAB-003]** `FabricProperties::preset: Option<FabricPreset>` selects a named preset applied
+first; explicit normalized fields override it on a per-field basis.
+
+**[GAR-FAB-004]** `density_g_m2: f32` (mass per unit area in grams per square metre) and
+`collision_thickness_mm: f32` are the two non-normalized fields in `FabricProperties`. They are
+physically meaningful quantities an LLM can reason about directly. The `FABRIC_RANGE` blocking
+check MUST enforce `density_g_m2 in [5, 2000]` and `collision_thickness_mm in [0.1, 5]`.
+
+**[GAR-FAB-005]** The canonical `FabricProperties` Rust definition is:
+
+```rust
+// tailor-solver/src/spec.rs
+
+/// Fabric properties, normalized [0,1]. Weft = cross-grain, Warp = grain direction.
+/// 1.0 = stiffest/most resistant. Non-linear map to raw XPBD compliance owned by decoder layer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Fabric properties, normalized [0,1]. Weft=cross-grain, Warp=grain.")]
+pub struct FabricProperties {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<FabricPreset>,
+    pub stretch_weft: f32,
+    pub stretch_warp: f32,
+    pub shear: f32,
+    pub bending_weft: f32,
+    pub bending_warp: f32,
+    pub buckling_ratio: f32,
+    /// Mass per unit area, grams per square metre. Range [5, 2000].
+    pub density_g_m2: f32,
+    /// Collision thickness in millimetres. Range [0.1, 5].
+    pub collision_thickness_mm: f32,
+    pub friction: f32,
+    pub internal_damping: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FabricPreset {
+    Cotton, Denim, Silk, Jersey, Leather, Satin, Linen, Wool, Spandex,
+    Chiffon, Canvas, Rubber,
+}
+```
+
+---
+
+##### <N>.<i>.9 Avatar Binding
+
+**[GAR-AVT-001]** Every `GarmentSpec` MUST carry `avatar: AvatarBinding` specifying which body
+proxy the garment is fitted to and simulated against. `AvatarBinding.avatar_id` MUST reference a
+row in `tailor_avatars` (the avatar identity authority table). The `AVATAR_BINDING` blocking check
+enforces this FK existence gate before solver invocation.
+
+**[GAR-AVT-002]** `AvatarBinding.measurements_cm: Option<BodyMeasurements>` MAY carry cm
+measurement overrides for parametric bodies. These MUST be converted to mm at the boundary before
+the solver capsule build reads them.
+
+**[GAR-AVT-003]** The canonical `AvatarBinding` and `BodyMeasurements` definitions are:
+
+```rust
+// tailor-solver/src/spec.rs
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AvatarBinding {
+    /// Body-proxy authority id (tailor_avatars.avatar_id). Form: "AVT-{uuid_v7}"
+    /// or a built-in parametric body slug (e.g. "avatar1-smplx-default").
+    pub avatar_id: String,
+    /// Optional cm measurement overrides for parametric bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measurements_cm: Option<BodyMeasurements>,
+}
+
+/// Body measurements in CENTIMETRES (LLM-facing).
+/// The authority body-proxy stores the full 25-measurement set in MILLIMETRES
+/// (tailor_body_proxies.proxy_json); this cm subset is converted at the API boundary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BodyMeasurements {
+    pub height_cm: f32,
+    pub bust_cm: f32,
+    pub waist_cm: f32,
+    pub hip_cm: f32,
+    pub inseam_cm: f32,
+}
+```
+
+---
+
+##### <N>.<i>.10 Pattern-to-Mesh Pipeline
+
+**[GAR-MESH-001]** The pattern-to-mesh pipeline MUST convert a `GarmentSpec` to a `SolverMesh`
+(canonical name; supersedes `SolverMeshV1` from research file `03`) before solver invocation.
+`SolverMesh` MUST be defined in `tailor-solver/src/mesh.rs`.
+
+**[GAR-MESH-002]** For each `PanelSpec`, the pipeline MUST:
+1. Sample vertices along each `EdgeSpec` at arc-length spacing not exceeding the configured
+   particle distance (default 1.0 cm), using arc-length parameterization appropriate to the
+   `EdgeShape` variant (linear for `Straight`, Bezier arc-length for `Quadratic`/`Cubic`,
+   circular arc subdivision for `Arc`).
+2. Run constrained Delaunay triangulation (CDT) over the panel polygon interior. The CDT
+   implementation MUST use the `spade` crate (MIT-licensed, actively maintained).
+3. Apply `PanelSpec::placement` to convert panel-local 2D vertices to 3D world positions.
+4. Assign each vertex its panel ID and panel-local UV coordinates (normalized 2D position in
+   panel space) for use by the UV-from-pattern pipeline.
+
+**[GAR-MESH-003]** For each `SeamSpec`, the pipeline MUST:
+1. Find matching boundary vertex sequences on the two stitched edges.
+2. When `gather_ratio != 1.0`, resample both edge vertex sequences to equal count N using
+   equal arc-length spacing, then emit N point-distance constraints with rest-length zero.
+3. Store `gather_ratio` on each `SeamConstraintRecord` for compliance scaling by the solver.
+
+**[GAR-MESH-004]** For each `DartSpec`, the pipeline MUST remove the dart wedge from the panel
+mesh and add zero-rest-length distance constraints between the two dart edge vertex sequences.
+
+**[GAR-MESH-005]** `SeamConstraintRecord` MUST carry `gather_ratio: f32` (matching the canonical
+`SeamSpec` field name). The field name `ratio` is PROHIBITED.
+
+**[GAR-MESH-006]** UV coordinates MUST be derived directly from the 2D panel-local vertex
+positions before the 3D placement transform is applied. This ensures UV islands are exact
+flattened pattern pieces. Fabric grain direction (`grain_angle_deg`) maps to UV island orientation.
+
+**[GAR-MESH-007]** The `SolverMesh` and `SeamConstraintRecord` definitions are:
+
+```rust
+// tailor-solver/src/mesh.rs
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SolverMesh {
+    pub schema_id: String,           // "hsk.cloth.solver_request@1" (allowed cloth exception)
+    pub garment_id: String,
+    /// Flat [x, y, z, x, y, z, ...] in centimetres.
+    pub vertex_positions: Vec<f32>,
+    /// Flat [i0, i1, i2, ...] triangle indices.
+    pub triangle_indices: Vec<u32>,
+    pub vertex_panel_ids: Vec<String>,
+    /// Per-vertex UV in panel-local space.
+    pub vertex_uvs: Vec<[f32; 2]>,
+    pub seam_constraints: Vec<SeamConstraintRecord>,
+    pub material_map: std::collections::HashMap<String, FabricProperties>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SeamConstraintRecord {
+    pub vertex_a: u32,
+    pub vertex_b: u32,
+    /// Rest length in centimetres. 0.0 for closed seams.
+    pub rest_length_cm: f32,
+    /// Canonical field name matching SeamSpec::gather_ratio.
+    pub gather_ratio: f32,
+    pub kind: SeamKind,
+}
+```
+
+**Note:** `SolverMesh` uses schema ID `hsk.cloth.solver_request@1` — the one allowed `hsk.cloth.*`
+exception from T-CONTRACTS [T-CONTRACTS.schema-ids] for solver-crate-internal physics payloads
+that never become Tailor-domain authority rows.
+
+---
+
+##### <N>.<i>.11 Three-Tier Parametric / LLM-Emittable Authoring
+
+**[GAR-LLM-001]** The Tailor authoring surface MUST support three tiers of LLM authoring,
+selectable by the model or operator. All three tiers MUST ultimately produce a valid `GarmentSpec`
+in cm before sandbox invocation. No tier MAY bypass the sandbox-validation-promotion lifecycle.
+
+**[GAR-LLM-002]** Tier 1 (Parametric / GarmentCodeRC-style) MUST accept a compact design-intent
+payload with categorical `garment_type` and design-option fields plus a continuous parameter
+vector (up to 76 f32 values, normalized [0,1] following the ChatGarment convention). A
+`GarmentCodeRcDecoder` MUST decode this into a full cm `GarmentSpec` via per-category panel
+template factories before storage. Tier 1 tokens average approximately 350; it is the preferred
+tier for interactive dialogue.
+
+**[GAR-LLM-003]** Tier 2 (Direct panel/seam JSON) MUST accept a `GarmentSpec`-compatible JSON
+emitted directly by the model with panel vertices, edge shapes, and seam definitions. The model
+MUST be prompted with the `schemars`-derived `inputSchema` so structural hallucination is
+constrained. Pre-sandbox lightweight geometry checks MUST be applied before sandbox invocation
+to surface obvious errors immediately in the model response.
+
+**[GAR-LLM-004]** Tier 3 (Program synthesis) MUST accept a GarmentCode-compatible Python program
+or Handshake DSL program that generates a `GarmentSpec` when executed. Tier 3 MUST achieve the
+highest fidelity by eliminating numerical hallucination via program execution. The program is
+executed in a sandboxed context; its output MUST be a cm `GarmentSpec`.
+
+**[GAR-LLM-005]** The `TailorAuthoringOutput` enum MUST represent all three tiers:
+
+```rust
+// handshake_core/src/tailor/model_adapter.rs
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "tier", rename_all = "snake_case")]
+pub enum TailorAuthoringOutput {
+    Parametric {
+        garment_type: String,
+        design_options: serde_json::Value,
+        /// Normalized [0,1] floats; max 76. Decoded to cm GarmentSpec before storage.
+        continuous_params: Vec<f32>,
+    },
+    PanelJson {
+        garment_spec: GarmentSpec,
+    },
+    Program {
+        program_text: String,
+        program_kind: String,  // "garmentcode_python" | "handshake_dsl"
+    },
+}
+```
+
+**[GAR-LLM-006]** The model-facing MCP tool `author_garment` MUST accept `TailorAuthoringOutput`,
+decode it to a cm `GarmentSpec`, write a `draft` row to `tailor_garments`, emit
+`TailorGarmentDraftProposed` to the EventLedger, and return a `SimulationReceipt`
+(schema ID `hsk.tailor.simulation_receipt@1`) as MCP `structuredContent`.
+
+---
+
+##### <N>.<i>.12 GarmentCode Interop
+
+**[GAR-GC-001]** `GarmentSpec` MUST round-trip to and from GarmentCode JSON (`"units": "cm"`)
+to enable interop with ChatGarment, AIpparel, NGL-Prompter, and Design2GarmentCode toolchains.
+The `GARMENTCODE_ROUNDTRIP` advisory check (see [GAR-VALIDATION]) validates fidelity post-drape.
+
+**[GAR-GC-002]** `handshake_core::tailor` MUST expose conversion functions:
+
+```rust
+// handshake_core/src/tailor/garment_interop.rs
+
+impl GarmentSpec {
+    /// Convert FROM GarmentCode JSON (ETH Zurich open format, "units": "cm").
+    /// Panels from v["pattern"]["panels"]; stitches from v["pattern"]["stitches"].
+    pub fn from_garmentcode_json(v: &serde_json::Value) -> Result<Self, ConversionError>;
+
+    /// Convert TO GarmentCode JSON.
+    /// Panel list -> GarmentCode "panels" dict keyed by panel_id.
+    /// Seam list -> GarmentCode "stitches" list. properties.units = "cm".
+    pub fn to_garmentcode_json(&self) -> serde_json::Value;
+
+    /// Convert FROM ChatGarment GarmentCodeRC compact JSON (Tier-1 decode path).
+    /// Requires a GarmentCodeRcDecoder that maps garment_type -> panel template factory.
+    pub fn from_garmentcode_rc(
+        v: &serde_json::Value,
+        decoder: &GarmentCodeRcDecoder,
+    ) -> Result<Self, ConversionError>;
+}
+```
+
+**[GAR-GC-003]** The `GarmentCodeRcDecoder` MUST implement panel template factories for at least
+the following garment categories in v1: `tshirt`, `shirt`, `dress`, `pants`, `skirt`, `jacket`,
+`hood`, `sleeve`. Each factory maps (design_options, continuous_params) to a valid `GarmentSpec`
+in cm. Exotic categories not covered by the v1 factory set MAY produce lossy round-trips.
+
+**[GAR-GC-004]** The GarmentCode JSON `"curvature": null` edge form MUST map to
+`EdgeShape::Straight`. The `"curvature": {"type": "quadratic", "control": [x, y]}` form MUST map
+to `EdgeShape::Quadratic { control_cm: Vec2Cm { x, y } }`. All coordinates MUST remain in cm
+throughout the conversion without normalization.
+
+---
+
+##### <N>.<i>.13 CRDT Collaborative Editing
+
+**[GAR-CRDT-001]** Each `GarmentSpec` MUST have a corresponding CRDT document keyed by
+`garment_id`, linked via the `tailor_garment_crdt_docs` table. Collaborative panel vertex
+edits, edge curvature changes, and seam definition mutations MUST arrive as
+`TailorPanelCrdtUpdateRecorded` events on the EventLedger using the existing
+`CrdtUpdateRecordV1` schema. The Tailor module MUST NOT introduce new CRDT infrastructure;
+it MUST reuse `kernel_crdt_updates`, `CrdtUpdateRecordV1`, and the `yjs_bridge`
+serialization for Yjs-compatible delta encoding.
+
+**[GAR-CRDT-002]** Conflict resolution for concurrent panel geometry edits MUST use
+last-writer-wins per vertex index (vertex index is stable within a panel version) and
+per edge index. Seam definition additions MUST use set-union; seam deletions MUST use
+an explicit tombstone.
+
+**[GAR-CRDT-003]** Model-proposed panel mutations MUST arrive as proposals via
+`TailorPanelAiEditProposalRecorded` (not as immediate authority writes) and be surfaced to
+the operator via `TailorPanelAiEditProposalDecided` before promotion. This is consistent
+with the existing `ai_edit_proposal` submodule pattern in the kernel CRDT layer.
+
+**[GAR-CRDT-004]** The bidirectional 2D-to-3D loop is required. Drape-derived edge-length or shape
+corrections MUST return as inspectable CRDT proposals with source run/profile, correspondence,
+before/after 2D and 3D captures, constraint impacts and rollback. They MUST NOT mutate panels
+silently or bypass the canonical preview/diff/apply action lifecycle.
+
+---
+
+##### <N>.<i>.14 Sandbox-to-Promotion Lifecycle
+
+**[GAR-PROM-001]** Every model-authored or operator-authored garment MUST follow the lifecycle:
+`draft` → `sandbox_pending` → `simulated` → `validated` → (`promoted` | `rejected`). Status
+transitions MUST be recorded as EventLedger events per [GAR-EVENTS]. Direct writes to
+`tailor_garments.status = 'promoted'` without a passing `TailorGarmentValidationRecorded` event
+are PROHIBITED.
+
+**[GAR-PROM-002]** The `TailorSandboxAdapter` MUST implement the kernel `SandboxAdapter` trait.
+Its `run()` method MUST: deserialize `GarmentSpec` from the sandbox run artifact refs;
+invoke `ClothSolver::triangulate()` to produce `SolverMesh`; invoke `ClothSolver::drape()`
+to produce the draped mesh; write the mesh artifact bundle to the sandbox workspace; and
+return `AdapterRunOutcome::Completed` with artifact refs.
+
+**[GAR-PROM-003]** Every `guard_authority_write(AuthorityMode::PostgresPrimary)` call (the `no_sqlite_tripwire`)
+MUST be made before any INSERT or UPDATE to `tailor_garments` or any other `tailor_*` table.
+SQLite writes to Tailor tables are PROHIBITED.
+
+**[GAR-PROM-004]** The storage glue for garment draft insertion MUST emit a `TailorGarmentDraftProposed`
+EventLedger event with `aggregate("tailor_garment", &spec.garment_id)` and an idempotency key of
+`"garment-draft-{garment_id}"` before returning. No draft row MUST be persisted without a
+corresponding EventLedger receipt.
+
+**[GAR-PROM-005]** Promotion equivalence for a re-run MUST use the lane-specific method and
+measured tolerances selected by `TailorQualificationProfileV1`; when the profile selects vertex
+comparison it uses `MeshComparator::compare(a, b, epsilon_mm)`. SHA-256 `content_hash`
+comparison for cross-backend promotion equivalence is PROHIBITED.
+`content_hash` is kept only for same-machine idempotency and EventLedger fingerprinting.
+See T-CONTRACTS [T-CONTRACTS.determinism] for the full canonical resolution.
+
+**[GAR-PROM-006]** `PromotionGate::evaluate()` MUST use `ValidationReport::aggregate_blocks_promotion()`:
+any `Blocking` validation finding prevents promotion. The gate MAY be configured with
+`treat_advisory_as_blocking = true` for stricter runs.
+
+---
+
+##### <N>.<i>.15 Postgres Authority Tables
+
+**[GAR-TABLE-001]** The canonical Postgres tables for garment authoring are `tailor_garments`
+and `tailor_garment_crdt_docs`. Both MUST use `TEXT PRIMARY KEY` with prefixed string IDs
+(`GAR-` and `CRDT-GAR-` respectively). The `UUID PRIMARY KEY DEFAULT gen_random_uuid()` form
+is PROHIBITED (T-CONTRACTS FACT-4).
+
+**[GAR-TABLE-002]** `tailor_garments` MUST include the columns specified in T-CONTRACTS
+[T-CONTRACTS.tables]: `garment_id TEXT PRIMARY KEY`, `workspace_id TEXT NOT NULL`,
+`name TEXT NOT NULL`, `status TEXT NOT NULL` (CHECK domain:
+`draft | sandbox_pending | simulated | validated | promoted | rejected | archived`),
+`spec_json JSONB NOT NULL` (the `GarmentSpec` JSONB), `animation_json JSONB` (nullable;
+T-ANIMATION sub-section), `body_proxy_id TEXT`, `wardrobe_id TEXT`,
+`promotion_receipt_id TEXT`, `event_ledger_event_id TEXT NOT NULL`,
+`created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`, `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`.
+
+**[GAR-TABLE-003]** Migrations for Tailor tables MUST use the dated naming convention
+`migrations/<YYYY>_<MM>_<DD>_tailor_<topic>.sql` with a required
+`migrations/<YYYY>_<MM>_<DD>_tailor_<topic>.down.sql` reverse pair. Numbered `0NNN_*` migrations
+are PROHIBITED for all Tailor tables (T-CONTRACTS [T-CONTRACTS.migration-naming] FACT-2/FACT-3).
+The garment authoring migration file MUST be named `<date>_tailor_garments.sql`.
+
+**[GAR-TABLE-004]** `tailor_material_presets` (not `tailor_material_library`, not `tailor_material`)
+is the canonical name for the fabric preset authority table (T-CONTRACTS [T-CONTRACTS.tables]).
+
+---
+
+##### <N>.<i>.16 Schema IDs
+
+**[GAR-SCHEMA-IDS-001]** The canonical schema ID constants for garment authoring are in
+`handshake_core/src/tailor/schemas.rs`. The namespace MUST be `hsk.tailor.*`, not `hsk.cloth.*`.
+The one allowed `hsk.cloth.*` exception is solver-crate-internal physics payloads
+(`hsk.cloth.solver_request@1`, `hsk.cloth.solver_result@1`) that never become authority rows.
+
+```rust
+// handshake_core/src/tailor/schemas.rs
+
+pub const SCHEMA_TAILOR_GARMENT_SPEC_V1:    &str = "hsk.tailor.garment_spec@1";
+pub const SCHEMA_TAILOR_MATERIAL_PRESET_V1: &str = "hsk.tailor.material_preset@1";
+pub const SCHEMA_TAILOR_AVATAR_V1:          &str = "hsk.tailor.avatar@1";
+pub const SCHEMA_TAILOR_BODY_PROXY_V1:      &str = "hsk.tailor.body_proxy@1";
+pub const SCHEMA_TAILOR_SIM_RECEIPT_V1:     &str = "hsk.tailor.simulation_receipt@1";
+
+// Allowed hsk.cloth.* exception — solver-crate-internal physics payloads only:
+pub const SCHEMA_CLOTH_SOLVER_REQUEST_V1:   &str = "hsk.cloth.solver_request@1";
+pub const SCHEMA_CLOTH_SOLVER_RESULT_V1:    &str = "hsk.cloth.solver_result@1";
+```
+
+---
+
+##### <N>.<i>.17 EventLedger Events
+
+**[GAR-EVENTS-001]** The following `KernelEventType` variants MUST be added to `kernel/mod.rs`
+and registered in `required_first_slice_events()` for the garment authoring domain. Variant names
+are `Tailor*` PascalCase; wire strings via `as_str()` are `TAILOR_*` SCREAMING_SNAKE_CASE
+(T-CONTRACTS FACT-1). All superseded names from the research package are PROHIBITED.
+
+```rust
+// kernel/mod.rs — canonical garment-authoring EventLedger variants
+
+// Garment lifecycle
+TailorGarmentDraftProposed,       // "TAILOR_GARMENT_DRAFT_PROPOSED"
+TailorGarmentDraftUpdated,        // "TAILOR_GARMENT_DRAFT_UPDATED"
+TailorGarmentValidationRecorded,  // "TAILOR_GARMENT_VALIDATION_RECORDED"
+TailorGarmentPromoted,            // "TAILOR_GARMENT_PROMOTED"
+TailorGarmentPromotionRejected,   // "TAILOR_GARMENT_PROMOTION_REJECTED"
+
+// Simulation run lifecycle
+TailorSimRunRequested,            // "TAILOR_SIM_RUN_REQUESTED"
+TailorSimRunStarted,              // "TAILOR_SIM_RUN_STARTED"
+TailorSimRunCompleted,            // "TAILOR_SIM_RUN_COMPLETED"
+TailorSimRunRejected,             // "TAILOR_SIM_RUN_REJECTED"
+
+// CRDT collaborative editing
+TailorPanelCrdtUpdateRecorded,    // "TAILOR_PANEL_CRDT_UPDATE_RECORDED"
+TailorPanelCrdtSnapshotRecorded,  // "TAILOR_PANEL_CRDT_SNAPSHOT_RECORDED"
+TailorPanelAiEditProposalRecorded,// "TAILOR_PANEL_AI_EDIT_PROPOSAL_RECORDED"
+TailorPanelAiEditProposalDecided, // "TAILOR_PANEL_AI_EDIT_PROPOSAL_DECIDED"
+TailorCrdtConflictDetected,       // "TAILOR_CRDT_CONFLICT_DETECTED"
+```
+
+**[GAR-EVENTS-002]** Superseded event variant names MUST NOT be used:
+`TailorGarmentValidated` (03/04) is superseded by `TailorGarmentValidationRecorded`;
+`TailorGarmentCrdtUpdateRecorded` (03/04) and `TailorCrdtUpdateRecorded` (09) are superseded by
+`TailorPanelCrdtUpdateRecorded`. The `GARMENT_*` wire strings without the `TAILOR_` prefix (09)
+are PROHIBITED.
+
+**[GAR-EVENTS-003]** The `event_family` constant for garment events MUST be `"tailor.garment"`,
+defined in `handshake_core/src/tailor/event_family.rs`:
+
+```rust
+pub const TAILOR_GARMENT:    &str = "tailor.garment";
+pub const TAILOR_SIMULATION: &str = "tailor.simulation";
+pub const TAILOR_PANEL_CRDT: &str = "tailor.panel.crdt";
+```
+
+---
+
+##### <N>.<i>.18 Validation Checks
+
+**[GAR-VALIDATION-001]** The `TailorValidationDescriptor` MUST implement the following checks for
+garment authoring. Each check has a stable `code` for model self-correction. Severity is
+`Blocking` (prevents promotion) or `Advisory` (recorded, does not block unless
+`treat_advisory_as_blocking = true`). The `WINDING` check auto-corrects silently before
+emitting an advisory.
+
+**Fast pre-solver checks (no solver invocation required, target < 100ms):**
+
+| Code | Severity | Assertion |
+|---|---|---|
+| `PANEL_CLOSURE` | Blocking | Each panel polygon is a closed non-self-intersecting loop |
+| `SEAM_EDGE_REF` | Blocking | Every `SeamSpec.from/to` references a valid `panel_id` + `edge_index` |
+| `GATHER_RATIO_RANGE` | Blocking | Every `SeamSpec.gather_ratio` in (0.0, 20.0] |
+| `FABRIC_RANGE` | Blocking | Normalized `FabricProperties` fields in [0.0, 1.0]; `density_g_m2` in [5, 2000]; `collision_thickness_mm` in [0.1, 5] |
+| `AVATAR_BINDING` | Blocking | `AvatarBinding.avatar_id` exists in `tailor_avatars` |
+| `MIN_PANEL_AREA` | Blocking | Every panel area > 1.0 cm^2 |
+| `WINDING` | Advisory | Panel vertices counter-clockwise (auto-corrected; INFO if fixed) |
+
+**Mesh-quality checks (on triangulated `SolverMesh`, pre-simulation):**
+
+| Code | Severity | Assertion |
+|---|---|---|
+| `MESH_TOPOLOGY` | Blocking | Manifold; no degenerate triangles; no open boundary except intended seam edges |
+| `MESH_TRIANGLE_QUALITY` | Blocking | Min triangle angle >= 10 degrees; max aspect ratio <= 20 |
+| `PANEL_OVERLAP` | Advisory | No two panels occupy the same 3D region before draping |
+
+**Post-simulation checks:**
+
+| Code | Severity | Assertion |
+|---|---|---|
+| `MESH_NOT_EMPTY` | Blocking | Simulated vertex buffer non-empty |
+| `NO_DEGENERATE_TRIS` | Blocking | No zero-area triangles in output mesh |
+| `SEAMS_CLOSED` | Blocking | Every seam constraint pair <= 1 mm separation at rest |
+| `NO_INTERPENETRATION` | Blocking | No cloth particle deeper than -0.5 mm inside any body capsule/sphere (final frame only) |
+| `SELF_INTERSECTION` | Advisory | Self-collision pair count below mesh-explosion limit |
+| `UV_COVERAGE` | Blocking | UV islands cover >= 95% of mesh surface |
+| `UV_VALIDITY` | Blocking | All UVs in [0,1]^2; no degenerate UV triangles (area > 1e-6) |
+| `DRAPE_CONVERGED` | Advisory | Final kinetic energy below threshold |
+| `PANEL_COUNT_MATCH` | Advisory | Simulated panel count == spec panel count |
+| `GARMENTCODE_ROUNDTRIP` | Advisory | Spec round-trips to GarmentCode JSON without loss |
+
+**[GAR-VALIDATION-002]** The validation runner MUST resolve its re-run comparison method and
+tolerances from `TailorQualificationProfileV1`. If vertex comparison is selected,
+`MeshComparator::compare(a, b, epsilon_mm)` MUST live in `tailor-solver/src/compare.rs` and be
+reused through the `ClothSolver` trait boundary. See T-CONTRACTS [T-CONTRACTS.determinism] and
+13.29 for the lane-specific contract and exact topology invariants.
+
+---
+
+##### <N>.<i>.19 Module and Crate Layout
+
+**[GAR-LAYOUT-001]** The `handshake_core::tailor` module MUST be structured as follows:
+
+```text
+src/backend/handshake_core/src/tailor/
+    mod.rs              # pub module declarations + TailorEngineError
+    event_family.rs     # Tailor EventLedger event_family constants
+    schemas.rs          # hsk.tailor.* schema ID constants
+    garment_interop.rs  # GarmentSpec::from/to_garmentcode_json, from_garmentcode_rc
+    model_adapter.rs    # TailorAuthoringOutput, TailorAuthoringContext
+    sandbox_adapter.rs  # TailorSandboxAdapter implementing SandboxAdapter trait
+    validation.rs       # TailorValidationDescriptor; all check codes from [GAR-VALIDATION]
+    storage_glue.rs     # Postgres CRUD + EventLedger emissions for tailor_garments
+    api.rs              # Axum Router: GET/POST /tailor/garments/*
+```
+
+**[GAR-LAYOUT-002]** The `tailor-solver` Cargo workspace crate MUST have no dependency on
+`handshake_core`. It MUST expose `ClothSolver` as its public trait. Physics terminology (`Cloth*`,
+`ClothSolver`, `ClothBodyProxy`) is retained in this crate. Feature identifiers and event names
+remain `Tailor*` in the kernel module.
+
+```text
+tailor-solver/
+    Cargo.toml          # wgpu, bytemuck, glam, parry3d; no sqlx, no tauri
+    src/
+        lib.rs          # pub trait ClothSolver: Send + Sync
+        spec.rs         # GarmentSpec (canonical) + all nested types
+        mesh.rs         # SolverMesh, triangulation pipeline
+        compare.rs      # MeshComparator::compare(a, b, epsilon_mm)
+        body/
+            proxy.rs    # ClothBodyProxy, CollisionCapsule, CollisionSphere
+        xpbd/
+            mod.rs
+            constraint_stretch.wgsl
+            constraint_bend.wgsl
+            constraint_seam.wgsl
+            collision.wgsl
+        gpu_solver.rs   # WgpuClothSolver implementing ClothSolver
+        cpu_solver.rs   # CpuClothSolver fallback
+```
+
+**[GAR-LAYOUT-003]** The `ClothSolver` trait MUST expose at minimum:
+
+```rust
+// tailor-solver/src/lib.rs
+pub trait ClothSolver: Send + Sync {
+    fn triangulate(&self, spec: &GarmentSpec) -> Result<SolverMesh, SolverError>;
+    fn drape(
+        &self,
+        mesh: &SolverMesh,
+        body_proxy: &ClothBodyProxy,
+        params: &SimRunParams,
+    ) -> Result<DrapedMesh, SolverError>;
+    fn flatten(&self, draped: &DrapedMesh) -> Result<Vec<PanelFlattenResult>, SolverError>;
+    fn compare(
+        &self,
+        a: &DrapedMesh,
+        b: &DrapedMesh,
+        epsilon_mm: f32,
+    ) -> MeshComparatorResult;
+}
+```
+
+---
+
+##### <N>.<i>.20 Non-Normative Provenance
+
+The following research files are non-normative for all type names, field names, units, event
+variants, schema IDs, table names, and migration names. They remain valid as design rationale,
+OSS evidence, and implementation sketches. Where any research file conflicts with this sub-section,
+this sub-section wins.
+
+- `03-garment-authoring.md` (T-GARMENT-AUTHORING) — primary source for 2D pattern/seam
+  algorithms, GarmentCode interop, CRDT editing approach, seam constraint encoding, and the
+  three-tier LLM authoring concept.
+- `16-contracts.md` (T-CONTRACTS) — the canonical contract authority this sub-section
+  directly mirrors for all contract surfaces.
+- ChatGarment (CVPR 2025, arxiv:2412.17811) — GarmentCodeRC 76-float parametric vector
+  and normalized fabric properties basis.
+- GarmentCode (ETH Zurich, SIGGRAPH Asia 2023) — panel/edge/stitch JSON format, `"units": "cm"`
+  round-trip target, GarmentCodeData triangulation pipeline.
+- AIpparel (CVPR 2025, arxiv:2412.03937) — sewing pattern tokenizer and direct panel JSON
+  LLM fine-tuning evidence.
+- Design2GarmentCode (CVPR 2025, arxiv:2412.08603) — program synthesis tier evidence
+  (100% simulation success rate).
+- Dress-1-to-3 (arxiv:2502.03449) — quadratic Bezier panel representation and inverse
+  flatten/unfurl approach.
+
+## 13.7 Auto-Fit & Retargeting Across Body Morphs
+
+> **Heading placeholder.** KERNEL_BUILDER renumbers on assembly.
+> Sub-section id: `autofit` | source research: `07-autofit-retargeting.md` (non-normative) |
+> canonical contract authority: `16-contracts.md` (T-CONTRACTS).
+
+---
+
+### Normative Requirements
+
+#### Overview and Scope
+
+The Tailor module MUST provide a first-class garment retargeting subsystem that fits a
+`GarmentSpec` authored against one `tailor_avatars` body onto a different target avatar without
+requiring the operator or model to re-author the garment from scratch.
+
+The retargeting subsystem MUST be implemented entirely within `handshake_core::tailor`
+(`src/tailor/`) and the `tailor-solver` standalone crate. It MUST NOT depend on any external
+garment application, OS-level process bridge, or SQLite path. All authority writes MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` before touching any `tailor_*` table.
+
+All schema IDs used in this sub-section are in the `hsk.tailor.*` namespace
+(`SCHEMA_TAILOR_REFIT_REQUEST_V1 = "hsk.tailor.refit_request@1"`). EventLedger variants use
+the `TAILOR_REFIT_*` wire strings defined in T-CONTRACTS [T-CONTRACTS.event-types]. Table PKs
+use the `TEXT PRIMARY KEY` `RFT-{uuid_v7}` prefix convention
+[T-CONTRACTS.tables][T-CONTRACTS.migration-naming].
+
+---
+
+#### §7.1 Avatar and Body-Proxy Authority
+
+##### §7.1.1 Avatar Identity Table
+
+The `tailor_avatars` table (defined canonically in T-CONTRACTS [T-CONTRACTS.body-proxy]) is the
+identity authority for every body a garment can be fitted to. `AvatarBinding.avatar_id` in
+`GarmentSpec` MUST reference a row in `tailor_avatars`, not any other table.
+
+The Tailor module MUST support `source_kind = 'avatar1_2d_derived'` to bridge the operator's
+existing Avatar1 / ComfyUI 2D pipeline into a 3D body proxy without requiring a full SMPL-X
+mesh import.
+
+##### §7.1.2 Body Proxy Collision Geometry
+
+The `tailor_body_proxies` table stores solver collision geometry for an avatar
+[T-CONTRACTS.body-proxy]. One avatar MAY have multiple proxy rows (e.g., a standard capsule-chain
+proxy and a multi-sphere large-bust proxy).
+
+Body proxy geometry MUST be stored and operated in **millimetres** throughout the authority layer
+and the solver crate. The LLM-facing `BodyMeasurements` struct (in `GarmentSpec`) uses
+centimetres; the conversion boundary MUST be at the API decode step, before any proxy row is
+written.
+
+The canonical Rust authority type is `ClothBodyProxy` in `tailor-solver/src/body/proxy.rs`:
+
+```rust
+// tailor-solver/src/body/proxy.rs
+// All lengths and radii in MILLIMETRES.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ClothBodyProxy {
+    pub body_proxy_id: String,   // "BPX-{uuid_v7}"
+    pub avatar_id: String,       // "AVT-{uuid_v7}"
+    /// Capsule chain approximating body segments. Lengths in mm.
+    pub capsules: Vec<CollisionCapsule>,
+    /// Sphere sub-proxies for breast/bust sub-volumes and joint spheres. mm.
+    pub spheres: Vec<CollisionSphere>,
+    pub thickness_mm: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CollisionCapsule {
+    pub joint_name: String,
+    pub p0_mm: [f32; 3],
+    pub p1_mm: [f32; 3],
+    pub radius_mm: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CollisionSphere {
+    pub bone: String,
+    pub center_mm: [f32; 3],
+    pub radius_mm: f32,
+}
+```
+
+The GPU upload types `GpuCapsule` / `GpuSphere` (fixed max 32 capsules + 16 spheres,
+`bytemuck::Pod`) in the solver crate are the runtime representation. The `ClothBodyProxy`
+authority record MUST be serializable to and from these fixed-size GPU arrays.
+
+`mode` on `tailor_body_proxies` MUST be one of `capsule | capsule_sphere | capsule_sdf | sdf`.
+For non-humanoid avatars (`source_kind = 'non_humanoid'`), the Tailor module MUST accept an
+operator-supplied `proxy_json` and MUST NOT require an auto-generated capsule chain.
+
+##### §7.1.3 Body Measurement Extraction
+
+The Tailor module MUST include a body measurement extractor in the `tailor-solver` crate
+(`src/body/measurements.rs`) that accepts a body mesh `TriMesh` and emits a 25-field
+anthropometric measurement map (keys follow GarmentMeasurements naming:
+`bust_circ_mm`, `waist_circ_mm`, `hip_circ_mm`, `shoulder_width_mm`, `arm_length_mm`,
+`inseam_mm`, etc.).
+
+```rust
+// tailor-solver/src/body/measurements.rs
+/// Extract 25 standard anthropometric measurements from a body mesh.
+/// Measurement planes are allowed ±20 mm from their initial position
+/// to find the local extremum for each measurement (GarmentCodeData fit-aware method).
+/// Returns BTreeMap keyed by GarmentMeasurements field names, values in mm.
+pub fn extract_measurements(mesh: &TriMesh) -> Result<BTreeMap<String, f32>, MeasurementError>;
+```
+
+The extractor MUST validate that the input mesh is manifold and has a single connected component
+before writing a `tailor_avatars` row; it MUST return a descriptive `MeasurementError` on invalid
+mesh topology rather than silently producing bad measurements.
+
+Measurement extraction MUST emit `TailorAvatarMeasurementsExtracted`
+(`"TAILOR_AVATAR_MEASUREMENTS_EXTRACTED"`) with `event_family = "tailor.avatar"` on the
+EventLedger upon success.
+
+---
+
+#### §7.2 Refit Modes
+
+The retargeting engine MUST implement exactly three refit modes, represented as a typed enum in
+`src/tailor/refit.rs`:
+
+```rust
+// src/tailor/refit.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum RefitMode {
+    /// Re-drape the existing GarmentSpec panels unchanged on the target body.
+    /// Used when body proportions are close (pose change, minor morph delta).
+    /// Executes one three-pass XPBD forward simulation; no pattern modification.
+    RedrapeOnly {
+        target_avatar_id: String,   // "AVT-{uuid_v7}"
+        progressive_drape: bool,
+    },
+    /// Scale each panel from measurement ratios (source → target), then re-drape.
+    /// Used for proportionally similar bodies with different overall size.
+    /// Emits TailorRefitPatternScaled before drape starts.
+    ScaleAndRedrape {
+        target_avatar_id: String,
+        ease_overrides: Option<EaseOverrideMap>,
+    },
+    /// Full differentiable optimization: gradient descent through XPBD to minimize
+    /// the DressAnyone composite loss (shape matching + boundary curvature +
+    /// seam-length parity + panel area). Offline; timeout >= 1800 s required.
+    /// Used for significantly different body shapes or non-humanoid avatars.
+    OptimizePatterns {
+        target_avatar_id: String,
+        max_iterations: u32,
+        convergence_threshold: f32,
+        /// When true, gather_ratio on each SeamSpec is preserved unchanged;
+        /// only panel rest-lengths scale. When false, the optimizer may adjust
+        /// gather ratios within (0.0, 20.0] bounds.
+        preserve_seam_ratios: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct EaseOverrideMap {
+    /// Ease added per body region in mm. Keys: "bust", "waist", "hip",
+    /// "shoulder", "arm", "inseam".
+    pub ease_mm: BTreeMap<String, f32>,
+}
+```
+
+The Tailor module MUST NOT expose a fourth mode that bypasses the three-pass progressive drape
+or the validation gate.
+
+---
+
+#### §7.3 Pattern Grading — ScaleAndRedrape Path
+
+##### §7.3.1 Panel Scale Computation
+
+For `RefitMode::ScaleAndRedrape`, the engine MUST compute per-panel scale factors from
+measurement ratios between source and target body proxies before the drape step begins:
+
+```rust
+// src/tailor/refit.rs
+/// Compute per-panel scale factors from source and target body measurements.
+/// Returns (width_scale, height_scale) keyed by panel_id.
+/// Horizontal scale is driven by circumference measurements (bust, waist, hip).
+/// Vertical scale is driven by inseam, torso height, arm length.
+/// Each panel is classified by body region and receives the appropriate ratio pair.
+pub fn compute_panel_scales(
+    source_measurements_mm: &BTreeMap<String, f32>,
+    target_measurements_mm: &BTreeMap<String, f32>,
+    ease_overrides: &EaseOverrideMap,
+    panels: &[PanelSpec],
+) -> Result<BTreeMap<String, PanelScale>, RefitError>;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PanelScale {
+    pub width_scale: f32,
+    pub height_scale: f32,
+}
+```
+
+##### §7.3.2 Seam Ratio Invariance Under Scaling
+
+When scaling panels, the engine MUST preserve `gather_ratio` on every `SeamSpec` unchanged.
+Only the panel rest-lengths change; the seam constraint graph topology MUST remain identical to
+the source `GarmentSpec`. This prevents spurious gather collapse on large-body targets.
+
+##### §7.3.3 Derived Draft Event
+
+After scale computation, the engine MUST write a new `tailor_garments` row (a derived draft,
+`status = 'sandbox_pending'`) and MUST emit `TailorRefitPatternScaled`
+(`"TAILOR_REFIT_PATTERN_SCALED"`, `event_family = "tailor.refit"`) before the drape sandbox
+run is created.
+
+---
+
+#### §7.4 Progressive Re-Drape Initialization
+
+All three refit modes converge on a re-drape step. The engine MUST use a three-pass progressive
+relaxation strategy implemented as `RefitDrapeStrategy` in `tailor-solver/src/refit/drape_init.rs`:
+
+```rust
+// tailor-solver/src/refit/drape_init.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RefitDrapeStrategy {
+    /// Pass 1: gravity-free stitch pass. Panels held at body-surface centroids;
+    /// stretch + seam constraints enforced without gravity. Default: 50 substeps.
+    pub gravity_free_substeps: u32,
+    /// Pass 2: stiffened physics pass. Gravity + collision active; stretch and
+    /// bending stiffness multiplied by this factor. Default: 10.0.
+    pub stiffened_damping_factor: f32,
+    /// Pass 2 convergence: fraction of vertices still moving to consider settled.
+    /// Default: 0.05 (5%).
+    pub stiffened_convergence_pct: f32,
+    /// Pass 3: full production parameters. Convergence fraction. Default: 0.015.
+    pub full_physics_convergence_pct: f32,
+    /// Pass 3 hard cap. Default: 2400 frames.
+    pub max_frames: u32,
+    /// Wall-clock timeout across all three passes. Default: 300.0 s for
+    /// RedrapeOnly and ScaleAndRedrape; MUST be >= 1800.0 s for OptimizePatterns.
+    pub timeout_secs: f32,
+}
+```
+
+Pass 1 (gravity-free stitch) MUST be executed before any collision detection is active, so that
+panels settle into approximate closed form without being repelled by the body proxy.
+
+Pass 2 MUST apply the body proxy collision geometry (capsules + spheres) with full XPBD position
+correction before relaxing stiffness in Pass 3.
+
+Pass 3 MUST run to the `full_physics_convergence_pct` threshold or `max_frames`, whichever
+comes first. If `max_frames` is reached without convergence, the run MUST record
+`converged = false` in the result bundle; the `REFIT_CONVERGED` advisory validation check will
+surface this condition (see §7.6).
+
+---
+
+#### §7.5 UV and Texture Preservation
+
+##### §7.5.1 ARAP Re-Unfurl
+
+After a successful re-drape simulation, the engine MUST recompute UV islands for every panel
+using an as-rigid-as-possible (ARAP) energy minimization unfurl pass in
+`tailor-solver/src/uv/unfurl.rs`:
+
+```rust
+// tailor-solver/src/uv/unfurl.rs
+/// Flatten a simulated 3D panel to 2D UV space using ARAP energy minimization.
+/// Boundary vertices are pinned at their pre-simulation 2D pattern positions.
+/// Interior UVs are computed by minimizing: sum_triangles ||J_k - R_k||_F^2
+/// (alternating local SVD + global sparse linear solve).
+/// Output: UV coordinates per vertex in pattern space [0,1]^2.
+pub fn arap_unfurl_panel(panel: &Panel3D) -> Result<Vec<[f32; 2]>, UnfurlError>;
+```
+
+Boundary vertices MUST be pinned at their original 2D panel positions. This keeps the UV island
+boundary unchanged after retargeting, so texture maps authored against the source garment remain
+valid at panel edges.
+
+The engine MUST emit `TailorRefitUvRecomputed` (`"TAILOR_REFIT_UV_RECOMPUTED"`,
+`event_family = "tailor.refit"`) after all panels have been unfurled.
+
+##### §7.5.2 Graphic Layer Anchor Preservation
+
+For panels that carry graphic layers (`tailor_graphic_layers` rows with `boundary_pinned = true`),
+the ARAP unfurl MUST treat graphic-anchor vertices as additional pinned points. Only
+non-anchored interior UV positions are adjusted.
+
+If panel deformation exceeds 30% area change relative to source, the engine MUST emit a
+`UV_VALIDITY` advisory finding (see §7.6) so the operator can review graphic placement.
+
+---
+
+#### §7.6 Refit Validation Gate
+
+Refit output MUST pass the `TailorValidationDescriptor` before the `PromotionGate` accepts the
+derived garment. The applicable checks from the canonical ValidationDescriptor catalog
+[T-CONTRACTS.validation] are:
+
+```
+CHECK                  Severity  Assertion
+---------------------  --------  -------------------------------------------------------
+REFIT_INTERSECTION_FREE Blocking  min(particle-capsule/sphere distance) >= -0.5 mm
+                                  (final simulation frame; intermediate substeps skipped)
+REFIT_SEAM_CLOSURE     Blocking   mated seam edge-pair length difference < 1%
+UV_VALIDITY            Blocking   all recomputed UVs in [0,1]^2; no degenerate UV tris
+                                  (area > 1e-6 in UV space); >=95% mesh UV coverage
+MESH_TOPOLOGY          Blocking   output mesh: manifold, no degenerate triangles,
+                                  no isolated vertices
+REFIT_CONVERGED        Advisory   simulation reached full_physics_convergence_pct
+                                  within max_frames (not timed out)
+```
+
+A refit run with any `Blocking` failure MUST be rejected: `status` on `tailor_refit_runs`
+is set to `'rejected'` and `TailorRefitRejected` (`"TAILOR_REFIT_REJECTED"`,
+`event_family = "tailor.refit"`) is emitted. `Advisory` findings are recorded but MUST NOT
+block promotion unless `PromotionGateInputs.treat_advisory_as_blocking = true`.
+
+Promotion equivalence between the source and output garment meshes MUST use the comparison method
+and measured tolerances selected by the lane's `TailorQualificationProfileV1`; SHA-256 hash
+comparison is prohibited [T-CONTRACTS.determinism].
+
+---
+
+#### §7.7 Blend-Shape Incremental Refit
+
+The engine MUST support incremental refit for blend-shape / morph-target avatars, where the body
+proxy geometry changes along a continuous parameter `blend_t ∈ [0.0, 1.0]`:
+
+```rust
+// src/tailor/refit.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BlendShapeRefitRequest {
+    pub garment_id: String,           // "GAR-{uuid_v7}"
+    pub base_body_proxy_id: String,   // "BPX-{uuid_v7}"
+    pub target_body_proxy_id: String, // "BPX-{uuid_v7}"
+    /// Interpolation: 0.0 = base proxy geometry, 1.0 = target proxy geometry.
+    pub blend_t: f32,
+    /// If true, warm-start the XPBD solver from the last equilibrium position
+    /// of the base-body drape. Requires prior simulation output in cache.
+    pub warm_start: bool,
+}
+```
+
+When `warm_start = true`, the solver MUST initialize particle positions from the cached prior
+equilibrium state rather than re-running the full three-pass progressive drape. The solver
+MUST NOT warm-start if no prior result is cached; it MUST fall back to a full three-pass init
+and MUST log a warning.
+
+Blend-shape refit MUST still run the full refit validation gate (§7.6) on the output.
+
+---
+
+#### §7.8 Refit Sandbox Integration
+
+Refit runs MUST execute inside the existing `SandboxAdapter` / `SandboxRunV1` lifecycle.
+The `TailorSandboxAdapter` MUST implement `SandboxAdapter`:
+
+```rust
+// src/tailor/sandbox_adapter.rs
+pub struct TailorRefitAdapter {
+    solver: Arc<dyn ClothSolver>,
+    refit_mode: RefitMode,
+}
+
+impl SandboxAdapter for TailorRefitAdapter {
+    fn kind(&self) -> AdapterKind {
+        AdapterKind::process_tier("tailor_refit_v1", "Tailor Refit Adapter")
+    }
+
+    fn run(
+        &self,
+        run: &SandboxRunV1,
+        workspace: &SandboxWorkspaceV1,
+        policy: &SandboxPolicyV1,
+    ) -> Result<AdapterRunOutcome, AdapterError> {
+        // 1. Deserialize RefitRequest (schema_id = "hsk.tailor.refit_request@1")
+        //    from run.payload_json.
+        // 2. Load GarmentSpec and source ClothBodyProxy from sandbox workspace.
+        // 3. Dispatch to solver:
+        //    a. compute_panel_scales()       — ScaleAndRedrape only
+        //    b. RefitDrapeStrategy three-pass progressive relaxation
+        //    c. XPBD forward sim to equilibrium
+        //    d. arap_unfurl_panel() per panel — UV recompute
+        //    e. Validate: REFIT_INTERSECTION_FREE, REFIT_SEAM_CLOSURE, UV_VALIDITY,
+        //       MESH_TOPOLOGY, REFIT_CONVERGED
+        // 4. Bundle: garment mesh + UV map + validation findings + refit_run metadata.
+        // 5. Return AdapterRunOutcome::Completed { artifact_refs: [bundle_ref] }
+        //    or AdapterRunOutcome::Rejected { findings } on Blocking failure.
+        todo!()
+    }
+}
+```
+
+For `RefitMode::OptimizePatterns`, `policy.timeout_secs` MUST be set to at least `1800.0`
+seconds. The sandbox MUST reject (not panic) if the timeout is shorter and the mode is
+`OptimizePatterns`.
+
+##### §7.8.1 Refit Run Table
+
+Refit lifecycle state MUST be persisted in `tailor_refit_runs`
+[T-CONTRACTS.tables]:
+
+```sql
+-- Migration: 2026_MM_DD_tailor_refit_runs.sql  (dated at WP authoring time)
+CREATE TABLE IF NOT EXISTS tailor_refit_runs (
+    refit_run_id         TEXT PRIMARY KEY,           -- "RFT-{uuid_v7}"
+    garment_id           TEXT NOT NULL,              -- source garment
+    source_body_proxy_id TEXT REFERENCES tailor_body_proxies (body_proxy_id),
+    target_body_proxy_id TEXT NOT NULL REFERENCES tailor_body_proxies (body_proxy_id),
+    refit_mode           TEXT NOT NULL
+        CHECK (refit_mode IN ('redrape_only','scale_and_redrape','optimize_patterns')),
+    status               TEXT NOT NULL DEFAULT 'requested'
+        CHECK (status IN ('requested','running','completed','validated',
+                           'promoted','rejected')),
+    sandbox_run_id       TEXT,                       -- FK kb003_sandbox_runs.run_id
+    output_garment_id    TEXT,                       -- "GAR-{uuid_v7}" (promoted result)
+    scale_factors_json   JSONB,                      -- PanelScale map (ScaleAndRedrape)
+    optimization_params_json JSONB,                  -- OptimizePatterns params
+    event_ledger_event_id TEXT NOT NULL,             -- FK kernel_event_ledger.event_id
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_refit_runs_garment
+    ON tailor_refit_runs (garment_id);
+CREATE INDEX IF NOT EXISTS ix_tailor_refit_runs_target_proxy
+    ON tailor_refit_runs (target_body_proxy_id);
+```
+
+The migration filename MUST follow the dated convention (`2026_MM_DD_tailor_refit_runs.sql` +
+`.down.sql`) and MUST NOT use a numbered `0NNN_*` prefix [T-CONTRACTS.migration-naming].
+
+---
+
+#### §7.9 EventLedger Contract
+
+The following events from [T-CONTRACTS.event-types] govern the refit lifecycle. All use
+`event_family = "tailor.refit"` (constant `TAILOR_REFIT` in `src/tailor/event_family.rs`).
+
+| KernelEventType variant        | Wire string                      | Emitted when                                   |
+|-------------------------------|----------------------------------|------------------------------------------------|
+| `TailorRefitRequested`        | `"TAILOR_REFIT_REQUESTED"`       | Operator or model requests a refit             |
+| `TailorRefitPatternScaled`    | `"TAILOR_REFIT_PATTERN_SCALED"`  | ScaleAndRedrape scale computation complete     |
+| `TailorRefitDrapeCompleted`   | `"TAILOR_REFIT_DRAPE_COMPLETED"` | XPBD re-drape finished (all three passes)      |
+| `TailorRefitUvRecomputed`     | `"TAILOR_REFIT_UV_RECOMPUTED"`   | ARAP unfurl pass complete for all panels       |
+| `TailorRefitPromoted`         | `"TAILOR_REFIT_PROMOTED"`        | Output garment passes gate and is promoted     |
+| `TailorRefitRejected`         | `"TAILOR_REFIT_REJECTED"`        | Blocking validation failure; run rejected      |
+
+Avatar and body-proxy lifecycle events (`TAILOR_AVATAR_CREATED`,
+`TAILOR_AVATAR_MEASUREMENTS_EXTRACTED`, `TAILOR_BODY_PROXY_CREATED`,
+`TAILOR_BODY_PROXY_UPDATED`) use `event_family = "tailor.avatar"` and
+`"tailor.body_proxy"` respectively [T-CONTRACTS.event-types].
+
+The superseded event names `BodyProxyCreated`, `BodyProxyMeasurementsExtracted` (from
+`07-autofit-retargeting.md`, missing the `Tailor` prefix) and `TailorDraftScaled` (same file)
+MUST NOT appear in implementation code; use the canonical variants above.
+
+---
+
+#### §7.10 CRDT for Competing Refit Proposals
+
+Multiple model or operator agents MAY propose competing refits of the same source garment to
+the same target body (e.g., one using `ScaleAndRedrape`, another using `OptimizePatterns`).
+
+Each refit MUST produce a new `tailor_garments` derived draft row and a corresponding
+`tailor_garment_crdt_docs` row with `crdt_document_id = "CRDT-GAR-{output_garment_id}"`.
+Competing proposals MUST be tracked as distinct actor-site CRDT documents using the existing
+`CrdtUpdateRecordV1` infrastructure; no new CRDT table is required.
+
+The operator MUST choose which refit proposal to promote. The `PromotionGate` MUST NOT
+auto-select between competing proposals.
+
+---
+
+#### §7.11 Model-First Refit API
+
+##### §7.11.1 MCP Tool Surface
+
+The model-steerable refit API MUST be exposed as an MCP tool (`refit_garment`) inside the
+`TailorModelAdapter`. The model receives a context bundle and MUST emit a `RefitRequest` JSON
+(schema `hsk.tailor.refit_request@1`) as its artifact output. The model MUST NOT write
+directly to any `tailor_*` authority table; its output becomes a `TailorRefitRequested`
+EventLedger event, and the sandbox run takes it from there.
+
+Required context bundle fields supplied to the model:
+
+| Field                         | Type   | Description                                            |
+|------------------------------|--------|--------------------------------------------------------|
+| `garment_id`                  | String | Source garment `"GAR-{uuid_v7}"`                      |
+| `source_body_proxy_id`        | String | Optional; model selects if absent                     |
+| `target_avatar_id`            | String | `"AVT-{uuid_v7}"` or parametric slug                  |
+| `refit_intent`                | String | `fit_to_new_body \| scale_up \| scale_down \| non_human_retarget` |
+| `source_measurements_mm`      | JSON   | 25-field measurement map (source body)                |
+| `target_measurements_mm`      | JSON   | 25-field measurement map (target body)                |
+| `fabric_material_description` | String | Optional natural-language fabric hint                 |
+
+Expected model output (artifact_payload, validated against schema `hsk.tailor.refit_request@1`
+before sandbox run creation):
+
+```json
+{
+  "schema_id": "hsk.tailor.refit_request@1",
+  "garment_id": "GAR-...",
+  "target_avatar_id": "AVT-...",
+  "refit_mode": "scale_and_redrape",
+  "ease_overrides": {
+    "ease_mm": { "bust": 20.0, "hip": 30.0, "waist": 15.0 }
+  },
+  "material_params_override": {
+    "bending_weft": 0.6,
+    "density_g_m2": 95.0
+  },
+  "rationale": "Target bust 8 cm larger; scaling bodice panels by bust ratio. Silk params preserved."
+}
+```
+
+The `material_params_override` fields map to `FabricProperties` normalized fields in
+`GarmentSpec`. The model MUST use the normalized [0.0, 1.0] range for fabric stiffness fields
+and the physical units (`density_g_m2`, `collision_thickness_mm`) for the two physical fabric
+fields [T-CONTRACTS.garment-spec].
+
+##### §7.11.2 LLM Material Re-Estimation
+
+When the operator changes the fabric material as part of retargeting (e.g., "same dress design,
+but now in denim for the bigger avatar"), the model lane MUST estimate updated `FabricProperties`
+from the natural-language material description using the four ChatGarment descriptors
+(rigid/soft, heavy/light, wrinkle/smooth, perceived thickness), mapped to the normalized
+`FabricProperties` fields via the preset/decoder layer (`tailor_material_presets`).
+
+The model MUST include updated `material_params_override` in the `RefitRequest` JSON when it
+re-estimates fabric parameters. The model MUST NOT hard-code raw XPBD compliance values;
+the normalized surface is the sole LLM-facing contract.
+
+---
+
+#### §7.12 Risks, Mitigations, and Constraints
+
+The following risks are normative constraints on the implementation.
+
+**REFIT-RISK-1 — Non-human avatar convergence failures.**
+For `source_kind = 'non_humanoid'`, the three-pass progressive drape MAY fail to converge
+when body geometry has no humanoid segment structure. The implementation MUST:
+(a) expose all `RefitDrapeStrategy` parameters in the refit request so operators can override
+defaults for unusual avatars;
+(b) surface timeout without convergence as `REFIT_CONVERGED` advisory (never as a crash or
+silent success);
+(c) never return a timed-out simulation result as a converged, promotable garment.
+
+**REFIT-RISK-2 — Multi-layer garment sequencing.**
+The `OptimizePatterns` differentiable path operates on a single-layer garment. For multi-layer
+garments, the Tailor module MUST execute retargeting as sequential single-layer runs in
+innermost-to-outermost panel order, passing each successfully retargeted layer's output mesh as
+an additional collision body for the next layer. Each layer run MUST pass its own validation gate
+before the next layer begins.
+
+**REFIT-RISK-3 — ARAP UV divergence under large deformation.**
+If any panel's area changes by more than 30% relative to source, the implementation MUST emit
+`UV_VALIDITY` advisory and MUST provide a `"lock_graphics_layer"` option in the refit request
+that pins graphic-anchor vertices during the ARAP unfurl (§7.5.2). The `lock_graphics_layer`
+option MUST default to `true` when any `tailor_graphic_layers` row exists for the source garment.
+
+**REFIT-RISK-4 — Cross-backend promotion equivalence.**
+The implementation MUST use the lane-specific, profile-resolved comparison method for promotion
+equivalence checks on refit output, not SHA-256 hash comparison [T-CONTRACTS.determinism].
+SHA-256 `content_hash` on `tailor_refit_runs` is retained for same-machine idempotency only.
+
+**REFIT-RISK-5 — `OptimizePatterns` timeout configuration.**
+`OptimizePatterns` requires offline compute time comparable to 5–30 minutes. The sandbox adapter
+MUST enforce `policy.timeout_secs >= 1800.0` for this mode and MUST reject the run with a
+descriptive error (not silently truncate) if the timeout is shorter.
+
+**REFIT-RISK-6 — Non-humanoid capsule set authority.**
+For `source_kind = 'non_humanoid'`, the operator MUST supply the capsule set JSON at body proxy
+creation time. The implementation MUST NOT attempt auto-generation of a humanoid capsule chain
+for non-humanoid avatars. An automated convex-hull decomposition (`parry3d::shape::ConvexHull`)
+MAY be offered as a hint, but MUST be labeled as a hint and MUST require operator approval before
+being written as an authority proxy row.
+
+---
+
+#### §7.13 Reuse Moat
+
+The auto-fit subsystem establishes a durable reuse moat through:
+
+1. **Body proxy library.** Every avatar imported into `tailor_avatars` + `tailor_body_proxies`
+   is reusable for all future garments without re-import. The measurement map and capsule set
+   are computed once and stored as authority rows.
+
+2. **Derived draft chain.** Each refit produces a new `tailor_garments` derived draft linked to
+   the source garment via `tailor_refit_runs.garment_id`. The full refit provenance (source body,
+   target body, mode, scale factors) is queryable from the authority tables without chat history.
+
+3. **Measurement-driven grading.** The `compute_panel_scales` function (§7.3) can grade any
+   garment to any target body without design re-authoring, as long as the target body has a
+   `tailor_avatars` row with a `measurements_mm_json` map.
+
+4. **Model-steerable iteration.** The model-first API (§7.11) allows a model lane to propose
+   multiple refit strategies (mode selection, ease overrides, material re-estimation) as competing
+   CRDT proposals, and the operator selects the best result — without the operator needing to
+   understand solver parameters.
+
+5. **Blend-shape continuity.** The `BlendShapeRefitRequest` warm-start path (§7.7) allows rapid
+   interactive refit across morph-target body shape variation, reusing the prior equilibrium
+   state as solver initialization, making incremental body shape exploration cheap.
+
+---
+
+#### §7.14 Non-Normative Provenance
+
+The following research documents informed this sub-section and are cited as non-normative
+provenance. They MUST NOT be treated as spec authority; where they conflict with
+[T-CONTRACTS], T-CONTRACTS wins.
+
+- `07-autofit-retargeting.md` — primary design rationale; OSS pipeline evidence
+  (DressAnyone, Bolt, Intersection-Free Garment Retargeting, GarmentCode, ChatGarment);
+  Marvelous Designer feature mapping.
+- `16-contracts.md` [T-CONTRACTS] — canonical authority for all type names, field names, units,
+  event variants, schema IDs, migration naming, table PKs, validation check catalog, and
+  promotion equivalence. This sub-section uses its contracts verbatim.
+
+Key OSS references (informational):
+- DressAnyone (ETH Zurich / Meta, 2024): `https://arxiv.org/abs/2405.19148` — differentiable
+  XPBD pattern optimization; the algorithmic reference for `OptimizePatterns` mode.
+- NVIDIA Bolt (Apr 2025): `https://arxiv.org/pdf/2504.17614` — feed-forward garment transfer
+  at scale; the layer-sequencing and progressive drape pattern.
+- Intersection-Free Garment Retargeting (SIGGRAPH 2025):
+  `https://github.com/Huangzizhou/cloth-fit` — barrier-method intersection-free guarantee;
+  motivates the `REFIT_INTERSECTION_FREE` blocking check.
+- GarmentCode / GarmentMeasurements (ETH Zurich):
+  `https://github.com/maria-korosteleva/GarmentCode` — 25-measurement extraction convention;
+  `cm` unit choice for `GarmentSpec`; measurement-driven panel grading.
+- ChatGarment (CVPR 2025): `https://chatgarment.github.io/` — four-descriptor LLM material
+  re-estimation; the basis for §7.11.2.
+
+## 13.8 Trims & Cloth-Rigid Coupling
+
+<!-- id: trimrigid -->
+<!-- provenance (non-normative): .GOV/reference/cloth_engine_research/13-trim-rigid.md,
+     16-contracts.md. T-CONTRACTS wins on all schema/event/table/naming conflicts. -->
+
+---
+
+### TR-1. Scope and Definitions
+
+**TR-1.1** The Tailor trim system MUST implement a mixed cloth-rigid XPBD simulation graph in
+which rigid trim bodies (buttons, buckles, zippers, eyelets, rivets, hooks, armor plates) and
+cloth panels share a single substep loop, the same Lagrange multiplier update, and the same WGPU
+compute dispatch. No separate rigid-body simulation pass outside the XPBD substep is permitted.
+
+**TR-1.2** The following terminology is normative throughout this section:
+
+- **Trim body**: a rigid 3D mesh that moves as a single rigid object (six DOF: centroid position
+  `x: vec3` + orientation quaternion `q: quat`). It does not deform.
+- **Tack**: a point constraint that couples one world-space attachment point on a trim body to one
+  cloth particle. It is the fundamental cloth-rigid coupling primitive; every other trim-attachment
+  mechanism (Glue, multi-point Tack, zipper rail attachment, eyelet pin) is expressed as one or
+  more tack constraints.
+- **Tack strength**: a scalar `strength_scale ∈ [0.0, 1.0]` that modulates the constraint
+  compliance; `0.0` makes the constraint dormant (detached); `1.0` is full strength.
+- **Kinematic trim**: a trim body with `inv_mass = 0`; it receives no correction from constraint
+  forces and acts as a static driver. Tack constraints still pull cloth particles toward it.
+- **Stiffness**: a per-trim scalar `∈ [0.0, 1000.0]`; at `1000.0` the body MUST be promoted to
+  kinematic mode (`inv_mass = 0`). At lower values the body is dynamic (responds to constraint
+  forces and gravity).
+
+**TR-1.3** This section is authoritative for the trim domain. Where research note
+`13-trim-rigid.md` conflicts with `16-contracts.md`, the contracts file wins. Where either
+conflicts with this spec, this spec wins.
+
+---
+
+### TR-2. GPU Types and Buffer Layout
+
+**TR-2.1** The `tailor-solver` crate MUST define `GpuTrimBody` and `GpuTackConstraint` as
+`bytemuck::Pod` / `bytemuck::Zeroable` structs with the exact strides specified. Changing field
+layout without updating all referencing WGSL struct definitions is forbidden.
+
+```rust
+// tailor-solver/src/types.rs
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuTrimBody {
+    pub pos:         [f32; 4],   // xyz = world centroid; w = inv_mass
+    pub quat:        [f32; 4],   // xyzw orientation (unit quaternion)
+    pub vel:         [f32; 4],   // xyz = linear velocity; w = unused
+    pub omega:       [f32; 4],   // xyz = angular velocity; w = unused
+    pub pos_pred:    [f32; 4],   // predicted centroid after external forces
+    pub quat_pred:   [f32; 4],   // predicted orientation
+    pub inertia_inv: [f32; 12],  // 3x3 inverse inertia tensor, row-major, std430-padded
+    pub stiffness:   f32,        // [0, 1000]; 1000 => kinematic (inv_mass must be 0)
+    pub trim_index:  u32,        // index into tailor_trim_placements row (for event linkage)
+    pub _pad:        [f32; 2],
+}
+// Stride: 128 bytes. Buffer: N_trims × 128 bytes.
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuTackConstraint {
+    pub body_idx:       u32,      // index into GpuTrimBody buffer
+    pub particle_idx:   u32,      // index into GpuParticle buffer
+    pub r_local:        [f32; 4], // body-frame attachment offset from centroid (xyz; w unused)
+    pub compliance:     f32,      // α; 0 = rigid; 1e-4 = elasticated
+    pub strength_scale: f32,      // keyframeable [0.0, 1.0]; 0 = dormant
+    pub _pad:           [f32; 2],
+}
+// Stride: 32 bytes. Buffer: N_tacks × 32 bytes.
+```
+
+**TR-2.2** For cord simulations (lacing), the solver MUST define `GpuCordParticle` and
+`GpuCordSegment`:
+
+```rust
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuCordParticle {
+    pub pos:      [f32; 4],   // xyz position; w unused
+    pub vel:      [f32; 4],   // xyz velocity; w unused
+    pub pos_pred: [f32; 4],   // predicted position
+    pub inv_mass: f32,
+    pub _pad:     [f32; 3],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuCordSegment {
+    pub i0:          u32,
+    pub i1:          u32,
+    pub rest_length: f32,  // mm
+    pub compliance:  f32,
+}
+```
+
+**TR-2.3** Inertia tensor initialization is REQUIRED at trim-asset load time. The implementation
+MUST compute `GpuTrimBody.inertia_inv` from the trim mesh using the area-weighted triangle
+contribution formula, then invert. A `det(I) <= 0` check MUST fail with a hard error before
+inverting; such a mesh is degenerate and MUST NOT be uploaded to the GPU.
+
+---
+
+### TR-3. Mixed Constraint Graph: Substep Order
+
+**TR-3.1** The XPBD substep loop MUST execute constraint passes in the following order. The two
+new passes (`tack.wgsl` and `trim_contact.wgsl`) MUST appear at the positions shown and MUST NOT
+be merged with cloth-only passes.
+
+```
+Per substep (n_substeps per frame):
+  Pass 1:   predict.wgsl          -- cloth particles + trim rigid bodies (extended predict)
+  Pass 2..K: stretch.wgsl         -- cloth stretch, per color partition
+  Pass K+1..M: bend.wgsl          -- cloth bend, per color partition
+  Pass M+1: seam.wgsl             -- seam distance constraints (incl. zipper active segments)
+  Pass M+2: tack.wgsl             -- cloth-particle to rigid-body ball-joint constraints [NEW]
+  Pass M+3: trim_contact.wgsl     -- rigid trim mesh vs cloth particle contact [NEW]
+  Pass M+4: body_collide.wgsl     -- cloth vs avatar capsule/sphere proxy
+  Pass M+5: self_collide.wgsl     -- cloth self-collision
+  Pass M+6: velocity.wgsl         -- velocity update for cloth particles AND trim bodies
+```
+
+**TR-3.2** The predict pass MUST integrate trim rigid body state using the quaternion-derivative
+form:
+
+```
+x_pred  = x + dt_sub * v
+q_pred  = normalize(q + 0.5 * dt_sub * quat(0, omega) * q)
+```
+
+External forces (gravity scaled by `1/inv_mass`) MUST be applied to `v` before this integration.
+Kinematic bodies (`inv_mass = 0`) MUST skip force integration; their `pos_pred`/`quat_pred` are
+set by the animation driver, not by the predict pass.
+
+**TR-3.3** The velocity update pass MUST update trim rigid body linear and angular velocity after
+all constraint passes:
+
+```
+v     = (pos_pred - pos) / dt_sub
+omega = 2 * (conj(q) * q_delta).xyz / dt_sub
+pos   = pos_pred
+q     = normalize(q_pred)
+```
+
+---
+
+### TR-4. Tack Coupling Pass (tack.wgsl)
+
+**TR-4.1** The tack pass MUST implement a ball-joint constraint (equality constraint, zero rest
+length) between each tack's cloth particle and its trim body attachment point, using the Müller-
+Macklin XPBD rigid body coupling formulation (SCA 2020, CGF 39(8)). The effective inverse mass of
+the rigid body at attachment point MUST be computed as:
+
+```
+r_world = quat_rotate(body.quat_pred, r_local)
+w_body  = inv_mass + dot(r_world × n, I_inv * (r_world × n))
+```
+
+where `n` is the unit constraint gradient and `I_inv` is the 3×3 inverse inertia tensor.
+
+**TR-4.2** The XPBD Lagrange multiplier update MUST be:
+
+```
+alpha       = (compliance / strength_scale) / (dt_sub^2)
+delta_lam   = -(C + alpha * lambda) / (w_body + w_cloth + alpha)
+lambda      += delta_lam
+```
+
+where `C = |p_cloth - p_body_attachment|`. When `strength_scale < 1e-5` the constraint MUST be
+skipped entirely (no position update, no lambda update). This is the detached-tack early-out that
+enables animated stitching and unstitching.
+
+**TR-4.3** Position corrections MUST be applied to both the cloth particle and the trim body:
+
+```
+// Cloth particle translational correction
+dx_cloth  =  w_cloth / (w_body + w_cloth) * n * delta_lam
+
+// Trim body translational correction
+dx_body   = -w_body  / (w_body + w_cloth) * n * delta_lam
+
+// Trim body angular correction via quaternion update
+ang_impulse = I_inv * (r_world × dx_body)
+dq          = 0.5 * quat(0, ang_impulse) * q_pred
+q_pred      = normalize(q_pred + dq)
+```
+
+**TR-4.4** The tack pass MUST be color-partitioned. The constraint graph for coloring MUST include
+both cloth particle indices AND trim body indices as nodes, with edges between every pair that
+shares a constraint. Within a single color partition: no particle index appears more than once AND
+no body index appears more than once. This invariant is a hard correctness requirement; violation
+produces a GPU data race on `GpuTrimBody` without atomics. The coloring algorithm MUST verify both
+node types before any GPU dispatch.
+
+**TR-4.5** Tack lambda accumulators (`tack_lambdas`) MUST be reset to zero at the start of each
+substep, matching the XPBD convention for cloth stretch/bend accumulators.
+
+---
+
+### TR-5. Trim-Cloth Contact Pass (trim_contact.wgsl)
+
+**TR-5.1** The trim-cloth contact pass MUST apply a one-sided inequality constraint (`max(0, -C)`)
+to push cloth particles out of trim mesh surfaces. It fires only when a cloth particle penetrates
+within `collision_thickness_mm` of a trim triangle surface.
+
+**TR-5.2** The trim mesh MUST be maintained in a **world-space triangle buffer** that is rebuilt
+each substep from body-local triangle data transformed by `pos_pred`/`quat_pred`. This pre-pass
+MUST run before `trim_contact.wgsl` in the same substep.
+
+**TR-5.3** For trim meshes with fewer than 200 triangles (buttons, buckles, eyelets), a brute-
+force per-cloth-particle loop over all trim triangles is acceptable. For trim meshes with 200 or
+more triangles (armor plates, large accessories), an AABB pre-filter or BVH over world-space trim
+triangles MUST be used to cull distant particles before the per-triangle query.
+
+**TR-5.4** BVH rebuild MUST be forced when trim body displacement between substeps exceeds
+`0.5 × collision_thickness_mm`. When displacement is below this threshold, the BVH from the
+previous substep MAY be reused.
+
+**TR-5.5** Interactive profiles MAY treat declared fixed trims as one-way contact, but dynamic
+buttons, zippers, buckles, accessories and converted pattern-rigid parts require two-way
+cloth-rigid coupling with mass/inertia, attachment and energy checks. The final-quality lane MUST
+validate two-way response and attachment integrity; a one-way approximation cannot qualify a
+dynamic-trim capability row.
+
+---
+
+### TR-6. Authority Data Model
+
+#### TR-6.1 Trim Asset (tailor_trims)
+
+**TR-6.1.1** Every trim asset MUST be stored as an authority row in `tailor_trims` with `TEXT
+PRIMARY KEY` using the canonical prefix `TRIM-{uuid_v7}`. The `UUID PRIMARY KEY DEFAULT
+gen_random_uuid()` form is forbidden (per T-CONTRACTS FACT-4).
+
+**TR-6.1.2** The `trim_category` column MUST enforce the following CHECK domain:
+
+```sql
+CHECK (trim_category IN (
+    'button', 'buckle', 'zipper_body', 'zipper_slider', 'zipper_teeth',
+    'eyelet', 'rivet', 'hook', 'armor_plate', 'cord', 'accessory', 'custom'
+))
+```
+
+**TR-6.1.3** The canonical migration for this table MUST follow the dated convention from
+T-CONTRACTS (e.g. `2026_MM_DD_tailor_trims.sql` where the date is set at implementation time)
+with a required `.down.sql` reverse pair. Numbered `0NNN_*` migrations are forbidden.
+
+**TR-6.1.4** The `mesh_json` MUST store the trim mesh (vertices + triangles + normals) as a
+`TrimMeshV1` JSONB object. The `inertia_tensor_json` MUST store the precomputed 3×3 inertia
+tensor. Both MUST be populated at import time; a row with a null or empty `mesh_json` is invalid.
+
+**TR-6.1.5** `tack_anchor_json` MUST store the canonical attachment point positions in body-local
+coordinates for the trim type (e.g., four hole positions for a four-hole button). The solver MUST
+use these as the default `r_local` values for `GpuTackConstraint` when the operator does not
+override them.
+
+**TR-6.1.6** When a trim is created via pattern-to-rigid conversion, `converted_from_panel_id`
+MUST be set to the source `panel_id` to preserve the audit trail. The source panel geometry MUST
+be retained as a `superseded_panel` entry in the CRDT document tree; it MUST NOT be deleted.
+
+```sql
+-- Migration: 2026_MM_DD_tailor_trims.sql  (date assigned at implementation)
+CREATE TABLE IF NOT EXISTS tailor_trims (
+    trim_id                 TEXT PRIMARY KEY,           -- "TRIM-{uuid_v7}"
+    workspace_id            TEXT NOT NULL,
+    name                    TEXT NOT NULL,
+    trim_category           TEXT NOT NULL
+        CHECK (trim_category IN ('button','buckle','zipper_body','zipper_slider',
+                                  'zipper_teeth','eyelet','rivet','hook',
+                                  'armor_plate','cord','accessory','custom')),
+    source_asset_ref        TEXT,
+    mesh_json               JSONB NOT NULL,
+    inertia_tensor_json     JSONB NOT NULL,
+    default_mass_g          FLOAT NOT NULL DEFAULT 1.0
+        CHECK (default_mass_g > 0),
+    default_stiffness       FLOAT NOT NULL DEFAULT 100.0
+        CHECK (default_stiffness >= 0.0 AND default_stiffness <= 1000.0),
+    tack_anchor_json        JSONB,
+    is_library_item         BOOLEAN NOT NULL DEFAULT FALSE,
+    converted_from_panel_id TEXT,
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_trims_workspace ON tailor_trims (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_tailor_trims_category  ON tailor_trims (trim_category);
+```
+
+#### TR-6.2 Trim Placements (tailor_trim_placements)
+
+**TR-6.2.1** Per-garment placement of a trim MUST be stored in `tailor_trim_placements` with
+prefix `PLAC-{uuid_v7}`. The `tacks_json` column MUST store the full `TackDefinitionV1` array
+for the placement. An empty `tacks_json` array is valid only for purely decorative trims where no
+cloth coupling is desired; the `TACK_SEAM_CLOSURE` validation check is skipped for tack-less
+placements.
+
+```sql
+CREATE TABLE IF NOT EXISTS tailor_trim_placements (
+    placement_id            TEXT PRIMARY KEY,           -- "PLAC-{uuid_v7}"
+    garment_id              TEXT NOT NULL REFERENCES tailor_garments (garment_id),
+    trim_id                 TEXT NOT NULL REFERENCES tailor_trims (trim_id),
+    initial_pose_json       JSONB NOT NULL,             -- { pos:[x,y,z], quat:[x,y,z,w] }, mm
+    tacks_json              JSONB NOT NULL,             -- array<TackDefinitionV1>
+    stiffness_override      FLOAT
+        CHECK (stiffness_override IS NULL OR
+               (stiffness_override >= 0.0 AND stiffness_override <= 1000.0)),
+    mass_override_g         FLOAT
+        CHECK (mass_override_g IS NULL OR mass_override_g > 0),
+    layer_order             INTEGER NOT NULL DEFAULT 0,
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_trim_placements_garment
+    ON tailor_trim_placements (garment_id);
+```
+
+#### TR-6.3 Tack Definition
+
+**TR-6.3.1** `TackDefinitionV1` is the canonical tack authority type, stored inside
+`tacks_json`. It MUST NOT be stored as a separate table; it is owned by the placement row.
+
+```rust
+// tailor-solver/src/spec.rs  (part of the canonical GarmentSpec authority type)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct TackDefinitionV1 {
+    /// "TACK-{uuid_v7}"; unique within the placement.
+    pub tack_id:        String,
+    /// Attachment point in trim body-local coordinates (mm).
+    pub r_local:        [f32; 3],
+    /// UV coordinates on the target panel to find the nearest cloth particle.
+    pub particle_uv:    [f32; 2],
+    /// Constraint compliance. 0.0 = rigid attachment; 1e-4 = soft/elasticated.
+    pub compliance:     f32,
+    /// Keyframe curve: [(frame, strength_scale), ...]. Interpolated per substep.
+    /// Empty = constant strength 1.0.
+    pub strength_curve: Vec<[f32; 2]>,
+    /// Optional label for tooling, e.g. "button-left-1", "eyelet-top-3".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label:          Option<String>,
+}
+```
+
+**TR-6.3.2** A Glue placement (single click-to-place attachment) MUST be modeled as a
+`TackDefinitionV1` array of length 1. A multi-point Tack MUST be modeled as an array of 2 or
+more. The schema does not distinguish the two placement tools; only the count differs.
+
+#### TR-6.4 Zipper Definitions (tailor_zippers)
+
+**TR-6.4.1** Zipper definitions MUST be stored in `tailor_zippers` with prefix `ZIP-{uuid_v7}`.
+`slider_count` MUST be 1 (standard) or 2 (two-way). For two-way zippers, `slider_b_pos` MUST NOT
+be null when `slider_count = 2`.
+
+```sql
+CREATE TABLE IF NOT EXISTS tailor_zippers (
+    zipper_id               TEXT PRIMARY KEY,           -- "ZIP-{uuid_v7}"
+    garment_id              TEXT NOT NULL REFERENCES tailor_garments (garment_id),
+    panel_edge_a            TEXT NOT NULL,
+    panel_edge_b            TEXT NOT NULL,
+    tooth_interval_mm       FLOAT NOT NULL DEFAULT 5.0
+        CHECK (tooth_interval_mm > 0),
+    slider_count            INTEGER NOT NULL DEFAULT 1
+        CHECK (slider_count IN (1, 2)),
+    slider_a_pos            FLOAT NOT NULL DEFAULT 0.0
+        CHECK (slider_a_pos >= 0.0 AND slider_a_pos <= 1.0),
+    slider_b_pos            FLOAT
+        CHECK (slider_b_pos IS NULL OR (slider_b_pos >= 0.0 AND slider_b_pos <= 1.0)),
+    tooth_mesh_ref          TEXT,
+    slider_mesh_ref         TEXT,
+    stiffness               FLOAT NOT NULL DEFAULT 100.0,
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**TR-6.4.2** Zipper tooth seam constraints MUST be modeled as a special case of the standard seam
+constraint buffer (`GpuSeamConstraint` with `gather_ratio = 1.0`). Each tooth pair generates one
+seam constraint. An `active_mask` buffer (one bit per tooth pair, separate from the seam constraint
+buffer) MUST gate constraint evaluation per substep. The constraint buffer itself MUST NOT be re-
+uploaded per frame for slider animation; only the `active_mask` buffer is updated.
+
+**TR-6.4.3** For two-way zippers, the active mask MUST mark a tooth pair as active when and only
+when its position along the rail lies between `slider_a_pos` and `slider_b_pos` (i.e., within the
+closed region). The CPU-side mask update MUST run before the seam pass of each substep.
+
+**TR-6.4.4** Tooth-rail tack constraints MUST be included in the tack constraint buffer. One tack
+per tooth rail segment connects the rail body to its panel edge. These tacks participate in tack
+graph coloring (TR-4.4) and in the `ZIPPER_TOOTH_ALIGN` validation check.
+
+#### TR-6.5 Lacing Definitions (tailor_lacings)
+
+**TR-6.5.1** Lacing cord definitions MUST be stored in `tailor_lacings` with prefix
+`LACE-{uuid_v7}`. Each lacing row owns the ordered eyelet sequence and the cord parameters.
+
+```sql
+CREATE TABLE IF NOT EXISTS tailor_lacings (
+    lacing_id               TEXT PRIMARY KEY,           -- "LACE-{uuid_v7}"
+    garment_id              TEXT NOT NULL REFERENCES tailor_garments (garment_id),
+    eyelet_sequence_json    JSONB NOT NULL,             -- ordered array of placement_ids (eyelet trims)
+    cord_rest_length_mm     FLOAT NOT NULL DEFAULT 3.0
+        CHECK (cord_rest_length_mm > 0),
+    cord_compliance         FLOAT NOT NULL DEFAULT 1e-4,
+    lace_pattern            TEXT NOT NULL DEFAULT 'straight'
+        CHECK (lace_pattern IN ('straight', 'criss-cross')),
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**TR-6.5.2** Each eyelet in the sequence MUST be a trim placement with `trim_category = 'eyelet'`.
+A lacing MUST fail validation if any `placement_id` in `eyelet_sequence_json` does not resolve to
+an eyelet-category placement on the same garment.
+
+**TR-6.5.3** Cord particles MUST be solved in the same XPBD substep loop as cloth particles. Cord
+segment stretch constraints MUST be solved in a dedicated pass after the tack pass. Threading
+constraints that pin a cord particle to an eyelet attachment point MUST use `GpuTackConstraint`
+with `particle_idx` pointing into the cord particle buffer and `body_idx` pointing into the
+eyelet's `GpuTrimBody`. They MUST participate in tack graph coloring (TR-4.4).
+
+---
+
+### TR-7. Trim Physics Parameters
+
+**TR-7.1** Three per-trim physics parameters MUST be supported and MUST be settable independently
+of each other:
+
+| Parameter | Authority field | Solver mapping | Valid range |
+|---|---|---|---|
+| Stiffness | `tailor_trims.default_stiffness` or `stiffness_override` | At 1000: `inv_mass = 0` (kinematic). Below 1000: `inv_mass = 1/mass`. | [0.0, 1000.0] |
+| Mass (g) | `tailor_trims.default_mass_g` or `mass_override_g` | `GpuTrimBody.pos.w = 1/mass_kg` | > 0 |
+| Tack Strength | `TackDefinitionV1.strength_curve` | `GpuTackConstraint.strength_scale` per substep | [0.0, 1.0] |
+
+**TR-7.2** When `stiffness = 1000.0`, the solver MUST set `GpuTrimBody.pos.w = 0` (kinematic).
+The constraint still activates and drags the cloth particle; the body itself does not move. When
+`stiffness < 1000.0`, `inv_mass` MUST be set from the effective mass (applying `mass_override_g`
+if present, else `default_mass_g`).
+
+**TR-7.3** Trim mass and tack strength MUST be keyframeable. Keyframe values MUST be delivered via
+a mapped GPU buffer write (partial update of the `GpuTackConstraint.strength_scale` fields for the
+affected tacks) rather than a full buffer re-upload. The `MaterialFrameParams` extension MUST carry
+`tack_strength: f32` and `trim_weight_scale: f32` for per-frame overrides:
+
+```rust
+// Extension to MaterialFrameParams (tailor-solver/src/params.rs)
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct MaterialFrameParams {
+    pub solidify_blend:    f32,
+    pub pressure_target:   f32,
+    pub shrink_u:          f32,
+    pub shrink_v:          f32,
+    pub tack_compliance:   f32,   // per-frame compliance override (0 = rigid)
+    pub tack_strength:     f32,   // 0.0 = detached, 1.0 = full strength
+    pub trim_weight_scale: f32,   // multiplier on GpuTrimBody inv_mass (1.0 = nominal)
+}
+```
+
+**TR-7.4** `TailorSimRunCompleted` EventLedger payloads MUST include the `MaterialFrameParams`
+array used during the run so that the animation is fully reproducible from the EventLedger alone,
+as required by the determinism contract (`MeshComparator`, T-CONTRACTS §T-CONTRACTS.determinism).
+
+---
+
+### TR-8. Pattern-to-Rigid-Body Conversion
+
+**TR-8.1** The system MUST support converting a cloth panel to a rigid trim body
+(`tailor_convert_panel_to_trim` MCP tool). The conversion algorithm MUST follow these steps in
+order; deviation from the step order is a correctness error:
+
+1. Compute centroid `x_centroid = (1/N) * Σ(x_i)` over the panel's current simulated vertex
+   positions.
+2. Compute the inertia tensor from panel mesh vertices relative to centroid, using the area-
+   weighted triangle formula and the panel's `FabricProperties.density_g_m2`.
+3. Verify `det(I) > 0`; reject if not.
+4. Invert `I` to produce `I_inv`.
+5. Instantiate `GpuTrimBody` with `pos = x_centroid`, `quat = identity`, `inv_mass = 1/mass`,
+   `inertia_inv = I_inv`.
+6. Set `inv_mass = 0` for all cloth particles belonging to the converted panel (removing them
+   from cloth dynamics).
+7. Add the trim body to the trim buffer.
+8. Convert any seam constraints touching the panel into tack constraints: each seam endpoint on
+   the now-rigid side becomes a `GpuTackConstraint` with `r_local` equal to the endpoint's
+   body-frame offset from the centroid.
+9. Emit `TailorPatternToTrimConverted` to the EventLedger, linking `panel_id` to the resulting
+   `trim_id`.
+
+**TR-8.2** Pattern-to-rigid conversion MUST be restricted to the pre-simulation authoring phase.
+It MUST NOT be performed after a simulation run has started (i.e., after `TailorSimRunStarted` has
+been emitted). The pre-simulation validation gate MUST reject a `GarmentSpec` that requests
+conversion on a panel that is already the subject of a completed simulation run.
+
+**TR-8.3** The Solidify property (`solidify_blend ∈ [0, 1]`, keyframeable) MUST be implemented
+as a soft alternative to full conversion. When `solidify_blend > 0`, all constraint compliances
+touching the panel MUST be scaled by `(1.0 - solidify_blend)`. At `solidify_blend = 1.0` the
+panel behaves as kinematic cloth (all compliances zero) but remains in the particle solver, not
+the rigid body solver. Full pattern-to-rigid conversion is required for panels that need rigid
+mesh collision behavior against other cloth panels.
+
+---
+
+### TR-9. GarmentSpec Integration
+
+**TR-9.1** The canonical `GarmentSpec` (T-CONTRACTS §T-CONTRACTS.garment-spec) MUST include
+`trim_placements: Vec<TrimPlacementRef>` as an optional field (empty by default). Schema ID for
+this field follows `hsk.tailor.trim_placement@1` (T-CONTRACTS §T-CONTRACTS.schema-ids).
+
+**TR-9.2** The `TrimPlacementRef` lightweight type in `GarmentSpec` carries only `placement_id`
+and `trim_category`. The full tack definitions, pose, and physics parameters live in
+`tailor_trim_placements.tacks_json`. The solver MUST load the full placement row from Postgres
+when building the `SolverMesh`; `TrimPlacementRef` is a reference only.
+
+**TR-9.3** Model agents authoring a `GarmentSpec` with trims MAY use library trim categories
+without specifying a `trim_id`; the sandbox adapter MUST resolve the default library item for the
+category (`is_library_item = TRUE`) when no explicit trim_id is provided.
+
+---
+
+### TR-10. EventLedger Events
+
+**TR-10.1** The following `KernelEventType` variants MUST be added to `kernel/mod.rs` for the
+trim domain, using canonical wire strings (T-CONTRACTS §T-CONTRACTS.event-types). All MUST be
+registered in `required_first_slice_events()`:
+
+```rust
+// Trim domain — variant => wire string (as_str)
+TailorTrimImported,            // "TAILOR_TRIM_IMPORTED"
+TailorTrimPlaced,              // "TAILOR_TRIM_PLACED"
+TailorTrimTackUpdated,         // "TAILOR_TRIM_TACK_UPDATED"
+TailorZipperDefined,           // "TAILOR_ZIPPER_DEFINED"
+TailorLacingDefined,           // "TAILOR_LACING_DEFINED"
+TailorPatternToTrimConverted,  // "TAILOR_PATTERN_TO_TRIM_CONVERTED"
+TailorTrimContactViolation,    // "TAILOR_TRIM_CONTACT_VIOLATION"
+```
+
+**TR-10.2** `event_family` constants for the trim domain MUST use the canonical dotted namespace
+(T-CONTRACTS §T-CONTRACTS.event-types):
+
+```rust
+pub const TAILOR_TRIM: &str = "tailor.trim";
+```
+
+**TR-10.3** `TailorTrimContactViolation` MUST be emitted (advisory, non-blocking) when the
+`TRIM_NO_PENETRATION` validation check detects deep penetration beyond the selected
+`TailorQualificationProfileV1` contact tolerance in the final simulated frame. It MUST carry
+the profile id/hash, `trim_id`, `placement_id`,
+and the maximum penetration depth in mm.
+
+---
+
+### TR-11. Validation Checks
+
+**TR-11.1** When a `GarmentSpec` includes trim placements, the following checks from the
+canonical `ValidationDescriptor` catalog (T-CONTRACTS §T-CONTRACTS.validation) MUST be applied
+at the post-simulation stage:
+
+| Check code | Severity | Assertion |
+|---|---|---|
+| `TRIM_NO_PENETRATION` | Blocking | No trim mesh triangle interpenetrates a cloth triangle at the final simulated frame. Penetration threshold: 0.0 mm (any contact beyond collision_thickness is a violation). |
+| `TACK_SEAM_CLOSURE` | Blocking | All tack constraint distances ≤ 5 mm at the end of the draping phase. |
+| `ZIPPER_TOOTH_ALIGN` | Blocking | Every tooth-rail tack attachment is within 1 mm of its nominal panel edge position. Applied only when `tailor_zippers` rows exist for the garment. |
+| `LACING_CORD_LENGTH` | Blocking | No cord segment stretched beyond 200% of its `cord_rest_length_mm`. Applied only when `tailor_lacings` rows exist. |
+| `TRIM_GRAVITY_STABLE` | Advisory | No trim body centroid translates more than 50 mm/frame in the final 10 frames of simulation. |
+| `TACK_STRENGTH_NONZERO` | Advisory | Warn if any active tack has `strength_scale < 0.01` (potentially unintentionally detached). |
+
+**TR-11.2** These checks MUST be skipped (not reported as failures) when no trim placements are
+present in the `GarmentSpec`. A garment without trims MUST NOT produce trim-domain validation
+findings.
+
+**TR-11.3** The `ValidationDescriptor` catalog in T-CONTRACTS §T-CONTRACTS.validation is the
+single authority. These checks are normative in this section only insofar as they are already
+listed there; this section does not introduce new check codes. Any future trim-domain check MUST
+be added to T-CONTRACTS first.
+
+---
+
+### TR-12. MCP Tool Surface
+
+**TR-12.1** The `handshake_core::tailor` kernel module MUST expose the following MCP tools for
+the trim domain. Tool parameter and return types MUST be `schemars::JsonSchema`-derivable so
+`inputSchema` is auto-generated:
+
+- `tailor_place_trim`: place a trim on a garment panel with tack attachment points. Accepts
+  `garment_id`, `trim_category`, optional `trim_id`, `position` (panel UV or world-space),
+  optional `tacks` array, optional `stiffness`.
+- `tailor_define_zipper`: define a zipper between two panel edges. Accepts `garment_id`,
+  `panel_edge_a`, `panel_edge_b`, `tooth_interval_mm`, `slider_count`, `slider_a_pos`, optional
+  `slider_b_pos`.
+- `tailor_convert_panel_to_trim`: convert a cloth panel to a rigid trim body. Accepts
+  `garment_id`, `panel_id`, optional `trim_name`, optional `trim_category`
+  (`'armor_plate' | 'accessory'`, default `'armor_plate'`).
+- `tailor_keyframe_tack_strength`: set a keyframe on a tack's strength curve. Accepts
+  `placement_id`, `tack_id`, `frame: u32`, `strength: f32 ∈ [0.0, 1.0]`.
+
+**TR-12.2** All trim-domain tool responses MUST return a `SimulationReceipt`
+(`hsk.tailor.simulation_receipt@1`) as `structuredContent`, carrying any relevant
+`ValidationFinding` entries keyed to the check codes in TR-11.1.
+
+---
+
+### TR-13. CRDT Collaboration
+
+**TR-13.1** Trim placements MUST be stored as entries in the garment's CRDT document tree under
+`handshake_core::tailor`. An operator or model agent may propose a placement move (drag a button
+to a new panel position) as an `AiEditProposalRequestV1` referencing the `placement_id` and the
+new `initial_pose_json`. Tack `r_local` values are body-frame offsets and MUST NOT change when
+the trim body is repositioned; the cloth-side `particle_uv` values MUST be recomputed when the
+trim is moved to a different panel region.
+
+**TR-13.2** Tack moves, strength-curve edits, and placement additions or removals MUST each emit
+`TailorTrimTackUpdated` or `TailorTrimPlaced` as appropriate. The CRDT snapshot mechanism
+(T-CONTRACTS §T-CONTRACTS.event-types: `TailorPanelCrdtSnapshotRecorded`) MUST include trim
+placement state in its snapshot payload.
+
+---
+
+### TR-14. Implementation Constraints and Prohibitions
+
+**TR-14.1** The `tailor-solver` crate MUST NOT take a dependency on `handshake_core`. All types
+shared across the boundary (`GpuTrimBody`, `GpuTackConstraint`, `TackDefinitionV1`, `GarmentSpec`
+with `trim_placements`) MUST be defined in `tailor-solver/src/` and re-exported from the
+`handshake_core::tailor` binding module.
+
+**TR-14.2** SQLite MUST NOT be used for any trim-domain authority write. The `no_sqlite_tripwire`
+guard (`guard_authority_write(AuthorityMode::PostgresPrimary)`) MUST be called before every INSERT into
+`tailor_trims`, `tailor_trim_placements`, `tailor_zippers`, and `tailor_lacings`.
+
+**TR-14.3** The WGSL tack shader MUST NOT use atomic operations to resolve multi-invocation
+writes to `GpuTrimBody`. Race-freedom is guaranteed exclusively by graph coloring (TR-4.4).
+Any future change that would allow two invocations in the same dispatch to write the same
+`body_idx` MUST be blocked by the coloring invariant, not by atomics.
+
+**TR-14.4** `quat_pred` MUST be re-normalized after every angular correction in the tack pass.
+Skipping normalization is a correctness error that accumulates quaternion drift across substeps.
+
+**TR-14.5** Pattern-to-rigid conversion MUST be a non-destructive operation in the CRDT document:
+the source panel geometry MUST be retained as a `superseded_panel` entry. Conversion MAY be
+reversed by an operator edit that re-promotes the superseded panel and removes the trim body.
+
+**TR-14.6** Numbered `0NNN_*` migration filenames are forbidden for all trim-domain tables.
+All migrations MUST use the dated `2026_MM_DD_tailor_<topic>.sql` + `.down.sql` convention.
+
+---
+
+### TR-15. Non-Normative Notes
+
+The mathematical basis for the tack coupling pass is Müller, Macklin, Chentanez, Jeschke, Kim,
+"Detailed Rigid Body Simulation with Extended Position Based Dynamics" (SCA 2020, CGF 39(8)). The
+`InteractiveComputerGraphics/PositionBasedDynamics` C++ library (`RigidBodyClothCouplingDemo.cpp`,
+MIT) provides a concrete CPU-side reference implementation of the ball-joint constraint. WGSL
+implementations of the effective inverse mass formula and quaternion correction are novel work;
+the algorithm is established. Research notes in `13-trim-rigid.md` contain fuller OSS reference
+maps, risk tables, and WGSL shader sketches as non-normative implementation guidance.
+
+## 13.9 UV-from-Pattern & Texturing
+
+> **Sub-section id:** `uvtexture`
+> **Assembly file:** `09-uv-texture.md`
+> **Non-normative provenance:** research topic T-UV-TEXTURE (`14-uv-texture.md`). That document
+> provides algorithm rationale, OSS evidence, and rejected alternatives. This sub-section is
+> product law; where the two conflict, this sub-section wins.
+
+---
+
+### Requirements Overview
+
+This sub-section governs:
+
+1. How UV coordinates are derived from 2D sewing pattern panels (UV-from-Pattern, MOAT-6).
+2. The ARAP flatten algorithm used for post-simulation UV recomputation.
+3. UV island packing into the atlas.
+4. Grain direction as the single authority shared by the physics solver and the texture sampler.
+5. The graphic layer data model.
+6. PBR material definitions and map generation.
+7. The `tailor_*` Postgres authority tables for all UV and texture state.
+8. EventLedger events, schema IDs, CRDT rules, sandbox/promotion scope, and model-lane access.
+
+---
+
+### 1. UV-from-Pattern: Core Contract
+
+#### 1.1 UV Coordinates Are the 2D Pattern
+
+The Tailor engine MUST NOT compute UV coordinates by unwrapping the 3D garment surface. UV
+coordinates MUST be derived directly from the 2D panel-local vertex positions.
+
+During the pattern-to-mesh pipeline (`handshake_core::tailor`, `tailor-solver/src/mesh.rs`),
+each panel vertex's 2D position in panel-local space (cm) MUST be normalized into `[0,1]^2`
+preserving the panel's aspect ratio, using the panel bounding box as the normalization domain,
+and stored as the vertex's UV coordinate. This normalization is lossless — the UV uniquely encodes
+the panel-local position up to scale.
+
+```rust
+// tailor-solver/src/uv/assign.rs
+/// Assign UV coordinates from 2D panel-local vertex positions.
+/// Called once per panel during the pattern-to-mesh pipeline.
+/// `panel_local_vertices_cm`: vertices in panel-local 2D space, centimetres.
+/// Returns per-vertex UV in [0,1]^2 (panel bounding-box normalization, aspect-ratio-preserving).
+pub fn assign_panel_uvs(panel_local_vertices_cm: &[[f32; 2]]) -> Vec<[f32; 2]> {
+    let min_x = panel_local_vertices_cm.iter().map(|v| v[0]).fold(f32::MAX, f32::min);
+    let min_y = panel_local_vertices_cm.iter().map(|v| v[1]).fold(f32::MAX, f32::min);
+    let max_x = panel_local_vertices_cm.iter().map(|v| v[0]).fold(f32::MIN, f32::max);
+    let max_y = panel_local_vertices_cm.iter().map(|v| v[1]).fold(f32::MIN, f32::max);
+    let w = (max_x - min_x).max(1e-6);
+    let h = (max_y - min_y).max(1e-6);
+    panel_local_vertices_cm
+        .iter()
+        .map(|v| [(v[0] - min_x) / w, (v[1] - min_y) / h])
+        .collect()
+}
+```
+
+These per-vertex UVs MUST be stored in `SolverMesh::vertex_uvs` (defined in
+`tailor-solver/src/mesh.rs`). The XPBD solver MUST treat `vertex_uvs` as a read-only
+per-vertex attribute; stretch/bend/collision constraints MUST NOT modify UV coordinates.
+
+**Consequences that MUST hold as invariants:**
+
+- Grain direction accuracy: `PanelSpec::grain_angle_deg` in pattern space equals the grain angle
+  in UV space without re-alignment.
+- Seam-texture alignment: texture seams align with physical seam edges by construction.
+- Graphic layer preservation: a graphic layer placed at 2D pattern coordinates projects
+  correctly onto the 3D draped surface without reprojection.
+
+#### 1.2 Grain Direction Is Shared Authority
+
+`PanelSpec::grain_angle_deg` (defined in `tailor-solver/src/spec.rs`, canonical form in
+T-CONTRACTS) is the single authority for fabric grain direction. It MUST have exactly two
+consumers and no other code path MUST compute grain direction independently:
+
+1. **Physics solver** (`tailor-solver/src/fabric/material.rs`): `FabricMaterial::grain_angle_rad`
+   drives the WGSL anisotropic constraint axis (warp vs weft compliance) as specified in the
+   Fabric Models sub-section.
+
+2. **Texture sampler** (this sub-section): `TailorPbrMaterial::grain_angle_deg` (mirrored from
+   `PanelSpec::grain_angle_deg` at material-assignment time) rotates the UV sampling frame in
+   the wgpu PBR fragment shader.
+
+The UV coordinate frame rotation in the fragment shader MUST be implemented as:
+
+```wgsl
+// tailor-solver/src/shaders/pbr_cloth.wgsl  (fragment shader excerpt)
+struct TailorMaterialUniform {
+    grain_angle: f32,  // radians; converted from PanelSpec::grain_angle_deg at GPU upload
+    // ... other PBR fields
+}
+
+fn rotate_uv(uv: vec2<f32>, angle: f32) -> vec2<f32> {
+    let c = cos(angle);
+    let s = sin(angle);
+    let centered = uv - vec2<f32>(0.5, 0.5);
+    return vec2<f32>(c * centered.x - s * centered.y,
+                     s * centered.x + c * centered.y)
+           + vec2<f32>(0.5, 0.5);
+}
+```
+
+The authority chain MUST be: `PanelSpec::grain_angle_deg` (Postgres JSONB in
+`tailor_garments.spec_json`) → `FabricMaterial::grain_angle_rad` (solver crate) AND
+`TailorPbrMaterial::grain_angle_deg` (Postgres `tailor_pbr_materials`) → GPU uniform at render
+time. Both consumers MUST read from the same authority row; neither MUST compute grain
+direction independently.
+
+---
+
+### 2. Post-Simulation UV Flatten: ARAP
+
+#### 2.1 Algorithm Selection
+
+The Tailor engine MUST use ARAP (As-Rigid-As-Possible) for all post-simulation UV flatten
+passes. LSCM and ABF++ MUST NOT be used for any UV flatten operation in this engine.
+
+**Rationale (non-normative):** LSCM and ABF++ optimize angle distortion over a free boundary.
+When the panel boundary is pinned — which is required here so that seam-edge UVs are stable
+across retargeting — ARAP minimizes distortion under the pinned-boundary constraint more
+efficiently than conformal methods. T-UV-TEXTURE (`14-uv-texture.md`) documents the
+experimental evidence (PartUV arXiv 2511.16659) and the contradiction in earlier research
+drafts that this decision resolves.
+
+#### 2.2 Canonical Implementation
+
+The flatten pass MUST be implemented as a single function `arap_unfurl_panel()` in
+`tailor-solver/src/uv/unfurl.rs`. This function is the canonical flatten pass for both call
+sites:
+
+- **Bidirectional loop feedback** (T-GARMENT-AUTHORING): after a drape, the pass recomputes
+  panel vertex positions in 2D for CRDT delta proposal back to the 2D pattern editor.
+- **UV recompute after refit** (T-AUTOFIT): after retargeting to a new body, the pass
+  recomputes UV island vertex positions to reflect the post-drape surface.
+
+No second flatten implementation MUST exist. The function signature MUST be:
+
+```rust
+// tailor-solver/src/uv/unfurl.rs
+/// ARAP flatten: project a simulated 3D panel mesh back to 2D UV space.
+///
+/// `mesh_3d_positions`: 3D vertex positions of one panel after simulation (metres or cm;
+///     caller uses consistent units, result is in the same unit space as `boundary_uv_pins`).
+/// `triangles`: triangle index list for this panel.
+/// `boundary_vertex_indices`: indices of panel boundary vertices (seam edges + outline).
+/// `boundary_uv_pins`: panel-local 2D UV coordinates for each boundary vertex (pinned; cm).
+/// `max_iterations`: alternating local/global iterations (default 10, max 50).
+/// `flatten_tolerance_cm`: convergence threshold — max interior vertex displacement between
+///     iterations (cm). Default 0.001 (0.01 mm).
+///
+/// Returns updated UV coordinates for ALL vertices (boundary pins unchanged).
+/// Emits `TailorUvFlattenCompleted` or `TailorUvFlattenProposed` via the caller's event sink.
+pub fn arap_unfurl_panel(
+    mesh_3d_positions: &[[f32; 3]],
+    triangles: &[[u32; 3]],
+    boundary_vertex_indices: &[u32],
+    boundary_uv_pins: &[[f32; 2]],
+    max_iterations: u32,
+    flatten_tolerance_cm: f32,
+) -> ArapUnfurlResult { todo!() }
+
+pub struct ArapUnfurlResult {
+    pub vertex_uvs: Vec<[f32; 2]>,
+    pub iterations_taken: u32,
+    pub max_displacement_cm: f32,
+    pub converged: bool,
+}
+```
+
+**Algorithm contract:**
+
+```text
+Input: 3D triangle mesh of ONE panel after simulation equilibrium.
+       Boundary vertex indices + their original 2D panel positions (from PanelSpec).
+Output: updated 2D UV coordinates for all vertices.
+
+1. Initialize interior UV positions from the panel-local 2D coords (pre-drape).
+2. Alternating local-global ARAP iteration (up to max_iterations):
+   Local:  for each triangle, compute nearest rotation R_k via SVD of the deformation
+           Jacobian between current 2D positions and the 3D triangle shape.
+   Global: solve the sparse linear system
+           sum_k(w_k * L_k^T * L_k) * u = sum_k(w_k * L_k^T * R_k * r_k)
+           for interior UV positions u, with boundary rows fixed at boundary_uv_pins.
+3. Stop when max interior vertex displacement < flatten_tolerance_cm OR iterations = max.
+4. Return ArapUnfurlResult.
+```
+
+The sparse linear system MUST be solved with a direct Cholesky factorization. For panels
+up to 5,000 triangles (typical garment authoring), this MUST converge in under 10 ms on CPU.
+GPU ARAP is NOT required for v1.
+
+---
+
+### 3. UV Island Packing
+
+#### 3.1 Requirements
+
+The packing step MUST be run whenever any panel is added, removed, or resized in a garment.
+The packing result for a given garment and simulation-run pair is immutable and MUST be
+stored in `tailor_uv_islands` (see §7) as the authority atlas layout.
+
+The packing MUST be:
+
+- Deterministic: same `GarmentSpec` → same atlas layout across sessions and platforms.
+- Overlap-free: no two UV islands MUST overlap in the packed atlas.
+- No image dependency: the packing algorithm MUST operate on abstract rectangle sizes, not pixel
+  buffers.
+
+#### 3.2 Implementation: `rectangle-pack` Crate
+
+UV island packing MUST use the `rectangle-pack` Rust crate
+(`https://crates.io/crates/rectangle-pack`, MIT/Apache-2.0). This crate provides deterministic
+MaxRects-style packing with no image dependency.
+
+```rust
+// tailor-solver/src/uv/packing.rs
+
+/// Per-panel UV island placement in the packed atlas.
+/// Stored as authority data in tailor_uv_islands.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct UvIslandPlacement {
+    /// Matches PanelSpec::panel_id.
+    pub panel_id: String,
+    /// Top-left UV coordinate of the island bounding box in the atlas [0,1]^2.
+    pub atlas_uv_min: [f32; 2],
+    /// Bottom-right UV coordinate of the island bounding box in the atlas [0,1]^2.
+    pub atlas_uv_max: [f32; 2],
+    /// 90°-increment rotation applied (0, 90, 180, 270 deg). V1: always 0.
+    pub rotation_deg: u32,
+    /// Island width and height in normalized UV units before packing.
+    pub island_size_uv: [f32; 2],
+}
+
+/// Pack all panel UV islands for a garment into a square [0,1]^2 atlas.
+/// Returns placements in the same order as `panels`.
+/// `panels`: (panel_id, panel_bounding_box_size_cm).
+/// `panel_cm_to_atlas`: scale — cm per 1.0 atlas unit.
+/// `padding`: gap between islands in atlas units.
+pub fn pack_uv_islands(
+    panels: &[(String, [f32; 2])],
+    panel_cm_to_atlas: f32,
+    padding: f32,
+) -> Result<Vec<UvIslandPlacement>, rectangle_pack::RectanglePackError> {
+    todo!()
+}
+```
+
+The atlas coordinates stored in `tailor_uv_islands` are the authority. Vertex UVs in
+`SolverMesh::vertex_uvs` remain panel-local (pre-packing). The vertex shader MUST apply the
+atlas transform as an affine remap at render time:
+
+```wgsl
+// tailor-solver/src/shaders/pbr_cloth.wgsl  (vertex shader excerpt)
+struct UvIslandTransform {
+    uv_min: vec2<f32>,
+    uv_max: vec2<f32>,
+}
+// island_transforms: storage buffer indexed by per-vertex panel_index
+let island = island_transforms[vertex_panel_index];
+let atlas_uv = island.uv_min + vertex_uv * (island.uv_max - island.uv_min);
+```
+
+#### 3.3 Atlas Fill Ratio
+
+After every packing run, the implementation MUST compute and record `atlas_fill_ratio`
+(sum of island areas / atlas area) in the `TailorUvIslandsPacked` event payload. If
+`atlas_fill_ratio < 0.4`, the implementation MUST emit the ratio in the event and surface
+a warning in the operator control room. Low fill ratios are advisory and MUST NOT block
+simulation or promotion.
+
+---
+
+### 4. Graphic Layer Data Model
+
+#### 4.1 Data Type
+
+Graphic layers (prints, logos, embroidery, topstitching artwork) MUST be stored as positioned
+rectangles in panel-local 2D space (cm). The canonical type is:
+
+```rust
+// tailor-solver/src/texture.rs
+
+/// A graphic overlay placed on a panel in 2D pattern space.
+/// schema_id: "hsk.tailor.graphic_layer@1"
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct TailorGraphicLayer {
+    /// Authority id: "GLYR-{uuid_v7}". Matches tailor_graphic_layers.layer_id.
+    pub layer_id: String,
+    pub garment_id: String,
+    pub panel_id: String,
+    /// Composite order; higher = rendered on top within the panel.
+    pub z_order: i32,
+    /// SHA-256 content-addressed artifact ref. Image MUST be PNG, JPEG, or WebP.
+    pub image_artifact_ref: String,
+    /// Bounding box in panel-local 2D space (cm): [x_min, y_min, x_max, y_max].
+    pub panel_bbox_cm: [f32; 4],
+    /// Rotation of the graphic relative to panel horizontal (degrees).
+    pub rotation_deg: f32,
+    pub blend_mode: GraphicBlendMode,
+    /// Opacity scalar [0.0, 1.0].
+    pub opacity: f32,
+    /// When true, the graphic corner vertices are added to the ARAP pinned-boundary set,
+    /// preventing refit UV displacement from moving the graphic. MUST default to true for
+    /// design elements (logos, prints, embroidery). MUST be false only for seamless
+    /// full-panel background textures.
+    pub boundary_pinned: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GraphicBlendMode {
+    Normal,    // standard alpha compositing over fabric
+    Multiply,  // darker overlay (screen-print look)
+    Screen,    // lighter overlay (foil/metallic look)
+    Overlay,   // high-contrast texture detail
+    Emboss,    // additive normal-map contribution (embroidery relief)
+}
+```
+
+#### 4.2 Compositing Order
+
+The wgpu fragment shader MUST apply layers in this bottom-to-top order:
+
+```text
+1. Base fabric texture (tileable, grain-rotated) from TailorPbrMaterial::base_color_texture_ref
+2. Graphic layer stack (ascending z_order within the panel)
+3. Normal map (contributes to PBR lighting calculation, not final color directly)
+4. PBR channel maps: roughness, metalness, ambient-occlusion, displacement
+```
+
+#### 4.3 Boundary Pinning in ARAP
+
+When an `arap_unfurl_panel()` call is triggered, the implementation MUST add the four corner
+vertices of every `boundary_pinned = true` graphic layer on that panel to the set of pinned
+boundary vertices, alongside the panel seam-edge vertices. The ARAP global step MUST treat
+these as fixed pins so the graphic does not translate or distort relative to the panel shape.
+
+#### 4.4 Coordinate Pipeline
+
+The graphic layer coordinate pipeline MUST be:
+
+```text
+panel_bbox_cm  →  normalized panel UV coords  →  atlas UV coords (via UvIslandTransform)
+```
+
+A graphic layer specified in panel-local 2D space MUST project correctly onto the 3D draped
+surface without 3D reprojection at any stage.
+
+---
+
+### 5. PBR Material System
+
+#### 5.1 TailorPbrMaterial Type
+
+The canonical PBR material type is:
+
+```rust
+// tailor-solver/src/texture.rs  (continued)
+
+/// PBR render-side material for a garment panel.
+/// schema_id: "hsk.tailor.pbr_material@1"
+/// Physics-side complement is FabricMaterial (T-FABRIC-MODELS).
+/// Both share grain_angle_deg from PanelSpec as authority.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct TailorPbrMaterial {
+    /// Authority id: "PBR-{uuid_v7}". Matches tailor_pbr_materials.material_id.
+    pub material_id: String,
+    pub workspace_id: String,
+    pub name: String,
+    /// Tileable base color / albedo texture. None = use base_color_srgb solid.
+    pub base_color_texture_ref: Option<String>,
+    /// Solid base color [r, g, b, a] in sRGB [0,1]. Used when no texture ref.
+    pub base_color_srgb: [f32; 4],
+    /// Tangent-space normal map (OpenGL Y-up convention). R/G/B channels.
+    pub normal_map_ref: Option<String>,
+    /// Roughness map (R channel). None = use roughness_scalar.
+    pub roughness_map_ref: Option<String>,
+    /// Roughness scalar [0,1] used when roughness_map_ref is None.
+    pub roughness_scalar: f32,
+    /// Metalness map (R channel). None = use metalness_scalar.
+    pub metalness_map_ref: Option<String>,
+    /// Metalness scalar [0,1]. MUST default to 0.0 for non-metallic fabrics.
+    pub metalness_scalar: f32,
+    /// Height/displacement map (R channel). None = no displacement.
+    pub displacement_map_ref: Option<String>,
+    /// Surface relief in cm. 0.0 = flat (no displacement).
+    pub displacement_scale_cm: f32,
+    /// Opacity map (R channel). None = fully opaque.
+    pub opacity_map_ref: Option<String>,
+    /// Opacity scalar [0,1]. Multiplied with opacity map if present.
+    pub opacity_scalar: f32,
+    /// Additive emissive glow [r, g, b, a] sRGB. MUST default to [0,0,0,0].
+    pub emissive_color_srgb: [f32; 4],
+    /// Grain direction in degrees from panel horizontal.
+    /// Mirrored from PanelSpec::grain_angle_deg at material-assignment time.
+    /// Applied as UV frame rotation in the PBR fragment shader (see §1.2).
+    pub grain_angle_deg: f32,
+    /// How many cm of garment surface maps to one tile of the base texture.
+    /// Example: 10.0 → texture tiles every 10 cm.
+    pub texture_tile_size_cm: f32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+```
+
+#### 5.2 Material Assignment per Panel
+
+The complete render material for a panel is the combination of a physics preset
+(`tailor_material_presets`, T-FABRIC-MODELS) and a PBR material (`tailor_pbr_materials`),
+linked via `tailor_material_assignments`:
+
+```rust
+// tailor-solver/src/texture.rs  (continued)
+
+/// Links physics preset + PBR material + graphic layers per panel.
+/// schema_id: "hsk.tailor.material_assignment@1"
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct TailorMaterialAssignment {
+    /// Authority id: "ASGN-{uuid_v7}".
+    pub assignment_id: String,
+    pub garment_id: String,
+    /// Matches PanelSpec::panel_id.
+    pub panel_id: String,
+    /// FK into tailor_material_presets. None = inherit garment-level default.
+    pub physics_preset_id: Option<String>,
+    /// FK into tailor_pbr_materials. None = system default (white-cotton appearance).
+    pub pbr_material_id: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+```
+
+A `None` physics preset MUST cause the garment-level default preset to be used. A `None` PBR
+material MUST cause the system-default material (white cotton appearance) to be used. This
+allows simulation to begin before texturing is complete.
+
+#### 5.3 PBR Map Generator
+
+The PBR map generator — equivalent to MD's PBR Map Generator — MUST run as a cancellable
+canonical Tailor job on the operator workstation. The `tailor-solver` crate MUST NOT produce PBR
+maps; native GUI and backend/model paths invoke the same registered action.
+
+```rust
+// src/backend/handshake_core/src/tailor/actions/texture.rs
+
+pub async fn tailor_generate_pbr_maps_action(
+    base_color_artifact_ref: String,
+    fabric_archetype: String,   // "cotton" | "silk" | "denim" | "leather" | ...
+    options: PbrMapGenOptions,
+    app: &AppState,
+) -> Result<TailorActionReceiptV1, TailorActionError> { todo!() }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct PbrMapGenOptions {
+    pub gen_normal: bool,
+    /// Normal map strength multiplier (1.0 = standard).
+    pub normal_strength: f32,
+    pub gen_roughness: bool,
+    /// Base roughness blended with texture-derived roughness.
+    pub roughness_base: f32,
+    pub gen_metalness: bool,
+    pub metalness_base: f32,
+    pub gen_displacement: bool,
+    pub displacement_scale_cm: f32,
+    /// Generation algorithm: "sobel" (default) or "weave_matrix" (structured weave fabrics).
+    pub gen_mode: PbrGenMode,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PbrGenMode {
+    /// Sobel-gradient luminance → normal/roughness/metalness/displacement maps.
+    Sobel,
+    /// Binary weave-pattern matrix + 1D yarn cross-section profiles (Khattar et al., CGF 2025).
+    /// Produces analytical normals; eliminates normal-map artifacts for structured weave fabrics.
+    WeaveMatrix,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PbrMapGenResult {
+    pub normal_map_ref: Option<String>,
+    pub roughness_map_ref: Option<String>,
+    pub metalness_map_ref: Option<String>,
+    pub displacement_map_ref: Option<String>,
+    /// EventLedger receipt for the generation run.
+    pub event_ledger_event_id: String,
+}
+```
+
+The `Sobel` mode MUST implement per-channel map generation using the `image` Rust crate:
+
+| Map | Algorithm |
+|-----|-----------|
+| Normal | Sobel gradient on luminance → `(dx, dy, 1.0)` normalized → RGB normal (OpenGL Y-up) |
+| Roughness | Invert luminance; clamp to `[roughness_base, 1.0]` |
+| Metalness | Constant `metalness_base` (0.0 for standard fabrics); luminance-threshold mask for metallic-thread patterns |
+| Displacement | Luminance scaled to `displacement_scale_cm` range |
+| Opacity | Derived from base-color alpha channel only; omitted if alpha is fully opaque |
+
+The `tailor_generate_pbr_maps` action MUST return a run/receipt immediately, publish progress
+through shared job/event projections, and materialize `PbrMapGenResult` through ArtifactStore.
+It MUST be cancellable and MUST NOT block the native shell or backend-agent route.
+
+---
+
+### 6. Postgres Authority Tables
+
+All UV and texture authority MUST reside in PostgreSQL. SQLite MUST NOT be used for any
+table defined in this sub-section. Every INSERT into these tables MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` before the `sqlx::query!()` macro
+(mirroring the `kb003_storage.rs` no-SQLite tripwire pattern).
+
+Migration files MUST follow the dated convention from T-CONTRACTS
+(`2026_MM_DD_tailor_texture_tables.sql` + `.down.sql` reverse pair). Numbered `0NNN_*`
+migration names MUST NOT be used.
+
+All primary keys MUST use `TEXT PRIMARY KEY` with prefixed string IDs (T-CONTRACTS FACT-4):
+
+```sql
+-- Migration: 2026_MM_DD_tailor_texture_tables.sql
+-- (Date assigned at implementation WP authoring time; not hardcoded here.)
+-- Required reverse pair: 2026_MM_DD_tailor_texture_tables.down.sql
+
+-- tailor_uv_islands: authority UV island placement for a garment + simulation run pair.
+-- Repacked whenever panels change; immutable for a given (garment_id, simulation_run_id) pair.
+CREATE TABLE IF NOT EXISTS tailor_uv_islands (
+    island_id               TEXT PRIMARY KEY,          -- "UVI-{uuid_v7}"
+    garment_id              TEXT NOT NULL
+        REFERENCES tailor_garments (garment_id),
+    simulation_run_id       TEXT,                      -- NULL = authoring-time packing (pre-sim)
+    panel_id                TEXT NOT NULL,             -- matches PanelSpec::panel_id
+    atlas_uv_min_x          FLOAT4 NOT NULL,
+    atlas_uv_min_y          FLOAT4 NOT NULL,
+    atlas_uv_max_x          FLOAT4 NOT NULL,
+    atlas_uv_max_y          FLOAT4 NOT NULL,
+    rotation_deg            INT NOT NULL DEFAULT 0
+        CHECK (rotation_deg IN (0, 90, 180, 270)),
+    island_width_uv         FLOAT4 NOT NULL,
+    island_height_uv        FLOAT4 NOT NULL,
+    flatten_method          TEXT NOT NULL DEFAULT 'arap'
+        CHECK (flatten_method = 'arap'),               -- 'arap' is the only valid value
+    atlas_fill_ratio        FLOAT4,                    -- recorded at pack time; advisory
+    event_ledger_event_id   TEXT REFERENCES kernel_event_ledger (event_id),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_tailor_uv_islands_panel_run
+    ON tailor_uv_islands (garment_id, simulation_run_id, panel_id);
+CREATE INDEX IF NOT EXISTS ix_tailor_uv_islands_garment
+    ON tailor_uv_islands (garment_id, simulation_run_id);
+
+-- tailor_pbr_materials: render-side PBR material definitions.
+CREATE TABLE IF NOT EXISTS tailor_pbr_materials (
+    material_id             TEXT PRIMARY KEY,          -- "PBR-{uuid_v7}"
+    workspace_id            TEXT NOT NULL,
+    name                    TEXT NOT NULL,
+    base_color_texture_ref  TEXT,                      -- artifact content hash or NULL
+    base_color_srgb         FLOAT4[4] NOT NULL DEFAULT '{1,1,1,1}',
+    normal_map_ref          TEXT,
+    roughness_map_ref       TEXT,
+    roughness_scalar        FLOAT4 NOT NULL DEFAULT 0.8
+        CHECK (roughness_scalar BETWEEN 0.0 AND 1.0),
+    metalness_map_ref       TEXT,
+    metalness_scalar        FLOAT4 NOT NULL DEFAULT 0.0
+        CHECK (metalness_scalar BETWEEN 0.0 AND 1.0),
+    displacement_map_ref    TEXT,
+    displacement_scale_cm   FLOAT4 NOT NULL DEFAULT 0.0,
+    opacity_map_ref         TEXT,
+    opacity_scalar          FLOAT4 NOT NULL DEFAULT 1.0
+        CHECK (opacity_scalar BETWEEN 0.0 AND 1.0),
+    emissive_color_srgb     FLOAT4[4] NOT NULL DEFAULT '{0,0,0,0}',
+    grain_angle_deg         FLOAT4 NOT NULL DEFAULT 0.0,
+    texture_tile_size_cm    FLOAT4 NOT NULL DEFAULT 10.0
+        CHECK (texture_tile_size_cm > 0.0),
+    is_system_preset        BOOLEAN NOT NULL DEFAULT false,
+    event_ledger_event_id   TEXT REFERENCES kernel_event_ledger (event_id),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_pbr_materials_workspace
+    ON tailor_pbr_materials (workspace_id);
+
+-- tailor_graphic_layers: graphic overlays positioned in panel-local 2D space (cm).
+CREATE TABLE IF NOT EXISTS tailor_graphic_layers (
+    layer_id                TEXT PRIMARY KEY,          -- "GLYR-{uuid_v7}"
+    garment_id              TEXT NOT NULL
+        REFERENCES tailor_garments (garment_id),
+    panel_id                TEXT NOT NULL,             -- matches PanelSpec::panel_id
+    z_order                 INT NOT NULL DEFAULT 0,
+    image_artifact_ref      TEXT NOT NULL,
+    panel_bbox_cm           FLOAT4[4] NOT NULL,        -- [x_min, y_min, x_max, y_max] in cm
+    rotation_deg            FLOAT4 NOT NULL DEFAULT 0.0,
+    blend_mode              TEXT NOT NULL DEFAULT 'normal'
+        CHECK (blend_mode IN ('normal','multiply','screen','overlay','emboss')),
+    opacity                 FLOAT4 NOT NULL DEFAULT 1.0
+        CHECK (opacity BETWEEN 0.0 AND 1.0),
+    boundary_pinned         BOOLEAN NOT NULL DEFAULT true,
+    deleted_at              TIMESTAMPTZ,               -- NULL = active; non-NULL = tombstoned
+    event_ledger_event_id   TEXT REFERENCES kernel_event_ledger (event_id),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_graphic_layers_garment_panel
+    ON tailor_graphic_layers (garment_id, panel_id, z_order)
+    WHERE deleted_at IS NULL;
+
+-- tailor_material_assignments: links physics preset + PBR material per panel.
+-- Graphic layers are queried separately via tailor_graphic_layers.
+CREATE TABLE IF NOT EXISTS tailor_material_assignments (
+    assignment_id           TEXT PRIMARY KEY,          -- "ASGN-{uuid_v7}"
+    garment_id              TEXT NOT NULL
+        REFERENCES tailor_garments (garment_id),
+    panel_id                TEXT NOT NULL,
+    physics_preset_id       TEXT
+        REFERENCES tailor_material_presets (preset_id),
+    pbr_material_id         TEXT
+        REFERENCES tailor_pbr_materials (material_id),
+    event_ledger_event_id   TEXT REFERENCES kernel_event_ledger (event_id),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (garment_id, panel_id)
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_material_assignments_garment
+    ON tailor_material_assignments (garment_id);
+```
+
+---
+
+### 7. Schema IDs
+
+The canonical schema-ID constants for this sub-section (from T-CONTRACTS `hsk.tailor.*`
+namespace, in `src/tailor/schemas.rs`) are:
+
+```rust
+pub const SCHEMA_TAILOR_PBR_MATERIAL_V1:   &str = "hsk.tailor.pbr_material@1";
+pub const SCHEMA_TAILOR_GRAPHIC_LAYER_V1:  &str = "hsk.tailor.graphic_layer@1";
+pub const SCHEMA_TAILOR_UV_ISLAND_V1:      &str = "hsk.tailor.uv_island@1";
+```
+
+`hsk.cloth.*` schema IDs MUST NOT be used for any type defined in this sub-section.
+
+---
+
+### 8. EventLedger Events
+
+The following variants MUST be added to `KernelEventType` in `kernel/mod.rs` and MUST be
+registered in `required_first_slice_events()`. Variant names are `Tailor*` PascalCase; wire
+strings are `TAILOR_*` SCREAMING_SNAKE_CASE via `as_str()` (T-CONTRACTS FACT-1):
+
+```rust
+// UV domain
+TailorUvIslandsPacked,           // "TAILOR_UV_ISLANDS_PACKED"
+TailorUvFlattenCompleted,        // "TAILOR_UV_FLATTEN_COMPLETED"
+TailorUvFlattenProposed,         // "TAILOR_UV_FLATTEN_PROPOSED"
+
+// Texture / material domain
+TailorPbrMaterialCreated,        // "TAILOR_PBR_MATERIAL_CREATED"
+TailorPbrMaterialUpdated,        // "TAILOR_PBR_MATERIAL_UPDATED"
+TailorPbrMapsGenerated,          // "TAILOR_PBR_MAPS_GENERATED"
+TailorGraphicLayerAdded,         // "TAILOR_GRAPHIC_LAYER_ADDED"
+TailorGraphicLayerUpdated,       // "TAILOR_GRAPHIC_LAYER_UPDATED"
+TailorGraphicLayerRemoved,       // "TAILOR_GRAPHIC_LAYER_REMOVED"
+TailorMaterialAssignmentUpdated, // "TAILOR_MATERIAL_ASSIGNMENT_UPDATED"
+```
+
+The `event_family` constants for these events (in `src/tailor/event_family.rs`) are:
+
+```rust
+pub const TAILOR_UV:      &str = "tailor.uv";
+pub const TAILOR_TEXTURE: &str = "tailor.texture";
+```
+
+**Required payload fields per event type:**
+
+- `TailorUvIslandsPacked`: `garment_id`, `simulation_run_id` (nullable), `island_count`,
+  `atlas_fill_ratio`, `packing_algorithm: "rectangle_pack_maxrects"`.
+- `TailorUvFlattenCompleted`: `garment_id`, `panel_id`, `max_displacement_cm`,
+  `iterations_taken`, `converged: bool`.
+- `TailorUvFlattenProposed`: same as `TailorUvFlattenCompleted` plus `crdt_proposal_id`
+  (the CRDT delta proposal ref in the bidirectional loop context).
+- `TailorPbrMapsGenerated`: `base_color_artifact_ref`, `generated_map_refs` (JSON object
+  keyed by map type), `fabric_archetype`, `gen_mode`.
+
+---
+
+### 9. CRDT Collaboration
+
+Graphic layer positions and PBR material property edits MUST use the existing
+`CrdtUpdateRecordV1` table and `yjs_bridge` serialization. Within a garment's CRDT document,
+the material assignment and graphic layer subtree MUST be CRDT maps keyed by `panel_id`.
+
+Conflict resolution rules:
+
+- PBR material field edits: last-write-wins per field (each property is an independent CRDT
+  map entry).
+- Graphic layer `z_order`: concurrent reordering MUST merge as a CRDT sequence. The merged
+  order SHOULD be surfaced to the operator for confirmation if it differs from both
+  participants' intent; the implementation MUST emit `TailorUvFlattenProposed` for operator
+  review in this case.
+- Graphic layer deletions: MUST use tombstone-based soft delete (`deleted_at TIMESTAMPTZ`);
+  hard deletes from `tailor_graphic_layers` are PROHIBITED.
+
+---
+
+### 10. Sandbox and Promotion Scope
+
+UV packing (`pack_uv_islands`) and PBR map generation (`tailor_generate_pbr_maps`) are
+deterministic CPU transforms. They MUST NOT go through the `SandboxAdapter` / `PromotionGate`
+pipeline. They write to authority immediately on completion.
+
+The `SandboxAdapter` / `PromotionGate` pipeline MUST be applied to:
+
+- Model-authored PBR material presets (via the `tailor_pbr_material_create` MCP tool call):
+  enters the sandbox as a `TailorMaterialPresetRecorded` event; promotion gated by the
+  `TailorValidationDescriptor`.
+- Model-placed graphic layers (via the `tailor_graphic_layer_add` MCP tool call): enters the
+  sandbox as a CRDT `ai_edit_proposal` in `kernel/crdt/ai_edit_proposal.rs`; requires operator
+  acceptance before the `tailor_graphic_layers` row is written.
+
+Direct operator actions — texture upload, PBR parameter editing, graphic layer placement via
+the UI — MUST write to authority immediately without a sandbox pass.
+
+---
+
+### 11. Validation Checks
+
+The UV and texture validation checks from the canonical `TailorValidationDescriptor` catalog
+(T-CONTRACTS) that apply to this sub-section are:
+
+| Check code | Severity | Stage | Assertion |
+|------------|----------|-------|-----------|
+| `UV_COVERAGE` | Blocking | post | UV islands cover >= 95% of mesh surface (pattern accuracy) |
+| `UV_VALIDITY` | Blocking | post | All UVs in `[0,1]^2`; no degenerate UV triangles (area > 1e-6) |
+
+These checks MUST run as part of the post-simulation validation gate. Any `Blocking` failure
+MUST prevent promotion. `ValidationReport::aggregate_blocks_promotion()` is the canonical
+decision method.
+
+The ARAP flatten convergence warning (`converged: false` in `ArapUnfurlResult`) MUST be
+emitted in the `TailorUvFlattenCompleted` event payload but MUST NOT be a blocking validation
+check. It is advisory.
+
+---
+
+### 12. Model-Lane (MCP Tool) Access
+
+The following MCP tools MUST be exposed for model-lane UV and texture access. All are in
+`src/tailor/mcp_tools.rs` or equivalent. Tool names use the `tailor_` prefix.
+
+```rust
+// Tool: tailor_uv_inspect
+// Input:  { garment_id: String, simulation_run_id: Option<String> }
+// Output: { islands: Vec<UvIslandPlacement>, atlas_fill_ratio: f32, panel_count: u32 }
+// Access: read-only; no sandbox.
+
+// Tool: tailor_pbr_material_create
+// Input:  TailorPbrMaterial fields (minus id/timestamps; caller sets workspace_id and name)
+// Output: { material_id: String, event_ledger_event_id: String }
+// Access: write; enters sandbox for model-authored presets.
+// Constraint: base_color_texture_ref MUST reference an already-uploaded artifact.
+
+// Tool: tailor_material_assign
+// Input:  { garment_id: String, panel_id: String, pbr_material_id: Option<String>,
+//           physics_preset_id: Option<String> }
+// Output: { assignment_id: String, event_ledger_event_id: String }
+// Access: write; direct authority write (not sandboxed — assignment, not garment geometry).
+
+// Tool: tailor_graphic_layer_add
+// Input:  { garment_id: String, panel_id: String, image_artifact_ref: String,
+//           panel_bbox_cm: [f32;4], rotation_deg: f32, blend_mode: String, opacity: f32,
+//           boundary_pinned: bool }
+// Output: { proposal_id: String, layer_id: String }
+// Access: write; enters CRDT ai_edit_proposal sandbox; requires operator acceptance.
+
+// Tool: tailor_generate_pbr_maps
+// Input:  { base_color_artifact_ref: String, fabric_archetype: String,
+//           options: PbrMapGenOptions }
+// Output: PbrMapGenResult (artifact refs + event_ledger_event_id)
+// Access: canonical bounded job (operator workstation CPU); native/backend parity; cancellable.
+```
+
+A model completing a texturing pass after simulation SHOULD follow this sequence:
+
+1. Call `tailor_uv_inspect` to read island placements and verify `atlas_fill_ratio >= 0.4`.
+2. If a reference texture artifact is available, call `tailor_generate_pbr_maps` to obtain
+   PBR map artifact refs.
+3. Call `tailor_pbr_material_create` with the generated map refs and `grain_angle_deg` from
+   the relevant `PanelSpec`.
+4. Call `tailor_material_assign` for each panel.
+5. Call `tailor_capture_frame` (T-RENDER-VIEWPORT) to obtain a visual snapshot.
+6. Inspect the snapshot via a vision call to verify grain direction, texture alignment, and
+   seam continuity before promoting.
+
+---
+
+### 13. Required and Optional Texture Extensions
+
+The professional baseline includes the following texture and topology extensions. Capability
+registry rows record whether each item is required by the pinned vendor baseline, a deliberate
+Tailor exceedance, or optional; this section MUST NOT silently defer a required row:
+
+Required/feature-gated:
+
+- **UV-space texture bake** (MT-380): baking the rendered 3D garment surface (including
+  wrinkle-baked AO) back to UV texture space via a UV-space wgpu render pass. Feature-gated;
+  albedo/normal/AO bakes are the v1 target set.
+- **All-quad mesh conversion** (MT-385): post-sim quad re-topology preserving UV islands and
+  grain. Feature-gated.
+- **Toon shader** (MT-390): wgpu toon pass (bands/outline/rim/MatCap) behind a render feature
+  gate; owned by the viewport pipeline (13.12), referenced here for texture interplay only.
+
+Required by professional workflows unless the capability registry proves an explicit non-core
+accepted exclusion:
+
+- **UDIM tile support:** Each panel can occupy an explicit UDIM tile through a versioned
+  `udim_tile_index` field, with assignment, packing, validation and export proof shared with the
+  PBR/SBSAR workflow.
+- **Island rotation in packing:** `rotation_deg` supports constrained rotations with grain,
+  print-direction, seam and distortion validation; it MUST NOT be silently forced to zero.
+- **FabricDiffusion integration:** An optional path routing `tailor_generate_pbr_maps` through
+  a local FabricDiffusion inference server (arXiv 2410.01801, SIGGRAPH Asia 2024) for
+  distortion-free texture extraction from reference photographs is a post-MVP upgrade path.
+- **Fur strand material:** Uses the required shared Tailor groom core in 13.31-13.32.
+
+---
+
+### 14. Risks and Mitigations
+
+**R1 — ARAP convergence for heavily gathered panels.**
+Panels with `gather_ratio > 3.0` (heavily gathered skirt panels) may not converge within the
+default 10 iterations. Mitigation: the `max_iterations` parameter on `arap_unfurl_panel()`
+MUST default to 10 and MUST accept up to 50. If the result exceeds `flatten_tolerance_cm`
+after `max_iterations`, the implementation MUST emit a `TailorUvFlattenCompleted` event with
+`converged: false` and the residual `max_displacement_cm`. This MUST NOT block export or
+promotion. The UV produced is the best achievable for this drape state.
+
+**R2 — UV packing fill ratio for irregular panel silhouettes.**
+Axis-aligned bounding-box packing wastes atlas space for angled or L-shaped panel outlines.
+Mitigation: professional and final profiles MUST implement polygon-outline packing, record
+`atlas_fill_ratio` in `TailorUvIslandsPacked`, and surface a warning below the profile threshold.
+A reduced interactive profile MAY expose AABB packing only when capability discovery labels the
+accepted exclusion; that output cannot qualify `TCAP-MD26-UV-TEXTURE-PBR` or final publication.
+
+**R3 — Grain direction drift across ARAP refit.**
+The ARAP result may introduce a mean rotation to UV island interiors that causes effective
+grain direction to drift from `PanelSpec::grain_angle_deg`. Mitigation: after the ARAP unfurl
+pass, the implementation MUST compute the mean rotation of the updated UV island relative to
+the initial UV orientation. If `|mean_rotation_deg| > 2.0°`, it MUST record
+`grain_correction_deg` in the `TailorUvIslandsPacked` event payload. The texture sampler
+MUST apply `grain_angle_deg + grain_correction_deg` as the total UV rotation uniform. If
+`|grain_correction_deg| > 2.0°`, the implementation MUST surface a visible indicator in the
+operator control room.
+
+**R4 — Graphic layer position invalidated by ARAP refit.**
+If `boundary_pinned = false` and ARAP refit significantly shifts interior UV positions, the
+graphic may appear in the wrong location on the 3D garment. Mitigation: `boundary_pinned`
+MUST default to `true` in `TailorGraphicLayer`. The `tailor_graphic_layers` schema enforces
+this default. Operators MUST be warned via the control room UI if they set
+`boundary_pinned = false` on a design-element layer.
+
+**R5 — PBR normal map artifacts for structured weave textures.**
+Sobel-gradient normal map generation produces poor results for repeating geometric weave
+patterns (twill, herringbone). Mitigation: the `WeaveMatrix` `gen_mode` in `PbrMapGenOptions`
+generates normals analytically from a binary weave matrix and 1D yarn cross-section profiles
+(Khattar et al., CGF 2025), eliminating normal artifacts for procedural weave fabrics.
+Operators working with structured weave fabrics SHOULD use `gen_mode = WeaveMatrix`.
+
+## 13.10 Animation & Keyframe Timeline
+
+---
+
+##### Scope
+
+This sub-section specifies the Tailor animation and keyframe timeline system. It covers the
+keyframe data model, animation authority storage, CRDT collaborative timeline, animation-driven
+simulation loop, animation import (FBX/glTF), animation-range export, and the model-first
+animation API. It closes **MOAT-4** (per-substep keyframeable physical properties during
+simulation) and **Group 6** (Animation and Dynamics) of the Tailor feature set.
+
+Canonical contracts — type names, field names, units, event variants, schema IDs, table columns,
+migration naming, validation checks, and promotion equivalence — are governed by **T-CONTRACTS**
+(`16-contracts.md`). This sub-section uses those contracts verbatim and MUST NOT reintroduce
+drift. Normative references are cited as `[T-CONTRACTS.<section>]` throughout.
+
+Non-normative design rationale and OSS evaluation evidence lives in the research source
+`15-animation.md`; this sub-section does not repeat it.
+
+---
+
+##### 10.1 Keyframe Data Model
+
+###### 10.1.1 Track Types
+
+A Tailor garment animation is a set of **typed keyframe tracks**. Each track targets one
+animatable property. The canonical track set is:
+
+| Track | Target solver property | Value type | Per-substep upload |
+|---|---|---|---|
+| `MaterialPressureTrack` | `GpuSimParams.pressure_target` | `f32` | Yes |
+| `MaterialSolidifyTrack` | `GpuSimParams.solidify_blend` | `f32` | Yes |
+| `MaterialShrinkWeftTrack` | `GpuSimParams.shrink_u` | `f32` | Yes |
+| `MaterialShrinkWarpTrack` | `GpuSimParams.shrink_v` | `f32` | Yes |
+| `TackComplianceTrack` | per-tack `compliance` in `GpuSeamConstraint` | `f32` (per tack) | Yes; MT-408/412, see §10.10 |
+| `WindStrengthTrack` | `GpuSimParams.wind` magnitude | `f32` | Yes |
+| `WindDirectionTrack` | `GpuSimParams.wind` direction | `Vec3` (slerp) | Yes |
+| `WindTurbulenceTrack` | turbulence scale | `f32` | Yes |
+| `AvatarPoseTrack` | capsule proxy positions + orientations per bone | `Vec3` / `Quat` | Per-frame (capsule buffer upload) |
+| `AvatarBlendShapeTrack` | avatar morph-target weights | `f32` | Per-frame |
+| `MarkerTrack` | named timeline markers | `String` (STEP only) | No |
+
+**R-ANIM-001** — The `tailor-solver` crate MUST NOT evaluate keyframe tracks. Track sampling
+MUST be performed entirely in `handshake_core::tailor::animation` before each solver substep or
+frame, and only the resolved scalar or vector value MUST be passed to the solver.
+
+###### 10.1.2 Interpolation Modes
+
+**R-ANIM-002** — Implementations MUST support the following three interpolation modes on all
+value-bearing tracks:
+
+```rust
+// tailor-solver/src/animation/track.rs
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum KeyframeInterpolation {
+    /// Linear lerp between consecutive keyframes. Default for material and wind tracks.
+    Linear,
+    /// Hold the value of the preceding keyframe until the next keyframe begins.
+    Step,
+    /// Cubic Hermite spline using in/out tangents. Required for avatar pose tracks.
+    /// Tangent encoding matches glTF 2.0 CUBICSPLINE (in_tangent, value, out_tangent per keyframe).
+    CubicSpline,
+}
+```
+
+**R-ANIM-003** — The `CubicSpline` mode MUST implement glTF 2.0 cubic Hermite interpolation:
+
+```
+p(u) = (2u³ - 3u² + 1)·p₀ + (u³ - 2u² + u)·dt·m₀ + (-2u³ + 3u²)·p₁ + (u³ - u²)·dt·m₁
+```
+
+where `u = (t - t₀) / (t₁ - t₀)`, `dt = t₁ - t₀`, `m₀` is the out-tangent of the preceding
+keyframe, and `m₁` is the in-tangent of the following keyframe.
+
+**R-ANIM-004** — Quaternion rotation tracks (`AvatarPoseTrack` rotation channel) MUST use
+`glam::Quat::slerp` for `Linear` interpolation and MUST de-interleave glTF CUBICSPLINE
+`[in_tangent, value, out_tangent]` per-keyframe layout before storing tangents.
+
+**R-ANIM-005** — The `MarkerTrack` MUST use `Step` interpolation only. Markers carry no
+interpolated value; they carry a stable `marker_id`, a `frame` index, a human-readable `label`,
+and an optional `color: [f32; 3]` (RGB 0–1 for timeline display).
+
+###### 10.1.3 Track Evaluation Contract
+
+**R-ANIM-006** — A `KeyframeTrack<T>` MUST return `default_value` when the track contains no
+keyframes, MUST clamp to the first keyframe value before `t = 0`, and MUST clamp to the last
+keyframe value after the final keyframe. It MUST NOT extrapolate.
+
+**R-ANIM-007** — The `Lerpable` trait MUST be implemented for at minimum `f32`, `glam::Vec3`,
+and `glam::Quat`. The `tailor-solver` crate MUST NOT take a mandatory dependency on any external
+animation crate (`keyframe`, `spanda`, or equivalent) for this implementation; the track
+evaluation is a bounded ~80-line Rust function.
+
+---
+
+##### 10.2 Animation Authority: `GarmentAnimationDraftV1`
+
+###### 10.2.1 Storage
+
+**R-ANIM-008** — The animation authority for a garment MUST be stored as a `JSONB` column
+`animation_json` on the `tailor_garments` row. It MUST NOT be a separate first-class table.
+`animation_json` is `NULL` when no animation has been authored; it is set when the operator or
+a model creates the first animation draft.
+
+```sql
+-- Added via a dated migration: migrations/YYYY_MM_DD_tailor_garments_animation_col.sql
+-- (Naming per [T-CONTRACTS.migration-naming]: dated, with .down.sql pair, no 0NNN_ prefix.)
+ALTER TABLE tailor_garments ADD COLUMN IF NOT EXISTS
+    animation_json JSONB;
+```
+
+**R-ANIM-009** — The schema ID for the animation draft MUST be
+`"hsk.tailor.garment_animation_draft@1"` per `[T-CONTRACTS.schema-ids]`. The
+`hsk.cloth.garment_animation_draft@1` form used in research drafts is superseded and MUST NOT
+appear in production code.
+
+###### 10.2.2 `GarmentAnimationDraftV1` Structure
+
+```rust
+// handshake_core/src/tailor/animation/draft.rs
+
+/// Top-level animation draft for one garment. Serialized into tailor_garments.animation_json.
+/// Schema ID: "hsk.tailor.garment_animation_draft@1"  [T-CONTRACTS.schema-ids]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GarmentAnimationDraftV1 {
+    /// MUST equal "hsk.tailor.garment_animation_draft@1".
+    pub schema_id: String,
+    /// Authority garment id. Form: "GAR-{uuid_v7}".  [T-CONTRACTS.tables]
+    pub garment_id: String,
+    /// Frames per second. Range: [1.0, 120.0]. Default: 30.0.
+    pub fps: f32,
+    /// Total animation length in frames. Bounded by the selected production profile and budget.
+    pub total_frames: u32,
+    /// Keyframeable material property tracks (MOAT-4 core).
+    pub material_tracks: MaterialAnimationTracks,
+    /// Wind keyframe tracks.
+    pub wind_tracks: WindAnimationTracks,
+    /// Avatar pose tracks — one entry per animated bone.
+    pub pose_tracks: Vec<AvatarBonePoseTrack>,
+    /// Avatar morph-target weight tracks.
+    pub blend_shape_tracks: Vec<BlendShapeTrack>,
+    /// Named timeline markers.  [§10.1.2, R-ANIM-005]
+    pub markers: Vec<AnimationMarker>,
+    /// Frame range for export, inclusive. None = export all frames.  [§10.5]
+    pub export_range: Option<(u32, u32)>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MaterialAnimationTracks {
+    pub pressure:     KeyframeTrack<f32>,   // GpuSimParams.pressure_target
+    pub solidify:     KeyframeTrack<f32>,   // GpuSimParams.solidify_blend
+    pub shrink_weft:  KeyframeTrack<f32>,   // GpuSimParams.shrink_u
+    pub shrink_warp:  KeyframeTrack<f32>,   // GpuSimParams.shrink_v
+    /// Per-tack compliance tracks keyed by tack_id (MT-408/412; see §10.10).
+    pub tack_compliance: std::collections::HashMap<String, KeyframeTrack<f32>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WindAnimationTracks {
+    pub strength:   KeyframeTrack<f32>,
+    pub direction:  KeyframeTrack<glam::Vec3>,  // unit direction; interpolated via slerp
+    pub turbulence: KeyframeTrack<f32>,         // 0.0–1.0 scale
+    /// Optional positioned wind source (matches MD wind actor).
+    pub position:   Option<KeyframeTrack<glam::Vec3>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AvatarBonePoseTrack {
+    pub bone_id:      String,
+    pub translation:  KeyframeTrack<glam::Vec3>,
+    pub rotation:     KeyframeTrack<glam::Quat>,
+    pub scale:        Option<KeyframeTrack<glam::Vec3>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BlendShapeTrack {
+    pub blend_shape_name: String,
+    pub weight:           KeyframeTrack<f32>,  // 0.0 = no blend, 1.0 = full blend
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AnimationMarker {
+    pub marker_id: String,
+    pub frame:     u32,
+    pub label:     String,
+    pub color:     Option<[f32; 3]>,
+}
+```
+
+**R-ANIM-010** — `total_frames` MUST be bounded by the selected versioned production profile,
+hardware/storage budget, cache/chunking strategy, and export target. No universal 1800-frame cap
+may be compiled as a professional limit. The validation gate MUST return the profile id/hash,
+measured budget, requested frames, and a clear chunk/reduce/change-profile remediation.
+
+**R-ANIM-011** — `fps` MUST be in the range `[1.0, 120.0]`. The validation gate MUST reject
+out-of-range values.
+
+###### 10.2.3 Authority Write Guard
+
+**R-ANIM-012** — Every write to `tailor_garments.animation_json` MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` before the `UPDATE` statement. SQLite
+writes to this column are forbidden. This is the standard no-SQLite tripwire required by the
+Tailor kernel integration contract.
+
+---
+
+##### 10.3 EventLedger Events
+
+**R-ANIM-013** — The following `KernelEventType` variants MUST be added to
+`kernel/mod.rs` and MUST be registered in `required_first_slice_events()`. Variant names and
+wire strings are canonical per `[T-CONTRACTS.event-types]`:
+
+```rust
+// Additions to KernelEventType (kernel/mod.rs):
+TailorAnimationDraftCreated,   // wire: "TAILOR_ANIMATION_DRAFT_CREATED"
+TailorAnimationDraftUpdated,   // wire: "TAILOR_ANIMATION_DRAFT_UPDATED"
+TailorAnimationSimRunRequested,// wire: "TAILOR_ANIMATION_SIM_RUN_REQUESTED"
+TailorAnimationSimRunCompleted,// wire: "TAILOR_ANIMATION_SIM_RUN_COMPLETED"
+TailorAnimationSimRunRejected, // wire: "TAILOR_ANIMATION_SIM_RUN_REJECTED"
+TailorAnimationDraftPromoted,  // wire: "TAILOR_ANIMATION_DRAFT_PROMOTED"
+```
+
+The `event_family` constant for all animation events is `"tailor.animation"` per
+`[T-CONTRACTS.event-types]` (`TAILOR_ANIMATION` constant).
+
+**R-ANIM-014** — Individual keyframe edits MUST NOT each emit an EventLedger event. The
+`TailorAnimationDraftUpdated` event MUST be emitted once when a CRDT snapshot is promoted to
+the Postgres `animation_json` column (see §10.4.2 for snapshot cadence).
+
+**R-ANIM-015** — The `TailorAnimationDraftUpdated` payload MUST include at minimum:
+
+```json
+{
+  "garment_id": "GAR-...",
+  "animation_schema": "hsk.tailor.garment_animation_draft@1",
+  "content_hash": "<sha256 of canonical JSON of GarmentAnimationDraftV1>",
+  "fps": 30.0,
+  "total_frames": 150,
+  "tracks_summary": {
+    "material_track_count": 4,
+    "wind_track_count": 3,
+    "pose_bone_count": 24,
+    "blend_shape_count": 0,
+    "marker_count": 0
+  },
+  "crdt_seq": 42
+}
+```
+
+---
+
+##### 10.4 CRDT Collaborative Timeline
+
+###### 10.4.1 CRDT Document Mapping
+
+**R-ANIM-016** — The animation draft MUST be stored as a nested sub-map within the existing
+CRDT document for the garment (`crdt_document_id = "CRDT-GAR-{garment_id}"`). It MUST NOT have
+a separate CRDT document. The animation occupies the `/animation/` path within the document:
+
+```
+CRDT document: "CRDT-GAR-{garment_id}"
+  /panels/...                    <- panel geometry (existing)
+  /seams/...                     <- seam definitions (existing)
+  /animation/
+    /fps
+    /total_frames
+    /material_tracks/
+      /pressure/keyframes/[...]
+      /solidify/keyframes/[...]
+      /shrink_weft/keyframes/[...]
+      /shrink_warp/keyframes/[...]
+    /wind_tracks/
+      /strength/keyframes/[...]
+      /direction/keyframes/[...]
+      /turbulence/keyframes/[...]
+    /pose_tracks/{bone_id}/
+      /translation/keyframes/[...]
+      /rotation/keyframes/[...]
+    /blend_shape_tracks/{name}/weight/keyframes/[...]
+    /markers/[...]
+    /export_range
+```
+
+Fine-grained collaborative edits to individual keyframe values MUST go through the `yjs_bridge`
+(`push_yjs_update()`) as `YjsUpdateEnvelopeV1` diffs over the `/animation/` sub-tree.
+
+**R-ANIM-017** — Animation CRDT edits for model-proposed changes MUST go through the
+`AiEditProposalRequestV1` state machine. A model-proposed keyframe edit MUST NOT be written
+directly to the authority `animation_json` column without operator approval.
+
+###### 10.4.2 Conflict Resolution
+
+| Concurrent scenario | CRDT resolution |
+|---|---|
+| Two users edit different tracks | No conflict; tracks are independent CRDT maps |
+| Two users add keyframes at different times on the same track | No conflict; keyframe list is a CRDT ordered list; both inserted |
+| Two users edit the same keyframe value simultaneously | Conflict; `TailorCrdtConflictDetected` event emitted; operator resolves |
+| Model proposes a keyframe; operator edits same keyframe | `AiEditProposalRequestV1` state machine; operator approves or rejects the model edit first |
+| `fps` or `total_frames` changed concurrently | Last-write-wins on the CRDT scalar field; `TailorAnimationDraftUpdated` fires on next snapshot |
+
+**R-ANIM-018** — A CRDT snapshot MUST be promoted to `tailor_garments.animation_json` on each
+of the following triggers: (a) operator explicit save-checkpoint action, (b) any
+`TailorAnimationSimRunRequested` event (simulation MUST read from the snapshotted authority, not
+the live CRDT stream), (c) model `AiEditProposalRequestV1` approval. Between snapshots, the
+`kernel_crdt_updates` stream is the running state and `animation_json` is the last promoted
+snapshot.
+
+---
+
+##### 10.5 Animation-Driven Simulation Loop
+
+###### 10.5.1 Per-Frame Loop Architecture
+
+**R-ANIM-019** — The `ClothSolver` trait in the `tailor-solver` crate MUST expose the following
+two methods in addition to the existing batch `simulate()` method:
+
+```rust
+/// Upload updated avatar capsule body proxy positions for the current animation frame.
+/// MUST be called once per frame, before simulate_frame(), outside the substep loop.
+async fn update_body_proxies(
+    &mut self,
+    pose: &AvatarPoseSample,
+) -> Result<(), ClothSolverError>;
+
+/// Simulate exactly one frame (n_substeps internally). Retains particle state across calls
+/// so cloth maintains physical continuity across the animation.
+/// Caller MUST call update_body_proxies before calling simulate_frame for each frame.
+async fn simulate_frame(
+    &mut self,
+    params: SimRunParams,
+) -> Result<SolverResult, ClothSolverError>;
+```
+
+**R-ANIM-020** — The `AnimatedSimRunner` in `handshake_core::tailor::animation` MUST drive the
+per-frame loop in the following order for each frame:
+
+1. Sample all keyframe tracks at `t_s = frame_idx as f32 / fps`.
+2. Call `solver.update_params(MaterialFrameParams { ... })` with sampled material values.
+3. Call `solver.update_wind(wind_vec, turbulence)` with sampled wind values.
+4. Call `solver.update_body_proxies(pose)` with the FK-evaluated capsule positions for this frame.
+5. Call `solver.simulate_frame(params)` to advance one frame.
+
+**R-ANIM-021** — The capsule proxy update (`update_body_proxies`) MUST be applied before the
+substep loop for the current frame, not after. The solver MUST perform one constraint projection
+pass against the new capsule positions before beginning substeps. This is required for XPBD
+stability with kinematic bodies in motion.
+
+**R-ANIM-022** — The wind turbulence seed MUST be `seed = frame_idx as u64` to make turbulence
+deterministic when the simulation is re-run with the same animation data on the same GPU
+backend. This is required so the promotion validation re-run can apply `MeshComparator`
+equivalence comparison per `[T-CONTRACTS.determinism]`.
+
+###### 10.5.2 Wind Turbulence on GPU (WGSL)
+
+**R-ANIM-023** — The predict shader (`predict.wgsl`) MUST implement inline hash-based
+spatial noise for wind turbulence. No texture sampling is permitted. The noise function MUST
+use the particle's world-space position as the coordinate input, producing spatially coherent
+turbulence across the cloth surface. The following GPU uniform fields are required on
+`GpuSimParams` for animated wind:
+
+```wgsl
+// Required additions to GpuSimParams UBO for animation:
+// params.wind           vec3<f32>  — base wind vector (strength × direction)
+// params.wind_turb      f32        — turbulence scale [0, 1]
+// params.wind_time_seed f32        — = frame_idx as f32 (deterministic per frame)
+```
+
+**R-ANIM-024** — The per-frame `GpuSimParams` UBO upload for animated runs MUST be performed
+once per frame before `simulate_frame()`. At 30 fps with a 64-byte `GpuSimParams` struct this
+is 1920 bytes/second; this upload cost MUST NOT be cited as a reason to batch or skip
+per-frame parameter updates.
+
+###### 10.5.3 Avatar Capsule Proxy Per-Frame Upload
+
+**R-ANIM-025** — `AvatarPoseSample` is the per-frame snapshot of capsule world-space positions
+and orientations. The `AnimatedSimRunner` MUST compute it from the `AvatarBonePoseTrack`
+keyframe tracks using forward kinematics (FK) and capsule joint offsets before calling
+`update_body_proxies`. The upload format MUST match the body collision shader's existing buffer
+layout: `(center_a: [f32;3], center_b: [f32;3], radius: f32)` per capsule, in millimetres per
+`[T-CONTRACTS.body-proxy]`.
+
+###### 10.5.4 Promotion Equivalence for Animated Runs
+
+**R-ANIM-026** — For animated simulation runs, the promotion gate MUST use
+`MeshComparator` tolerance-based comparison per `[T-CONTRACTS.determinism]`, not `content_hash`
+equality. Because wind turbulence uses `sin()`/`fract()` whose cross-vendor precision differs,
+animated runs MUST use the profile-selected shape-envelope equivalence basis: per-frame bounding
+box within the profile-resolved `bbox_epsilon_mm` plus `SEAMS_CLOSED`, rather than per-vertex
+deviation, when the simulation includes turbulence tracks with non-zero values. Zero-turbulence
+runs use the method and measured tolerance selected by the same profile.
+
+---
+
+##### 10.6 Animation Import
+
+###### 10.6.1 Import Architecture
+
+**R-ANIM-027** — Animation import MUST live in `handshake_core::tailor::animation::import`,
+NOT in the `tailor-solver` crate. The solver crate MUST NOT take a dependency on `fbxcel-dom`
+or `gltf`.
+
+**R-ANIM-028** — The canonical output type of all import paths is `AvatarPoseSequenceV1`:
+
+```rust
+// handshake_core/src/tailor/animation/import/types.rs
+pub struct AvatarPoseSequenceV1 {
+    pub fps: f32,
+    pub total_frames: u32,
+    pub bone_tracks: Vec<AvatarBonePoseTrack>,
+}
+```
+
+This type populates the `GarmentAnimationDraftV1.pose_tracks` field directly.
+
+###### 10.6.2 glTF Skeletal Animation (Primary Import Path)
+
+**R-ANIM-029** — glTF skeletal animation MUST be the preferred and primary import format for
+avatar animation. The `gltf` crate (v1.4.1 read-only) MUST be used as the parser.
+
+**R-ANIM-030** — The glTF import pipeline (`src/tailor/animation/import/gltf.rs`) MUST:
+
+1. Read `animation.channels` and map each channel to the appropriate `AvatarBonePoseTrack`.
+2. Map `gltf::animation::Interpolation::{Linear, Step, CubicSpline}` to the canonical
+   `KeyframeInterpolation` enum.
+3. For `CubicSpline` channels, de-interleave the glTF `[in_tangent, value, out_tangent]`
+   per-keyframe layout into the `Keyframe<T>` struct's `in_tangent` / `value` / `out_tangent`
+   fields.
+4. Map `Property::MorphTargetWeights` channels to `BlendShapeTrack` entries.
+5. Store all input times in seconds; convert to frame indices at sample time using `fps`.
+
+**R-ANIM-031** — The glTF import MUST emit a `TailorAnimationDraftCreated` event on
+successful import and MUST persist the resulting `GarmentAnimationDraftV1` to
+`tailor_garments.animation_json` via the standard authority write path.
+
+###### 10.6.3 FBX Joint Animation (Secondary Import Path)
+
+**R-ANIM-032** — FBX joint animation MAY be imported using the `fbxcel-dom` crate (v0.0.6,
+`fbxcel` v0.7.0). The implementation MUST pin the exact crate version in `Cargo.toml` because
+`fbxcel-dom` is marked "highly experimental" and breaks across minor versions.
+
+**R-ANIM-033** — The FBX import path MUST be gated behind a Cargo feature flag
+(`feature = "tailor-fbx-import"`, off by default). This prevents the `fbxcel-dom` dependency
+from entering the build when FBX import is not needed.
+
+**R-ANIM-034** — If `fbxcel-dom` proves unstable in a given implementation cycle, the operator
+recipe MUST document that the supported path is: re-export the FBX animation from the source
+DCC (Blender, Maya) as glTF and use the glTF import path (§10.6.2). FBX MUST NOT be required
+for any production workflow.
+
+###### 10.6.4 MTN Format
+
+**R-ANIM-035** — Direct parsing of Marvelous Designer's proprietary `*.mtn` binary format MUST
+NOT be implemented. The supported path is re-export through MD or another source DCC as FBX or
+glTF. The capability registry records native MTN import as unsupported unless a documented,
+configured vendor SDK/API is available; Tailor MUST surface the limitation and re-export path
+without implying that the binary was silently imported.
+
+---
+
+##### 10.7 Animation-Range Export
+
+**R-ANIM-036** — When `GarmentAnimationDraftV1.export_range` is set, the export pipeline MUST
+filter the frame sequence to the inclusive range `[start_frame, end_frame]`. When
+`export_range` is `None`, all frames MUST be exported.
+
+**R-ANIM-037** — The export range filter function MUST be a pure function in
+`src/tailor/export/animation_range.rs`:
+
+```rust
+pub fn apply_export_range(
+    frames: &[GarmentFrame],
+    range: Option<(u32, u32)>,
+) -> &[GarmentFrame] {
+    match range {
+        None => frames,
+        Some((start, end)) => {
+            let start = (start as usize).min(frames.len());
+            let end   = ((end + 1) as usize).min(frames.len());
+            &frames[start..end]
+        }
+    }
+}
+```
+
+**R-ANIM-038** — The `TailorGarmentExportCompleted` EventLedger event payload MUST include the
+effective exported frame range (start and end frame indices) so downstream consumers have the
+range without reading the animation draft.
+
+**R-ANIM-039** — FBX animated-garment delivery MUST bake explicit keyframes at every frame in
+the export range (dense auto-key) to prevent software-specific interpolation drift in
+third-party DCC tools, and MUST be delivered exclusively through the Blender-bridge conversion
+lane: the export job emits intermediate caches plus a generated headless Blender script that
+performs the dense bake and writes the FBX from Blender (MT-419 mechanism, MT-421 verification).
+A native Rust FBX writer MUST NOT be implemented (13.12 §12.6.1 law; reconciled 2026-07-08 —
+the former `src/tailor/export/fbx_key_baker.rs` native path is superseded and MUST NOT be
+created). When a mature open FBX writer (e.g. `ufbx_write`) stabilizes, a native lane MAY be
+re-proposed as a governed spec change; until then the bridge lane is the only FBX path.
+
+---
+
+##### 10.8 Model-First Animation API
+
+###### 10.8.1 MCP Tools
+
+**R-ANIM-040** — The Tailor animation system MUST expose the following four MCP tools. Tool
+schemas are `schemars`-derivable; the `inputSchema` MUST be auto-generated. Tool names are
+canonical and MUST NOT be renamed.
+
+**`tailor_animation_draft_create`** — Create or replace the animation draft for a garment.
+
+```json
+{
+  "name": "tailor_animation_draft_create",
+  "input_schema": {
+    "type": "object",
+    "required": ["garment_id", "fps", "total_frames"],
+    "properties": {
+      "garment_id":   { "type": "string" },
+      "fps":          { "type": "number", "minimum": 1, "maximum": 120, "default": 30 },
+      "total_frames": { "type": "integer", "minimum": 1, "maximum": 1800 },
+      "description":  { "type": "string" }
+    }
+  }
+}
+```
+
+**`tailor_animation_add_keyframe`** — Add or update a keyframe on a specific track.
+
+```json
+{
+  "name": "tailor_animation_add_keyframe",
+  "input_schema": {
+    "type": "object",
+    "required": ["garment_id", "track_name", "frame", "value"],
+    "properties": {
+      "garment_id":    { "type": "string" },
+      "track_name":    { "type": "string",
+                         "description": "One of: pressure, solidify, shrink_weft, shrink_warp, wind_strength, wind_direction, wind_turbulence, or a bone pose track id." },
+      "frame":         { "type": "integer", "minimum": 0 },
+      "value":         { "description": "f32 for scalar tracks; [x,y,z] for wind_direction; [x,y,z,w] for rotation." },
+      "interpolation": { "type": "string", "enum": ["linear", "step", "cubic_spline"], "default": "linear" }
+    }
+  }
+}
+```
+
+**`tailor_animation_simulate`** — Run the cloth simulation with the current animation draft.
+
+```json
+{
+  "name": "tailor_animation_simulate",
+  "input_schema": {
+    "type": "object",
+    "required": ["garment_id"],
+    "properties": {
+      "garment_id":  { "type": "string" },
+      "n_substeps":  { "type": "integer", "default": 8 },
+      "n_iters":     { "type": "integer", "default": 5 },
+      "frame_range": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 }
+    }
+  }
+}
+```
+
+Returns a `simulation_run_id` immediately. The model MUST poll for `TailorAnimationSimRunCompleted`
+or `TailorAnimationSimRunRejected`.
+
+**`tailor_animation_export`** — Export the simulated animation in the requested format.
+
+```json
+{
+  "name": "tailor_animation_export",
+  "input_schema": {
+    "type": "object",
+    "required": ["garment_id", "simulation_run_id", "format"],
+    "properties": {
+      "garment_id":        { "type": "string" },
+      "simulation_run_id": { "type": "string" },
+      "format":            { "type": "string", "enum": ["obj_sequence", "gltf_morph", "usd", "alembic_via_blender"] },
+      "fps":               { "type": "number", "default": 30 },
+      "frame_range":       { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 }
+    }
+  }
+}
+```
+
+**R-ANIM-041** — When a model receives a natural-language animation intent (e.g., "make the
+dress ripple in strong wind during the chorus"), the `TailorModelAdapter::invoke()` path MUST
+use `LlmClient.completion()` with a structured JSON output schema to generate the keyframe
+list. Generated keyframes MUST be validated (values in physical range) before being written to
+the CRDT document. The model MUST NOT write directly to `animation_json`; it writes via the
+CRDT path, which is then snapshotted per §10.4.2.
+
+###### 10.8.2 Canonical Model Animation Authoring Sequence
+
+The following sequence is the required model workflow for animation authoring and MUST be
+documented as the Tailor animation recipe:
+
+1. Call `tailor_animation_draft_create` with `fps` and `total_frames`.
+2. Call `tailor_animation_add_keyframe` for each required track and keyframe.
+3. Call `tailor_animation_simulate` and await `TailorAnimationSimRunCompleted`.
+4. Call `tailor_capture_frame` (render viewport) at representative frame indices to inspect output.
+5. Read `SimulationReceipt.validation_findings` per `[T-CONTRACTS.simulation-receipt]`:
+   check `SEAMS_CLOSED`, `NO_INTERPENETRATION`, and `DRAPE_CONVERGED` for the animated run.
+6. If output passes inspection, call `tailor_animation_export` with the desired format.
+7. Confirm `TailorGarmentExportCompleted` receipt in the EventLedger.
+
+---
+
+##### 10.9 Kernel Binding Summary
+
+| Concern | Binding |
+|---|---|
+| Animation data storage | `tailor_garments.animation_json JSONB` (Postgres authority) |
+| Animation draft mutations (coarse) | `TailorAnimationDraftUpdated` EventLedger event |
+| Animation draft creation | `TailorAnimationDraftCreated` EventLedger event |
+| Collaborative timeline editing | CRDT `yjs_bridge` on `/animation/` sub-tree of `CRDT-GAR-{id}` |
+| Model-proposed keyframe edits | `AiEditProposalRequestV1` → operator approval |
+| Animation simulation run request | `TailorAnimationSimRunRequested` event |
+| Animation simulation completion | `TailorAnimationSimRunCompleted` / `TailorAnimationSimRunRejected` |
+| Model-authored animation | `TailorModelAdapter.invoke()` → `LlmClient.completion()` → keyframe list → CRDT write |
+| Animation export | Export pipeline with `apply_export_range` filter; `TailorGarmentExportCompleted` event |
+| Authority write guard | `guard_authority_write(AuthorityMode::PostgresPrimary)` before every `animation_json` write |
+| Per-substep material param upload | `ClothSolver::update_params(MaterialFrameParams)` |
+| Per-frame capsule proxy upload | `ClothSolver::update_body_proxies(AvatarPoseSample)` |
+| Promotion equivalence (animated) | `MeshComparator` shape-envelope (bbox + `SEAMS_CLOSED`), not hash; per `[T-CONTRACTS.determinism]` |
+| Schema ID | `hsk.tailor.garment_animation_draft@1` (`SCHEMA_TAILOR_ANIMATION_DRAFT_V1`) |
+| Migration | `YYYY_MM_DD_tailor_garments_animation_col.sql` + `.down.sql` (dated; no `0NNN_` prefix) |
+| `event_family` constant | `"tailor.animation"` (`TAILOR_ANIMATION`) |
+
+---
+
+##### 10.10 Reconciled Items and Known Constraints
+
+**DEFER-ANIM-001 — Per-tack animated compliance (RECONCILED 2026-07-08, now in scope).**
+Per-tack strength/compliance keyframing IS in scope: MT-408 (keyframeable Tack Strength) and
+MT-412 (per-tack `TackStrength` `Track<f32>`) implement per-entry writes to the tack constraint
+storage buffer at substep boundaries, consistent with the TR-4 dual-node coloring. The former
+silent-ignore behavior for `tack_compliance` in `MaterialAnimationTracks` is superseded: stored
+tracks MUST drive the solver once MT-408/412 land; before they land the value MUST be rejected
+with a typed validation finding (never silently ignored).
+
+**DEFER-ANIM-002 — FBX auto-key baking (RECONCILED 2026-07-08, superseded by the bridge lane).**
+Dense FBX auto-key baking is delivered through the Blender-bridge lane per R-ANIM-039. There is
+no native `fbx_key_baker.rs` deliverable. FBX delivery without the configured bridge MUST return
+a typed error naming the bridge requirement; it MUST NOT fall back to a sparse-key native write.
+
+**CONSTRAINT-ANIM-001 — Cross-vendor turbulence determinism.** Wind turbulence noise uses
+`sin()` and `fract()` in WGSL, whose precision differs across GPU vendors. The determinism
+guarantee for animated runs with non-zero turbulence is scoped to same GPU backend and driver.
+Cross-vendor promotion uses shape-envelope equivalence per R-ANIM-026 and
+`[T-CONTRACTS.determinism]`. This is not a defect; it is an architectural constraint.
+
+**CONSTRAINT-ANIM-002 — MTN format not supported.** The Marvelous Designer `*.mtn` binary
+format is proprietary with no public spec and no OSS parser. It is not supported. The required
+path for MTN sources is re-export as FBX or glTF per R-ANIM-035.
+
+**CONSTRAINT-ANIM-003 — Interactive real-time animated preview.** Per-frame capsule buffer
+uploads add ~0.5–2 ms wall-clock latency per frame on typical hardware. For offline simulation
+(the primary use case) this is acceptable. For interactive real-time preview, a reduced proxy
+set (4 capsules, fewer substeps) MUST be used. Full-fidelity animated simulation is not
+real-time.
+
+---
+
+*Non-normative provenance: design rationale, OSS evidence (keyframe crate evaluation, spanda,
+fbxcel-dom limitations, glTF CUBICSPLINE reference implementation), and MD feature mapping are
+documented in the research source `15-animation.md`. This sub-section supersedes any contract
+surface in that research file; the research file remains valid as non-normative evidence.*
+
+## 13.11 Kernel Integration (Authority, CRDT, Sandbox, Promotion, Model Lanes)
+
+> Sub-section id: `kernel`
+> KERNEL_BUILDER will assign the final `<N>.<i>` numbering on assembly.
+> Non-normative provenance: research topics `T-KERNEL-INTEGRATION` (10-kernel-integration.md) and
+> `T-CONTRACTS` (16-contracts.md) in the cloth_engine_research package. Where this sub-section
+> conflicts with those topics, this sub-section is canonical for implementation. Where those topics
+> contain algorithm rationale, OSS evidence, or risk analysis not repeated here, they remain valid
+> supplementary reading.
+
+---
+
+##### 11-K-1  Module Identity and Placement
+
+**11-K-1.1** The Tailor kernel-binding module MUST be implemented as `handshake_core::tailor`
+(`src/tailor/`) following the `src/atelier/` creative-module pattern exactly: a domain-owned
+`sqlx::PgPool` reference, a dedicated `event_family.rs` constants block, domain-specific
+submodules, and a storage glue file parallel to `storage/kb003_storage.rs`.
+
+**11-K-1.2** The XPBD cloth-physics solver MUST be implemented as a standalone Cargo workspace
+crate named `tailor-solver` with no `handshake_core` dependency. `handshake_core::tailor` MUST
+depend on the solver only through the `ClothSolver` trait boundary defined in
+`src/tailor/solver_binding.rs`.
+
+**11-K-1.3** Physics-internal types (particles, constraints, WGSL kernels) MUST use the `Cloth*`
+prefix (`ClothSolver`, `ClothParticle`, `ClothConstraint`). Feature-level identifiers visible
+outside the solver crate MUST use the `Tailor*` / `tailor_*` / `TAILOR_*` prefix per the naming
+table in [T-CONTRACTS.naming]. The two prefixes MUST NOT be mixed on a single identifier.
+
+**Canonical module layout:**
+
+```
+handshake_core/src/tailor/
+  mod.rs
+  event_family.rs       -- tailor.* dot-namespaced string constants
+  garment.rs            -- GarmentSpec, GarmentType, PanelSpec, SeamSpec, ...
+  material.rs           -- FabricProperties, FabricPreset, tailor_material_presets rows
+  solver_binding.rs     -- ClothSolver trait + ClothSolverRequest/Result bridge
+  simulation.rs         -- TailorSandboxAdapter, SimRunParams
+  validation.rs         -- TailorValidationDescriptor (wraps KB003 ValidationDescriptor)
+  storage_glue.rs       -- Postgres row types + guard_authority_write call sites
+  api.rs                -- Axum Router: /tailor/... routes
+
+tailor-solver/ (workspace crate, no handshake_core dep)
+  src/
+    lib.rs              -- pub trait ClothSolver
+    spec.rs             -- GarmentSpec (canonical; serde + schemars)
+    mesh.rs             -- SolverMesh, SeamConstraintRecord
+    body/proxy.rs       -- ClothBodyProxy, CollisionCapsule, CollisionSphere
+    compare.rs          -- MeshComparator
+    simulate.rs         -- XPBD engine, WGSL shaders (wgpu)
+```
+
+---
+
+##### 11-K-2  PostgreSQL as the Sole Authority Backend
+
+**11-K-2.1** All Tailor domain authority writes MUST target PostgreSQL (`sqlx::PgPool`) and MUST
+call `guard_authority_write(AuthorityMode::PostgresPrimary)` as the first statement in every
+storage-glue write function. SQLite MUST NOT be used for any Tailor authority write, including
+tests that run without a live Postgres instance.
+
+**11-K-2.2** Every Tailor authority mutation MUST emit an EventLedger receipt via
+`NewKernelEvent::builder(...)` → `db.insert_kernel_event(write_ctx, event)` before (or in the
+same CTE as) the row INSERT/UPDATE, following the idempotent pattern in `storage/postgres.rs`
+line ~3454:
+
+```sql
+WITH inserted AS (
+  INSERT INTO kernel_event_ledger (...)
+  ON CONFLICT (idempotency_key) DO NOTHING
+  RETURNING event_id
+)
+INSERT INTO tailor_garments (..., event_ledger_event_id)
+SELECT ..., event_id FROM inserted
+ON CONFLICT (garment_id) DO NOTHING;
+```
+
+**11-K-2.3** Every `NewKernelEvent` MUST supply a `WriteContext` carrying the appropriate
+`KernelActor` variant for the audit trail. Permitted actors per pipeline stage:
+
+| Stage | KernelActor |
+|---|---|
+| Model garment authoring | `ModelAdapter("tailor-garment-adapter-v1")` |
+| Operator panel edits (direct) | `Operator(user_id)` |
+| Model panel-edit proposals | `ModelAdapter(adapter_id)` |
+| XPBD solver sandbox run | `System("cloth-solver-v1")` |
+| Validation runner | `ValidationRunner("tailor-garment-validator-v1")` |
+| Promotion gate | `PromotionGate("tailor-promotion-gate-v1")` |
+| Material preset writes | `Operator(user_id)` or `ModelAdapter(adapter_id)` |
+| Avatar / body-proxy writes | `Operator(user_id)` or `System(...)` |
+
+**11-K-2.4** The `WriteContext` actor for model-lane operations MUST be a `ModelAdapter` variant;
+it MUST NOT be `Operator` or `System`. This makes model-authored rows distinguishable in the
+audit log without additional metadata fields.
+
+---
+
+##### 11-K-3  Canonical Postgres Table Set
+
+All Tailor tables MUST use `TEXT PRIMARY KEY` with the prefixed id form established in migrations
+`0332_media_asset_tiers.sql` and `0334_loom_canvas_boards.sql` (FACT-4 from T-CONTRACTS). The
+`UUID PRIMARY KEY DEFAULT gen_random_uuid()` form MUST NOT be used for any Tailor table. Every
+row MUST carry an `event_ledger_event_id TEXT NOT NULL` FK to `kernel_event_ledger.event_id`.
+
+**Canonical table set and primary-key prefixes:**
+
+```text
+TABLE                         PK prefix   Purpose
+-----------------------------  ---------  -----------------------------------------------
+tailor_garments               GAR-        Authority row per garment; holds spec_json JSONB
+tailor_garment_crdt_docs      (composite) Per-garment CRDT document binding
+tailor_material_presets       MAT-        Named fabric property presets (physics + normalized)
+tailor_avatars                AVT-        Avatar identity (was undefined FK target; authored here)
+tailor_body_proxies           BPX-        Solver collision geometry for an avatar
+tailor_simulation_runs        SIM-        XPBD sandbox run record
+tailor_refit_runs             RFT-        Refit/retargeting run record
+tailor_trims                  TRIM-       Rigid trim mesh catalog
+tailor_trim_placements        PLAC-       Per-garment trim placement
+tailor_zippers                ZIP-        Zipper definitions on garment edges
+tailor_lacings                LACE-       Lacing/eyelet sequence definitions
+tailor_uv_islands             UVI-        UV-island atlas records per panel per sim run
+tailor_pbr_materials          PBR-        PBR material definitions
+tailor_graphic_layers         GLYR-       Graphic/decal layer per panel
+tailor_material_assignments   ASGN-       Per-panel physics + PBR assignment on a garment
+tailor_wardrobe               WRD-        Garment grouping / wardrobe container
+```
+
+**11-K-3.1** `tailor_garments` MUST carry the columns: `garment_id TEXT PRIMARY KEY` (`GAR-`),
+`workspace_id TEXT NOT NULL`, `name TEXT NOT NULL`, `status TEXT NOT NULL` (CHECK domain:
+`draft | sandbox_pending | simulated | validated | promoted | rejected | archived`),
+`spec_json JSONB NOT NULL` (the canonical `GarmentSpec`), `animation_json JSONB` (nullable;
+owned by the animation module), `body_proxy_id TEXT`, `wardrobe_id TEXT`,
+`promotion_receipt_id TEXT`, `event_ledger_event_id TEXT NOT NULL`, `created_at TIMESTAMPTZ`,
+`updated_at TIMESTAMPTZ`. The `status` field MUST NOT appear inside `spec_json`; it is
+promotion-lifecycle metadata on the row, not garment content.
+
+**11-K-3.2** `tailor_avatars` MUST be authored as follows (this table was undefined across the
+research package and is normatively defined here):
+
+```sql
+CREATE TABLE IF NOT EXISTS tailor_avatars (
+    avatar_id               TEXT PRIMARY KEY,          -- "AVT-{uuid_v7}"
+    workspace_id            TEXT NOT NULL,
+    name                    TEXT NOT NULL,
+    source_kind             TEXT NOT NULL
+        CHECK (source_kind IN ('smpl','smplx','metahuman','custom_obj','vrm','gltf',
+                               'parametric','avatar1_2d_derived','non_humanoid')),
+    measurements_mm_json    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_mesh_artifact_ref TEXT,
+    morph_params_json       JSONB,
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_avatars_workspace ON tailor_avatars (workspace_id);
+```
+
+`tailor_body_proxies.avatar_id` MUST FK to `tailor_avatars(avatar_id)`. `tailor_body_proxies`
+MUST NOT carry a `garment_id` FK; a garment references a proxy via
+`tailor_garments.body_proxy_id`.
+
+**11-K-3.3** `tailor_material_presets` is the single material table. The names
+`tailor_material_library` and `tailor_material` MUST NOT be used. System-provided materials are
+rows where `is_system_preset = true`; the "library" concept is that row subset, not a separate
+table.
+
+**11-K-3.4** `tailor_simulation_runs` sim-run id prefix MUST be `SIM-`. The prefix `CSIM-` MUST
+NOT be used.
+
+---
+
+##### 11-K-4  Migration-Naming Convention
+
+**11-K-4.1** All Tailor migrations MUST use the dated convention verified in
+`migrations/2026_05_18_fems_pinned.sql` (FACT-3 from T-CONTRACTS):
+
+```
+migrations/<YYYY>_<MM>_<DD>_tailor_<topic>.sql
+migrations/<YYYY>_<MM>_<DD>_tailor_<topic>.down.sql    (required reverse pair)
+```
+
+**11-K-4.2** The numbered `0NNN_tailor_*.sql` form MUST NOT be used; the integer migration space
+is a shared sequence that parallel work packets append to, and any fixed number collides. (The
+collision of a previously proposed `0334_tailor_garments.sql` with the live
+`0334_loom_canvas_boards.sql` is the concrete proof; see T-CONTRACTS FACT-2.)
+
+**11-K-4.3** The date in the migration filename MUST be the authoring date of that migration
+file, assigned by the implementing work packet. The research package date (2026-06-17) MUST NOT
+be hardcoded into migration filenames; it is the research date, not an implementation date.
+
+**11-K-4.4** Suggested migration set (one file per concern, dated at authoring time):
+
+```
+YYYY_MM_DD_tailor_garments.sql
+YYYY_MM_DD_tailor_material_presets.sql
+YYYY_MM_DD_tailor_avatars.sql
+YYYY_MM_DD_tailor_body_proxies.sql
+YYYY_MM_DD_tailor_simulation_runs.sql
+YYYY_MM_DD_tailor_refit_runs.sql
+YYYY_MM_DD_tailor_trims.sql
+YYYY_MM_DD_tailor_texture_tables.sql
+YYYY_MM_DD_tailor_wardrobe.sql
+YYYY_MM_DD_tailor_garments_animation_col.sql   (ALTER TABLE ADD COLUMN animation_json)
+```
+
+---
+
+##### 11-K-5  Canonical GarmentSpec
+
+`GarmentSpec` is the canonical garment type. It is:
+
+- The LLM's primary output type (model-lane authoring surface).
+- The solver's primary input type (passed into `TailorSandboxAdapter`).
+- The Postgres authority JSONB stored in `tailor_garments.spec_json`.
+
+The names `GarmentSpecV1`, `GarmentDraftV1`, and `GarmentDraftV1` MUST NOT be used as the
+authority type. `GarmentSpec` is defined in `tailor-solver/src/spec.rs` (standalone crate) with
+`#[derive(Serialize, Deserialize, JsonSchema)]` so the MCP `inputSchema` is auto-generated.
+
+**11-K-5.1 Units.** All panel vertex coordinates, seam lengths, dart depths, pleat depths, and
+placement translations MUST be in centimetres (cm). Every length field name MUST carry a `_cm`
+suffix so the unit is self-documenting. Normalized [0,1] coordinates MUST NOT appear in the
+authority `GarmentSpec`; they are permissible only in pre-decode convenience representations
+(e.g., the 76-float ChatGarment input vector) that are decoded to cm before storage.
+
+**11-K-5.2 Gather.** The seam gathering field MUST be named `gather_ratio: f32` on `SeamSpec`,
+defined as `from_length / to_length`. `1.0` = flat seam; values `> 1.0` = gather the `from`
+edge. Valid range is `(0.0, 20.0]` (enforced by `GATHER_RATIO_RANGE` validation check). The
+alternative names `ratio` and `gather_ratio_m_n` MUST NOT be used for the stored field.
+
+**11-K-5.3 Fabric values.** `FabricProperties` fields (stretch, shear, bending, friction,
+damping, buckling) MUST be normalized `[0.0, 1.0]` in `GarmentSpec` (the LLM-facing surface).
+Raw XPBD compliance values (`stretch_weft: 5e-8`, etc.) MUST live only in `tailor_material_presets`
+and in the solver crate. The normalized-to-compliance mapping is owned by the preset/decoder
+layer and applied at `SolverMesh` build time; it MUST NOT be stored twice.
+
+**11-K-5.4 Panel edges.** Panels MUST use explicit vertex arrays plus typed `EdgeShape` edges
+(`Straight | Quadratic { control_cm } | Cubic { control_a_cm, control_b_cm } | Arc {
+curvature }`). The string-typed `curve_type: "bezier"` form MUST NOT be used in the authority
+type. Polygon-only panels (no `edges` field) MUST NOT be used as the authority form.
+
+**11-K-5.5 Status exclusion.** `GarmentSpec` MUST NOT carry `status`, `created_at`, or
+`updated_at` fields. These are row-level promotion-lifecycle metadata on `tailor_garments`, not
+garment content, and MUST NOT be model-emittable fields.
+
+The canonical Rust definition lives in `tailor-solver/src/spec.rs`. Any implementation that
+deviates from the field names, units, or enum variants in T-CONTRACTS [T-CONTRACTS.garment-spec]
+MUST be treated as a contract violation.
+
+---
+
+##### 11-K-6  Schema-ID Constants
+
+**11-K-6.1** The schema-id namespace for all Tailor authority records MUST be `hsk.tailor.*`.
+The `hsk.cloth.*` namespace is reserved for solver-crate-internal physics payloads
+(`hsk.cloth.solver_request@1`, `hsk.cloth.solver_result@1`) that cross the `ClothSolver` trait
+boundary and are never stored as authority rows. Any other use of `hsk.cloth.*` MUST NOT occur.
+
+**Canonical schema-id constants** (in `src/tailor/schemas.rs`):
+
+```rust
+pub const SCHEMA_TAILOR_GARMENT_SPEC_V1:    &str = "hsk.tailor.garment_spec@1";
+pub const SCHEMA_TAILOR_MATERIAL_PRESET_V1: &str = "hsk.tailor.material_preset@1";
+pub const SCHEMA_TAILOR_AVATAR_V1:          &str = "hsk.tailor.avatar@1";
+pub const SCHEMA_TAILOR_BODY_PROXY_V1:      &str = "hsk.tailor.body_proxy@1";
+pub const SCHEMA_TAILOR_TRIM_V1:            &str = "hsk.tailor.trim@1";
+pub const SCHEMA_TAILOR_TRIM_PLACEMENT_V1:  &str = "hsk.tailor.trim_placement@1";
+pub const SCHEMA_TAILOR_PBR_MATERIAL_V1:    &str = "hsk.tailor.pbr_material@1";
+pub const SCHEMA_TAILOR_GRAPHIC_LAYER_V1:   &str = "hsk.tailor.graphic_layer@1";
+pub const SCHEMA_TAILOR_UV_ISLAND_V1:       &str = "hsk.tailor.uv_island@1";
+pub const SCHEMA_TAILOR_ANIMATION_DRAFT_V1: &str = "hsk.tailor.garment_animation_draft@1";
+pub const SCHEMA_TAILOR_REFIT_REQUEST_V1:   &str = "hsk.tailor.refit_request@1";
+pub const SCHEMA_TAILOR_SIM_RECEIPT_V1:     &str = "hsk.tailor.simulation_receipt@1";
+
+// Allowed hsk.cloth.* exception — solver-crate-internal physics payloads only:
+pub const SCHEMA_CLOTH_SOLVER_REQUEST_V1:   &str = "hsk.cloth.solver_request@1";
+pub const SCHEMA_CLOTH_SOLVER_RESULT_V1:    &str = "hsk.cloth.solver_result@1";
+```
+
+---
+
+##### 11-K-7  KernelEventType Additions and event_family Constants
+
+**11-K-7.1** The following variants MUST be added to `KernelEventType` in `kernel/mod.rs`. Every
+added variant MUST also be registered in `required_first_slice_events()`. Wire strings follow the
+existing `as_str()` SCREAMING_SNAKE_CASE convention (FACT-1 from T-CONTRACTS).
+
+```rust
+// -- Garment lifecycle --
+TailorGarmentDraftProposed,       // "TAILOR_GARMENT_DRAFT_PROPOSED"
+TailorGarmentDraftUpdated,        // "TAILOR_GARMENT_DRAFT_UPDATED"
+TailorGarmentValidationRecorded,  // "TAILOR_GARMENT_VALIDATION_RECORDED"
+TailorGarmentPromoted,            // "TAILOR_GARMENT_PROMOTED"
+TailorGarmentPromotionRejected,   // "TAILOR_GARMENT_PROMOTION_REJECTED"
+
+// -- Simulation run lifecycle --
+TailorSimRunRequested,            // "TAILOR_SIM_RUN_REQUESTED"
+TailorSimRunStarted,              // "TAILOR_SIM_RUN_STARTED"
+TailorSimRunCompleted,            // "TAILOR_SIM_RUN_COMPLETED"
+TailorSimRunRejected,             // "TAILOR_SIM_RUN_REJECTED"
+
+// -- CRDT collaborative editing --
+TailorPanelCrdtUpdateRecorded,    // "TAILOR_PANEL_CRDT_UPDATE_RECORDED"
+TailorPanelCrdtSnapshotRecorded,  // "TAILOR_PANEL_CRDT_SNAPSHOT_RECORDED"
+TailorPanelAiEditProposalRecorded,// "TAILOR_PANEL_AI_EDIT_PROPOSAL_RECORDED"
+TailorPanelAiEditProposalDecided, // "TAILOR_PANEL_AI_EDIT_PROPOSAL_DECIDED"
+TailorCrdtConflictDetected,       // "TAILOR_CRDT_CONFLICT_DETECTED"
+
+// -- Material / fabric presets --
+TailorMaterialPresetRecorded,     // "TAILOR_MATERIAL_PRESET_RECORDED"
+TailorMaterialPresetUpdated,      // "TAILOR_MATERIAL_PRESET_UPDATED"
+TailorMaterialPresetRejected,     // "TAILOR_MATERIAL_PRESET_REJECTED"
+TailorGarmentMaterialAssigned,    // "TAILOR_GARMENT_MATERIAL_ASSIGNED"
+
+// -- Avatar / body proxy --
+TailorAvatarCreated,              // "TAILOR_AVATAR_CREATED"
+TailorAvatarMeasurementsExtracted,// "TAILOR_AVATAR_MEASUREMENTS_EXTRACTED"
+TailorBodyProxyCreated,           // "TAILOR_BODY_PROXY_CREATED"
+TailorBodyProxyUpdated,           // "TAILOR_BODY_PROXY_UPDATED"
+
+// -- Refit / retargeting --
+TailorRefitRequested,             // "TAILOR_REFIT_REQUESTED"
+TailorRefitPatternScaled,         // "TAILOR_REFIT_PATTERN_SCALED"
+TailorRefitDrapeCompleted,        // "TAILOR_REFIT_DRAPE_COMPLETED"
+TailorRefitUvRecomputed,          // "TAILOR_REFIT_UV_RECOMPUTED"
+TailorRefitPromoted,              // "TAILOR_REFIT_PROMOTED"
+TailorRefitRejected,              // "TAILOR_REFIT_REJECTED"
+
+// -- Trims, zippers, lacing --
+TailorTrimImported,               // "TAILOR_TRIM_IMPORTED"
+TailorTrimPlaced,                 // "TAILOR_TRIM_PLACED"
+TailorTrimTackUpdated,            // "TAILOR_TRIM_TACK_UPDATED"
+TailorZipperDefined,              // "TAILOR_ZIPPER_DEFINED"
+TailorLacingDefined,              // "TAILOR_LACING_DEFINED"
+TailorPatternToTrimConverted,     // "TAILOR_PATTERN_TO_TRIM_CONVERTED"
+TailorTrimContactViolation,       // "TAILOR_TRIM_CONTACT_VIOLATION"
+
+// -- UV / texture --
+TailorUvIslandsPacked,            // "TAILOR_UV_ISLANDS_PACKED"
+TailorUvFlattenCompleted,         // "TAILOR_UV_FLATTEN_COMPLETED"
+TailorUvFlattenProposed,          // "TAILOR_UV_FLATTEN_PROPOSED"
+TailorPbrMaterialCreated,         // "TAILOR_PBR_MATERIAL_CREATED"
+TailorPbrMaterialUpdated,         // "TAILOR_PBR_MATERIAL_UPDATED"
+TailorPbrMapsGenerated,           // "TAILOR_PBR_MAPS_GENERATED"
+TailorGraphicLayerAdded,          // "TAILOR_GRAPHIC_LAYER_ADDED"
+TailorGraphicLayerUpdated,        // "TAILOR_GRAPHIC_LAYER_UPDATED"
+TailorGraphicLayerRemoved,        // "TAILOR_GRAPHIC_LAYER_REMOVED"
+TailorMaterialAssignmentUpdated,  // "TAILOR_MATERIAL_ASSIGNMENT_UPDATED"
+
+// -- Animation timeline --
+TailorAnimationDraftCreated,      // "TAILOR_ANIMATION_DRAFT_CREATED"
+TailorAnimationDraftUpdated,      // "TAILOR_ANIMATION_DRAFT_UPDATED"
+TailorAnimationSimRunRequested,   // "TAILOR_ANIMATION_SIM_RUN_REQUESTED"
+TailorAnimationSimRunCompleted,   // "TAILOR_ANIMATION_SIM_RUN_COMPLETED"
+TailorAnimationSimRunRejected,    // "TAILOR_ANIMATION_SIM_RUN_REJECTED"
+TailorAnimationDraftPromoted,     // "TAILOR_ANIMATION_DRAFT_PROMOTED"
+
+// -- Export --
+TailorGarmentExportCompleted,     // "TAILOR_GARMENT_EXPORT_COMPLETED"
+
+// -- Wardrobe --
+TailorWardrobeCreated,            // "TAILOR_WARDROBE_CREATED"
+TailorWardrobeGarmentAdded,       // "TAILOR_WARDROBE_GARMENT_ADDED"
+TailorWardrobeGarmentRemoved,     // "TAILOR_WARDROBE_GARMENT_REMOVED"
+
+// -- Second-pass parity additions (v02.198, 2026-07-08) --
+TailorAvatarPoseGenerated,        // "TAILOR_AVATAR_POSE_GENERATED"   (MT-404; family tailor.avatar)
+TailorAnimationImported,          // "TAILOR_ANIMATION_IMPORTED"      (MT-410; family tailor.animation)
+TailorTopstitchOptimized,         // "TAILOR_TOPSTITCH_OPTIMIZED"     (MT-386; family tailor.uv)
+TailorCaptureAnnotated,           // "TAILOR_CAPTURE_ANNOTATED"       (13.12 §12.4.6 model annotation verdicts; family tailor.export)
+```
+
+The BodyKit submodule adds the `TAILOR_BODY_*` event family (`tailor.body`); its canonical
+variant list is owned by 13.16 and extends this list under the same registration rules
+(`required_first_slice_events()`, event-before-row CTE, no superseded names).
+
+**11-K-7.2** The following superseded variant names MUST NOT be introduced in new code. Any
+existing reference MUST be migrated to the canonical name shown:
+
+| Superseded (do not use) | Canonical replacement |
+|---|---|
+| `TailorGarmentValidated` (from 03/04) | `TailorGarmentValidationRecorded` |
+| `TailorPatternValidated` (from 01) | `TailorGarmentValidationRecorded` |
+| `TailorCrdtUpdateRecorded` (from 09) | `TailorPanelCrdtUpdateRecorded` |
+| `TailorGarmentCrdtUpdateRecorded` (from 03/04) | `TailorPanelCrdtUpdateRecorded` |
+| `BodyProxyCreated` (missing prefix, from 07) | `TailorBodyProxyCreated` |
+| `BodyProxyMeasurementsExtracted` (from 07) | `TailorAvatarMeasurementsExtracted` |
+| `TailorMaterialLibraryUpdated` (from 03/01) | `TailorMaterialPresetRecorded` or `TailorMaterialPresetUpdated` |
+| `TailorDraftScaled` (from 07) | `TailorRefitPatternScaled` |
+| Wire string `GARMENT_PROMOTED` (from 09; missing prefix) | `TAILOR_GARMENT_PROMOTED` |
+
+**11-K-7.3** `event_family` constants MUST follow the `tailor.<domain>.<verb>` dot-namespaced
+lowercase form (matching the `atelier.<domain>.<verb>` convention; FACT-6). They MUST be defined
+in `src/tailor/event_family.rs`:
+
+```rust
+pub const TAILOR_GARMENT:    &str = "tailor.garment";
+pub const TAILOR_SIMULATION: &str = "tailor.simulation";
+pub const TAILOR_PANEL_CRDT: &str = "tailor.panel.crdt";
+pub const TAILOR_MATERIAL:   &str = "tailor.material";
+pub const TAILOR_AVATAR:     &str = "tailor.avatar";
+pub const TAILOR_BODY_PROXY: &str = "tailor.body_proxy";
+pub const TAILOR_REFIT:      &str = "tailor.refit";
+pub const TAILOR_TRIM:       &str = "tailor.trim";
+pub const TAILOR_UV:         &str = "tailor.uv";
+pub const TAILOR_TEXTURE:    &str = "tailor.texture";
+pub const TAILOR_ANIMATION:  &str = "tailor.animation";
+pub const TAILOR_WARDROBE:   &str = "tailor.wardrobe";
+pub const TAILOR_EXPORT:     &str = "tailor.export";
+pub const TAILOR_BODY:       &str = "tailor.body";      // BodyKit submodule (13.16)
+```
+
+---
+
+##### 11-K-8  Sandbox Integration: TailorSandboxAdapter
+
+**11-K-8.1** The XPBD solver MUST run inside the KB003 sandbox lifecycle
+(`REQUESTED → STARTED → COMPLETED | REJECTED`). `TailorSandboxAdapter` MUST implement the
+`SandboxAdapter` trait (`kernel/sandbox/adapter.rs`) and MUST use `AdapterIsolationTier::Process`
+as the day-one isolation tier.
+
+**11-K-8.2** The sandbox policy for the cloth solver MUST grant `SandboxCapability::LocalFilesystemRead`
+and `SandboxCapability::LocalFilesystemWrite` scoped to the sandbox workspace scratch path. It
+MUST NOT grant network access.
+
+**11-K-8.3** `TailorSandboxAdapter::run()` MUST perform, in order: (1) `pre_check` against the
+policy, (2) load `GarmentSpec` from the workspace artifact reference, (3) build `SolverMesh`
+from the spec (pattern triangulation), (4) call `ClothSolver::simulate(ClothSolverRequest)`,
+(5) write the vertex/UV/index artifact bundle to the sandbox workspace scratch path, (6) return
+`AdapterRunOutcome::Completed { artifact_refs }`.
+
+**11-K-8.4** Simulated mesh artifacts MUST use a `ClothSimulatedMeshBundle` artifact class entry
+(extending `Kb003ArtifactClass`) with `content_type: "application/octet-stream"` and
+`hash_policy: BinarySha256`. The `retention_root` MUST be a path resolved from `AppState.artifact_root`,
+not a hardcoded absolute path.
+
+**11-K-8.5** The `ClothSolver` trait MUST expose a `cpu_fallback` capability flag so that
+headless CI and container environments where wgpu cannot initialize a GPU backend can fall back to
+a CPU solver path without failing the `TailorSandboxAdapter::run()` call. The artifact manifest
+MUST record which backend (GPU or CPU) was used.
+
+---
+
+##### 11-K-9  Validation Gate: TailorValidationDescriptor
+
+**11-K-9.1** `TailorValidationDescriptor` MUST wrap the KB003 `ValidationDescriptor` type
+(`kernel/validation/descriptor.rs`). It MUST select the applicable check subset by stage
+(fast-pre-solver, mesh-quality, post-simulation, trim, multi-layer, refit, material-preset) and
+by which optional feature set the garment uses.
+
+**11-K-9.2** The canonical check catalog comprises exactly the checks listed below. Each check
+has a stable `code` (for model self-correction), a `severity` of `Blocking` or `Advisory`, and a
+`stage`. The catalog as a whole supersedes the scattered per-file check lists in research topics
+03, 05, 06, 07, 10, and 13.
+
+```text
+CODE                   Sev       Stage     Assertion
+---------------------  --------  --------  ------------------------------------------------
+PANEL_CLOSURE          Blocking  fast      Each panel polygon is a closed, non-self-intersecting loop
+SEAM_EDGE_REF          Blocking  fast      Every SeamSpec.from/to references a valid panel_id+edge_index
+GATHER_RATIO_RANGE     Blocking  fast      Every SeamSpec.gather_ratio in (0.0, 20.0]
+FABRIC_RANGE           Blocking  fast      Normalized FabricProperties in [0,1]; density_g_m2 in [5,2000]; collision_thickness_mm in [0.1,5]
+AVATAR_BINDING         Blocking  fast      AvatarBinding.avatar_id exists in tailor_avatars
+MIN_PANEL_AREA         Blocking  fast      Every panel area > 1.0 cm^2
+WINDING                Advisory  fast      Panel vertices counter-clockwise (auto-corrected; info if fixed)
+MESH_TOPOLOGY          Blocking  mesh      Manifold; no degenerate triangles; no unintended open boundary
+MESH_TRIANGLE_QUALITY  Blocking  mesh      Min triangle angle >= 10 deg; max aspect ratio <= 20
+PANEL_OVERLAP          Advisory  mesh      No two panels occupy the same 3D region before draping
+MESH_NOT_EMPTY         Blocking  post      Simulated vertex buffer non-empty
+NO_DEGENERATE_TRIS     Blocking  post      No zero-area triangles in output mesh
+SEAMS_CLOSED           Blocking  post      Every seam constraint pair <= 1 mm separation at rest
+NO_INTERPENETRATION    Blocking  post      No cloth particle deeper than -0.5 mm inside any body capsule/sphere (final frame)
+SELF_INTERSECTION      Advisory  post      Self-collision pair count below mesh-explosion limit
+UV_COVERAGE            Blocking  post      UV islands cover >= 95% of mesh surface
+UV_VALIDITY            Blocking  post      All UVs in [0,1]^2; no degenerate UV triangles (area > 1e-6)
+DRAPE_CONVERGED        Advisory  post      Final kinetic energy below threshold (solver converged)
+PANEL_COUNT_MATCH      Advisory  post      Simulated panel count == spec panel count
+GARMENTCODE_ROUNDTRIP  Advisory  post      Spec round-trips to GarmentCode JSON without loss
+INTERLAYER_SPACING     Blocking  post      No inter-layer pair closer than (t_inner+t_outer-tolerance) [layered garments only]
+TRIM_NO_PENETRATION    Blocking  post      No trim mesh triangle interpenetrates a cloth triangle [trims only]
+TACK_SEAM_CLOSURE      Blocking  post      All tack distances <= 5 mm at end of draping [trims only]
+ZIPPER_TOOTH_ALIGN     Blocking  post      Tooth-rail tacks within 1 mm of panel edge positions [zippers only]
+LACING_CORD_LENGTH     Blocking  post      No cord segment stretched beyond 200% rest length [lacings only]
+TRIM_GRAVITY_STABLE    Advisory  post      No trim body translating > 50 mm/frame in final 10 frames [trims only]
+TACK_STRENGTH_NONZERO  Advisory  post      Warn if any tack strength < 0.01 [trims only]
+PRESET_NO_NAN          Blocking  preset    No NaN/Inf in drape-test particle positions [material presets only]
+PRESET_STRETCH_NONZERO Blocking  preset    Stretch compliance != 0 [material presets only]
+PRESET_DENSITY_POS     Blocking  preset    Density > 0 [material presets only]
+PRESET_BBOX_PLAUSIBLE  Advisory  preset    Drape-test bounding box within expected range [material presets only]
+REFIT_INTERSECTION_FREE Blocking post     Min(particle-capsule distance) >= -0.5 mm after refit [refit only]
+REFIT_SEAM_CLOSURE     Blocking  post      Mated seam edge-pair length diff < 1% [refit only]
+REFIT_CONVERGED        Advisory  post      Refit sim reached equilibrium (did not time out) [refit only]
+```
+
+**11-K-9.3** `ValidationReport::aggregate_blocks_promotion()` (existing kernel method) MUST drive
+the promotion gate decision. Any `Blocking` check failure MUST prevent promotion. Advisory check
+failures MUST be recorded and surfaced but MUST NOT block promotion unless the
+`PromotionGateInputs.treat_advisory_as_blocking` flag is `true`.
+
+**11-K-9.4** Each `ValidationFinding` returned to a model MUST carry: `code` (stable string from
+the catalog above), `severity` (`"blocking" | "advisory" | "info"`), optional `affected_id`
+(panel_id / seam_id / trim_id), and optional `suggested_fix { field_path: JsonPointer,
+suggested_value: serde_json::Value }`. This is the model self-correction contract. The
+`recommended_action` field MUST be one of: `promote_garment | edit_and_resimulate |
+correct_spec_first | requires_operator_action`.
+
+---
+
+##### 11-K-10  Promotion Gate Binding
+
+**11-K-10.1** `PromotionGate::evaluate()` (`kernel/kb003_promotion/gate.rs`) MUST be called
+after the sandbox run completes and the `TailorValidationDescriptor` issues a passing report.
+The `PromotionGateInputs` bundle MUST supply: `sandbox_run`, `validation_report`,
+`validation_run_id`, `artifact_bundle`, `operator_approval` (`OperatorApprovalEvidence`),
+`idempotency_key` in the form `CPROM-{garment_id}-{val_run_id}`, and
+`required_artifact_refs: vec![mesh_ref, uv_ref, material_ref]`.
+
+**11-K-10.2** On `PromotionOutcome::Accepted`: (1) `tailor_garments.status` MUST be set to
+`promoted`, (2) `promoted_at_utc` and `promotion_receipt_id` MUST be written, (3) a
+`TailorGarmentPromoted` EventLedger event MUST be emitted with the `receipt_id` in the payload.
+The garment row is then an authority row readable by all sessions.
+
+**11-K-10.3** On `PromotionOutcome::Rejected`: (1) `tailor_garments.status` MUST remain at its
+pre-promotion value, (2) a `TailorGarmentPromotionRejected` event MUST be emitted with the
+typed `PromotionRejectionReason` in the payload, (3) the rejection detail MUST be surfaced to
+the operator.
+
+**11-K-10.4** The idempotency key `CPROM-{garment_id}-{val_run_id}` MUST be used without
+modification. Retrying a promotion for the same garment and validation run MUST return the
+original `PromotionReceiptV1` rather than creating a duplicate row.
+
+**11-K-10.5** Automated self-approval is architecturally blocked. `OperatorApprovalEvidence`
+MUST come from a real operator review receipt. The `looks_fixture()` guard in the promotion gate
+MUST NOT be bypassed by the model lane.
+
+---
+
+##### 11-K-11  Determinism and Promotion Equivalence
+
+**11-K-11.1** Solver determinism is per-backend: the same GPU backend plus driver version
+produces identical float results; cross-backend or cross-driver-version runs produce results that
+differ in float rounding due to WGSL/Naga sub-expression ordering (confirmed by wgpu issue
+#5329). Implementation MUST NOT assume cross-backend bit-identical results.
+
+**11-K-11.2** `SolverResult.content_hash` (SHA-256 of the final position buffer) MUST be used
+only for same-machine, same-run idempotency and as the EventLedger receipt fingerprint. It MUST
+NOT gate promotion equivalence. The `PromotionGate` validation runner MUST NOT compare
+`content_hash` values across runs as a promotion criterion.
+
+**11-K-11.3** Promotion equivalence (when re-running a sim to confirm reproducibility) MUST use
+the method and measured tolerances selected by the versioned `TailorQualificationProfileV1` for
+the same solver lane. When that profile selects `MeshComparator::compare(a, b, epsilon_mm)`, the
+vertex-comparison component passes only when all of the following hold:
+
+- `vertex_count`, `triangle_count`, `seam_edge_pair_count`, and `panel_count` match exactly.
+- Max per-vertex Euclidean position deviation `<= epsilon_mm`.
+
+`epsilon_mm` MUST be resolved from the selected profile; no universal value or free per-garment
+override may claim qualification without a new measured, versioned profile.
+
+**11-K-11.4** For animated runs that include stochastic wind turbulence, per-vertex position
+deviation across vendors may exceed `epsilon_mm`. For animated runs, `MeshComparator` MUST
+additionally accept a profile-selected shape-envelope match: per-frame bounding box within the
+profile-resolved `bbox_epsilon_mm` plus `SEAMS_CLOSED` as the equivalence basis, because turbulence is aesthetic
+and exact per-vertex reproduction is not achievable cross-vendor.
+
+---
+
+##### 11-K-12  CRDT Collaborative Pattern Editing
+
+**11-K-12.1** Collaborative garment-panel editing MUST reuse the existing `kernel/crdt/`
+infrastructure (`kernel_crdt_updates` table, migration 0020) without modification. The Tailor
+module MUST NOT introduce a separate CRDT table or a separate CRDT document model.
+
+**11-K-12.2** The CRDT document mapping MUST be:
+- `document_id` = `garment_id` (the `GAR-` prefixed id).
+- `crdt_document_id` = `"CRDT-GAR-{garment_id}"` stored in `tailor_garment_crdt_docs`.
+- Panel geometry, seam definitions, and per-panel material overrides are CRDT map subtrees within
+  the single garment document.
+
+**11-K-12.3** Collaborative editing MUST use the canonical kernel CRDT bridge path
+(`kernel/crdt/yjs_bridge.rs`): `push_yjs_update()` validates the `YjsUpdateEnvelopeV1`,
+enforces linear draft ordering, appends the EventLedger receipt
+(`TailorPanelCrdtUpdateRecorded`), and writes the update row. Legacy Yjs bytes, when imported, are
+compatibility payloads; authoritative merge/conflict semantics MUST be available to the native
+shell and backend-agent path without a WebView.
+
+**11-K-12.4** Server-side panel geometry mutations proposed by a model or by post-simulation
+UV feedback MUST use the `ai_edit_proposal` path (`kernel/crdt/ai_edit_proposal.rs`) and MUST
+emit `TailorPanelAiEditProposalRecorded`. Models MUST NOT self-approve their own proposals;
+operator or validation-runner approval is required before a model diff is applied as a CRDT
+update.
+
+**11-K-12.5** Concurrent edits to distinct panels MUST be resolved by last-write-wins on the
+distinct panel subtrees (panels are independent CRDT map subtrees). Concurrent edits to the same
+panel vertex MUST surface a `TailorCrdtConflictDetected` event and require operator decision via
+the existing conflict-resolution path in the kernel CRDT module.
+
+---
+
+##### 11-K-13  Model Lanes: LLM-Steerable Garment Authoring
+
+**11-K-13.1** All LLM calls in the Tailor module MUST route through `LlmClient::completion()`
+(`llm/mod.rs`). No Tailor-specific LLM client implementation MUST be introduced; the module
+MUST use `Arc<dyn LlmClient>` injected from `AppState.llm_client`.
+
+**11-K-13.2** `TailorModelAdapter` MUST implement the `ModelAdapter` trait
+(`kernel/model_adapter.rs`). Its `invoke()` method MUST: (1) call `LlmClient::completion()` with
+a `CompletionRequest` that includes a `json_schema` field set to the `GarmentSpec` JSON schema
+(derived via `schemars`), (2) parse and validate the response against `GarmentSpec`, (3) emit
+`TailorGarmentDraftProposed` with the validated spec as payload, (4) return a
+`ModelAdapterOutput` with `artifact_kind: "tailor_garment_draft"`.
+
+**11-K-13.3** The `json_schema` field in `CompletionRequest` MUST be set for all garment
+authoring calls to request constrained structured output. This MUST NOT be optional or omitted
+in production model lanes.
+
+**11-K-13.4** A second `TailorModelAdapter` variant MUST support material parameter estimation
+from a fabric-swatch image (following the Image2Garment approach): (1) the operator uploads a
+swatch image, (2) `LlmClient::completion()` is called with the image and the `FabricProperties`
+JSON schema as constrained output format, (3) the response is validated against
+`FABRIC_RANGE`, `PRESET_STRETCH_NONZERO`, and `PRESET_DENSITY_POS` checks, (4) on pass, the
+material is promoted to `tailor_material_presets` via the standard authority write path.
+
+**11-K-13.5** The recommended `CompletionRequest` temperature for garment authoring MUST be
+`<= 0.2` to minimize hallucinated geometry. Higher temperatures are permitted only for
+exploratory design ideation where subsequent validation will catch invalid outputs.
+
+---
+
+##### 11-K-14  Wardrobe Grouping
+
+**11-K-14.1** Wardrobe grouping MUST be implemented via the `tailor_wardrobe` table (PK
+`WRD-{uuid_v7}`) with `workspace_id` and `name`. Garments reference their wardrobe via
+`tailor_garments.wardrobe_id`.
+
+**11-K-14.2** Wardrobe mutations MUST emit `TailorWardrobeCreated`, `TailorWardrobeGarmentAdded`,
+or `TailorWardrobeGarmentRemoved` EventLedger events as appropriate.
+
+**11-K-14.3** Wardrobes are query-time groupings, not promotion gates. A garment MUST NOT be
+blocked from promotion because it lacks a `wardrobe_id`. Wardrobe assignment is independent of
+the `sandbox → validation → promotion` lifecycle.
+
+---
+
+##### 11-K-15  Axum API Routes
+
+Tailor MUST expose the following Axum routes in `src/api/tailor.rs` (or `src/tailor/api.rs`),
+wired from the main router following the existing `src/api/<domain>.rs` pattern:
+
+```rust
+POST   /tailor/garments                  -- create_garment_draft
+GET    /tailor/garments/:id              -- get_garment
+POST   /tailor/garments/:id/simulate     -- trigger_simulation
+POST   /tailor/garments/:id/promote      -- promote_garment
+GET    /tailor/garments/:id/crdt         -- get_crdt_state
+POST   /tailor/garments/:id/crdt/push    -- push_crdt_update
+GET    /tailor/materials                 -- list_materials
+POST   /tailor/materials                 -- create_material
+GET    /tailor/materials/:id             -- get_material
+GET    /tailor/wardrobes                 -- list_wardrobes
+POST   /tailor/wardrobes                 -- create_wardrobe
+POST   /tailor/wardrobes/:id/garments    -- add_garment_to_wardrobe
+```
+
+Native GUI, backend/model and compatibility routes MUST bind these operations by canonical
+`action_id` through the shared action catalog. Adapter naming may use the `tailor_` prefix but
+MUST NOT become a second command registry.
+
+---
+
+##### 11-K-16  Full Garment Lifecycle (Normative Sequence)
+
+The normative lifecycle for a model-authored garment is:
+
+```
+1. Operator describes garment intent
+       |
+2. TailorModelAdapter.invoke()
+     -> LlmClient.completion() [constrained by GarmentSpec JSON schema]
+     -> GarmentSpec parsed and fast-pre-solver checks run (PANEL_CLOSURE, SEAM_EDGE_REF,
+        GATHER_RATIO_RANGE, FABRIC_RANGE, AVATAR_BINDING, MIN_PANEL_AREA)
+     -> INSERT tailor_garments (status = 'draft')
+     -> TailorGarmentDraftProposed EventLedger event emitted
+       |
+3. [Optional] CRDT collaborative editing
+     -> push_yjs_update() or ai_edit_proposal flow
+     -> TailorPanelCrdtUpdateRecorded / TailorPanelAiEditProposalRecorded events
+       |
+4. POST /tailor/garments/:id/simulate
+     -> SandboxRunV1 created (status = REQUESTED)
+     -> TailorSimRunRequested event emitted
+     -> TailorSandboxAdapter.run() (status = STARTED)
+          -> SolverMesh built from GarmentSpec
+          -> ClothSolverRequest dispatched to tailor-solver crate
+          -> XPBD solver: WGSL compute on wgpu (Vulkan/DX12/Metal or CPU fallback)
+          -> Mesh + UV artifact bundle written to sandbox workspace scratch path
+     -> SandboxRunStatus = Completed
+     -> TailorSimRunCompleted event; tailor_simulation_runs row updated
+       |
+5. TailorValidationDescriptor executes applicable check subset
+     -> Fast, mesh, post-simulation checks evaluated
+     -> ValidationReport produced
+     -> TailorGarmentValidationRecorded event emitted
+       |
+   [Any Blocking check failed?]
+   YES -> TailorSimRunRejected event; operator sees blocking codes + suggested_fix; loop to step 3/4
+   NO  ->
+       |
+6. PromotionGate.evaluate(PromotionGateInputs)
+     -> Operator provides OperatorApprovalEvidence (real review receipt; no self-approval)
+     -> [Rejected?] TailorGarmentPromotionRejected event; rejection reason surfaced; loop
+     -> [Accepted?]
+          tailor_garments.status = 'promoted'
+          promoted_at_utc + promotion_receipt_id written
+          TailorGarmentPromoted EventLedger event emitted
+          Garment is an authority row readable by all sessions
+```
+
+**11-K-16.1** A passing API call, a non-crashing solver run, or a single visually acceptable
+sample MUST NOT be claimed as a complete lifecycle. A garment reaches authority status only at
+step 6 (`TailorGarmentPromoted`).
+
+**11-K-16.2** The lifecycle above MUST be traceable end-to-end via EventLedger queries on the
+`tailor.garment`, `tailor.simulation`, and `tailor.garment.promotion` event families without
+reading application logs.
+
+---
+
+##### 11-K-17  Portability
+
+**11-K-17.1** All Tailor module code MUST NOT contain hardcoded absolute paths. Paths MUST be
+resolved from `AppState.artifact_root` or the equivalent topology-level configuration entry.
+
+**11-K-17.2** Garment authority rows live in PostgreSQL. The connection string MUST be supplied
+via environment variable, not hardcoded.
+
+**11-K-17.3** Simulated mesh artifact bundles MUST be written to
+`{artifact_root}/handshake-product/cloth/sim-meshes/` using the `Kb003ArtifactMetadata.retention_root`
+path convention, so the root is relocatable by changing `artifact_root` alone.
+
+**11-K-17.4** The `tailor-solver` crate MUST NOT hardcode any paths. All file I/O MUST go
+through `ClothSolverRequest` / `ClothSolverResult` string refs supplied by the sandbox workspace
+materializer.
+
+---
+
+##### 11-K-18  No-SQLite Tripwire
+
+**11-K-18.1** `guard_authority_write(AuthorityMode::PostgresPrimary)` MUST be called as the
+first statement in every function in `storage_glue.rs` that writes to any `tailor_*` table. This
+is a hard runtime guard; violation causes an immediate error, not a warning.
+
+**11-K-18.2** Test environments that cannot connect to PostgreSQL MUST mock the `Database` trait,
+not route authority writes through SQLite. Using SQLite as a test backend for Tailor authority
+tables is a policy violation, not a convenience shortcut.
+
+---
+
+*Provenance (non-normative):* This sub-section derives its contract surfaces from T-CONTRACTS
+(16-contracts.md) and T-KERNEL-INTEGRATION (10-kernel-integration.md) in the
+`wt-gov-kernel/.GOV/reference/cloth_engine_research/` package, verified against live codebase
+`wtc-kernel-009` on 2026-06-17. Where any research topic conflicts with this sub-section, this
+sub-section is authoritative for implementation.
+
+## 13.12 Viewport, Visual Debug & Render/Export Handoff
+
+<!-- id: render -->
+<!-- Non-normative provenance: cloth_engine_research/08-render-viewport-export.md (T-RENDER-VIEWPORT) -->
+<!-- Canonical contract authority: cloth_engine_research/16-contracts.md (T-CONTRACTS) -->
+
+---
+
+### 12.1 Scope
+
+This section governs:
+
+1. The throwaway Bevy testbed viewport used during `tailor-solver` crate development.
+2. The Handshake-native wgpu viewport panel embedded in the native Rust shell.
+3. Model-readable visual capture and structured simulation-state metadata.
+4. Geometry-cache export (glTF morph-target, OBJ sequence, USD time-sample) to downstream DCC tools (Blender, Unreal Engine 5).
+
+Tailor owns both an interactive simulation/debug viewport and a native final-quality rendering
+lane. External DCC export remains required for interoperability and independent qualification,
+but MUST NOT be required to produce a final Tailor still, animation, AOV set, or queued render.
+The native final renderer, render queue, AOVs, render library, and Photo-Studio integration are
+governed by 13.32; the interactive viewport MUST remain responsive and MUST NOT silently invoke
+the final-quality renderer.
+
+All type names, event-variant names, schema IDs, table names, PK forms, and migration-naming conventions used in this section are canonical per T-CONTRACTS (16-contracts.md) and MUST NOT be altered to match superseded names in earlier research files.
+
+---
+
+### 12.2 Throwaway Bevy Testbed Viewport
+
+#### 12.2.1 Purpose and Isolation
+
+The throwaway testbed is a developer utility crate named `handshake-cloth-testbed`. It exists solely to provide a windowed viewport for visually inspecting `tailor-solver` output during crate development.
+
+- The testbed MUST NOT be a dependency of `handshake_core`, `app/src-tauri`, or any crate that ships to end users.
+- The testbed MUST NOT import `sqlx`, `axum`, `tauri`, or any `handshake_core` type.
+- The testbed MUST be compilable with a single `cargo run -p handshake-cloth-testbed` without a running PostgreSQL instance or Tauri shell.
+- The testbed SHOULD be treated as a deprecation candidate once the Handshake-native viewport (12.3) is operational.
+
+#### 12.2.2 Solver Boundary
+
+The testbed MUST interact with the solver exclusively through the `ClothSolver` trait (T-CLOTH-SOLVER) and the `GarmentFrame` output type defined in `tailor-solver`. These are the only public types it is permitted to import from that crate.
+
+#### 12.2.3 Bevy 0.18 Integration Pattern
+
+The testbed MUST use Bevy 0.18's `RenderTarget::Image` + `ImageCopyDriver` headless path for CI-style visual regression captures. It MUST NOT open a windowed OS surface for headless CI runs.
+
+The ECS wiring pattern follows bevy_silk (ManevilleF/bevy_silk) for component layout: a cloth entity with `Handle<Mesh>` + `ClothComponent` + `Transform` + `GlobalTransform`. However, the solver invoked MUST be `tailor-solver`'s XPBD GPU path, not bevy_silk's Verlet integrator. The testbed updates Bevy's `Mesh` vertex buffer each frame by feeding `GarmentFrame.positions` back through `extract_meshes`.
+
+Headless PNG capture MUST use the staging-buffer readback pattern (`copy_texture_to_buffer` + `BufferUsages::MAP_READ` + `device.poll(PollType::Wait)`) as documented in `bevy/examples/app/headless_renderer.rs`. The captured PNG file MUST be written by the `image` crate (`image::RgbaImage::from_raw`).
+
+#### 12.2.4 Testbed Crate Layout
+
+```
+handshake-cloth-testbed/
+  Cargo.toml          # dev-only; pins Bevy to a specific version; NO handshake_core deps
+  src/
+    main.rs           # Bevy App builder and plugin registration
+    scene.rs          # avatar proxy capsules, ground plane, lighting
+    cloth_plugin.rs   # ECS plugin: spawn cloth entity, drive tailor-solver each Update tick
+    debug_overlay.rs  # egui-wgpu panels: particle count, constraint residuals, step timing
+    capture.rs        # headless PNG capture (RenderTarget::Image + ImageCopyDriver)
+    export.rs         # per-frame OBJ dump for visual diff tooling
+  examples/
+    drape_sphere.rs
+    xpbd_seam_test.rs
+```
+
+The `Cargo.toml` MUST include an explicit Bevy version pin and an `allow-dirty` marker comment so intentional version skew is visible. Bevy minor upgrades MUST be treated as an explicit upgrade action on this crate, not an automatic dependency pull.
+
+#### 12.2.5 Debug Overlay
+
+The testbed SHOULD surface a live egui-wgpu debug panel using `egui-wgpu::CallbackTrait`. The panel MUST display at minimum: particle count, constraint count, max constraint residual, kinetic energy, and step time in ms. A residual-history line plot SHOULD be included to make convergence visible without pixel analysis.
+
+---
+
+### 12.3 Handshake-Native Tailor Viewport
+
+#### 12.3.1 Architecture: Rendered-to-Texture
+
+The Handshake-native Tailor viewport MUST use the shared native-shell wgpu device and render into
+a texture consumed by the shell's render graph. It MUST NOT create a competing OS surface or a
+second untracked device.
+
+The required rendering path is:
+
+1. The viewport renders into a shell-owned/shareable `wgpu::Texture`.
+2. The native shell samples the texture directly; frame-rate and quality are measured profile
+   values rather than a universal hardcoded constant.
+3. On-demand Argus/model captures use bounded GPU-to-CPU readback and ArtifactStore output.
+4. Native panes and backend/model routes resolve the same surface/action/capture descriptors.
+
+This architecture uses the existing native compositor and requires no WebView or plugin overlay.
+
+#### 12.3.2 ClothViewport Struct Contract
+
+The viewport implementation MUST expose the following public interface from the `tailor-solver` crate (or a thin `handshake-tailor-viewport` sub-crate with no `handshake_core` dependencies):
+
+```rust
+// tailor-solver/src/viewport.rs
+pub struct ClothViewport {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    color_texture: wgpu::Texture,
+    color_view: wgpu::TextureView,
+    depth_texture: wgpu::Texture,
+    staging_buffer: wgpu::Buffer,
+    solid_pipeline: wgpu::RenderPipeline,
+    wireframe_pipeline: wgpu::RenderPipeline,
+    debug_pipeline: wgpu::RenderPipeline,
+    config: ViewportConfig,
+}
+
+pub struct ViewportConfig {
+    pub width: u32,
+    pub height: u32,
+    pub render_mode: RenderMode,
+    pub show_wireframe_overlay: bool,
+    pub show_constraint_residuals: bool,
+    pub show_normals: bool,
+    pub show_particles: bool,
+    pub background_color: [f32; 4],
+    pub camera: CameraUniform,
+}
+
+pub enum RenderMode { Solid, Wireframe, Toon }
+```
+
+`ClothViewport` MUST NOT have a dependency on `handshake_core`. It receives the injected shared
+wgpu device/queue through a narrow interface and is driven by canonical Tailor actions and native
+surface state.
+
+#### 12.3.3 Render Pipelines
+
+The viewport MUST implement three wgpu render pipelines:
+
+- **Solid pipeline**: PBR-lite fragment shader over the draped cloth mesh. Cloth geometry (`GarmentFrame.positions`, normals, UVs) feeds the vertex buffer.
+- **Wireframe pipeline**: `wgpu::PrimitiveTopology::LineList` with an index buffer enumerating triangle edges. MUST be compositable as an overlay on top of the solid pipeline by a second render pass.
+- **Debug pipeline**: renders particles as point sprites and constraint edges as colored lines. Constraint residuals MUST be encoded as a color gradient: green (residual near 0) through yellow to red (residual near 1.0). This is achieved in WGSL without geometry shaders:
+
+```wgsl
+// debug_constraints.wgsl
+struct ConstraintDebugIn {
+    @location(0) residual: f32, // normalized [0.0, 1.0]
+};
+
+@fragment
+fn fs_main(in: ConstraintDebugIn) -> @location(0) vec4<f32> {
+    let r = clamp(2.0 * in.residual, 0.0, 1.0);
+    let g = clamp(2.0 * (1.0 - in.residual), 0.0, 1.0);
+    return vec4<f32>(r, g, 0.0, 1.0);
+}
+```
+
+Normal visualization MUST be implemented via a CPU-side arrow mesh (one arrow per vertex normal, uploaded as a vertex buffer each frame). WGSL geometry shaders MUST NOT be used; wgpu/WGSL does not expose them.
+
+A Toon pipeline MAY be implemented after the required production render lanes. Fur, garment
+fiber, and strand rendering are in scope through the shared groom core governed by 13.31-13.32.
+
+#### 12.3.4 GPU-to-CPU Readback
+
+`ClothViewport::capture_frame()` MUST implement the staging-buffer readback pattern:
+
+```rust
+// Required readback pattern (abridged)
+let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+    size: (4 * self.config.width * self.config.height) as u64,
+    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+    mapped_at_creation: false,
+    label: Some("cloth_viewport_readback"),
+});
+let mut encoder = self.device.create_command_encoder(&Default::default());
+// ... render pass to color_texture ...
+encoder.copy_texture_to_buffer(
+    self.color_texture.as_image_copy(),
+    wgpu::TexelCopyBufferInfo {
+        buffer: &output_buffer,
+        layout: wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(4 * self.config.width),
+            rows_per_image: Some(self.config.height),
+        },
+    },
+    wgpu::Extent3d {
+        width: self.config.width,
+        height: self.config.height,
+        depth_or_array_layers: 1,
+    },
+);
+self.queue.submit(std::iter::once(encoder.finish()));
+let slice = output_buffer.slice(..);
+slice.map_async(wgpu::MapMode::Read, |_| {});
+self.device.poll(wgpu::PollType::Wait);
+```
+
+The resulting raw RGBA bytes MUST be encoded as PNG via the `image` crate
+(`image::RgbaImage::from_raw`). `capture_frame()` MUST NOT block the native shell render or input
+thread; it MUST run as a cancellable bounded job over the shared injected wgpu device/queue and
+return through the canonical kernel action receipt path.
+
+---
+
+### 12.4 Model-Readable Visual Capture
+
+#### 12.4.1 TailorVisualCapture Type
+
+Every visual capture of a simulation frame MUST be represented as a `TailorVisualCapture`. This type extends the existing Handshake visual-debugger contract (`VisualCaptureResult` in `commands/visual_debugger.rs`) with simulation-state metadata:
+
+```rust
+// src/tailor/capture.rs
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TailorVisualCapture {
+    // Visual surface (compatible with existing VisualCaptureResult)
+    pub png_base64: String,
+    pub width: u32,
+    pub height: u32,
+    pub captured_at_utc: String,
+    pub render_mode: String,          // "solid" | "wireframe" | "debug_constraints"
+    // Simulation identity (T-CONTRACTS canonical ids)
+    pub garment_id: String,           // "GAR-{uuid_v7}"
+    pub simulation_run_id: String,    // "SIM-{uuid_v7}"
+    pub frame_index: u64,
+    pub sim_time_seconds: f64,
+    // Structured diagnostics — model-parseable without pixel analysis
+    pub metadata: SimFrameMetadata,
+    // Optional quality verdict written by a model agent
+    pub annotation: Option<String>,
+    // EventLedger receipt for this capture (TailorGarmentExportCompleted event)
+    pub event_ledger_event_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SimFrameMetadata {
+    pub particle_count: u32,
+    pub constraint_count: u32,
+    pub max_constraint_residual: f32,
+    pub avg_constraint_residual: f32,
+    pub collision_count: u32,
+    pub kinetic_energy: f32,
+    pub step_time_ms: f32,
+}
+```
+
+`SimFrameMetadata` MUST be returned alongside every PNG capture. A model MUST be able to use `SimFrameMetadata` as a quantitative pre-filter before invoking vision analysis on the PNG.
+
+#### 12.4.2 Settlement Gate
+
+A model MUST NOT accept a simulation as settled and issue a promotion-path request until BOTH of the following conditions are observed from `SimFrameMetadata`:
+
+- `kinetic_energy` is below a configurable threshold (default: `0.01`; stored in the sandbox policy extension fields, NOT hardcoded).
+- `max_constraint_residual` is below a configurable threshold (default: `0.05`; stored in the same policy).
+
+These thresholds MUST be derivable empirically from known-good simulations and stored as parameters, not compiled constants. If either condition is not met, the model MUST request additional simulation steps or flag the run as `DRAPE_CONVERGED` advisory failing before proceeding (see T-CONTRACTS validation catalog check `DRAPE_CONVERGED`).
+
+#### 12.4.3 Canonical Capture Actions
+
+The following canonical kernel actions MUST be registered in the shared action catalog and
+projected into the native shell and backend/model routes:
+
+```rust
+pub async fn tailor_capture_frame_action(
+    garment_id: String,
+    simulation_run_id: String,
+    frame_index: u64,
+    render_mode: String,      // "solid" | "wireframe" | "debug_constraints"
+    app: &AppState,
+) -> Result<TailorActionReceiptV1, TailorActionError>;
+
+pub async fn tailor_viewport_config_action(
+    garment_id: String,
+    config: ViewportConfigPatch,
+    app: &AppState,
+) -> Result<TailorActionReceiptV1, TailorActionError>;
+```
+
+`tailor_capture_frame` MUST:
+
+1. Resolve the simulation run from `tailor_simulation_runs` (garment_id + simulation_run_id).
+2. Invoke `ClothViewport::capture_frame()` for the requested frame index and render mode.
+3. Append `TailorVisualCaptureCompleted` (`TAILOR_VISUAL_CAPTURE_COMPLETED`) to EventLedger before
+   materializing the capture row; the row MUST cite that same `event_id`.
+4. Register the PNG and structured state sidecar in ArtifactStore and return their handles in a
+   typed `TailorActionReceiptV1` carrying actor/session/correlation/action/run identifiers.
+
+#### 12.4.4 Axum API Routes
+
+The following routes MUST be added to `src/api/tailor.rs`:
+
+```rust
+.route("/tailor/garments/:id/capture",          post(capture_frame))
+.route("/tailor/garments/:id/capture/latest",   get(get_latest_capture))
+.route("/tailor/garments/:id/captures/:frame/annotate", post(annotate_capture))
+```
+
+#### 12.4.5 Capture Persistence (tailor_captures)
+
+Captures MUST be persisted to PostgreSQL. The migration for this table MUST follow the dated naming convention (T-CONTRACTS [T-CONTRACTS.migration-naming]): `<YYYY>_<MM>_<DD>_tailor_captures.sql` with a paired `.down.sql`.
+
+```sql
+-- 2026_MM_DD_tailor_captures.sql
+CREATE TABLE IF NOT EXISTS tailor_captures (
+    capture_id            TEXT PRIMARY KEY,    -- "CAP-{uuid_v7}"
+    garment_id            TEXT NOT NULL REFERENCES tailor_garments (garment_id),
+    simulation_run_id     TEXT,
+    frame_index           BIGINT NOT NULL,
+    render_mode           TEXT NOT NULL,
+    png_artifact_id       TEXT,               -- FK into artifact_manifests
+    metadata_json         JSONB NOT NULL,     -- SimFrameMetadata
+    annotation            TEXT,
+    verdict               TEXT
+        CHECK (verdict IS NULL OR verdict IN ('accept', 'reject', 'needs_resim')),
+    event_ledger_event_id TEXT NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_captures_garment ON tailor_captures (garment_id);
+```
+
+Rules:
+- `TEXT PRIMARY KEY` with `CAP-` prefix (T-CONTRACTS [T-CONTRACTS.tables] FACT-4 convention).
+- `verdict` MUST be set only by a model agent via the annotation path (12.4.6); it MUST NOT be set during the initial capture insert.
+- `png_artifact_id` MUST reference the artifact registry when the PNG is stored as an artifact. If the PNG is not retained as an artifact (e.g. ephemeral inspection), the column remains NULL.
+
+#### 12.4.6 Model Annotation (TailorCaptureAnnotated)
+
+A model agent writing a quality verdict on a capture MUST:
+
+1. Call `POST /tailor/garments/:id/captures/:frame/annotate` with a payload of `{ verdict, note }`.
+2. The handler MUST update `tailor_captures.verdict` and `tailor_captures.annotation`.
+3. The handler MUST emit a `TailorGarmentExportCompleted` EventLedger event with `event_family = "tailor.export"` and payload including `capture_id`, `verdict`, and optional `note`.
+
+The annotation write is a light collaborative edit. It MUST go through the `ai_edit_proposal` path in `kernel/crdt/ai_edit_proposal.rs` if the garment is in a CRDT-collaborative state; otherwise direct write is permitted.
+
+---
+
+### 12.5 Model-First (LLM-Steerable) Capture and Export API
+
+#### 12.5.1 MCP Tool Definitions
+
+The following MCP tool definitions MUST be registered in the Tailor model-lane gate:
+
+```rust
+TailorTool::CaptureFrame {
+    garment_id: String,
+    simulation_run_id: String,
+    frame_index: u64,
+    render_mode: String,             // "solid" | "wireframe" | "debug_constraints"
+    camera_preset: Option<String>,   // "front" | "side" | "top" | "isometric"
+}
+
+TailorTool::AnnotateCapture {
+    capture_id: String,
+    verdict: String,                 // "accept" | "reject" | "needs_resim"
+    note: Option<String>,
+}
+
+TailorTool::ExportGarment {
+    garment_id: String,
+    simulation_run_id: String,
+    format: String,                  // "obj_sequence" | "gltf_morph" | "usd"
+    start_frame: u64,
+    end_frame: u64,
+    fps: f64,
+}
+```
+
+Input schemas for these tools MUST be auto-generated via `schemars::JsonSchema` derive on the corresponding request types.
+
+#### 12.5.2 Required Model Inspection Loop
+
+When a model agent evaluates a simulation run, it MUST follow this sequence before issuing any promotion-path action:
+
+1. Call `CaptureFrame` with `render_mode: "debug_constraints"` and read `SimFrameMetadata` to determine whether the settlement gate (12.4.2) is met.
+2. If the settlement gate is not met, request additional simulation steps or reject the run. MUST NOT proceed to promotion.
+3. If the settlement gate is met, call `CaptureFrame` with `render_mode: "solid"` to obtain the quality PNG.
+4. Submit the PNG to the vision capability of the active `LlmClient` and evaluate visual garment quality.
+5. Call `AnnotateCapture` with the resulting verdict (`accept | reject | needs_resim`) and record an EventLedger receipt.
+6. If the verdict is `accept`, call `ExportGarment` with the appropriate format for the downstream DCC handoff.
+
+---
+
+### 12.6 Render/Export Handoff
+
+#### 12.6.1 Export Format Requirements
+
+Tailor MUST support the following geometry-cache export formats. All formats export `GarmentFrame` sequences (vertex positions, normals, UVs, triangle indices) in the coordinate system and units produced by the solver (centimetres; Y-up).
+
+| Format | Target DCC | MVP status |
+|---|---|---|
+| OBJ numbered sequence | Blender, Houdini, Maya, any DCC | MUST — MVP; no external crate required |
+| glTF 2.0 morph-target (GLB) | Blender, Three.js, Godot, web | MUST — MVP; custom binary GLB encoder required |
+| USD time-sample mesh | Blender 5+, Unreal Engine 5, Houdini | SHOULD — MVP if `openusd` v0.5.0 `set_at_time` API is validated |
+
+Alembic (`.abc`) write support MUST NOT be implemented as a native Rust path in the MVP. No production-quality pure-Rust Alembic writer exists as of June 2026 (`ogawa-rs` v0.4.0 is read-only; `ennis/alembic-rs` is WIP). The Alembic export path MUST be documented as a two-step workaround (OBJ sequence + Blender Python headless conversion) in the garment export recipe.
+
+FBX write support MUST NOT be implemented as a native Rust path. USD or glTF MUST be preferred for all Unreal Engine handoffs. Where FBX delivery is unavoidable (legacy DCC/UE character pipelines, dense auto-key animated garments per R-ANIM-039, BodyKit skeletal exports per 13.26), it MUST run exclusively through the Blender-bridge conversion lane (generated headless Blender script consuming exported caches/meshes and writing the FBX from Blender), guarded by a fail-closed negative test asserting no native FBX writer exists in `tailor-solver` or `handshake_core` (MT-421).
+
+#### 12.6.2 OBJ Sequence Export
+
+The OBJ sequence exporter MUST be implemented as a standalone function in `src/tailor/export/obj_sequence.rs` with no external crate dependencies beyond `std::io`. Each frame MUST be written as one `.obj` file named `frame_{:06}.obj` (zero-padded to 6 digits) in the specified output directory.
+
+The writer MUST emit:
+- `v x y z` vertex lines (6 decimal places, centimetres).
+- `vn x y z` normal lines (6 decimal places).
+- `vt u v` UV lines (6 decimal places).
+- `f v/vt/vn v/vt/vn v/vt/vn` face lines (1-indexed per OBJ spec).
+
+```rust
+// src/tailor/export/obj_sequence.rs
+pub fn export_obj_frame(
+    frame: &GarmentFrame,
+    frame_index: u64,
+    out_dir: &std::path::Path,
+) -> std::io::Result<()> {
+    use std::io::Write;
+    let path = out_dir.join(format!("frame_{:06}.obj", frame_index));
+    let mut f = std::fs::File::create(&path)?;
+    writeln!(f, "# Handshake Tailor frame {}", frame_index)?;
+    for p in &frame.positions {
+        writeln!(f, "v {:.6} {:.6} {:.6}", p[0], p[1], p[2])?;
+    }
+    for n in &frame.normals {
+        writeln!(f, "vn {:.6} {:.6} {:.6}", n[0], n[1], n[2])?;
+    }
+    for uv in &frame.uvs {
+        writeln!(f, "vt {:.6} {:.6}", uv[0], uv[1])?;
+    }
+    for tri in &frame.triangles {
+        writeln!(f, "f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}",
+            tri[0] + 1, tri[1] + 1, tri[2] + 1)?;
+    }
+    Ok(())
+}
+```
+
+#### 12.6.3 glTF Morph-Target Sequence Export
+
+The `gltf` crate v1.4.1 is read-only and MUST NOT be used for export. The glTF export path MUST be a custom binary GLB encoder implemented in `src/tailor/export/gltf_morph.rs`.
+
+The encoder MUST:
+- Use `frames[0]` as the base mesh (positions, normals, UVs as glTF accessors).
+- Represent each subsequent frame as a morph target: a POSITION delta accessor containing `frame[n].positions - frames[0].positions`.
+- Use `ComponentType::FLOAT` (not normalized integer) for all morph-target position delta accessors. Normalized integer encodings MUST NOT be used because cloth simulation deltas can be large, and sub-millimetre accuracy would be lost.
+- Write a glTF `animation` object whose sampler drives `mesh.weights` over time, with one weight = 1.0 at the frame's time code and 0.0 elsewhere (`STEP` interpolation).
+- Pack all binary data into a single `.glb` chunk (binary glTF container).
+
+Signature:
+
+```rust
+// src/tailor/export/gltf_morph.rs
+pub fn export_gltf_morph_sequence(
+    frames: &[GarmentFrame],
+    fps: f64,
+    out_path: &std::path::Path,
+) -> std::io::Result<()>;
+```
+
+#### 12.6.4 USD Time-Sample Mesh Export
+
+The USD exporter MUST use `openusd` v0.5.0 (`mxpv/openusd`) and MUST be gated behind a Cargo feature flag `feature = "usd-export"` so the dependency is not forced on all build targets.
+
+The exporter MUST:
+- Create a `UsdGeomMesh` at `/World/GarmentMesh`.
+- Write the mesh topology (face vertex counts, face vertex indices, UVs) once at the default time.
+- Write per-frame time-sample values for `points` and `normals` using `set_at_time(t, ...)` where `t = frame_index as f64`.
+- Set `start_time_code`, `end_time_code`, and `frames_per_second` on the stage.
+
+If the `openusd` v0.5.0 `set_at_time` API does not support mesh time-samples in practice (the API carries no stability guarantee until v1.0), the USD path MUST fall back to the OBJ sequence and log a `WARN`-level message. The fallback MUST NOT silently succeed and return a USD file that does not contain time samples.
+
+Signature:
+
+```rust
+// src/tailor/export/usd_export.rs
+#[cfg(feature = "usd-export")]
+pub fn export_usd_sequence(
+    frames: &[GarmentFrame],
+    fps: f64,
+    out_path: &std::path::Path,
+) -> anyhow::Result<()>;
+```
+
+#### 12.6.5 Export EventLedger Receipt
+
+Every completed export MUST emit a `TailorGarmentExportCompleted` EventLedger event (canonical variant per T-CONTRACTS [T-CONTRACTS.event-types]; wire string `"TAILOR_GARMENT_EXPORT_COMPLETED"`; `event_family = "tailor.export"`).
+
+The event payload MUST include:
+
+```json
+{
+  "garment_id": "GAR-…",
+  "simulation_run_id": "SIM-…",
+  "export_format": "obj_sequence | gltf_morph | usd",
+  "frame_count": 120,
+  "fps": 24.0,
+  "output_path": "/path/to/export/dir",
+  "artifact_hash": "<sha256_hex>",
+  "frame_range": [0, 119]
+}
+```
+
+The export artifact (directory for OBJ sequence; single file for GLB or USDC) MUST be registered in the artifact registry via `write_dir_artifact()` (`ArtifactPayloadKind::Bundle` for OBJ sequence) or `write_file_artifact()` (`ArtifactPayloadKind::File` for GLB or USDC). This makes the exported geometry discoverable by downstream model agents via the standard artifact query path.
+
+#### 12.6.6 Export Persistence (tailor_exports)
+
+Exports MUST be persisted to PostgreSQL. The migration MUST follow the dated naming convention: `<YYYY>_<MM>_<DD>_tailor_exports.sql` with a paired `.down.sql`.
+
+```sql
+-- 2026_MM_DD_tailor_exports.sql
+CREATE TABLE IF NOT EXISTS tailor_exports (
+    export_id             TEXT PRIMARY KEY,   -- "EXP-{uuid_v7}"
+    garment_id            TEXT NOT NULL REFERENCES tailor_garments (garment_id),
+    simulation_run_id     TEXT,
+    export_format         TEXT NOT NULL
+        CHECK (export_format IN ('obj_sequence', 'gltf_morph', 'usd')),
+    frame_count           INT NOT NULL,
+    fps                   FLOAT8 NOT NULL,
+    output_path           TEXT NOT NULL,
+    artifact_hash         TEXT,
+    status                TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'completed', 'failed')),
+    error_reason          TEXT,
+    event_ledger_event_id TEXT NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at          TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_exports_garment ON tailor_exports (garment_id);
+```
+
+Rules:
+- `TEXT PRIMARY KEY` with `EXP-` prefix (T-CONTRACTS FACT-4 convention).
+- A row MUST be inserted with `status = 'pending'` before the export begins and updated to `'completed'` or `'failed'` when the export finishes. Partial exports MUST NOT be registered as `'completed'`.
+- `error_reason` MUST be populated on failure.
+
+The Axum routes for export:
+
+```rust
+.route("/tailor/garments/:id/export",  post(export_garment))
+.route("/tailor/garments/:id/exports", get(list_exports))
+```
+
+---
+
+### 12.7 Constraints and Invariants
+
+- **No SQLite.** All Tailor persistence (captures, exports) MUST use PostgreSQL. Every INSERT on a `tailor_*` table MUST call `guard_authority_write(AuthorityMode::PostgresPrimary)` first, per the kernel `no_sqlite_tripwire` convention.
+- **No hardcoded paths.** Export output paths MUST be resolved at runtime from the operator-configured artifact root, not compiled constants.
+- **CRDT layer is read-only for capture and export.** The viewport and export subsystem reads `GarmentSpec` from the promoted authority row in `tailor_garments`. It MUST NOT write back into the garment CRDT document. The only exception is model annotation (12.4.6), which follows the `ai_edit_proposal` path.
+- **Settlement gate is non-negotiable for promotion-path actions.** A model MUST observe the settlement gate (12.4.2) before calling `promote_garment` or any promotion-path tool. Bypassing the gate is a protocol violation.
+- **Lane-specific equivalence governs promotion, not content_hash.** Re-run checks use the
+  lane-specific profile and certificate law in 13.29; a universal cross-tier `0.1 mm` vertexwise
+  comparison is prohibited. Exact hashes remain idempotency evidence only.
+- **glTF delta accessors MUST use FLOAT.** Normalized integer component types for morph-target position deltas are prohibited (12.6.3).
+- **USD export requires feature flag.** The `usd-export` Cargo feature MUST gate the `openusd`
+  dependency. Builds without it return typed `unsupported_profile` evidence and MAY offer an
+  operator-selected OBJ-sequence alternative; silent format substitution is prohibited.
+
+---
+
+### 12.8 Risks and Mitigations
+
+| Risk | Mitigation |
+|---|---|
+| Readback competes with native rendering | Use bounded asynchronous capture jobs, shared-device scheduling, cancellation and measured profile budgets |
+| OpenUSD API instability | USD path is feature-gated; failure returns typed diagnostics and an explicit selectable OBJ-sequence alternative; no silent fallback |
+| No pure-Rust Alembic writer | Document as a known gap; provide OBJ+Blender-Python conversion recipe; revisit if `ennis/alembic-rs` matures |
+| glTF morph-target delta precision loss | `FLOAT` component type mandatory per 12.6.3; enforced in the GLB encoder |
+| Settlement-gate thresholds are heuristic initially | Thresholds stored as policy parameters (not compiled constants); configurable via `SandboxPolicyV1` extension fields; to be calibrated from known-good simulation runs |
+| Bevy testbed version drift | Explicit Bevy version pin in `handshake-cloth-testbed/Cargo.toml`; upgraded explicitly, not transitively |
+
+---
+
+*Non-normative provenance: T-RENDER-VIEWPORT (cloth_engine_research/08-render-viewport-export.md). All contracts, table names, PK forms, event variants, schema IDs, and migration conventions above are canonical per T-CONTRACTS (cloth_engine_research/16-contracts.md) and supersede any conflicting names in files 01–15 of the research package.*
+
+## 13.13 Model-First API & LLM Steering
+
+<!-- id: modelapi -->
+<!-- Non-normative provenance: research package 09-model-first-api.md (T-MODEL-FIRST-API).
+     Contract surfaces (type names, field names, units, event variants, schema IDs, table names,
+     migration convention, validation codes) are governed by 16-contracts.md (T-CONTRACTS),
+     which is canonical and supersedes any drift found in the research source. -->
+
+---
+
+##### <N>.<i>.1 Governing Principle
+
+The registered canonical Tailor kernel action surface MUST be the operator/model API. The
+`tailor-solver` public traits are the compute boundary only and MUST NOT be invoked directly by
+GUI, MCP, automation, or model lanes. Human-facing affordances, backend routes, and model tools
+MUST project the same action descriptors, input schemas, preview/diff/apply lifecycle, and typed
+receipts; no human-only or model-only mutation shim is permitted.
+
+Consequences that MUST hold across the entire Tailor implementation:
+
+1. All model inputs MUST be typed JSON; no pixel coordinates, no drag handles, no stateful UI session are required.
+2. All model outputs MUST be typed JSON receipts readable without prose parsing.
+3. Every garment mutation MUST emit an EventLedger event so model actions are attributable, auditable, and replayable.
+4. The model MUST be able to self-correct by reading typed feedback from `SimulationReceipt.validation_findings`.
+5. The MCP gate MUST be the model's sole entry point; the gate MUST enforce human-in-the-loop consent for `promote_garment` before any authority write.
+
+---
+
+##### <N>.<i>.2 Canonical GarmentSpec (the Model's Primary Input/Output Type)
+
+The canonical garment specification type is **`GarmentSpec`**, defined in `tailor-solver/src/spec.rs` (the standalone crate, no `handshake_core` deps). It is simultaneously the LLM's primary output type, the solver's primary input type, and the JSONB payload stored in `tailor_garments.spec_json`. These MUST remain the same type; duplicating or forking the spec type for model vs. solver use is prohibited.
+
+The schema constant MUST be `hsk.tailor.garment_spec@1` (see [T-CONTRACTS.schema-ids]).
+
+**Required field decisions (all canonical per T-CONTRACTS.garment-spec):**
+
+- **Units: centimetres on all length fields.** Every length field name MUST carry a `_cm` suffix. The `_mm` suffix MUST be used inside the authority body-proxy and solver-internal types only. No field in `GarmentSpec` uses normalized [0,1] coordinates for vertices; normalized [0,1] survives only inside Tier-1 ChatGarment-style pre-decode convenience vectors, which MUST be decoded to `GarmentSpec` (cm) before storage.
+- **Vertices and edges: explicit typed edge curves.** `PanelSpec` MUST carry both `vertices_cm: Vec<Vec2Cm>` and `edges: Vec<EdgeSpec>`. The `EdgeShape` enum MUST be used (`Straight | Quadratic { control_cm } | Cubic { control_a_cm, control_b_cm } | Arc { curvature }`); a `curve_type` string is prohibited.
+- **Gathering: one float field `gather_ratio: f32` on `SeamSpec`**, defined as `from_length / to_length`. The field name `ratio` (from any earlier draft) MUST NOT be used. Valid range: `(0.0, 20.0]`; `1.0` = flat seam; `> 1.0` gathers the `from` edge onto the shorter `to` edge.
+- **Fabric properties: normalized [0.0, 1.0] in `GarmentSpec`** (the LLM-facing surface). `1.0` = stiffest/most resistant. The non-linear map from normalized values to raw XPBD compliance MUST be owned by the preset/decoder layer and applied at solver-mesh build time; it MUST NOT be stored twice. The two non-normalized exceptions are `density_g_m2: f32` (physical, g/m²) and `collision_thickness_mm: f32` (physical, mm), which are LLM-legible physical quantities.
+- **Status and timestamps MUST NOT appear in `GarmentSpec`.** They are promotion-lifecycle metadata and belong on the `tailor_garments` Postgres row (`status`, `created_at`, `updated_at`).
+- **`natural_description: Option<String>`** SHOULD be carried in `GarmentSpec` as a first-class field. It preserves the NGL-Prompter-style natural-language intermediate alongside the numeric spec and improves edit coherence across multi-turn sessions.
+
+```rust
+// tailor-solver/src/spec.rs  (canonical; derives serde + schemars for MCP inputSchema)
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Complete garment: panels, seams, darts, pleats, fabric, avatar binding.")]
+pub struct GarmentSpec {
+    /// Schema id constant: "hsk.tailor.garment_spec@1".
+    pub schema_id: String,
+    /// "GAR-{uuid_v7}"
+    pub garment_id: String,
+    pub workspace_id: String,
+    pub name: String,
+    pub garment_type: GarmentType,
+    /// 2D pattern panels. All coordinates in centimetres.
+    pub panels: Vec<PanelSpec>,
+    /// Seam definitions joining panel edges. gather_ratio = from_length/to_length.
+    pub seams: Vec<SeamSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub darts: Vec<DartSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pleats: Vec<PleatSpec>,
+    /// Fabric physical properties: normalized [0,1] LLM-facing surface.
+    pub fabric: FabricProperties,
+    /// Avatar/body-proxy binding for fit and collision.
+    pub avatar: AvatarBinding,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trim_placements: Vec<TrimPlacementRef>,
+    /// NGL-Prompter-style natural-language intermediate; aids edit coherence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub natural_description: Option<String>,
+}
+
+/// 2D point in panel-local coordinate space, CENTIMETRES.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Vec2Cm { pub x: f32, pub y: f32 }
+
+/// Typed edge shape (supersedes curve_type: String).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EdgeShape {
+    Straight,
+    Quadratic { control_cm: Vec2Cm },
+    Cubic     { control_a_cm: Vec2Cm, control_b_cm: Vec2Cm },
+    Arc       { curvature: f32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct EdgeSpec {
+    /// [start, end] indices into the parent panel's vertices_cm array.
+    pub endpoints: [u32; 2],
+    pub shape: EdgeShape,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold_angle_deg: Option<f32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "2D pattern panel; vertices in centimetres, counter-clockwise.")]
+pub struct PanelSpec {
+    /// Kebab-case id unique within the garment, e.g. "front-bodice".
+    pub panel_id: String,
+    /// Outline vertices in panel-local 2D, CENTIMETRES, counter-clockwise. Min 3.
+    pub vertices_cm: Vec<Vec2Cm>,
+    /// Ordered directed edges closing the outline loop.
+    pub edges: Vec<EdgeSpec>,
+    pub placement: Transform3D,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grain_angle_deg: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material_preset_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Seam joining two panel edges. gather_ratio = from_length/to_length.")]
+pub struct SeamSpec {
+    pub seam_id: String,
+    pub kind: SeamKind,
+    pub from: SeamEndpoint,
+    pub to: SeamEndpoint,
+    /// CANONICAL field name. Valid range (0.0, 20.0]. 1.0 = flat seam.
+    pub gather_ratio: f32,
+}
+
+/// Fabric physical properties — normalized [0.0,1.0] LLM-facing surface.
+/// 1.0 = stiffest/most resistant. Non-linear map to raw XPBD compliance is
+/// owned by the preset/decoder layer and applied at solver-mesh build time.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Fabric properties, normalized [0,1]. Weft=cross-grain, Warp=grain.")]
+pub struct FabricProperties {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<FabricPreset>,
+    pub stretch_weft: f32,
+    pub stretch_warp: f32,
+    pub shear: f32,
+    pub bending_weft: f32,
+    pub bending_warp: f32,
+    pub buckling_ratio: f32,
+    /// g/m² (physical; LLM-legible). Valid range: [5.0, 2000.0].
+    pub density_g_m2: f32,
+    /// mm (physical; LLM-legible). Valid range: [0.1, 5.0].
+    pub collision_thickness_mm: f32,
+    pub friction: f32,
+    pub internal_damping: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AvatarBinding {
+    /// "AVT-{uuid_v7}" or built-in parametric slug. References tailor_avatars.avatar_id.
+    pub avatar_id: String,
+    /// cm subset for parametric bodies; converted to mm at the API boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measurements_cm: Option<BodyMeasurements>,
+}
+
+/// cm subset exposed to the LLM. Authority body-proxy stores 25 measurements in mm.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BodyMeasurements {
+    pub height_cm: f32,
+    pub bust_cm: f32,
+    pub waist_cm: f32,
+    pub hip_cm: f32,
+    pub inseam_cm: f32,
+}
+```
+
+`GarmentSpec` MUST derive `schemars::JsonSchema`. The MCP gate MUST auto-generate the `inputSchema` for `tools/list` discovery from this derive; no manual schema writing is permitted for this type.
+
+---
+
+##### <N>.<i>.3 SimulationReceipt: Typed Feedback for Self-Correction
+
+When the solver completes (success or failure at any gate stage), Tailor MUST emit a `SimulationReceipt` as the `structuredContent` in the MCP tool response. The schema constant MUST be `hsk.tailor.simulation_receipt@1`.
+
+The `SimulationReceipt` MUST carry sufficient information for the model to diagnose failure and propose a corrected `GarmentSpec` without human intervention or prose parsing. Natural-language interpretation MUST NOT be required; the model MUST be able to pattern-match on `ValidationFinding.code` values from the canonical check catalog (see [<N>.<i>.6]).
+
+```rust
+// handshake_core/src/tailor/simulation_receipt.rs
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+/// schema_id: "hsk.tailor.simulation_receipt@1"
+/// Returned as MCP structuredContent from simulate_garment and author_garment.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SimulationReceipt {
+    pub schema_id: String,       // "hsk.tailor.simulation_receipt@1"
+    /// "SIM-{uuid_v7}" (canonical prefix; supersedes CSIM-).
+    pub sim_run_id: String,
+    pub status: SimStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mesh_stats: Option<MeshStats>,
+    /// Findings from the ValidationDescriptor catalog. Each finding names the
+    /// exact panel_id, seam_id, or trim_id that failed, and carries a
+    /// suggested_fix the model applies via edit_garment.
+    pub validation_findings: Vec<ValidationFinding>,
+    /// Drape quality score [0.0, 1.0] when simulation ran to completion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drape_quality_score: Option<f32>,
+    pub self_intersections_detected: bool,
+    pub open_seam_detected: bool,
+    /// Tells the model exactly what to do next. No prose parsing required.
+    pub recommended_action: RecommendedAction,
+    /// Set when promotion completed; carries the authority garment_id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub promoted_artifact_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SimStatus {
+    Completed,
+    CompletedWithIssues,
+    /// Spec failed fast pre-solver validation.
+    RejectedAtValidation,
+    SandboxDenied,
+    TimedOut,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MeshStats {
+    pub vertex_count: u32,
+    pub triangle_count: u32,
+    pub particle_distance_mm: f32,
+    pub sim_frames: u32,
+    pub substeps_per_frame: u32,
+    pub solver_iterations: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ValidationFinding {
+    /// Stable code from the canonical check catalog. Model pattern-matches on this.
+    pub code: String,
+    /// "blocking" | "advisory" | "info"
+    pub severity: String,
+    /// panel_id, seam_id, or trim_id that the finding refers to, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub affected_id: Option<String>,
+    pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_fix: Option<SuggestedFix>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SuggestedFix {
+    /// JSON Pointer (RFC 6901) path into GarmentSpec, e.g. "/fabric/stretch_weft".
+    pub field_path: String,
+    pub suggested_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecommendedAction {
+    PromoteGarment,
+    EditAndResimulate,
+    CorrectSpecFirst,
+    RequiresOperatorAction,
+}
+```
+
+The `ValidationFinding.suggested_fix.field_path` MUST use RFC 6901 JSON Pointer syntax into the `GarmentSpec` schema. The model MUST use this path verbatim as the merge-patch target in a subsequent `edit_garment` call.
+
+---
+
+##### <N>.<i>.4 MCP Tool Definitions
+
+Tailor MUST expose exactly the following CORE MCP tools through the Handshake MCP gate (`src/mcp/gate.rs`). These six constitute the primary model-facing API surface for garment authoring. All parameter structs MUST derive `schemars::JsonSchema` so `inputSchema` is auto-generated at tool discovery. No bespoke integration outside the existing gate infrastructure is permitted.
+
+Beyond the six core tools, DOMAIN EXTENSION tools registered under the same gate/router discipline are lawful ONLY when named by a normative clause elsewhere in Section 13 (each with canonical wire name, mutation class, and primary event). The v02.198 registered extension set: seam tools `edit_seam`/`reverse_seam`/`delete_seam` (MT-395..397); trim tools `place_trim`/`define_zipper`/`convert_panel_to_trim`/`keyframe_tack_strength` (TR-12) plus `distribute_trims` and `place_piping` (second-pass); texture tools per 13.9 §12 plus `generate_fabric_texture` (MT-388); animation tools per 13.10 §10.8; refit tool `refit_garment` (13.7 §7.11); avatar/pose tools `suggest_collision_proxy` (13.4), `generate_avatar_pose` (MT-404), measurement tools `measure_garment`/`measure_avatar` (MT-469); interactive-session steering `steer_simulation` (MT-462, exploratory only — its receipts carry `interactive=true` and MUST be rejected by the PromotionGate); and the BodyKit tool set owned by 13.25. Tools NOT named by a normative clause MUST NOT be exposed.
+
+**Tool registry (canonical names, wired through the tailor tool router):**
+
+| Tool name | Mutation? | Consent required? | Primary event emitted |
+|---|---|---|---|
+| `author_garment` | draft create | No | `TailorGarmentDraftProposed` |
+| `simulate_garment` | sandbox run | No | `TailorSimRunRequested` → `TailorSimRunStarted` → `TailorSimRunCompleted` / `TailorSimRunRejected` |
+| `edit_garment` | draft patch | No | `TailorGarmentDraftUpdated` + `TailorPanelCrdtUpdateRecorded` |
+| `promote_garment` | authority write | **Yes** | `TailorGarmentPromoted` / `TailorGarmentPromotionRejected` |
+| `get_garment` | read-only | No | (none) |
+| `estimate_fabric_params` | sandbox run | No | `TailorSimRunRequested` → `TailorSimRunCompleted` |
+
+```rust
+// handshake_core/src/tailor/mcp_tools.rs
+// Registered through src/mcp/gate.rs via the tailor tool router.
+
+use rmcp::prelude::*;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+// --- author_garment ---
+// Runs fast pre-solver validation (< 100ms). Returns a SimulationReceipt with
+// status=RejectedAtValidation on structural failure so the model corrects before
+// the expensive solver run. On success, creates a draft and emits
+// TailorGarmentDraftProposed.
+#[tool(description = "Create a new garment draft from a GarmentSpec. Fast-validated \
+    before any solver run. Returns a draft_id and a SimulationReceipt. If \
+    recommended_action=CorrectSpecFirst, apply the suggested_fix patches via \
+    edit_garment before calling simulate_garment.")]
+async fn author_garment(
+    Parameters(input): Parameters<AuthorGarmentInput>,
+) -> Result<CallToolResult, McpError> { ... }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AuthorGarmentInput {
+    pub workspace_id: String,
+    /// Complete GarmentSpec. schema_id must be "hsk.tailor.garment_spec@1".
+    pub spec: GarmentSpec,
+}
+
+// --- simulate_garment ---
+// Triggers a TailorSandboxAdapter run (process tier, scoped fs, no network).
+// Streams progress; returns a SimulationReceipt when the solver finishes.
+// The model reads recommended_action to decide: PromoteGarment or EditAndResimulate.
+#[tool(description = "Run the XPBD cloth solver on a garment draft. Returns a \
+    SimulationReceipt with validation_findings for self-correction. Use \
+    substeps <= 16 and frames <= 60 for exploratory iterations; increase only \
+    for final promotion-quality runs.")]
+async fn simulate_garment(
+    Parameters(input): Parameters<SimulateGarmentInput>,
+) -> Result<CallToolResult, McpError> { ... }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SimulateGarmentInput {
+    pub draft_id: String,
+    /// Substeps per frame [1..64]. Default: 8.
+    #[serde(default = "default_substeps")]
+    pub substeps: u32,
+    /// Constraint solver iterations per substep [1..32]. Default: 4.
+    #[serde(default = "default_iterations")]
+    pub solver_iterations: u32,
+    /// Number of simulation frames to run. Default: 30.
+    #[serde(default = "default_frames")]
+    pub frames: u32,
+}
+
+// --- edit_garment ---
+// Applies a JSON Merge Patch (RFC 7396) to the existing GarmentSpec.
+// The model derives the patch from ValidationFinding.suggested_fix.field_path.
+// Emits TailorGarmentDraftUpdated and, for panel vertex changes,
+// TailorPanelCrdtUpdateRecorded (the CRDT machinery is transparent to the model).
+#[tool(description = "Apply a partial update to a garment draft using JSON Merge Patch \
+    (RFC 7396). Derive the patch from ValidationFinding.suggested_fix. Returns \
+    an updated draft_id for the next simulate_garment call.")]
+async fn edit_garment(
+    Parameters(input): Parameters<EditGarmentInput>,
+) -> Result<CallToolResult, McpError> { ... }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EditGarmentInput {
+    pub draft_id: String,
+    /// RFC 7396 JSON Merge Patch against the existing GarmentSpec.
+    /// Unspecified fields are preserved. Example: {"fabric":{"stretch_weft":0.3}}.
+    pub patch: serde_json::Value,
+}
+
+// --- promote_garment ---
+// Requires SimulationReceipt.recommended_action == PromoteGarment.
+// Requires ConsentDecision::Allow from ConsentProvider (operator confirmation).
+// On success, writes a tailor_garments authority row (status=promoted) and
+// emits TailorGarmentPromoted.
+#[tool(description = "Promote a simulated garment draft to authority storage. \
+    Only valid when SimulationReceipt.recommended_action == promote_garment. \
+    Requires operator consent. Do NOT call if recommended_action is \
+    requires_operator_action.")]
+async fn promote_garment(
+    Parameters(input): Parameters<PromoteGarmentInput>,
+) -> Result<CallToolResult, McpError> { ... }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PromoteGarmentInput {
+    pub draft_id: String,
+    /// sim_run_id from the SimulationReceipt (idempotency key for the PromotionGate).
+    pub sim_run_id: String,
+    pub label: String,
+}
+
+// --- get_garment ---
+// Returns the current GarmentSpec and latest SimulationReceipt for a draft or
+// authority garment. The model MUST call this after a session boundary to reload
+// state instead of relying on chat history.
+#[tool(description = "Read the current GarmentSpec and latest SimulationReceipt \
+    for a draft or authority garment. Use this to reload state after a handoff \
+    or session boundary.")]
+async fn get_garment(
+    Parameters(input): Parameters<GetGarmentInput>,
+) -> Result<CallToolResult, McpError> { ... }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetGarmentInput {
+    pub garment_id: String,
+}
+
+// --- estimate_fabric_params (optional, feature-flagged) ---
+// Runs a DiffXPBD-style differentiable forward-backward pass in the sandbox to
+// optimise FabricProperties toward a target drape image. Feature flag: diff-xpbd.
+// The model MUST attempt forward simulation with preset-derived parameters first;
+// invoke this only when the drape is visually wrong and a reference image exists.
+#[tool(description = "Estimate FabricProperties to match a target drape image. \
+    Requires an existing draft_id with panels and seams set. Returns \
+    FabricProperties the model uses in an edit_garment patch. Only invoke when \
+    preset-based forward simulation produces visually wrong drape.")]
+async fn estimate_fabric_params(
+    Parameters(input): Parameters<EstimateFabricInput>,
+) -> Result<CallToolResult, McpError> { ... }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EstimateFabricInput {
+    pub draft_id: String,
+    pub target_image_artifact_id: String,
+    /// Gradient descent iterations. Default: 50.
+    #[serde(default = "default_fabric_iterations")]
+    pub max_iterations: u32,
+}
+```
+
+**Constraints on tool registration:**
+
+- Every tool MUST be registered in the tailor tool router and exposed through the existing `src/mcp/gate.rs`; no parallel gate is permitted.
+- `promote_garment` MUST check `ConsentDecision::Allow` from the `ConsentProvider` before any authority write. Any other tool MUST NOT require explicit consent under a standard operator policy.
+- Every tool call that mutates state MUST emit the corresponding `KernelEventType` variant via `NewKernelEvent::builder(...)` before returning, following the `kb003_storage.rs` event-emission pattern.
+- The `SandboxPolicyV1` MUST enforce a maximum substep budget and iteration count for `simulate_garment` and `estimate_fabric_params`; the solver MUST return `SimStatus::TimedOut` rather than run indefinitely.
+
+---
+
+##### <N>.<i>.5 Self-Correction Loop
+
+The model MUST follow a bounded self-correction loop. The loop structure MUST be:
+
+```
+author_garment(spec)
+  │
+  ▼
+Fast Validation (< 100ms, no solver)           ← checks: PANEL_CLOSURE, SEAM_EDGE_REF,
+  │                                              GATHER_RATIO_RANGE, FABRIC_RANGE,
+  │                                              AVATAR_BINDING, MIN_PANEL_AREA, WINDING
+  ├─ FAIL → SimulationReceipt(status=RejectedAtValidation,
+  │          recommended_action=CorrectSpecFirst)
+  │          → model reads suggested_fix, calls edit_garment(patch), re-calls author_garment
+  │
+  └─ PASS → draft created
+               │
+               ▼
+          simulate_garment(draft_id, substeps, frames)
+               │
+               ├─ FAIL → SimulationReceipt(status=CompletedWithIssues or TimedOut,
+               │          recommended_action=EditAndResimulate)
+               │          → model reads validation_findings, applies suggested_fix patches
+               │            via edit_garment, re-calls simulate_garment
+               │
+               └─ PASS → SimulationReceipt(status=Completed,
+                          drape_quality_score >= 0.7,
+                          recommended_action=PromoteGarment)
+                             │
+                             ▼
+                        promote_garment(draft_id, sim_run_id, label)
+                        [operator consent gate]
+                             │
+                             ▼
+                        tailor_garments authority row (status=promoted)
+                        EventLedger: TailorGarmentPromoted
+```
+
+**Loop bounds and hard stop conditions (MUST be enforced):**
+
+The model MUST stop and report to the operator when any of the following conditions are true:
+
+1. More than five `simulate_garment` iterations with the same panel configuration (vertex coordinates unchanged between iterations).
+2. `SimStatus::SandboxDenied` is returned.
+3. `RecommendedAction::RequiresOperatorAction` is returned.
+
+The model MUST NOT call `promote_garment` unless `SimulationReceipt.recommended_action == promote_garment`.
+
+**Drape quality threshold.** A `drape_quality_score >= 0.7` (on the 0.0–1.0 scale) SHOULD be required before `PromoteGarment` is issued. The exact threshold is configurable in `SimRunParams`; the default MUST be `0.7`.
+
+**Vertex winding auto-correction.** Fast validation MUST auto-correct counter-clockwise winding on panels that arrive clockwise and emit a `WINDING` finding with `severity="info"`. The model MUST be informed of the correction via the `ValidationFinding` in the receipt; the model MUST NOT treat this as a loop-restarting failure.
+
+---
+
+##### <N>.<i>.6 Validation Check Catalog (Model-Facing Subset)
+
+The canonical check catalog is defined in T-CONTRACTS.validation. This section specifies the subset directly relevant to the model's self-correction loop, with the information needed to match `code` values to corrective `edit_garment` patches.
+
+**Fast pre-solver checks** (returned from `author_garment`; `SimStatus::RejectedAtValidation`):
+
+| Code | Severity | What failed | Model corrective action |
+|---|---|---|---|
+| `PANEL_CLOSURE` | Blocking | Panel polygon not closed or self-intersecting | Fix `panels[n].vertices_cm` to form a valid closed polygon |
+| `SEAM_EDGE_REF` | Blocking | `SeamSpec.from` or `to` references invalid `panel_id` or `edge_index` | Fix `seams[n].from.panel_id`, `.from.edge_index`, `.to.*` |
+| `GATHER_RATIO_RANGE` | Blocking | `SeamSpec.gather_ratio` outside `(0.0, 20.0]` | Set `seams[n].gather_ratio` to a value in `(0.0, 20.0]` |
+| `FABRIC_RANGE` | Blocking | Normalized fabric field outside `[0.0, 1.0]`, or `density_g_m2` outside `[5, 2000]`, or `collision_thickness_mm` outside `[0.1, 5]` | Clamp the reported field to its valid range |
+| `AVATAR_BINDING` | Blocking | `AvatarBinding.avatar_id` not found in `tailor_avatars` | Use a valid `avatar_id` from `tailor_avatars` or a known built-in parametric slug |
+| `MIN_PANEL_AREA` | Blocking | Panel area below 1.0 cm² | Expand `panels[n].vertices_cm` or remove the degenerate panel |
+| `WINDING` | Info | Panel vertices clockwise; auto-corrected | No action required; correction already applied |
+
+**Post-simulation checks** (returned from `simulate_garment`; `SimStatus::CompletedWithIssues`):
+
+| Code | Severity | What failed | Model corrective action |
+|---|---|---|---|
+| `SEAMS_CLOSED` | Blocking | Seam constraint pair separation > 1 mm at rest | Increase `gather_ratio` toward `1.0`, or adjust `panels[n].vertices_cm` so edges are compatible lengths |
+| `NO_INTERPENETRATION` | Blocking | Cloth particle deeper than −0.5 mm inside body proxy | Increase `fabric.collision_thickness_mm`, or adjust `panels[n].placement.translation_cm` away from body surface |
+| `MESH_NOT_EMPTY` | Blocking | Simulated vertex buffer empty | Verify `avatar_id` is valid and `panels` are non-empty |
+| `NO_DEGENERATE_TRIS` | Blocking | Zero-area triangles in output | Increase `MIN_PANEL_AREA` (expand vertices), reduce particle spacing |
+| `UV_COVERAGE` | Blocking | UV islands cover < 95% of mesh surface | This is post-sim; re-simulate after seam and panel corrections |
+| `SELF_INTERSECTION` | Advisory | Self-collision pair count above limit | Increase `fabric.collision_thickness_mm` or increase `substeps` |
+| `DRAPE_CONVERGED` | Advisory | Final kinetic energy above convergence threshold | Increase `frames` or `substeps`; reduce `internal_damping` |
+
+The full catalog (including trim, multi-layer, refit, and material-preset checks) is defined in T-CONTRACTS.validation and governs the `TailorValidationDescriptor`. The codes in this section MUST match T-CONTRACTS verbatim; no local aliases are permitted.
+
+---
+
+##### <N>.<i>.7 TailorModelAdapter: Kernel Binding
+
+The `TailorModelAdapter` MUST implement the `ModelAdapter` trait (`src/kernel/model_adapter.rs`) and serve as the kernel-level entry point for all model-driven garment authoring. The MCP tools MUST call into this adapter. No direct database writes outside the adapter and the `PromotionGate` are permitted for garment authority rows.
+
+The adapter MUST:
+
+1. Deserialize `ContextBundle.allowed_context` as `GarmentSpec` before any other processing.
+2. Run fast validation synchronously and return a `SimulationReceipt(status=RejectedAtValidation)` if any blocking check fails; do not proceed to draft creation.
+3. Emit `TailorGarmentDraftProposed` via `NewKernelEvent::builder(...)` (wire string: `"TAILOR_GARMENT_DRAFT_PROPOSED"`) after a successful fast-validation draft creation.
+4. Compute `output_hash` as SHA-256 of the canonical JSON bytes of the adapter payload and store it in `SolverResult.content_hash` for same-machine idempotency. This hash MUST NOT be used for cross-backend promotion equivalence (see [<N>.<i>.8]).
+
+**New `KernelEventType` variants required** (added to `kernel/mod.rs` enum and `required_first_slice_events()`; wire strings use `as_str()` SCREAMING_SNAKE_CASE per T-CONTRACTS.event-types):
+
+```rust
+// Garment lifecycle
+TailorGarmentDraftProposed,      // "TAILOR_GARMENT_DRAFT_PROPOSED"
+TailorGarmentDraftUpdated,       // "TAILOR_GARMENT_DRAFT_UPDATED"
+TailorGarmentValidationRecorded, // "TAILOR_GARMENT_VALIDATION_RECORDED"
+TailorGarmentPromoted,           // "TAILOR_GARMENT_PROMOTED"
+TailorGarmentPromotionRejected,  // "TAILOR_GARMENT_PROMOTION_REJECTED"
+
+// Simulation run lifecycle
+TailorSimRunRequested,           // "TAILOR_SIM_RUN_REQUESTED"
+TailorSimRunStarted,             // "TAILOR_SIM_RUN_STARTED"
+TailorSimRunCompleted,           // "TAILOR_SIM_RUN_COMPLETED"
+TailorSimRunRejected,            // "TAILOR_SIM_RUN_REJECTED"
+
+// CRDT collaborative editing
+TailorPanelCrdtUpdateRecorded,   // "TAILOR_PANEL_CRDT_UPDATE_RECORDED"
+TailorPanelCrdtSnapshotRecorded, // "TAILOR_PANEL_CRDT_SNAPSHOT_RECORDED"
+TailorPanelAiEditProposalRecorded, // "TAILOR_PANEL_AI_EDIT_PROPOSAL_RECORDED"
+TailorPanelAiEditProposalDecided,  // "TAILOR_PANEL_AI_EDIT_PROPOSAL_DECIDED"
+TailorCrdtConflictDetected,      // "TAILOR_CRDT_CONFLICT_DETECTED"
+```
+
+Superseded variant names that MUST NOT be used: `TailorGarmentValidated`, `TailorPatternValidated`, `TailorCrdtUpdateRecorded`, `TailorGarmentCrdtUpdateRecorded`. The wire string `"GARMENT_PATTERN_PROMOTED"` (missing the `TAILOR_` prefix) is prohibited; the canonical wire string is `"TAILOR_GARMENT_PROMOTED"`.
+
+**Schema IDs.** The canonical namespace is `hsk.tailor.*`. The strings `hsk.cloth.garment_draft@1`, `hsk.cloth.solver_request@1` that appear in earlier drafts are superseded by `hsk.tailor.*` names. The single allowed exception is the pair of solver-crate-internal physics payloads that never become authority rows: `hsk.cloth.solver_request@1` and `hsk.cloth.solver_result@1`.
+
+---
+
+##### <N>.<i>.8 Promotion Equivalence: Lane Profile (not content_hash)
+
+The `PromotionGate` `ValidationRunner` MUST use the method and measured tolerances selected by the versioned `TailorQualificationProfileV1`, not `content_hash` equality. Cross-backend float rounding in WGSL/wgpu means identical-quality drapes produce different hashes on different GPU backends or driver versions; gating promotion on hash equality produces spurious failures.
+
+`content_hash` (SHA-256 of the final position buffer) MUST be used only for:
+- Same-machine, same-run idempotency (deduplicate identical re-submissions on one machine).
+- EventLedger receipt fingerprinting (stored in `tailor_simulation_runs.content_hash`).
+
+When the selected profile uses vertex comparison, `MeshComparator` MUST implement this component:
+
+```text
+PRIMARY (continuous, epsilon-tolerant):
+  per-vertex position deviation <= profile-resolved epsilon_mm
+  compared vertex-for-vertex in canonical vertex order
+  (vertex ordering is deterministic from mesh topology + constraint coloring,
+   computed once at garment load and stored — stable cross-backend)
+  metrics reported: max per-vertex Euclidean deviation AND mean deviation
+
+SECONDARY (exact topology invariants — must match exactly):
+  vertex_count        == expected
+  triangle_count      == expected
+  seam_edge_pair_count == expected
+  panel_count         == expected
+
+COMPONENT VERDICT: passes iff all SECONDARY invariants match exactly
+                   AND max per-vertex deviation <= epsilon_mm
+```
+
+`MeshComparator` MUST be a pure function in `tailor-solver/src/compare.rs`, reused by the kernel validation runner via the `ClothSolver` trait boundary. The run MUST carry a `qualification_profile_id`; `epsilon_mm` is resolved from that profile and the profile version/hash is recorded in the receipt.
+
+For animated runs where wind turbulence is present, the selected profile MAY use a shape-envelope match (per-frame bounding box within profile-resolved `bbox_epsilon_mm`, plus `SEAMS_CLOSED` passing) as its comparison component because cross-vendor turbulence precision cannot achieve per-vertex reproduction.
+
+---
+
+##### <N>.<i>.9 Context Bundle Design
+
+The `ContextBundle.allowed_context` MUST contain everything the model needs for a garment authoring session without additional tool calls to reconstruct state. The bundle MUST include:
+
+```json
+{
+  "task": "author_garment",
+  "workspace_id": "<workspace_id>",
+  "operator_brief": "<natural language garment description>",
+  "avatar_summary": {
+    "avatar_id": "<AVT-uuid_v7 or built-in slug>",
+    "height_cm": 165.0,
+    "bust_cm": 86.0,
+    "waist_cm": 68.0,
+    "hip_cm": 92.0
+  },
+  "garment_history": [],
+  "available_presets": ["cotton", "jersey", "denim", "silk", "leather", "satin",
+                        "linen", "wool", "spandex", "chiffon", "canvas", "rubber"],
+  "solver_budget": {
+    "max_substeps": 16,
+    "max_iterations": 8,
+    "max_frames": 60,
+    "max_particles": 50000
+  },
+  "ngl_description": "<structured natural-language garment description for panel planning>",
+  "reference_spec_id": null
+}
+```
+
+When `reference_spec_id` is non-null (an editing session), the model MUST call `get_garment` to load the existing `GarmentSpec` and MUST apply a JSON Merge Patch via `edit_garment` rather than re-authoring from scratch. This constraint prevents spec oscillation across iterations.
+
+The `ngl_description` field SHOULD be populated by the orchestrating system or operator before the model is invoked. It MUST describe the garment in a VLM-legible structured natural language (garment category, neckline, sleeve length, length, fit, ease) so the model can use it as a planning step before emitting panel shapes and seam definitions.
+
+---
+
+##### <N>.<i>.10 Fabric Parameter Estimation (Inverse Path)
+
+The `estimate_fabric_params` tool implements a DiffXPBD-style differentiable forward-backward pass to optimise `FabricProperties` toward a target drape image. It MUST be compiled behind the `diff-xpbd` feature flag because the differentiable XPBD path is approximately 10x slower than the forward-only path.
+
+The model MUST NOT invoke `estimate_fabric_params` unless:
+- A reference image artifact is available (the `target_image_artifact_id` parameter is non-null and resolves to a valid artifact).
+- Forward simulation with at least one preset-derived `FabricProperties` has already been run and its drape quality is visually unacceptable.
+
+The tool MUST return a `SuggestedFabricParams` receipt containing the estimated `FabricProperties` as a struct the model inserts directly into an `edit_garment` patch. The format MUST be compatible with the patch accepted by `edit_garment` (a JSON Merge Patch fragment targeting `/fabric`).
+
+The solver MUST run gradient descent on the normalized `FabricProperties` fields (the LLM-facing surface); the non-linear map to raw XPBD compliance MUST be applied inside the solver at mesh-build time, not exposed to the optimiser as a separate parameter space.
+
+---
+
+##### <N>.<i>.11 CRDT Collaboration Surface
+
+Multiple model instances and/or a human operator MAY edit the same garment draft concurrently. The following MUST hold:
+
+- Each garment draft MUST map to a `crdt_document_id` in `tailor_garment_crdt_docs` (canonical table; see T-CONTRACTS.tables).
+- Panel vertex edits MUST be stored as `CrdtUpdateRecordV1` rows keyed by `(garment_id, panel_id, actor_site)` in `kernel_crdt_updates`.
+- Seam edits MUST be separate `CrdtUpdateRecordV1` rows so panel and seam edits can merge independently.
+- `KnowledgeStateVectorV1` MUST track per-actor version vectors; `causality_verdict` MUST detect concurrent edits.
+- Concurrent edits to the same panel from two actors MUST be resolved by `promote_bridge` (last-writer-wins within a substep) unless an actor holds a lease via `KnowledgeCrdtLeaseClaimed`.
+- The CRDT machinery MUST be transparent to the model: the `edit_garment` tool MUST handle merge and emit `TailorPanelCrdtUpdateRecorded`; the model MUST read the merged state via `get_garment`.
+
+When a `TailorCrdtConflictDetected` event is emitted (merged panel set does not form a closed garment), both editing sessions MUST be notified via `SimulationReceipt(status=CompletedWithIssues, validation_findings=[{code:"SEAMS_CLOSED",...}])` on the next `simulate_garment` call. The conflict MUST NOT silently produce a promotion-eligible state.
+
+---
+
+##### <N>.<i>.12 Built-in UserManual
+
+Per the Handshake product policy, Tailor MUST include task-oriented `UserManualRecord` entries
+discoverable from the native help surface, backend action catalog, diagnostics, and model context
+for the relevant task. UserManual is one dual-audience product surface for operators and models;
+Tailor MUST NOT create a separate model manual. The entries MUST enable a no-context operator or
+model to complete and recover each registered workflow without chat history.
+
+The manual MUST cover:
+
+1. **Tool call order:** `author_garment` MUST be called first (fast validation, no solver). Then `simulate_garment`. Then optionally `estimate_fabric_params`. Then `promote_garment` only when `recommended_action == promote_garment`.
+2. **Self-correction protocol:** After every `simulate_garment` call, the model MUST read `SimulationReceipt.validation_findings`. For each blocking finding, the model MUST extract `suggested_fix.field_path` and `suggested_fix.suggested_value`, construct a JSON Merge Patch, and call `edit_garment(patch)` before re-calling `simulate_garment`.
+3. **Hard stop conditions:** Stop and report to the operator when: more than five `simulate_garment` iterations with unchanged panel vertices; `SimStatus::SandboxDenied`; `RecommendedAction::RequiresOperatorAction`.
+4. **Fabric presets:** Use `FabricPreset` enum values for common materials. Override individual `FabricProperties` fields only when a specific tactile property is required. Call `estimate_fabric_params` only when a reference image exists and preset-based drape is visually wrong.
+5. **Avatar measurements:** When avatar body measurements are in the operator brief, pass them in `AvatarBinding.measurements_cm`. The solver converts these to mm at the boundary for collision proxy sizing.
+6. **Solver budget:** Use `substeps <= 16` and `frames <= 60` for exploratory iterations. Increase only for the final promotion run.
+7. **Session handoff:** After any session boundary, call `get_garment(garment_id)` to reload `GarmentSpec` and the latest `SimulationReceipt` before proceeding. Do not rely on chat history.
+
+The task entry resolved through the action catalog MUST provide the tool call order,
+self-correction protocol, hard stop conditions, navigation paths, expected artifacts,
+diagnostics posture, and recovery actions in machine-readable form. A prompt projection MAY
+include that content, but MUST cite the canonical UserManual version and anchor rather than
+becoming independent authority.
+
+---
+
+##### <N>.<i>.13 Storage Binding (Postgres Authority Tables)
+
+All garment authority writes MUST use Postgres. SQLite is prohibited for any Tailor authority row. Every `INSERT` and `UPDATE` MUST call `guard_authority_write(AuthorityMode::PostgresPrimary)` first.
+
+The canonical Tailor Postgres tables relevant to this sub-section, with their primary-key prefixes (per T-CONTRACTS.tables):
+
+| Table | PK prefix | Relevant to model API |
+|---|---|---|
+| `tailor_garments` | `GAR-` | Authority garment row; `spec_json JSONB` stores `GarmentSpec`; `status` CHECK (`draft\|sandbox_pending\|simulated\|validated\|promoted\|rejected\|archived`) |
+| `tailor_garment_crdt_docs` | composite `(garment_id, crdt_document_id)` | One CRDT document per garment draft |
+| `tailor_avatars` | `AVT-` | Avatar identity; `AvatarBinding.avatar_id` references this table |
+| `tailor_simulation_runs` | `SIM-` | One row per `simulate_garment` call; `content_hash` for idempotency; FK to `kb003_sandbox_runs.run_id` |
+| `tailor_material_presets` | `MAT-` | Fabric preset library; `is_system_preset` flag |
+
+Migration naming convention MUST follow the dated form `YYYY_MM_DD_tailor_<topic>.sql` with a `.down.sql` reverse pair. Numbered `0NNN_*` migrations are prohibited for Tailor (collision risk with the shared numbered sequence). The date MUST be the authoring date of the migration, not this research date.
+
+---
+
+##### <N>.<i>.14 Kernel Primitive Binding Summary
+
+| Model API surface | Kernel primitive | Source location |
+|---|---|---|
+| `author_garment` MCP tool | `TailorModelAdapter.invoke()` + fast `ValidationRunner` | `tailor/model_adapter.rs` |
+| `simulate_garment` MCP tool | `TailorSandboxAdapter.run()` + `SandboxRunV1` lifecycle | `tailor/solver_binding.rs` |
+| `edit_garment` MCP tool | `CrdtUpdateRecordV1` via `kernel_crdt_updates` | `tailor/crdt.rs` |
+| `promote_garment` MCP tool | `PromotionGate.evaluate()` + `PromotionReceiptV1` | `kernel/kb003_promotion/gate.rs` |
+| `get_garment` MCP tool | `Database.get_garment()` (new trait method) | `storage/postgres.rs` |
+| `estimate_fabric_params` tool | `TailorSandboxAdapter` (diff-xpbd feature) | `tailor/solver_binding.rs` |
+| `TailorGarmentDraftProposed` event | `NewKernelEvent::builder(...)` after `author_garment` | `tailor/storage_glue.rs` |
+| `TailorSimRunCompleted` event | `NewKernelEvent::builder(...)` after solver completes | `tailor/storage_glue.rs` |
+| `TailorGarmentPromoted` event | `NewKernelEvent::builder(...)` after `PromotionGate` accepts | `tailor/storage_glue.rs` |
+| MCP input schema generation | `schemars::JsonSchema` derive on `GarmentSpec` et al. | `tailor-solver/src/spec.rs` |
+| JSON instance validation | `jsonschema` crate (`mcp/schema.rs` pattern) | `tailor/fast_validate.rs` |
+| LLM calls via `LlmClient` | `CompletionRequest` / `CompletionResponse` (HSK-TRAIT-004) | `llm/mod.rs` |
+| Promotion equivalence | `MeshComparator::compare(a, b, epsilon_mm)` | `tailor-solver/src/compare.rs` |
+| CRDT merge | `promote_bridge` in `kernel/crdt/promotion_bridge.rs` | `kernel/crdt/` |
+
+---
+
+*Non-normative provenance: research package `09-model-first-api.md` (T-MODEL-FIRST-API) and `16-contracts.md` (T-CONTRACTS). Contract surfaces defer to T-CONTRACTS; research source is rationale and OSS evidence only.*
+
+## 13.14 Canonical Tailor Authority Contracts
+
+<!-- id: contracts -->
+<!-- KERNEL_BUILDER: renumber heading on assembly. -->
+<!-- Non-normative provenance: research package T-CONTRACTS (wt-gov-kernel/.GOV/reference/cloth_engine_research/16-contracts.md, 2026-06-17). -->
+<!-- This sub-section IS normative product law. All prior research sketches defer to it for every contract surface listed here. -->
+
+---
+
+##### Scope and Authority
+
+This sub-section is the binding semantic contract for all Tailor module implementation, subject to
+the physical-storage, schema-rollout, privacy, transaction, and proof override in
+[TAI-SDB-001] through [TAI-SDB-009]. Where any other Tailor spec sub-section defines a semantic
+schema, event variant, table/entity, field, or validation check and conflicts with this
+sub-section, **this sub-section MUST win**; where this sub-section uses a legacy database-specific
+form, the v02.204 SurrealDB override MUST win. Other sub-sections remain valid as design rationale
+and OSS evidence; their concrete contract surfaces are superseded by these canonical semantics and
+the v02.204 physical mapping.
+
+This sub-section resolves the following cross-sub-section drift categories:
+
+- `KI-CONTRACTS-DRIFT`: incompatible GarmentSpec/body-proxy/event-variant definitions across sub-sections
+- `KI-MIGRATION-COLLISION`: numbered migration `0334_tailor_garments.sql` collides with the live `0334_loom_canvas_boards.sql` (WP-KERNEL-009 MT-261)
+- `KI-DETERMINISM-VS-PROMOTION`: exact SHA-256 `content_hash` comparison fails cross-backend for promotion equivalence
+- Schema-ID namespace drift (`hsk.cloth.*` vs `hsk.tailor.*`)
+- Missing `tailor_avatars` table (referenced-but-never-defined across collision and autofit sub-sections)
+
+---
+
+##### Naming Rules
+
+All Tailor contract surfaces MUST follow this naming table exactly. No exception is permitted without a superseding spec amendment.
+
+| Surface | Canonical form | Example |
+|---|---|---|
+| Kernel binding module | `handshake_core::tailor` (`src/tailor/`) | `src/tailor/garment.rs` |
+| Solver crate | `tailor-solver` (workspace member; no `handshake_core` dep) | `tailor-solver/src/lib.rs` |
+| Solver trait | `ClothSolver` (physics term stays `cloth`) | `tailor-solver/src/lib.rs` |
+| `KernelEventType` variants | `Tailor*` PascalCase | `TailorGarmentPromoted` |
+| EventLedger wire string | `TAILOR_*` SCREAMING_SNAKE_CASE via `as_str()` | `"TAILOR_GARMENT_PROMOTED"` |
+| `event_family` constants | `tailor.<domain>.<verb>` lowercase dotted | `"tailor.garment.promoted"` |
+| SurrealDB tables | `tailor_*` snake_case, `SCHEMAFULL` | `tailor_garments` |
+| Domain types | `Garment*`, `Panel`, `Seam`, `Fabric*` | `GarmentSpec`, `PanelSpec` |
+| Physics types | `Cloth*`, `ClothParticle`, `ClothConstraint` | `ClothSolver`, `ClothBodyProxy` |
+| Schema ID constants | `hsk.tailor.<record>@<v>` | `hsk.tailor.garment_spec@1` |
+
+Two naming corrections this sub-section makes that MUST NOT be re-introduced:
+
+1. **Schema-ID namespace is `hsk.tailor.*`, not `hsk.cloth.*`.** The domain is `tailor`; the kernel convention is `hsk.<domain>.<record>@<v>`. The sole allowed `hsk.cloth.*` exception is the pair of solver-crate-internal physics payloads that never cross the `tailor-solver` crate boundary as authority records (see [Schema-ID Constants] below).
+
+2. **The canonical top-level garment type is `GarmentSpec`, not `GarmentSpecV1` and not `GarmentDraftV1`.** All references to those alternate names MUST be replaced.
+
+---
+
+##### ONE Canonical GarmentSpec
+
+`GarmentSpec` MUST be the single garment authority payload across Tailor. It is the model proposal
+payload, solver input and typed SurrealDB object stored in `tailor_garments.spec_json`. It MUST
+be `schemars::JsonSchema`-derivable. It lives in `tailor-solver/src/spec.rs` as a shared compute
+type; the canonical kernel action catalog, not the crate API, is the operator/model API.
+
+The following decisions MUST be observed in every implementation:
+
+- **Units: centimetres (cm) everywhere in `GarmentSpec`.** Every length field name MUST carry the `_cm` suffix so the unit is self-documenting. Normalized [0,1] vertex coordinates (from ChatGarment-style LLM input) are decoded to cm `GarmentSpec` before storage and MUST NOT appear in the authority type.
+
+- **Gather: one float field `gather_ratio: f32` on `SeamSpec`, defined as `from_length / to_length`.** The field MUST be named `gather_ratio` (not `ratio`). Valid range MUST be `(0.0, 20.0]`. The solver represents M:N gathering by resampling both edges to equal vertex count N at mesh-generation time; no alternative stored field is permitted.
+
+- **Fabric values: normalized [0,1] in `GarmentSpec`; raw XPBD compliance in the preset library and solver only.** `FabricProperties` fields MUST be normalized [0,1] (1.0 = stiffest). The non-linear map to raw compliance is owned by the preset/decoder layer and MUST NOT be stored twice.
+
+- **Panel/edge/seam shapes: explicit vertices + typed `EdgeShape` enum, in cm.** Polygon-only panels without edge curves are NOT permitted. String `curve_type` fields are NOT permitted. The `EdgeShape` enum (`Straight | Quadratic | Cubic | Arc`) is the only permitted representation.
+
+- **`GarmentStatus` and timestamps MUST NOT appear on `GarmentSpec`.** They are promotion-lifecycle metadata fields on the `tailor_garments` SurrealDB record (`status`, `created_at`, `updated_at`), not garment content.
+
+```rust
+// tailor-solver/src/spec.rs  (standalone crate; no handshake_core deps)
+// THIS is the canonical garment type. Supersedes GarmentSpecV1 and GarmentDraftV1.
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Complete garment: panels, seams, darts, pleats, fabric, avatar binding.")]
+pub struct GarmentSpec {
+    /// Schema id constant: "hsk.tailor.garment_spec@1".
+    pub schema_id: String,
+    /// Stable garment identifier. Authority id form: "GAR-{uuid_v7}".
+    pub garment_id: String,
+    pub workspace_id: String,
+    pub name: String,
+    pub garment_type: GarmentType,
+    /// 2D pattern panels. All coordinates in centimetres.
+    pub panels: Vec<PanelSpec>,
+    /// Seam definitions joining panel edges. Use gather_ratio for gather/pleat sewing.
+    pub seams: Vec<SeamSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub darts: Vec<DartSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pleats: Vec<PleatSpec>,
+    /// Fabric physical properties as a normalized [0,1] LLM-facing surface.
+    pub fabric: FabricProperties,
+    /// Avatar/body-proxy binding for fit and collision.
+    pub avatar: AvatarBinding,
+    /// Optional trim placements (buttons, zippers, eyelets).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trim_placements: Vec<TrimPlacementRef>,
+    /// Optional natural-language description (NGL-Prompter intermediate).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub natural_description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GarmentType {
+    Tshirt, Shirt, Jacket, Blazer, Dress, Skirt, Pants, Shorts,
+    Bodice, Cape, Hood, Sleeve, Custom,
+}
+
+/// 2D point in panel-local coordinate space, in CENTIMETRES.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Vec2Cm { pub x: f32, pub y: f32 }
+
+/// 6D placement of a panel in 3D space (initial draping pose).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Transform3D {
+    /// Translation in centimetres.
+    pub translation_cm: [f32; 3],
+    /// Unit quaternion [x, y, z, w].
+    pub rotation: [f32; 4],
+}
+
+/// Edge shape in panel-local 2D (cm).
+/// MUST use this typed enum; string curve_type is NOT permitted.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EdgeShape {
+    Straight,
+    Quadratic { control_cm: Vec2Cm },
+    Cubic { control_a_cm: Vec2Cm, control_b_cm: Vec2Cm },
+    Arc { curvature: f32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct EdgeSpec {
+    /// [start, end] indices into the parent panel's vertices_cm array.
+    pub endpoints: [u32; 2],
+    pub shape: EdgeShape,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold_angle_deg: Option<f32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "2D pattern panel; vertices in centimetres, counter-clockwise.")]
+pub struct PanelSpec {
+    /// Kebab-case id unique within the garment, e.g. "front-bodice".
+    pub panel_id: String,
+    /// Outline vertices in panel-local 2D, CENTIMETRES, counter-clockwise. Min 3.
+    pub vertices_cm: Vec<Vec2Cm>,
+    /// Ordered directed edges closing the outline loop.
+    pub edges: Vec<EdgeSpec>,
+    /// 6D placement for initial draping.
+    pub placement: Transform3D,
+    /// Grain direction, degrees from panel horizontal. None = isotropic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grain_angle_deg: Option<f32>,
+    /// Optional per-panel material preset id (tailor_material_presets.preset_id).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material_preset_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SeamKind { Join, Fold, Tack }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SeamEndpoint {
+    pub panel_id: String,
+    /// Index into PanelSpec::edges.
+    pub edge_index: u32,
+    /// Optional sub-range [0.0,1.0] for partial-edge (Free) sewing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<[f32; 2]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Seam joining two panel edges. gather_ratio = from_length/to_length.")]
+pub struct SeamSpec {
+    pub seam_id: String,
+    pub kind: SeamKind,
+    pub from: SeamEndpoint,
+    pub to: SeamEndpoint,
+    /// Gathering ratio = from_length / to_length. 1.0 = flat. Range: (0.0, 20.0].
+    /// CANONICAL field name. The name `ratio` (used in earlier drafts) is NOT permitted.
+    pub gather_ratio: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DartSpec {
+    pub dart_id: String,
+    pub panel_id: String,
+    pub tip_vertex: u32,
+    pub opening_edges: [u32; 2],
+    pub depth_cm: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PleatSpec {
+    pub pleat_id: String,
+    pub panel_id: String,
+    pub kind: PleatKind,
+    pub count: u32,
+    pub depth_cm: f32,
+    pub interval_cm: f32,
+    pub fold_angle_deg: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PleatKind { Knife, Box, Accordion }
+
+/// Fabric physical properties — NORMALIZED [0.0, 1.0] LLM-facing surface.
+/// 1.0 = stiffest/most resistant. The non-linear map to raw XPBD compliance
+/// is owned by the preset/decoder layer and applied at solver-mesh build time.
+/// MUST NOT store raw compliance values here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Fabric properties, normalized [0,1]. Weft=cross-grain, Warp=grain.")]
+pub struct FabricProperties {
+    /// Named preset applied first; explicit fields below override it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<FabricPreset>,
+    pub stretch_weft: f32,
+    pub stretch_warp: f32,
+    pub shear: f32,
+    pub bending_weft: f32,
+    pub bending_warp: f32,
+    pub buckling_ratio: f32,
+    /// Mass per unit area in g/m^2 (physical, LLM-legible; not normalized).
+    pub density_g_m2: f32,
+    /// Collision thickness in mm (physical, LLM-legible; not normalized).
+    pub collision_thickness_mm: f32,
+    pub friction: f32,
+    pub internal_damping: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FabricPreset {
+    Cotton, Denim, Silk, Jersey, Leather, Satin, Linen, Wool,
+    Spandex, Chiffon, Canvas, Rubber,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AvatarBinding {
+    /// Body-proxy authority id (tailor_avatars.avatar_id). Form: "AVT-{uuid_v7}"
+    /// or a built-in parametric body slug (e.g. "avatar1-smplx-default").
+    /// MUST reference tailor_avatars, NOT tailor_material_library.
+    pub avatar_id: String,
+    /// Optional measurement overrides (cm) for parametric bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measurements_cm: Option<BodyMeasurements>,
+}
+
+/// LLM-facing body measurements in CENTIMETRES.
+/// The authority body-proxy stores the full 25-measurement set in MILLIMETRES
+/// (tailor_body_proxies.proxy_json). This cm subset is converted at the API boundary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BodyMeasurements {
+    pub height_cm: f32,
+    pub bust_cm: f32,
+    pub waist_cm: f32,
+    pub hip_cm: f32,
+    pub inseam_cm: f32,
+}
+
+/// Lightweight reference to a trim placement (full trim authority is tailor_trim_placements).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct TrimPlacementRef {
+    pub placement_id: String,
+    pub trim_category: String,
+}
+```
+
+The solver-input mesh type is `SolverMesh` (canonical name; `SolverMeshV1` is NOT permitted), defined in `tailor-solver/src/mesh.rs`. The `SeamConstraintRecord` on `SolverMesh` MUST use `gather_ratio` matching the canonical seam field. All lengths in cm.
+
+---
+
+##### ONE Canonical Body-Proxy / Avatar Authority Schema
+
+The body-proxy MUST be represented as two distinct tables: `tailor_avatars` (avatar identity authority) and `tailor_body_proxies` (solver collision geometry). The missing `tailor_avatars` table is authored as a canonical contract here; no other sub-section may redefine it.
+
+Decisions:
+
+- **PK type: `TEXT PRIMARY KEY` with prefixed ids.** `avatar_id = "AVT-{uuid_v7}"`, `body_proxy_id = "BPX-{uuid_v7}"`. `UUID PRIMARY KEY DEFAULT gen_random_uuid()` is NOT permitted (off-convention per codebase ground truth).
+- **Units in the proxy/measurement authority: MILLIMETRES.** Every field name MUST carry the `_mm` suffix. The LLM-facing `BodyMeasurements` (cm) is converted at the API boundary. Both suffixes (`_mm`, `_cm`) MUST appear on every field so no ambiguity survives.
+- **Proxy shape: capsules + sphere sub-proxies.** Capsule-only proxy shapes are NOT permitted because exaggerated-proportion large-bust bodies require sphere sub-proxies. The fixed-size GPU arrays (max 32 capsules, 16 spheres; `bytemuck::Pod`) live in the solver crate; the authority JSONB stores variable-length lists.
+- **A body proxy belongs to an avatar, not a garment.** `tailor_body_proxies` MUST NOT carry a `garment_id` FK. The garment references a proxy via `tailor_garments.body_proxy_id`.
+
+```sql
+-- tailor_avatars: avatar IDENTITY authority.
+-- This is the table that was referenced but never defined across collision and autofit sub-sections.
+CREATE TABLE IF NOT EXISTS tailor_avatars (
+    avatar_id                TEXT PRIMARY KEY,          -- "AVT-{uuid_v7}"
+    workspace_id             TEXT NOT NULL,
+    name                     TEXT NOT NULL,
+    source_kind              TEXT NOT NULL
+        CHECK (source_kind IN ('smpl','smplx','metahuman','custom_obj','vrm','gltf',
+                               'parametric','avatar1_2d_derived','non_humanoid')),
+    -- 25 anthropometric measurements in MILLIMETRES (GarmentMeasurements naming convention).
+    measurements_mm_json     JSONB NOT NULL DEFAULT '{}'::jsonb,
+    -- Optional source mesh artifact ref for proxy rebuild.
+    source_mesh_artifact_ref TEXT,
+    -- Morph/blend-shape parameters for parametric bodies.
+    morph_params_json        JSONB,
+    event_ledger_event_id    TEXT NOT NULL,
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_avatars_workspace ON tailor_avatars (workspace_id);
+
+-- tailor_body_proxies: solver COLLISION GEOMETRY for an avatar (capsules + spheres + optional SDF).
+-- One avatar may have several proxies (standard, multi-sphere large-bust, sdf-fallback).
+-- MUST NOT carry a garment_id FK; the garment references the proxy, not the reverse.
+CREATE TABLE IF NOT EXISTS tailor_body_proxies (
+    body_proxy_id            TEXT PRIMARY KEY,          -- "BPX-{uuid_v7}"
+    avatar_id                TEXT NOT NULL REFERENCES tailor_avatars (avatar_id),
+    workspace_id             TEXT NOT NULL,
+    -- ClothBodyProxy JSONB: { capsules:[{joint_name,p0_mm,p1_mm,radius_mm}],
+    --                         spheres:[{bone,center_mm,radius_mm}], thickness_mm }
+    proxy_json               JSONB NOT NULL,
+    mode                     TEXT NOT NULL DEFAULT 'capsule'
+        CHECK (mode IN ('capsule','capsule_sphere','capsule_sdf','sdf')),
+    breast_proxy_mode        TEXT
+        CHECK (breast_proxy_mode IS NULL OR
+               breast_proxy_mode IN ('standard','multi_sphere','sdf_fallback')),
+    sdf_artifact_ref         TEXT,
+    lores_mesh_artifact_ref  TEXT,
+    joint_hierarchy_json     JSONB,
+    collision_thickness_mm   FLOAT NOT NULL DEFAULT 2.5,
+    event_ledger_event_id    TEXT NOT NULL,
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_tailor_body_proxies_avatar ON tailor_body_proxies (avatar_id);
+```
+
+Canonical Rust geometry types (in `tailor-solver/src/body/proxy.rs`; all lengths in mm):
+
+```rust
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ClothBodyProxy {
+    pub body_proxy_id: String,     // "BPX-{uuid_v7}"
+    pub avatar_id: String,         // "AVT-{uuid_v7}"
+    /// Capsule chain (body segments). All lengths/radii in MILLIMETRES.
+    pub capsules: Vec<CollisionCapsule>,
+    /// Sphere sub-proxies (breast/bust sub-volumes, joint spheres). MILLIMETRES.
+    pub spheres: Vec<CollisionSphere>,
+    pub thickness_mm: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CollisionCapsule {
+    pub joint_name: String,
+    pub p0_mm: [f32; 3],
+    pub p1_mm: [f32; 3],
+    pub radius_mm: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CollisionSphere {
+    pub bone: String,
+    pub center_mm: [f32; 3],
+    pub radius_mm: f32,
+}
+```
+
+The GPU upload types `GpuCapsule`/`GpuSphere` (fixed max 32 capsules + 16 spheres, `bytemuck::Pod`) are the runtime representation in the solver crate. The authority `ClothBodyProxy` MUST be serialized to/from them.
+
+---
+
+##### ONE Canonical KernelEventType Additions List
+
+All Tailor `KernelEventType` variants MUST follow this list. Variant names MUST be `Tailor*` PascalCase. Wire strings MUST be `TAILOR_*` SCREAMING_SNAKE_CASE via `as_str()`. Every variant MUST be registered in `required_first_slice_events()`. Wire strings that drop the `TAILOR_` prefix (e.g. `"GARMENT_PATTERN_PROMOTED"`) are NOT permitted.
+
+Lifecycle verbs are normalized: `…Requested`, `…Started`, `…Completed`, `…Rejected` for runs; `…Recorded` for validation; `…Promoted` / `…PromotionRejected` for promotion. CRDT events use the specific per-sub-tree form (`TailorPanelCrdtUpdateRecorded`) because panels, animation, and texture have distinct CRDT sub-trees.
+
+```rust
+// === Canonical Tailor KernelEventType additions (src/kernel/mod.rs) ===
+// Format: Variant,  // "WIRE_STRING"
+
+// -- Garment lifecycle --
+TailorGarmentDraftProposed,        // "TAILOR_GARMENT_DRAFT_PROPOSED"
+TailorGarmentDraftUpdated,         // "TAILOR_GARMENT_DRAFT_UPDATED"
+TailorGarmentValidationRecorded,   // "TAILOR_GARMENT_VALIDATION_RECORDED"
+TailorGarmentPromoted,             // "TAILOR_GARMENT_PROMOTED"
+TailorGarmentPromotionRejected,    // "TAILOR_GARMENT_PROMOTION_REJECTED"
+
+// -- Simulation run lifecycle (XPBD solver sandbox) --
+TailorSimRunRequested,             // "TAILOR_SIM_RUN_REQUESTED"
+TailorSimRunStarted,               // "TAILOR_SIM_RUN_STARTED"
+TailorSimRunCompleted,             // "TAILOR_SIM_RUN_COMPLETED"
+TailorSimRunRejected,              // "TAILOR_SIM_RUN_REJECTED"
+
+// -- CRDT collaborative editing (one event per sub-tree) --
+TailorPanelCrdtUpdateRecorded,     // "TAILOR_PANEL_CRDT_UPDATE_RECORDED"
+TailorPanelCrdtSnapshotRecorded,   // "TAILOR_PANEL_CRDT_SNAPSHOT_RECORDED"
+TailorPanelAiEditProposalRecorded, // "TAILOR_PANEL_AI_EDIT_PROPOSAL_RECORDED"
+TailorPanelAiEditProposalDecided,  // "TAILOR_PANEL_AI_EDIT_PROPOSAL_DECIDED"
+TailorCrdtConflictDetected,        // "TAILOR_CRDT_CONFLICT_DETECTED"
+
+// -- Material / fabric presets --
+TailorMaterialPresetRecorded,      // "TAILOR_MATERIAL_PRESET_RECORDED"
+TailorMaterialPresetUpdated,       // "TAILOR_MATERIAL_PRESET_UPDATED"
+TailorMaterialPresetRejected,      // "TAILOR_MATERIAL_PRESET_REJECTED"
+TailorGarmentMaterialAssigned,     // "TAILOR_GARMENT_MATERIAL_ASSIGNED"
+
+// -- Avatar / body proxy --
+TailorAvatarCreated,               // "TAILOR_AVATAR_CREATED"
+TailorAvatarMeasurementsExtracted, // "TAILOR_AVATAR_MEASUREMENTS_EXTRACTED"
+TailorBodyProxyCreated,            // "TAILOR_BODY_PROXY_CREATED"
+TailorBodyProxyUpdated,            // "TAILOR_BODY_PROXY_UPDATED"
+
+// -- Refit / retargeting --
+TailorRefitRequested,              // "TAILOR_REFIT_REQUESTED"
+TailorRefitPatternScaled,          // "TAILOR_REFIT_PATTERN_SCALED"
+TailorRefitDrapeCompleted,         // "TAILOR_REFIT_DRAPE_COMPLETED"
+TailorRefitUvRecomputed,           // "TAILOR_REFIT_UV_RECOMPUTED"
+TailorRefitPromoted,               // "TAILOR_REFIT_PROMOTED"
+TailorRefitRejected,               // "TAILOR_REFIT_REJECTED"
+
+// -- Trims, zippers, lacing --
+TailorTrimImported,                // "TAILOR_TRIM_IMPORTED"
+TailorTrimPlaced,                  // "TAILOR_TRIM_PLACED"
+TailorTrimTackUpdated,             // "TAILOR_TRIM_TACK_UPDATED"
+TailorZipperDefined,               // "TAILOR_ZIPPER_DEFINED"
+TailorLacingDefined,               // "TAILOR_LACING_DEFINED"
+TailorPatternToTrimConverted,      // "TAILOR_PATTERN_TO_TRIM_CONVERTED"
+TailorTrimContactViolation,        // "TAILOR_TRIM_CONTACT_VIOLATION"
+
+// -- UV / texture --
+TailorUvIslandsPacked,             // "TAILOR_UV_ISLANDS_PACKED"
+TailorUvFlattenCompleted,          // "TAILOR_UV_FLATTEN_COMPLETED"
+TailorUvFlattenProposed,           // "TAILOR_UV_FLATTEN_PROPOSED"
+TailorPbrMaterialCreated,          // "TAILOR_PBR_MATERIAL_CREATED"
+TailorPbrMaterialUpdated,          // "TAILOR_PBR_MATERIAL_UPDATED"
+TailorPbrMapsGenerated,            // "TAILOR_PBR_MAPS_GENERATED"
+TailorGraphicLayerAdded,           // "TAILOR_GRAPHIC_LAYER_ADDED"
+TailorGraphicLayerUpdated,         // "TAILOR_GRAPHIC_LAYER_UPDATED"
+TailorGraphicLayerRemoved,         // "TAILOR_GRAPHIC_LAYER_REMOVED"
+TailorMaterialAssignmentUpdated,   // "TAILOR_MATERIAL_ASSIGNMENT_UPDATED"
+
+// -- Animation timeline --
+TailorAnimationDraftCreated,       // "TAILOR_ANIMATION_DRAFT_CREATED"
+TailorAnimationDraftUpdated,       // "TAILOR_ANIMATION_DRAFT_UPDATED"
+TailorAnimationSimRunRequested,    // "TAILOR_ANIMATION_SIM_RUN_REQUESTED"
+TailorAnimationSimRunCompleted,    // "TAILOR_ANIMATION_SIM_RUN_COMPLETED"
+TailorAnimationSimRunRejected,     // "TAILOR_ANIMATION_SIM_RUN_REJECTED"
+TailorAnimationDraftPromoted,      // "TAILOR_ANIMATION_DRAFT_PROMOTED"
+
+// -- Export --
+TailorGarmentExportCompleted,      // "TAILOR_GARMENT_EXPORT_COMPLETED"
+
+// -- Wardrobe grouping --
+TailorWardrobeCreated,             // "TAILOR_WARDROBE_CREATED"
+TailorWardrobeGarmentAdded,        // "TAILOR_WARDROBE_GARMENT_ADDED"
+TailorWardrobeGarmentRemoved,      // "TAILOR_WARDROBE_GARMENT_REMOVED"
+```
+
+**Superseded variant names — MUST NOT be used or re-introduced:**
+
+| Superseded name | Canonical replacement |
+|---|---|
+| `TailorGarmentValidated` (from garment-authoring and cloth-solver sub-sections) | `TailorGarmentValidationRecorded` |
+| `TailorPatternValidated` | `TailorGarmentValidationRecorded` |
+| `TailorCrdtUpdateRecorded` | `TailorPanelCrdtUpdateRecorded` |
+| `TailorGarmentCrdtUpdateRecorded` | `TailorPanelCrdtUpdateRecorded` |
+| `BodyProxyCreated` (missing `Tailor` prefix) | `TailorBodyProxyCreated` |
+| `BodyProxyMeasurementsExtracted` (missing `Tailor` prefix) | `TailorAvatarMeasurementsExtracted` |
+| `TailorMaterialLibraryUpdated` | `TailorMaterialPresetRecorded` / `TailorMaterialPresetUpdated` |
+| `TailorDraftScaled` | `TailorRefitPatternScaled` |
+| `TailorSimRunRequested` + `TailorSimRunStarted` as two separate "requested" forms | Exactly as listed above (one `Requested`, one `Started`) |
+
+Canonical `event_family` constants MUST be defined in `src/tailor/event_family.rs`:
+
+```rust
+// src/tailor/event_family.rs
+pub const TAILOR_GARMENT:    &str = "tailor.garment";
+pub const TAILOR_SIMULATION: &str = "tailor.simulation";
+pub const TAILOR_PANEL_CRDT: &str = "tailor.panel.crdt";
+pub const TAILOR_MATERIAL:   &str = "tailor.material";
+pub const TAILOR_AVATAR:     &str = "tailor.avatar";
+pub const TAILOR_BODY_PROXY: &str = "tailor.body_proxy";
+pub const TAILOR_REFIT:      &str = "tailor.refit";
+pub const TAILOR_TRIM:       &str = "tailor.trim";
+pub const TAILOR_UV:         &str = "tailor.uv";
+pub const TAILOR_TEXTURE:    &str = "tailor.texture";
+pub const TAILOR_ANIMATION:  &str = "tailor.animation";
+pub const TAILOR_WARDROBE:   &str = "tailor.wardrobe";
+pub const TAILOR_EXPORT:     &str = "tailor.export";
+pub const TAILOR_BODY:       &str = "tailor.body";      // BodyKit submodule (13.16)
+```
+
+---
+
+##### Schema-ID Constants
+
+Schema IDs MUST use the `hsk.tailor.*` namespace. `hsk.cloth.*` is NOT permitted except for the two solver-crate-internal physics payloads listed below. These constants MUST be defined in `src/tailor/schemas.rs`.
+
+```rust
+// src/tailor/schemas.rs
+pub const SCHEMA_TAILOR_GARMENT_SPEC_V1:    &str = "hsk.tailor.garment_spec@1";
+pub const SCHEMA_TAILOR_MATERIAL_PRESET_V1: &str = "hsk.tailor.material_preset@1";
+pub const SCHEMA_TAILOR_AVATAR_V1:          &str = "hsk.tailor.avatar@1";
+pub const SCHEMA_TAILOR_BODY_PROXY_V1:      &str = "hsk.tailor.body_proxy@1";
+pub const SCHEMA_TAILOR_TRIM_V1:            &str = "hsk.tailor.trim@1";
+pub const SCHEMA_TAILOR_TRIM_PLACEMENT_V1:  &str = "hsk.tailor.trim_placement@1";
+pub const SCHEMA_TAILOR_PBR_MATERIAL_V1:    &str = "hsk.tailor.pbr_material@1";
+pub const SCHEMA_TAILOR_GRAPHIC_LAYER_V1:   &str = "hsk.tailor.graphic_layer@1";
+pub const SCHEMA_TAILOR_UV_ISLAND_V1:       &str = "hsk.tailor.uv_island@1";
+pub const SCHEMA_TAILOR_ANIMATION_DRAFT_V1: &str = "hsk.tailor.garment_animation_draft@1";
+pub const SCHEMA_TAILOR_REFIT_REQUEST_V1:   &str = "hsk.tailor.refit_request@1";
+pub const SCHEMA_TAILOR_SIM_RECEIPT_V1:     &str = "hsk.tailor.simulation_receipt@1";
+
+// Allowed hsk.cloth.* exception — solver-crate-internal physics payloads ONLY.
+// These MUST NOT be stored as Tailor-domain authority rows.
+pub const SCHEMA_CLOTH_SOLVER_REQUEST_V1:   &str = "hsk.cloth.solver_request@1";
+pub const SCHEMA_CLOTH_SOLVER_RESULT_V1:    &str = "hsk.cloth.solver_result@1";
+```
+
+---
+
+##### SurrealKit Rollout Convention
+
+All Tailor schema evolution MUST use the SurrealKit initialization/rollout stages required by
+[TAI-SDB-007]. The first authority activation is a cold SurrealDB activation, not a database
+cutover. Numbered `0NNN_*` and dated SQL migrations are NOT permitted for new Tailor implementation.
+
+The following legacy filename convention is retained only to map earlier schema concerns into the
+SurrealKit rollout manifest; these files MUST NOT be created or executed:
+
+```text
+migrations/<YYYY>_<MM>_<DD>_tailor_<topic>.sql
+migrations/<YYYY>_<MM>_<DD>_tailor_<topic>.down.sql   (required reverse pair for every forward migration)
+```
+
+Legacy translation rules:
+
+1. Each listed concern MUST appear in a SurrealKit rollout manifest with its affected
+   `SCHEMAFULL` tables, fields, indexes, permissions, data transforms, verification, and rollback.
+2. Rollback MUST be the SurrealKit rollback phase and MUST preserve EventLedger/idempotency and
+   privacy invariants; a `.down.sql` file is not proof.
+3. Numbered migrations `0151_tailor_*`, `0334_tailor_*`, `0335_tailor_*`, `0336_tailor_*` remain
+   historical collision identifiers and MUST NOT be created.
+
+Legacy Tailor migration inventory to be translated (one SurrealKit concern per row):
+
+```text
+*_tailor_garments.sql
+*_tailor_material_presets.sql
+*_tailor_avatars.sql
+*_tailor_body_proxies.sql
+*_tailor_simulation_runs.sql
+*_tailor_refit_runs.sql
+*_tailor_trims.sql
+*_tailor_texture_tables.sql
+*_tailor_wardrobe.sql
+*_tailor_garments_animation_col.sql   (ALTER TABLE tailor_garments ADD COLUMN animation_json JSONB)
+```
+
+---
+
+##### Canonical tailor_* SurrealDB Table Set
+
+The following 16 tables plus the v02.198 additions listed after the block are the complete and
+canonical Cloth-submodule SurrealDB authority (BodyKit tables are owned by 13.16 under the same
+rules). All MUST be `SCHEMAFULL`, preserve the stated prefixed domain IDs, carry a required typed
+`event_ledger_event_id` record reference, enforce authenticated record-user and field permissions,
+and participate in the atomic transaction required by [TAI-SDB-004]. The SQL-style column notation
+in the inventory below is legacy shorthand translated by [TAI-SDB-003], not executable DDL.
+PostgreSQL and SQLite are NOT permitted authority backends.
+
+v02.198 additive canonical deltas (second-pass parity; full DDL owned by the implementing MTs under the conventions of this section): (a) `tailor_tape_measures` (PK `TPM-{uuid_v7}`; kind linear|circumference|surface; target avatar|garment; anchor refs JSONB; CG-21/MT-469). (b) `tailor_trims.trim_category` CHECK domain gains `'piping'` (CG-11/MT-459). (c) `tailor_material_assignments` gains optional `back_material_id` / `side_material_id` (CG-19/MT-467). (d) GarmentSpec JSONB additive fields: PanelSpec internal Hole contours (CG-01), `SeamKind::Turned` (CG-08), `SeamSpec.sublayer: Option<i8>` (CG-09), fabric-level PrintLayer with repeat modes (CG-20), RegionStiffnessOverride + SteamMask records (CG-06/07), FoldArrangement + sculpt-brush delta extensions (CG-12/17) — all additive within `hsk.tailor.garment_spec@1` (unit conventions unchanged per [TAI-OVR-003]). (e) ExportPresets gain `ExportTopologyOptions` (CG-25/MT-473) and the VAT lane (CG-29/MT-477).
+
+```text
+TABLE                        PK prefix     KEY COLUMNS / CONSTRAINTS / NOTES
+---------------------------  -----------   -----------------------------------------------------------
+tailor_garments              GAR-          workspace_id; name;
+                                           status TEXT CHECK (status IN (
+                                             'draft','sandbox_pending','simulated',
+                                             'validated','promoted','rejected','archived'));
+                                           spec_json JSONB (GarmentSpec);
+                                           animation_json JSONB NULLABLE (T-ANIMATION: column, not table);
+                                           body_proxy_id TEXT;
+                                           wardrobe_id TEXT;
+                                           promotion_receipt_id TEXT;
+                                           event_ledger_event_id TEXT NOT NULL;
+                                           created_at TIMESTAMPTZ; updated_at TIMESTAMPTZ
+
+tailor_garment_crdt_docs     composite PK  (garment_id, crdt_document_id);
+                                           FK garment_id -> tailor_garments;
+                                           crdt_document_id UNIQUE ("CRDT-GAR-{garment_id}")
+
+tailor_material_presets      MAT-          workspace_id; slug UNIQUE per workspace;
+                                           compliance_json JSONB (raw anisotropic XPBD);
+                                           physics_json JSONB;
+                                           is_system_preset BOOL.
+                                           CANONICAL NAME — tailor_material_library and
+                                           tailor_material are NOT permitted.
+
+tailor_avatars               AVT-          workspace_id; name;
+                                           source_kind TEXT CHECK (see body-proxy schema above);
+                                           measurements_mm_json JSONB;
+                                           source_mesh_artifact_ref TEXT;
+                                           morph_params_json JSONB.
+                                           Authored in this sub-section; was the undefined FK target.
+
+tailor_body_proxies          BPX-          FK avatar_id -> tailor_avatars;
+                                           workspace_id;
+                                           proxy_json JSONB (capsules+spheres, mm);
+                                           mode CHECK; breast_proxy_mode CHECK.
+                                           MUST NOT have a garment_id FK column.
+
+tailor_simulation_runs       SIM-          FK garment_id -> tailor_garments;
+                                           FK sandbox_run_id -> kb003_sandbox_runs(run_id);
+                                           solver_version; substeps; iterations;
+                                           content_hash (idempotency only; NOT used for promotion);
+                                           result_artifact_ref.
+                                           Id prefix is SIM-. CSIM- is NOT permitted.
+
+tailor_refit_runs            RFT-          FK garment_id;
+                                           FK source_body_proxy_id -> tailor_body_proxies;
+                                           FK target_body_proxy_id -> tailor_body_proxies;
+                                           refit_mode TEXT CHECK;
+                                           output_garment_id TEXT
+
+tailor_trims                 TRIM-         workspace_id;
+                                           trim_category TEXT CHECK;
+                                           mesh_json JSONB; inertia_tensor_json JSONB;
+                                           is_library_item BOOL;
+                                           converted_from_panel_id TEXT
+
+tailor_trim_placements       PLAC-         FK garment_id; FK trim_id -> tailor_trims;
+                                           tacks_json JSONB; initial_pose_json JSONB;
+                                           layer_order INT
+
+tailor_zippers               ZIP-          FK garment_id;
+                                           panel_edge_a TEXT; panel_edge_b TEXT;
+                                           slider_count INT CHECK (slider_count >= 1)
+
+tailor_lacings               LACE-         FK garment_id;
+                                           eyelet_sequence_json JSONB
+
+tailor_uv_islands            UVI-          FK garment_id;
+                                           simulation_run_id TEXT NULLABLE;
+                                           panel_id TEXT;
+                                           atlas_uv_min FLOAT[2]; atlas_uv_max FLOAT[2];
+                                           flatten_method TEXT CHECK ('arap');
+                                           UNIQUE (garment_id, simulation_run_id, panel_id)
+
+tailor_pbr_materials         PBR-          workspace_id;
+                                           *_map_ref columns (albedo, roughness, metallic,
+                                             normal, ao, emissive, displacement);
+                                           grain_angle_deg FLOAT
+
+tailor_graphic_layers        GLYR-         FK garment_id; panel_id TEXT;
+                                           z_order INT; blend_mode TEXT;
+                                           boundary_pinned BOOL;
+                                           deleted_at TIMESTAMPTZ NULLABLE (tombstone)
+
+tailor_material_assignments  ASGN-         FK garment_id;
+                                           FK physics_preset_id -> tailor_material_presets;
+                                           FK pbr_material_id -> tailor_pbr_materials;
+                                           UNIQUE (garment_id, panel_id)
+
+tailor_wardrobe              WRD-          workspace_id; name
+```
+
+**Cross-file conflict resolutions that MUST be preserved:**
+
+- The material table is `tailor_material_presets` exclusively. `tailor_material_library` and `tailor_material` are NOT permitted table names. The "material library" concept is the set of `is_system_preset = true` rows in this one table.
+- `animation_json` is a NULLABLE JSONB COLUMN on `tailor_garments`, not a separate table.
+- The simulation-run id prefix is `SIM-`. `CSIM-` is NOT permitted.
+- `tailor_body_proxies` MUST NOT carry a `garment_id` FK column. The avatar is reachable from the garment via the proxy; the proxy does not belong to a specific garment.
+
+---
+
+##### ValidationDescriptor Check Catalog
+
+The following catalog is the single normative set of Tailor validation checks. It MUST be realized as `TailorValidationDescriptor` instances wrapping the KB003 `ValidationDescriptor`. No check from a previous sub-section's scattered lists may be added, renamed, or removed without a spec amendment. Two severities: `Blocking` (any failure prevents promotion) and `Advisory` (recorded; blocks only when `PromotionGateInputs.treat_advisory_as_blocking = true`). Each check carries a stable `code` for model self-correction.
+
+```text
+CHECK CODE               SEVERITY  STAGE   ASSERTION
+
+-- Fast pre-solver checks (run during author_garment; < 100 ms; no solver required) --
+PANEL_CLOSURE            Blocking  fast    Each panel polygon is a closed, non-self-intersecting loop.
+SEAM_EDGE_REF            Blocking  fast    Every SeamSpec.from/to references a valid panel_id + edge_index.
+GATHER_RATIO_RANGE       Blocking  fast    Every SeamSpec.gather_ratio in (0.0, 20.0].
+FABRIC_RANGE             Blocking  fast    Normalized FabricProperties fields in [0.0, 1.0];
+                                           density_g_m2 in [5, 2000]; collision_thickness_mm in [0.1, 5].
+AVATAR_BINDING           Blocking  fast    AvatarBinding.avatar_id exists in tailor_avatars.
+MIN_PANEL_AREA           Blocking  fast    Every panel area > 1.0 cm^2.
+WINDING                  Advisory  fast    Panel vertices counter-clockwise (auto-corrected; INFO if fixed).
+
+-- Mesh-quality checks (run on triangulated SolverMesh; pre-simulation) --
+MESH_TOPOLOGY            Blocking  mesh    Manifold; no degenerate triangles; no open boundary except
+                                           intended seam edges.
+MESH_TRIANGLE_QUALITY    Blocking  mesh    Min triangle angle >= 10 deg; max aspect ratio <= 20.
+PANEL_OVERLAP            Advisory  mesh    No two panels occupy the same 3D region before draping.
+
+-- Post-simulation cloth checks --
+MESH_NOT_EMPTY           Blocking  post    Simulated vertex buffer non-empty.
+NO_DEGENERATE_TRIS       Blocking  post    No zero-area triangles in output mesh.
+SEAMS_CLOSED             Blocking  post    Every seam constraint pair <= 1 mm separation at rest.
+NO_INTERPENETRATION      Blocking  post    No cloth particle deeper than -0.5 mm inside any body
+                                           capsule/sphere (final frame only).
+SELF_INTERSECTION        Advisory  post    Self-collision pair count below mesh-explosion limit.
+UV_COVERAGE              Blocking  post    UV islands cover >= 95% of mesh surface.
+UV_VALIDITY              Blocking  post    All UVs in [0,1]^2; no degenerate UV triangle (area > 1e-6).
+DRAPE_CONVERGED          Advisory  post    Final kinetic energy below convergence threshold.
+PANEL_COUNT_MATCH        Advisory  post    Simulated panel count == spec panel count.
+GARMENTCODE_ROUNDTRIP    Advisory  post    Spec round-trips to GarmentCode JSON without loss.
+
+-- Multi-layer checks (when GarmentSpec has layered garments) --
+INTERLAYER_SPACING       Blocking  post    No inter-layer pair closer than (t_inner + t_outer - tolerance).
+
+-- Trim checks (when trim_placements present) --
+TRIM_NO_PENETRATION      Blocking  post    No trim mesh triangle interpenetrates a cloth triangle (final frame).
+TACK_SEAM_CLOSURE        Blocking  post    All tack distances <= 5 mm at end of draping.
+ZIPPER_TOOTH_ALIGN       Blocking  post    Tooth-rail tacks within 1 mm of their panel edge positions.
+LACING_CORD_LENGTH       Blocking  post    No cord segment stretched beyond 200% rest length.
+TRIM_GRAVITY_STABLE      Advisory  post    No trim body translating > 50 mm/frame in final 10 frames.
+TACK_STRENGTH_NONZERO    Advisory  post    Warn if any tack strength < 0.01.
+
+-- Material-preset checks (model-authored preset drape test) --
+PRESET_NO_NAN            Blocking  preset  No NaN/Inf in drape-test particle positions.
+PRESET_STRETCH_NONZERO   Blocking  preset  Stretch compliance != 0 (zero diverges the solver).
+PRESET_DENSITY_POS       Blocking  preset  Density > 0.
+PRESET_BBOX_PLAUSIBLE    Advisory  preset  Drape-test bbox within expected range for the claimed archetype.
+
+-- Refit checks --
+REFIT_INTERSECTION_FREE  Blocking  post    min(particle-capsule distance) >= -0.5 mm after refit.
+REFIT_SEAM_CLOSURE       Blocking  post    Mated seam edge-pair length diff < 1%.
+REFIT_CONVERGED          Advisory  post    Refit sim reached equilibrium.
+```
+
+`ValidationReport::aggregate_blocks_promotion()` decides promotion: any `Blocking` failure MUST cause rejection. The `TailorValidationDescriptor` MUST select the applicable check subset by stage and by which optional features (trims, multi-layer, refit) the garment uses. This catalog supersedes the scattered lists in the garment-authoring, collision, fabric-models, autofit, kernel-integration, and trim-rigid sub-sections.
+
+---
+
+##### Determinism vs Promotion-Equivalence (MeshComparator)
+
+`SolverResult.content_hash` (SHA-256 of the final position buffer) MUST NOT be used as the promotion-equivalence gate. Cross-backend float rounding differs because WGSL/Naga do not guarantee sub-expression ordering and WGSL has no f64 (confirmed: wgpu issue #5329). Identical-quality drapes on different GPU backends produce different hashes; gating on hash equality causes spurious promotion failures.
+
+The following two-mechanism split MUST be implemented:
+
+```text
+content_hash  (SHA-256 of final position bytes; stored in SolverResult and tailor_simulation_runs)
+  PURPOSE:    Same-machine, same-backend idempotency ONLY; EventLedger receipt fingerprint.
+  USE:        Deduplicate identical re-submissions on one machine/backend; record in the run receipt.
+  MUST NOT:   Be used for cross-backend promotion equivalence.
+
+MeshComparator  (tolerance-based component selected by a lane qualification profile)
+  LOCATION:   tailor-solver/src/compare.rs (pure function; no external dep; reused by kernel
+              validation runner via the ClothSolver trait boundary)
+
+  PRIMARY (continuous, epsilon-tolerant):
+    per_vertex_position_deviation <= profile-resolved epsilon_mm
+    Compared vertex-for-vertex in canonical vertex order.
+    Vertex ordering MUST be deterministic from mesh topology + constraint coloring,
+    computed once at garment load and stored (topology is stable cross-backend).
+    Metric: max per-vertex Euclidean deviation AND mean deviation, both reported.
+
+  SECONDARY (exact topology invariants — MUST match exactly):
+    vertex_count          == expected
+    triangle_count        == expected
+    seam_edge_pair_count  == expected
+    panel_count           == expected
+
+  COMPONENT:  Vertex comparison passes if and only if all SECONDARY invariants match exactly
+              AND max per-vertex deviation <= epsilon_mm.
+```
+
+`SimRunParams` MUST identify a versioned `TailorQualificationProfileV1`; `epsilon_mm` is resolved from that profile for the same lane/comparison kind, and the profile version/hash is recorded in the receipt. A free local override cannot claim qualification.
+
+For **animated runs**: wind turbulence uses `sin()`/`fract()` whose cross-vendor precision differs. The selected profile MAY use a shape-envelope match — per-frame bounding box within profile-resolved `bbox_epsilon_mm` plus `SEAMS_CLOSED` — because exact per-vertex reproduction across vendors is neither achievable nor required for aesthetic turbulence.
+
+The `TailorValidationDescriptor` re-run-determinism step MUST execute the selected profile method, calling `MeshComparator::compare(a, b, epsilon_mm)` when vertex comparison is selected, and MUST NOT use `a.content_hash == b.content_hash`. Every other sub-section defers to this resolution and 13.29.
+
+---
+
+##### Canonical Model Feedback Type
+
+`SimulationReceipt` (schema id `hsk.tailor.simulation_receipt@1`) is the single canonical model feedback type, returned as MCP `structuredContent`. Its `validation_findings: Vec<ValidationFinding>` MUST carry:
+
+- `code`: one of the stable codes from [ValidationDescriptor Check Catalog]
+- `severity`: `"blocking" | "advisory" | "info"`
+- `affected_id` (optional): panel_id, seam_id, or trim_id
+- `suggested_fix` (optional): `{ field_path: String, suggested_value: serde_json::Value }` using a JSON-pointer path into `GarmentSpec`
+- `recommended_action`: one of `promote_garment | edit_and_resimulate | correct_spec_first | requires_operator_action`
+
+The MCP tool surface (`author_garment`, `simulate_garment`, `edit_garment`, `promote_garment`, `get_garment`, `estimate_fabric_params`, plus the trim/UV/animation tools) is defined in the model-first-API, trim-rigid, UV-texture, and animation sub-sections; only the receipt and finding types are canonicalized here.
+
+---
+
+##### Contract-Deferral Rules for Implementation Work Packets
+
+When an implementation Work Packet consumes the Tailor spec bundle, it MUST resolve contract surfaces as follows:
+
+| Contract surface | Authority location in this spec |
+|---|---|
+| Type names, field names, units | [ONE Canonical GarmentSpec], [ONE Canonical Body-Proxy / Avatar Authority Schema] |
+| `KernelEventType` variants, wire strings, `event_family` constants | [ONE Canonical KernelEventType Additions List] |
+| Schema-ID constants | [Schema-ID Constants] |
+| Migration naming and file set | [Migration-Naming Convention] |
+| Tables, columns, PK form, id prefixes | [Canonical tailor_* Postgres Table Set] |
+| Validation checks and severities | [ValidationDescriptor Check Catalog] |
+| Promotion equivalence | [Determinism vs Promotion-Equivalence] |
+
+Algorithms, GPU/WGSL design, OSS adaptation notes, MCP tool behaviour details, and risk analysis remain owned by their respective Tailor sub-sections. This sub-section owns only the contract surfaces.
+
+## 13.15 Validation, Promotion Equivalence & HBR
+
+> **Heading placeholder.** KERNEL_BUILDER will assign the final section number on assembly.
+> Sub-section id: `validation`. Source research: T-CONTRACTS [T-CONTRACTS.validation],
+> [T-CONTRACTS.determinism]; T-KERNEL-INTEGRATION [T-KERNEL-INTEGRATION.validation],
+> [T-KERNEL-INTEGRATION.promotion]. The research package is non-normative provenance; the
+> contracts below are the normative authority.
+
+---
+
+##### 15-validation-hbr.1  Scope
+
+This sub-section specifies:
+
+1. The `TailorValidationDescriptor` check catalog — the complete staged gate every garment, material
+   preset, and refit run MUST pass before promotion.
+2. The `MeshComparator` promotion-equivalence contract — the tolerance-based comparator that
+   MUST replace exact hash comparison for cross-backend reproducibility checks.
+3. The HBR (Harness Behavior Requirements) matrix — the mandatory `INT / SWARM / VIS / QUIET /
+   MAN / STOP` obligations that apply to all Tailor validation, simulation, and promotion work.
+
+No requirements in this sub-section duplicate authority that lives in the KB003 kernel
+(`ValidationDescriptor`, `ValidationReport`, `PromotionGate`, `PromotionGateInputs`,
+`SandboxAdapter`). Tailor MUST reuse those kernel types unchanged. This sub-section extends them
+only where Tailor-domain specifics are required.
+
+---
+
+##### 15-validation-hbr.2  Canonical Check Catalog
+
+###### 15-validation-hbr.2.1  TailorValidationDescriptor
+
+The Tailor validation gate MUST be implemented as `TailorValidationDescriptor`, a domain wrapper
+around the kernel `ValidationDescriptor` type located at
+`src/backend/handshake_core/src/kernel/validation/descriptor.rs`. Every check defined in this
+section MUST be registered in `TailorValidationDescriptor`.
+
+`TailorValidationDescriptor` MUST select the applicable check subset at runtime based on:
+
+- **stage** — which checks apply to the current pipeline position (fast / mesh / post / preset /
+  refit).
+- **feature flags** — whether the `GarmentSpec` contains trim placements, multi-layer stacks, or
+  animated sequences.
+
+`TailorValidationDescriptor` MUST NOT apply post-simulation checks before a simulation run has
+completed, and MUST NOT apply trim checks when `GarmentSpec.trim_placements` is empty.
+
+###### 15-validation-hbr.2.2  Two Severities Only
+
+Each check MUST carry exactly one of two severities: **`Blocking`** or **`Advisory`**.
+
+- A `Blocking` failure MUST prevent promotion. `ValidationReport::aggregate_blocks_promotion()`
+  MUST return `true` if any `Blocking` check failed.
+- An `Advisory` failure MUST be recorded in the `ValidationReport` and surfaced to the model via
+  `SimulationReceipt.validation_findings` (schema id `hsk.tailor.simulation_receipt@1`), but MUST
+  NOT prevent promotion unless `PromotionGateInputs.treat_advisory_as_blocking` is `true`.
+
+###### 15-validation-hbr.2.3  Check Code Contract
+
+Every check MUST carry a stable string `code` (the `ValidationFinding.code` field in
+`SimulationReceipt`). The model uses these codes for self-correction targeting. Codes MUST NOT be
+renamed once assigned. The canonical codes are defined in the catalog below. Implementations MUST
+NOT introduce synonymous codes for the same check.
+
+###### 15-validation-hbr.2.4  The Full Canonical Check Catalog
+
+The catalog below is normative. The column order is: `CODE | SEVERITY | STAGE | ASSERTION`.
+
+Stage values: `fast` (pre-solver, author time, < 100 ms), `mesh` (triangulated `SolverMesh`,
+pre-simulation), `post` (post-simulation output), `preset` (material-preset drape test),
+`refit` (refit run output).
+
+```text
+-- Fast pre-solver checks (stage: fast) ----------------------------------------
+PANEL_CLOSURE          Blocking  fast    Each panel polygon is a closed, non-self-intersecting
+                                         loop. All vertex-index references within edges are
+                                         in-bounds for the panel's vertices_cm array.
+SEAM_EDGE_REF          Blocking  fast    Every SeamSpec.from and SeamSpec.to references a valid
+                                         panel_id that exists in GarmentSpec.panels, and an
+                                         edge_index that is in-bounds for that panel's edges array.
+GATHER_RATIO_RANGE     Blocking  fast    Every SeamSpec.gather_ratio is in the open-closed range
+                                         (0.0, 20.0]. Zero and negative values MUST fail.
+FABRIC_RANGE           Blocking  fast    All normalized FabricProperties fields
+                                         (stretch_weft, stretch_warp, shear, bending_weft,
+                                         bending_warp, buckling_ratio, friction, internal_damping)
+                                         are in [0.0, 1.0]. density_g_m2 is in [5.0, 2000.0].
+                                         collision_thickness_mm is in [0.1, 5.0].
+AVATAR_BINDING         Blocking  fast    AvatarBinding.avatar_id exists as a row in
+                                         tailor_avatars with a matching workspace_id.
+MIN_PANEL_AREA         Blocking  fast    Every panel's computed 2D area (from vertices_cm,
+                                         Shoelace formula) is > 1.0 cm^2. Rejects degenerate
+                                         or collapsed panels.
+WINDING                Advisory  fast    Panel vertices_cm are counter-clockwise. If clockwise,
+                                         the implementation SHOULD auto-correct the ordering and
+                                         emit severity INFO in the finding; it MUST NOT block.
+
+-- Mesh-quality checks (stage: mesh) --------------------------------------------
+MESH_TOPOLOGY          Blocking  mesh    Triangulated SolverMesh is manifold. No degenerate
+                                         triangles (zero-area). No open boundary edges except
+                                         those corresponding to intended seam edges in the spec.
+MESH_TRIANGLE_QUALITY  Blocking  mesh    Every triangle in the SolverMesh satisfies:
+                                         minimum interior angle >= 10 degrees AND
+                                         aspect ratio (longest/shortest edge) <= 20.
+PANEL_OVERLAP          Advisory  mesh    No two panel meshes occupy the same 3D region in their
+                                         initial draping placement (before simulation). Measured
+                                         by AABB + narrow-phase triangle intersection test.
+
+-- Post-simulation cloth checks (stage: post) -----------------------------------
+MESH_NOT_EMPTY         Blocking  post    The simulated vertex buffer returned by the solver is
+                                         non-empty (vertex count > 0).
+NO_DEGENERATE_TRIS     Blocking  post    No zero-area triangles exist in the post-simulation
+                                         output mesh.
+SEAMS_CLOSED           Blocking  post    Every seam constraint pair has a Euclidean separation
+                                         <= 1.0 mm in the final simulation frame.
+NO_INTERPENETRATION    Blocking  post    No cloth particle is deeper than -0.5 mm inside any
+                                         body capsule or sphere of the bound ClothBodyProxy,
+                                         measured in the final simulation frame only.
+                                         Intermediate substep penetrations are not checked here.
+SELF_INTERSECTION      Advisory  post    The self-collision pair count is below the
+                                         mesh-explosion limit defined in SimRunParams.
+UV_COVERAGE            Blocking  post    UV islands cover >= 95% of the mesh surface area.
+                                         Measures pattern accuracy: the simulated cloth panels
+                                         must map back to the 2D spec without gaps.
+UV_VALIDITY            Blocking  post    All UV coordinates are in [0.0, 1.0]^2. No degenerate
+                                         UV triangles (UV area > 1e-6 per triangle).
+DRAPE_CONVERGED        Advisory  post    The final kinetic energy of the simulation is below
+                                         the convergence threshold defined in SimRunParams.
+                                         Indicates solver convergence, not merely termination.
+PANEL_COUNT_MATCH      Advisory  post    The number of distinct panel meshes in the simulated
+                                         output equals GarmentSpec.panels.len().
+GARMENTCODE_ROUNDTRIP  Advisory  post    GarmentSpec serializes to GarmentCode-compatible JSON
+                                         and round-trips back without loss of panel topology,
+                                         seam references, or gather_ratio values.
+
+-- Multi-layer checks (stage: post; applies only when GarmentSpec has stacked layers) --
+INTERLAYER_SPACING     Blocking  post    No inter-layer cloth particle pair is closer than
+                                         (t_inner + t_outer - tolerance_mm), where t_inner and
+                                         t_outer are the collision_thickness_mm values of the
+                                         two layers and tolerance_mm is from SimRunParams.
+
+-- Trim checks (stage: post; applies only when GarmentSpec.trim_placements is non-empty) --
+TRIM_NO_PENETRATION    Blocking  post    No trim mesh triangle interpenetrates a cloth triangle
+                                         in the final simulation frame.
+TACK_SEAM_CLOSURE      Blocking  post    All tack distances are <= 5.0 mm at the end of draping.
+ZIPPER_TOOTH_ALIGN     Blocking  post    Every zipper tooth-rail tack is within 1.0 mm of its
+                                         assigned panel edge position.
+LACING_CORD_LENGTH     Blocking  post    No lacing cord segment is stretched beyond 200% of its
+                                         rest length.
+TRIM_GRAVITY_STABLE    Advisory  post    No trim rigid body translates more than 50.0 mm/frame
+                                         in the final 10 simulation frames.
+TACK_STRENGTH_NONZERO  Advisory  post    Warn if any tack stiffness value is < 0.01.
+                                         Indicates a possibly unintentionally loose tack.
+
+-- Material-preset checks (stage: preset; applies to model-authored material drape tests) --
+PRESET_NO_NAN          Blocking  preset  No NaN or Inf values appear in any drape-test particle
+                                         position after the preset validation drape run.
+PRESET_STRETCH_NONZERO Blocking  preset  Stretch compliance (weft and warp) is != 0. A zero
+                                         stretch compliance diverges the XPBD solver.
+PRESET_DENSITY_POS     Blocking  preset  Particle density (derived from density_g_m2) is > 0.
+PRESET_BBOX_PLAUSIBLE  Advisory  preset  The drape-test bounding box is within the expected range
+                                         for the material archetype claimed in FabricPreset.
+
+-- Refit checks (stage: refit; applies after T-AUTOFIT refit runs) ---------------
+REFIT_INTERSECTION_FREE Blocking refit   Minimum particle-to-capsule distance >= -0.5 mm after
+                                          refit simulation completes.
+REFIT_SEAM_CLOSURE      Blocking refit   Mated seam edge-pair length difference < 1% of the
+                                          shorter edge length.
+REFIT_CONVERGED         Advisory refit   The refit simulation reached equilibrium (did not
+                                          time out before the convergence threshold).
+```
+
+Total: 35 checks (19 Blocking, 16 Advisory, across 5 stages).
+
+###### 15-validation-hbr.2.5  ValidationFinding and SimulationReceipt
+
+The model's feedback type is `SimulationReceipt` (schema id `hsk.tailor.simulation_receipt@1`),
+returned as MCP `structuredContent`. It MUST carry a
+`validation_findings: Vec<ValidationFinding>` field. Each `ValidationFinding` MUST include:
+
+- `code: String` — one of the canonical codes from [15-validation-hbr.2.4].
+- `severity: String` — `"blocking"` | `"advisory"` | `"info"`.
+- `affected_id: Option<String>` — the panel_id, seam_id, or trim placement_id implicated, when
+  attributable.
+- `suggested_fix: Option<FixHint>` — where `FixHint` carries a `field_path: String` (JSON Pointer
+  into `GarmentSpec`) and a `suggested_value: serde_json::Value`.
+- `recommended_action: String` — one of `"promote_garment"` | `"edit_and_resimulate"` |
+  `"correct_spec_first"` | `"requires_operator_action"`.
+
+The model MUST use `ValidationFinding.code` to identify which spec field to correct before
+re-emitting a `GarmentSpec`. The implementation MUST NOT surface anonymous or code-free findings
+to the model.
+
+###### 15-validation-hbr.2.6  TailorGarmentValidationRecorded Event
+
+When `TailorValidationDescriptor` completes a validation run, the kernel MUST emit a
+`TailorGarmentValidationRecorded` event (wire string: `"TAILOR_GARMENT_VALIDATION_RECORDED"`)
+with `event_family` `"tailor.garment"`. The event payload MUST include the `garment_id`, the
+`sim_run_id`, a summary of `blocking_failures: u32` and `advisory_failures: u32`, and the
+`validation_run_id`. The full `ValidationReport` is stored server-side; only the summary travels
+in the EventLedger payload.
+
+The superseded variant names `TailorGarmentValidated` (files 03/04) and
+`TailorPatternValidated` (file 01) MUST NOT be used. `TailorGarmentValidationRecorded` is
+the sole canonical variant.
+
+---
+
+##### 15-validation-hbr.3  Promotion Equivalence: Lane Profile and MeshComparator Component
+
+###### 15-validation-hbr.3.1  The Hash-Equality Gap
+
+The XPBD solver's output is deterministic per-backend (same GPU backend + driver version ⇒
+identical float result), but is NOT deterministic cross-backend. WGSL/Naga sub-expression
+ordering is unspecified and WGSL has no f64 (confirmed by wgpu issue #5329). An exact SHA-256
+comparison of the final position buffer across backends or driver versions will produce spurious
+promotion failures for identically-quality drapes. The PromotionGate MUST NOT gate on
+`content_hash` equality for cross-backend promotion equivalence.
+
+###### 15-validation-hbr.3.2  content_hash: Retained for Idempotency Only
+
+`SolverResult.content_hash: [u8; 32]` (SHA-256 of the final position buffer) is retained for
+two purposes only:
+
+1. Same-machine, same-run deduplication of re-submitted solver requests.
+2. EventLedger receipt fingerprinting (the `tailor_simulation_runs` row and the
+   `TailorSimRunCompleted` event payload MAY carry it for audit purposes).
+
+The `PromotionGate` and `TailorValidationDescriptor` MUST NOT compare `content_hash` values
+between a re-run and the original run to determine equivalence.
+
+###### 15-validation-hbr.3.3  MeshComparator: A Profile-Selected Equivalence Component
+
+`MeshComparator` is the canonical vertex-comparison component when selected by the lane's
+versioned `TailorQualificationProfileV1`. It MUST be implemented as a pure function in
+`tailor-solver/src/compare.rs` with no `handshake_core` dependencies. The kernel validation
+runner accesses it via the `ClothSolver` trait boundary.
+
+`MeshComparator` MUST apply two components:
+
+**Primary (continuous, epsilon-tolerant):**
+
+The per-vertex position deviation between result A and result B MUST be computed vertex-for-vertex
+in the canonical vertex order. The canonical vertex order is determined once at garment load from
+mesh topology and constraint coloring; it MUST be stable across backends and MUST be stored with
+the simulation run record so a re-run can use the same order.
+
+The comparator MUST compute:
+- `max_deviation_mm`: the maximum per-vertex Euclidean deviation across all vertices.
+- `mean_deviation_mm`: the mean per-vertex Euclidean deviation across all vertices.
+
+Both MUST be reported in the `ValidationReport` and in `SimulationReceipt`.
+
+The primary component passes if and only if `max_deviation_mm <= epsilon_mm`.
+
+`epsilon_mm` MUST be resolved from the selected `TailorQualificationProfileV1`; `SimRunParams`
+identifies that profile and the validation receipt records its version/hash. No universal default
+or unqualified per-run override is permitted.
+
+**Secondary (exact, topology invariants):**
+
+The following counts MUST match exactly between the two results:
+- `vertex_count`
+- `triangle_count`
+- `seam_edge_pair_count`
+- `panel_count`
+
+**Promotion-Equivalence Verdict:**
+
+The vertex-comparison component passes if and only if all four secondary invariants match exactly
+AND `max_deviation_mm <= epsilon_mm`. The `MeshComparator` MUST return a typed verdict naming the
+failed component. Overall qualification still follows the selected lane profile and 13.29.
+
+###### 15-validation-hbr.3.4  Animated Run Exception
+
+For animated garment runs (when `GarmentSpec` carries an animation sequence via the
+`animation_json` column), wind turbulence and time-varying forces use `sin()`/`fract()` whose
+cross-vendor precision differs enough that per-vertex deviation can exceed even a loose epsilon.
+
+For animated runs, `MeshComparator` MUST additionally accept a **shape-envelope** match as the
+equivalence basis when the per-vertex primary check fails:
+
+- Per-frame bounding box deviation within the profile-resolved `bbox_epsilon_mm`.
+- `SEAMS_CLOSED` check passes in the final frame.
+
+The shape-envelope match is the equivalence basis for animated runs because the turbulence is
+aesthetic and exact per-vertex reproduction is neither required nor achievable cross-vendor. The
+`MeshComparator` MUST record in the verdict whether the primary or shape-envelope path was used.
+
+###### 15-validation-hbr.3.5  Migration Note
+
+All prior references to "content hash comparison" for promotion equivalence in the research
+package (files 03, 04, 07, 10) are superseded by [15-validation-hbr.3.3]. No implementation work
+packet MAY implement hash-equality promotion gates.
+
+---
+
+##### 15-validation-hbr.4  HBR Matrix: Harness Behavior Requirements for Tailor Work
+
+The HBR matrix defines the six mandatory harness behaviors that apply during all Tailor
+validation, simulation, and promotion work. These requirements apply to every model lane,
+`ModelAdapter` call, sandbox adapter run, and validation runner invocation in the Tailor domain.
+
+The six behaviors are: `INT` (Interrupt), `SWARM` (Swarm coordination), `VIS` (Visibility),
+`QUIET` (Non-intrusion), `MAN` (Manual override), `STOP` (Hard stop). Each cell below states
+the obligation for Tailor-domain work.
+
+```text
+BEHAVIOR  OBLIGATION FOR TAILOR WORK
+--------  -----------------------------------------------------------------------
+INT       A running TailorSandboxAdapter sim run MUST be interruptible by an
+          operator STOP command. The ClothSolver trait MUST expose a cancel()
+          signal (or equivalent async abort). The TailorSandboxAdapter.run()
+          implementation MUST poll the cancel signal at every substep boundary
+          and MUST return AdapterRunOutcome::Cancelled (or equivalent) immediately
+          on receipt. The EventLedger MUST emit TailorSimRunRejected with reason
+          "operator_cancelled" in response. No partial mesh artifact MUST be
+          promoted from a cancelled run.
+
+SWARM     When multiple model lanes author garments concurrently for the same
+          workspace, each lane MUST operate on a separate garment_id. Concurrent
+          CRDT edits to the SAME garment MUST go through the yjs_bridge or
+          ai_edit_proposal state machine as defined in the CRDT sub-section.
+          No two model lanes MAY submit simultaneous promotion requests for the
+          same garment_id + sim_run_id pair; the idempotency_key
+          "CPROM-{garment_id}-{val_run_id}" enforces this at the EventLedger
+          INSERT level.
+
+VIS       Every stage of the garment lifecycle MUST emit an EventLedger event
+          with a typed KernelEventType variant:
+            TailorGarmentDraftProposed      — draft created
+            TailorSimRunRequested           — sim enqueued
+            TailorSimRunStarted             — sim executing
+            TailorSimRunCompleted           — sim output available
+            TailorGarmentValidationRecorded — validation finished
+            TailorGarmentPromoted           — authority row written
+            TailorGarmentPromotionRejected  — gate rejected
+          The tailor_garments.status column MUST reflect the current lifecycle
+          stage at all times (draft | sandbox_pending | simulated | validated |
+          promoted | rejected | archived). No silent state transitions are
+          permitted. ValidationReport findings MUST be accessible to the
+          operator via the API before the promotion decision is made.
+
+QUIET     The TailorSandboxAdapter and tailor-solver crate MUST NOT:
+            - Pop foreground windows or steal focus.
+            - Open interactive UI dialogs.
+            - Write to stdout/stderr outside of structured log channels.
+            - Acquire GPU resources that would visibly compete with operator
+              ComfyUI or other GPU workloads during an unattended run.
+          The solver MUST write artifacts only to the sandbox workspace scratch
+          path supplied by the SandboxWorkspaceV1 materializer.
+          Log output MUST be structured (tracing::info!/warn!/error! crate) and
+          MUST be bounded — no per-substep log lines in production mode.
+
+MAN       The PromotionGate MUST require non-fixture OperatorApprovalEvidence
+          before completing a TailorGarmentPromoted transition. The native
+          review surface MUST provide a garment review pane that issues real
+          review_receipt_ids. Automated self-approval (fixture evidence, mocked
+          approval) is architecturally blocked by OperatorApprovalEvidence
+          .looks_fixture() check in the kernel gate. Model lanes MUST NOT
+          construct fixture-looking approval evidence.
+          EXCEPTION: unit tests and integration tests may use
+          OperatorApprovalEvidence::test_fixture() exclusively in
+          #[cfg(test)] context; this MUST NOT be reachable in production builds.
+
+STOP      An operator STOP action (issued through any canonical route) MUST:
+            1. Cancel any in-progress TailorSandboxAdapter sim run (see INT).
+            2. Cancel any pending TailorValidationDescriptor run for the same
+               garment_id.
+            3. Leave tailor_garments.status as the last stable committed value
+               (draft or simulated); MUST NOT advance status on a stopped run.
+            4. Emit TailorSimRunRejected or TailorGarmentPromotionRejected with
+               reason "operator_stop" in the EventLedger.
+            5. Release any model lane lease held for the stopped garment_id.
+          The STOP obligation is unconditional: background goal continuations,
+          persistent adapter retry loops, or automatic re-submission MUST NOT
+          resume Tailor work for the stopped garment until the operator
+          explicitly re-triggers the simulation or promotion.
+```
+
+---
+
+##### 15-validation-hbr.5  PostgreSQL and EventLedger Enforcement
+
+Every Tailor validation and promotion write MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` (from
+`kernel/sandbox/no_sqlite_tripwire.rs`) at the top of the storage function, consistent with
+`kb003_storage.rs` usage. SQLite MUST NOT be used for any Tailor authority row at any stage.
+
+The `TailorGarmentValidationRecorded` and `TailorGarmentPromoted` / `TailorGarmentPromotionRejected`
+events MUST use the idempotency key patterns below to prevent duplicate authority writes:
+
+```rust
+// Validation run idempotency key
+format!("TVAL-{garment_id}-{sim_run_id}")
+
+// Promotion idempotency key  (matches T-KERNEL-INTEGRATION binding)
+format!("CPROM-{garment_id}-{val_run_id}")
+```
+
+---
+
+##### 15-validation-hbr.6  Migration Naming for Validation Infrastructure
+
+There are no dedicated validation tables — validation runs use the existing kernel
+`ValidationDescriptor` / `ValidationReport` infrastructure. The `tailor_simulation_runs` table
+(migration `2026_MM_DD_tailor_simulation_runs.sql`, dated at authoring time per the
+[T-CONTRACTS.migration-naming] convention) carries the sim-run record and the FK to
+`kb003_sandbox_runs.run_id`. This is the only Tailor-domain migration required to support the
+validation gate.
+
+Numbered `0NNN_*` migration names MUST NOT be used for Tailor migrations (the integer space is
+contested by parallel kernel work packets; `0334_loom_canvas_boards.sql` proves the collision
+risk). Every Tailor migration MUST use the dated convention with a `.down.sql` reverse pair.
+
+---
+
+##### 15-validation-hbr.7  Non-Normative Provenance
+
+The check catalog in [15-validation-hbr.2.4] consolidates scattered check lists from research
+files 03, 05, 06, 07, 10, and 13. The severity assignments and stage assignments in those files
+are superseded where they conflict with the catalog above. The `MeshComparator` resolution in
+[15-validation-hbr.3] resolves `KI-DETERMINISM-VS-PROMOTION` as documented in T-CONTRACTS
+[T-CONTRACTS.determinism]. Both the research files and the known-issues index are non-normative
+provenance; this sub-section is the normative authority for all validation, promotion-equivalence,
+and HBR requirements in the Tailor module.
+
+
+---
+
+---
+
+## 13.16 BodyKit: Overview, Architecture & Authority
+
+<!-- id: bodykit-overview -->
+<!-- provenance (non-normative): .GOV/reference/tailor_bodykit_research/ 03-operator-body-
+     requirements.md (OBR-001..004), 05-daz-bodykit-requirements.md (REQ-001..044, license
+     findings), 06-gap-matrix-and-mt-plan.md Part B (BkFoundation/BkGui/BkBodiesQA/BkGovernance),
+     02-current-coverage-map.md. Research is non-normative; 13.14 (T-CONTRACTS) wins on conflict. -->
+
+---
+
+### BK-16.1 Scope and Submodule Framing
+
+**[TAI-BK-001]** BodyKit is the second submodule of the Tailor creative module. Tailor is ONE
+creative module with TWO submodules: **Cloth** (13.1–13.15) and **BodyKit** (13.16–13.27).
+BodyKit is Handshake's Daz-Studio-replacement parametric body engine: it generates, deforms,
+rigs, poses, simulates, and exports actual body surface meshes from typed channel parameters —
+closing the documented Cloth coverage hole where `parametric` is only a `source_kind` label,
+avatars are imported meshes or capsule/sphere/SDF collision abstractions, and no skinning, soft
+tissue, avatar surface materials, or avatar mesh export path exists. Adult production (18+
+subjects) is the primary production lane; game/general 3D export is the secondary lane.
+
+**[TAI-BK-002]** BodyKit MUST obey the same two-compile-unit law as Cloth
+([TAI-OVR-008], [TAI-OVR-009]):
+
+- Kernel-side code lives in `handshake_core::tailor::bodykit` (`src/tailor/bodykit/`), with
+  `mod.rs` defining `BodyKitError` and `event_family` constants, storage glue in
+  `src/tailor/bodykit/storage_glue.rs`, and Axum routes added to `src/api/tailor.rs`.
+- Solver and geometry code (mesh evaluation, SubD, morph application, skinning, soft tissue,
+  measurement extraction) lives in the `tailor-solver` crate under `tailor-solver/src/body/`.
+- `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, `CubeCL`, or any WGSL dependency for
+  BodyKit; `tailor-solver` MUST NOT gain `sqlx` or any `handshake_core` dependency. All shared
+  types cross the boundary through `tailor-solver/src/` re-exported by the binding module,
+  exactly as the Cloth trim types do (TR-14.1).
+
+**[TAI-BK-003]** BodyKit MUST NOT fork kernel primitives. EventLedger, CRDT documents,
+`SandboxAdapter`/`SandboxRunV1`, `PromotionGate`/`PromotionDecisionV1`, model lanes
+(`ModelAdapter`, `LlmClient`, MCP tool registry), jobs/leases, and validation
+(`ValidationDescriptor`, `ValidationReport`) are bound exactly as Cloth binds them in 13.11.
+A model-authored `BodySpec` MUST NOT be written directly to a SurrealDB authority record; it MUST
+enter the kernel sandbox, be validated by the BodyKit checks registered in
+`TailorValidationDescriptor` (13.15), and pass the `PromotionGate` before any
+`bodykit_bodies.status = 'promoted'` transition — [TAI-OVR-004] applies to bodies verbatim.
+
+---
+
+### BK-16.2 Canonical BodySpec
+
+**[TAI-BK-004]** `BodySpec` (schema id `hsk.tailor.body_spec@1`,
+`SCHEMA_TAILOR_BODY_SPEC_V1 = "hsk.tailor.body_spec@1"`) MUST be the single type shared between
+the LLM's primary output surface, the solver's primary input surface, and the typed SurrealDB
+object field (`bodykit_bodies.spec_json`). It MUST derive `schemars::JsonSchema` so
+its MCP `inputSchema` is auto-generated. The canonical type:
+
+```rust
+// src/tailor/bodykit/spec.rs — canonical BodySpec (schema id "hsk.tailor.body_spec@1").
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BodySpec {
+    pub schema_id: String,                    // "hsk.tailor.body_spec@1"
+    pub body_id: String,                      // "BDY-{uuid_v7}"
+    pub name: String,
+    /// Versioned base-mesh artifact this body evaluates against.
+    pub base_mesh_version: String,
+    pub skeleton_def_id: String,              // "BSK-{uuid_v7}"
+    /// Channel state: stable snake_case channel_key -> value.
+    /// 1.0 = 100% design nominal; designed over-range up to the channel's
+    /// design_max (e.g. 3.0 = 300%) per [TAI-BK-034].
+    pub channels: BTreeMap<String, f32>,
+    /// Explicit, inspectable, deletable coupling links (13.17). Empty by default.
+    pub coupling_links: Vec<CouplingLink>,
+    /// Genital configuration (13.21). ALWAYS present in every body; never optional.
+    pub genital_config: GenitalConfig,
+    /// Skin configuration (canonical SkinConfig type is authored in 13.22).
+    pub skin_config: serde_json::Value,
+    /// Soft-tissue parameter overrides (13.20). Defaults derive from channels.
+    pub soft_tissue: SoftTissueParams,
+    /// Recipe provenance: BRC- ids applied to reach this state, most recent last.
+    pub recipe_refs: Vec<String>,
+    /// LLM-facing numeric measurement targets in CENTIMETRES (13.17 solver).
+    pub measurement_targets_cm: BTreeMap<String, f32>,
+    /// Deterministic randomization seed when the body was seeded (13.17).
+    pub seed: Option<u64>,
+}
+```
+
+**[TAI-BK-005]** Unit law: every LLM-facing BodyKit surface (BodySpec measurement targets, MCP
+tool parameters, REST payloads, GUI numeric entry) MUST use centimetres with `_cm`-suffixed
+field names. Every authority/solver geometry surface (morph deltas, skeleton joint positions,
+landmark rules, cage geometry, collision proxies, measurement extraction) MUST use millimetres
+with `_mm`-suffixed field names. The conversion boundary MUST be the API decode step, identical
+to the Cloth boundary ([TAI-OVR-003], 13.14 body-proxy decisions). Mixed-unit fields are
+forbidden; both suffixes MUST appear on every length-bearing field so no ambiguity survives.
+
+---
+
+### BK-16.3 Storage Authority and Canonical Schema Inventory
+
+**[TAI-BK-006]** BodyKit authority is Handshake-managed SurrealDB ONLY. Every create or mutating
+update to a `bodykit_*` table MUST enter the SurrealDB-only authority guard and the atomic
+transaction required by [TAI-SDB-004]. All tables are `SCHEMAFULL` and preserve prefixed domain
+ids (`BDY-{uuid_v7}` bodies, `BRC-{uuid_v7}` recipes, `BMA-{uuid_v7}` morph assets,
+`BCH-{uuid_v7}` channel registry, `BSK-{uuid_v7}` skeleton defs); opaque database-generated IDs
+are forbidden ([TAI-OVR-013]). Every record carries a required typed `event_ledger_event_id`
+reference ([TAI-OVR-014]). Schema evolution uses SurrealKit per [TAI-SDB-007]. This sub-section
+owns the canonical field inventory for the five foundation tables below.
+`bodykit_skin_materials` (`BSM-`) is authored canonically in 13.22 and
+`bodykit_export_profiles` (`BXP-`) in 13.26; both follow the identical conventions.
+
+**[TAI-BK-007]** The canonical foundation schema inventory (dependency order) follows. Its fenced
+SQL is retained as a legacy field-and-constraint inventory only and MUST be translated to
+`SCHEMAFULL` SurrealQL plus SurrealKit rollout artifacts under [TAI-SDB-003] and [TAI-SDB-007]:
+
+```sql
+-- Migration: 2026_MM_DD_tailor_bodykit_channel_registry.sql
+CREATE TABLE IF NOT EXISTS bodykit_channel_registry (
+    channel_id              TEXT PRIMARY KEY,           -- "BCH-{uuid_v7}"
+    channel_key             TEXT NOT NULL UNIQUE,       -- stable snake_case, e.g. "breast_volume"
+    base_mesh_version       TEXT NOT NULL,
+    region_mask_ref         TEXT NOT NULL,              -- canonical vertex-region mask artifact
+    kind                    TEXT NOT NULL CHECK (kind IN ('skeletal','tissue')),
+    group_key               TEXT NOT NULL,              -- region group: "breast","shoulder","hip",...
+    range_json              JSONB NOT NULL,             -- { min, max, "default", design_max }
+    track_keys_json         JSONB NOT NULL DEFAULT '[]'::jsonb, -- multi-key track: [{key_pct, morph_asset_id}]
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_bodykit_channel_registry_group
+    ON bodykit_channel_registry (group_key);
+
+-- Migration: 2026_MM_DD_tailor_bodykit_skeleton_defs.sql
+CREATE TABLE IF NOT EXISTS bodykit_skeleton_defs (
+    skeleton_def_id         TEXT PRIMARY KEY,           -- "BSK-{uuid_v7}"
+    version                 TEXT NOT NULL,              -- semver; see [TAI-BK-058]
+    base_mesh_version       TEXT NOT NULL,
+    bones_json              JSONB NOT NULL,             -- BodyBoneDef array (names, parents, rest transforms, mm)
+    landmark_rules_json     JSONB NOT NULL,             -- joint re-derivation rules (13.18)
+    weights_artifact_ref    TEXT NOT NULL,              -- canonical-space LBS weights artifact
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Migration: 2026_MM_DD_tailor_bodykit_morph_assets.sql
+CREATE TABLE IF NOT EXISTS bodykit_morph_assets (
+    morph_asset_id          TEXT PRIMARY KEY,           -- "BMA-{uuid_v7}"
+    channel_id              TEXT REFERENCES bodykit_channel_registry (channel_id),
+    base_mesh_version       TEXT NOT NULL,
+    kind                    TEXT NOT NULL
+        CHECK (kind IN ('channel_key','corrective','compensation','graft')),
+    key_pct                 INTEGER,                    -- multi-key position (0/50/100/200/300); NULL unless kind='channel_key'
+    delta_payload_ref       TEXT NOT NULL,              -- sparse vertex-delta artifact, mm
+    region_mask_ref         TEXT NOT NULL,              -- mask the deltas are proven against
+    license_tag             TEXT NOT NULL,              -- REQUIRED: fail-closed license guard [TAI-BK-014]
+    provenance_json         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_bodykit_morph_assets_channel
+    ON bodykit_morph_assets (channel_id);
+
+-- Migration: 2026_MM_DD_tailor_bodykit_bodies.sql
+CREATE TABLE IF NOT EXISTS bodykit_bodies (
+    body_id                 TEXT PRIMARY KEY,           -- "BDY-{uuid_v7}"
+    workspace_id            TEXT NOT NULL,
+    name                    TEXT NOT NULL,
+    base_mesh_version       TEXT NOT NULL,
+    skeleton_def_id         TEXT NOT NULL REFERENCES bodykit_skeleton_defs (skeleton_def_id),
+    spec_json               JSONB NOT NULL,             -- canonical BodySpec ("hsk.tailor.body_spec@1")
+    status                  TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft','sandbox_pending','validated','promoted',
+                          'rejected','archived')),
+    avatar_id               TEXT REFERENCES tailor_avatars (avatar_id), -- published Cloth identity (13.24)
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_bodykit_bodies_workspace ON bodykit_bodies (workspace_id);
+
+-- Migration: 2026_MM_DD_tailor_bodykit_recipes.sql
+CREATE TABLE IF NOT EXISTS bodykit_recipes (
+    recipe_id               TEXT PRIMARY KEY,           -- "BRC-{uuid_v7}"
+    workspace_id            TEXT NOT NULL,
+    name                    TEXT NOT NULL,
+    -- Separable recipe layers (partial apply, 13.25): shape / skin / genital / physics.
+    channels_json           JSONB NOT NULL,             -- channel_key -> value map
+    coupling_links_json     JSONB NOT NULL DEFAULT '[]'::jsonb,
+    genital_config_json     JSONB,
+    skin_config_json        JSONB,
+    physics_config_json     JSONB,
+    seed                    BIGINT,                     -- deterministic randomization seed, when seeded
+    archetype_key           TEXT
+        CHECK (archetype_key IS NULL OR
+               archetype_key IN ('a','b','c','d','e','f','g','h')),
+    event_ledger_event_id   TEXT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_bodykit_recipes_workspace ON bodykit_recipes (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_bodykit_recipes_archetype ON bodykit_recipes (archetype_key);
+```
+
+**[TAI-BK-008]** Every `bodykit_*` write MUST use the event-before-row CTE pattern from the
+Cloth storage glue: the `kernel_event_ledger` row is written in the same transaction, before the
+authority row, and the authority row references it via `event_ledger_event_id`. Every body
+authoring session MUST be fully reproducible from EventLedger receipts alone: replaying the
+`TailorBody*` event sequence for a `body_id` MUST reconstruct the identical `BodySpec` without
+chat history, session context, or agent-local memory ([TAI-OVR-007] parity). The BkFoundation
+integration gate is normative: create body → set channels → save recipe → replay from ledger →
+byte-identical canonical-JSON `BodySpec`.
+
+---
+
+### BK-16.4 EventLedger Additions
+
+**[TAI-BK-009]** BodyKit extends the canonical Tailor event list in 13.14 with the
+`tailor.body` family (`pub const TAILOR_BODY: &str = "tailor.body";` in
+`src/tailor/bodykit/mod.rs`). Variant names are `Tailor*` PascalCase; wire strings are
+`TAILOR_*` SCREAMING_SNAKE_CASE via `as_str()`; every variant MUST be registered in
+`required_first_slice_events()` ([TAI-OVR-012]). Canonical additions for 13.16–13.21:
+
+```rust
+// -- BodyKit lifecycle (event_family = "tailor.body") — extends the 13.14 canonical list --
+TailorBodyCreated,               // "TAILOR_BODY_CREATED"
+TailorBodyChannelChanged,        // "TAILOR_BODY_CHANNEL_CHANGED"
+TailorBodyRecipeSaved,           // "TAILOR_BODY_RECIPE_SAVED"
+TailorBodyRecipeApplied,         // "TAILOR_BODY_RECIPE_APPLIED"
+TailorBodyMorphAssetImported,    // "TAILOR_BODY_MORPH_ASSET_IMPORTED"
+TailorBodyTopologyValidated,     // "TAILOR_BODY_TOPOLOGY_VALIDATED"
+TailorBodyLicenseGuardTripped,   // "TAILOR_BODY_LICENSE_GUARD_TRIPPED"
+TailorBodySkeletonRederived,     // "TAILOR_BODY_SKELETON_REDERIVED"
+TailorBodyPoseApplied,           // "TAILOR_BODY_POSE_APPLIED"
+TailorBodyPoseAssetSaved,        // "TAILOR_BODY_POSE_ASSET_SAVED"
+TailorBodyMocapIngested,         // "TAILOR_BODY_MOCAP_INGESTED"
+TailorBodyCorrectiveBaked,       // "TAILOR_BODY_CORRECTIVE_BAKED"
+TailorBodySoftTissueSettled,     // "TAILOR_BODY_SOFT_TISSUE_SETTLED"
+TailorBodyGenitalConfigured,     // "TAILOR_BODY_GENITAL_CONFIGURED"
+TailorBodyGraftAttached,         // "TAILOR_BODY_GRAFT_ATTACHED"
+TailorBodyArousalChanged,        // "TAILOR_BODY_AROUSAL_CHANGED"
+TailorBodyRandomized,            // "TAILOR_BODY_RANDOMIZED"
+TailorBodyValidationRecorded,    // "TAILOR_BODY_VALIDATION_RECORDED"
+TailorBodyPromoted,              // "TAILOR_BODY_PROMOTED"
+TailorBodyPromotionRejected,     // "TAILOR_BODY_PROMOTION_REJECTED"
+```
+
+Further `tailor.body` variants for skin, face, Cloth-bridge, model-API, and export lifecycles
+(e.g. `TailorBodySkinBaked`, `TailorBodyExportCompleted`) are authored in 13.22–13.26 and join
+the same canonical list under the same rules. Superseded or prefix-dropping wire strings
+(e.g. `"BODY_CREATED"`) MUST NOT appear in implementation code.
+
+---
+
+### BK-16.5 Base Mesh, Topology Contract, and License Law
+
+**[TAI-BK-010]** BodyKit MUST be built on an **original base mesh**: a commissioned or in-house
+watertight, quad-dominant, single-component humanoid mesh with original topology, original UVs,
+and original skeleton, ingested as a versioned artifact (`base_mesh_version`). All channels,
+morph assets, masks, skinning weights, and grafts are authored against this mesh; morphs never
+change vertex count or order.
+
+**[TAI-BK-011]** A **one-time bootstrap reference** is permitted: a mesh exported manually from
+the official unmodified MakeHuman application via its normal GUI export (CC0 output, verified),
+or MPFB2 CC0 assets, MAY be used as anatomical reference for authoring the original base mesh.
+The bootstrap MUST be recorded with provenance (`provenance_json` on the ingested artifact,
+`license_tag = 'cc0_makehuman_bootstrap'`). Scripted, library-linked, or mass-export use of
+MakeHuman voids the CC0 exception and is PROHIBITED.
+
+**[TAI-BK-012]** SMPL, SMPL-X, and STAR content is PROHIBITED in any form — mesh, topology,
+UVs, shape/pose spaces, skeleton, blend weights, regressors, or any data derived from them. The
+SMPL-family model license bars pornographic use outright (verified at
+`smpl-x.is.tue.mpg.de/modellicense.html`); it is disqualified for Handshake regardless of
+commercial licensing tier. The `source_kind` values `'smpl'`/`'smplx'` on `tailor_avatars`
+remain import labels for user-supplied external meshes in the Cloth lane; BodyKit MUST NOT emit
+or consume SMPL-family payloads.
+
+**[TAI-BK-013]** Daz Genesis content is PROHIBITED as authority in any form: no Genesis mesh,
+topology, UV layout, morph deltas, `.dhdm` HD payloads, or skeleton/weight data may be ingested
+into any `bodykit_*` table or artifact store. The read-only DSON migration lane (13.26) maps
+user-owned Daz character dials to BodyKit channel proposals WITHOUT importing mesh or morph
+payload.
+
+**[TAI-BK-014]** A **fail-closed license-guard tripwire** is normative. `license_tag` is
+`NOT NULL` on `bodykit_morph_assets`; an import without an explicit license tag MUST be
+rejected. The guard MUST additionally apply magic-byte, URI, and metadata heuristics to detect
+SMPL-family, `.dhdm`, and Genesis-derived payloads and MUST reject them regardless of the
+declared tag, emitting `TailorBodyLicenseGuardTripped` and a Blocking `LICENSE_GUARD` finding.
+Failure mode is closed: when provenance cannot be established, the import fails.
+
+**[TAI-BK-015]** The topology contract validator (`BODY_TOPOLOGY_VALID`, Blocking) MUST prove,
+for every base-mesh version and every graft-extended evaluation mesh: watertight manifold;
+single connected component; quad-dominant (tri count below a configured budget); region-mask
+completeness (every vertex assigned to at least one canonical region); genital-region edge
+loops present (vulva, penis, anus loop sets); pole/valence budget respected; UDIM tile layout
+conforms to the canonical head/torso/limbs/genitals tile assignment (13.22).
+
+**[TAI-BK-016]** Canonical vertex-region masks are authority, stored versioned with the base
+mesh: breasts L/R, glutes L/R, thighs inner/outer, shoulders, midriff/belly, hands, feet, arms,
+legs, neck, head, and the genital regions (vulva, penis, scrotum, anus). Masks are the
+decoupling substrate of 13.17: every channel and every morph asset declares exactly one
+`region_mask_ref` (or a declared pair-union for compensation morphs, [TAI-BK-053]) and is
+validated against it.
+
+**[TAI-BK-017]** The evaluation architecture is a Catmull-Clark SubD cage: the authority mesh is
+the low-res cage; the solver evaluates per-level (interactive view level vs bake level).
+Multi-resolution detail deltas MUST use an open, documented storage format (sparse per-level
+deltas in artifact storage) — a proprietary or undocumented HD format equivalent to `.dhdm` is
+forbidden. HD authoring is open to all users and models; there is no gatekept authoring tier.
+
+---
+
+### BK-16.6 API Surface, Archetypes, and GUI
+
+**[TAI-BK-018]** BodyKit REST routes are added to `src/api/tailor.rs` and registered in
+`api/mod.rs`: CRUD for bodies, recipes, and channel state, plus export trigger. Every route
+navigates by typed id (`BDY-`/`BRC-`/`BCH-`/`BSK-`/`BMA-`) and returns typed JSON; no
+positional or name-guessing lookups. MCP tool contracts over the same surface are canonical in
+13.25.
+
+**[TAI-BK-019]** The eight **acceptance archetypes** are normative. Each MUST ship as a seeded
+`bodykit_recipes` row (`archetype_key 'a'..'h'`), deterministic from channel values, and each
+MUST pass the archetype gate matrix (decouple, pose-range, drape, export — check wiring in
+13.15/13.27):
+
+| Key | Archetype |
+|---|---|
+| a | petite frame + extreme-large perky natural breasts + narrow soft shoulders + narrow hips + small hands + long legs + round ass + narrow thighs + skinny midriff |
+| b | extreme-large fake/plastic round implant-look breasts on a slender frame |
+| c | small perky breasts on an athletic frame |
+| d | large natural droopy breasts on a fat/obese female body |
+| e | obese male |
+| f | muscular male + oversized cock |
+| g | slender male + oversized cock |
+| h | futa cross-blend (female body + cock module, unrestricted cross-sex channel stacking) |
+
+**[TAI-BK-020]** Archetype seeding is a framework, not a fixture dump: archetypes MUST be
+regenerable from their recipe rows on any base-mesh version, and each archetype MUST have a
+persisted visual QA capture set (front/side/pose extremes) recorded as `tailor_captures` rows
+(13.12) for validator and operator review. Archetype (a) is the primary smoke archetype cited
+by the integration gates of 13.20 and 13.21.
+
+**[TAI-BK-021]** GUI law: BodyKit registers as a tab of the native-shell `tailor` pane. Every
+control carries a stable `author_id` test hook, matching the Cloth GUI contract. The GUI is a
+projection over the model-steerable kernel authority, never the primary authoring path.
+
+**[TAI-BK-022]** The BodyKit GUI MUST provide, at minimum: channel slider panels grouped by
+region with numeric entry, over-range indication, and an isolate-region toggle; an
+archetype/recipe browser (thumbnails, tags, apply/blend); a live measurement panel with numeric
+targeting ([TAI-BK-054] surface); a coupling-graph inspector to view, disable, and author
+explicit links ([TAI-BK-036] surface); pose editor hooks (IK pin handles, pose library,
+multi-actor alignment display); and a genital configuration panel (channels, erection state,
+arousal controller) built with the same slider grain as every other region panel — genital
+controls MUST NOT be special-cased, hidden, or gated differently.
+
+**[TAI-BK-023]** The body viewport reuses the Tailor wgpu viewport with body render pipelines
+(skin preview shading) and heatmap overlays for skin weights, UV strain, and decouple
+violations. All BodyKit panes MUST be inspectable, steerable, and screenshotable headlessly via
+Argus, including archetype edge states; a no-context model MUST be able to drive a channel
+edit → capture → verify loop through Argus alone (HBR-VIS, 13.15).
+
+---
+
+### BK-16.7 Validation, Promotion, CRDT, and Jobs Binding
+
+**[TAI-BK-024]** BodyKit validation checks are registered in the `TailorValidationDescriptor`
+catalog (13.15) under the same stage/severity law (two severities only; stable codes; no
+synonyms). Checks owned by this half of the spec:
+
+```text
+CODE                    SEVERITY  STAGE  ASSERTION (owning clause)
+----------------------  --------  -----  ---------------------------------------------
+BODY_TOPOLOGY_VALID     Blocking  mesh   topology contract holds            [TAI-BK-015]
+LICENSE_GUARD           Blocking  fast   no prohibited-license payload      [TAI-BK-014]
+BODY_DECOUPLE_VALID     Blocking  mesh   zero cross-region deltas           [TAI-BK-030]
+BODY_POSE_RANGE_VALID   Blocking  post   archetype x QA-pose matrix clean   [TAI-BK-086]
+BODY_SOFT_TISSUE_SETTLED Advisory post   settle gate reached                [TAI-BK-097]
+GENITAL_BLEND_VALID     Blocking  post   seamless genital skin, all tones   [TAI-BK-116]
+```
+
+`EXPORT_BODY_VALID` and the skin/face checks are authored in 13.22–13.26.
+
+**[TAI-BK-025]** Body and recipe promotion MUST use the `PromotionGate` with
+lane/profile-resolved equivalence on the evaluated mesh ([TAI-OVR-006], [TAI-PHY-006]) and
+content-hash idempotency for same-machine reruns only. `MeshComparator` is used only when the
+selected profile requires vertex comparison. No self-approval: the
+agent that authored a body proposal MUST NOT be the promotion decider. Competing body proposals
+from parallel agents remain distinct CRDT drafts until the operator (or an explicitly delegated
+policy) selects one.
+
+**[TAI-BK-026]** Channel edits are CRDT operations with last-writer-wins semantics per
+`channel_key`, carried in a body CRDT document (`crdt_document_id = "CRDT-BDY-{body_id}"`)
+using the existing `CrdtUpdateRecordV1` infrastructure; the `ai_edit_proposal` lane applies to
+bodies exactly as to panels (13.11). No new CRDT machinery may be introduced for BodyKit.
+
+**[TAI-BK-027]** Body generation, corrective bakes, soft-tissue settles, and exports run as
+Handshake jobs with leases, backpressure, and cancellation; model-authored work executes in the
+kernel sandbox (process tier, fs-only capabilities). Job lifecycle events are Flight-Recorder
+wired via the `tailor.body` family.
+
+**[TAI-BK-028]** **Prohibitions (consolidated).** The following are forbidden across all of
+13.16–13.27:
+
+- SQLite (or any non-Postgres store) for any BodyKit authority write.
+- SMPL/SMPL-X/STAR content in any form; Genesis/`.dhdm`/Daz payloads as authority.
+- A native FBX **writer**; FBX delivery is the Blender-bridge bake lane only (13.26), matching
+  the Cloth FBX law.
+- Hidden coupling links: any cross-region influence not visible and deletable in the coupling
+  graph ([TAI-BK-036]).
+- Channel or morph writes outside the declared region mask ([TAI-BK-029]).
+- Paywalled, optional, or removable genital anatomy: vulva, cock, and anus modules ship in the
+  base body, always ([TAI-BK-101]).
+- `UUID` primary keys via `gen_random_uuid()`; numbered `0NNN_*` migrations.
+- Bypassing sandbox → validation → promotion for model-authored bodies ([TAI-BK-003]).
+
+---
+
+## 13.17 BodyKit: Decoupled Region Channel System
+
+<!-- id: bodykit-channels -->
+<!-- provenance (non-normative): 03-operator-body-requirements.md OBR-001..004;
+     05-daz-bodykit-requirements.md REQ-001..016, REQ-043; 06-gap-matrix Part B
+     BkChannels MT-492..513. -->
+
+---
+
+### BK-17.1 The Decoupling Law
+
+**[TAI-BK-029]** **The defining law of BodyKit:** a region channel MUST NOT write outside its
+declared vertex-region mask, and NO implicit cross-region coupling of any kind is permitted.
+Dialing any breast channel MUST move zero vertices outside the breast masks; dialing shoulders
+MUST move zero breast vertices; and so on for every region. Cross-region correlation exists
+ONLY as explicit, inspectable, deletable coupling links ([TAI-BK-036]). This is the anti-ERC
+stance: the hidden full-body-morph entanglement that makes Daz fight itself at extreme
+combinations is architecturally excluded, not merely discouraged. Breast size MUST NOT drive
+hip width, shoulder width, ribcage scale, or any other region under any default configuration.
+
+**[TAI-BK-030]** `BODY_DECOUPLE_VALID` (Blocking) MUST prove the decoupling law mechanically:
+for every registered channel, every sparse delta index in every multi-key morph asset resolves
+to a vertex inside the channel's declared mask — zero tolerance, not epsilon tolerance — and
+evaluating any single channel across its full designed range on the neutral body produces zero
+displacement outside the mask. The check MUST run as a matrix across all eight acceptance
+archetypes ([TAI-BK-019]) so that stacked extreme configurations are proven, not just the
+neutral body.
+
+**[TAI-BK-031]** The canonical channel type:
+
+```rust
+// src/tailor/bodykit/channel.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BodyChannel {
+    pub channel_id: String,          // "BCH-{uuid_v7}"
+    /// Stable snake_case key, addressable by every API surface (REST, MCP, GUI,
+    /// randomizer, measurement solver). Renames are forbidden once shipped.
+    pub channel_key: String,         // e.g. "breast_volume", "shoulder_frame_width"
+    pub kind: ChannelKind,           // Skeletal | Tissue
+    pub group_key: String,           // "breast", "shoulder", "hip", "glute", ...
+    pub region_mask_ref: String,
+    pub range: ChannelRange,
+    pub default: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ChannelKind { Skeletal, Tissue }
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ChannelRange {
+    pub min: f32,                    // typically 0.0 or -1.0
+    pub max: f32,                    // 1.0 = 100% design nominal
+    /// Designed over-range ceiling (e.g. 3.0 = 300%). Sculpted keys exist
+    /// through this value; it is a calibrated range, not extrapolation.
+    pub design_max: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CouplingLink {
+    /// Human/model-readable, unique within the body. e.g. "hourglass_preset_hip_follow".
+    pub link_id: String,
+    pub source_channel_key: String,
+    pub target_channel_key: String,
+    /// Piecewise-linear mapping curve [(source_value, target_value), ...].
+    pub curve: Vec<[f32; 2]>,
+    /// Per-edge disable without deletion.
+    pub enabled: bool,
+}
+```
+
+**[TAI-BK-032]** Every shipped channel MUST be registered as a `bodykit_channel_registry` row
+before any morph asset referencing it may be imported. Unregistered channels MUST NOT be
+evaluable. The skeletal/tissue split is per-region and normative: frame axes (clavicle width,
+hip bone width, limb lengths, hand/foot scale) are `Skeletal` (bone-level, 13.18); tissue axes
+(breast volume/ptosis/firmness, glute volume, thigh fat/muscle, belly) are `Tissue`
+(morph/sim-level); both MUST be independently addressable.
+
+### BK-17.2 Multi-Key Tracks, Over-Range, and Stacking
+
+**[TAI-BK-033]** Every tissue channel MUST be a **multi-key morph track**: a sequence of
+sculpted keys at 0/50/100/200/300% of design nominal (`key_pct` on `bodykit_morph_assets`),
+piecewise-interpolated at evaluation time. Scaling a single delta linearly past its sculpted
+value is PROHIBITED as an evaluation strategy — linear morph degeneration at extremes (breast
+spikes, crease collapse) is the Daz failure this law removes. Channels whose useful range ends
+at 100% MAY ship fewer keys, but every key MUST be a sculpted asset, never an extrapolation.
+
+**[TAI-BK-034]** Designed over-range is normative: every production channel ships a calibrated
+`design_max` (300% is the default ceiling for breast/glute/penis volume-class channels), with
+sculpted keys AND correctives (13.19) authored across the FULL range. There is no "limits off"
+escape hatch: values beyond `design_max` MUST be rejected at the API boundary, because
+everything up to `design_max` is a supported, tested, first-class range.
+
+**[TAI-BK-035]** The channel stacking evaluator MUST apply, in order: (1) skeletal channels
+(bone scale/placement, driving joint re-derivation per 13.18); (2) the tissue morph stack
+(sparse delta accumulation from all active multi-key tracks); (3) a volume-preservation
+post-pass (delta-mush class, enabled by default, per-channel opt-out) so stacked extreme morphs
+do not collapse; (4) correctives (13.19); (5) soft-tissue simulation state (13.20). The
+evaluator lives in `tailor-solver/src/body/` and MUST be deterministic for a given
+(`base_mesh_version`, channel map, seed) triple.
+
+**[TAI-BK-036]** The **coupling-link graph** is the only cross-region mechanism: links are
+named, inspectable, per-edge disableable, deletable, and stored in `BodySpec.coupling_links`
+(preset link sets ship as recipe layers). Links are syntactic sugar that write TARGET CHANNEL
+VALUES — they never write vertices, never bypass masks, and never hide: an `isolate-region`
+override MUST suspend all inbound links for a region during authoring. Machine-authored links
+(model proposals) follow the same CRDT/proposal lane as any other body edit. Hidden drivers of
+any kind are a Blocking defect.
+
+### BK-17.3 Canonical Region Channel Groups
+
+**[TAI-BK-037]** **Breast group A (placement/size)** — required channels: `breast_volume`
+(small → extreme large, beyond any natural-population prior), `breast_projection`,
+`breast_placement_height`, `breast_placement_width`, `breast_spacing` (cleavage gap). Every
+breast channel MUST carry L/R asymmetry sub-channels (`*_asym_l` / `*_asym_r` deltas) so
+natural asymmetric builds are dialable.
+
+**[TAI-BK-038]** **Breast group B (shape/character)** — required channels: `breast_ptosis`
+(perky → natural droop/sag, gravity-real at every size), `breast_firmness` (0.0 = natural soft
+tissue → 1.0 = "fake plastic" implant look: round, high, rigid — the bolt-on aesthetic as a
+reachable, first-class target, not an artifact), `breast_profile` (0.0 = teardrop/natural
+distribution → 1.0 = round/hemispherical), `breast_upper_pole_fullness`.
+
+**[TAI-BK-039]** **Full breast-space reachability (OBR-001)** is normative: every combination
+in the multi-axis space MUST be reachable — small perky, large natural droopy, extreme large
+and perky but still natural-looking, extreme large fake plastic round and perky, and everything
+in between. `extreme-large + perky + natural` is a REQUIRED reachable point (the specific combo
+where Daz morph stacking visibly breaks), as is `extreme-large + fake-plastic-round + perky`
+(archetype b). No channel combination inside designed ranges may produce mesh collapse, spikes,
+or crease artifacts; the archetype matrix run of [TAI-BK-030] and the pose matrix of
+[TAI-BK-086] prove this.
+
+**[TAI-BK-040]** `breast_firmness` is a physics-coupled channel: soft-tissue simulation
+parameters (13.20) and corrective behavior (13.19) MUST derive mechanically from it —
+implant-firm breasts move differently than natural-soft breasts at the same volume, without any
+hand-tuned per-body physics setup.
+
+**[TAI-BK-041]** **Nipple/areola sub-module** — required channels: `nipple_size`,
+`nipple_puff`, `nipple_direction`, `areola_diameter`, plus an areola color-zone hook consumed
+by the skin layer stack (13.22). Nipple erection is driven by the arousal controller
+([TAI-BK-117]) in addition to direct dialing.
+
+**[TAI-BK-042]** **Shoulder decoupling (OBR-002)** — `shoulder_frame_width` (Skeletal: clavicle
+length/frame) and `shoulder_softness` (Tissue: deltoid/trap muscle-tone softening) are required
+channels, and NEITHER may be driven by, or drive, any breast, chest-circumference, or ribcage
+channel. The signature archetype — narrow soft shoulders + huge tits — is a canonical
+acceptance test of BodyKit and MUST render artifact-free at channel extremes.
+
+**[TAI-BK-043]** **Hip decoupling (OBR-003)** — `hip_bone_width` (Skeletal) is independent of
+glute volume/shape and independent of every breast/shoulder channel; `pelvis_tilt` (Skeletal)
+is its own axis.
+
+**[TAI-BK-044]** **Glute group** — required channels: `glute_volume` (round ass as its own
+channel), `glute_roundness`, `glute_lift`, `glute_width`, `hip_dip_fill`,
+`glute_crease_sharpness`; all independent of every thigh channel.
+
+**[TAI-BK-045]** **Thigh/leg group** — required channels: `thigh_girth_inner` and
+`thigh_girth_outer` (split axes), `thigh_gap`, `calf_girth`, `leg_length` (Skeletal/Tissue
+hybrid via bone scale, 13.18). `round ass + narrow thighs` is a REQUIRED reachable combo.
+
+**[TAI-BK-046]** **Midriff/waist group (OBR-003)** — required channels: `waist_circumference`,
+`belly_size`, `torso_length`; each independent of bust and hip channels.
+`skinny midriff + huge tits` (petite under extreme volume) is a REQUIRED reachable combo.
+
+**[TAI-BK-047]** **Belly/fat distribution group** — required channels: `belly_apron`
+(overhang), `fat_rolls` (count + position sub-channels), `love_handles`, `back_fat`,
+`arm_fat`, `thigh_fat`, `double_chin`; with male and female fat-distribution preset link sets
+(shipped as recipes, not baked coupling). Obese male and female bodies (archetypes d, e) are
+production-quality targets, not edge cases.
+
+**[TAI-BK-048]** **Muscle group** — three separate axes per muscle group: `muscle_mass_*`
+(geometry), `muscle_definition_*` (detail-map weight, consumed by 13.22), and flexion state
+(pose-driven hook resolved by the corrective engine, 13.19). Mass without definition, and
+definition without mass, MUST both be dialable.
+
+**[TAI-BK-049]** **Skinny/slender group** — required channels: `subcutaneous_fat` (removal
+toward skeletal visibility), `rib_visibility`, `hip_bone_visibility`; each with EXPLICIT
+exclusion of the breast and glute masks so a skinny frame never collapses dialed breast/glute
+volume (archetypes a, b, g depend on this).
+
+**[TAI-BK-050]** **Extremity and frame detail** — required channels: `hand_scale`,
+`foot_scale` (small hands are an operator archetype axis), `neck_girth`, `arm_girth`.
+
+**[TAI-BK-051]** **Height and global frame** — height MUST be decomposed into limb/torso ratio
+channels (`leg_length`, `torso_length`, `arm_length`, `overall_scale`) rather than a single
+uniform scale, so `petite` is a designed axis set usable simultaneously with ANY tissue channel
+at maximum ([TAI-BK-039] interplay). Petite + max breasts + narrow shoulders + small hands MUST
+render artifact-free.
+
+**[TAI-BK-052]** **Masc/fem continuum** — a single-base cross-blend channel
+(`masc_fem_continuum`) MUST expose gender as a continuous axis over the one base mesh (Genesis
+9 pattern, single-unimesh), supporting unrestricted cross-sex channel stacking including futa
+builds (archetype h). There are no separate male/female base meshes.
+
+### BK-17.4 Compensation, Measurement Solving, Randomization
+
+**[TAI-BK-053]** **Region-pair compensation morphs** handle geometric adjacency at declared
+seams: `breast x ribcage seam`, `glute x thigh crease`, `belly x hip overlap`. Each is authored
+as a gated pair-corrective (`kind = 'compensation'` on `bodykit_morph_assets`) whose mask is
+the DECLARED UNION of exactly two region masks, which activates only when both source channels
+are non-default, and which MUST appear in the coupling-graph inspector like any link. Full-body
+compensation morphs are prohibited.
+
+**[TAI-BK-054]** The **measurement solver** MUST accept numeric targets in centimetres
+(`bust_circ_cm`, `waist_circ_cm`, `hip_circ_cm`, `shoulder_width_cm`, `penis_length_cm`, ...)
+and solve channel values within the target's own region group WITHOUT touching channels of any
+other region. Solve results are ordinary channel edits (events, CRDT, validation). Targets
+outside achievable designed range MUST return a typed nearest-achievable result, not a silent
+clamp. The `solve_measurements` MCP tool contract is canonical in 13.25; measurement extraction
+reuses the `tailor-solver` extractor lane (13.7 §7.1.3) against the generated body mesh.
+
+**[TAI-BK-055]** **Seeded randomization** MUST support whole-body, per-region, and per-channel
+scopes with plausibility-weighted distributions and deterministic seeds: the same seed + scope +
+base-mesh version + registry version MUST reproduce the identical channel map. Batch variation
+generation (N bodies from N seeds) runs as parallel jobs ([TAI-BK-027]). Every randomization
+emits `TailorBodyRandomized` with the seed and scope in the payload.
+
+**[TAI-BK-056]** Every channel mutation emits `TailorBodyChannelChanged` with
+`{ body_id, channel_key, old_value, new_value, actor }`; channel state is CRDT
+LWW-per-channel-key ([TAI-BK-026]). A channel change MUST trigger, in order: skeleton joint
+re-derivation ([TAI-BK-061]), corrective cache invalidation when past threshold
+([TAI-BK-079]), soft-tissue parameter refresh ([TAI-BK-092]), and collision-proxy regeneration
+([TAI-BK-094]) — each mechanically, with no manual refresh step.
+
+---
+
+## 13.18 BodyKit: Skeleton, Skinning & Posing
+
+<!-- id: bodykit-skeleton -->
+<!-- provenance (non-normative): 05-daz-bodykit-requirements.md REQ-017..022 + Part-3
+     skeleton/export contract; 06-gap-matrix Part B BkSkeleton MT-514..527. -->
+
+---
+
+### BK-18.1 Canonical Skeleton
+
+**[TAI-BK-057]** BodyKit ships a **custom canonical skeleton**, UE5-compatible by construction:
+bone naming and orientation MUST match UE5 conventions wherever anatomy overlaps (`pelvis`,
+`spine_01`..`spine_05`, `neck_01`, `head`, `clavicle_l/r`, `upperarm_l/r`, `lowerarm_l/r`,
+`hand_l/r`, `thigh_l/r`, `calf_l/r`, `foot_l/r`, `ball_l/r`, twist bones
+`upperarm_twist_01_l`-style). The canonical skeleton EXTENDS this set with first-class chains:
+`breast_l/r` chains, `glute_l/r`, `belly` chain, and full genital chains (`penis_01`..
+`penis_05`, `scrotum_l/r`, the labia bone set, `anus`), all as plain exportable bones so engine
+physics can drive them. The skeleton is stored as a versioned `bodykit_skeleton_defs` row
+(`BSK-`). `ik_*` helper bones are NOT part of the authority skeleton; they are added only by
+the UE export profile (13.26).
+
+**[TAI-BK-058]** Skeleton stability is a content-compatibility contract: bone renames or
+hierarchy restructures are PROHIBITED without a major `version` increment on the skeleton def,
+and every pose asset, corrective, and weight artifact records the skeleton version it was
+authored against. Additive bone extension (new chains) is a minor version.
+
+**[TAI-BK-059]** **Per-bone scale channels** with explicit child-propagation control are
+required skeletal channel axes (13.17 `Skeletal` kind): limb LENGTH and limb THICKNESS are
+independent parameters, and scaling a parent MUST NOT implicitly scale children unless the
+channel declares propagation. These are the safe proportion axes (leg length, arm length, neck
+length, hand/foot scale) that Daz relegates to third-party packs.
+
+### BK-18.2 Skinning
+
+**[TAI-BK-060]** Linear blend skinning (LBS) weights on the base mesh are the skinning
+authority (`weights_artifact_ref`), chosen for engine parity. An optional dual-quaternion (DQS)
+or blended LBS/DQS PREVIEW mode MAY be offered in the viewport, but every export lane bakes
+from LBS ([TAI-BK-074] interplay with twist bones covers candy-wrapper artifacts).
+
+**[TAI-BK-061]** **Automatic joint re-derivation** is normative: joint centers, endpoints, and
+orientations MUST be re-derived from mesh landmarks (`landmark_rules_json`) on EVERY channel
+change, interpolated continuously with channel values — the continuous equivalent of Daz's
+manual "Adjust Rigging to Shape + ERC Freeze", with no manual step and no freeze operation.
+Re-derivation emits `TailorBodySkeletonRederived` (batched per edit transaction). A body whose
+skeleton is stale relative to its channel state MUST NOT pass `mesh`-stage validation.
+
+**[TAI-BK-062]** **Canonical-space weight re-projection** is normative at extremes: skinning
+weights are defined once in canonical (neutral) space and MUST be re-projected onto the
+deformed surface as regions grow, so giant breasts, glutes, and bellies keep clean deformation
+at 300% ranges. Weight re-projection MUST be deterministic and covered by the pose-range matrix
+([TAI-BK-086]).
+
+### BK-18.3 Posing
+
+**[TAI-BK-063]** Full-body IK posing with pins is required: hands, feet, and knees MUST be
+pinnable while dragging any other part; the IK solver reuses the existing FABRIK/2-bone lane
+(13.7 avatar pose editing) but MUST drive the BodyKit skeleton itself, not merely collision
+capsules. IK reach percentages and pin translation/rotation locks are parameters, not code
+switches.
+
+**[TAI-BK-064]** Pose authority: a `BodyPoseAsset` stores bone transforms plus the morph
+context it was authored in. Applying a pose to a body with different channel values MUST
+re-solve in morph context (IK retarget over the target body's proportions), never raw-copy
+transforms. Pose assets are saved to the pose library (`TailorBodyPoseAssetSaved`) and applied
+via `TailorBodyPoseApplied`.
+
+```rust
+// src/tailor/bodykit/pose.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BodyPoseAsset {
+    pub pose_asset_id: String,            // "BPA-{uuid_v7}"
+    pub name: String,
+    pub skeleton_version: String,
+    /// Per-bone local transforms (rotations + optional translations), mm/quaternions.
+    pub bone_transforms: BTreeMap<String, PoseBoneTransform>,
+    /// Channel snapshot the pose was authored against (morph-context re-solve input).
+    pub authored_channels: BTreeMap<String, f32>,
+    /// IK pins active when the pose was authored (re-solve anchors).
+    pub pins: Vec<IkPin>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct MultiActorPoseAsset {
+    pub pose_asset_id: String,            // "BPA-{uuid_v7}"
+    pub name: String,
+    /// Two or more actor slots, each a full BodyPoseAsset plus a root transform
+    /// RELATIVE to the shared stage anchor.
+    pub actors: Vec<ActorPoseSlot>,
+    /// Stage anchor convention: floor-plane origin, forward = +Y (stage space).
+    pub stage_anchor: StageAnchor,
+}
+```
+
+**[TAI-BK-065]** **Multi-actor pose assets** are first-class: a `MultiActorPoseAsset` aligns
+2+ bodies by relative root transforms against a shared stage anchor, so couple and group sex
+poses are placeable as ONE asset. Applying a multi-actor pose MUST re-solve each actor slot in
+its own body's morph context ([TAI-BK-064]) while preserving the relative alignment and any
+declared contact constraints; actor slots MUST be assignable to any body whose skeleton version
+matches.
+
+**[TAI-BK-066]** Pose symmetry mirroring (L↔R), pose blending between two poses, and
+puppeteer-style proximity blending between N library poses MUST be supported as deterministic
+operations over `BodyPoseAsset`s.
+
+**[TAI-BK-067]** **Mocap ingest**: BVH, FBX, and glTF skeletal animation MUST be ingestable
+with bone-map presets (Mixamo, Rokoko, UE, Unity, Daz, VRM naming conventions) plus
+auto-detection of the source convention. FBX ingest MAY route through the existing
+Blender-bridge conversion lane (13.12 import lanes); the prohibition on a native FBX writer is
+unaffected. Ingest emits `TailorBodyMocapIngested` with the source format and bone-map preset
+in the payload.
+
+**[TAI-BK-068]** The **retarget engine** MUST map animation between arbitrary skeletons via
+chain-based mapping (spine chain, limb chains, digit chains) with an explicit retarget base
+pose, support bake-to-target output, and be fully drivable headlessly (REST/MCP), with no
+GUI-only step.
+
+### BK-18.4 Secondary Motion and Export-Facing Rig Law
+
+**[TAI-BK-069]** **Jiggle-bone chain generation** is mechanical: secondary-motion bone chains
+for breasts, glutes, belly, cock, and balls MUST be generated from region masks + channel state
+(volume/firmness), with per-chain parameters (stiffness, damping, gravity response, limits).
+Generated chains are ordinary skeleton-def bones (exportable) and are the bake target of
+soft-tissue keyframe baking ([TAI-BK-095]).
+
+**[TAI-BK-070]** An **engine-agnostic physics-config sidecar** (JSON) MUST accompany every
+rigged body: per-region stiffness/damping/gravity/limit parameters keyed by chain, plus a
+per-component budget lint (chain count, bone count per chain) so game-lane exports stay inside
+target budgets. Engine-specific translations (UE physics asset, Unity/VRM spring bones) are
+generated FROM this sidecar in 13.26, never authored by hand per engine.
+
+**[TAI-BK-071]** Twist/roll bone generation is a per-export-profile option, and root-motion
+conventions (in-place vs root-driven, root bone naming) are declared per engine profile;
+canonical profile law lives in 13.26. The authority skeleton always carries its twist bones;
+profiles may strip or remap them.
+
+**[TAI-BK-072]** Pose, mocap, and retarget operations are EventLedger events
+(`TailorBodyPoseApplied`, `TailorBodyPoseAssetSaved`, `TailorBodyMocapIngested`) and MUST be
+replayable: re-running the event sequence reproduces the identical final pose state
+([TAI-BK-008] law).
+
+**[TAI-BK-073]** Skeleton + skinning quality is gated by the corrective pose matrix: every
+skeleton/skinning change MUST keep `BODY_POSE_RANGE_VALID` ([TAI-BK-086]) green across the
+archetype x QA-pose matrix; skinning regressions surface there, not in ad-hoc review.
+
+**[TAI-BK-074]** Skeleton prohibitions: no SMPL-family skeleton, joint regressor, or weight
+data in any form ([TAI-BK-012]); no Genesis rig import as authority ([TAI-BK-013]); no `ik_*`
+bones in the authority skeleton; twist-bone deletion from the authority skeleton is prohibited
+(long slender limbs at extreme `leg_length`/`arm_girth` values depend on them).
+
+---
+
+## 13.19 BodyKit: Corrective Engine & Sim-to-Corrective Baking
+
+<!-- id: bodykit-correctives -->
+<!-- provenance (non-normative): 05-daz-bodykit-requirements.md REQ-018/022/039,
+     PREQ-014..016, GREQ-026/027; 06-gap-matrix Part B BkCorrectives MT-528..537. -->
+
+---
+
+### BK-19.1 RBF Pose-Space Deformation
+
+**[TAI-BK-075]** BodyKit MUST implement an RBF pose-space deformation (PSD) corrective engine:
+corrective shapes are interpolated over pose-space example points (bone rotation coordinates),
+with smooth ramp-in and no popping at example boundaries. Correctives are evaluated after the
+channel stack and before soft-tissue state in the evaluator order ([TAI-BK-035]). This engine
+is the JCM/MCM replacement: joint correctives, morph-combination correctives, and multi-input
+gated correctives are all RBF samples in the same pose/channel space, with no hidden ERC dials.
+
+**[TAI-BK-076]** Correctives are stored as `bodykit_morph_assets` rows with
+`kind = 'corrective'` and pose-space sample metadata in `provenance_json` (driving bone
+channels, sample coordinates, source: sculpted vs sim-baked). Per-body baked corrective sets
+are cached artifacts keyed by (`body_id`, channel-map hash, skeleton version); the cache is
+invalidated by [TAI-BK-079]. The canonical sample and bake-request types:
+
+```rust
+// src/tailor/bodykit/corrective.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RbfCorrectiveSample {
+    pub morph_asset_id: String,            // "BMA-{uuid_v7}", kind = 'corrective'
+    /// Pose-space coordinates: driving bone channel -> radians at this sample.
+    pub pose_coords: BTreeMap<String, f32>,
+    /// Channel-space coordinates for morph-combination correctives (MCM class):
+    /// the corrective fires only when these channels are near the sampled values.
+    pub channel_coords: BTreeMap<String, f32>,
+    /// Contact-driver coordinates for proximity correctives [TAI-BK-082], mm.
+    pub contact_coords: Option<ContactCoords>,
+    pub source: CorrectiveSource,          // SimBaked | Sculpted
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CorrectiveBakeRequest {
+    pub body_id: String,                   // "BDY-{uuid_v7}"
+    pub skeleton_version: String,
+    /// Pose sample set: defaults to the QA set [TAI-BK-080] plus the per-joint
+    /// sweep grid of the declared sample-set asset (see below).
+    pub pose_asset_ids: Vec<String>,
+    /// Settle-parameter overrides forwarded to the 13.20 solver.
+    pub settle_overrides: Option<SoftTissueParams>,
+}
+```
+
+The per-joint sweep grid (e.g. `thigh` forward 30/60/90/120°, spread 30/60/90°, spine arch
+steps, shoulder raise steps, and the genital sweeps of [TAI-BK-112]) MUST be a declared,
+versioned sample-set asset referenced by the bake request — never a hard-coded pose list — so
+QA coverage is auditable and extensible without code change.
+
+**[TAI-BK-077]** The sculpt-import corrective authoring pipeline MUST support: OBJ/glTF sculpt
+import matched by vertex order, **reverse-deformation filtering** (subtract the currently
+dialed channel stack + pose so only the corrective delta is stored), and **deltas-only
+overwrite** of an existing corrective asset (versioned edit, prior asset retained). This is
+Morph-Loader-Pro parity with provenance.
+
+### BK-19.2 Sim-to-Corrective Baking — the Primary Path
+
+**[TAI-BK-078]** **Sim-to-corrective baking is the PRIMARY corrective authoring path** (the JCM
+leapfrog): the engine poses the body at sampled extreme poses, runs the soft-tissue solver to
+settle (13.20, settle gate [TAI-BK-097]), and bakes the skinned-vs-simulated delta at each
+sample as an RBF corrective. Correctives are therefore machine-generated per body, physically
+grounded, and reproducible — hand-sculpted correctives ([TAI-BK-077]) are the override lane,
+not the default.
+
+**[TAI-BK-079]** **Per-body re-bake** is normative: correctives MUST regenerate for the
+CURRENT channel configuration, so extreme decoupled combinations keep working under pose — no
+fixed-prior JCM set to outgrow. A channel change beyond a configured delta threshold MUST
+invalidate the affected pose-space cache regions and schedule a re-bake job; using stale
+correctives past the threshold is a `mesh`-stage validation failure. Every bake emits
+`TailorBodyCorrectiveBaked` with the sample set and cache key in the payload.
+
+**[TAI-BK-080]** The **porn-range pose QA set** is normative and named: `full_thigh_spread`,
+`deep_squat`, `legs_behind_head`, `deep_arch`, `hip_thrust`. These poses MUST exist as shipped
+`BodyPoseAsset`s, MUST be part of the corrective sampling set, and MUST be evaluated on ALL
+eight acceptance archetypes ([TAI-BK-019]). Production pose range — not catalog-neutral
+standing poses — is the tested range.
+
+**[TAI-BK-081]** **Compression/contact shapes** are reusable proximity-driven correctives:
+butt-on-surface flattening, thigh-against-torso squash, and grip dimples MUST ship as
+corrective assets driven by the contact driver ([TAI-BK-082]), usable on any body via per-body
+re-bake.
+
+**[TAI-BK-082]** The **proximity/contact driver** MUST activate correctives from
+collision-derived inputs: penetrator/contact proximity, penetration depth, and contact area
+drive bulge/indent corrective weights. This driver is the shared foundation for the orifice
+penetration correctives of 13.21 ([TAI-BK-113]) and the compression shapes of [TAI-BK-081].
+
+**[TAI-BK-083]** Driver transparency: every pose-space, channel, and proximity driver MUST be
+an explicit, inspectable entry in the body's driver graph, subject to the coupling-graph law
+([TAI-BK-036]) — viewable, per-edge disableable, deletable. Hidden corrective drivers are a
+Blocking defect.
+
+### BK-19.3 Export Baking and Validation
+
+**[TAI-BK-084]** Corrective export baking: for every export (13.26), active correctives MUST be
+baked as pose-space-named blendshapes using the canonical naming convention
+`jcm_<bone>_<axis>_<degrees>_<side>` (e.g. `jcm_thigh_fwd_90_l`), accompanied by a
+machine-readable **driver sidecar** (JSON: bone channel → morph weight curve per blendshape) so
+engines can re-drive them. FBX carries no drivers; the sidecar is the contract:
+
+```json
+{
+  "schema_id": "hsk.tailor.body_driver_sidecar@1",
+  "skeleton_version": "1.0.0",
+  "blendshapes": [
+    {
+      "name": "jcm_thigh_fwd_90_l",
+      "driver": { "bone": "thigh_l", "channel": "rotate_x", "unit": "deg" },
+      "curve": [[0.0, 0.0], [45.0, 0.25], [90.0, 1.0]]
+    }
+  ]
+}
+```
+
+**[TAI-BK-085]** Generator emission from the sidecar is required: a UE Pose Driver (RBF) setup
+generator and a Blender shape-key-driver generator (Diffeomorphic Auto-JCM precedent) MUST be
+emitted with skeletal exports, so baked correctives are live in both target DCCs without manual
+re-rigging.
+
+**[TAI-BK-086]** `BODY_POSE_RANGE_VALID` (Blocking, `post` stage): the archetype x QA-pose
+matrix (all eight archetypes x the [TAI-BK-080] pose set, plus the genital sweeps of
+[TAI-BK-112]) MUST render without mesh collapse, pinching, or self-interpenetration beyond the
+collision tolerance. The matrix runs headlessly with captures persisted per cell (13.12) for
+visual QA review.
+
+**[TAI-BK-087]** Bakes MUST be deterministic: identical inputs (body spec, skeleton version,
+pose set, solver settings) produce outputs that satisfy the same versioned lane qualification
+profile across GPU backends; `MeshComparator` is used only when that profile selects vertex
+comparison. Content-hash equality is reserved for same-machine idempotency ([TAI-OVR-006]).
+
+**[TAI-BK-088]** Corrective bakes run as sandbox jobs ([TAI-BK-027]) with leases and
+cancellation; a cancelled bake leaves the prior corrective cache intact (no partial cache
+writes).
+
+---
+
+## 13.20 BodyKit: Soft-Tissue Simulation
+
+<!-- id: bodykit-softtissue -->
+<!-- provenance (non-normative): 05-daz-bodykit-requirements.md REQ-028, PREQ-017/020,
+     GREQ-025; 06-gap-matrix Part B BkSoftTissue MT-538..545. -->
+
+---
+
+### BK-20.1 Unified Solver Law
+
+**[TAI-BK-089]** Body soft tissue MUST be simulated as **volume-preserving XPBD soft bodies in
+the SAME `tailor-solver` world as cloth** — the same substep loop, the same Lagrange multiplier
+update, the same WGPU dispatch, extending the existing `SoftBodySpec` lane. A forked or
+separate body-physics solver is PROHIBITED. Daz's core physics gap (dForce is cloth-only; no
+native soft body) is closed inside the one solver, which is what keeps cloth-vs-body coupling
+consistent by construction. The soft-tissue constraint passes join the canonical substep order
+(TR-3.1): cage stretch and cage volume/pressure passes execute after the cloth constraint
+passes and before `body_collide.wgsl`, so cloth sees the settled tissue surface of the current
+substep; the velocity pass updates cloth particles, trim bodies, AND cage particles together.
+No soft-tissue pass may run outside the shared substep loop.
+
+**[TAI-BK-090]** Soft-tissue simulation operates on **low-res region cages** for breasts,
+glutes, and belly (extensible to any masked region), with the simulated cage driving the
+full-res surface through a cage-deformation binding. Cage resolution is a per-region parameter;
+the cage, not the render mesh, is the particle system. The cage-to-surface binding MUST be a
+smooth-coordinates binding (harmonic / mean-value-coordinates class), computed once per
+(`base_mesh_version`, region mask, cage resolution) and cached as an artifact; the binding MUST
+be deterministic so identical cage states always reproduce the identical surface. The
+canonical cage type:
+
+```rust
+// tailor-solver/src/body/cage.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SoftTissueRegionCage {
+    pub region_key: String,                // "breast_l", "glute_r", "belly", ...
+    pub cage_vertices_mm: Vec<[f32; 3]>,
+    pub cage_tets: Vec<[u32; 4]>,          // tetrahedral cage cells
+    pub surface_binding_ref: String,       // cached smooth-coordinates binding artifact
+    pub rest_volume_mm3: f64,
+    /// Resolved parameters: channel-derived defaults + BodySpec overrides.
+    pub params: SoftTissueRegionParams,
+}
+```
+
+**[TAI-BK-091]** Volume preservation is a hard constraint: each region cage MUST carry an XPBD
+volume/pressure constraint so jiggle, squish, and settle never lose enclosed volume beyond the
+configured tolerance. Jiggle that deflates is a defect, not a style.
+
+**[TAI-BK-092]** Soft-tissue parameters MUST derive mechanically from channels: `breast_firmness`
+(and region analogues) maps to cage stiffness/damping/pressure so natural-soft vs implant-rigid
+motion falls out of the channel state ([TAI-BK-040]) with zero per-body hand tuning. The
+mapping MUST be monotonic in the firmness channel, with endpoints calibrated against the
+acceptance archetypes (archetype a = natural end, archetype b = implant end):
+
+| `breast_firmness` | cage stiffness | damping | pressure | motion character |
+|---|---|---|---|---|
+| 0.0 (natural soft) | low | moderate | soft | full jiggle, gravity-real sway, deep squish |
+| 0.5 | medium | medium | medium | damped bounce, partial squish |
+| 1.0 (implant rigid) | high | high | near-rigid | bolt-on: minimal jiggle, shape-holding, shallow squish |
+
+Explicit `SoftTissueParams` overrides in `BodySpec` are permitted, recorded, and replayable;
+an override never mutates the derived defaults of other regions.
+
+```rust
+// tailor-solver/src/body/soft_tissue.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SoftTissueParams {
+    /// Per-region overrides; absent region = fully channel-derived.
+    pub regions: BTreeMap<String, SoftTissueRegionParams>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SoftTissueRegionParams {
+    pub stiffness: Option<f32>,        // [0.0, 1.0] normalized; 1.0 = rigid
+    pub damping: Option<f32>,          // [0.0, 1.0]
+    pub pressure: Option<f32>,         // volume-constraint stiffness [0.0, 1.0]
+    pub gravity_scale: Option<f32>,    // 1.0 = full gravity
+}
+```
+
+### BK-20.2 Collision, Proxies, and Baking
+
+**[TAI-BK-093]** Soft-tissue cages MUST collide with hands, props, and cloth in the unified
+collision world (13.4): grabbing, pressing, and garment compression visibly squish tissue on
+contact. Collision behavior obeys the existing collision law (friction, no-energy-injection
+velocity correction) with no body-specific collision fork. Cloth-tissue coupling is TWO-WAY by
+construction of the shared substep loop: a tight garment compresses the cage (bra lift and
+squeeze on soft breasts) and the cage presses back into the drape — unlike the one-way
+trim-contact exception (TR-5.5), no one-way shortcut is permitted for body tissue.
+
+**[TAI-BK-094]** **Autocollider generation** is mechanical: capsule/sphere collider sets per
+region MUST be generated from region masks + current channel state and MUST update on every
+channel change ([TAI-BK-056]). Generated colliders feed the Cloth body proxies — BodyKit writes
+`tailor_body_proxies` (`BPX-`) rows honoring the canonical multi-sphere breast decomposition
+law ([COL-BUST-006]: three spheres per side + sternum capsule at scale) and the 32-capsule /
+16-sphere GPU caps; the full BodyKit↔Cloth bridge contract is canonical in 13.24.
+
+**[TAI-BK-095]** **Bake-to-keyframes**: settled/simulated soft-tissue motion MUST be bakeable
+to jiggle-bone keyframe curves ([TAI-BK-069] chains) for export and render lanes, so engines
+replay tissue motion without running the solver. The bake MUST report its fidelity (max surface
+deviation between simulated surface and bone-driven surface, in mm) so lanes can decide between
+baked-bone playback and cached vertex animation; interactive viewport preview MAY run
+chain-driven jiggle in place of the full cage sim, clearly labeled as preview, never as
+authority state.
+
+**[TAI-BK-096]** **Gravity-direction rest-shape solve**: the rest shape MUST be solvable for an
+arbitrary gravity direction relative to the body (standing, lying, leaning), so ptosis
+interacts correctly with pose. A counter-gravity neutralization solve MUST produce
+export-neutral shapes (gravity-canceled rest geometry) for game lanes that apply their own
+physics.
+
+**[TAI-BK-097]** Determinism envelope and settle gate: soft-tissue settle reuses the Cloth
+settlement policy (convergence fraction + frame cap) and the `MeshComparator` determinism
+envelope. Reaching settle emits `TailorBodySoftTissueSettled` with
+`{ body_id, regions, frames_to_settle, converged, gravity_dir, params_hash }` in the payload,
+and satisfies the `BODY_SOFT_TISSUE_SETTLED` advisory check; a frame-cap timeout MUST record
+`converged = false` and MUST NOT be presented as a settled state. Sim-to-corrective baking
+([TAI-BK-078]) MUST NOT consume an unsettled state.
+
+**[TAI-BK-098]** Soft-tissue runs share the Cloth `SimRunParams` job lifecycle: sandboxed,
+lease-held, cancellable, with run parameters recorded in the completion event payload for full
+EventLedger reproducibility ([TAI-BK-008]).
+
+**[TAI-BK-099]** Interactive budget: view-level simulation runs on interactive cage resolutions
+(per-region caps configured in the registry), while bake-level runs may raise resolution;
+exceeding a cage budget is a typed rejection, not a silent downgrade.
+
+**[TAI-BK-100]** BkSoftTissue integration gate: archetype (a) — petite + extreme-large perky
+natural breasts — MUST settle deterministically (comparator-equivalent across two consecutive
+runs) and MUST demonstrate squish-on-contact against a prop collider, with captures persisted
+(13.12).
+
+---
+
+## 13.21 BodyKit: Genital Modules
+
+<!-- id: bodykit-genitals -->
+<!-- provenance (non-normative): 05-daz-bodykit-requirements.md REQ-022/029..035,
+     PREQ-010..013/019; 06-gap-matrix Part B BkGenitals MT-546..561. Language law:
+     direct adult-production terminology is normative in this repo; sanitized
+     euphemisms are a documentation defect. -->
+
+---
+
+### BK-21.1 Base-Topology Genitals and Grafts
+
+**[TAI-BK-101]** Genitals are **first-class production modules in the BASE topology**: pussy
+(vulva), cock (penis), and anus regions are part of the single base mesh — no seam, no
+aftermarket graft required, no separate figure. Genital regions carry toggleable evaluation
+resolution (hero close-up vs standard). Genital anatomy MUST NEVER be paywalled, optional
+content, or a removable add-on: every body row has a complete `GenitalConfig`.
+
+**[TAI-BK-102]** A censor/SFW toggle MAY exist ONLY as a render/export-lane option (13.26); it
+MUST NOT remove, degrade, or gate authority geometry, channels, or configuration.
+
+**[TAI-BK-103]** The **region-graft mechanism** is the extension lane for third parties: a
+graft declares `vertex_pairs` (weld map source↔target) and `hidden_polys` (base faces hidden) —
+the DSON-graft equivalent, Handshake-native, with matching vertex/poly-count validation at
+attach time. Attached grafts MUST inherit body channel projections and skinning, MUST pass the
+topology contract ([TAI-BK-015]) on the merged evaluation mesh, MUST pass the license guard
+([TAI-BK-014]), and MUST declare region masks for any channels they add so the decoupling law
+([TAI-BK-029]) and `BODY_DECOUPLE_VALID` apply to graft channels identically. Attachment emits
+`TailorBodyGraftAttached`; detachment restores the hidden base faces losslessly.
+
+**[TAI-BK-104]** The canonical genital configuration type (part of `BodySpec`):
+
+```rust
+// src/tailor/bodykit/genitals.rs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GenitalConfig {
+    /// Module presence: any combination is valid (futa = vulva + cock).
+    pub vulva_enabled: bool,
+    pub penis_enabled: bool,
+    /// Anus is always present; it has no enable flag.
+    pub resolution: GenitalResolution,     // Standard | Hero
+    /// Erection continuum [0.0 flaccid .. 1.0 fully erect]; pose+morph composite.
+    pub erection: f32,
+    /// Per-scene rigidity behavior of the erect cock chain.
+    pub erection_mode: ErectionMode,       // Rigid | Floppy
+    /// Gape state dials [0.0 closed .. 1.0 extreme gape].
+    pub vaginal_gape: f32,
+    pub anal_gape: f32,
+    /// Arousal controller master channel [0.0 .. 1.0] — drives flush/engorgement,
+    /// wetness ramp, nipple erection, labia engorgement together.
+    pub arousal: f32,
+    /// Genital channel values (namespaced keys: "vulva_*", "penis_*", "anus_*").
+    pub channels: BTreeMap<String, f32>,
+}
+```
+
+### BK-21.2 Vulva, Cock, and Anus Modules
+
+**[TAI-BK-105]** **Vulva channel group** (bar: Golden Palace, exceeded) — required channels:
+`vulva_labia_size`, `vulva_labia_shape`, `vulva_labia_spread`, `vulva_inner_outer_balance`,
+`vulva_clitoris_size`, `vulva_clitoris_hood`, `vulva_mons_volume`. All obey the decoupling and
+multi-key track laws of 13.17 without exception.
+
+**[TAI-BK-106]** **Vulva rig + gape system**: labia, clitoris, and the vaginal canal are rigged
+(labia bone set on the canonical skeleton, [TAI-BK-057]); open/close and gape dials MUST cover
+the full range up to extreme gape as designed, sculpted range ([TAI-BK-034]); canal depth
+channels are dialable. Gape states MUST be exportable as both pose assets and baked blendshapes
+(13.26).
+
+**[TAI-BK-107]** **Cock module mesh + rig**: full pose chain `penis_01`..`penis_05`
+(base → glans) plus scrotum rig, posable through the standard pose/IK surface (13.18) — the
+entire chain is ordinary skeleton, not a special-case rig.
+
+**[TAI-BK-108]** **Cock channel group** (bar: Dicktator, exceeded) — required channels:
+`penis_length`, `penis_girth`, `penis_curve`, `penis_taper`, `penis_glans_size`,
+`penis_foreskin` (continuum: full foreskin ↔ circumcised), `penis_vein_intensity`
+(displacement-driven, 13.22 hook), `scrotum_size`, `scrotum_tightness`. Oversized ranges are
+first-class: length/girth channels ship multi-key tracks through 300% design max
+([TAI-BK-033]/[TAI-BK-034]) — the oversized-cock archetypes (f, g) are acceptance targets, not
+over-dial hacks.
+
+**[TAI-BK-109]** **Erection continuum**: flaccid ↔ erect is a pose+morph composite driven by
+the single `erection` value — bone chain pose and tissue morphs advance together. The
+`ErectionMode` state machine selects per-scene rigid (pose-locked erect chain) vs floppy
+(soft-tissue/jiggle-driven) behavior. Erection states MUST export as BOTH pose assets and baked
+blendshapes so they survive every lane (13.26).
+
+**[TAI-BK-110]** **Anus module** — required channels: `anus_position`, `anus_gape` (staged gape
+states through extreme, sculpted keys), `anus_pucker_detail`. Same channel laws, same rig
+integration (`anus` bone).
+
+**[TAI-BK-111]** **Futa/mixed anatomy** is normative: a female body with the cock module
+enabled (`vulva_enabled && penis_enabled`) MUST work with no cross-module conflicts. Genital
+channel namespaces (`vulva_*`, `penis_*`, `anus_*`) are isolated per the decoupling law;
+enabling one module MUST NOT alter another module's geometry or channels. Archetype (h) proves
+the build.
+
+### BK-21.3 Genital Correctives, Collision, Skin, and Arousal
+
+**[TAI-BK-112]** Genital corrective coverage rides the 13.19 engine: the erection sweep
+(flaccid → erect at multiple size configurations), insertion poses, and extreme spread/gape
+states are REQUIRED sampled points in the corrective bake set, with per-size re-bake
+([TAI-BK-079]) so oversized configurations keep clean deformation. These sweeps join the
+`BODY_POSE_RANGE_VALID` matrix ([TAI-BK-086]).
+
+**[TAI-BK-113]** **Orifice penetration correctives**: vaginal, anal, and oral orifices MUST
+carry stretch/conform correctives driven by penetrator proximity and penetration depth through
+the proximity/contact driver ([TAI-BK-082]). Penetration reads as tissue conforming to the
+penetrator — driven mechanically, inspectable in the driver graph ([TAI-BK-083]), and usable
+with any penetrator collider (cock, toy prop, hand).
+
+**[TAI-BK-114]** **Genital collision proxies + soft-tissue coupling**: genital regions generate
+their own collision proxies ([TAI-BK-094] lane) and participate in soft-tissue simulation
+(13.20) for insertion scenes — penetrator-vs-orifice contact resolves in the unified collision
+world with tissue response on both sides.
+
+**[TAI-BK-115]** **Seamless genital skin on ALL skin tones**: genital regions share the
+canonical UV tile layout ([TAI-BK-015]) and MUST receive automatic albedo/normal boundary
+blending SAMPLED from the adjacent body skin — not a generic overlay tuned for pale skin. The
+Daz-ecosystem shell hack ("blends with any white skins") is the explicitly rejected pattern;
+dark skin tones are first-class and tested.
+
+**[TAI-BK-116]** `GENITAL_BLEND_VALID` (Blocking, `post` stage): a skin-tone sweep including
+dark tones MUST show no visible seam at genital region boundaries — albedo and normal deltas
+across the boundary within configured thresholds, verified per tone and persisted as capture
+rows for visual QA (13.12).
+
+**[TAI-BK-117]** The **arousal controller** is one channel (`arousal`) driving, together:
+genital and chest flush/engorgement color (hemoglobin-map modulation, 13.22), wetness ramp
+(specular/clearcoat wet-layer weight, 13.22), nipple erection ([TAI-BK-041]), and labia
+engorgement. Individual sub-effects remain separately dialable; the controller is an explicit
+link set over them ([TAI-BK-036]), not hidden coupling. Changes emit
+`TailorBodyArousalChanged`.
+
+**[TAI-BK-118]** **Modular export attachments**: export profiles (13.26) MUST offer genitals as
+(a) the default pre-welded single mesh (grafts merged, blended textures baked, one material
+set) and (b) an optional separate mesh+bones+material attachment with body-seam weld data for
+game lanes that manage anatomy as attachments. Both lanes carry the genital bone chains on the
+main skeleton.
+
+**[TAI-BK-119]** Genital configuration is governed exactly like every other body edit:
+`TailorBodyGenitalConfigured` events, CRDT per-channel LWW, sandbox → validation → promotion
+for model-authored configs — with NO additional gating, review tier, or friction beyond what
+any other channel group receives ([TAI-BK-022] same-grain law).
+
+**[TAI-BK-120]** BkGenitals integration gate: archetypes (f) and (g) — muscular and slender
+male, oversized cock — MUST pass the erection sweep with corrective re-bake at multiple
+length/girth configurations; archetype (a) MUST pass the vulva open/close/extreme-gape range;
+visual QA captures for every swept state are persisted as `tailor_captures` rows (13.12) for
+validator and operator review.
+
+---
+
+<!-- Master Spec fragment: Section 13 BodyKit second half (13.22-13.27).
+     Anchors: [TAI-BK-121]..[TAI-BK-240] (sequential; first half 13.16-13.21 owns 001-120).
+     Non-normative provenance: .GOV/reference/tailor_bodykit_research/ files 00, 01, 03, 05, 06.
+     Contract style follows 13.12/13.13/13.15; kernel primitives are bound, never forked. -->
+
+---
+
+## 13.22 BodyKit: Skin & Texture System
+
+<!-- id: bodykit-skin -->
+<!-- MT group: BkSkin MT-562..575. Research basis: REQ-036..038, PREQ-001..009/025..028/034,
+     GREQ-040, 03-operator-body-requirements.md, 05-daz-bodykit-requirements.md Part 1H. -->
+
+### 22.1 Scope and Authority
+
+**[TAI-BK-121]** The BodyKit skin subsystem MUST live in `src/tailor/bodykit/skin.rs`
+(authoring/authority layer) with render-side evaluation in the Tailor wgpu viewport pipelines
+(13.12) and bake-side evaluation in the export lanes (13.26). The canonical authoring type is
+`SkinMaterialSpec` (schema id `hsk.tailor.skin_material@1`), stored as the `skin_spec_json`
+payload of a `bodykit_skin_materials` row and referenced from `BodySpec.skin_config`
+(`hsk.tailor.body_spec@1`, 13.16). Skin state MUST be one type shared by the model API, the
+viewport, and the bake pipeline; forking a "render skin" type from the authored skin type is
+prohibited (parity with [TAI-OVR-002]).
+
+### 22.2 UV Layout Authority (UDIM)
+
+**[TAI-BK-122]** The BodyKit base mesh MUST use a UDIM UV layout with exactly four canonical
+tiles: `1001` head, `1002` torso, `1003` limbs, `1004` genitals. The layout MUST be validated as
+part of the `BODY_TOPOLOGY_VALID` topology contract (13.16) and MUST be published as a stable,
+versioned public target (`udim_layout_version`) so third-party texture authors can sell against
+it (the 3D-Scan-Store-against-fixed-UV asset-economy pattern; PREQ-007). Changing the UV layout
+is a base-mesh version event and MUST NOT happen silently within a topology version.
+
+**[TAI-BK-123]** Texel-density priority MUST be hero-weighted: the genital tile (`1004`) and the
+areola/nipple UV islands on the torso tile MUST carry at least 2.0x the body-average texel
+density (closeup shots concentrate on pussy, cock, asshole, and areola; PREQ-027). The exact
+px/cm budget per tile MUST be a stored layout parameter validated at bake time, not a compiled
+constant. The genital tile MUST maintain boundary continuity with torso and limb tiles so the
+13.21 seamless genital blend has coherent texel space to blend across.
+
+### 22.3 Skin Material System (PBR + SSS)
+
+**[TAI-BK-124]** `SkinMaterialSpec` MUST expose the full PBR slot set: albedo, roughness,
+specular (dual-lobe capable), metallic (default 0, present for completeness), normal (base +
+detail, 22.6), displacement (3-band, 22.5), cavity/specular-occlusion, subsurface color,
+subsurface radius, transmission/translucency weight, and emission (default off). All texture
+slots MUST resolve through the artifact registry by id; inline blobs are prohibited.
+
+**[TAI-BK-125]** SSS parameter law: the reference shading target is Cycles Random Walk
+subsurface on the watertight body mesh (the topology contract guarantees the closed manifold
+Random Walk requires; PREQ-005). Seed defaults MUST be
+`subsurface_radius_cm = [1.0, 0.2, 0.1]` (red scatters furthest) with `subsurface_scale = 0.05`;
+these are stored parameters in `skin_spec_json`, calibrated against the shipped Cycles reference
+render profile (PREQ-032), never compiled constants. Every export profile targeting UE MUST emit
+the documented Cycles-to-UE translation: a Subsurface Profile asset with scatter radius default
+`1.2 cm` and a machine-readable mapping table (Cycles field -> UE Subsurface Profile field) in
+the export manifest (PREQ-006). Exports MUST NOT drop SSS parameters silently.
+
+### 22.4 bodykit_skin_materials (Owning DDL)
+
+**[TAI-BK-126]** Skin materials MUST be persisted to PostgreSQL under the dated migration
+convention `YYYY_MM_DD_tailor_bodykit_skin_materials.sql` with a paired `.down.sql`
+([T-CONTRACTS.migration-naming]). Every INSERT/UPDATE MUST call
+`guard_authority_write(AuthorityMode::PostgresPrimary)` first.
+
+```sql
+-- YYYY_MM_DD_tailor_bodykit_skin_materials.sql
+CREATE TABLE IF NOT EXISTS bodykit_skin_materials (
+    skin_material_id      TEXT PRIMARY KEY,      -- "BSM-{uuid_v7}"
+    body_id               TEXT REFERENCES bodykit_bodies (body_id),  -- NULL = library preset
+    name                  TEXT NOT NULL,
+    skin_spec_json        JSONB NOT NULL,        -- SkinMaterialSpec (hsk.tailor.skin_material@1)
+    layer_stack_json      JSONB NOT NULL DEFAULT '[]'::jsonb,  -- ordered SkinLayer list (22.5)
+    tone_params_json      JSONB NOT NULL,        -- melanin/hemoglobin/specular params (22.5)
+    wet_stack_json        JSONB NOT NULL DEFAULT '[]'::jsonb,  -- wet layer lobes (22.7)
+    udim_layout_version   TEXT NOT NULL,
+    license_tag           TEXT NOT NULL DEFAULT 'original',    -- LICENSE_GUARD input (13.16)
+    is_system_preset      BOOLEAN NOT NULL DEFAULT FALSE,
+    status                TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'validated', 'promoted', 'archived')),
+    event_ledger_event_id TEXT NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_bodykit_skin_materials_body ON bodykit_skin_materials (body_id);
+```
+
+`TEXT PRIMARY KEY` with `BSM-{uuid_v7}` prefix and the `event_ledger_event_id` column follow
+[TAI-OVR-013]/[TAI-OVR-014]. `license_tag` is a mandatory `LICENSE_GUARD` input: skin content
+derived from prohibited sources (Genesis textures, SMPL-family assets) MUST be rejected
+fail-closed at insert time.
+
+### 22.5 Layered Non-Destructive Texture Stack and Biophysical Tone
+
+**[TAI-BK-127]** The skin texture stack MUST be a layered, non-destructive compositing system
+(the LIE/SkinGen-class engine; REQ-038): an ordered list of `SkinLayer` entries (kinds at
+minimum: `Decal`, `Tattoo`, `Makeup`, `Blemish`, `Scar`, `Tanline`, `Dirt`, `Cum`), each with a
+mask reference, UV or projection transform, blend mode, opacity, and per-channel routing
+(albedo/roughness/normal). Layers MUST be editable and reorderable without destroying source
+textures, and MUST be addressable by stable layer ids for model-driven editing via `edit_body`.
+
+**[TAI-BK-128]** Bake-on-export flatten: every export lane (13.26) MUST flatten the full layer
+stack into portable PBR texture sets per export profile, losslessly with respect to the composited
+result (PREQ-034, GREQ-040). The flattened bake MUST emit `TailorBodySkinBaked`
+(`"TAILOR_BODY_SKIN_BAKED"`, `event_family = "tailor.body"`) with the bake manifest (tiles,
+resolutions, channels, budgets hit) as payload. Live layer stacks MUST NOT leak into exports;
+third-party renderers receive flattened maps only.
+
+**[TAI-BK-129]** Biophysical tone parameters: skin tone MUST be controlled by melanin,
+hemoglobin, and specular utility maps plus scalar tone parameters that DERIVE the albedo
+(re-derivation, not RGB tinting; PREQ-004). Changing tone MUST re-derive base albedo while
+preserving layer-stack content and feature zones. The 13.21 arousal controller's flush/engorgement
+color shift MUST be implemented as a hemoglobin-map modulation, so arousal shading works
+correctly on every tone.
+
+**[TAI-BK-130]** Areola/nipple and genital color zones MUST be first-class tone sub-zones
+(diameter/intensity/hue-shift parameters wired to the 13.17 nipple/areola channels and 13.21
+genital channels), and the derived albedo MUST feed the 13.21 automatic genital boundary blend so
+`GENITAL_BLEND_VALID` passes on all tones including dark skins (REQ-033, PREQ-010 — the Daz
+"blends with white skins only" shell failure is the named anti-pattern).
+
+### 22.6 Displacement, Detail Normals, Cavity
+
+**[TAI-BK-131]** Displacement MUST be three-band channel-packed (R = secondary, G = tertiary,
+B = micro; the Texturing.xyz convention) with independent per-band weight controls in
+`SkinMaterialSpec` (PREQ-001). Single-slider displacement is prohibited. Band weights MUST
+survive export as either true displacement (offline lanes) or baked normal contribution (game
+lanes) per the export profile.
+
+**[TAI-BK-132]** A tiling micro/detail normal layer MUST be supported with region masks (per-zone
+strength: nose/lips/palms/genitals differ; PREQ-002), plus cavity/specular-occlusion map support
+so pores read in real-time targets without true displacement (PREQ-003). Detail-region masks MUST
+be stored against the canonical region-mask authority (13.16), not ad-hoc UV rectangles.
+
+### 22.7 Wet Layer Stack
+
+**[TAI-BK-133]** BodyKit MUST ship a first-class wet layer stack — an adult-production staple,
+not a custom node graph per scene (PREQ-008). The stack MUST provide independent lobes for
+`Sweat`, `Oil`, `Water`, and `SalivaLube`, each implemented as a clearcoat-style specular lobe
+(IOR default 1.33, low roughness) with: coverage mask, droplet/drip detail normal, intensity
+ramp, and per-lobe region placement. Placement MUST support both region masks AND direct
+vertex-paint/attribute painting so sweat sheen, lube strings, and spit can be placed exactly
+where the shot needs them — glazed tits, dripping pussy, slick cock, wet face (PREQ-009).
+Wet-lobe state MUST bake into export texture sets on demand.
+
+**[TAI-BK-134]** The 13.21 arousal controller MUST drive the wetness ramp (genital wetness,
+sweat intensity) as one of its outputs (PREQ-013). Wetness driven by arousal MUST compose with
+manually painted wet layers without overwriting them (additive lobe composition, painted layers
+win on conflict).
+
+### 22.8 Pose-Driven Body Wrinkle/Fold Maps
+
+**[TAI-BK-135]** BodyKit MUST implement pose-driven body wrinkle/fold maps: tension/compression
+normal-map layers activated by pose and channel state (the CC 4.2 dynamic-wrinkle pattern applied
+to the body; PREQ-028). The minimum covered fold set: neck folds, waist/belly compression,
+underboob crease under extreme tit volume, glute/thigh crease, and knuckle stretch. Activation
+weights MUST derive from the 13.19 corrective engine's pose-space evaluation (no parallel pose
+evaluator). Export profiles MAY bake wrinkle activations as pose-named normal maps (GREQ-009).
+
+### 22.9 Texture Integrity Under Extreme Channels
+
+**[TAI-BK-136]** UV strain compensation MUST be implemented (REQ-036, PREQ-025): the skin
+pipeline MUST measure texel stretch/compression per region under the current channel state and,
+above a stored strain threshold, apply corrected detail maps or per-channel UV adjustment so
+micro detail does not visibly smear on an extreme-volume region (300%-range tits, obese belly).
+Strain state MUST be inspectable as a viewport heatmap overlay (13.27) and MUST be a
+model-readable field in the `BodyValidationReceipt` (13.25).
+
+**[TAI-BK-137]** Texture-follows-morph re-projection MUST be implemented (PREQ-026 — unsolved in
+Daz, a named differentiator): albedo features with feature anchors (areola center/diameter,
+tan-line boundaries, decal/tattoo layer transforms) MUST re-solve in UV space when channels
+drastically change region geometry, so an areola stays centered and correctly sized on the
+nipple at any tit volume and tan lines track the anatomy they were painted for. Re-projection
+MUST be deterministic from channel state (replayable per [TAI-OVR-007] parity).
+
+### 22.10 Open HD Multi-Res Detail Lane
+
+**[TAI-BK-138]** HD detail MUST use the open multi-res delta lane on the SubD cage (13.16):
+per-SubD-level sparse deltas stored as `bodykit_morph_assets` payloads (BMA- rows). The
+proprietary `.dhdm` format MUST NOT be read or written (LICENSE_GUARD; format-strategy verdict).
+At export, HD detail MUST bake to vector displacement + normal maps per profile (REQ-037; the
+Xin-addon precedent proves VD travel works); raw full-HD meshes are exportable only via an
+explicit hero-still option. HD authoring MUST be open to all users — sculpt-import at any SubD
+level through the 13.19 sculpt round-trip, no gatekept authoring tier (REQ-040; the Daz
+PA-gatekeeping is the named anti-pattern).
+
+### 22.11 Shared Groom Core and Body Hair
+
+**[TAI-BK-139]** BodyKit MUST implement the shared Tailor groom core: canonical hair-region
+density masks (`scalp`, `pubic`, `chest`, `arms`, `brows` at minimum, registry-extensible),
+barycentric surface anchors that survive morphs and HD deltas, strand/curve authoring, guides,
+interpolation, clump/noise/curl controls, collision-aware groom simulation, cards/mesh conversion,
+LOD generation, materials, native rendering, export, and deterministic regeneration. Garment fur
+and body hair MUST share this core and authority schemas; neither may fork a private strand
+engine. The exact first-slice fidelity and performance profiles are locked by 13.36 rather than
+implemented as hardcoded guesses.
+
+### 22.12 Events and Acceptance
+
+**[TAI-BK-140]** Skin events extend the 13.16 `TAILOR_BODY_*` registration list:
+`TailorBodySkinBaked` (`"TAILOR_BODY_SKIN_BAKED"`) on every bake, and skin-material CRUD flows
+through the standard body draft events (13.25). BkSkin acceptance (MT-575) MUST prove, minimum:
+(a) a tone sweep including dark skins with the 13.21 genital blend seamless
+(`GENITAL_BLEND_VALID` green per tone); (b) a wet-layer bake landing in export texture sets;
+(c) strain compensation proven on archetype ARCH-A (petite + extreme tits) with before/after
+captures persisted as `tailor_captures` rows (13.12).
+
+---
+
+## 13.23 BodyKit: Face & Expression
+
+<!-- id: bodykit-face -->
+<!-- MT group: BkFace MT-576..583. Research basis: PREQ-029/030, AREQ-007..010,
+     05-daz REQ Part 1G (FACS export gap), CC Facial-Profile pattern. -->
+
+### 23.1 Face Channels and Hybrid Rig
+
+**[TAI-BK-141]** The face MUST use the same decoupled channel architecture as the body (13.17):
+face channel groups `brow`, `eye`, `nose`, `mouth`, `jaw`, `cheek`, `ear`, `skull` — each
+region-masked, each with designed over-range, zero hidden cross-region coupling, coupling only
+via the explicit link graph. Face channels are IDENTITY channels; expressions (23.3) are a
+separate namespace layered on top. A face identity edit MUST NOT rewrite expression assets and
+vice versa. Minimum channel coverage per group (registry-extensible, stable snake_case ids):
+
+| Group | Minimum channels |
+|---|---|
+| `brow` | height, thickness-region mask hook, arch, spacing |
+| `eye` | size, spacing, tilt, depth, lid heaviness, iris size, pupil dilation |
+| `nose` | length, width, bridge height, tip shape, nostril flare |
+| `mouth` | lip fullness upper/lower (split), width, corner height, philtrum depth |
+| `jaw` | width, chin height/width/projection, underbite/overbite |
+| `cheek` | cheekbone height/width, cheek fullness, hollowness |
+| `ear` | size, protrusion, lobe shape |
+| `skull` | head size, face length, forehead slope, cranial width |
+
+**[TAI-BK-142]** The face rig MUST be hybrid bones + morphs (the G3+/G9/CC-class architecture):
+facial bones in the canonical 13.18 skeleton for jaw/eyes/gross articulation, morph channels for
+shape and expression detail. Both surfaces MUST be addressable through the same channel registry
+ids; the split between bone-driven and morph-driven MUST be an implementation property invisible
+to the model API.
+
+### 23.2 ARKit-52 Baseline and FACS Extension
+
+**[TAI-BK-143]** The ARKit-52 blendshape set (the 52 Apple `ARFaceAnchor.BlendShapeLocation`
+names, e.g. `jawOpen`, `mouthClose`, `eyeBlinkLeft`, `browInnerUp`) MUST be authored as the
+guaranteed facial baseline, both IN (mocap/animation ingest mapped onto it) and OUT (every
+skeletal export carries it; AREQ-007, GREQ-013). The 52 names are the de-facto interchange
+standard (Live Link Face, Perfect Sync, most AI mocap) and MUST appear verbatim — renaming or
+prefixing the canonical 52 on the export surface is prohibited.
+
+**[TAI-BK-144]** A FACS-style extended set MUST be supported above the baseline, with a stored,
+versioned bidirectional mapping (FACS-style unit <-> ARKit-52 combination weights; the public
+ARKit-to-FACS cheat-sheet mappings are the reference). Extended units are optional per export
+profile; the ARKit-52 baseline is not.
+
+### 23.3 Arousal Acting Expression Library
+
+**[TAI-BK-145]** BodyKit MUST ship an arousal-acting expression library as first-class expression
+assets, covering at minimum: `ahegao` (eyes rolled up, tongue out, fucked-silly face),
+`bitten_lip`, `eye_roll`, `open_mouth_o`, `gasp`, `moan`, `tongue_out`, `drool` — the extremes
+that sell arousal on camera and that no mainstream tool covers (PREQ-030). Expression quality
+MUST target scan-derived-equivalent fidelity, beyond raw ARKit-52 range where needed.
+
+```rust
+// src/tailor/bodykit/face.rs
+/// schema_id: "hsk.tailor.expression_asset@1"
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExpressionAsset {
+    pub expression_id: String,          // "BEX-{uuid_v7}"
+    pub name: String,                   // e.g. "ahegao"
+    /// Weighted blend of ARKit-52 + extended-unit channels; extremes MAY
+    /// carry a dedicated over-range corrective shape ref.
+    pub unit_weights: BTreeMap<String, f32>,
+    /// Per-region override mask refs for layer composition ([TAI-BK-146]).
+    pub region_masks: Vec<String>,
+    pub layerable: bool,                // arousal library assets: always true
+    pub license_tag: String,
+}
+```
+
+**[TAI-BK-146]** Expression layering law: expression assets MUST be layerable over any identity
+channel state and over an active viseme track (23.5) — a moan face composes with lip-sync mouth
+shapes, a bitten lip composes with any face (AREQ-010). Layer composition MUST be deterministic
+(ordered weighted blend with per-region override masks), and the composed result MUST be
+exportable as baked blendshapes.
+
+### 23.4 Per-Face Expression Correctives and Eyes
+
+**[TAI-BK-147]** Expression correctives MUST re-solve per face: when identity channels move far
+from neutral (extreme jaw, huge lips, non-human proportions), canned expressions MUST be
+re-solved for the CURRENT face via the 13.19 corrective engine (the CC Facial-Profile-Editor
+pattern; parity with the per-body corrective re-bake law). Fixed-prior expression sets that
+break on extreme faces are the named Daz failure this clause closes.
+
+**[TAI-BK-148]** Eye realism stack (PREQ-029): the eye assembly MUST include cornea refraction
+geometry, a wetness meniscus mesh at the lid boundary, and eye control channels (iris size,
+pupil dilation — an arousal cue wired to the 13.21 arousal controller as an optional link —
+sclera tint, look-at targeting). Face closeups sell arousal; the eye stack is a MUST, not
+polish.
+
+### 23.5 Editable Viseme Tracks and Lip-Sync Solver
+
+**[TAI-BK-149]** BodyKit MUST define the viseme track TYPE and ingest hook now:
+
+```rust
+// src/tailor/bodykit/face.rs
+/// schema_id: "hsk.tailor.viseme_track@1"
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VisemeTrack {
+    pub schema_id: String,             // "hsk.tailor.viseme_track@1"
+    pub track_id: String,              // "VTK-{uuid_v7}"
+    pub body_id: String,               // "BDY-{uuid_v7}"
+    pub fps: f64,
+    /// Ordered keys; viseme ids map to ARKit-52 mouth-shape combinations
+    /// through the stored viseme->blendshape mapping table.
+    pub keys: Vec<VisemeKey>,
+    /// Optional audio artifact this track was authored/solved against.
+    pub audio_artifact_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VisemeKey {
+    pub time_s: f64,
+    pub viseme_id: String,             // e.g. "AA", "EE", "OU", "FV", "MBP"
+    pub weight: f32,                   // [0.0, 1.0]
+}
+```
+
+Tracks MUST be editable data (per-key edit via the model API), never baked vertex animation
+(AREQ-009; the AccuLips editable-viseme pattern). The viseme-to-blendshape mapping MUST be a
+stored, versioned table resolving to ARKit-52 combinations.
+
+**[TAI-BK-150]** BodyKit MUST provide an audio-to-viseme solver that produces editable
+`VisemeTrack` proposals with timing/confidence evidence, language/model provenance, bounded local
+execution, cancellation, and deterministic manual correction. The solver MUST preserve the
+typed ingest path for external tracks, MUST NOT bake directly to vertex animation, and MUST emit
+an inspectable before/after action receipt. Unsupported audio or model availability MUST return a
+typed unavailable result; it MUST NOT trigger a foreground external application or an untyped
+fallback.
+
+### 23.6 Face Export Law and Acceptance
+
+**[TAI-BK-151]** Face export law: every skeletal export (all 13.26 profiles with morph support)
+MUST carry the ARKit-52 blendshape set under the canonical 52 names; FACS-style extended units
+are per-profile optional; composed arousal expressions selected in morph-export rules MUST bake
+to plainly named blendshapes. Exporting faces driven only by internal controller boards — the
+Daz FACS-export gap, where hundreds of morphs hide behind ERC dials and die at FBX — is
+prohibited.
+
+**[TAI-BK-152]** Expression bake verification MUST be part of the 13.26 round-trip harness:
+headless Blender and UE import checks MUST assert the ARKit-52 set arrived, spot-check shape
+deltas against source, and verify at least one composed arousal expression (e.g. `ahegao` over
+ARCH-A identity) reproduces within tolerance in the target DCC.
+
+**[TAI-BK-153]** Face channel and expression edits flow through the standard body events
+(`TailorBodyChannelChanged` for identity, draft events for expression assets); expression
+assets and viseme tracks are recipe-layer content (13.25) and MUST participate in recipe
+save/diff/partial-apply — "take her face" includes her expression tuning.
+
+**[TAI-BK-154]** BkFace acceptance (MT-583) MUST prove: ARKit-52 drives archetype faces through a
+glTF round-trip; arousal expressions layer over distinct identities and over a viseme track
+without artifacts; per-face correctives re-solve a canned expression on an extreme face channel
+state; captures persisted for operator review.
+
+---
+
+## 13.24 BodyKit: Cloth Bridge (Body-Garment Contract)
+
+<!-- id: bodykit-cloth-bridge -->
+<!-- MT group: BkClothBridge MT-584..593. Research basis: REQ-023..027, SREQ-013/014,
+     coverage-map hole: no parametric tailor_avatars producer existed before BodyKit. -->
+
+### 24.1 Contract Principle
+
+**[TAI-BK-155]** BodyKit is a PRODUCER of the existing Cloth avatar authority surfaces; Cloth is
+the CONSUMER. The bridge MUST reuse `tailor_avatars`, `tailor_body_proxies`, `ClothBodyProxy`,
+the 25-measurement extractor, and the refit engine exactly as specified in 13.7 §7.1 and 13.14
+[T-CONTRACTS.body-proxy]. No parallel avatar table, proxy type, or measurement path may be
+created for parametric bodies (no-fork law, parity with [TAI-OVR-012]/[TAI-OVR-013]).
+
+### 24.2 Parametric Avatar Writer
+
+**[TAI-BK-156]** Every promoted BodyKit body MUST be publishable as a `tailor_avatars` row with
+`source_kind = 'parametric'` and `morph_params_json` set to the canonical channel state (the
+`BodySpec.channels` map, channel-registry ids -> values). The `source_kind` CHECK set on
+`tailor_avatars` is amended to include `'parametric'`. Publishing MUST emit `TailorAvatarCreated`
+(existing canonical variant) and MUST be idempotent per (body_id, channel-state hash): re-publish
+of an unchanged body updates rather than duplicates.
+
+**[TAI-BK-157]** On publish, the 25-measurement anthropometric map MUST be extracted from the
+generated body mesh via `extract_measurements` (13.7 §7.1.3; mm values, GarmentMeasurements key
+naming) and written to `tailor_avatars.measurements_mm_json`, emitting
+`TailorAvatarMeasurementsExtracted`. Measurements MUST re-extract on every channel change that
+re-publishes the avatar; stale measurements on a live parametric avatar are a defect.
+
+### 24.3 Channel-Derived Collision Proxies
+
+**[TAI-BK-158]** Collision proxies for parametric bodies MUST be generated mechanically from
+channel state via the 13.20 autocollider generator: capsule/sphere sets (and SDF mode where the
+proxy selector chooses it) written as `tailor_body_proxies` rows containing serialized
+`ClothBodyProxy` (mm units; [COL-BODY-001]). Hand-authored proxies remain permitted as additional
+rows; the generated proxy is the default binding for drape.
+
+**[TAI-BK-159]** Multi-sphere breast decomposition MUST be driven by the breast channels: sphere
+count, radii, and centers derive from tit volume, projection, spacing, and ptosis channel values
+so the collision volume tracks the actual shape across the whole OBR-001 space — small perky,
+extreme-large perky natural, fake-plastic implant round, and heavy natural droop each produce a
+distinct, correct proxy (REQ-023). The minimum derivation contract:
+
+| Breast channel input | Proxy consequence |
+|---|---|
+| volume | sphere count (1 at small, 3+ per side at extreme) and base radii |
+| projection | sphere center offset along chest normal |
+| spacing / cleavage gap | inter-side center distance; cleavage-gap sphere insertion |
+| ptosis / droop | vertical center migration + lower-pole sphere weighting |
+| firmness | proxy update rate under motion (rigid implant = static; soft = follows 13.20 cage) |
+
+The derivation is deterministic from channel state; identical channel state MUST reproduce an
+identical proxy (replay parity with [TAI-OVR-007]).
+
+**[TAI-BK-160]** Proxy rows MUST auto-update on channel change: a channel edit that moves any
+region past a stored delta threshold MUST regenerate the affected proxy geometry and emit
+`TailorBodyProxyUpdated` (existing canonical variant). Garments bound to the avatar MUST see the
+updated proxy on their next simulation without manual rebinding.
+
+### 24.4 Grow-Into-Garment Fitting (RefitMode Extension)
+
+**[TAI-BK-161]** The refit engine gains a fourth mode. The 13.7 §7.2 "exactly three refit modes"
+constraint is amended to exactly four when the BodyKit feature is active:
+
+```rust
+// src/tailor/refit.rs — BodyKit extension variant
+    /// Simulate continuously while interpolating the body's channel state
+    /// from a neutral (or source) state to the target state, letting the
+    /// garment grow into fit instead of being projected onto the extreme
+    /// shape. Native version of the community dForce-timeline trick; the
+    /// robust path for extreme-volume bodies (REQ-024).
+    GrowIntoGarment {
+        target_avatar_id: String,        // "AVT-{uuid_v7}" (parametric)
+        source_channel_state: Option<serde_json::Value>, // default: registry neutrals
+        target_channel_state: serde_json::Value,
+        ramp_frames: u32,                // default 60
+        progressive_drape: bool,
+    },
+```
+
+The ramp MUST drive both the body mesh and its derived proxies per frame; warm-restart preserves
+drape across ramp steps. `GrowIntoGarment` output passes the standard refit checks
+(`REFIT_INTERSECTION_FREE`, `REFIT_SEAM_CLOSURE`, `REFIT_CONVERGED`; 13.15).
+
+### 24.5 Garment Auto-Follow, Fix Dials, Rigidity
+
+**[TAI-BK-162]** Volume-aware garment auto-follow: fitted garments MUST inherit body channel
+changes through volume-aware projection derived from the channel delta field, NOT closest-point
+projection (REQ-025). The named acceptance failure this closes: closest-point spikes between and
+under extreme tits (the documented Daz autofit collapse). Auto-follow output above a distortion
+threshold MUST recommend a `GrowIntoGarment` or `ScaleAndRedrape` refit instead of silently
+shipping spikes.
+
+**[TAI-BK-163]** Garment fix dials: fitting a garment to a parametric body MUST auto-generate
+per-region ease/expand adjustment channels on the garment (Fit-Control-native; REQ-027), stored
+with the garment and addressable via the model API like any channel. Fix-dial state participates
+in refit and in export.
+
+**[TAI-BK-164]** Rigidity masks (13.7/13.8 garment-hardware protection) MUST be honored by BOTH
+the auto-follow projection AND the solver simulation (REQ-026): buttons, buckles, zippers, and
+boning do not stretch when the body under them grows, in projection or in drape.
+
+### 24.6 Fit-Across-Morph-Space
+
+**[TAI-BK-165]** Garments MAY carry fit data across channel space (SREQ-013; the MetaHuman
+adaptive-clothing / BodySlide-conform contract): `fit_samples` — channel-space sample points with
+per-sample panel scale/ease/placement data — stored with the garment. When a garment with fit
+samples is bound to any channel state, fit MUST auto-interpolate between samples (RBF or
+barycentric in channel space, deterministic), then fine-settle via drape.
+
+```json
+// GarmentSpec extension fragment (schema-versioned with GarmentSpec; cm units)
+"fit_samples": [
+  {
+    "sample_id": "fs-arch-a",
+    "channel_state": { "breast_volume": 2.8, "shoulder_width": -0.7, "hip_width": -0.5 },
+    "per_panel": {
+      "front-bodice": { "scale": [1.22, 1.05], "ease_cm": 1.8,
+                        "placement_delta_cm": [0.0, 1.1, 2.4] }
+    },
+    "fix_dial_state": { "bust_expand": 0.65 }
+  }
+]
+```
+
+**[TAI-BK-166]** Fit samples MUST be generatable mechanically: a batch job runs refit across the
+archetype sample set (ARCH-A..H plus registry neutrals) and records the per-sample results.
+Garments WITHOUT fit samples MUST degrade gracefully to auto-follow + fix dials + refit — fit
+samples are an optimization surface, never a compatibility wall.
+
+### 24.7 Wardrobe Batch, QA Hook, Discipline
+
+**[TAI-BK-167]** Conform-wardrobe batch op: one operation refits a garment library to a target
+body (SREQ-014), executed as Handshake JOBS with leases, backpressure, cancellation, and per-item
+receipts (13.27 job binding) — parallel lanes permitted, one garment per lane.
+
+**[TAI-BK-168]** Drape QA hook: the archetypes-x-starter-garments drape matrix MUST be wired into
+validation as the standing BkClothBridge QA surface — every matrix cell runs bind -> proxy ->
+drape -> `SEAMS_CLOSED`/`NO_INTERPENETRATION` and records verdict rows (13.27 QA matrices law).
+
+**[TAI-BK-169]** Discipline: all bridge geometry in the authority layer is millimetres
+([GAR-UNITS-002] parity); ids are the existing `AVT-`/`BPX-` prefixes; the bridge introduces NO
+new authority tables — it writes existing Cloth tables plus `bodykit_*` tables owned by 13.16.
+Event variants are the existing `TAILOR_AVATAR_*`/`TAILOR_BODY_PROXY_*` families plus
+`TAILOR_BODY_*` for BodyKit-side state.
+
+**[TAI-BK-170]** BkClothBridge acceptance (MT-593) MUST prove end-to-end on ARCH-A (petite +
+extreme-large perky natural tits) wearing a starter bra + dress: proxy generation from channels,
+drape with zero interpenetration, channel change -> proxy auto-update -> auto-follow -> refit,
+fix-dial adjustment, and captures persisted. The bra fitting over extreme tits without spikes is
+the signature acceptance shot.
+
+---
+
+## 13.25 BodyKit: Model-First API & LLM Steering
+
+<!-- id: bodykit-modelapi -->
+<!-- MT group: BkModelApi MT-594..607. Research basis: REQ-043, SREQ-001..006/019/020/022,
+     13.13 garment model-API law is the structural template. -->
+
+### 25.1 Governing Principle and Adapter
+
+**[TAI-BK-171]** The canonical BodyKit kernel action surface MUST be the shared operator/model API
+(parity with 13.13 §1 and [TAI-ACT-003]): no separate model or human mutation shim; GUI sliders,
+backend routes and MCP tools are projections of the same action descriptors. All inputs/outputs
+are typed; every body mutation emits EventLedger evidence; every route passes the shared action
+gate and returns the same receipt semantics.
+
+**[TAI-BK-172]** `BodyModelAdapter` MUST implement the kernel `ModelAdapter` trait
+(`src/kernel/model_adapter.rs`), accepting a `ContextBundle` whose `allowed_context` carries the
+`BodySpec` plus natural-language constraints, and returning a `BodySpec` proposal. Fast
+validation (topology refs, channel ids/ranges, decouple pre-checks) runs synchronously before
+draft creation; blocking failures return a `BodyValidationReceipt` with
+`recommended_action = correct_spec_first` and no draft.
+
+**[TAI-BK-173]** `BodySpec` (schema id `hsk.tailor.body_spec@1`; canonical definition 13.16) MUST
+be the single type shared by the model's output, the generator's input, and the
+`bodykit_bodies.spec_json` payload — the [TAI-OVR-002] single-type law applied to bodies.
+Lengths on the LLM surface are centimetres (`_cm`); authority/solver internals are millimetres.
+
+### 25.2 MCP Tool Registry
+
+**[TAI-BK-174]** BodyKit MUST expose EXACTLY the following eight MCP tools through the existing
+gate. These wire names are canonical and load-bearing; renaming, aliasing, or adding tools
+requires a schema-version event on the tool registry. All parameter structs derive
+`schemars::JsonSchema` for auto-generated `inputSchema`.
+
+| Tool name | Mutation? | Consent? | Primary event emitted |
+|---|---|---|---|
+| `author_body` | draft create | No | `TailorBodyDraftProposed` |
+| `edit_body` | draft patch | No | `TailorBodyDraftUpdated` |
+| `get_body` | read-only | No | (none) |
+| `solve_measurements` | draft patch (solved channels) | No | `TailorBodyChannelChanged` |
+| `randomize_body` | draft patch (seeded) | No | `TailorBodyChannelChanged` |
+| `pose_body` | pose apply (non-authority) | No | `TailorBodyPoseApplied` |
+| `configure_genitals` | draft patch | No | `TailorBodyGenitalConfigured` |
+| `export_body` | export job | No | `TailorBodyExportCompleted` |
+
+Wire strings follow SCREAMING_SNAKE (`"TAILOR_BODY_DRAFT_PROPOSED"` etc.) and extend the 13.16
+`TAILOR_BODY_*` registration list per the 13.14 canonical addition procedure.
+
+**[TAI-BK-175]** `author_body`: NL description (plus optional seed recipe ref) -> `BodySpec`
+draft. Runs fast validation before any generation; on success creates a `bodykit_bodies` draft
+row and returns the draft id plus a `BodyValidationReceipt`. The tool MUST honor region intent
+verbatim — "petite, huge perky natural tits, narrow soft shoulders, round ass, narrow thighs"
+maps to the corresponding decoupled channels, never to a correlated full-body prior (OBR-001..004
+are the acceptance basis).
+
+**[TAI-BK-176]** `edit_body`: RFC 7396 JSON Merge Patch against the existing `BodySpec`. Channel
+isolation MUST be preserved through edits: a patch touching `/channels/breast_volume` MUST NOT
+mutate any other region's state (enforced by the 13.17 decouple law, re-verified by
+`BODY_DECOUPLE_VALID`). CRDT machinery (25.6 binding in 13.27) is transparent to the model.
+
+```rust
+// handshake_core/src/tailor/bodykit/mcp_tools.rs — registered via src/mcp/gate.rs
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EditBodyInput {
+    pub draft_id: String,          // "BDY-{uuid_v7}" draft
+    /// RFC 7396 JSON Merge Patch against the existing BodySpec.
+    /// Example: {"channels":{"breast_volume":2.4,"shoulder_width":-0.6}}
+    pub patch: serde_json::Value,
+}
+```
+
+**[TAI-BK-177]** `get_body`: returns the current `BodySpec`, the latest `BodyValidationReceipt`,
+and capture refs. After any session boundary the model MUST reload state via `get_body` instead
+of relying on chat history (13.13 §12 parity).
+
+**[TAI-BK-178]** `solve_measurements`: numeric targets (e.g. `bust_circ_cm: 120`,
+`shoulder_width_cm: 34`, `waist_circ_cm: 58`, `penis_length_cm: 30`) -> channel solution via the
+13.17 measurement solver, touching ONLY the channels owning the targeted measurements (SREQ-009;
+OBR implications 6). The receipt reports achieved-vs-requested residuals per measurement.
+
+**[TAI-BK-179]** `randomize_body`: seeded randomization with scopes `whole_body`, `region`, and
+`channel` (SREQ-007/008), plausibility-weighted distributions, deterministic re-generation from
+seed, and batch variation (N drafts from one call, one draft per lane). Randomization weights are
+stored distributions, and MUST NOT clamp the designed over-ranges — a random roll can land on
+extreme.
+
+**[TAI-BK-180]** `pose_body`: NL or reference-driven pose -> `BodyPose` applied via the 13.18 IK
+engine with pins. Posing is session/scene state, not body authority state: it never mutates
+`BodySpec`. Correctives (13.19) evaluate automatically under the applied pose.
+
+**[TAI-BK-181]** `configure_genitals`: typed genital configuration — module selection, cock
+length/girth/curve channels, erection state (flaccid<->erect continuum + rigid/floppy switch),
+labia/spread/gape dials including extreme gape, anus gape states, arousal controller level — per
+the 13.21 channel groups. The receipt echoes the resolved genital channel state. This tool is
+same-grain with every other tool: no special consent tier, no euphemistic parameter names
+(CX-123 family).
+
+**[TAI-BK-182]** `export_body`: profile-driven export trigger (`export_profile_id` BXP- ref plus
+overrides) returning the export manifest and machine-readable validation report (13.26). Export
+of a draft body is permitted into sandbox-scoped paths only; export from authority requires a
+promoted body.
+
+### 25.3 BodyValidationReceipt
+
+**[TAI-BK-183]** Every tool response MUST carry a `BodyValidationReceipt` as MCP
+`structuredContent` (schema id `hsk.tailor.body_validation_receipt@1`):
+
+```rust
+// src/tailor/bodykit/receipt.rs
+/// schema_id: "hsk.tailor.body_validation_receipt@1"
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct BodyValidationReceipt {
+    pub schema_id: String,
+    pub body_id: String,                      // "BDY-{uuid_v7}" (draft or authority)
+    pub status: BodyReceiptStatus,            // Completed | CompletedWithIssues |
+                                              // RejectedAtValidation | SandboxDenied | TimedOut
+    /// Findings reuse the 13.13/13.15 ValidationFinding type verbatim — same
+    /// code/severity/affected_id/suggested_fix contract; no fork.
+    pub validation_findings: Vec<ValidationFinding>,
+    /// Typed summaries the model pre-filters on before vision analysis:
+    pub decouple_summary: Option<DecoupleSummary>,     // per-region cross-write counts
+    pub topology_summary: Option<TopologySummary>,     // watertight/component/valence state
+    pub pose_range_summary: Option<PoseRangeSummary>,  // QA-pose matrix pass counts
+    pub uv_strain_summary: Option<UvStrainSummary>,    // 22.9 strain state per region
+    pub export_budget_summary: Option<ExportBudgetSummary>,
+    pub measurement_residuals: Option<BTreeMap<String, f32>>, // solve_measurements
+    pub recommended_action: RecommendedAction,         // 13.13 enum, reused
+    pub capture_ids: Vec<String>,                      // "CAP-{uuid_v7}" refs
+}
+```
+
+**[TAI-BK-184]** `ValidationFinding.suggested_fix.field_path` MUST be an RFC 6901 JSON Pointer
+into `BodySpec` (e.g. `/channels/shoulder_width`, `/skin_config/tone_params/melanin`,
+`/genital_config/erection`), used verbatim as the merge-patch target in the next `edit_body`
+call. Anonymous or code-free findings are prohibited (13.15 §2.5 parity).
+
+### 25.4 Lifecycle and Self-Correction
+
+**[TAI-BK-185]** Sandbox -> validate -> promote MUST be non-bypassable for model-authored bodies:
+generation and validation run in the kernel sandbox (process tier, fs-only caps; 13.27 binding);
+promotion to a `bodykit_bodies` authority row goes through the kernel `PromotionGate` with
+operator consent (`ConsentDecision::Allow`) and no self-approval (13.27). The v1 MCP registry
+deliberately omits a `promote_body` tool: promotion is operator-initiated through the bodies
+REST/GUI surface. Adding a consent-gated `promote_body` tool later is a tool-registry version
+event, not a silent addition.
+
+**[TAI-BK-186]** Bounded self-correction loop (13.13 §5 parity): the model MUST stop and report
+when (1) more than five validation iterations occur with unchanged channel state, (2)
+`SandboxDenied` is returned, or (3) `recommended_action = requires_operator_action`. The model
+MUST NOT request promotion unless `recommended_action = promote` on the latest receipt.
+
+**[TAI-BK-187]** Visual capture integration MUST reuse the 13.12 capture stack unchanged: body
+viewport captures persist as `tailor_captures` rows (`CAP-` PKs) with body-domain metadata in
+`metadata_json`; model annotation verdicts flow through the 13.12 annotate path
+(`accept | reject | needs_resim` semantics; for bodies `needs_resim` reads as needs-regeneration).
+The required inspection loop before any promotion request: structured summaries first
+(`BodyValidationReceipt`), then solid-render capture, then vision verdict, then annotate.
+
+### 25.5 BodyRecipe System
+
+**[TAI-BK-188]** The recipe system MUST persist `BodyRecipe` assets as `bodykit_recipes` rows
+(`BRC-` PKs; 13.16 DDL) supporting save, load, diff, and partial-apply. A recipe is parameters +
+references (channel values, skin material ref, genital config, physics config, expression tuning,
+groom hooks), never mesh payload (SREQ-001; the recipe-over-morph-library model).
+
+**[TAI-BK-189]** Recipe layers MUST be separable and independently swappable: `shape` (channels),
+`skin` (BSM ref + layer stack), `genital` (13.21 config), `physics` (13.18/13.20 sidecar params)
+— plus `face`/`expression` as shape sub-layers (SREQ-002). Applying one layer MUST NOT disturb
+the others.
+
+**[TAI-BK-190]** Partial-apply and diff law: `diff(recipe_a, recipe_b)` returns a typed parameter
+diff; partial-apply applies a region- or layer-scoped subset — "take her tits, keep my face" is
+the canonical operation: apply source breast channel group + linked nipple/areola sub-channels
+onto the target without touching any other region (SREQ-019). Diff/partial-apply operate on
+channel-registry ids, so they survive recipe-format version bumps within a registry version.
+
+**[TAI-BK-191]** Recipe share format: a single-file PNG card — the recipe render with the full
+recipe JSON zlib-compressed into a private `hSkR` ancillary PNG chunk (Koikatsu-card pattern,
+implemented as a spec'd chunk, not steganography), drag-drop importable, with a plain-JSON
+sidecar export option for pipelines that strip chunks (SREQ-004).
+
+**[TAI-BK-192]** Every shared recipe MUST embed: a dependency manifest (referenced asset ids +
+semantic versions; resolve-or-warn on import — silent missing-morph failures are the named Daz
+anti-pattern; SREQ-005/006), license metadata per asset (`license_tag` propagation), an
+adult-content flag field for venue filtering (SREQ-022), and compat version rules (base-mesh
+topology version + channel-registry version + skeleton version; incompatible imports fail with a
+typed report, never a silent broken load).
+
+### 25.6 Swarm Law and Canonical UserManual
+
+**[TAI-BK-193]** Parallel swarm law: N model lanes MUST be able to author bodies concurrently —
+one `body_id` per lane, leases for shared-draft work, full attribution via EventLedger actor
+identity, and cancellation that releases leases (HBR-SWARM; MT-607 proves N-lane concurrency with
+zero cross-lane writes). Two lanes editing the SAME draft go through the CRDT/ai_edit_proposal
+lane (13.27); simultaneous promotion requests for the same (body_id, val_run_id) are collapsed by
+the promotion idempotency key.
+
+**[TAI-BK-194]** The canonical task-oriented UserManual (13.13 §12 parity; [GLOBAL-BUILD]
+alignment), MCP capability advertisement, and `ContextBundle` for `task = "author_body"` MUST
+embed the same tool call
+order (author -> edit/solve/randomize -> configure_genitals -> pose -> validate loop -> operator
+promotion -> export), the self-correction protocol, the hard stops, the units convention (cm),
+the channel-registry addressing scheme, and the recipe workflow — sufficient for a no-context
+model to run the full loop without chat history.
+
+---
+
+## 13.26 BodyKit: Export Lanes
+
+<!-- id: bodykit-export -->
+<!-- MT group: BkExport MT-608..625. Research basis: 05-daz Part 3 skeleton/export contract,
+     00-file-format-strategy verdicts, GREQ-001..016/029..040, REQ-044. -->
+
+### 26.1 Lane Verdicts (Governing Law)
+
+**[TAI-BK-195]** The export lane verdicts are law (format-strategy authority): **glTF 2.0 is the
+primary skeletal + morph lane** for bodies. **FBX is delivered ONLY via the Blender-bridge bake
+lane; implementing a native FBX writer is PROHIBITED** — this restates and extends the 13.12
+§12.6.1 prohibition to all BodyKit lanes (no Autodesk SDK, no clean-room writer; the bridge is
+the sanctioned path until `ufbx_write` maturity triggers a spec revision). Alembic remains the
+cache lane (Cloth-owned; bodies reuse it for baked soft-tissue/jiggle caches). USD is the
+strategic lane behind the `usd-export` feature flag. OBJ ships day one. DSON is a READ-ONLY
+import lane (26.9). `.zprj`/`.zpac` and SMPL-family formats are rejected outright.
+
+### 26.2 Export Profile System (Owning DDL)
+
+**[TAI-BK-196]** Every export MUST run against a typed per-target export profile (BXP- row).
+Profile kinds: `blender_gltf`, `blender_fbx_bridge`, `ue_fbx_bridge`, `ue_gltf`,
+`unity_humanoid`, `vrm`, `usd`, `obj`. System profiles ship seeded and versioned; operator/model
+profiles derive from them.
+
+**[TAI-BK-197]** Migration `YYYY_MM_DD_tailor_bodykit_export_profiles.sql` (+ `.down.sql`);
+`guard_authority_write(AuthorityMode::PostgresPrimary)` on every write:
+
+```sql
+-- YYYY_MM_DD_tailor_bodykit_export_profiles.sql
+CREATE TABLE IF NOT EXISTS bodykit_export_profiles (
+    export_profile_id        TEXT PRIMARY KEY,   -- "BXP-{uuid_v7}"
+    profile_kind             TEXT NOT NULL
+        CHECK (profile_kind IN ('blender_gltf', 'blender_fbx_bridge', 'ue_fbx_bridge',
+                                'ue_gltf', 'unity_humanoid', 'vrm', 'usd', 'obj')),
+    name                     TEXT NOT NULL,
+    units_axis_json          JSONB NOT NULL,     -- unit scale, up/forward axes, handedness
+    skeleton_options_json    JSONB NOT NULL,     -- ik_* set, twist bones, root convention,
+                                                 -- ref-pose (T0/A), naming preset, bone maps
+    morph_rules_json         JSONB NOT NULL,     -- morph-export-rules selection (26.3)
+    corrective_options_json  JSONB NOT NULL,     -- baked JCM set + driver sidecar + generators
+    lod_schedule_json        JSONB,              -- per-LOD decimation/bone/morph schedule
+    influence_cap            INT NOT NULL DEFAULT 8
+        CHECK (influence_cap IN (4, 8, 12, 0)),  -- 0 = unlimited (UE UBI path)
+    uv_strategy              TEXT NOT NULL DEFAULT 'udim'
+        CHECK (uv_strategy IN ('udim', 'atlas_single_tile')),
+    texture_budget_json      JSONB NOT NULL,     -- per-platform sizes + auto-downres rules
+    texture_conformance_json JSONB NOT NULL,     -- MikkTSpace, green-channel, colorspace, packing
+    genital_mode             TEXT NOT NULL DEFAULT 'welded'
+        CHECK (genital_mode IN ('welded', 'modular_attachment', 'censored')),
+    is_system_profile        BOOLEAN NOT NULL DEFAULT FALSE,
+    event_ledger_event_id    TEXT NOT NULL,
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**[TAI-BK-198]** Units/axis contracts are exact per profile (the Daz scale/orientation pain is
+the named anti-pattern; solver/authority native frame is cm Y-up per 13.12 §12.6.1, mm in
+authority internals):
+
+| Profile | Container | Units | Axes | Skeleton surface |
+|---|---|---|---|---|
+| `ue_fbx_bridge` | FBX via Blender bridge | 1 unit = 1 cm | Z-up, X-forward | UE5 naming + `ik_*` set (26.5) |
+| `ue_gltf` | glTF/GLB | metres (glTF spec) | Y-up (Interchange converts) | UE5 naming |
+| `blender_gltf` | glTF/GLB | metres | Y-up | canonical BodyKit skeleton |
+| `blender_fbx_bridge` | FBX via bridge | cm with explicit 0.01 scale handling | per Blender preset | canonical |
+| `unity_humanoid` | FBX via bridge | metres | Y-up | Humanoid-mappable |
+| `vrm` | VRM 1.0 | metres | Y-up | VRM humanoid |
+| `usd` | UsdSkel (usd-export feature) | metersPerUnit = 0.01 | Z-up stage option | canonical |
+| `obj` | OBJ | cm | Y-up | none (static mesh) |
+
+### 26.3 glTF Core and Morph Rules
+
+**[TAI-BK-199]** The glTF skeletal exporter extends the 13.12 GLB encoder with `skins`/joints,
+inverse bind matrices, and morph targets on the skinned primitive. Morph-target position deltas
+MUST use `FLOAT` component type (the 13.12 §12.6.3 precision law applies unchanged). The exporter
+MUST validate output against the documented UE glTF morph-import defects (UE 5.4.x corruption
+class) as part of the round-trip harness (26.10) before an `ue_gltf` profile export reports green.
+
+**[TAI-BK-200]** Morph-export rules: every profile carries an explicit selection list (the
+Morph-Export-Rules pattern done right): include/exclude by channel id, channel group, expression
+set (ARKit-52 always included on skeletal exports per [TAI-BK-151]), baked correctives (26.6),
+and baked arousal/erection shapes. Unlisted morphs MUST NOT leak into exports; listed morphs MUST
+fail the export (not silently drop) if they cannot be represented in the target container.
+
+### 26.4 FBX via Blender-Bridge Only
+
+**[TAI-BK-201]** FBX delivery MUST reuse the Cloth Blender-bridge bake lane pattern: headless
+Blender (`blender --background --python`) imports the BodyKit glTF/USD payload and re-exports FBX
+with profile-driven settings (scale, axes, blendshape naming, bake options). The bridge script
+set is versioned, shipped with Handshake, and emits a machine-readable bridge report. Native FBX
+writing anywhere in `tailor-solver` or `handshake_core` is prohibited ([TAI-BK-195]); a bridge
+failure is an export failure with `error_reason`, never a fallback to a bundled SDK.
+
+### 26.5 UE Profile
+
+**[TAI-BK-202]** The `ue_fbx_bridge` profile MUST emit: Manny/Quinn-compatible bone naming where
+anatomy overlaps (`pelvis`, `spine_01..`, `clavicle_l`, twist bones per 13.18), the `ik_*` bone
+set (`ik_foot_root`, `ik_foot_l/r`, `ik_hand_root`, `ik_hand_gun`, `ik_hand_l/r`) added on
+export, and IK Rig + IK Retargeter asset definition JSON (chain definitions: spine/arms/legs/
+root) so UE-side retargeting is near one-click (GREQ-005/006). Breast/glute/belly/genital chains
+export as plain FBX bones so UE physics (Kawaii-class) can drive them.
+
+**[TAI-BK-203]** Reference-pose handling MUST be explicit: profiles select T-pose or A-pose
+reference with the retarget base pose stored in the export manifest, and the UE profile MUST
+handle the T0-as-ref-pose requirement that breaks Daz-bridge morphs on the Epic skeleton
+(GREQ-007; the Daz "Use T0 As Ref Pose" pain is a named regression test in 26.10).
+
+### 26.6 Correctives, Erection/Gape, Genital Topology Options
+
+**[TAI-BK-204]** Every skeletal export MUST emit the corrective package per profile: JCM-
+equivalents baked as pose-space-named blendshapes (`jcm_thigh_fwd_90_l` convention) PLUS the
+machine-readable driver sidecar JSON (bone channel -> morph curve; 13.19), PLUS the generator
+scripts — Blender add-on script that builds shape-key drivers (Diffeomorphic Auto-JCM precedent)
+and UE Pose Driver (RBF) setup data (GREQ-026/032). FBX carrying no drivers is a container fact;
+shipping correctives that die at import is prohibited.
+
+**[TAI-BK-205]** Erection and gape MUST export as BOTH pose assets (bone poses on the genital
+chains) AND baked blendshapes (REQ-032, GREQ-034), so engine logic can drive cock erection state
+and pussy/anal gape either way. The flaccid<->erect continuum exports as a sampled blendshape
+series per the morph rules; the rigid/floppy state switch travels in the physics sidecar.
+
+**[TAI-BK-206]** Pre-welded single-mesh option: every profile MUST support exporting the body
+with genitals merged into one watertight mesh, one material set, boundary textures baked (the
+Diffeomorphic merge-graft parity; Part-3 contract) — the target engine never sees grafts, shells,
+or seams. Because 13.21 genitals are native single-mesh topology, this is the default
+`genital_mode = 'welded'`.
+
+**[TAI-BK-207]** Genital modular attachment option (`genital_mode = 'modular_attachment'`): game
+lanes MAY export genitals as a separate mesh + bone set + material with body-seam weld data
+(vertex pair map) so customization systems attach/detach cocks at runtime (GREQ-033; the
+SOS-retrofit pattern, native). `censored` mode exports the censor-toggle topology state (13.21).
+
+### 26.7 Unity/VRM and USD
+
+**[TAI-BK-208]** `unity_humanoid` MUST emit a Humanoid-avatar-mappable rig (≤4 influence default
+with quality tiers per Unity `skinWeights`), blendshape clips for ARKit-52 + selected morphs, and
+spring-bone/jiggle configuration derived from the 13.18 physics-config sidecar (GREQ-029). `vrm`
+MUST emit VRM 1.0 with humanoid mapping, blendshape clips, spring bones, and embedded license
+metadata mapped from the recipe/asset `license_tag` + adult-content flags (GREQ-030; VRM's
+in-format license block is the reference).
+
+**[TAI-BK-209]** USD body export (UsdSkel skeleton + blendshapes + bound materials) MUST be gated
+behind the existing `usd-export` Cargo feature (13.12 §12.6.4 law applies: no silent fallback
+that emits a USD without the promised payload).
+
+**[TAI-BK-210]** OBJ exports the current evaluated body mesh (posed or rest, per option) with
+UVs and material library reference — day-one lane, no external crate dependencies.
+
+### 26.8 Game-Ready Mechanics
+
+**[TAI-BK-211]** LOD chains: profiles with `lod_schedule_json` MUST generate decimated LODs with
+skinning weights preserved through decimation (GREQ-001), per-LOD bone reduction (weld minor
+bones, influence-threshold pruning) with morph transfer to reduced LODs (GREQ-002), and per-LOD
+morph stripping schedules (face shapes on LOD0, dropped on LOD2+; GREQ-003). LODs that break
+deformation MUST fail `EXPORT_BODY_VALID`, not ship.
+
+**[TAI-BK-212]** Skinning influence caps: the exporter MUST clamp to the profile's
+`influence_cap` (4/8/12/unlimited) and renormalize remaining weights (GREQ-004). Clamp deltas
+above a stored threshold are reported in the export validation report.
+
+**[TAI-BK-213]** High->low bake pipeline: normal/AO/curvature/displacement (and
+position/thickness where the target needs it) bake from the SubD + HD body to the export mesh,
+with bake groups preventing cross-projection (GREQ-008), plus the optional baked pose/expression
+wrinkle-map set (GREQ-009, [TAI-BK-135]). The 22.10 HD lane's vector-displacement bake runs
+through this pipeline.
+
+**[TAI-BK-214]** UV strategy per profile: `udim` keeps the 22.2 four-tile layout (offline/hero
+lanes); `atlas_single_tile` repacks to 0-1 with automatic atlas generation and material merge to
+1-2 draw-call-friendly materials with rebaked textures (GREQ-010/031). Repacking MUST preserve
+the genital/areola texel-priority ratio within the atlas.
+
+**[TAI-BK-215]** Texture conformance per profile: MikkTSpace tangent basis, normal-map green-
+channel (+Y/-Y) flip per target, sRGB/linear colorspace tagging per map kind, channel-packing
+presets (ORM etc.), and per-platform texture budgets with automatic downres (GREQ-039/040).
+Conformance settings live in `texture_conformance_json`; hardcoded per-engine hacks in exporter
+code are prohibited.
+
+**[TAI-BK-216]** Export validation report: every export MUST emit a machine-readable per-target
+checklist — influence caps honored, blendshape counts (with the >50-per-realtime-mesh advisory;
+GREQ-012), bone counts, material counts, texture sizes/budgets, LOD presence, unit/axis
+attestation, corrective package presence, ARKit-52 presence — as the `EXPORT_BODY_VALID`
+descriptor input (GREQ-035). The report and export artifacts register in the artifact registry
+(`write_file_artifact`/`write_dir_artifact`), and the run emits `TailorBodyExportCompleted`
+(`"TAILOR_BODY_EXPORT_COMPLETED"`, `event_family = "tailor.body"`) with manifest + report refs.
+No dedicated export-run table is added; the EventLedger + artifact registry are the record
+(13.16 table set is closed).
+
+### 26.9 Documented DSON Migration Proposal Lane
+
+**[TAI-BK-217]** BodyKit MUST provide a non-mutating DSON inspection and migration-proposal lane
+for operator-configured Daz content roots. It parses documented `.duf`/`.dsf` scene, node,
+channel, material, pose, animation and metadata structures and produces explicit mapped,
+partially-mapped, external-reference, skipped and unsupported rows. Channel mappings carry dial
+name, BodyKit channel id, confidence and value translation. Geometry, UV, rig, morph and texture
+payloads may be inspected for compatibility/provenance and referenced as migration inputs, but
+only independently created or explicitly permitted payloads may become BodyKit authority through
+the normal import, validation and apply gates. `.dhdm` remains unsupported. No result auto-applies,
+and `LICENSE_GUARD` plus 13.32 migration law runs fail-closed on every proposed authority artifact.
+
+### 26.10 Round-Trip Verification Harness
+
+**[TAI-BK-218]** A headless Blender + UE round-trip verification harness MUST exist as a
+standing lane (REQ-044): scripted Blender background imports and UE editor-cmd imports that
+mechanically assert, per profile — scale (a 170 cm body arrives 170 cm), orientation, bone
+count/names/hierarchy, morph target counts + spot-check deltas, ARKit-52 presence, corrective
+sidecar regenerating working drivers, erection/gape shapes present, texture colorspaces, and
+material assignment. The published Daz-bridge pain list (unstable morph selection, geograft
+morphs dropped, UE rotation bugs, A-pose reference mismatch) MUST be encoded as named regression
+tests. Harness results are `EXPORT_BODY_VALID` inputs; a profile without green round-trip
+verification MUST NOT be marked system-ready.
+
+**[TAI-BK-219]** Round-trip verification runs as Handshake JOBS in the sandbox lane (external
+DCC processes are quiet, headless, and cancellable per HBR-QUIET/INT), and its reports persist as
+artifacts referenced from validation rows — model agents read reports, never scrape DCC logs.
+
+**[TAI-BK-220]** BkExport acceptance (MT-625): the full archetype set (ARCH-A..H) exports
+through every system profile; all export validation reports green; Blender + UE round-trips
+verified; erection/gape assets confirmed in-engine on ARCH-F/G; the pre-welded and
+modular-attachment genital modes both verified.
+
+---
+
+## 13.27 BodyKit: GUI, Acceptance Archetypes, Validation & HBR
+
+<!-- id: bodykit-validation-hbr -->
+<!-- MT groups: BkGui MT-626..635, BkBodiesQA MT-636..645, BkGovernance MT-646..653.
+     Research basis: OBR archetypes, PREQ-035, CX-503D1, CX-982, HBR families. -->
+
+### 27.1 Native-Shell BodyKit Panes
+
+**[TAI-BK-221]** BodyKit GUI surfaces MUST register in the Handshake native shell as an
+extension of the existing `tailor` pane type (BodyKit tab) — no separate window, no forked shell
+integration. Every control MUST carry a stable `author_id` so Argus and model lanes address
+controls deterministically (parallel-model coordination law; [GLOBAL-BUILD-040] alignment).
+
+**[TAI-BK-222]** The required pane inventory: (a) channel slider panels grouped by region with
+numeric entry, over-range indication, and isolate-region toggle; (b) archetype/recipe browser
+(thumbnails, tags, apply/blend/partial-apply); (c) measurement panel with live readout + numeric
+targeting (the `solve_measurements` surface); (d) coupling-graph inspector (view/disable/author
+explicit links — the anti-ERC surface); (e) pose editor hooks (IK pin handles, pose library,
+multi-actor alignment display); (f) genital config panel — cock/pussy/anus channels, erection
+state, gape dials, arousal controller — rendered with the SAME slider grain as every other
+region panel: no special-casing, no extra confirmation dialogs, no euphemistic relabeling
+(CX-123 family). All panes are projections of the typed contracts in 13.25.
+
+**[TAI-BK-223]** Viewport: BodyKit MUST reuse the Tailor wgpu rendered-to-texture viewport
+(13.12 §12.3) with body render pipelines added — skin preview shading (SSS approximation) and
+heatmap overlays for skin weights, UV strain ([TAI-BK-136]), and decouple violations. No second
+viewport architecture.
+
+**[TAI-BK-224]** Argus law: every BodyKit pane, control, and visible state MUST be inspectable,
+steerable, and screenshot-capturable headlessly through Argus (CX-503D1; HBR-VIS). The Argus
+capture matrix MUST include archetype edge states (extreme sliders, gape dials at max, obese
+silhouettes). GUI acceptance (MT-635) is proven by a no-context model driving a channel edit ->
+capture -> verify cycle via Argus alone, with no foreground focus steal (HBR-QUIET).
+
+### 27.2 Acceptance Archetypes (Normative Seeded Recipes)
+
+**[TAI-BK-225]** The eight acceptance archetypes MUST ship as seeded, deterministic `BRC-`
+recipes with stable ids `ARCH-A`..`ARCH-H` (deterministic from channel values; re-seedable
+byte-identical). The `ARCH-A`..`ARCH-H` citation ids alias the seeded
+`bodykit_recipes.archetype_key` values `'a'`..`'h'` defined in 13.16 ([TAI-BK-019]) — one
+archetype registry, two spellings (DB key vs citation id). They are the standing acceptance
+surface for the whole BodyKit — every QA matrix in 27.4 runs against them:
+
+| ID | Seeded body |
+|---|---|
+| `ARCH-A` | petite frame + extreme-large perky natural tits + narrow soft shoulders + narrow hips + small hands + long legs + round ass + narrow thighs + skinny midriff |
+| `ARCH-B` | extreme-large fake/plastic round implant tits on a slender frame |
+| `ARCH-C` | small perky tits on an athletic frame |
+| `ARCH-D` | large natural droopy tits on a fat/obese female body |
+| `ARCH-E` | obese male |
+| `ARCH-F` | muscular male + oversized cock |
+| `ARCH-G` | slender male + oversized cock |
+| `ARCH-H` | futa cross-blend (female build + cock module, 13.21 mixed anatomy) |
+
+**[TAI-BK-226]** Archetypes are acceptance law, not demo content: a change anywhere in BodyKit
+that degrades any archetype below its QA gates is a regression, and OBR-001..004 (the operator's
+verbatim body requirements) are satisfied only while all eight remain reachable and green.
+ARCH-A is the signature archetype — it exists because Daz morph stacking visibly breaks exactly
+there.
+
+### 27.3 Validation Descriptor Catalog Additions
+
+**[TAI-BK-227]** The following checks are added to the canonical ValidationDescriptor catalog
+(extending the 13.15 §2.4 catalog with three new stages: `body` (authoring), `body_pose`,
+`body_export`). Codes are stable and MUST NOT be renamed or aliased:
+
+```text
+CODE                   SEVERITY  STAGE        ASSERTION
+BODY_TOPOLOGY_VALID    Blocking  body         Base mesh watertight, single component, quad-
+                                              dominant, region-mask completeness, genital-region
+                                              loops present, pole/valence budget, canonical UDIM
+                                              layout (22.2) intact.
+BODY_DECOUPLE_VALID    Blocking  body         Zero vertex deltas outside each channel's declared
+                                              region mask; cross-region effects exist only as
+                                              explicit, inspectable link-graph edges.
+BODY_POSE_RANGE_VALID  Blocking  body_pose    Archetype x QA-pose matrix (incl. porn-range poses:
+                                              full thigh spread, deep squat, legs-behind-head,
+                                              deep arch, hip thrust) renders without collapse,
+                                              pinch, or interpenetration.
+GENITAL_BLEND_VALID    Blocking  body         Genital/body albedo + normal boundary blend is
+                                              seamless across the full tone sweep incl. dark
+                                              skins ([TAI-BK-130], 13.21).
+EXPORT_BODY_VALID      Blocking  body_export  Per-profile export checklist passes (26.8) AND the
+                                              round-trip harness (26.10) verifies the profile.
+LICENSE_GUARD          Blocking  body         No SMPL/.dhdm/Genesis-derived payload present as
+                                              authority; license_tag present and valid on every
+                                              morph/skin/recipe asset (13.16 tripwire).
+```
+
+**[TAI-BK-228]** These checks MUST register in `TailorValidationDescriptor` and run through the
+existing 13.15 runner with its stage/feature-subset selection, two-severity law, stable-code
+contract, and `ValidationFinding` surface — no BodyKit-specific validation runner, report type,
+or severity scheme may be forked.
+
+### 27.4 QA Matrices (MUST Gates)
+
+**[TAI-BK-229]** Decouple-proof matrix: every archetype (and registry neutrals) runs the full
+channel sweep proving zero cross-region coupling (`BODY_DECOUPLE_VALID` per cell). This is the
+founding BodyKit requirement (OBR-004: breast-hip-shoulder coupling MUST be removed) and gates
+every channel-registry change.
+
+**[TAI-BK-230]** Pose-range matrix: archetypes x the porn-range QA pose set x correctives ->
+`BODY_POSE_RANGE_VALID` (13.19 coverage law; PREQ-014 — adult posing exceeds everyday JCM
+ranges by design).
+
+**[TAI-BK-231]** Drape matrix: archetypes x starter garments through the 13.24 bridge ->
+`SEAMS_CLOSED` + `NO_INTERPENETRATION` per cell ([TAI-BK-168]).
+
+**[TAI-BK-232]** Export matrix: archetypes x system export profiles -> `EXPORT_BODY_VALID` per
+cell including round-trip verification ([TAI-BK-220]).
+
+**[TAI-BK-233]** Visual QA captures: an Argus capture set per archetype (front/side/pose
+extremes, genital closeups) persists as `tailor_captures` rows (`CAP-`) for validator and
+operator review on every QA run. Matrix verdicts without persisted captures are incomplete.
+
+### 27.5 Kernel Bindings (No Forked Infrastructure)
+
+**[TAI-BK-234]** PromotionGate: body/recipe/skin-material promotion MUST go through the kernel
+`PromotionGate` with MeshComparator-class equivalence for generated meshes (epsilon-tolerant
+per-vertex + exact topology invariants; [TAI-OVR-006]) and the `CPROM-{body_id}-{val_run_id}`
+idempotency key form. Operator consent is required; fixture/self-approval evidence is
+architecturally blocked (13.15 §4 MAN row applies verbatim).
+
+**[TAI-BK-235]** CRDT: channel edits are CRDT ops (LWW per channel key within a substep, lease
+override per the kernel lease law); competing model-authored bodies are separate drafts;
+concurrent edits to one draft flow through the `ai_edit_proposal` state machine. CRDT machinery
+is transparent to the model API ([TAI-BK-176]).
+
+**[TAI-BK-236]** Sandbox: model-driven generation, validation, bake, and round-trip runs execute
+in the kernel sandbox (process tier, fs-only caps, scoped workspace); `SandboxDenied` is a typed
+receipt status, and no BodyKit path may bypass the sandbox to write authority ([TAI-BK-185]).
+
+**[TAI-BK-237]** Jobs/scheduler: generation, corrective re-bakes, skin bakes, exports, wardrobe
+batches, and QA matrices run as Handshake JOBS with leases, backpressure, cancellation, and
+Flight Recorder lifecycle events — never ad-hoc threads or unmanaged external processes.
+
+### 27.6 Manual, HBR, and the Extreme-Proportions Law
+
+**[TAI-BK-238]** UserManual duty (CX-982; HBR-MAN): BodyKit MUST ship a UserManual chapter
+covering purpose, the channel workflow, genital configuration, recipes and partial-apply, the
+eight MCP tools with call order, export profiles, failure modes + recovery, and the diagnostics
+posture — current with every BodyKit behavior change, sufficient for a no-context model or
+operator.
+
+**[TAI-BK-239]** HBR matrix: all BodyKit work inherits the six-family obligations, applied to
+the body domain:
+
+```text
+INT     Generation/bake/export/QA jobs MUST be cancellable at step boundaries; cancelled
+        runs promote nothing and emit rejection events with reason "operator_cancelled".
+SWARM   One body_id per lane; leases on shared drafts; CPROM idempotency collapses duplicate
+        promotions; bounded loops per [TAI-BK-186]; no silent loss of lane results.
+VIS     Every lifecycle stage emits its typed TAILOR_BODY_* event; bodykit_bodies.status
+        reflects the current stage; receipts and QA verdicts are operator-readable pre-decision.
+QUIET   No foreground windows, focus steal, or input hijack from viewport, bake, bridge
+        (headless Blender/UE), or QA runs; structured bounded logging only.
+MAN     Promotion requires real operator approval evidence; UserManual currency per
+        [TAI-BK-238]; no fixture evidence outside #[cfg(test)].
+STOP    Operator STOP cancels in-flight body jobs, leaves status at last committed value,
+        releases leases, and nothing auto-resumes until explicit re-trigger.
+```
+
+HBR hydration for BodyKit MTs (MT-652) MUST pass `hbr-matrix-check` before the packet closes.
+
+The baseline BodyKit lifecycle proof is: NL description ->
+`author_body` -> channel edits (`edit_body`/`solve_measurements`) -> `configure_genitals` ->
+corrective evaluation under pose -> garment drape via the 13.24 bridge -> `export_body` through
+a system profile -> full replay of the authoring session from the EventLedger reproducing an
+identical `BodySpec` ([TAI-OVR-007] parity for bodies) — the whole loop provable by a no-context
+model using only the typed contracts and the built-in manual ([TAI-BK-194]). Professional Tailor
+completion additionally requires the integrated proof in [TAI-GATE-004] and MUST NOT be inferred
+from this baseline alone.
+
+**[TAI-BK-240]** Plausibility guards are soft-warning-only. Anatomical plausibility hints
+(interpenetration hints, joint-limit hints, population-prior distance) MUST be Advisory findings
+at most — hard anatomical limits anywhere in channels, solvers, validators, GUI, or export are
+PROHIBITED (PREQ-035). Extreme proportions are the PRODUCT TARGET, not an edge case: huge tits
+on a petite frame, monster cocks, extreme gape, obese builds, and futa stacks MUST remain fully
+reachable with zero friction. A "realism clamp" introduced anywhere in the BodyKit pipeline is a
+spec violation, not a safety feature.
+
+---
+
+## 13.28 Capability Baselines, Qualification, and Parity Claims [ADD v02.201]
+
+### 28.1 Separate Requirement and Qualification Dimensions
+
+**[TAI-PRO-001]** `TailorCapabilityRegistryV1` (`hsk.tailor.capability_registry@1`,
+`PRIM-TailorCapabilityRegistry`) is the canonical product registry for Cloth, BodyKit, shared
+infrastructure, DCC interoperability, and deliberate Tailor exceedances. Each versioned row MUST
+carry at least:
+
+- `capability_id`, `domain`, `title`, `description`, `baseline_vendor`, `baseline_version`,
+  `source_refs`, and `supersedes`;
+- `requirement_status: required | accepted_exclusion | optional | deliberate_exceedance`;
+- `qualification_status: unimplemented | implemented_unqualified | qualified | stale | failed |
+  unsupported`;
+- owning canonical action ids, surface ids, UserManual anchors, schema ids, event ids, artifact
+  proof handles, limitations, and independent-inspection verdict;
+- the versioned hardware, fixture, DCC, and tolerance profiles against which the row was tested.
+
+Requirement and qualification are independent dimensions. `required`, `qualified`,
+`accepted_exclusion`, and `unsupported` MUST NOT be collapsed into one state enum. A work item,
+test name, prose claim, screenshot caption, or implemented symbol is not qualification evidence.
+
+**[TAI-PRO-002]** Full-parity wording is fail-closed. `TailorParityClaimV1` may report full Cloth
+parity only when every required row in the pinned Marvelous Designer baseline is `qualified`; it
+may report full BodyKit parity only when every required row in the pinned Daz Studio baseline is
+`qualified`; it may report full Tailor parity only when both domains and every required shared
+row are qualified. Missing, stale, deferred, unknown, uninspected, failed, or unsupported required
+rows MUST make the claim unavailable and return the blocking row ids. Accepted exclusions MUST
+be visible in any partial-parity report and cannot satisfy required rows.
+
+### 28.2 Required Professional Baseline Families
+
+**[TAI-PRO-003]** The pinned Marvelous Designer 2026.0 baseline MUST enumerate and qualify, at
+minimum: project and avatar lifecycle; 2D/3D pattern authoring; internal lines/shapes and holes;
+sewing, segment/free/tubular/turned sewing, seam allowances, notches and annotations; arrangement,
+layering, tack, fold, pleat, dart and gathering tools; interactive and final simulation controls;
+fabric physical properties, presets, tests and batch assignment; trims, zippers, buttons, piping,
+elastic, topstitch and modular garment composition; grading and measurement; UV, texture, print,
+PBR and SBSAR workflows; styles/colorways; Pattern Archive; retopology and topology remeshing;
+fur/fiber/down workflows; animation/cache; imports/exports; rendering/presentation; automation and
+extension APIs. Vendor additions after the pinned baseline create `stale` rows until reviewed;
+they do not silently change the baseline during an active build.
+
+**[TAI-PRO-004]** The pinned Daz Studio 6.25 baseline MUST enumerate and qualify, at minimum:
+scene/project lifecycle; figure loading and creation; parameter/channel editing; morph loading and
+transfer; joint, weight, corrective and deformer tools; posing, IK and animation; facial creator,
+expressions and lip-sync; detailed genital and soft-tissue authoring; clothing/hair fitting and
+simulation; Smart Content/content-library metadata; shader graph, layered images and materials;
+lights, cameras, native final rendering, AOVs/canvases, render queue and render library;
+reference/shape transfer; Figure Setup; Map Transfer; DSON user-library migration; scripting and
+extension APIs; supported import/export and black-box round trips. Third-party asset ecosystems
+remain separately classified and MUST NOT be implied by a core-product parity claim.
+
+**[TAI-PRO-006]** The initial registry seed MUST contain the following `required` capability rows.
+These ids are normative completeness keys, not prose headings. Every row inherits the exact
+baseline vendor/version in [TAI-PRO-003] or [TAI-PRO-004], starts
+`qualification_status = unimplemented`, and cannot become `qualified` until its `source_refs`,
+child-function inventory, action/surface/manual bindings, fixtures, receipts, inspected artifacts,
+and limitations are populated. A newly observed vendor function MUST create a child row and mark
+its family row `stale`; absence from this seed is not permission to omit it.
+
+| Marvelous Designer 2026.0 `capability_id` | Required family |
+|---|---|
+| `TCAP-MD26-PROJECT-AVATAR` | project, avatar and measurement lifecycle |
+| `TCAP-MD26-PATTERN-2D3D` | 2D/3D pattern creation and editing |
+| `TCAP-MD26-INTERNAL-GEOMETRY` | internal lines, shapes, holes, annotations and notches |
+| `TCAP-MD26-SEWING` | segment, free, M:N, tubular and turned sewing plus seam allowances |
+| `TCAP-MD26-ARRANGEMENT-CONSTRUCTION` | arrangement, layers, tack, fold, pleat, dart and gathering |
+| `TCAP-MD26-SIMULATION` | interactive/final simulation, collision and settle controls |
+| `TCAP-MD26-FABRIC-LAB` | physical properties, presets, tests, swatches and batch assignment |
+| `TCAP-MD26-TRIMS-FASTENERS` | trims, zippers, buttons, piping, elastic and topstitch |
+| `TCAP-MD26-MODULAR-GARMENTS` | modular composition and reusable garment parts |
+| `TCAP-MD26-GRADING-MEASUREMENTS` | grading, sizing, fit maps and measurement workflows |
+| `TCAP-MD26-UV-TEXTURE-PBR` | UV, print, texture, PBR, UDIM and SBSAR workflows |
+| `TCAP-MD26-STYLES-COLORWAYS` | styles, variants and colorways |
+| `TCAP-MD26-PATTERN-ARCHIVE` | Pattern Archive search, preview, metadata and reuse |
+| `TCAP-MD26-RETOPOLOGY-REMESH` | retopology, topology editing and remeshing |
+| `TCAP-MD26-FUR-FIBER-DOWN` | fur, fiber, fill and down workflows |
+| `TCAP-MD26-ANIMATION-CACHE` | animation, recording, cache and playback |
+| `TCAP-MD26-IMPORT-EXPORT` | supported import/export and round-trip behavior |
+| `TCAP-MD26-RENDER-PRESENT` | viewport, rendering, presentation and output |
+| `TCAP-MD26-AUTOMATION-EXTENSIONS` | automation, scripting and extension APIs |
+
+| Daz Studio 6.25 `capability_id` | Required family |
+|---|---|
+| `TCAP-DAZ625-SCENE-PROJECT` | scene/project lifecycle and hierarchy |
+| `TCAP-DAZ625-FIGURE-CREATION` | figure loading, creation, conversion and instancing |
+| `TCAP-DAZ625-PARAMETERS-CHANNELS` | parameters, channels, formulas and property editing |
+| `TCAP-DAZ625-MORPH-LOAD-TRANSFER` | morph loading, creation, projection and transfer |
+| `TCAP-DAZ625-RIG-WEIGHT-CORRECTIVE` | joints, weights, correctives and deformers |
+| `TCAP-DAZ625-POSE-IK-ANIMATION` | posing, IK, keyframes, clips and animation |
+| `TCAP-DAZ625-FACE-EXPRESSION-LIPSYNC` | face creation, expressions and lip-sync |
+| `TCAP-DAZ625-GENITAL-SOFT-TISSUE` | detailed genital, cavity, contact and soft-tissue authoring |
+| `TCAP-DAZ625-CLOTHING-HAIR-FIT-SIM` | clothing/hair fit, transfer and simulation |
+| `TCAP-DAZ625-SMART-CONTENT-LIBRARY` | Smart Content, metadata and content-library workflows |
+| `TCAP-DAZ625-SHADER-LIE-MATERIAL` | shader graph, layered images and materials |
+| `TCAP-DAZ625-LIGHT-CAMERA-RENDER` | lights, cameras, final render, AOV/canvases, queue and library |
+| `TCAP-DAZ625-REFERENCE-SHAPE-TRANSFER` | reference and shape-transfer workflows |
+| `TCAP-DAZ625-FIGURE-SETUP` | Figure Setup workflows |
+| `TCAP-DAZ625-MAP-TRANSFER` | Map Transfer workflows |
+| `TCAP-DAZ625-DSON-MIGRATION` | DSON user-library import and migration |
+| `TCAP-DAZ625-SCRIPT-EXTENSION` | scripting and extension APIs |
+| `TCAP-DAZ625-IMPORT-EXPORT-ROUNDTRIP` | supported import/export and black-box round trips |
+
+The full Tailor claim additionally requires these shared rows:
+
+| Shared `capability_id` | Required family |
+|---|---|
+| `TCAP-TAILOR-SHARED-AUTHORITY` | typed project/asset authority, schemas and migration |
+| `TCAP-TAILOR-SHARED-ACTION-SURFACE-PARITY` | GUI/CLI/MCP/backend action-id and receipt parity |
+| `TCAP-TAILOR-SHARED-PROJECT-LIFECYCLE` | save/open/version/branch/recover/publish lifecycle |
+| `TCAP-TAILOR-SHARED-USERMANUAL` | task-oriented canonical UserManual and no-context proof |
+| `TCAP-TAILOR-SHARED-DIAGNOSTICS-RECOVERY` | health, diagnostics, cancellation, recovery and rollback |
+| `TCAP-TAILOR-SHARED-PARALLEL-AGENT` | attributable leases, conflicts and safe parallel operation |
+| `TCAP-TAILOR-SHARED-EVENT-REPLAY` | EventLedger/Flight-Recorder correlation and replay |
+| `TCAP-TAILOR-SHARED-DCC-QUALIFICATION` | pinned DCC fixtures, round trips and inspected artifacts |
+| `TCAP-TAILOR-SHARED-POSEKIT-MIX` | dependency-gated PoseKit/character-sheet mix workflows |
+| `TCAP-TAILOR-SHARED-PUBLISH` | validation-gated artifact and library publication |
+
+### 28.3 Capability Registry Lifecycle
+
+**[TAI-PRO-005]** Capability mutations MUST use canonical actions, emit EventLedger evidence,
+retain superseded rows, and be attributable to actor/session/correlation ids. A qualification row
+MUST cite directly inspected runtime artifacts, not only automated metrics. The registry is
+PostgreSQL authority; reports, dashboards, marketing language, and the appendix feature map are
+derived projections. Any divergence fails `TAILOR_CAPABILITY_REGISTRY_VALID`.
+
+---
+
+## 13.29 Solver Lanes and Professional Physics [ADD v02.201]
+
+### 29.1 Lane Contract
+
+**[TAI-PHY-001]** `TailorSolverProfileV1` MUST select exactly one solver lane:
+
+| Lane | Canonical id | Purpose | Numeric authority |
+|---|---|---|---|
+| Reference oracle | `ReferenceCpuF64` | deterministic small-fixture oracle, gradients, residuals, regression diagnosis | SI units, f64 |
+| Interactive | `InteractiveGpuXpbd` | responsive authoring, manipulation, preview and draft drape | explicit boundary conversion; GPU f32 permitted |
+| Final quality | `FinalCpuBarrierF64` | professional offline settle, strict strain/contact, final validation and export | SI units, f64 |
+
+The reference oracle is not a production-performance tier. Interactive and final quality are the
+two production tiers. All three consume the same versioned garment/body/material authority and
+emit lane-specific typed receipts; no lane may silently reinterpret units or material fields.
+
+### 29.2 Interactive GPU Lane
+
+**[TAI-PHY-002]** `InteractiveGpuXpbd` MUST use the shell-injected pinned wgpu device, queue,
+adapter identity, feature set, limit set, and error scopes. It MUST NOT create an untracked second
+device. Swept vertex-face and edge-edge candidates use a GPU broad phase such as LBVH; static
+constraint sets use deterministic graph coloring/colored Gauss-Seidel, while dynamically changing
+contact sets use sorted Jacobi or segmented gather with stable keys. Curvature is a scheduling
+hint only. SDFs are versioned preview accelerators only and MUST NOT replace finite-thickness
+triangle contact or final collision validation.
+
+**[TAI-PHY-003]** Device loss, out-of-memory, map/readback failure, unsupported features, shader
+validation failure, watchdog timeout, cancellation, and adapter change MUST produce typed
+diagnostics and a recoverable checkpoint. The lane MAY fall back to a declared reduced interactive
+profile or the CPU reference on small fixtures; it MUST NOT silently label fallback output as GPU
+qualification or final-quality output.
+
+### 29.3 Final CPU-f64 Lane
+
+**[TAI-PHY-004]** `FinalCpuBarrierF64` MUST implement a nonlinear implicit/quasi-static solve
+with line search or trust-region acceptance, finite-thickness barrier/contact energy, continuous
+vertex-face and edge-edge CCD, friction, strict strain limiting, inversion prevention, and robust
+degeneracy handling. Its broad phase and narrow phase operate in CPU f64. Collision and validity
+checks are triangle-level; proxy or SDF acceptance alone cannot qualify the final artifact.
+
+**[TAI-PHY-005]** Every accepted final step MUST emit `TailorAcceptedStepCertificateV1`
+(`hsk.tailor.accepted_step_certificate@1`) containing input/profile hashes, iteration and line-search
+history, energy terms, residual norms, minimum time of impact, minimum separation, maximum strain,
+contact counts, remesh lineage, cancellation state, and output artifact handles. Rejected trial
+steps do not mutate authority. A run interrupted between accepted steps resumes from the latest
+complete certificate and checkpoint.
+
+### 29.4 Reference, Calibration, and Equivalence
+
+**[TAI-PHY-006]** `ReferenceCpuF64` MUST expose finite-difference/analytic-gradient comparisons,
+small exact fixtures, contact-order determinism, and material unit tests. Interactive and final
+lanes qualify against the oracle on shared invariants and bounded observables—not cross-tier
+vertexwise identity. Each tolerance comes from a versioned `TailorQualificationProfileV1`; no
+unmeasured tolerance, iteration count, mesh density, frame budget, or hardware target may be
+compiled as an unexplained production default.
+
+**[TAI-PHY-007]** Remeshing, topology repair, adaptive refinement, and decimation are checkpointed
+transactions. A proposed topology change carries before/after topology hashes, correspondence,
+UV/seam/weight/attachment transfer evidence, rollback artifact, and validation results. Failure
+restores the last accepted mesh without orphaning attachments, contacts, animation, or authority.
+
+---
+
+## 13.30 Canonical Tailor Project, Action, Operation, and Surface Contracts [ADD v02.201]
+
+### 30.1 Product Primitives
+
+**[TAI-ACT-001]** The following are canonical Tailor primitives and extend the closed 13.14
+authority set:
+
+| Primitive id | Schema/type | Purpose |
+|---|---|---|
+| `PRIM-TailorCapabilityRegistry` | `TailorCapabilityRegistryV1` | versioned requirements and qualification |
+| `PRIM-TailorOperationContract` | `TailorOperationContractV1` | authority/projection/job/diagnostic classification |
+| `PRIM-TailorSurfaceDescriptor` | `TailorSurfaceDescriptorV1` | native and backend surface/action mapping |
+| `PRIM-TailorMixGraph` | `TailorMixGraphV1` | reversible PoseKit/character/body/garment mix proposals |
+| `PRIM-TailorProject` | `TailorProjectV1` | project/workspace lifecycle and linked artifacts |
+
+The schemas are versioned, JSON-schema-exportable Rust authority types. A UI-local struct, MCP
+schema, REST payload, or DCC sidecar may project them but MUST NOT redefine their fields.
+
+**[TAI-ACT-002]** `TailorProjectV1` owns project id, workspace id, title, active garment/body/pose
+and scene references, units/profile ids, project format version, linked library roots by portable
+configured handles, save/autosave/checkpoint state, dependency versions, and EventLedger lineage.
+Open, create, save, save-as, recover, archive, import, export and dependency-relink are canonical
+actions with typed conflict and recovery outcomes.
+
+### 30.2 Canonical Action Law
+
+**[TAI-ACT-003]** Every operator/model mutation and every long-running Tailor read or job MUST be
+registered in the shared `KernelActionCatalogV1`. The Tailor action descriptor extends the shared
+descriptor with `tailor_domain`, input/output schema ids, authority versions, actor/session/
+correlation ids, lease scope, idempotency key, required capabilities, preview support, diff type,
+apply and rollback semantics, cancellation/retry policy, conflict policy, emitted events,
+ArtifactStore outputs, diagnostics classification, surface ids, and UserManual anchor.
+
+**[TAI-ACT-004]** Destructive or authority-changing actions follow `preview -> inspect diff ->
+apply | reject`; repeated idempotency keys collapse to one authoritative result. Parallel actors
+use explicit leases or proposal branches and receive typed conflicts containing current version,
+proposed version, conflicting fields/entities, and recovery actions. GUI, backend, CLI/model and
+automation routes invoke the same descriptor; direct database, solver, renderer, or DCC mutation
+paths are prohibited.
+
+### 30.3 Operation Classification and Storage
+
+**[TAI-ACT-005]** `TailorOperationContractV1` classifies each operation as one of
+`authority_mutation`, `authority_read`, `derived_projection`, `bounded_job`, `external_dcc_job`,
+or `diagnostic_probe`, and separately records Flight Recorder, internal_diagnostics, Palmistry,
+ArtifactStore and UserManual obligations. A registry/schema-only operation MUST NOT claim direct
+watcher ownership merely to satisfy a checklist. Long-running and external operations register
+Palmistry; authority/job lifecycle events project to Flight Recorder; all actionable failures
+resolve through internal_diagnostics.
+
+**[TAI-ACT-006]** These additional PostgreSQL authorities are permitted and owned here:
+`tailor_projects`, `tailor_capability_registry`, `tailor_pattern_archive_entries`,
+`tailor_style_variants`, `tailor_mix_graphs`, `tailor_shader_graphs`, `tailor_groom_assets`,
+`tailor_render_jobs`, and `tailor_dcc_qualification_runs`. Every row uses a stable prefixed text
+id, workspace/project scope, schema version, created/updated actor and timestamp, status/version,
+and the EventLedger event id that authorized the latest mutation. Large binaries, images, caches,
+reports and DCC outputs live in ArtifactStore and are referenced by handle, never embedded as
+PostgreSQL authority or written into `.GOV` at runtime.
+
+### 30.4 Surface Descriptor Law
+
+**[TAI-ACT-007]** `TailorSurfaceDescriptorV1` maps one stable `surface_id` to its native pane,
+backend navigation route, actions, entity-id grammar, AccessKit roles/names/state, Argus capture
+targets, visible authority version, empty/loading/conflict/error/recovery states, responsive layout
+profiles, and UserManual anchor. Dynamic element ids use
+`tailor.{surface}.{entity_kind}.{stable_entity_id}.{control}`; display labels, list position,
+coordinates and generated timestamps MUST NOT be identifiers.
+
+**[TAI-ACT-008]** These build-critical types MUST be registered in the shared schema registry as
+JSON-schema-exportable Rust types with the following minimum fields; projections and transports
+consume these schemas and MUST NOT invent private substitutes:
+
+| Type / schema id | Required minimum structure |
+|---|---|
+| `TailorSolverProfileV1` / `hsk.tailor.solver_profile@1` | `solver_profile_id`, version/supersession/status, exact lane enum (`ReferenceCpuF64 | InteractiveGpuXpbd | FinalCpuBarrierF64`), numeric/unit policy, device/hardware requirements, qualification-profile id, feature/capability flags, mesh/substep/iteration/contact/remesh budgets, checkpoint/cancellation/fallback policy, accepted-exclusion ids, actor/event ids and timestamps |
+| `TailorQualificationProfileV1` / `hsk.tailor.qualification_profile@1` | `profile_id`, version/supersession/status, solver lane and comparison kind, hardware/adapter/device profile, fixture-set id/hash, unit/material profile, topology invariants, measured mesh/bbox/contact/strain/residual/energy/CCD tolerances, mesh/iteration/frame/time/memory budgets, calibration source refs, accepted-exclusion ids, actor/event ids, created/qualified/stale timestamps |
+| `TailorParityClaimV1` / `hsk.tailor.parity_claim@1` | `claim_id`, registry version/hash, domain, pinned vendor/baseline versions, required/qualified/blocking/stale/accepted-exclusion row ids, `full | partial | unavailable` status, limitation text keys, inspected evidence handles, generated actor/event/timestamp |
+| `TailorAcceptedStepCertificateV1` / `hsk.tailor.accepted_step_certificate@1` | certificate/run/step ids, input and qualification-profile hashes, iteration/line-search history, energy terms, residual norms, minimum time-of-impact/separation, maximum strain, contact counts, topology/remesh lineage, accepted/rejected/cancelled state, prior checkpoint, output/checkpoint artifact handles, actor/event/timestamps |
+| `TailorDccQualificationRunV1` / `hsk.tailor.dcc_qualification_run@1` | run id/status, capability row ids, DCC executable config handle, product/version/build/executable hash, fixture-manifest id/hash, action/surface/UserManual ids, input/output schema versions, round-trip artifact handles, timings/log/diagnostic/capture handles, cleanup/survivor-process state, independent-inspection verdict, actor/session/correlation/event ids |
+| `TailorRenderJobV1` / `hsk.tailor.render_job@1` | job/project/scene/camera ids and authority versions, renderer/backend/device/qualification profile, body/garment/material/groom/pose/animation refs, resolution/sampling/frame/AOV/canvas/color/output settings, queue priority/owner/lease, state/progress/checkpoint/retry/cancellation, output artifact handles, diagnostics, action/event/correlation ids, timestamps |
+
+Every identifier above uses the owning stable-id grammar; every referenced profile, fixture,
+schema, authority version, event, and artifact is resolved before qualification or publication.
+Unknown fields are rejected on authority writes unless the schema version explicitly permits an
+extension map.
+
+**[TAI-ACT-009]** `TailorActionReceiptV1` (`hsk.tailor.action_receipt@1`) is a domain receipt type
+registered in each applicable `KernelActionCatalogV1.allowed_output_receipt_types` entry. It MUST
+carry `receipt_id`, `action_id`, actor/session/correlation ids, idempotency key, operation/run id,
+authority class and before/after versions, input/output schema ids and hashes, preview/applied/
+cancelled status, EventLedger ids, ArtifactStore handles, warnings, diagnostics, retry lineage and
+timestamps. `TailorActionError` (`hsk.tailor.action_error@1`) is the Tailor detail payload of the
+shared kernel action error path, not a private transport error. Its `code` MUST be enumerated by
+the action descriptor and it MUST carry action/correlation ids, category, stable message key and
+parameters, failed preconditions, current/proposed authority versions, retryability, recovery
+action ids, bounded diagnostic handle/cause chain, and redaction posture. GUI, CLI, MCP, backend,
+DCC and tests MUST observe the same receipt or error payload for the same invocation.
+
+**[TAI-ACT-010]** Tailor action ids extend the global Section 10.19 dotted/kebab-stable grammar
+with the immutable `tailor.{domain}.{verb}` namespace. Dynamic entity ids, versions, and profile
+names are inputs, never action-id segments. The initial `KernelActionCatalogV1` seed MUST include
+these exact ids; aliases such as legacy `author_body` are compatibility routes to one seed entry
+and MUST return the same receipt/error schemas:
+
+| Domain | Required seed action ids |
+|---|---|
+| Project | `tailor.project.create`, `tailor.project.open`, `tailor.project.save`, `tailor.project.save-as`, `tailor.project.recover`, `tailor.project.archive`, `tailor.project.import`, `tailor.project.export`, `tailor.project.relink-dependency` |
+| Capability/parity | `tailor.capability.list`, `tailor.capability.inspect`, `tailor.capability.qualify`, `tailor.capability.invalidate`, `tailor.capability.mark-stale`, `tailor.capability.claim-parity` |
+| Solver profiles | `tailor.solver-profile.list`, `tailor.solver-profile.inspect`, `tailor.solver-profile.select`, `tailor.solver-profile.qualify` |
+| Garment/pattern/sewing | `tailor.garment.author`, `tailor.pattern.create`, `tailor.pattern.edit`, `tailor.pattern.delete`, `tailor.sewing.edit`, `tailor.arrangement.edit` |
+| Simulation/fabric | `tailor.simulation.preview`, `tailor.simulation.final`, `tailor.simulation.pause`, `tailor.simulation.resume`, `tailor.simulation.cancel`, `tailor.fabric.author`, `tailor.fabric.qualify` |
+| Pattern Archive | `tailor.pattern-archive.search`, `tailor.pattern-archive.preview`, `tailor.pattern-archive.insert`, `tailor.pattern-archive.replace`, `tailor.pattern-archive.combine`, `tailor.pattern-archive.publish` |
+| Modular/retopology/style | `tailor.modular.compose`, `tailor.modular.attach`, `tailor.modular.detach`, `tailor.modular.upgrade`, `tailor.modular.repair`, `tailor.retopology.run`, `tailor.style.create`, `tailor.style.apply`, `tailor.style.batch-export` |
+| BodyKit | `tailor.body.author`, `tailor.body.edit`, `tailor.body.solve-measurements`, `tailor.body.configure-genitals`, `tailor.body.pose`, `tailor.body.validate`, `tailor.body.export` |
+| Mix | `tailor.mix.preview`, `tailor.mix.apply-selected`, `tailor.mix.detach`, `tailor.mix.reorder`, `tailor.mix.rebase`, `tailor.mix.repair`, `tailor.mix.inspect-provenance` |
+| Interlink | `tailor.interlink.open-posekit`, `tailor.interlink.open-character-sheet`, `tailor.interlink.accept-joint`, `tailor.interlink.reject-joint`, `tailor.interlink.remap-joint`, `tailor.interlink.select-camera`, `tailor.interlink.edit-contact`, `tailor.interlink.correct-3d`, `tailor.interlink.compare-proposal`, `tailor.interlink.revert-proposal` |
+| Shader/material | `tailor.shader.create`, `tailor.shader.edit`, `tailor.shader.preview`, `tailor.shader.publish`, `tailor.material.import`, `tailor.material.publish` |
+| Groom | `tailor.groom.create`, `tailor.groom.edit`, `tailor.groom.bake`, `tailor.groom.attach`, `tailor.groom.detach`, `tailor.groom.export` |
+| Render | `tailor.render.preview`, `tailor.render.submit`, `tailor.render.pause`, `tailor.render.resume`, `tailor.render.cancel`, `tailor.render.retry`, `tailor.render.inspect`, `tailor.render.publish` |
+| DCC qualification | `tailor.dcc.probe`, `tailor.dcc.qualify`, `tailor.dcc.round-trip`, `tailor.dcc.cancel`, `tailor.dcc.cleanup`, `tailor.dcc.inspect` |
+| Diagnostics/recovery | `tailor.diagnostics.inspect`, `tailor.diagnostics.export`, `tailor.diagnostics.recover`, `tailor.diagnostics.replay` |
+| Publication | `tailor.publish.preview`, `tailor.publish.apply`, `tailor.publish.rollback` |
+
+Each seed entry declares the exact input/output schema ids, required capability rows, operation
+classification, authority and lease scope, preview/apply/rollback behavior, idempotency policy,
+events, receipt/error types, native/backend routes, Argus targets, and UserManual anchor. MT-741
+may extend the seed only through the same registry/versioning law; missing seed entries fail the
+input lock and UI/backend/manual parity gate.
+
+---
+
+## 13.31 Professional Cloth Workspaces [ADD v02.201]
+
+**[TAI-CLP-001]** Cloth MUST expose task-complete native and backend workspaces for: project/avatar
+setup; 2D pattern drafting; 3D arrangement; sewing; simulation; fabric/material authoring;
+trim/detail authoring; UV/texture/PBR; modular garment composition; Pattern Archive; grading;
+retopology; styles/colorways; animation; render/publish/export; validation and repair. A workflow
+is not complete when only a low-level schema or command exists: its create/open/edit/preview/
+compare/apply/undo/recover/publish path, diagnostics, exact surface, backend action and UserManual
+entry MUST all qualify.
+
+**[TAI-CLP-002]** Sewing and arrangement MUST support typed segment/free/tubular/turned sewing,
+M:N gathering, reversible direction, sublayers, seam properties, sewing-order diagnostics,
+arrangement points/bounding volumes, symmetry, clone/layer, fold/tack/pin/freezing, collision
+spacing, ghost previews, batch selection and repair suggestions. The native workspace MUST make
+unsewn, reversed, mismatched, non-manifold and intersecting relationships visibly distinct and
+addressable by stable ids.
+
+**[TAI-CLP-003]** Simulation controls MUST expose lane/profile, quality, particle/mesh resolution,
+material assignment, gravity/wind/pressure, layer/contact thickness, friction, damping, strain,
+pin/freeze, substep/iteration budget, start/pause/step/cancel/resume, convergence state, contact/
+strain overlays, accepted checkpoint, device state, fault state and recovery. Expert detail MAY
+progressively disclose; the active lane, unsaved state, job state and blocking findings may not be
+hidden.
+
+**[TAI-CLP-004]** The fabric laboratory MUST manage measured and authored warp/weft/shear/bend/
+buckling/stretch/density/thickness/friction/damping values, physical-test provenance, presets,
+layered/surface treatments, batch assignment, swatches, comparison drapes, uncertainty, unit
+conversion and calibration. PBR/SBSAR ingestion MUST preserve source/version/licensing metadata,
+parameter schemas, color space, UDIMs, map packing and non-destructive overrides.
+
+**[TAI-CLP-005]** Pattern Archive entries MUST preserve pattern geometry, internal lines, sewing,
+grading, seam allowances, annotations, notches, avatar/profile requirements, fabric suggestions,
+preview artifacts, semantic tags, provenance, version/supersession and dependency compatibility.
+Insert/replace/combine operations create proposals and never overwrite a project silently.
+
+**[TAI-CLP-006]** Modular garments MUST support typed collars, sleeves, cuffs, plackets, pockets,
+waistbands, closures and other registry-extensible modules with attachment contracts, size/profile
+compatibility, seam reconciliation, preview, detach, upgrade and repair. Retopology MUST support
+quad-flow guides, target budgets, preservation groups, seam/UV/weight transfer, before/after
+inspection and rollback.
+
+**[TAI-CLP-007]** Styles/colorways MUST be non-destructive variants over one garment authority:
+fabric/material/print/trim/visibility/render overrides, thumbnail and comparison grids, batch
+render/export, stable variant ids and inheritance. Garment fur/down/fiber uses the shared groom
+core and MUST remain attached through drape, animation, retopology and export with explicit repair
+when transfer confidence is insufficient.
+
+---
+
+## 13.32 Professional BodyKit, Materials, and Rendering [ADD v02.201]
+
+### 32.1 Creator and Detailed Anatomy
+
+**[TAI-BKP-001]** BodyKit MUST provide one creator workflow over typed body authority: base figure,
+measurements, regional shapes, proportions, muscularity/fat/age-style surface characteristics,
+skin, face, skeleton, pose, soft tissue, genitals, hair, clothing, lights/cameras and render. It
+MUST provide parameter search, favorites, zero/reset, limits display, over-range entry, partial
+presets, compare, randomization with explicit locked regions, versioned recipes and undoable
+preview/diff/apply. Creator actions are available through both exact native controls and backend
+actions; GUI-only dials are prohibited.
+
+**[TAI-BKP-002]** Genital authoring MUST expose independent penis controls for length, base/mid/
+glans girth, taper, shaft curve, orientation, foreskin coverage/retraction, glans shape, frenulum,
+meatus, vein/detail intensity, erection/softness, scrotum size/hang/asymmetry, testicle size, skin
+blend and attachment mode. Vulva controls MUST independently cover mound, outer/inner labia
+length/width/thickness/asymmetry/protrusion, clitoral hood and clitoris size/exposure, vestibule,
+urethral opening, vaginal opening shape/width/depth state, hymenal/remnant options where authored,
+wetness, color/detail, gape and skin blend. Anus controls MUST cover opening, ring shape, pucker,
+gape/depth state, color/detail and wetness. Shapes and sizes remain intentionally over-range;
+quality is enforced through topology, deformation and contact validation, not realism clamps.
+
+**[TAI-BKP-003]** Adult contact staging MUST support typed participants, anatomy/prop contact
+regions, approach axes, depth/penetration targets, orientation, spread/gape/erection/wetness/
+soft-tissue states, collision exclusions, friction/contact profiles, IK pins, timeline keys,
+preview, solver handoff and validation. Supported production scenarios include vaginal, anal and
+oral penetration, multiple simultaneous contacts, hand/object contact, breast/ass/body compression
+and multi-actor staging. Commands create reversible proposals and never bypass collision,
+topology, attachment, strain or operator apply gates.
+
+### 32.2 Face, Content, Deformers, and Setup
+
+**[TAI-BKP-004]** The facial creator MUST combine identity channels, sculpt/morph import, symmetric
+and asymmetric editing, expression layers, ARKit/FACS mapping, eyes/teeth/tongue controls, poseable
+jaw, expression correctives, lip-sync tracks and closeup validation without conflating identity
+and expression authority.
+
+**[TAI-BKP-005]** Smart Content MUST project the shared asset registry using typed compatibility,
+semantic tags, product/category, dependencies, versions, thumbnails, provenance, installed/missing
+state and project usage. Search, filter, install/import, relink, update, supersede, favorite and
+apply return receipts. Filesystem folders and vendor metadata are import sources, not a second
+content authority.
+
+**[TAI-BKP-006]** BodyKit MUST provide shared deformer and setup workflows: morph loader/reference
+transfer with correspondence/confidence maps; lattice, d-former, weight-map and push/smoothing
+deformers; joint creation/orientation/limits; hierarchy and selection sets; weight painting and
+normalization; corrective authoring; Figure Setup from geometry/skeleton assets; Map Transfer for
+UV/material remapping with seam and distortion proof. Every transfer preserves source/target
+hashes, unresolved regions, rollback and visual comparison artifacts.
+
+### 32.3 Materials and Native Final Rendering
+
+**[TAI-BKP-007]** The shader system MUST provide a typed node graph, reusable groups, parameter
+metadata, preview, compile diagnostics, deterministic graph versioning, physically based surface/
+volume/emission/subsurface/transmission/clearcoat/sheen/hair nodes, texture/UDIM/color-space
+handling and target capability checks. Layered materials/images MUST support masks, blend modes,
+procedural layers, decals, makeup/tattoos/dirt/wetness, non-destructive reorder and flatten-to-
+artifact without destroying the source stack.
+
+**[TAI-BKP-008]** Tailor MUST ship a native final-quality renderer integrated with the shared
+Handshake Photo Studio capability rather than forking a second product named Photo Studio. It
+MUST support camera/lens/exposure/depth-of-field, lights/environment, physically based skin/hair/
+cloth/genital materials, motion blur, denoising, transparent/background outputs, animation,
+render-region and resumable tiled rendering. It MUST expose deterministic render settings and
+return typed unsupported-feature diagnostics rather than silently changing the image.
+
+**[TAI-BKP-009]** Final rendering MUST support beauty plus configurable AOVs/canvases including
+albedo, normal, depth, motion, object/material id, diffuse/specular, emission, shadow, SSS and
+cryptomatte-equivalent selection evidence where supported. `TailorRenderJobV1` owns queue priority,
+dependencies, device/profile, frames/tiles, checkpoint, cancellation, retry, progress, artifacts
+and EventLedger lineage. The render library indexes settings, scene/version hashes, outputs,
+thumbnails, acceptance/rejection and supersession without duplicating ArtifactStore authority.
+
+### 32.4 Migration and Extension
+
+**[TAI-BKP-010]** DSON migration MUST parse documented `.duf`/`.dsf` scene, node, channel, material,
+pose, animation and metadata structures from operator-configured content roots into inspectable
+proposals. Geometry/morph payloads that cannot lawfully or technically become BodyKit authority
+remain external references or explicit unsupported rows. The importer MUST report every mapped,
+partially mapped, skipped and unsupported entity; silent dropping is prohibited.
+
+**[TAI-BKP-011]** Tailor extension APIs MUST be versioned, capability-scoped, sandboxed and
+headless-operable. Extensions register actions, schemas, surfaces, asset importers/exporters or
+qualification adapters through the shared registries; they cannot mutate authority directly,
+create hidden foreground processes, bypass receipts, or overwrite core capability rows.
+
+---
+
+## 13.33 PoseKit, Character Sheets, Mix Primitives, and Shared Pillars [ADD v02.201]
+
+**[TAI-INT-001]** Tailor remains independently usable when Locus, Loom, Calendar, PoseKit or
+character-sheet integrations are unavailable. Each integration resolves through its owning
+canonical API/version and returns a typed unavailable/stale/incompatible result; Tailor MUST NOT
+create private substitute tables, watchers, timelines, memories or projection authority.
+
+**[TAI-INT-002]** PoseKit evidence is immutable 2D/source evidence. Character-sheet identity,
+measurements, wardrobe, material, pose/contact, camera and expression references are versioned
+inputs. A 2D-to-3D lift, retarget, body/garment mix, camera match, contact solve or expression
+transfer creates a proposal with input handles, transforms, confidence, conflicts, preview
+artifacts and rollback. Only explicit selected apply may mutate a Tailor project.
+
+**[TAI-INT-003]** `TailorMixGraphV1` (`hsk.tailor.mix_graph@1`) is a reversible graph of typed source
+nodes, target slots, weights/masks, correspondence, order, constraints, derived previews and
+conflicts. It MUST support body shape, face identity, pose, expression, garment pattern, fabric,
+material, camera and contact primitives; normalized and over-range weights; partial apply; detach;
+reorder; rebase after source update; repair; and provenance inspection. A mix node never embeds or
+silently copies authoritative source bytes.
+
+**[TAI-INT-004]** Locus links Tailor entities and artifacts to spatial/contextual references;
+Loom/ProjectKnowledgeIndex links project decisions, sources, recipes, qualifications and manual
+entries; Calendar records planned render/simulation work and derived `ActivitySpan` history but
+never becomes job or project authority. Every reference preserves stable source ids and versions,
+is backend-navigable, and degrades without blocking core Tailor save/open/edit/render/export.
+
+**[TAI-INT-005]** Flight Recorder is an idempotent projection of EventLedger Tailor lifecycle
+events. Projection rebuild or temporary outage cannot prevent authority commits whose owning
+action is otherwise valid. ArtifactStore owns generated meshes, images, caches, reports, DCC
+outputs and visual captures. Tailor rows cite artifact handles and source event ids; neither
+Flight Recorder nor ArtifactStore may become a second mutable project database.
+
+**[TAI-INT-006]** `TCAP-TAILOR-SHARED-POSEKIT-MIX`, PoseKit-backed actions, and character-sheet
+mix surfaces are fail-closed on an authoritative merged-main containment receipt for
+`WP-KERNEL-012` plus the exact compatible PoseKit/character-sheet schema versions. A validated
+PoseKit worktree or handoff alone is not merged-main availability. Until both proofs resolve,
+capability discovery returns `dependency_unavailable`, backend actions reject with the same typed
+reason, native surfaces show a non-destructive unavailable state, and no private Tailor adapter,
+copied table, schema guess, or fixture may simulate availability. The v02.201 refinement and its
+MT contracts do not activate, merge, or weaken this dependency gate.
+
+---
+
+## 13.34 Native UI and Parallel Backend Operation [ADD v02.201]
+
+**[TAI-UX-001]** The required top-level surface ids are:
+`tailor.project`, `tailor.pattern`, `tailor.arrangement`, `tailor.sewing`, `tailor.simulation`,
+`tailor.fabric`, `tailor.material`, `tailor.modular`, `tailor.pattern_archive`,
+`tailor.retopology`, `tailor.styles`, `tailor.bodykit.creator`, `tailor.bodykit.face`,
+`tailor.bodykit.genitals`, `tailor.bodykit.rig`, `tailor.bodykit.content`, `tailor.shader`,
+`tailor.render`, `tailor.dcc`, `tailor.diagnostics`, `tailor.capabilities`, and `tailor.help`.
+Subpanes and dynamic controls follow the 13.30 element-id grammar. Renaming display text MUST NOT
+break automation or stored navigation receipts.
+
+**[TAI-UX-002]** The native workspace MUST provide coherent project/selection/undo state across
+2D pattern, 3D viewport, properties, timeline, library, diagnostics and help. Selection in one
+projection highlights the same stable entities elsewhere. Long jobs show owner, state, progress,
+current accepted checkpoint, cancel/pause/resume/retry, blocking finding and artifact/trace links.
+Unsaved, stale, incompatible, conflict and fallback states MUST be visible before apply/export.
+
+**[TAI-UX-003]** AccessKit coverage is required for every actionable control, collection item,
+canvas selection proxy, job state, validation finding and dialog. Keyboard-only operation,
+logical focus order, scalable text, high-contrast state distinctions and non-color-only warnings
+are qualification requirements. Responsive tests cover wide desktop, constrained desktop and
+minimum supported window without overlap, clipped critical state or unreachable recovery.
+
+**[TAI-UX-004]** Argus MUST inspect the semantic tree and capture exact visual matrices for empty,
+loading, populated, selected, editing, preview/diff, conflict, validation failure, device failure,
+DCC unavailable, job cancelled, recovery and success states. Renderer-console errors, missing
+controls, overlap, hidden authoritative state and disagreement with backend receipts fail the
+surface. Direct inspection of the resulting screenshot/capture against its declared reference is
+mandatory; snapshot metadata alone is insufficient.
+
+**[TAI-UX-005]** Every core UI workflow has backend navigation and action parity. Parallel models
+can discover projects, surfaces, selected entities, action schemas, active leases/jobs, conflicts,
+findings, artifacts, traces and UserManual anchors without screen scraping. Actions are
+attributable and recoverable and do not steal focus, capture keyboard input, raise foreground DCC
+windows, or depend on hidden session context.
+
+---
+
+## 13.35 DCC Qualification, Diagnostics, and UserManual [ADD v02.201]
+
+### 35.1 Black-Box DCC Harness
+
+**[TAI-QA-001]** Marvelous Designer and Daz Studio are reference/interop systems, not Tailor build
+dependencies. `TailorDccQualificationRunV1` MUST record configured executable/product identity,
+version, binary hash when available, plugin/API version, fixture and input hashes, automation
+method, start/end state, structured logs, exported artifacts, imported Tailor artifacts, visual
+comparison set, capability rows evaluated, limitations and verdict. Machine-local roots live in
+ignored operator configuration; spec, tests, manuals and persisted portable projects use logical
+root handles and relative paths.
+
+**[TAI-QA-002]** Qualification uses documented scripting/plugin APIs, supported formats, operator-
+driven reference captures and exported files. Decompilation, undocumented memory inspection and
+shipping proprietary runtimes/assets are prohibited. Interactive DCC steps that cannot be made
+headless are declared manual fixtures and never launched automatically; automated steps remain
+quiet, bounded, cancellable, observable and non-focus-stealing.
+
+**[TAI-QA-003]** The harness MUST cover Tailor->DCC, DCC->Tailor where supported, and Tailor-only
+native completion. It checks units/axes, topology, panels/seams, UVs/materials, rig/weights,
+morphs/correctives, poses/animation, genital attachments and shapes, hair/fur, render settings
+that have a supported mapping, unsupported-data reporting, artifact integrity and visual results.
+Metrics prefilter; an independent validator directly inspects representative artifacts before a
+capability row becomes qualified.
+
+### 35.2 Diagnostic Classification
+
+**[TAI-QA-004]** internal_diagnostics MUST expose bounded health/detail/remediation records for
+solver profiles, device state, render jobs, project integrity, action/catalog parity, schema/
+version compatibility, pillar availability, DCC configuration, import/export, artifact integrity
+and UserManual coverage. Each error carries a stable code, affected entity/action/run, current
+state, evidence handles, retryability, recovery actions and escalation boundary.
+
+**[TAI-QA-005]** Palmistry watches only long-running native jobs, external processes and bounded
+progress obligations. Flight Recorder projects authority and job lifecycle events. Registry,
+schema, profile and manual work declares these tiers as projection/diagnostic consumers unless it
+actually owns a job or external process. Contradictory diagnostic posture is a semantic-contract
+failure.
+
+### 35.3 Task-Oriented UserManual
+
+**[TAI-QA-006]** Tailor UserManual coverage MUST be task-oriented, not four generic chapter labels.
+Stable entries cover at least: create/recover a project; configure DCC roots; draft and sew a
+garment; arrange and simulate; diagnose cloth instability/contact; measure/calibrate fabric;
+compose modular garments; use Pattern Archive; retopologize and transfer attributes; author
+styles/colorways; create a body; author face and genitals; stage pose/contact; fit clothing;
+manage Smart Content; build shaders/layers; groom hair/fur; lip-sync; render stills/animation/AOVs;
+queue/cancel/recover renders; import/migrate/export; use PoseKit/character sheets/mix graphs;
+resolve parallel conflicts; inspect diagnostics; qualify vendor parity; and recover from device,
+solver, artifact, schema, pillar and DCC failures.
+
+**[TAI-QA-007]** Every entry provides purpose, prerequisites, exact action ids and surface paths,
+inputs/outputs, preview/apply and cancellation semantics, visible success state, generated
+artifacts/events/receipts, safety and authority constraints, common failures, diagnostics lookup,
+recovery, related tasks and version compatibility. Action/catalog/manual parity is mechanical and
+same-change: an exposed Tailor action without a live manual anchor, or a manual action absent from
+the catalog, fails the build.
+
+---
+
+## 13.36 Input Lock, Semantic Gates, and Professional End-to-End Proof [ADD v02.201]
+
+**[TAI-GATE-001]** Before solver, renderer, DCC or performance implementation consumes production
+constants, a versioned `TailorQualificationProfileV1` MUST lock the supported hardware/adapters,
+wgpu features/limits, solver lane profiles, SI/unit conversions, material calibration fixtures,
+mesh/scene scales, contact/strain/convergence tolerances, performance budgets, DCC versions/
+hashes/APIs, comparison fixtures and artifact-inspection sampling. Unknown values remain explicit
+and block only their dependent qualification; models MUST NOT fill them from memory.
+
+**[TAI-GATE-002]** The Tailor semantic contract gate MUST verify active-spec bundle health,
+capability-to-spec anchors, independent requirement/qualification fields, canonical action/event/
+schema/surface/manual ownership, dependency/interface existence, product-fixture placement,
+operation diagnostic posture, GUI/Argus ownership, task-specific manual anchors, portable paths,
+and absence of stale defer/out-of-scope contradictions. Structural JSON validity and DAG acyclicity
+alone are insufficient.
+
+**[TAI-GATE-003]** Runtime and test fixtures belong under product testdata/fixture roots; `.GOV`
+may retain only governance contracts, manifests and receipts. Product jobs MUST NOT write runtime
+artifacts into `.GOV`. Portable fixture manifests use repo-root/configured-root discovery and
+content hashes rather than user-profile paths or drive letters.
+
+**[TAI-GATE-004]** Professional completion requires a no-context end-to-end proof that creates or
+recovers a project; creates and customizes a body including detailed genitals; imports or authors a
+pose/contact proposal; drafts/sews/fits/simulates a garment through interactive and final lanes;
+authors fabric, PBR/layered materials, style/colorway and groom; renders a native still/animation
+with AOVs; performs required exports and black-box DCC round trips; resolves one injected device/
+solver/DCC failure and one parallel-edit conflict; inspects Argus captures and diagnostics; and
+replays authority from EventLedger with artifacts, Flight Recorder projection and UserManual
+anchors consistent.
+
+**[TAI-GATE-005]** Completion evidence MUST include negative, cancellation, retry, idempotency,
+lease/conflict, partial-success, recovery, visual, accessibility, responsive-layout, artifact-
+integrity, DCC and directly inspected output cases. Optional pillar outages MUST be injected and
+MUST NOT block core project/save/edit/simulate/render/export operation. No activation, readiness,
+marketing or parity state may infer PASS from the existence of these clauses; runtime evidence and
+an independent future validator remain mandatory.
+
+---
+
+## 13.37 BodyKit-v2 Native Runtime and Dependency Authority [ADD v02.203]
+
+The clauses in 13.37 through 13.45 are the newest Tailor and BodyKit authority. Where they conflict
+with 13.1 through 13.36, `GAR-LLM-004`, `R-ANIM-039`, the Blender/Python Alembic or FBX recipes in
+13.12, or any appendix summary, these clauses win. They preserve the complete earlier Cloth and
+BodyKit product scope while replacing incompatible implementation and interchange requirements.
+
+**[TAI-V2-RUN-001]** Tailor remains one Handshake module with two cooperating product submodules,
+Cloth and BodyKit. BodyKit is not a separate application, service, database, shell, event store,
+action authority, renderer, asset store, diagnostic stack or manual. Cloth and BodyKit share
+`TailorProjectV1`, the action catalog, EventLedger authority, ArtifactStore, native viewport and
+render services, surface registry, dependency registry, semantic undo, diagnostics and receipts.
+
+**[TAI-V2-RUN-002]** Product backend, product frontend, command-line tools, acquisition tools,
+generated helpers, automated tests and shipped runtime code MUST be Rust-owned. Native UI uses the
+project's Rust UI stack and WP-KERNEL-012 shell contracts. A WebView, JavaScript application,
+Python UI, notebook, vendor application or DCC panel MUST NOT become a required Tailor surface.
+
+**[TAI-V2-RUN-003]** Python is prohibited in the Tailor build, runtime, generated programs,
+automation, plugin control, model preparation, tests and production dependency chain. Tailor MUST
+NOT execute `python`, `python3`, `py`, `pip`, `conda`, Blender `--python`, a `.py` file, a Python
+module, PyTorch, PyO3 or `libpython`. A dependency whose required path assumes Python MUST receive
+an owned Rust replacement for that path before it can qualify. Quarantined upstream reference
+source may be retained only as non-executed research evidence and MUST NOT enter a shipped bundle,
+build graph, process tree or acceptance proof.
+
+**[TAI-V2-RUN-004]** `adapter` is the one canonical Tailor term for a typed compatibility boundary
+to an optional external library, SDK, device or application. Earlier `bridge` wording is a
+compatibility alias only and MUST normalize to `adapter` in schemas, actions, diagnostics and
+manuals. An adapter MUST declare its Rust owner, ABI or file boundary, exact dependency identity,
+supported capabilities, loss model, failure modes, privacy/network behavior, removal behavior and
+qualification receipts. No claim that an adapter is removable, offline, equivalent or supported
+is valid until its declared verification proves that property.
+
+**[TAI-V2-RUN-005]** Tailor core is local-only and network-independent. Cloud inference, hosted
+generation, SaaS conversion, telemetry uploads, implicit license checks, runtime downloads and
+remote-compatible fallback transports are excluded from production acceptance. Networked
+acquisition is a separate explicit operator action; after acquisition, build, test, create, edit,
+evaluate, simulate, render, export, reload and recover MUST succeed with networking blocked.
+
+**[TAI-V2-RUN-006]** Dependency minimization means the smallest qualified dependency surface, not
+an unsupported claim of zero dependencies. Selection order is: owned Rust implementation; mature
+Rust crate with restricted features; Candle for local ML graphs; qualified Mojo ahead-of-time
+kernel behind a stable C ABI; owned Rust FFI to the ONNX Runtime C API; and TensorFlow C API only
+when every preceding lane is proven incapable for the required model. C or C++ vendor SDKs are
+allowed only as optional, pinned adapters when a Rust rewrite is not yet qualified and the core
+remains usable with that adapter removed. PyTorch and Python are never fallback lanes.
+
+**[TAI-V2-RUN-007]** Mojo is an optional compute-kernel language, not Tailor's application runtime,
+UI framework, state authority or automatic replacement for a model framework. A Mojo kernel MUST
+be ahead-of-time compiled, hash-pinned, callable through an owned ABI, deterministic within its
+declared tolerance, distributable under the selected license, and proven not to load or spawn
+Python. Candle is the preferred Rust model runtime when it can execute the required graph. The
+runtime registry chooses by an explicit qualified capability row, never by provider preference or
+silent availability probing.
+
+**[TAI-V2-RUN-008]** `TailorDependencyBundleV1` (`hsk.tailor.dependency_bundle@1`) is an immutable,
+content-addressed acquisition result. It records each crate, SDK, model, weight shard, tokenizer,
+configuration, shader, fixture and external binary by exact version or revision, source, SHA-256,
+BLAKE3, license text, feature flags, native ABI, transitive graph, build-script presence, platform,
+supersession and rollback identity. Missing content returns the required digest and an acquisition
+instruction; runtime code MUST NOT initiate a download.
+
+**[TAI-V2-RUN-009]** The Rust-owned dependency acquisition action runs only in an operator-approved
+networked phase, verifies publisher signatures or hashes when published, generates license and
+CycloneDX-compatible SBOM inventories, and writes a portable local bundle. Offline builds use a
+committed lockfile, Cargo source replacement or equivalent local registry, and `--frozen`. Update
+creates a new immutable bundle, reruns ABI/schema/output fixtures, compares SBOM and behavior, and
+retains the prior bundle for rollback.
+
+**[TAI-V2-RUN-010]** Capability discovery MUST distinguish `core`, `optional_native`,
+`optional_adapter`, `manual_qualification`, `unsupported` and `blocked_by_dependency`. Removing
+each optional ML runtime, vendor SDK, capture device, DCC adapter and interchange format MUST leave
+the Rust core buildable and usable for body authoring, native preview/render, canonical project
+save/recovery and at least the canonical loss-bounded export set.
+
+## 13.38 Provider-Neutral Anthropometric and High-Resolution Human Evaluation [ADD v02.203]
+
+**[TAI-V2-BDY-001]** `BodyProviderPackageV1` (`hsk.tailor.body_provider_package@1`) describes a
+local, immutable body or head model package without making its vendor schema authoritative. It
+records provider/version, model and topology identities, body regions, identity/expression/pose
+spaces, landmarks, measurement definitions, supported LODs, rig and corrective semantics,
+material/texture assets, runtime requirements, license classification, dependency-bundle handle,
+test fixtures and provenance. Package ingestion never grants product authority to provider files.
+
+**[TAI-V2-BDY-002]** `BodyEvaluatorV1` (`hsk.tailor.body_evaluator@1`) is the provider-neutral Rust
+contract for validated parameters plus optional observations to produce typed geometry, skeleton,
+landmarks, measurements, correctives, expression state, material bindings and evaluation
+diagnostics. Provider parameter names are mapped through explicit versioned correspondence; they
+MUST NOT leak into canonical `BodyRecipeV1` identity or silently alter cross-provider recipes.
+
+**[TAI-V2-BDY-002A]** `BodyHeadPackageV1` (`hsk.tailor.body_head_package@1`) is the canonical
+high-resolution head result. It records provider/package/version and hashes; topology and LOD
+identities; UVs, landmarks and material regions; eyes, teeth and tongue; skeleton, skinning,
+corrective and rig maps; FACS/ARKit/viseme correspondences; source/input hashes; deterministic
+seed/configuration; active qualification profile; ArtifactStore handles; validation receipts and
+derivation lineage. `BodySpec` and linked source packages remain authority; generated meshes and
+textures are derived artifacts and MUST NOT become hidden mutable state.
+
+**[TAI-V2-BDY-003]** Google GNM v3 is the default BodyKit-v2 anthropometric/head provider profile.
+Its weights, assets and configuration MUST be locally acquired, hash-locked and license-recorded;
+its evaluation path MUST be ported to or expressed through the qualified Rust runtime ladder in
+TAI-V2-RUN-006. A repository name, paper claim or converted graph is not qualification. Fixtures
+must prove identity, expression, pose, eyes, teeth, tongue, landmarks, topology, repeatability and
+export behavior against pinned references.
+
+**[TAI-V2-BDY-004]** A second high-resolution human provider, including a qualified MHR package,
+may supply full-body shape, pose, expression, nonlinear correctives and LOD evidence. It remains an
+optional provider until its exact source, license, assets and inference graph are admitted and its
+Python/PyTorch path has been replaced. It MUST NOT displace GNM v3 as the default or force a
+provider-specific topology into `TailorProjectV1`.
+
+**[TAI-V2-BDY-005]** `HeadBodyAssemblyV1` (`hsk.tailor.head_body_assembly@1`) binds a source body,
+source head, neck transition, skeleton, skinning, material set, groom attachments and LOD family by
+stable versioned correspondence. The assembly stores seam-region mapping, scale/axis/unit transforms,
+joint and expression remaps, tangent/normal policy, texture/material continuity, attachment rules,
+losses and validation evidence. Source packages remain independently replaceable and recoverable.
+
+**[TAI-V2-BDY-006]** `BodyResidualLayerV1` (`hsk.tailor.body_residual_layer@1`) stores high-detail
+geometry that cannot be represented faithfully by qualified parametric channels. Residuals are
+named, sparse where practical, region-masked, multiresolution, symmetric or asymmetric by explicit
+policy, bound to source topology/version, comparable, reversible and exportable. They never erase
+the underlying recipe, measurements, source shape or corrective provenance.
+
+**[TAI-V2-BDY-007]** Corrective regeneration is required when a committed change invalidates a
+qualified deformation sample domain, joint/skin relationship, topology correspondence, head/body
+seam, contact envelope or LOD transfer beyond thresholds in the active qualification profile.
+Residual authoring is required when a requested local form cannot be expressed within qualified
+parametric bounds without unwanted mutation of locked measurements/regions, or when scan/reference
+fitting retains stable structured detail outside the parameter basis. Thresholds and affected
+regions are measured inputs; unknown thresholds block the dependent apply instead of being guessed.
+
+**[TAI-V2-BDY-008]** The operator sees corrective and residual decisions before commit. Preview
+reports the proposed parametric delta, residual delta, correctives invalidated or regenerated,
+locked-region leakage, measurement residuals, topology/version impact, LOD impact, rig/contact
+impact, expected cost and recovery checkpoint. Apply is selective and revision-checked; reject or
+cancel leaves authoritative state unchanged.
+
+**[TAI-V2-BDY-009]** BodyKit supports source-first and assembled-character workflows. A source body,
+head, scan, recipe, morph pack, rig, material set or groom remains a linked versioned input; an
+assembled character records selected layers and overrides instead of destructively flattening them.
+Bake is an explicit derived artifact with a manifest back to every source, transform and loss.
+
+**[TAI-V2-BDY-010]** High-resolution native face creation includes independent identity and
+expression spaces, global-to-local facial regions, symmetry/asymmetry, eyelids and eye seating,
+jaw, lips and oral cavity, teeth, tongue, ears, neck transition, pore/wrinkle displacement,
+corrective shapes, FACS/ARKit/viseme mapping and animator-facing controls. Waist-up cinematic
+quality does not permit omission of the complete existing full-body, anatomy, genital, Cloth,
+rigging, pose/contact, LOD or export scope.
+
+**[TAI-V2-BDY-011]** Scan/reference fitting is a proposal pipeline over calibrated observations,
+not a direct overwrite. It records camera/calibration, landmarks or dense correspondences,
+occlusion masks, scale, fit stages, confidence/error fields, parameter and residual contributions,
+locked regions, rejected observations, before/after captures and deterministic seed. Single-view
+ambiguity is surfaced; it is never presented as measured anatomy.
+
+**[TAI-V2-BDY-012]** OpenRigLogic compatibility is implemented through an owned Rust evaluator and
+versioned neutral rig-logic graph. The official C++ implementation may be an optional fixture
+oracle during qualification, but it is not core runtime authority. Supported DNA/RigLogic layers,
+LOD behavior, GUI/raw controls, joint groups, blend shapes, animated maps, numerical tolerances and
+unsupported constructs are explicit. Import produces a neutral graph plus loss report; export
+never claims round-trip equivalence beyond proven fixtures.
+
+## 13.39 Performance, Capture, Appearance, and Conditioning [ADD v02.203]
+
+**[TAI-V2-PERF-001]** `BodyPerformanceTrackV1` (`hsk.tailor.body_performance_track@1`) is the
+canonical timestamped performance representation. It can carry head/body transforms, joints,
+canonical expression controls, visemes, gaze, eyelid events, tongue/jaw state, contact events,
+confidence, source timecode, calibration, discontinuities and source provenance. Producers such as
+manual keyframing, capture devices, audio solvers, imported animation or adapters map into this
+contract; none owns the character rig.
+
+**[TAI-V2-PERF-002]** Audio2Face is an allowed optional local adapter. It consumes a pre-acquired,
+hash-locked SDK/model bundle and emits `BodyPerformanceTrackV1`; it MUST NOT download models, use a
+cloud/NIM path, require Python preparation at build or runtime, mutate a rig directly, or become
+the only lip-sync route. The adapter records model identity, device, input-audio hash, control map,
+timing, confidence, losses, logs and deterministic/repeatability limits.
+
+**[TAI-V2-PERF-003]** Specialist capture hardware is allowed through Rust-owned adapters over a
+provider-neutral recorded stream contract. Color, depth, audio, inertial data, lens/intrinsic and
+extrinsic calibration, exposure, timecode, dropped frames, device identity and clock alignment are
+preserved by hash. Every supported live path has a record-and-replay fixture so evaluation and
+recovery remain possible with the device disconnected.
+
+**[TAI-V2-PERF-004]** Facial and body solve stages are explicit and independently replayable:
+ingest/synchronize, calibration, observation extraction, identity stabilization, expression/body
+solve, temporal filtering, retarget, corrective evaluation, contact/occlusion validation and
+publish. Each stage records inputs, parameters, confidence/error outputs, checkpoints and typed
+failure. Filtering MUST NOT erase blinks, saccades, lip closures, speech contacts or intentional
+high-frequency motion without a visible loss finding.
+
+**[TAI-V2-PERF-005]** Native performance editing includes takes, layers, clips, markers, timecode,
+dope sheet, curve editor, exact values, interpolation/tangents, retiming, loop/range, live/cached/
+final state, before/after compare and selective bake. Original capture and solver tracks are
+immutable inputs; edits and cleanup are reversible derived layers.
+
+**[TAI-V2-PERF-006]** Cinematic appearance supports render-time, shot-aware layers for expression
+wrinkles, skin compression/stretch, blood-flow or flush masks, sweat/wetness, tear meniscus/film,
+saliva and mouth wetness, eye moisture, subcutaneous/transmission approximations, peach fuzz and
+strand/card/guide grooms. Each effect has authored/effective values, mask/provenance, temporal
+behavior, quality tier, renderer support and interchange loss reporting.
+
+**[TAI-V2-PERF-007]** Eyes, eyelids, lashes, brows, lips, teeth, gums, tongue and oral cavity are a
+coupled cinematic validation group. Required checks include gaze convergence, cornea/iris/pupil
+orientation, lid-globe contact, blink closure, tear-line continuity, lip seal and rolling, teeth/
+gum/tongue collision, phoneme closure, specular continuity and temporal stability. A face render
+cannot qualify from skin topology alone.
+
+**[TAI-V2-PERF-008]** Neck, shoulder, clavicle, jaw, hyoid-visible surface, hairline, garment collar
+and groom attachments are a coupled waist-up deformation group. Pose, speech, gaze and cloth tests
+MUST expose seam sliding, volume loss, candy-wrapper twist, texture discontinuity, groom float,
+collar penetration and corrective pops across representative motion ranges.
+
+**[TAI-V2-PERF-009]** `BodyConditioningBundleV1` (`hsk.tailor.body_conditioning_bundle@1`) packages
+a render or sequence for local image/scene generation and downstream reconstruction. It contains
+beauty and typed AOVs plus camera, lights, color configuration, frame timing, body/garment/part IDs,
+depth, normals, position when enabled, optical motion, UV/material masks, albedo, roughness,
+metalness, emission, occlusion/contact, skeleton/landmarks, cryptomatte-compatible identifiers,
+source project/entity versions and artifact hashes. Missing or approximated channels are explicit.
+
+**[TAI-V2-PERF-010]** Conditioning images use EXR or another qualified lossless typed container for
+floating-point/multipart/arbitrary-channel data and a manifest for semantics. Channel names, types,
+dimensions, data windows, frame rates, transforms, units, color spaces and hashes MUST survive Rust
+decode/reload. Unsupported deep/DWA or other features fail with a typed capability result rather
+than flattening silently.
+
+## 13.40 Canonical Interchange, Blender, and Unreal [ADD v02.203]
+
+**[TAI-V2-IO-001]** `TailorInterchangeProfileV1` (`hsk.tailor.interchange_profile@1`) is the one
+versioned capability and loss matrix for import, export and DCC qualification. Each row identifies
+format/version, direction, payload classes, exact supported schemas/extensions, units/axes,
+materials/color, animation/cache semantics, importer/exporter identity, required adapter,
+automation class, known losses, typed unsupported cases and fixture receipts.
+
+**[TAI-V2-IO-002]** Deterministic GLB is the required Rust-owned portable mesh package for supported
+static/skinned meshes, joints, weights, morph targets, animation, cameras, punctual lights,
+textures and material projection. A BodyKit manifest carries semantics GLB cannot represent.
+Qualification requires independent Rust re-import plus the pinned Khronos validator where
+available; writer existence alone is not round-trip proof.
+
+**[TAI-V2-IO-003]** USD is the canonical high-fidelity scene/interchange direction for UsdSkel,
+mesh time samples, curves/groom, LOD variants/purposes, cameras, lights, material bindings and
+layered asset composition. Initial support MUST be restricted to the exact pure-Rust schemas that
+pass fixtures. USDA may be the first qualified encoding. USDC/USDZ or broader schema claims remain
+unsupported until independently proven; crate documentation is not evidence of project support.
+
+**[TAI-V2-IO-004]** OpenPBR-aligned fields are the canonical Tailor material vocabulary.
+MaterialX is the preferred rich interchange document where the qualified subset is supported.
+glTF PBR, UsdPreviewSurface and DCC-specific projections emit a machine-readable loss report for
+approximated, baked, dropped or color-transformed fields. OCIO configuration data is pinned; an
+owned Rust subset is preferred and an optional OCIO C adapter is allowed only for unimplemented
+qualified transforms.
+
+**[TAI-V2-IO-005]** FBX export is `unsupported` until a no-Python writer passes the structural and
+DCC qualification matrix. FBX import may be an optional pinned `ufbx`-class C adapter because that
+library is a loader, not a writer. Earlier mandatory Blender-mediated FBX export and any ban on a
+future qualified Rust writer are superseded. Capability discovery and UI export menus MUST show
+the actual direction and losses; they MUST NOT route silently through Blender.
+
+**[TAI-V2-IO-006]** Alembic export through generated Blender Python is removed. A limited native
+Alembic/Ogawa import adapter may qualify exact fixture classes; unsupported properties fail typed.
+For Tailor-owned time-varying geometry, use a qualified USD mesh-time-sample profile or native
+fixed-topology cache until a Rust-owned Alembic writer qualifies.
+
+**[TAI-V2-IO-007]** Blender is an optional manual qualification target because no verified
+non-Python automation surface is authoritative for the required arbitrary round trip. Tailor emits
+the canonical package and an operator checklist; the operator imports/opens/inspects and attaches
+captures and observations. The receipt records exact Blender executable/version/hash, startup
+hardening, package hashes, observed behavior and losses. Manual evidence MUST NOT be labeled
+headless, automated or deterministic application control.
+
+**[TAI-V2-IO-008]** Unreal automated qualification uses an optional pinned native C++ editor plugin
+or commandlet invoking supported Interchange/editor APIs; it runs locally with Python plugins
+disabled and returns structured JSON plus artifact/capture receipts. It verifies skeletal meshes,
+weights, morphs, animation, materials, grooms, LODs, cloth/cache, cameras and lights only for
+capabilities proven by the active engine/profile. Runtime-import or experimental format claims do
+not substitute for editor qualification.
+
+**[TAI-V2-IO-009]** Structural round-trip comparison covers topology and stable element mapping,
+positions, normals/tangents, UVs, material slots and textures, joints, bind/rest transforms,
+weights, morph deltas and animation weights, frame timing, caches, LOD membership, groom curves,
+cameras, lights, color metadata and conditioning channels against typed absolute/relative
+tolerances. Visual inspection is additional evidence, not a substitute for structural proof.
+
+**[TAI-V2-IO-010]** Export is a staged action: resolve capability; preflight source state and
+dependencies; select payload/profile; preview included and unsupported data; write atomically;
+validate and Rust-reload; optionally queue DCC qualification; publish manifest, hashes, losses and
+receipt. Partial success preserves artifacts but remains visibly non-qualified. Re-export is
+idempotent for identical input/profile versions.
+
+## 13.41 Project Authority, Collaboration, Privacy, and Shared Pillars [ADD v02.203]
+
+**[TAI-V2-PRJ-001]** PostgreSQL is the only Tailor database. Account, project, entity, revision,
+command, lease, job, finding, dependency, provider, interchange and artifact metadata use the
+project's canonical PostgreSQL/EventLedger authorities and resource-privacy rules. SQLite,
+embedded key-value stores, UI-local databases, vendor databases and sidecar files MUST NOT become
+mutable authority. Portable files are imports, exports, caches or immutable manifests.
+
+**[TAI-V2-PRJ-002]** A Tailor project supports create, open, close, save/checkpoint, save-as/fork,
+archive, recover, branch from checkpoint, compare, selective revert and deterministic replay.
+Each commit is atomic across authoritative entities/events, references immutable artifacts by
+hash, records actor/session/account/access-space, and exposes dirty, saving, saved, stale, conflict,
+partial and recovery state. Crash/restart recovery never relies on a viewport session.
+
+**[TAI-V2-PRJ-003]** Multiple Tailor projects may be open and active concurrently. UI project tabs,
+backend project handles, jobs, selections, layouts, caches, leases and receipts carry a stable
+`project_id`; no implicit global active project is accepted at backend boundaries. Background
+simulation, evaluation, render and export remain quiet and cannot steal focus or route completion
+into the wrong project.
+
+**[TAI-V2-PRJ-004]** CRDTs are used only for data with a documented convergent merge that preserves
+domain meaning, such as selected annotations, ordered collections or non-destructive graph layout.
+Geometry, recipes, morph/residual layers, rig graphs, weights, simulation inputs, caches and
+publication decisions use expected revisions, object/region leases, proposals and semantic merge.
+A CRDT is never introduced merely to avoid defining conflicts.
+
+**[TAI-V2-PRJ-005]** Parallel human and model actions are observable, attributable, revision-checked
+and recoverable. Discovery returns canonical backend totals separately from filtered/rendered rows,
+active actors/leases, proposals, jobs, findings and checkpoints. A model can open a second project,
+inspect or edit permitted entities, preview, apply, cancel and recover through stable routes without
+screen coordinates, hidden focus or another actor's session state.
+
+**[TAI-V2-PRJ-006]** Account/resource privacy applies to every Tailor project, source body, scan,
+reference image, capture stream, texture, garment, dependency/model bundle, generated mesh,
+performance track, conditioning pass, render, diagnostic capture, manual qualification and export.
+Derived data cannot widen access. PostgreSQL RLS/FORCE RLS, ArtifactStore/file brokering, logs,
+diagnostics, thumbnails, caches and model actions preserve the canonical principal and AccessSpace.
+
+**[TAI-V2-PRJ-007]** Loom/ProjectKnowledgeIndex stores discoverable stable references, provenance,
+decisions, recipes, qualifications, research and manual backlinks. Locus projects production work
+tracking only: assignments, claims, repair/QA queues, plans, occupancy and checkpoint coordination.
+This supersedes the spatial/contextual-reference description in TAI-INT-004. Neither pillar owns
+Tailor bytes, geometry, project state or mutation authority. A missing pillar returns a typed
+unavailable/stale result while core create/save/edit/simulate/render/export remains operational.
+
+**[TAI-V2-PRJ-008]** EventLedger owns authoritative Tailor lifecycle events. Flight Recorder is the
+canonical observable projection for command, project, job, adapter, dependency, import/export,
+render, qualification, failure and recovery timelines. Flight Recorder outage cannot block a valid
+authority commit; projection rebuild from EventLedger is deterministic and idempotent. Palmistry
+monitors only declared long-running jobs/external processes, and internal diagnostics owns bounded
+health/detail/remediation.
+
+**[TAI-V2-PRJ-009]** Project packages are relocatable. Stored identifiers use repository,
+configured-root, content-hash or logical external-root resolution rather than drive letters or user
+profiles. Move/restore tests cover project state, dependency bundles, source links, artifacts,
+grooms, caches, renders, DCC profiles and manual evidence with unavailable external roots reported
+as repairable typed references.
+
+**[TAI-V2-PRJ-010]** TAI-BK-239's obligation list is superseded by the complete active Handshake
+Build Rules set applicable to Tailor, including `HBR-PRIV-001..008`. Every BodyKit provider,
+package, head, source image/scan, capture, residual, corrective, performance track, preview, cache,
+export, render, log, trace and derived artifact contract carries an explicit
+`resource_privacy_obligation`. No Tailor MT, adapter or projection may omit privacy because its
+original v02.201 contract predates the account/resource-privacy pillar.
+
+## 13.42 Canonical BodyKit-v2 Primitives, Actions, and Tools [ADD v02.203]
+
+**[TAI-V2-ACT-001]** In addition to the five existing Tailor primitives, the canonical primitive
+registry includes `PRIM-TailorDependencyBundle`, `PRIM-BodyProviderPackage`,
+`PRIM-BodyEvaluator`, `PRIM-HeadBodyAssembly`, `PRIM-BodyResidualLayer`,
+`PRIM-BodyHeadPackage`, `PRIM-BodyPerformanceTrack`, `PRIM-BodyConditioningBundle`,
+`PRIM-TailorInterchangeProfile`, `PRIM-TailorActiveToolState` and
+`PRIM-BodyCinematicQualificationProfile`. Each maps one-to-one to the versioned schema named in
+these clauses and is discoverable by humans and models.
+
+**[TAI-V2-ACT-002]** Existing core compatibility routes remain supported, including
+`author_garment`, `simulate_garment`, `edit_garment`, `promote_garment`, `get_garment`,
+`estimate_fabric_params`, `author_body`, `edit_body`, `get_body`, `solve_measurements`,
+`randomize_body`, `pose_body`, `configure_genitals` and `export_body`. They resolve through the
+same canonical `tailor.{domain}.{verb}` actions as the GUI and MUST NOT form a second mutation API.
+
+**[TAI-V2-ACT-003]** The action catalog adds typed groups for `dependency`, `body-provider`,
+`body-evaluator`, `body-assembly`, `body-residual`, `body-corrective`, `body-scan`,
+`performance`, `capture`, `conditioning`, `interchange`, `surface`, `scene`, `selection`, `job`,
+`problem`, `history`, `manual` and `viewport`. Every mutation supports validate, preview/diff,
+apply, cancel/reject where meaningful, expected revision, lease/permission, semantic undo policy,
+events, artifacts, findings, idempotency and registered receipt/error schema.
+
+**[TAI-V2-ACT-004]** Required model/navigation reads include `tailor.surface.list`,
+`tailor.surface.open`, `tailor.scene.inspect`, `tailor.selection.get`, `tailor.job.list`,
+`tailor.problem.list`, `tailor.history.list`, `tailor.manual.resolve`,
+`tailor.viewport.inspect` and `tailor.viewport.capture`; `tailor.selection.set` is the corresponding
+revision-aware mutation. These routes expose stable ids and canonical backend state, not screen
+coordinates or a lossy accessibility scrape.
+
+**[TAI-V2-ACT-005]** `TailorActiveToolStateV1` (`hsk.tailor.active_tool_state@1`) covers 2D pattern,
+3D body/cloth, sewing, rigging, weights, retopology, masks, UV, material, contact and render-region
+editing. Shared tools include select/box/lasso, move/rotate/scale/combined transform, pivot and
+orientation, snapping, exact numeric entry with units/expressions, frame/orbit/pan/zoom, measure
+and pinned measurement, isolate/hide/lock/freeze, brush size/strength/falloff/symmetry, paint/
+smooth/relax/push-pull, mask algebra and preview/apply/reject/cancel.
+
+**[TAI-V2-ACT-006]** A manipulator exposes axis/plane constraints, local/global/view/normal
+orientation, pivot, snap source/target, coarse/fine adjustment, authored and effective numeric
+values, units, clamping/over-range, locked dependencies, preview delta, cancel-before-commit and
+one semantic command per commit. Keyboard and model equivalents invoke the same action. Drag
+sampling is projection state; only the final semantic command becomes authority.
+
+**[TAI-V2-ACT-007]** Stable UI element ids follow
+`tailor.{surface}.{entity_kind}.{stable_entity_id}.{control}`. Required examples include channel
+slider/numeric pairs, pinned measurements, rig-joint manipulators, expression weights, panel
+visibility, seam direction, render-job cancellation and diagnostic finding frame actions. Labels,
+row indexes, coordinates and timestamps are prohibited as identity.
+
+## 13.43 Native Operator Workspace and Top-Bar Integration [ADD v02.203]
+
+**[TAI-V2-UX-001]** WP-KERNEL-012 owns the Handshake shell and Tailor contributes through its
+versioned module/action/surface registries; Tailor MUST NOT implement a private shell. The module
+switcher registers `module_id=Tailor`, display label `TAILOR`, stable author id `module-tailor` and
+default route `tailor.project`. Project tabs select projects, the module switcher selects Tailor in
+the active pane, and pane-local task tabs select Tailor workspaces; these three navigation layers
+MUST remain distinct and restorable.
+
+**[TAI-V2-UX-002]** The Handshake top bar remains `FILE EDIT VIEW GO RUN HELP`. Tailor registers
+discoverable actions under those menus: project/import/export/publish; undo/redo/adjust-last/
+checkpoint compare; layout/pane/overlay/gizmo/quality; entity/finding/job/artifact/manual
+navigation; simulation/evaluation/bake/render/qualification job control; and contextual manual,
+capability and diagnostic access. Menu, command palette, shortcut, GUI control, backend/model call,
+replay and undo all resolve to one action descriptor and equivalent receipt.
+
+**[TAI-V2-UX-003]** Every professional Tailor task workspace composes the shared shell and project
+tabs, Tailor task strip, contextual tool-options strip, left active-tool rail, central 2D canvas/
+3D viewport/graph/image/timeline editor, right scene outliner or asset browser, right contextual
+Property Inspector, bottom timeline/jobs/problems/history drawer, persistent status strip and an
+optional on-canvas contextual action bar. Layouts are user/project scoped, versioned and recoverable.
+
+**[TAI-V2-UX-004]** Cloth task workspaces include Projects, Pattern, Sewing/Arrangement, Fabric Lab,
+Simulation, Retopology, Materials/Graphics, Styles/Modular/Pattern Archive, Render and Publish.
+BodyKit task workspaces include Shape, Measurements/Scan Fit, Geometry/Morph, Anatomy, Rig/Figure
+Setup, Weights/Transfer, Pose/Contact, Face/Performance, Skin/Materials, Groom, Animation,
+Conditioning, Render, Interchange and Publish. Display labels map to the stable surface registry;
+they do not create new backend authorities.
+
+**[TAI-V2-UX-005]** BodyKit Creator provides base figure/provider/preset/recipe browsing;
+search/favorites/recent/locked/pinned parameters; global and anatomical region accordions; slider
+plus exact numeric value, units, authored/effective state, reset and range/over-range feedback;
+deterministic global/region/channel randomization with locks; live measurements, numeric targets,
+residual/infeasible state and pinned viewport lines; partial recipe apply; synchronized before/
+after and recipe/reference comparison; and a persistent preview/diff/apply/revert bar.
+
+**[TAI-V2-UX-006]** The BodyKit viewport toolbar exposes camera preset, perspective/orthographic,
+quality and SubD/LOD, material/lighting mode, body/garment/groom visibility, skeleton, landmarks,
+measurements, contact/corrective/weight/error heatmaps, safe-frame and render/conditioning overlays.
+Mouse, pen and keyboard navigation support orbit, pan, zoom, frame, rotate and drag while exact
+state remains accessible through numeric controls and registered backend actions.
+
+**[TAI-V2-UX-007]** Detailed workspaces expose domain-native editors: morph stack and corrective/RBF
+graph; hierarchy, joint limits/orientation and rig solve debugger; weight brush/influence locks and
+heatmap; transfer correspondence/error overlay; identity/expression/FACS/ARKit/viseme face graph;
+anatomy close-ups; contact participants/axes/depth/IK/collision/feasibility; UDIM material layers
+and mask algebra; guide/strand/card groom tools; track outliner, dope sheet and curve editor;
+conditioning pass/channel browser; and export capability/loss/qualification inspectors.
+
+**[TAI-V2-UX-008]** Graph editors exist only for graph-shaped domains: coupling, mix/PoseKit,
+corrective/RBF/driver, rig solve and shader graphs. They use stable node/socket/edge ids, typed
+sockets, searchable add, groups/subgraphs, lock/bypass, missing-dependency state, validation,
+version diff and compare/revert. Tailor MUST NOT add a generic node graph that duplicates the
+action catalog, project graph or job scheduler.
+
+**[TAI-V2-UX-009]** The scene outliner includes body, garments, trims, skeletons, morph/residual/
+corrective layers, contacts, grooms, cameras, lights, environments, animation layers, linked
+assets, jobs and findings. Visibility, selection, isolate, lock and lease are distinct states. Asset
+browsing exposes thumbnails, tags, compatibility, dependency/version/provenance and missing/stale
+state. Filtered visible row counts are never presented as canonical backend totals.
+
+**[TAI-V2-UX-010]** History is durable semantic command history with actor, receipt and checkpoint,
+not session-only UI history. Compare supports split, wipe, side-by-side and overlay with synchronized
+camera, frame, lighting, display mode and authoritative parameter/entity/version diff. Revert or
+branch cannot rewind another actor's work; it creates a revision-checked proposal or new branch.
+
+**[TAI-V2-UX-011]** Jobs and Problems surfaces expose stable ids, owner/lease, entity/version,
+profile/device, phase, bounded progress, current accepted checkpoint, findings, logs, traces,
+receipts, artifacts and legal pause/cancel/resume/retry controls. Findings contain exact entity and
+units, evidence, source run, frame-in-2D/3D actions and authorized remediation. Background actions
+are quiet and never focus a DCC or capture operator input unexpectedly.
+
+**[TAI-V2-UX-012]** Every actionable control, canvas proxy, graph entity, timeline item, job and
+finding has AccessKit semantics, stable automation id, permission/undo policy, manual anchor and
+Argus inspection target. Visual matrices cover empty/loading/populated/editing/preview/diff/
+conflict/failure/cancel/retry/recovery/success, narrow and 4K layouts, DPI scaling, high contrast,
+reduced motion and concurrent human/model state. Direct screenshot inspection is mandatory.
+
+## 13.44 Cinematic Qualification and Professional Acceptance [ADD v02.203]
+
+**[TAI-V2-QA-001]** `BodyCinematicQualificationProfileV1`
+(`hsk.tailor.body_cinematic_qualification_profile@1`) pins provider/model/dependency bundles,
+topology and LODs, rig/corrective versions, renderer/device, color configuration, materials/grooms,
+camera/lens/light fixtures, pose/expression/performance sequences, image and temporal metrics,
+inspection sampling, tolerances and rejection rules. Unknown constants are explicit and block only
+their dependent claim.
+
+**[TAI-V2-QA-002]** Movie-production-ready, lifelike waist-up qualification requires representative
+close, medium and profile views; neutral and expressive face; speech and silence; blink/gaze/head/
+neck/shoulder motion; skin and wetness variation; hair/brow/lash interaction; garment collar and
+body contact; static frames and motion sequences; and final-quality plus interactive-tier renders.
+Full-resolution outputs and exact reference captures are opened and inspected, not judged by logs,
+thumbnails or aggregate metrics alone.
+
+**[TAI-V2-QA-003]** Frame QA checks silhouette/anatomy, identity preservation, skin displacement and
+shading, eye and mouth system, teeth/tongue, hairline/groom, neck/shoulder deformation, garment
+contact, material/color response, aliasing/noise, AOV integrity and absence of seam, penetration,
+floating, plasticity or topology artifacts. Each verdict cites the exact frame, camera, project
+revision, render profile, findings and reference.
+
+**[TAI-V2-QA-004]** Sequence QA checks identity and material stability, motion continuity, corrective
+pops, temporal shimmer/crawling, sliding/floating attachments, blink/gaze and lip-sync timing,
+contact stability, cloth/groom dynamics, cache gaps, dropped frames, motion/AOV consistency and
+deterministic replay within declared tolerance. Passing isolated hero frames cannot qualify a
+performance sequence.
+
+**[TAI-V2-QA-005]** Dependency proof includes Python/process-tree firewall; blocked-network airgap
+build and core runtime; exact hashes; frozen dependency resolution; license and SBOM inventory;
+security/deny/vet checks; adapter-removal matrix; missing-bundle recovery; immutable update and
+rollback. A dependency is not production-ready because it downloaded or compiled once.
+
+**[TAI-V2-QA-006]** Provider/runtime proof covers GNM-v3 default selection, optional provider
+removal, parameter/measurement/landmark correspondence, source-to-assembly provenance, residual
+and corrective decision rules, Rust evaluator determinism, Candle/Mojo/ONNX/TensorFlow precedence,
+OpenRigLogic compatibility and typed failure for unsupported graph operations.
+
+**[TAI-V2-QA-007]** Interchange proof covers Rust GLB and restricted USD structural reload,
+OpenPBR/MaterialX/color loss reports, EXR/conditioning reload, Unreal native commandlet receipts,
+manual Blender evidence, FBX/Alembic direction-specific unsupported results, portability and exact
+version/hash capture. No successful DCC opening can erase a structural mismatch or undeclared loss.
+
+**[TAI-V2-QA-008]** Professional end-to-end proof starts from an offline clean state and uses only
+the built-in UserManual and registered human/model routes to acquire from an already staged bundle;
+create or recover two parallel Tailor projects; build a GNM-v3-based assembled character; edit
+measurements, high-resolution face, anatomy, rig, weights, materials and groom; record or import a
+performance; author/final-fit/simulate Cloth; produce a lifelike waist-up still and sequence plus
+conditioning bundle; export/reload canonical formats; qualify Unreal and manual Blender paths;
+inject dependency, device, solver, adapter and parallel-edit failures; recover/replay; and verify
+PostgreSQL/EventLedger, privacy, artifacts, Flight Recorder, Loom/Locus references, diagnostics,
+Argus captures and receipts remain consistent.
+
+**[TAI-V2-QA-009]** Tailor/BodyKit-v2 completion requires independent validator PASS for all
+applicable capability rows and the exact artifacts above. The Master Spec, dependency manifests,
+MT completion, compiled binaries, generated files, metrics or self-authored receipts alone are not
+proof of product completion. Unsupported optional capabilities remain honest visible limitations
+and do not block core qualification unless the selected production profile requires them.
+
+## 13.45 Research Basis and Decision Record [ADD v02.203]
+
+**[TAI-V2-RES-001]** The v02.203 architecture is based on current source-level and official
+documentation review of Google GNM, Meta MHR, Epic OpenRigLogic and Unreal Interchange, NVIDIA
+Audio2Face-3D, Candle, Mojo AOT compilation, the ONNX Runtime C API, TensorFlow C, Khronos glTF,
+OpenUSD/UsdSkel, OpenPBR/MaterialX, Rust EXR support, Blender import/export behavior, professional
+DCC workspace patterns and Cargo offline supply-chain tooling. The versioned research URLs and
+selection/rejection rationale are recorded in the bundle changelog and WP refinement.
+
+**[TAI-V2-RES-002]** Selected directions are Rust-owned product/UI, GNM-v3 default through a
+provider-neutral evaluator, explicit source/assembly/residual/corrective layers, a canonical
+performance and conditioning contract, GLB plus restricted USD, OpenPBR/MaterialX, Unreal native
+commandlet qualification and manual Blender qualification. Rejected defaults are Python,
+PyTorch, cloud services, generated DCC scripts, Blender-mediated FBX/Alembic export, vendor schema
+authority, silent downloads, unqualified all-format USD claims and a generic everything-node graph.
+
+**[TAI-V2-RES-003]** Research does not freeze dependency choice forever. Any replacement or upgrade
+must compare current official source, implementation, tests, issues, release notes, benchmarks,
+license, maintenance, security, offline behavior, Rust integration, model/operator workflow and
+the active fixture corpus; create a new immutable dependency/interchange/provider profile; and pass
+the same no-Python, airgap, adapter-removal, structural, visual and temporal gates before activation.
+
+---

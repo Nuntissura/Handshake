@@ -36,6 +36,7 @@
     "format_version": "",
     "activation_required": true,
     "user_signature_required": true,
+    "user_signature": "ilja150820261604",
     "refinement_required_before_execution": true
   },
   "build_order": {
@@ -55,7 +56,7 @@
     ]
   },
   "spec_trace": {
-    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
     "roadmap_pointer": "Operator-directed remediation + capability WP (2026-07-21) closing the verified product-code gaps found in the WP-1 orchestration worktree audit (one-shot null-stdin CLI sessions, no model-initiated launch/steer surface, no worktree merge-back) and the WP-KERNEL-012 notes audit (no annotation layer, legacy TS/React notes editor still present, native prose diff deferred, VS Code/Antigravity parity gaps). Spec enrichment back-propagation required at refinement per GLOBAL-BUILD-083.",
     "roadmap_add_coverage": ""
   },
@@ -76,14 +77,13 @@
     "governance_artifact_stance": "Repo-governance-light for this stub + task-board row. All product changes (src/, app/ removal) go through the full WP lifecycle once activated: refinement (with red-team + research basis per GLOBAL-BUILD-077/081), USER_SIGNATURE, official packet contract, MT plan. Spec enrichments discovered at refinement propagate back into the master spec per GLOBAL-BUILD-083.",
     "operator_decisions_20260721": "- SINGLE WP: operator explicitly folded all remediation + new capability into ONE work packet; do not split without operator approval.\n- MT plan may be very large; the MT count is uncapped and any specific number is arbitrary - the binding constraint is that each MT is detailed enough for a no-context model to implement (GLOBAL-BUILD-064).\n- Everything built in Rust.\n- Handshake will take over repo-governance ACP duty in the near future; workflows must match what Anthropic/OpenAI harnesses already provide so the operator can run the same workflows through Handshake.\n- Handshake Roles: operator will make streamlined, Handshake-fitted successors of the current startup inject-prompt role protocols; used for Handshake and for future projects built by Handshake.\n- Straight model-to-model communication is required specifically for steering.\n- Notes ships annotations first; the concept expands to Studio and Stage in later WPs.\n- The legacy TS/React notes editor must be removed so nothing accidentally builds on it.\n- Operator judges the native notes module still far from professional-grade IDE (VS Code/Antigravity baseline).",
     "research_basis": "- SOURCES CHECKED (2026-07-21, two web research passes; full dossiers in session record):\n  - Steering/harness mechanics: code.claude.com CLI reference + headless + Agent SDK streaming docs (verified flags: --input-format stream-json, --output-format stream-json, --replay-user-messages, --session-id, -r/--resume, --fork-session, --append-system-prompt(-file), --agent/--agents, --json-schema, --bare, capabilities feature-detection incl. interrupt_receipt_v1; queued mid-run user messages since v2.1.205; SIGTERM/exit-143 supervisor semantics); anthropics/claude-code issues #24594 (stream-json under-documentation acknowledged) and #41665 + Roasbeef claude-agent-sdk-go cli-protocol.md (reverse-engineered control_request/interrupt); OpenAI Codex non-interactive + CLI reference (codex exec --json JSONL events, exec resume, --output-schema, sessions under ~/.codex/sessions) and codex app-server JSON-RPC guides (thread/start-resume-fork-rollback, turn/start, TURN/STEER, turn/interrupt, approval requests, stdio default / experimental WebSocket); agentclientprotocol.com (JSON-RPC over stdio, session/new-load-prompt-update-cancel, stop reasons, NO mid-turn steer, 40+ agents, official Rust crates agent-client-protocol + agent-client-protocol-schema, Claude adapter @agentclientprotocol/claude-agent-acp).\n  - Methodology: Anthropic 'Building Effective Agents' (workflow taxonomy: prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer; simplicity-first) and 'How we built our multi-agent research system' (orchestrator + parallel subagents; every worker prompt carries objective / output format / tool guidance / task boundaries / effort budget; synchronous execution named as their own steering gap; durable resume + rainbow deployments; LLM-as-judge evals); Claude Code sub-agents + hooks docs (agent definitions as role layer, SubagentStart/Stop + TaskCompleted hook events, background completion notifications, injection-scan of subagent reports).\n  - Annotations: github.com/modem-dev/hunk + hunk.dev (MIT, ~7.5k stars, active; agent-context sidecar JSON: changeset/file summaries + annotations {newRange, summary, rationale, author}; live-session comment targets hunk|hunkNumber|oldLine|newLine; NO drift handling; free-form author only); umputun/revdiff (explicit orphan-on-change policy); Gerrit CommentInfo/RobotCommentInfo (path+side+range anchor; robot_id/robot_run_id/properties/fix_suggestions; ported-comments re-anchoring); GitHub PR review comments API (line+side modern anchor; legacy diff-offset position deprecated; outdated-comment failure mode); reviewdog (filter modes for out-of-diff findings); Hypothesis fuzzy anchoring (multi-selector: position + quote + context, diff-match-patch Bitap fallback chain, perf caveat); git-notes (rejected: commit granularity, orphaning); VS Code Comment API (CommentController/CommentThread UI contract).\n  - Rust reuse: similar (already in Cargo.toml, Myers), imara-diff, diffy-imara (unified-patch parse), diff-match-patch-rs / dissimilar (fuzzy re-anchor engine), mpatch; agent-client-protocol crate.\n- SELECTED APPROACH: internal session model = Thread/Turn/Item with steer+interrupt (Codex app-server shape); transports = Claude stream-json bidirectional stdio first, Codex app-server JSON-RPC second, ACP crate as cross-agent abstraction; roles = append-overlay layer injected by harness at spawn; worker exit = structured output schema + hook-style completion events; annotations = hunk sidecar concept + Gerrit anchor/provenance + Hypothesis multi-selector re-anchoring on diff-match-patch-rs.\n- REJECTED: codex proto (superseded); MCP as steering plane (poll-only, side-channel at best); one-shot -p --resume chaining as the steering story (the architecture being remediated); full --system-prompt replacement for roles (destroys agentic scaffolding); git notes as annotation storage; diff-offset anchors (deprecated field-wide); reusing hunk's TypeScript code directly (concept-only reuse); relying on undocumented control-protocol subtypes beyond interrupt.\n- VALIDATION PLAN SEED: live runtime proof per lane (steer mid-run, interrupt, resume), end-to-end MT loop with zero polling, Windows-specific resume tests, CI contract tests pinned per CLI version range, annotation drift tests (edit-under-annotation, orphan determinism), removal build-green proof, parity-matrix completeness check.",
-    "microtask_plan_note": "PREP COMPLETE 2026-07-22: the full MT set (105 contracts, MT-001..MT-290 across 14 domain families; incl. the vendor-agnostic engine-capability MTs SC MT-011 ToolGate / MT-012 hooks / MT-013 scheduling / MT-014 primitives surface added per operator framing 2026-07-22) plus refinement.json, _MT_INDEX.json and ACTIVATION_READINESS.json are prepared ahead of activation in .GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/ (WP-KERNEL-STUDIO precedent). Activation remains gated per ACTIVATION_READINESS.json (upstream WP-1 / WP-CKC-posekit / WP-KERNEL-012 validation + merge, grounding re-check, USER_SIGNATURE). Original plan expectation kept below for provenance. MT plan authored at refinement. Expected shape: per-lane session-runtime MTs (stream-json transport, app-server transport, ACP layer, capability detection, resume), roles MTs (schema, injection, migration from .GOV/roles), model-to-model tool-surface MTs, MT-lifecycle signal MTs, worktree merge-back MTs, recording/diagnostics MTs, annotation-core MTs (schema, anchor, re-anchor, storage, tool surface, GUI), TS-editor removal MTs, and one parity-matrix MT family (one MT per gap row). MT count uncapped; every MT self-contained for a no-context model; status sync across MT/WP/task-board per GLOBAL-BUILD-073."
+    "microtask_plan_note": "Preservation-first status: the original 105 objectives remain, the 2026-08-14 VM-fleet and durable-workspace additions remain, and the 2026-08-15 SurrealDB authority family MT-331..346 is added. Only WP017 MTs with database assumptions are patched to SurrealDB; database-neutral MTs are not rewritten. EventLedger persistence fully transfers to SurrealDB and no-SQLite requirements remain. USER_SIGNATURE ilja150820261604 covers this full preserved-plus-expanded scope. Activation remains gated by ACTIVATION_READINESS.json, grounding refresh and official packet promotion."
   },
   "activation_contract": {
     "may_start_coder": false,
     "may_start_validator": false,
     "required_activation_steps": [
       "create_or_refresh_refinement",
-      "obtain_user_signature",
       "create_official_work_packet_contract",
       "move_task_board_entry_from_stub_to_ready_for_dev"
     ]
@@ -113,5 +113,61 @@
       "Merge-back never force-pushes; conflict resolution is operator-visible in the native merge UI.",
       "MT coverage: no silent truncation - every planned gap row and lifecycle behavior gets an MT or an explicit DEFERRED verdict."
     ]
+  },
+  "scope_additions_2026_08_14": {
+    "recorded_by": "KERNEL_BUILDER-20260814-004500",
+    "recorded_at_utc": "2026-08-14T03:30:00Z",
+    "operator_directives": [
+      "2026-08-14: expand WP-KERNEL-017 with a Kubernetes-style desired-state fleet reconciler for microVM agent workspaces (all Rust, heuristics-only, no K8s/Docker dependencies)",
+      "2026-08-14: expand WP-KERNEL-017 with Docker-style durable workspace volumes plus a content-addressed product handoff/promotion pipeline with lease-fenced GC"
+    ],
+    "new_mt_families": [
+      {
+        "family": "VF VM workspace fleet reconciler",
+        "mt_range": "MT-301..MT-308"
+      },
+      {
+        "family": "DW Durable workspace volumes and handoff",
+        "mt_range": "MT-321..MT-330"
+      }
+    ],
+    "id_allocation_note": "The prior _MT_INDEX ide_parity_gap_closure headroom ceiling (MT-320) is re-declared to MT-300; MT-301+ is allocated to the expansion families. Recorded here as the explicit reallocation decision.",
+    "research_basis": ".GOV/reference/wp_kernel_017_expansion_research/expansion-research-20260814.json",
+    "hardening": "Three-lens adversarial review (completeness, risk, governance) completed 2026-08-14 pre-signature; fixes recorded per-contract in hardening_pass_2026_08_14 blocks.",
+    "implementation_gate": "Implementation of MT-301..330 MUST NOT start until WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 IV batch verdicts return and frozen candidate df463aa6 merges to main.",
+    "activation_note": "These additions are outside the original two-pillar draft_scope framing; USER_SIGNATURE ilja150820261604 explicitly covers them alongside the original 105 MTs. Remaining activation gates are unchanged."
+  },
+  "scope_additions_2026_08_15": {
+    "recorded_by": "KERNEL_BUILDER",
+    "recorded_at_utc": "2026-08-15T00:00:00Z",
+    "operator_directives": [
+      "Change the Master Spec to SurrealDB first.",
+      "Audit every finished work packet and implemented microtask for required SurrealDB remediation.",
+      "Audit the product codebase for remaining PostgreSQL conversion/translation work.",
+      "Expand WP-KERNEL-017 with all findings so it is completely SurrealDB-dependent."
+    ],
+    "authority": {
+      "master_spec_version": "v02.205",
+      "physical_store": "Handshake-managed SurrealDB only",
+      "event_ledger": "semantic authority preserved on SurrealDB persistence",
+      "privacy": "authenticated record-user table/field permissions intersected with ResourceBroker; administrative credentials are invalid privacy proof",
+      "migration": "Fresh empty SurrealDB initialization plus SurrealKit rollouts; no PostgreSQL read/import/reconciliation/connectivity; EventLedger genesis is created directly in SurrealDB",
+      "prohibitions": ["PostgreSQL fallback", "PostgreSQL dual authority", "PostgreSQL runtime proof", "PgPool/sqlx-postgres escape from typed store", "SQLite authority/fallback/proof"]
+    },
+    "new_mt_families": [
+      {"family": "SD SurrealDB authority migration", "mt_range": "MT-331..MT-346", "closure_mt": "MT-346"}
+    ],
+    "audit_coverage": {
+    "boundary": "Every completed, validated, implemented and in-flight database-touched WP/MT plus every current product/config/test/fixture/launcher/installer match at the pinned product commit; historical artifacts are audit-only and are not rewritten.",
+    "pinned_product_commit": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "non_storage_postgres_or_sqlx_source_files_snapshot": 96,
+    "postgres_wired_backend_rust_test_files_snapshot": 204,
+    "sql_migrations": 298,
+    "trigger_or_plpgsql_migrations": 23,
+    "count_rule": "Snapshot counts are not acceptance boundaries. At pinned commit 6519f4e2827840642a6c0401ac31055469f09d3b, the reproducible non-storage source scan uses DATABASE_URL|PgPool|PgConnection|sqlx and the trigger scan uses CREATE TRIGGER|LANGUAGE plpgsql. MT-344 and MT-346 must classify all current matches at execution time; earlier 118/75/137 counts are stale and non-reproducible.",
+      "details": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json#surrealdb_pivot_2026_08_15"
+    },
+    "packet_wide_supersession": "Only database-affected WP017 MTs embed a binding SurrealDB translation contract; database-neutral MTs are preserved unchanged. Pre-pivot PostgreSQL snippets in affected MTs are non-executable semantic inventories and cannot authorize implementation or proof. MT-331..334 are hard predecessors for every storage-writing MT; activation must materialize the dependency edges before coder launch.",
+    "activation_note": "USER_SIGNATURE ilja150820261604 covers the full preserved scope plus MT-331..346. Official packet promotion remains required, and WP017 cannot close without MT-346 real-runtime proof."
   }
 }

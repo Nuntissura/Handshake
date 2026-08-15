@@ -14,7 +14,7 @@
   "title": "RD-MT161-NewFrEventKinds",
   "group": "RD Recording + diagnostics + manuals",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-161.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -26,7 +26,9 @@
   },
   "lifecycle": {
     "status": "PENDING",
-    "depends_on": [],
+    "depends_on": [
+      "MT-334"
+    ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
@@ -45,7 +47,7 @@
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs (existing ledger semantics KEPT AS-IS)",
       "src/backend/handshake_core/src/flight_recorder/span_repo.rs (KEPT AS-IS)",
       "src/backend/handshake_core/src/swarm_orchestration/** (call-site wiring belongs to the owning family MTs)",
-      "src/backend/handshake_core/src/process_ledger/** (PG ledger rows are MT-162)",
+      "src/backend/handshake_core/src/process_ledger/** (SurrealDB ledger records are MT-162)",
       "src/frontend/** (no native UI in this MT)"
     ],
     "acceptance_criteria": [
@@ -147,5 +149,28 @@
       "Stub catalogue refined: added FR-EVT-SESSION-STEER-REJECTED, FR-EVT-ROLE-INJECTION-REJECTED, FR-EVT-M2M variants as listed, and FR-EVT-ANNOTATION-DELETED (auditable destructive action); all additive and documented in-contract.",
       "Confirmed registry sync must be a governance-closeout step: swarm_orchestration/events.rs lines 9-20 document the exact same product-wave constraint and fold-later discipline for FR-EVT-SWARM-*."
     ]
+  },
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }

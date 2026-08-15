@@ -2,6 +2,15 @@
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "surrealdb_authority_v02_205": {
+    "status": "BINDING_PACKET_WIDE_INVARIANT",
+    "physical_authority": "Handshake-managed SurrealDB only",
+    "event_ledger_semantics": "PRESERVED_ON_SURREALDB",
+    "supersedes": "Any PostgreSQL, Postgres, PgPool, sqlx-postgres, SQL-DDL, JSONB, RLS, LISTEN-NOTIFY, pgvector, DATABASE_URL, PostgreSQL test-container, or PostgreSQL proof instruction elsewhere in this pre-pivot contract.",
+    "implementation_rule": "When this MT reads or writes durable product state it MUST use the typed SurrealDB boundary created by MT-331..MT-334 and the authenticated record-user plus ResourceBroker privacy contract from MT-333. It MUST NOT add a PostgreSQL fallback, parallel authority, direct pool escape, or runtime dependency.",
+    "proof_rule": "PostgreSQL-era fixtures and historical receipts do not prove this MT. Fresh real-SurrealDB proof is required for every storage-affected acceptance criterion; administrative SurrealDB credentials cannot prove privacy.",
+    "postgresql_data_migration": "NOT_REQUIRED: the current PostgreSQL database contains no valuable live information. No MT may connect to it, import from it, fall back to it, or use it as proof."
+  },
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
@@ -14,7 +23,7 @@
   "title": "AC-MT205-AnnotationRoutesApi",
   "group": "AC Annotation core",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-15T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-205.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -28,14 +37,15 @@
     "status": "PENDING",
     "depends_on": [
       "MT-203",
-      "MT-204"
+      "MT-204",
+      "MT-334"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Expose the annotation core over HTTP + IPC so the operator GUI (NA family) and clients can create/read/update/resolve/reply to annotations and preview fix applications, wiring MT-203 persistence and MT-204 re-anchoring behind axum routes that follow the incumbent workspace-scoped, identity-header, fail-closed permission pattern with typed errors. Includes the reviewdog-style out-of-visible-diff filter policy parameter (added | diff_context | file | nofilter) so a client controls which annotations surface for a given diff view.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/api/annotations.rs exporting `pub fn routes(state: AppState) -> Router` (axum 0.7), mirroring api/knowledge_documents.rs / api/knowledge_memory.rs conventions; (b) the one line mounting that router into the existing workspace API tree (in the incumbent router-composition site — find it: the module that nests knowledge_documents routes under /workspaces/{id}); (c) request/response DTOs; (d) integration tests. NO storage logic (call the MT-203 AnnotationStore), NO re-anchor math (call the MT-204 engine), NO model-tool governance (MT-206), NO GUI.\n\nDETAILED SPEC — routes under /workspaces/{workspace_id}/annotations (exact base path follows the incumbent workspace route prefix):\n1. POST /annotations — create (operator author from identity headers; body validated through the MT-201 constructor; 201 + the created record). POST /annotations/{id}/replies — thread reply (inherits subject/anchor from root via Annotation::reply_to). \n2. GET /annotations/{id} — load one. GET /annotations — list with query filters (path, author_kind, state, kind, created/updated window, thread) mapped to the MT-203 AnnotationFilter, keyset-paginated (cursor + bounded limit); the response echoes the cursor for the next page.\n3. PATCH /annotations/{id} — update body (optimistic; If-Match / version guard surfaced as a typed 409 on stale). POST /annotations/{id}/resolve and POST /annotations/{id}/reopen — state transitions calling MT-203 transition_state (typed 409 on StaleState).\n4. POST /annotations/{id}/reanchor — given caller-supplied current file/side text (or a server-resolved workspace path), run the MT-204 engine, persist via MT-203 reanchor_persist, emit the MT-161 FR event kind, and return the outcome (REANCHORED{confidence}|OUTDATED|ORPHANED). \n5. GET /annotations/{id}/apply-fix/preview — compute a fix-suggestion apply PREVIEW diff (via `similar`) WITHOUT mutating anything; refuses with a typed reason when the anchor is OUTDATED/ORPHANED. Actual application is MT-207; this route is preview-only.\n6. VISIBILITY FILTER: GET /annotations accepts `visibility` = added | diff_context | file | nofilter (reviewdog filter-mode semantics) plus the diff coordinates when needed; the server filters which annotations are returned for the given diff/file view. Default = file (all annotations for the file). Document the mode meanings.\n7. AUTH + identity: EVERY route requires the incumbent identity headers (x-hsk-actor-id, x-hsk-kernel-task-run-id, x-hsk-session-run-id; optional x-hsk-actor-kind, x-hsk-correlation-id) and FAILS CLOSED exactly like knowledge_documents.rs — missing actor-kind = least-privileged read-only, unknown token = 400, writes require explicitly asserted privilege validated server-side. Workspace scoping is enforced on every query (no cross-workspace read/write).\n8. Typed errors: a single AnnotationApiError -> StatusCode mapping (400 validation/unknown-actor, 401/403 permission, 404 not-found, 409 stale-state/version, 422 anchor OUTDATED/ORPHANED for preview, 503 PG-unavailable fail-closed) — no stringly 500s for expected conditions.\n9. IPC parity: expose the same operations over the in-process IPC surface the NA GUI uses (mirror how knowledge_documents is reached in-process), so the native app does not need the HTTP loopback for annotations.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read api/knowledge_documents.rs (routes() shape, identity headers, fail-closed actor-kind, append receipt pattern) and api/knowledge_memory.rs (the conventions knowledge_documents mirrors), and find the router-composition site that nests the workspace sub-routers.\n2. Implement api/annotations.rs routes calling ONLY the MT-203 store and MT-204 engine; no direct SQL, no re-anchor math inline.\n3. Add the reviewdog visibility filter parameter + the typed error enum + the IPC parity surface.\n4. Mount the router with the single composition-site line.\n5. Author integration tests (required-features test-utils) against managed PostgreSQL; register [[test]] in Cargo.toml.\n6. Add the UserManual entries for the operator-visible annotation operations (HBR-MAN same-change) and run proof targets; if PG is unavailable, record a typed NEEDS_MANAGED_RESOURCE_PROOF blocker.",
+    "summary": "GOAL: Expose the annotation core over HTTP + IPC so the operator GUI (NA family) and clients can create/read/update/resolve/reply to annotations and preview fix applications, wiring MT-203 persistence and MT-204 re-anchoring behind axum routes that follow the incumbent workspace-scoped, identity-header, fail-closed permission pattern with typed errors. Includes the reviewdog-style out-of-visible-diff filter policy parameter (added | diff_context | file | nofilter) so a client controls which annotations surface for a given diff view.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/api/annotations.rs exporting `pub fn routes(state: AppState) -> Router` (axum 0.7), mirroring api/knowledge_documents.rs / api/knowledge_memory.rs conventions; (b) the one line mounting that router into the existing workspace API tree (in the incumbent router-composition site — find it: the module that nests knowledge_documents routes under /workspaces/{id}); (c) request/response DTOs; (d) integration tests. NO storage logic (call the MT-203 AnnotationStore), NO re-anchor math (call the MT-204 engine), NO model-tool governance (MT-206), NO GUI.\n\nDETAILED SPEC — routes under /workspaces/{workspace_id}/annotations (exact base path follows the incumbent workspace route prefix):\n1. POST /annotations — create (operator author from identity headers; body validated through the MT-201 constructor; 201 + the created record). POST /annotations/{id}/replies — thread reply (inherits subject/anchor from root via Annotation::reply_to). \n2. GET /annotations/{id} — load one. GET /annotations — list with query filters (path, author_kind, state, kind, created/updated window, thread) mapped to the MT-203 AnnotationFilter, keyset-paginated (cursor + bounded limit); the response echoes the cursor for the next page.\n3. PATCH /annotations/{id} — update body (optimistic; If-Match / version guard surfaced as a typed 409 on stale). POST /annotations/{id}/resolve and POST /annotations/{id}/reopen — state transitions calling MT-203 transition_state (typed 409 on StaleState).\n4. POST /annotations/{id}/reanchor — given caller-supplied current file/side text (or a server-resolved workspace path), run the MT-204 engine, persist via MT-203 reanchor_persist, emit the MT-161 FR event kind, and return the outcome (REANCHORED{confidence}|OUTDATED|ORPHANED). \n5. GET /annotations/{id}/apply-fix/preview — compute a fix-suggestion apply PREVIEW diff (via `similar`) WITHOUT mutating anything; refuses with a typed reason when the anchor is OUTDATED/ORPHANED. Actual application is MT-207; this route is preview-only.\n6. VISIBILITY FILTER: GET /annotations accepts `visibility` = added | diff_context | file | nofilter (reviewdog filter-mode semantics) plus the diff coordinates when needed; the server filters which annotations are returned for the given diff/file view. Default = file (all annotations for the file). Document the mode meanings.\n7. AUTH + identity: EVERY route requires the incumbent identity headers (x-hsk-actor-id, x-hsk-kernel-task-run-id, x-hsk-session-run-id; optional x-hsk-actor-kind, x-hsk-correlation-id) and FAILS CLOSED exactly like knowledge_documents.rs — missing actor-kind = least-privileged read-only, unknown token = 400, writes require explicitly asserted privilege validated server-side. Workspace scoping is enforced on every query (no cross-workspace read/write).\n8. Typed errors: a single AnnotationApiError -> StatusCode mapping (400 validation/unknown-actor, 401/403 permission, 404 not-found, 409 stale-state/version, 422 anchor OUTDATED/ORPHANED for preview, 503 SurrealDB-unavailable fail-closed) — no stringly 500s for expected conditions.\n9. IPC parity: expose the same operations over the in-process IPC surface the NA GUI uses (mirror how knowledge_documents is reached in-process), so the native app does not need the HTTP loopback for annotations.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read api/knowledge_documents.rs (routes() shape, identity headers, fail-closed actor-kind, append receipt pattern) and api/knowledge_memory.rs (the conventions knowledge_documents mirrors), and find the router-composition site that nests the workspace sub-routers.\n2. Implement api/annotations.rs routes calling ONLY the MT-203 store and MT-204 engine; no direct SQL, no re-anchor math inline.\n3. Add the reviewdog visibility filter parameter + the typed error enum + the IPC parity surface.\n4. Mount the router with the single composition-site line.\n5. Author integration tests (required-features test-utils) against managed SurrealDB; register [[test]] in Cargo.toml.\n6. Add the UserManual entries for the operator-visible annotation operations (HBR-MAN same-change) and run proof targets; if SurrealDB is unavailable, record a typed NEEDS_MANAGED_RESOURCE_PROOF blocker.",
     "allowed_paths": [
       "src/backend/handshake_core/src/api/annotations.rs",
       "src/backend/handshake_core/src/api/mod.rs (module wiring only)",
@@ -65,7 +75,7 @@
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils annotation_routes -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
       "cargo build --manifest-path src/backend/handshake_core/Cargo.toml 2>&1 | tail -1",
-      "grep -rn 'sqlx::query\\|FROM annotation' src/backend/handshake_core/src/api/annotations.rs | wc -l | grep -q '^0$' (no inline SQL; calls the MT-203 store)",
+      "grep -rn 'SurrealDB SDK query\\|FROM annotation' src/backend/handshake_core/src/api/annotations.rs | wc -l | grep -q '^0$' (no inline SQL; calls the MT-203 store)",
       "grep -rn 'x-hsk-actor-id\\|x-hsk-session-run-id' src/backend/handshake_core/src/api/annotations.rs | grep -c 'x-hsk' | grep -qE '^[1-9]' (identity headers enforced)",
       "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
     ],
@@ -124,7 +134,7 @@
   "hbr_int_009_tier_obligations": [
     "FlightRecorder: WIRED — write/transition/reanchor routes leave EventLedger receipts (via the MT-203 store) and the reanchor route emits the MT-161 FR outcome event; a read is attributable but leaves no receipt.",
     "internal_diagnostics: WIRED — a single typed AnnotationApiError->StatusCode mapping covers every expected condition (400/401/403/404/409/422/503); no expected condition returns a stringly 500.",
-    "Palmistry: NOT_APPLICABLE-with-reason — request-scoped axum handlers over managed PostgreSQL; no long-running loop posture owned here."
+    "Palmistry: NOT_APPLICABLE-with-reason — request-scoped axum handlers over managed SurrealDB; no long-running loop posture owned here."
   ],
   "risk_if_missed": "Without the route/IPC surface the annotation core is unreachable by the GUI and clients: operators cannot create, resolve, or reply to annotations, re-anchoring never runs on real edits, cross-workspace scoping and fail-closed auth are re-invented per caller (a security regression), and stale-state writes clobber concurrent edits with no typed 409.",
   "handoff": {
@@ -148,7 +158,7 @@
       "CTRL-2 (RISK-2): list delegates to the MT-203 keyset AnnotationFilter with a mandatory bounded limit and echoes the next cursor; a grep proof asserts no inline SQL and a test proves stable paginated continuation.",
       "CTRL-3 (RISK-3): apply-fix preview is proven non-mutating (a test asserts no row/anchor change after the call) and returns a typed 422 for OUTDATED/ORPHANED anchors.",
       "CTRL-4 (RISK-4): resolve/reopen/PATCH pass the client's expected state/version to MT-203 transition_state/update_body and surface StaleState as a 409; a concurrency test asserts exactly one of two conflicting writes wins.",
-      "CTRL-5 (RISK-5): grep proof targets assert api/annotations.rs contains no `sqlx::query`/`FROM annotation` and no re-anchor algorithm; all persistence goes through the MT-203 trait and all re-anchoring through the MT-204 engine."
+      "CTRL-5 (RISK-5): grep proof targets assert api/annotations.rs contains no `SurrealDB SDK query`/`FROM annotation` and no re-anchor algorithm; all persistence goes through the MT-203 trait and all re-anchoring through the MT-204 engine."
     ]
   },
   "research_provenance": {
@@ -158,5 +168,19 @@
       "Model-facing tool access is NOT these HTTP routes: MT-206 wraps annotation_create/list/reply as governed mcp tools with mandatory session-stamped provenance and injection scanning; these routes are the operator/client surface.",
       "Re-anchor event emission (MT-161 FR kinds) happens at THIS route boundary because the MT-204 engine is I/O-free; the route is where the engine outcome is persisted and observed."
     ]
+  },
+  "surrealdb_translation_v02_205": {
+    "status": "BINDING",
+    "shared_predecessors": [
+      "MT-331",
+      "MT-332",
+      "MT-333",
+      "MT-334"
+    ],
+    "schema_rule": "Any embedded PostgreSQL DDL/SQL snippet is a semantic field/index/invariant inventory only. Implement it as SCHEMAFULL SurrealQL through SurrealKit; do not execute or mechanically transliterate the snippet.",
+    "concurrency_rule": "Translate advisory locks, SKIP LOCKED and row locks into SurrealDB transactions, durable lease/fencing records and conditional updates with equivalent tests.",
+    "notification_rule": "Translate LISTEN/NOTIFY into scoped SurrealDB live queries plus bounded resynchronization.",
+    "privacy_rule": "Translate RLS into authenticated record-user table/field PERMISSIONS intersected with ResourceBroker; administrative credentials cannot prove privacy.",
+    "proof_rule": "All named storage proofs run against real SurrealDB. No PostgreSQL process, driver, connection, fixture, environment variable or fallback is permitted."
   }
 }
