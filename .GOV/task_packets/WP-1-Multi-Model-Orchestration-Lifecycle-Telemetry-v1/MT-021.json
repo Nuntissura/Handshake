@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-021",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-08-15T05:59:00.3703222Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -52,25 +52,25 @@
     }
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T04:30:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T21:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260814-200552",
+    "ready_for_validation_at_utc": "2026-08-15T05:59:00.3703222Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V5: A declared diff check fails, required HBR dispositions are absent, and authenticated production Argus/Palmistry visual proof for the operator controls is not available. See integration_validation_v5_2026_08_14.",
-    "hbr_status": null,
+    "proof_status": "READY_FOR_VALIDATION_V6: product commit e7c4eacf. Exact production-socket WGC/Argus proof passed for Settings consent, both concurrency controls, and the WP-1 console in main and detached windows; six captures were directly inspected by the kernel builder and independently reviewed with no blocker. Quiet-focus audit passed 8/8, detached Settings/Settings-dialog/console integrations passed 30/30, project-tree authority regressions passed 10/10, screenshot identity units passed 10/10, settings-authority regressions passed, and git diff --check passed. The ignored focus-audit report was relocated to the required central Handshake_Artifacts tree.",
+    "hbr_status": "PASS_HBR_VIS_001_002_003_QUIET_001_PRIV_008_MAN_004_FOR_MT021: production WGC/Argus pixels and typed state proved the operator surfaces without focus stealing; consent-denial presentation exposes posture/reason without restricted identifiers; the internal UserManual seed covers the WP-1 settings and console behavior.",
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS",
+    "post_implementation_adversarial_review_status": "COMPLETED_INDEPENDENT_MULTI_LENS_2026-08-15",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "last_runtime_status_ref": "READY_FOR_VALIDATION_V6 at product commit e7c4eacf; exact production WGC/Argus, privacy, quiet-focus, settings-authority, and console gates green"
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -199,7 +199,29 @@
     "deliberately_not_done": "No Settings ROW was added for the coordinator cap. AC-3 is satisfied without one, and a second control also labelled 'concurrency' would need its own stable Argus author_id, pin-list entry, and before/after headless proof under AC-4/AC-6. Adding it untested to claim breadth would be the scaffold-pass this packet has already been failed for. Recorded in settings_dialog.rs as a follow-up so it is not lost.",
     "remediation_by": "KERNEL_BUILDER-20260801-214802"
   },
-  "validator_verdict": "FAIL_V5",
+  "v6_remediation_2026_08_15": {
+    "remediation_by": "KERNEL_BUILDER-20260814-200552",
+    "product_commit": "e7c4eacf",
+    "validator_verdict_remediated": "FAIL_V5",
+    "implemented": [
+      "Production WGC capture is bound to the exact HWND with PID, title, and bounds identity checks before and after capture; bounded same-process title retry handles transient WM_GETTEXT failure without selecting another window.",
+      "Settings preserves raw PostgreSQL authority, overlays only explicit operator deltas, rejects stale project/generation responses, and gates saves until exact canonical workspace authority resolves.",
+      "Cloud consent/export posture, runtime concurrency, Argus action admission, and the WP-1 console have stable operator-facing main and detached surfaces with explicit live connection state.",
+      "Provisional default-project state is cleared until canonical /workspaces authority resolves, preventing fabricated project selection and visible pre-authority 404 state.",
+      "The Handshake internal UserManual seed documents the work-packet controls and recovery behavior."
+    ],
+    "proofs": {
+      "production_settings_consent_concurrency_console_wgc": "1 passed, 0 failed; six main/detached captures inspected directly and independently",
+      "quiet_focus_audit": "8 passed, 0 failed",
+      "detached_settings_settings_dialog_console_integrations": "30 passed, 0 failed",
+      "project_tree_authority_regressions": "10 passed, 0 failed",
+      "screenshot_identity_units": "10 passed, 0 failed",
+      "git_diff_check": "exit 0"
+    },
+    "proof_artifacts_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-test",
+    "independent_review": "PASS: exact production captures, settings truthfulness/privacy, quiet operation, HWND binding, workspace authority, and stale-response behavior reviewed with no blocking finding."
+  },
+  "validator_verdict": "PENDING",
   "integration_validation_v5_2026_08_14": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
