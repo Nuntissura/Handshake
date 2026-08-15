@@ -32,8 +32,9 @@ use handshake_native::internal_diagnostics::{
 use handshake_native::pane_registry::PaneType;
 use handshake_native::swarm_lane_diagnostics::{
     lane_author_id, message_author_id, message_payload_author_id, message_promotion_author_id,
-    scoped_author_id, selected_message_author_id, EMPTY_MESSAGES_AUTHOR_ID, LANE_FILTER_AUTHOR_ID,
-    MESSAGE_FILTER_AUTHOR_ID, PRIVACY_ACCESS_SPACE_AUTHOR_ID, PRIVACY_DENIAL_AUTHOR_ID,
+    scoped_author_id, selected_message_author_id, EMPTY_MESSAGES_AUTHOR_ID, FRESHNESS_AUTHOR_ID,
+    LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID, PRIVACY_ACCESS_SPACE_AUTHOR_ID,
+    PRIVACY_DENIAL_AUTHOR_ID,
     PRIVACY_OWNER_AUTHOR_ID, PRIVACY_PRINCIPAL_AUTHOR_ID, PRIVACY_SESSION_AUTHOR_ID,
     PRIVACY_VISIBILITY_AUTHOR_ID, PRIVACY_WORKSPACE_AUTHOR_ID, REFRESH_AUTHOR_ID,
     RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
@@ -80,6 +81,28 @@ fn wait_for_author_id_absent(
         std::thread::sleep(Duration::from_millis(150));
     }
     panic!("author_id `{author_id}` remained visible in `{window_id}`: {last}");
+}
+
+fn wait_for_author_text_change(
+    client: &mut ArgusClient,
+    window_id: &str,
+    author_id: &str,
+    previous_text: &str,
+) -> serde_json::Value {
+    let deadline = Instant::now() + SURFACE_TIMEOUT;
+    let mut last = serde_json::Value::Null;
+    while Instant::now() < deadline {
+        last = client.inspect(window_id);
+        if contains_author_id(&last["snapshot"]["root"], author_id)
+            && node_text(require_node(&last["snapshot"]["root"], author_id)) != previous_text
+        {
+            return last;
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    panic!(
+        "author_id `{author_id}` did not change from `{previous_text}` in `{window_id}`: {last}"
+    );
 }
 
 fn landmark_inspection(root: &serde_json::Value, author_id: &str) -> serde_json::Value {
@@ -468,6 +491,22 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
     let capture_window_started_at_unix_ms = unix_ms();
     let mut app = LiveApp::start("mt008_diagnostics");
     app.open_models_menu_leaf("menu.models.swarm-lane-diagnostics");
+    // Capture the immediate post-navigation frame before waiting for the diagnostics landmark. This
+    // remains useful on the failure path (where the normal proof matrix is never reached) and makes a
+    // production-only layout/accessibility regression directly inspectable instead of leaving only an
+    // author-id list. The final proof manifest below still owns the accepted capture matrix.
+    let navigation_shot = app.client.screenshot("main");
+    let navigation_png = decode_verified_capture(
+        &navigation_shot,
+        "main",
+        app.child_pid,
+        "MT-008 immediate post-navigation diagnostic capture",
+    );
+    let navigation_dir = proof_dir();
+    std::fs::create_dir_all(&navigation_dir)
+        .expect("create MT-008 post-navigation diagnostic directory");
+    std::fs::write(navigation_dir.join("mt008-navigation.png"), &navigation_png)
+        .expect("write MT-008 post-navigation diagnostic capture");
     let discovered_surface = wait_for_author_id_between(
         &mut app.client,
         "main",
@@ -475,9 +514,9 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         "",
         SURFACE_TIMEOUT,
     );
-    let opened = app.client.inspect("main");
+    let initial_opened = app.client.inspect("main");
     let pane_id = pane_id_hosting(
-        &opened["snapshot"]["root"],
+        &initial_opened["snapshot"]["root"],
         &PaneType::SwarmLaneDiagnostics.label(),
     );
     assert_eq!(
@@ -485,6 +524,19 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         scoped_author_id(&pane_id, SURFACE_AUTHOR_ID),
         "the live diagnostics surface must belong to its actual pane"
     );
+
+    // The pane shell is synchronous, while its backend projection is fetched on
+    // the native runtime.  Wait for one projection-owned privacy landmark before
+    // taking the decisive snapshot so a slow real PostgreSQL read cannot be
+    // mistaken for a missing exact-scope contract.
+    wait_for_author_id_between(
+        &mut app.client,
+        "main",
+        &scoped_author_id(&pane_id, PRIVACY_OWNER_AUTHOR_ID),
+        "",
+        SURFACE_TIMEOUT,
+    );
+    let opened = app.client.inspect("main");
 
     for author_id in [
         PRIVACY_OWNER_AUTHOR_ID,
@@ -727,7 +779,18 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
     // Drive every deep-link/filter control through authenticated production-socket mutations. The
     // run filter is followed by the real Refresh action, proving it addresses backend state rather
     // than merely changing a textbox.
+    let freshness_author_id = scoped_author_id(&pane_id, FRESHNESS_AUTHOR_ID);
+    let initial_freshness = node_text(require_node(
+        &opened["snapshot"]["root"],
+        &freshness_author_id,
+    ));
     let run_filter = scoped_author_id(&pane_id, RUN_FILTER_AUTHOR_ID);
+    let run_filter_clear_receipt = app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        &run_filter,
+        Some(("value", serde_json::json!(""))),
+    );
     let run_filter_receipt = app.client.mutation_on_live_surface(
         "argus.set_value",
         "main",
@@ -740,7 +803,12 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         &scoped_author_id(&pane_id, REFRESH_AUTHOR_ID),
         None,
     );
-    let refreshed = wait_for_author_id(&mut app.client, "main", &run_row, SURFACE_TIMEOUT);
+    let refreshed = wait_for_author_text_change(
+        &mut app.client,
+        "main",
+        &freshness_author_id,
+        &initial_freshness,
+    );
     assert_eq!(
         node_value(require_node(&refreshed["snapshot"]["root"], &run_filter)),
         run_id,
@@ -760,12 +828,7 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         &scoped_author_id(&pane_id, &lane_author_id(&lane_id)),
         SURFACE_TIMEOUT,
     );
-    let lane_clear_receipt = app.client.mutation_on_live_surface(
-        "argus.set_value",
-        "main",
-        &lane_filter,
-        Some(("value", serde_json::json!(""))),
-    );
+    let message_filter = scoped_author_id(&pane_id, MESSAGE_FILTER_AUTHOR_ID);
     wait_for_author_id(
         &mut app.client,
         "main",
@@ -773,7 +836,6 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         SURFACE_TIMEOUT,
     );
 
-    let message_filter = scoped_author_id(&pane_id, MESSAGE_FILTER_AUTHOR_ID);
     let message_filter_receipt = app.client.mutation_on_live_surface(
         "argus.set_value",
         "main",
@@ -1198,7 +1260,10 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         assert!(
             response["result"]["evidence_ref"]
                 .as_str()
-                .is_some_and(|value| value.starts_with("native-action-log://")),
+                .is_some_and(|value| {
+                    value.starts_with("native-action-log://")
+                        || value.starts_with("eventledger://kernel/")
+                }),
             "{operation} omitted its dereferenceable action evidence"
         );
         serde_json::json!({
@@ -1246,10 +1311,10 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
             "renderer_error_scan_sha256": sha256_hex(&renderer_scan_bytes),
         },
         "receipts": {
+            "run_filter_clear": receipt("run_filter_clear", "argus.set_value", "main", &run_filter, &run_filter_clear_receipt),
             "run_filter": receipt("run_filter", "argus.set_value", "main", &run_filter, &run_filter_receipt),
             "run_refresh": receipt("run_refresh", "argus.click", "main", &scoped_author_id(&pane_id, REFRESH_AUTHOR_ID), &refresh_receipt),
             "lane_filter": receipt("lane_filter", "argus.set_value", "main", &lane_filter, &lane_filter_receipt),
-            "lane_filter_clear": receipt("lane_filter_clear", "argus.set_value", "main", &lane_filter, &lane_clear_receipt),
             "message_filter": receipt("message_filter", "argus.set_value", "main", &message_filter, &message_filter_receipt),
             "payload_drilldown": receipt("payload_drilldown", "argus.click", "main", &payload_author_id, &payload_receipt),
             "promotion_drilldown": receipt("promotion_drilldown", "argus.click", "main", &promotion_author_id, &promotion_receipt),

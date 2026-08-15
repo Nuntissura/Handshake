@@ -13,7 +13,15 @@ use serde::Serialize;
 
 pub const MAIN_WINDOW_ID: &str = "main";
 pub const MAX_AGENT_LABEL_BYTES: usize = 64;
-pub const ACTION_RECEIPT_TIMEOUT: Duration = Duration::from_secs(3);
+// A receipt spans at least one real native render after its input is drained. Handshake commonly
+// runs alongside model builds and local inference, where a valid GPU-backed frame can exceed three
+// seconds; keep this bounded below the production socket's 15-second read timeout while allowing a
+// slow frame to publish the action-specific postcondition instead of creating a false terminal
+// failure.
+pub const ACTION_RECEIPT_TIMEOUT: Duration = Duration::from_secs(10);
+pub const ACTION_RECEIPT_DURABILITY_TIMEOUT: Duration = Duration::from_secs(5);
+pub const ACTION_RECEIPT_TRANSPORT_MARGIN: Duration = Duration::from_secs(2);
+pub const ACTION_RECEIPT_TRANSPORT_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ArgusWindowDescriptor {
@@ -770,6 +778,16 @@ mod tests {
     use super::*;
     use egui::accesskit::{Node, NodeId, Role, Tree, TreeUpdate};
     use egui::Plugin;
+
+    #[test]
+    fn receipt_transport_budget_exceeds_wait_and_durability_with_margin() {
+        assert!(
+            ACTION_RECEIPT_TRANSPORT_TIMEOUT
+                > ACTION_RECEIPT_TIMEOUT
+                    + ACTION_RECEIPT_DURABILITY_TIMEOUT
+                    + ACTION_RECEIPT_TRANSPORT_MARGIN
+        );
+    }
 
     fn tree_with_duplicate(duplicate: bool) -> UiTreeSnapshot {
         let child = UiTreeNode {

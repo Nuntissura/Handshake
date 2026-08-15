@@ -72,6 +72,12 @@ fn main() -> eframe::Result<()> {
             .with_title("Handshake")
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([640.0, 480.0]),
+        // Handshake owns workbench layout persistence in PostgreSQL. eframe's independent local
+        // window-state store can outlive or bypass that authority and, on Windows, restore a stale
+        // sub-minimum main HWND (observed at 80x103 px), clipping the entire central work surface.
+        // Start the root viewport from the explicit usable geometry above; pane/pop-out state remains
+        // governed by the product layout lifecycle.
+        persist_window: false,
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };

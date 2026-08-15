@@ -375,7 +375,9 @@ pub fn assert_visual_png(png: &[u8], context: &str) {
 
 pub fn rpc(addr: &str, request: &serde_json::Value) -> std::io::Result<serde_json::Value> {
     let stream = TcpStream::connect(addr)?;
-    stream.set_read_timeout(Some(Duration::from_secs(15)))?;
+    stream.set_read_timeout(Some(
+        handshake_native::mcp::ACTION_RECEIPT_TRANSPORT_TIMEOUT,
+    ))?;
     let mut writer = stream.try_clone()?;
     serde_json::to_writer(&mut writer, request)
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
@@ -942,7 +944,10 @@ impl LiveApp {
     /// Close the production child through a real WM_CLOSE and prove the owned binding is reclaimed.
     pub fn shutdown(mut self) {
         request_child_close(self.child_pid);
-        let exit_deadline = Instant::now() + Duration::from_secs(10);
+        // A real WM_CLOSE can legitimately wait for the product's bounded persistence/diagnostics
+        // teardown. Keep the proof non-destructive (never terminate the child) while allowing the
+        // slower loaded-machine path observed in production, which completed just after ten seconds.
+        let exit_deadline = Instant::now() + Duration::from_secs(20);
         while Instant::now() < exit_deadline {
             if self
                 .child

@@ -436,16 +436,18 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
         };
 
         let pane_id: &str = ctx.record.pane_id.as_ref();
-        let surface_id = ctx.egui_id.with("swarm-lane-diagnostics-surface");
-        ui.ctx().accesskit_node_builder(surface_id, |node| {
-            node.set_role(accesskit::Role::Group);
-            node.set_author_id(scoped_author_id(pane_id, SURFACE_AUTHOR_ID));
-            node.set_label("Swarm Lane Diagnostics".to_owned());
-        });
 
         let mut fetch_after_render: Option<String> = None;
         ui.vertical(|ui| {
-            ui.heading("Swarm Lane Diagnostics");
+            // Bind the surface landmark to the rendered heading response. Builder-only custom nodes
+            // are discoverable but receive no AccessKit bounds; a genuine widget response supplies
+            // positive live geometry for Argus validation and visual correlation.
+            let heading = ui.heading("Swarm Lane Diagnostics");
+            ui.ctx().accesskit_node_builder(heading.id, |node| {
+                node.set_role(accesskit::Role::Group);
+                node.set_author_id(scoped_author_id(pane_id, SURFACE_AUTHOR_ID));
+                node.set_label("Swarm Lane Diagnostics".to_owned());
+            });
             ui.horizontal(|ui| {
                 ui.label("Run");
                 let response = ui.add(
@@ -468,6 +470,10 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                     node.set_label("Refresh".to_owned());
                 });
                 if refresh.clicked() {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        &scoped_author_id(pane_id, REFRESH_AUTHOR_ID),
+                    );
                     fetch_after_render = Some(state.run_filter.clone());
                 }
             });
@@ -525,7 +531,35 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                 return;
             };
 
-            render_projection(ui, ctx, pane_id, &projection, &mut state);
+            // Keep the two operator-critical filter outcomes above the long scrollable telemetry body.
+            // AccessKit bounds alone are insufficient if the painted state is clipped below the pane.
+            let visible_message_ids = visible_message_ids_for_filters(
+                &projection,
+                state.lane_filter.as_str(),
+                state.message_filter.as_str(),
+            );
+            if visible_message_ids.is_empty() {
+                tagged_label(
+                    ui,
+                    ctx.egui_id.with("messages-empty"),
+                    &scoped_author_id(pane_id, EMPTY_MESSAGES_AUTHOR_ID),
+                    "No messages match the active lane/message filters.",
+                );
+            } else if let Some(selected) = state
+                .selected_message_id
+                .as_deref()
+                .filter(|id| visible_message_ids.iter().any(|visible| visible == *id))
+                .and_then(|id| projection.messages.iter().find(|message| message.message_id == id))
+            {
+                render_selected_message_summary(ui, ctx, pane_id, selected);
+            }
+
+            egui::ScrollArea::vertical()
+                .id_salt(ctx.egui_id.with("swarm-lane-diagnostics-scroll"))
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    render_projection(ui, ctx, pane_id, &projection, &mut state);
+                });
         });
         drop(state);
         if let Some(run_id) = fetch_after_render {
@@ -830,14 +864,6 @@ fn render_projection(
     {
         state.selected_message_id = None;
     }
-    if visible_message_ids.is_empty() {
-        tagged_label(
-            ui,
-            ctx.egui_id.with("messages-empty"),
-            &scoped_author_id(pane_id, EMPTY_MESSAGES_AUTHOR_ID),
-            "No messages match the active lane/message filters.",
-        );
-    }
     for message in projection
         .messages
         .iter()
@@ -866,6 +892,10 @@ fn render_projection(
                 node.set_label(format!("Message {}", message.message_id));
             });
             if row.clicked() {
+                crate::mcp::argus::acknowledge_action_effect(
+                    ui.ctx(),
+                    &scoped_author_id(pane_id, &message_author_id(&message.message_id)),
+                );
                 state.selected_message_id = Some(message.message_id.clone());
             }
 
@@ -877,6 +907,13 @@ fn render_projection(
                 format!("Payload {}", message.payload_ref),
             );
             if payload.clicked() {
+                crate::mcp::argus::acknowledge_action_effect(
+                    ui.ctx(),
+                    &scoped_author_id(
+                        pane_id,
+                        &message_payload_author_id(&message.message_id),
+                    ),
+                );
                 state.selected_message_id = Some(message.message_id.clone());
             }
 
@@ -888,49 +925,16 @@ fn render_projection(
                 format!("Promotion {}", message.promotion_state),
             );
             if promotion.clicked() {
+                crate::mcp::argus::acknowledge_action_effect(
+                    ui.ctx(),
+                    &scoped_author_id(
+                        pane_id,
+                        &message_promotion_author_id(&message.message_id),
+                    ),
+                );
                 state.selected_message_id = Some(message.message_id.clone());
             }
         });
-    }
-
-    if let Some(selected) = state
-        .selected_message_id
-        .as_deref()
-        .filter(|id| visible_message_ids.contains(*id))
-        .and_then(|id| projection.messages.iter().find(|m| m.message_id == id))
-    {
-        ui.separator();
-        tagged_label(
-            ui,
-            ctx.egui_id.with("selected-message"),
-            &scoped_author_id(pane_id, &selected_message_author_id(&selected.message_id)),
-            &format!(
-                "selected {} | payload {} sha {} | artifact {} | promotion {} gate {} receipt {} validator {} operator {} | proposal {} CRDT update {} proposal {} base {} vector {} stale {} | trace {} span {} parent {} links {:?} | WP {} MT {} owner {} | recovery {}",
-                selected.message_id,
-                selected.payload_ref,
-                selected.payload_sha256,
-                selected.artifact_ref.as_deref().unwrap_or("none"),
-                selected.promotion_decision_id.as_deref().unwrap_or("none"),
-                selected.promotion_gate_ref.as_deref().unwrap_or("none"),
-                selected.promotion_receipt_ref.as_deref().unwrap_or("none"),
-                selected.validator_verdict_ref.as_deref().unwrap_or("none"),
-                selected.operator_decision_ref.as_deref().unwrap_or("none"),
-                selected.proposal_ref.as_deref().unwrap_or("none"),
-                selected.crdt_update_ref.as_deref().unwrap_or("none"),
-                selected.crdt_proposal_ref.as_deref().unwrap_or("none"),
-                selected.crdt_base_snapshot_ref.as_deref().unwrap_or("none"),
-                selected.crdt_state_vector.as_deref().unwrap_or("none"),
-                selected.crdt_stale_base_ref.as_deref().unwrap_or("none"),
-                selected.trace_id,
-                selected.message_span_id,
-                selected.parent_span_id.as_deref().unwrap_or("none"),
-                selected.linked_span_contexts,
-                selected.work_packet_id.as_deref().unwrap_or("missing"),
-                selected.micro_task_id.as_deref().unwrap_or("missing"),
-                selected.owner_session,
-                selected.recovery_hint_ref.as_deref().unwrap_or("missing")
-            ),
-        );
     }
 
     ui.separator();
@@ -971,16 +975,56 @@ fn render_projection(
     }
 }
 
-fn tagged_label(ui: &mut egui::Ui, id: egui::Id, author_id: &str, text: &str) {
+fn render_selected_message_summary(
+    ui: &mut egui::Ui,
+    ctx: &PaneRenderContext,
+    pane_id: &str,
+    selected: &SwarmLaneDiagnosticsMessage,
+) {
+    tagged_label(
+        ui,
+        ctx.egui_id.with("selected-message"),
+        &scoped_author_id(pane_id, &selected_message_author_id(&selected.message_id)),
+        &format!(
+            "selected {} | payload {} sha {} | artifact {} | promotion {} | decision {} gate {} receipt {} validator {} operator {} | proposal {} CRDT update {} proposal {} base {} vector {} stale {} | trace {} span {} parent {} links {:?} | WP {} MT {} owner {} | recovery {}",
+            selected.message_id,
+            selected.payload_ref,
+            selected.payload_sha256,
+            selected.artifact_ref.as_deref().unwrap_or("none"),
+            selected.promotion_state,
+            selected.promotion_decision_id.as_deref().unwrap_or("none"),
+            selected.promotion_gate_ref.as_deref().unwrap_or("none"),
+            selected.promotion_receipt_ref.as_deref().unwrap_or("none"),
+            selected.validator_verdict_ref.as_deref().unwrap_or("none"),
+            selected.operator_decision_ref.as_deref().unwrap_or("none"),
+            selected.proposal_ref.as_deref().unwrap_or("none"),
+            selected.crdt_update_ref.as_deref().unwrap_or("none"),
+            selected.crdt_proposal_ref.as_deref().unwrap_or("none"),
+            selected.crdt_base_snapshot_ref.as_deref().unwrap_or("none"),
+            selected.crdt_state_vector.as_deref().unwrap_or("none"),
+            selected.crdt_stale_base_ref.as_deref().unwrap_or("none"),
+            selected.trace_id,
+            selected.message_span_id,
+            selected.parent_span_id.as_deref().unwrap_or("none"),
+            selected.linked_span_contexts,
+            selected.work_packet_id.as_deref().unwrap_or("missing"),
+            selected.micro_task_id.as_deref().unwrap_or("missing"),
+            selected.owner_session,
+            selected.recovery_hint_ref.as_deref().unwrap_or("missing")
+        ),
+    );
+}
+
+fn tagged_label(ui: &mut egui::Ui, _id: egui::Id, author_id: &str, text: &str) {
     let response = ui.label(text);
     let label = text.to_owned();
-    ui.ctx().accesskit_node_builder(id, |node| {
+    // Decorate the genuine label response instead of emitting a parallel builder-only node. The
+    // response carries the painted widget's live bounds; the former synthetic node was discoverable
+    // but had `bounds: null` and required an `::egui-response` duplicate.
+    ui.ctx().accesskit_node_builder(response.id, |node| {
         node.set_role(accesskit::Role::Label);
         node.set_author_id(author_id.to_owned());
         node.set_label(label);
-    });
-    ui.ctx().accesskit_node_builder(response.id, |node| {
-        node.set_author_id(format!("{author_id}::egui-response"));
     });
 }
 

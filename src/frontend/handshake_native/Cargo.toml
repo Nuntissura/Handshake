@@ -125,6 +125,11 @@ curve25519-dalek = "5.0.0"
 # it is declared with the GDI + window-enumeration features the focus-safe capture needs. Windows-only
 # (the offscreen render path covers headless proof on every OS).
 [target.'cfg(windows)'.dependencies]
+# `eframe` is intentionally built without its broad default feature set and therefore enables only
+# wgpu's API/WGSL surface, not a renderer backend. Declare the shipped Windows backends here so a
+# plain product build is runnable without relying on dev-dependency feature unification from
+# `egui_kittest`. DX12 supplies the native/WARP path; Vulkan and GLES retain the documented fallbacks.
+wgpu = { version = "27.0.1", default-features = false, features = ["dx12", "vulkan", "gles"] }
 # MT-030 ADDS the `Win32_UI_Accessibility` feature (NOT a new crate — windows-sys is already the dep)
 # so the LIVE focus audit (tests/test_focus_audit_live.rs, #[ignore]) can install a REAL
 # WINEVENT_SYSTEM_FOREGROUND hook via SetWinEventHook / UnhookWinEvent / WINEVENTPROC / HWINEVENTHOOK

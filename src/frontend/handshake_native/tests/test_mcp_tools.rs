@@ -244,6 +244,9 @@ fn test_mcp_set_value() {
         harness.event(event);
     }
     harness.run();
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
     harness.run();
 
     let after_value = harness_node_value(&harness, rail_node_id).unwrap_or_default();
@@ -295,6 +298,9 @@ fn test_mcp_set_value() {
         harness.event(event);
     }
     harness.run();
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
     harness.run();
     assert_eq!(
         harness_node_value(&harness, rail_node_id).unwrap_or_default(),
@@ -321,6 +327,9 @@ fn test_mcp_set_value() {
         harness.event(event);
     }
     harness.run();
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
     harness.run();
     assert_eq!(
         harness_node_value(&harness, rail_node_id).unwrap_or_default(),

@@ -50,11 +50,183 @@ use model_lane_crdt_support::{
 use serde::Deserialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tower::ServiceExt;
 
 const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
 const OWNER: &str = "KERNEL_BUILDER-20260630-045713";
+
+const MT008_LIVE_COORDINATION_DIR_ENV: &str = "HANDSHAKE_MT008_FIXTURE_COORDINATION_DIR";
+const MT008_LIVE_PROOF_NONCE_ENV: &str = "HANDSHAKE_MT008_ARGUS_PROOF_NONCE";
+const MT008_LIVE_DONE_TIMEOUT_SECS_ENV: &str = "HANDSHAKE_MT008_FIXTURE_DONE_TIMEOUT_SECS";
+
+struct Mt008CoordinationFiles {
+    ready: PathBuf,
+    ready_temp: PathBuf,
+    done: PathBuf,
+}
+
+impl Drop for Mt008CoordinationFiles {
+    fn drop(&mut self) {
+        for path in [&self.ready_temp, &self.ready, &self.done] {
+            match std::fs::remove_file(path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => eprintln!(
+                    "WARNING: MT-008 private fixture handoff cleanup could not remove {}: {error}",
+                    path.display()
+                ),
+            }
+        }
+    }
+}
+
+async fn hold_mt008_live_fixture_until_owned_backend_stops(
+    coordination_dir: &Path,
+    proof_nonce: &str,
+    schema: &str,
+    schema_url: &str,
+    run_id: &str,
+    exact_scope: &handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+) -> Result<(), String> {
+    if proof_nonce.trim().is_empty() {
+        return Err(format!("{MT008_LIVE_PROOF_NONCE_ENV} must not be blank"));
+    }
+    let coordination_dir = std::fs::canonicalize(coordination_dir).map_err(|error| {
+        format!("{MT008_LIVE_COORDINATION_DIR_ENV} must resolve to an existing directory: {error}")
+    })?;
+    let artifact_root = std::env::var("HANDSHAKE_ARTIFACTS_DIR").map_err(|_| {
+        "HANDSHAKE_ARTIFACTS_DIR is required for the private MT-008 handoff".to_string()
+    })?;
+    let artifact_root = std::fs::canonicalize(artifact_root)
+        .map_err(|error| format!("HANDSHAKE_ARTIFACTS_DIR must resolve: {error}"))?;
+    if !coordination_dir.starts_with(&artifact_root) {
+        return Err(format!(
+            "{MT008_LIVE_COORDINATION_DIR_ENV} must be an owned path below HANDSHAKE_ARTIFACTS_DIR"
+        ));
+    }
+    let nonce_sha256 = hex::encode(Sha256::digest(proof_nonce.as_bytes()));
+    let ready_path = coordination_dir.join(format!("mt008-fixture-ready-{nonce_sha256}.json"));
+    let ready_temp_path = coordination_dir.join(format!(
+        ".mt008-fixture-ready-{nonce_sha256}.tmp-{}",
+        std::process::id()
+    ));
+    let done_path = coordination_dir.join(format!("mt008-fixture-done-{nonce_sha256}.json"));
+    if ready_path.exists() || ready_temp_path.exists() || done_path.exists() {
+        return Err(format!(
+            "MT-008 fixture coordination files already exist for nonce commitment {nonce_sha256}"
+        ));
+    }
+    // Arm cleanup only after proving these paths were absent. A stale or
+    // foreign handoff is an ownership failure and must never be removed by
+    // this producer.
+    let _coordination_cleanup = Mt008CoordinationFiles {
+        ready: ready_path.clone(),
+        ready_temp: ready_temp_path.clone(),
+        done: done_path.clone(),
+    };
+
+    let ready = json!({
+        "schema_id": "hsk.mt008_live_fixture_ready@1",
+        "proof_nonce_sha256": nonce_sha256,
+        "producer_pid": std::process::id(),
+        "owned_schema": schema,
+        "schema_url": schema_url,
+        "product_local_resource_scope": {
+            "schema_version": 1,
+            "scope": exact_scope,
+        },
+        "run_id": run_id,
+        "cleanup_authority": "knowledge_pg_owned_schema_atexit",
+    });
+    let ready_bytes = serde_json::to_vec_pretty(&ready)
+        .map_err(|error| format!("serialize MT-008 fixture ready document: {error}"))?;
+    let mut ready_options = std::fs::OpenOptions::new();
+    ready_options.write(true).create_new(true);
+    let mut ready_file = ready_options.open(&ready_temp_path).map_err(|error| {
+        format!(
+            "create MT-008 fixture ready temp file {}: {error}",
+            ready_temp_path.display()
+        )
+    })?;
+    use std::io::Write;
+    ready_file
+        .write_all(&ready_bytes)
+        .and_then(|_| ready_file.sync_all())
+        .map_err(|error| format!("durably write MT-008 fixture ready document: {error}"))?;
+    std::fs::rename(&ready_temp_path, &ready_path).map_err(|error| {
+        format!(
+            "atomically publish MT-008 fixture ready document {}: {error}",
+            ready_path.display()
+        )
+    })?;
+
+    let timeout_secs = std::env::var(MT008_LIVE_DONE_TIMEOUT_SECS_ENV)
+        .ok()
+        .map(|value| {
+            value.parse::<u64>().map_err(|error| {
+                format!("{MT008_LIVE_DONE_TIMEOUT_SECS_ENV} must be an integer: {error}")
+            })
+        })
+        .transpose()?
+        .unwrap_or(600)
+        .clamp(30, 1_200);
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+    let done = loop {
+        if done_path.is_file() {
+            let bytes = std::fs::read(&done_path).map_err(|error| {
+                format!(
+                    "read MT-008 fixture done document {}: {error}",
+                    done_path.display()
+                )
+            })?;
+            break serde_json::from_slice::<serde_json::Value>(&bytes)
+                .map_err(|error| format!("decode strict MT-008 fixture done JSON: {error}"))?;
+        }
+        if Instant::now() >= deadline {
+            return Err(format!(
+                "timed out after {timeout_secs}s waiting for {}; owned schema cleanup will run on test-process exit",
+                done_path.display()
+            ));
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    };
+
+    let done_object = done
+        .as_object()
+        .ok_or_else(|| "MT-008 fixture done document must be a JSON object".to_string())?;
+    const DONE_FIELDS: [&str; 4] = [
+        "schema_id",
+        "proof_nonce_sha256",
+        "owned_backend_stopped",
+        "frontend_proof_status",
+    ];
+    if done_object.len() != DONE_FIELDS.len()
+        || DONE_FIELDS
+            .iter()
+            .any(|field| !done_object.contains_key(*field))
+    {
+        return Err("MT-008 fixture done document has missing or unknown fields".into());
+    }
+    if done["schema_id"] != "hsk.mt008_live_fixture_done@1"
+        || done["proof_nonce_sha256"] != nonce_sha256
+        || done["owned_backend_stopped"] != true
+    {
+        return Err(
+            "MT-008 fixture done document does not prove the matching owned backend stopped".into(),
+        );
+    }
+    match done["frontend_proof_status"].as_str() {
+        Some("passed") => Ok(()),
+        Some("failed") => Err(
+            "MT-008 frontend proof failed after the owned backend stopped; cleaning owned schema"
+                .into(),
+        ),
+        _ => Err("MT-008 fixture done status must be exactly `passed` or `failed`".into()),
+    }
+}
 
 struct DiagnosticsRoutingRuntime {
     capabilities: ModelCapabilities,
@@ -256,6 +428,7 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
     let kpg = knowledge_pg_support::knowledge_pg()
         .await
         .expect("PostgreSQL/EventLedger is required for MT-008 proof");
+    let owned_schema = kpg.schema.clone();
     let schema_url = kpg.schema_url.clone();
     let workspace_id = kpg.create_workspace().await;
     let db = kpg.db;
@@ -284,6 +457,98 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         ExactResourceScopeAttribution::try_from_resource_scope(&diagnostics_scope)
             .expect("diagnostics fixture carries exact five-dimensional scope");
     let store = ModelLaneStore::new_scoped(pool.clone(), diagnostics_scope);
+
+    // The live producer intentionally branches before the comprehensive rich
+    // fixture. Its purpose is to make one independently proven diagnostics
+    // projection available to an owned production backend; unrelated routing
+    // assertions in the ordinary backend proof must not gate socket readiness.
+    if let Some(coordination_dir) = std::env::var_os(MT008_LIVE_COORDINATION_DIR_ENV) {
+        let proof_nonce = std::env::var(MT008_LIVE_PROOF_NONCE_ENV)
+            .expect("live MT-008 fixture mode requires a fresh proof nonce");
+        assert!(
+            !proof_nonce.trim().is_empty(),
+            "live MT-008 fixture proof nonce must not be blank"
+        );
+        let nonce_id = &sha256_hex(proof_nonce.as_bytes())[..16];
+        let run_id = format!("run-mt008-live-{nonce_id}");
+        let lane_id = format!("lane-mt008-live-{nonce_id}");
+        let message_id = format!("msg-mt008-live-{nonce_id}");
+
+        store
+            .record_run(sample_run(&run_id, &lane_id))
+            .await
+            .expect("record nonce-owned live diagnostics run");
+        store
+            .record_lane(sample_lane(&lane_id, &run_id))
+            .await
+            .expect("record nonce-owned live diagnostics lane");
+        store
+            .record_message(sample_message(&message_id, &run_id, &lane_id))
+            .await
+            .expect("record nonce-owned live diagnostics message");
+        for (tier, state, evidence) in [
+            (
+                ModelLaneDiagnosticTier::FlightRecorder,
+                ModelLaneDiagnosticTierState::Wired,
+                "eventledger://kernel/model-lane/live-diagnostics",
+            ),
+            (
+                ModelLaneDiagnosticTier::InternalDiagnostics,
+                ModelLaneDiagnosticTierState::DeferredWithReason,
+                "internal-diagnostics://mt008/live-proof",
+            ),
+            (
+                ModelLaneDiagnosticTier::Palmistry,
+                ModelLaneDiagnosticTierState::DeferredWithReason,
+                "palmistry://mt008/live-proof",
+            ),
+        ] {
+            store
+                .record_diagnostic_tier_status(sample_tier(&run_id, tier, state, evidence))
+                .await
+                .expect("record nonce-owned live diagnostic tier");
+        }
+        let mut mt_status = sample_mt_status(&run_id);
+        mt_status.mt_status_id = format!("mt-status-mt008-live-{nonce_id}");
+        mt_status.idempotency_key = format!("idem-mt-status-mt008-live-{nonce_id}");
+        store
+            .record_mt_runtime_status(mt_status)
+            .await
+            .expect("record nonce-owned live MT runtime status");
+
+        let projection = store
+            .diagnostics_projection(&run_id)
+            .await
+            .expect("read back nonce-owned live diagnostics projection");
+        assert_eq!(projection.run.run_id, run_id);
+        assert_eq!(projection.lanes.len(), 1);
+        assert_eq!(projection.lanes[0].lane_id, lane_id);
+        assert_eq!(projection.messages.len(), 1);
+        assert_eq!(projection.messages[0].message_id, message_id);
+        assert_eq!(projection.diagnostic_tiers.len(), 3);
+        assert_eq!(projection.mt_runtime_statuses.len(), 1);
+        assert_eq!(projection.mt_runtime_statuses[0].micro_task_id, "MT-008");
+        assert_eq!(
+            projection.mt_runtime_statuses[0].status,
+            ModelLaneMtRuntimeStatus::ReadyForValidation.as_str()
+        );
+
+        let hold_result = hold_mt008_live_fixture_until_owned_backend_stops(
+            Path::new(&coordination_dir),
+            &proof_nonce,
+            &owned_schema,
+            &schema_url,
+            &run_id,
+            &diagnostics_exact,
+        )
+        .await;
+        drop(db);
+        pool.close().await;
+        hold_result
+            .expect("MT-008 live fixture handoff must complete only after the owned backend stops");
+        return;
+    }
+
     let model_id = handshake_core::model_runtime::ModelId::new_v7();
     let model_id_text = model_id.to_string();
     let model_registration = handshake_core::model_runtime::ModelRegistration {

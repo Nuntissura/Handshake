@@ -2350,6 +2350,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "wgpu",
  "windows-capture",
  "windows-sys 0.61.2",
  "zeroize",

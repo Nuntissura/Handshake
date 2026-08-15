@@ -525,6 +525,11 @@ fn run_menu_opens_swarm_lane_diagnostics() {
 
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
+    assert_eq!(
+        harness.state().active_module(),
+        handshake_native::module_switcher::ModuleId::Studio,
+        "Models > Open Lane Diagnostics switches through the STUDIO module workflow"
+    );
     assert!(
         harness.state().tab_bar_states().values().any(|bar| {
             bar.tabs.iter().any(|tab| {
@@ -532,6 +537,13 @@ fn run_menu_opens_swarm_lane_diagnostics() {
             })
         }),
         "Run > Open Lane Diagnostics opens the native diagnostics tab"
+    );
+    let rendered = live_author_nodes(&harness);
+    assert!(
+        rendered
+            .iter()
+            .any(|(author_id, _, _)| author_id.starts_with("swarm-lane-diagnostics.surface.pane.")),
+        "the diagnostics tab must render its live surface, not remain hidden in tab state: {rendered:?}"
     );
 }
 

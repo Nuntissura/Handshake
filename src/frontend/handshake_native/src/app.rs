@@ -1344,10 +1344,25 @@ impl HandshakeApp {
             return (crate::mcp::DrainedActionBatch::default(), needs_repaint);
         }
         let batch = match channel.lock() {
-            Ok(mut channel) => channel.drain_for_viewport(window_id, viewport_id),
-            Err(poisoned) => poisoned
-                .into_inner()
-                .drain_for_viewport(window_id, viewport_id),
+            Ok(mut channel) => match published_snapshot {
+                Some(snapshot) => channel.drain_for_viewport_against_snapshot(
+                    window_id,
+                    viewport_id,
+                    snapshot,
+                ),
+                None => channel.drain_for_viewport(window_id, viewport_id),
+            },
+            Err(poisoned) => {
+                let mut channel = poisoned.into_inner();
+                match published_snapshot {
+                    Some(snapshot) => channel.drain_for_viewport_against_snapshot(
+                        window_id,
+                        viewport_id,
+                        snapshot,
+                    ),
+                    None => channel.drain_for_viewport(window_id, viewport_id),
+                }
+            }
         };
         if !batch.action_ids.is_empty() {
             consumed_by_window
@@ -1360,6 +1375,11 @@ impl HandshakeApp {
                         .cloned()
                         .map(|action_id| (action_id, published_revision)),
                 );
+            needs_repaint = true;
+        }
+        if !batch.events.is_empty() {
+            // A two-phase SetValue focus batch intentionally carries no terminal action id yet;
+            // schedule the next viewport frame so its validated replacement phase cannot stall.
             needs_repaint = true;
         }
         (batch, needs_repaint)
@@ -4476,15 +4496,6 @@ impl HandshakeApp {
     /// open it on the active pane (MT-015 RUN/HELP menus). Returns `true` if the pane state changed.
     /// An unknown id is a safe no-op (returns `false`) rather than a panic.
     fn navigate_to_tab(&mut self, tab_id: &str) -> bool {
-        if tab_id == "model-runtime" {
-            // Model Runtime is the STUDIO module's default surface. Route the
-            // operator menu action through the same module transition as the
-            // module switcher so the tab and its body cannot diverge (a tab
-            // inserted while MAIN remained active produced a blank pane).
-            let module_changed = self.set_module(ModuleId::Studio);
-            let tab_opened = self.open_content_on_active_pane(PaneType::ModelRuntime, None);
-            return module_changed || tab_opened;
-        }
         let pane_type = match tab_id {
             "inference-lab" => PaneType::InferenceLab,
             "flight-recorder" => PaneType::FlightRecorder,
@@ -4496,7 +4507,32 @@ impl HandshakeApp {
             "operator-chat" => PaneType::OperatorChatLaunch,
             _ => return false,
         };
-        self.open_content_on_active_pane(pane_type, None)
+        // Every operator-facing MODELS surface belongs to the STUDIO workflow. Inserting one into a
+        // MAIN pane leaves the tab in persisted state but its body outside the active module render
+        // path—the same blank-pane defect first found for Model Runtime. Switch first, then insert and
+        // activate the requested tab so menu, command-palette, Settings, and startup-default routes all
+        // converge on a visible surface.
+        let module_changed = if matches!(
+            pane_type,
+            PaneType::ModelRuntime
+                | PaneType::Swarm
+                | PaneType::SwarmLaneDiagnostics
+                | PaneType::Wp1OrchestrationConsole
+                | PaneType::OperatorChatLaunch
+        ) {
+            self.set_module(ModuleId::Studio)
+        } else {
+            false
+        };
+        let tab_opened = self.open_content_on_active_pane(pane_type, None);
+        if module_changed || tab_opened {
+            // Workspace discovery is asynchronous in the production shell. Preserve an operator menu
+            // mutation made before that authority resolves: the first layout lifecycle pass must not
+            // replace it with an older stored snapshot. `drive_layout_persistence` consumes this signal,
+            // establishes the authoritative project baseline, and persists the operator's live state.
+            self.signal_layout_changed();
+        }
+        module_changed || tab_opened
     }
 
     /// Dispatch a [`MenuBarAction`] returned by the top menu bar into the shell's existing state-
@@ -5525,8 +5561,17 @@ impl HandshakeApp {
         // ── 1. Load on first frame / project change ─────────────────────────────────────────────
         if self.loaded_project_id.as_deref() != Some(self.active_project_id.as_str()) {
             let project = self.active_project_id.clone();
-            let extent = self.monitor_extent;
-            self.load_layout(&project, extent);
+            if self.layout_dirty_signal {
+                // The operator changed the live work surface while production workspace discovery was
+                // still pending. That current state is newer than any stored layout returned by this
+                // first load, so do not overwrite it. Mark this project resolved and let the normal dirty
+                // path below persist the operator state. Project switches clear/reseed before loading and
+                // therefore reach this branch only when a new mutation is explicitly signalled.
+                self.loaded_project_id = Some(project);
+            } else {
+                let extent = self.monitor_extent;
+                self.load_layout(&project, extent);
+            }
             // Re-baseline change detection to the just-loaded layout so a restore does not immediately
             // re-save itself as a "change".
             self.last_seen_layout = Some(self.capture_layout_snapshot().to_layout_state());
@@ -6690,6 +6735,12 @@ impl eframe::App for HandshakeApp {
             &mut self.mcp_consumed_actions,
             true,
         );
+        for action in &batch.attributed_actions {
+            if matches!(action.action, crate::mcp::UiAction::SetValue { .. }) {
+                let id = unsafe { egui::Id::from_high_entropy_bits(action.target_node_id) };
+                ctx.memory_mut(|memory| memory.request_focus(id));
+            }
+        }
         raw_input.events.extend(batch.events);
         if needs_repaint {
             ctx.request_repaint();
@@ -6698,6 +6749,19 @@ impl eframe::App for HandshakeApp {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let frame_started = std::time::Instant::now();
+        // Windows can create or restore the root HWND below the builder's declared minimum before the
+        // first eframe update (the live proof observed an 80x103 outer window). Recover quietly through
+        // the viewport command channel: no activation, foreground call, Z-order change, or keyboard
+        // injection. Once the usable size is reached this branch becomes a no-op.
+        if ctx.input(|input| {
+            input
+                .viewport()
+                .inner_rect
+                .is_some_and(|rect| rect.width() < 640.0 || rect.height() < 480.0)
+        }) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(640.0, 480.0)));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(1280.0, 800.0)));
+        }
         if self.mcp_bind_in_flight {
             let completed = match self.mcp_bind_cell.lock() {
                 Ok(mut slot) => slot.take(),
@@ -6814,7 +6878,67 @@ mod causal_argus_receipt_tests {
         ActionReceiptTracker, MAIN_WINDOW_ID,
     };
     use crate::stash_shelf::{DrawerActionTarget, DrawerCardKind};
+    use crate::layout_persistence::{LayoutError, LayoutPersistenceManager, LayoutTransport};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
+
+    #[derive(Clone)]
+    struct LoadCountingLayoutTransport {
+        loads: Arc<AtomicUsize>,
+    }
+
+    impl LayoutTransport for LoadCountingLayoutTransport {
+        fn load(&self, _workspace_id: &str) -> Result<Option<serde_json::Value>, LayoutError> {
+            self.loads.fetch_add(1, Ordering::SeqCst);
+            Ok(None)
+        }
+
+        fn save(
+            &self,
+            _workspace_id: &str,
+            _layout_state: serde_json::Value,
+        ) -> Result<(), LayoutError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn pre_authority_menu_navigation_is_not_overwritten_by_initial_layout_load() {
+        let loads = Arc::new(AtomicUsize::new(0));
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.set_layout_manager(LayoutPersistenceManager::new(
+            Box::new(LoadCountingLayoutTransport {
+                loads: loads.clone(),
+            }),
+            Duration::from_secs(3_600),
+        ));
+        app.workspaces_authority_resolved = false;
+        app.loaded_project_id = None;
+
+        assert!(app.navigate_to_tab("swarm-lane-diagnostics"));
+        assert!(app.layout_dirty_signal);
+        assert_eq!(
+            app.tab_bar_states
+                .get(&Arc::from("pane-a"))
+                .and_then(|bar| bar.active())
+                .map(|tab| &tab.pane_type),
+            Some(&PaneType::SwarmLaneDiagnostics)
+        );
+
+        app.workspaces_authority_resolved = true;
+        app.drive_layout_persistence(std::time::Instant::now());
+
+        assert_eq!(loads.load(Ordering::SeqCst), 0);
+        assert_eq!(app.loaded_project_id.as_deref(), Some(DEFAULT_PROJECT_ID));
+        assert!(!app.layout_dirty_signal);
+        assert_eq!(
+            app.tab_bar_states
+                .get(&Arc::from("pane-a"))
+                .and_then(|bar| bar.active())
+                .map(|tab| &tab.pane_type),
+            Some(&PaneType::SwarmLaneDiagnostics)
+        );
+    }
 
     #[test]
     fn pre_authority_settings_delta_preserves_unedited_authoritative_fields() {

@@ -301,6 +301,17 @@ fn steer_loop_over_socket() {
         harness.event(event);
     }
     harness.run();
+    let replacement_events = {
+        let mut chan = channel.lock().unwrap();
+        chan.drain_into_events()
+    };
+    assert!(
+        !replacement_events.is_empty(),
+        "the focused set_value replacement remained queued for the next frame"
+    );
+    for event in replacement_events {
+        harness.event(event);
+    }
     harness.run();
 
     let after_theme = harness.state().current_theme();

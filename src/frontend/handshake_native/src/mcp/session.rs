@@ -859,7 +859,7 @@ async fn persist_argus_receipt(
             "{}/internal-diagnostics/argus/action-receipt",
             crate::backend_client::BACKEND_BASE_URL
         ))
-        .timeout(Duration::from_secs(5))
+        .timeout(crate::mcp::ACTION_RECEIPT_DURABILITY_TIMEOUT)
         .json(&payload)
         .send()
         .await

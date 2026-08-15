@@ -289,8 +289,25 @@ pub fn record_viewport_window_handle(
 /// Windows Graphics Capture adapter. Windows-only; gated behind `cfg(windows)` so non-Windows
 /// builds never reference the WinRT/D3D11 APIs.
 #[cfg(target_os = "windows")]
+const WGC_SUPERVISOR_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+#[cfg(target_os = "windows")]
+const WGC_FRAME_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+#[cfg(target_os = "windows")]
+const WGC_TITLE_CALL_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+#[cfg(target_os = "windows")]
+const WGC_INITIAL_TITLE_ATTEMPTS: usize = 3;
+#[cfg(target_os = "windows")]
+const WGC_TITLE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(50);
+#[cfg(target_os = "windows")]
+const WGC_CAPTURE_SAFETY_MARGIN: std::time::Duration = std::time::Duration::from_secs(1);
+
+#[cfg(target_os = "windows")]
 mod windows_capture {
-    use super::{screenshot_from_png, ScreenshotError, ScreenshotResult};
+    use super::{
+        screenshot_from_png, ScreenshotError, ScreenshotResult, WGC_CAPTURE_SAFETY_MARGIN,
+        WGC_FRAME_TIMEOUT, WGC_INITIAL_TITLE_ATTEMPTS, WGC_SUPERVISOR_TIMEOUT,
+        WGC_TITLE_CALL_TIMEOUT, WGC_TITLE_RETRY_DELAY,
+    };
 
     use ::windows_capture::capture::{Context, GraphicsCaptureApiHandler};
     use ::windows_capture::frame::Frame;
@@ -575,6 +592,14 @@ mod windows_capture {
     fn supervise_capture(
         task: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError> + Send + 'static,
     ) -> Result<ScreenshotResult, ScreenshotError> {
+        debug_assert!(
+            WGC_TITLE_CALL_TIMEOUT * WGC_INITIAL_TITLE_ATTEMPTS as u32
+                + WGC_TITLE_RETRY_DELAY * (WGC_INITIAL_TITLE_ATTEMPTS - 1) as u32
+                + WGC_TITLE_CALL_TIMEOUT * 2
+                + WGC_FRAME_TIMEOUT
+                + WGC_CAPTURE_SAFETY_MARGIN
+                < WGC_SUPERVISOR_TIMEOUT
+        );
         if CAPTURE_IN_FLIGHT
             .compare_exchange(
                 false,
@@ -602,7 +627,7 @@ mod windows_capture {
             )));
         }
         receiver
-            .recv_timeout(std::time::Duration::from_secs(8))
+            .recv_timeout(WGC_SUPERVISOR_TIMEOUT)
             .map_err(|_| {
                 ScreenshotError(
                     "Windows Graphics Capture lifecycle exceeded the 8-second supervisor bound"
@@ -615,8 +640,8 @@ mod windows_capture {
     /// bounded supervisor thread above. It neither activates nor reorders the window.
     fn capture_hwnd_inner(hwnd_value: isize) -> Result<ScreenshotResult, ScreenshotError> {
         let hwnd = hwnd_value as HWND;
-        let expected_identity = window_identity(hwnd)?;
-        if window_identity(hwnd)? != expected_identity {
+        let expected_identity = window_identity(hwnd, true)?;
+        if window_identity(hwnd, false)? != expected_identity {
             return Err(ScreenshotError(
                 "capture target identity changed before WGC startup".to_owned(),
             ));
@@ -635,7 +660,7 @@ mod windows_capture {
         let control = OneFrameCapture::start_free_threaded(settings).map_err(|error| {
             ScreenshotError(format!("Windows Graphics Capture start failed: {error}"))
         })?;
-        let frame_result = receiver.recv_timeout(std::time::Duration::from_secs(5));
+        let frame_result = receiver.recv_timeout(WGC_FRAME_TIMEOUT);
         if let Err(error) = control.stop() {
             return Err(ScreenshotError(format!(
                 "Windows Graphics Capture shutdown failed: {error}"
@@ -648,7 +673,7 @@ mod windows_capture {
                 )
             })?
             .map_err(ScreenshotError)?;
-        if window_identity(hwnd)? != expected_identity {
+        if window_identity(hwnd, false)? != expected_identity {
             return Err(ScreenshotError(
                 "capture target identity changed while acquiring the compositor frame".to_owned(),
             ));
@@ -671,7 +696,7 @@ mod windows_capture {
         ))
     }
 
-    fn window_identity(hwnd: HWND) -> Result<WindowIdentity, ScreenshotError> {
+    fn window_identity(hwnd: HWND, retry_title: bool) -> Result<WindowIdentity, ScreenshotError> {
         // SAFETY: all calls read state for an arbitrary HWND. A destroyed/recycled handle either
         // fails or produces a different identity, which the caller rejects.
         unsafe {
@@ -687,7 +712,12 @@ mod windows_capture {
                     "capture target is no longer owned by this process".to_owned(),
                 ));
             }
-            let title = bounded_window_title_with_retry(hwnd).ok_or_else(|| {
+            let title = (if retry_title {
+                bounded_window_title_with_retry(hwnd)
+            } else {
+                bounded_window_title(hwnd)
+            })
+            .ok_or_else(|| {
                 ScreenshotError("capture target has no readable title".to_owned())
             })?;
             let mut rect: RECT = std::mem::zeroed();
@@ -722,7 +752,7 @@ mod windows_capture {
                 title.len(),
                 title.as_mut_ptr() as isize,
                 SMTO_ABORTIFHUNG | SMTO_BLOCK,
-                250,
+                WGC_TITLE_CALL_TIMEOUT.as_millis() as u32,
                 &mut copied,
             )
         };
@@ -736,13 +766,19 @@ mod windows_capture {
     /// Identity reads run off the UI thread while the same process may be laying out a large
     /// Settings or console viewport. A single bounded `WM_GETTEXT` can therefore time out during a
     /// legitimate short UI-thread stall even though the exact recorded HWND is still valid. Retry
-    /// once after a small backoff; every attempt remains bounded and the caller still compares the
-    /// PID, title, and bounds before and after WGC, so this does not weaken the anti-recycling gate.
+    /// twice after a small backoff. Only the initial identity read retries; the pre/post WGC
+    /// anti-recycling comparisons remain single-attempt and fail closed, keeping the entire worst-case
+    /// title budget below the capture supervisor while tolerating a short initial layout stall.
     fn bounded_window_title_with_retry(hwnd: HWND) -> Option<Vec<u16>> {
-        bounded_window_title(hwnd).or_else(|| {
-            std::thread::sleep(std::time::Duration::from_millis(25));
-            bounded_window_title(hwnd)
-        })
+        for attempt in 0..WGC_INITIAL_TITLE_ATTEMPTS {
+            if let Some(title) = bounded_window_title(hwnd) {
+                return Some(title);
+            }
+            if attempt + 1 < WGC_INITIAL_TITLE_ATTEMPTS {
+                std::thread::sleep(WGC_TITLE_RETRY_DELAY);
+            }
+        }
+        None
     }
 }
 
@@ -765,6 +801,21 @@ pub fn encode_base64(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn wgc_title_retry_budget_leaves_supervisor_safety_margin() {
+        let initial_title_budget = WGC_TITLE_CALL_TIMEOUT * WGC_INITIAL_TITLE_ATTEMPTS as u32
+            + WGC_TITLE_RETRY_DELAY * (WGC_INITIAL_TITLE_ATTEMPTS - 1) as u32;
+        let fail_closed_identity_checks = WGC_TITLE_CALL_TIMEOUT * 2;
+        assert!(
+            initial_title_budget
+                + fail_closed_identity_checks
+                + WGC_FRAME_TIMEOUT
+                + WGC_CAPTURE_SAFETY_MARGIN
+                < WGC_SUPERVISOR_TIMEOUT
+        );
+    }
 
     #[test]
     fn base64_matches_known_vectors() {

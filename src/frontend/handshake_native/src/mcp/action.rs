@@ -160,6 +160,7 @@ struct QueuedAction {
     author_id: String,
     action: UiAction,
     window_id: String,
+    set_value_focus_dispatched: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -314,6 +315,7 @@ impl ActionChannel {
             author_id: author_id.to_owned(),
             action,
             window_id: MAIN_WINDOW_ID.to_owned(),
+            set_value_focus_dispatched: false,
         });
         Ok(outcome)
     }
@@ -351,6 +353,7 @@ impl ActionChannel {
             author_id: author_id.to_owned(),
             action,
             window_id: window_id.to_owned(),
+            set_value_focus_dispatched: false,
         });
         Ok((outcome, receipt))
     }
@@ -372,7 +375,10 @@ impl ActionChannel {
     /// Drain up to the live admission budget ([`Self::burst_limit`], default [`MAX_ACTIONS_PER_BURST`],
     /// lowerable from Settings > Swarm) pending actions into a list of `egui::Event`s the frame
     /// loop feeds to egui this frame. For each drained action: the `AccessKitActionRequest` event,
-    /// followed (for `SetValue`) by the `Text` event so the focused field receives the characters.
+    /// `SetValue` is deliberately split across two drains: the first frame dispatches Focus and the
+    /// second frame emits replacement input. This guarantees egui has applied target focus before
+    /// select-all/clear/text events are evaluated, so replacement cannot land on the previously
+    /// focused field.
     ///
     /// Returns the events in dispatch order. The frame loop calls this at the start of
     /// `eframe::App::update` (or a test feeds the events to the kittest harness). The burst cap bounds
@@ -383,7 +389,7 @@ impl ActionChannel {
 
     /// Drain only actions addressed to `window_id`; actions for other live viewports remain queued.
     pub fn drain_for_window(&mut self, window_id: &str) -> DrainedActionBatch {
-        self.drain_for_window_inner(window_id, None)
+        self.drain_for_window_inner(window_id, None, None)
     }
 
     /// Production viewport drain. Causal handler actions sharing one viewport +
@@ -395,13 +401,23 @@ impl ActionChannel {
         window_id: &str,
         viewport_id: egui::ViewportId,
     ) -> DrainedActionBatch {
-        self.drain_for_window_inner(window_id, Some(viewport_id))
+        self.drain_for_window_inner(window_id, Some(viewport_id), None)
+    }
+
+    pub fn drain_for_viewport_against_snapshot(
+        &mut self,
+        window_id: &str,
+        viewport_id: egui::ViewportId,
+        snapshot: &UiTreeSnapshot,
+    ) -> DrainedActionBatch {
+        self.drain_for_window_inner(window_id, Some(viewport_id), Some(snapshot))
     }
 
     fn drain_for_window_inner(
         &mut self,
         window_id: &str,
         viewport_id: Option<egui::ViewportId>,
+        snapshot: Option<&UiTreeSnapshot>,
     ) -> DrainedActionBatch {
         let mut batch = DrainedActionBatch::default();
         let mut retained = VecDeque::with_capacity(self.queue.len());
@@ -411,7 +427,7 @@ impl ActionChannel {
         // MAX_ACTIONS_PER_BURST ceiling). Read once per drain so a mid-drain settings change cannot
         // produce a torn budget within one frame.
         let burst_limit = self.burst_limit();
-        while let Some(queued) = self.queue.pop_front() {
+        while let Some(mut queued) = self.queue.pop_front() {
             if let Some(action_id) = queued.action_id.as_deref() {
                 if self.receipts.is_terminal(action_id) {
                     // Terminal cleanup is window-independent. A closed pop-out will never drain its
@@ -465,15 +481,44 @@ impl ActionChannel {
             }
             taken += 1;
             let target_node_id = queued.outcome.request.target.0;
-            batch
-                .events
-                .push(egui::Event::AccessKitActionRequest(queued.outcome.request));
+            if queued.outcome.text_payload.is_some() && !queued.set_value_focus_dispatched {
+                batch.events.push(egui::Event::AccessKitActionRequest(
+                    queued.outcome.request.clone(),
+                ));
+                queued.set_value_focus_dispatched = true;
+                retained.push_back(queued);
+                // Keyboard replacement is viewport-global input, so no later action may move focus
+                // before this SetValue completes on the next frame. Preserve FIFO order and stop
+                // this drain after the focus phase.
+                retained.append(&mut self.queue);
+                break;
+            }
+            if queued.outcome.text_payload.is_none() {
+                batch
+                    .events
+                    .push(egui::Event::AccessKitActionRequest(queued.outcome.request));
+            }
+            if queued.outcome.text_payload.is_some() && queued.set_value_focus_dispatched {
+                let target_is_current = snapshot.is_none_or(|snapshot| {
+                    snapshot
+                        .find_by_author_id(&queued.author_id)
+                        .is_some_and(|node| {
+                            !node.disabled && node.node_id == target_node_id
+                        })
+                });
+                if !target_is_current {
+                    if let Some(action_id) = queued.action_id.as_deref() {
+                        self.receipts.failed(
+                            action_id,
+                            "SetValue target changed or disappeared between focus and replacement",
+                        );
+                    }
+                    continue;
+                }
+            }
             if let Some(text) = queued.outcome.text_payload {
-                // `set_value` is replacement, not cursor insertion. Egui 0.33 exposes Focus for a
-                // TextInput but no AccessKit SetValue, so drive the equivalent logical edit entirely
-                // through this frame's raw egui input: focus, select all, clear, then insert the exact
-                // requested value. Clearing first makes an empty value a real clear operation and
-                // prevents a non-empty field from becoming `old + requested`.
+                // Focus was dispatched in the preceding viewport drain. This frame performs only
+                // the logical replacement: select all, clear, then insert the exact requested value.
                 batch.events.push(egui::Event::Key {
                     key: egui::Key::A,
                     physical_key: None,
@@ -667,7 +712,7 @@ mod tests {
     }
 
     #[test]
-    fn drain_emits_focus_select_all_clear_then_replacement_and_respects_burst_cap() {
+    fn drain_focuses_then_replaces_on_the_next_frame_and_respects_burst_cap() {
         let snap = fixture_snapshot();
         let mut chan = ActionChannel::new();
         chan.enqueue(
@@ -678,14 +723,29 @@ mod tests {
             },
         )
         .expect("enqueue set_value");
+        let focus_events = chan.drain_into_events();
+        assert_eq!(focus_events.len(), 1);
+        assert!(matches!(
+            focus_events[0],
+            egui::Event::AccessKitActionRequest(_)
+        ));
+        assert_eq!(chan.pending(), 1, "replacement remains queued for the next frame");
         let events = chan.drain_into_events();
-        assert_eq!(events.len(), 6);
-        assert!(matches!(events[0], egui::Event::AccessKitActionRequest(_)));
+        assert_eq!(events.len(), 5);
+        assert!(matches!(
+            events[0],
+            egui::Event::Key {
+                key: egui::Key::A,
+                pressed: true,
+                modifiers: egui::Modifiers::COMMAND,
+                ..
+            }
+        ));
         assert!(matches!(
             events[1],
             egui::Event::Key {
                 key: egui::Key::A,
-                pressed: true,
+                pressed: false,
                 modifiers: egui::Modifiers::COMMAND,
                 ..
             }
@@ -693,15 +753,6 @@ mod tests {
         assert!(matches!(
             events[2],
             egui::Event::Key {
-                key: egui::Key::A,
-                pressed: false,
-                modifiers: egui::Modifiers::COMMAND,
-                ..
-            }
-        ));
-        assert!(matches!(
-            events[3],
-            egui::Event::Key {
                 key: egui::Key::Backspace,
                 pressed: true,
                 modifiers: egui::Modifiers::NONE,
@@ -709,7 +760,7 @@ mod tests {
             }
         ));
         assert!(matches!(
-            events[4],
+            events[3],
             egui::Event::Key {
                 key: egui::Key::Backspace,
                 pressed: false,
@@ -717,7 +768,7 @@ mod tests {
                 ..
             }
         ));
-        assert!(matches!(&events[5], egui::Event::Text(t) if t == "abc"));
+        assert!(matches!(&events[4], egui::Event::Text(t) if t == "abc"));
         assert_eq!(chan.pending(), 0, "drained");
 
         let mut clear = ActionChannel::new();
@@ -730,10 +781,16 @@ mod tests {
                 },
             )
             .expect("enqueue clear");
-        let clear_events = clear.drain_into_events();
-        assert_eq!(clear_events.len(), 5, "empty replacement emits no Text");
+        let clear_focus_events = clear.drain_into_events();
+        assert_eq!(clear_focus_events.len(), 1);
         assert!(matches!(
-            clear_events[4],
+            clear_focus_events[0],
+            egui::Event::AccessKitActionRequest(_)
+        ));
+        let clear_events = clear.drain_into_events();
+        assert_eq!(clear_events.len(), 4, "empty replacement emits no Text");
+        assert!(matches!(
+            clear_events[3],
             egui::Event::Key {
                 key: egui::Key::Backspace,
                 pressed: false,
@@ -757,6 +814,89 @@ mod tests {
             chan.pending(),
             5,
             "remainder stays queued for the next frame"
+        );
+    }
+
+    #[test]
+    fn different_target_set_values_are_serialized_across_focus_sensitive_phases() {
+        let mut snap = fixture_snapshot();
+        let mut second = snap
+            .find_by_author_id("field")
+            .expect("fixture field")
+            .clone();
+        second.id = "field-b".to_owned();
+        second.author_id = Some("field-b".to_owned());
+        second.node_id = 13;
+        snap.root.children.push(second);
+        let mut channel = ActionChannel::new();
+        channel
+            .enqueue(
+                &snap,
+                "field",
+                UiAction::SetValue { text: "a".into() },
+            )
+            .expect("enqueue A");
+        channel
+            .enqueue(
+                &snap,
+                "field-b",
+                UiAction::SetValue { text: "b".into() },
+            )
+            .expect("enqueue B");
+
+        assert_eq!(channel.drain_into_events().len(), 1, "focus A only");
+        assert_eq!(
+            channel.drain_into_events().len(),
+            6,
+            "replace A before focusing B in the same ordered batch"
+        );
+        assert_eq!(channel.drain_into_events().len(), 5, "replace B only");
+        assert_eq!(channel.pending(), 0);
+    }
+
+    #[test]
+    fn set_value_target_disappearance_after_focus_fails_without_keyboard_input() {
+        let snap = fixture_snapshot();
+        let mut channel = ActionChannel::new();
+        let (_, receipt) = channel
+            .enqueue_argus(
+                &snap,
+                MAIN_WINDOW_ID,
+                "field",
+                UiAction::SetValue { text: "secret".into() },
+                "connection",
+                "agent",
+                1,
+            )
+            .expect("enqueue attributed SetValue");
+        let focus = channel.drain_for_viewport_against_snapshot(
+            MAIN_WINDOW_ID,
+            egui::ViewportId::ROOT,
+            &snap,
+        );
+        assert_eq!(focus.events.len(), 1);
+        assert!(focus.action_ids.is_empty());
+
+        let mut without_target = snap.clone();
+        without_target
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some("field"));
+        let replacement = channel.drain_for_viewport_against_snapshot(
+            MAIN_WINDOW_ID,
+            egui::ViewportId::ROOT,
+            &without_target,
+        );
+        assert!(replacement.events.is_empty());
+        assert!(replacement.action_ids.is_empty());
+        assert_eq!(channel.pending(), 0);
+        assert_eq!(
+            channel
+                .receipt_tracker()
+                .wait(&receipt.action_id, std::time::Duration::ZERO)
+                .expect("terminal receipt")
+                .status,
+            crate::mcp::argus::ActionReceiptStatus::Failed
         );
     }
 

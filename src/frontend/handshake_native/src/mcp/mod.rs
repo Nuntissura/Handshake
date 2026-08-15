@@ -64,7 +64,9 @@ pub use argus::{
     acknowledge_action_effect, register_action_effect, ActionEffectRegistration,
     ActionReceiptStatus, ActionReceiptTracker, ArgusActionReceipt, ArgusError, ArgusOutputPlugin,
     ArgusWindowDescriptor, ArgusWindowListing, ArgusWindowSnapshot, WindowSnapshotRegistry,
-    ACTION_RECEIPT_TIMEOUT, MAIN_WINDOW_ID, MAX_AGENT_LABEL_BYTES,
+    ACTION_RECEIPT_DURABILITY_TIMEOUT, ACTION_RECEIPT_TIMEOUT,
+    ACTION_RECEIPT_TRANSPORT_MARGIN, ACTION_RECEIPT_TRANSPORT_TIMEOUT, MAIN_WINDOW_ID,
+    MAX_AGENT_LABEL_BYTES,
 };
 pub use attribution::{
     agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN,
