@@ -71,7 +71,7 @@
     "proof_targets": [
       "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests"
     ],
-    "risk_if_missed": "storage appears finished while Postgres drift or migration debt survives",
+    "risk_if_missed": "storage appears finished while PostgreSQL/SQLite drift or incomplete SurrealKit rollout debt survives",
     "summary": "portable schema and migrations [CX-DBP-011] plus dual-backend testing [CX-DBP-013]"
   },
   "updated_at_utc": null,

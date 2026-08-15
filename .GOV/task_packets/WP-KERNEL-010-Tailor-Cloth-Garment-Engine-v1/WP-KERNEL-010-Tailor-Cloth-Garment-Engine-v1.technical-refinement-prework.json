@@ -4,20 +4,20 @@
   "created_at_utc": "2026-08-01T04:26:38.699Z",
   "status": "OPERATOR_APPROVED_SPEC_V02_203_RECORDED_NON_EXECUTION_REFINEMENT",
   "execution_authority": false,
-  "operator_request": "Preserve and update the full Tailor Cloth+BodyKit WP under Master Spec v02.203: Rust frontend/backend and offline runtime, Python ban, GNM-v3 default, Candle/Mojo/ONNX/TensorFlow precedence, professional high-resolution human/face/performance/conditioning tools, Photoshop/Lightroom/ComfyUI-informed native workspaces, parallel projects, PostgreSQL/CRDT/privacy, Loom/Locus/Flight Recorder, and production Blender/Unreal interchange without product coding or activation.",
+  "operator_request": "Preserve and update the full Tailor Cloth+BodyKit WP under Master Spec v02.203: Rust frontend/backend and offline runtime, Python ban, GNM-v3 default, Candle/Mojo/ONNX/TensorFlow precedence, professional high-resolution human/face/performance/conditioning tools, Photoshop/Lightroom/ComfyUI-informed native workspaces, parallel projects, SurrealDB/CRDT/privacy, Loom/Locus/Flight Recorder, and production Blender/Unreal interchange without product coding or activation.",
   "approved_spec_enrichment": [
     "Master Spec v02.203 Sections 13.37..13.45 and Appendix 12 are active and hash-validated.",
     "Rust-owned product/UI, no Python/PyTorch/cloud/runtime downloads, immutable dependency bundles, Candle-first local ML with qualified Mojo AOT and ONNX/TensorFlow fallbacks.",
     "GNM-v3 default provider-neutral evaluation, optional MHR lane, high-resolution head/source/assembly/residual/corrective/OpenRigLogic-compatible Rust contracts.",
     "Canonical performance/capture/dynamic appearance/conditioning and frame-plus-sequence cinematic waist-up qualification.",
     "Deterministic GLB, restricted pure-Rust USD, OpenPBR/MaterialX/OCIO/EXR, Unreal native commandlet, manual Blender qualification, import-only FBX/Alembic capability rows.",
-    "Professional native top-bar, workspace, tool, slider-plus-numeric, viewport, graph, timeline, jobs, problems, history and model-navigation contracts; PostgreSQL authority, parallel projects, scoped CRDT, HBR-PRIV, Loom/Locus/Flight Recorder."
+    "Professional native top-bar, workspace, tool, slider-plus-numeric, viewport, graph, timeline, jobs, problems, history and model-navigation contracts; SurrealDB authority, parallel projects, scoped CRDT, HBR-PRIV, Loom/Locus/Flight Recorder."
   ],
   "proposed_spec_enrichment": [],
   "scope_edges": [
     "One Tailor product module with Cloth and BodyKit submodules; shared rendering, materials, pose/contact, jobs, commands, diagnostics, assets, manual, and DCC qualification.",
     "Native Rust/wgpu/egui shell and standalone tailor-solver crate; no WebView/Tauri Tailor surface.",
-    "EventLedger and PostgreSQL remain authority; ArtifactStore owns derived artifacts; Flight Recorder is a projection; optional pillars never become Tailor authority.",
+    "EventLedger and SurrealDB remain authority; ArtifactStore owns derived artifacts; Flight Recorder is a projection; optional pillars never become Tailor authority.",
     "PoseKit evidence stays 2D/immutable; lift/camera/contact/mix operations remain proposals until explicit selected apply through owning APIs.",
     "Adapters are optional typed Rust-owned compatibility boundaries. Unreal automation is a pinned native C++ commandlet; Blender evidence is operator-driven manual qualification; neither is core authority or required for native completion."
   ],
@@ -1471,7 +1471,7 @@
     "reuse_opportunities": [
       "KernelActionCatalogV1",
       "EventLedger",
-      "PostgreSQL RLS",
+      "authenticated SurrealDB record-user table/field PERMISSIONS",
       "ResourceBroker",
       "ArtifactStore",
       "Flight Recorder",
@@ -1544,7 +1544,7 @@
       "Python/cloud/firewall and adapter-removal gates.",
       "Immutable dependency/provider/interchange profiles.",
       "Exact action/surface/manual registries.",
-      "PostgreSQL/EventLedger/ArtifactStore authority and HBR-PRIV negative tests.",
+      "SurrealDB/EventLedger/ArtifactStore authority and HBR-PRIV negative tests, including PostgreSQL/SQLite rejection.",
       "Direct/inherited/not-applicable diagnostics.",
       "Measured profiles and typed unsupported behavior.",
       "Frame plus sequence direct inspection.",
@@ -1557,7 +1557,7 @@
       "group": "SolverCore",
       "depends_on": [],
       "status": "PENDING",
-      "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, sqlx, or tauri, per Section 13.2/13.3."
+      "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, surrealdb, sqlx, or tauri, per Section 13.2/13.3."
     },
     {
       "mt_id": "MT-002",
@@ -7923,7 +7923,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014, and guard_authority_write(AuthorityMode::PostgresPrimary) required before every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles."
+      "summary": "Author forward-only SurrealKit rollouts for SCHEMAFULL bodykit_body (BDY-) and bodykit_recipe (BRC-) records per Section 13.16 (BK-16.3 storage authority): typed record ids, required EventLedger record links per ARCH-036/TAI-OVR-014, authenticated record-user table/field PERMISSIONS, and typed SurrealDB-store transactions for every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles. PostgreSQL and SQLite are forbidden."
     },
     {
       "mt_id": "MT-481",

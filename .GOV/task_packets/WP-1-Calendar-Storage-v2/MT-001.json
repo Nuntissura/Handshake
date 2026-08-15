@@ -62,8 +62,7 @@
     ],
     "allowed_paths": [
       "../handshake_main/src/backend/handshake_core/src/storage/mod.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/postgres.rs"
+      "../handshake_main/src/backend/handshake_core/src/storage/**"
     ],
     "forbidden_paths": [],
     "proof_targets": [

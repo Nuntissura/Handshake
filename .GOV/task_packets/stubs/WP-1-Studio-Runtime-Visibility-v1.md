@@ -47,7 +47,7 @@ Rules:
     - Flight Recorder event linkage.
     - Locus / task-board / WP linkage for Studio-originated work.
   - Storage posture:
-    - PostgreSQL-only persistence expectations for Studio runtime state and evidence. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.
+    - Handshake-managed SurrealDB/EventLedger-only persistence for Studio runtime state and evidence. PostgreSQL and SQLite authority, fallback, cache, fixture, harness, compatibility, or proof paths are forbidden.
 - OUT_OF_SCOPE:
   - Full Photo Studio feature completion.
   - Final UI consolidation or visual polish.
@@ -57,7 +57,7 @@ Rules:
 - Studio-adjacent surfaces have explicit job/workflow/tool-call mappings.
 - Studio runtime activity is visible in Command Center / operator surfaces and Flight Recorder.
 - Locus can correlate Studio-originated work with work packets/microtasks.
-- PostgreSQL-only posture is specified for Studio runtime state and evidence. No SQLite runtime, fixture, fallback, compatibility path, cache, harness, or temporary adapter is allowed.
+- SurrealDB/EventLedger-only posture is specified for Studio runtime state and evidence. No PostgreSQL or SQLite runtime, fixture, fallback, compatibility path, cache, harness, importer, reconciliation path, temporary adapter, or proof path is allowed.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Photo Studio surface and Atelier/Lens runtime behavior must remain the source material for the mapping.
@@ -67,7 +67,7 @@ Rules:
 ## RISKS / UNKNOWNs (DRAFT)
 - Risk: Studio stays fragmented into unrelated UI panels without a canonical runtime identity.
 - Risk: operator surfaces show only partial evidence, leading to hidden Studio side effects.
-- Risk: storage posture diverges across SQLite and PostgreSQL if the runtime contract is not made explicit early.
+- Risk: implementation regresses to PostgreSQL or SQLite if the SurrealDB-only runtime contract is not made explicit early.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).

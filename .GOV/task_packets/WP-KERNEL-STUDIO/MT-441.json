@@ -38,7 +38,7 @@
     "STU-OVR-002"
   ],
   "scope": {
-    "summary": "Implement the two canonical interop primitives (StudioImportProfile hsk.studio.import_profile@1, StudioExportRecipe hsk.studio.export_recipe@1; field-owned by 14.23, members of the [STU-DOC-002] set). StudioImportProfile is a typed deterministic decode from a source format into StudioDocument/StudioLayer/StudioMask/StudioTextStory/StudioColorProfile; StudioExportRecipe is a typed encode back. Together they satisfy the four-part per-format contract (import, edit-preserve, export, round-trip). Every import/export is StudioColorProfile-explicit + unit-explicit (decode is the conversion boundary, no implicit device color) and emits EventLedger events (studio.document/studio.export) with a KernelActor distinguishing model- vs operator-authored interop. Enforce [STU-IO-001]: Studio MUST NOT invent a new interchange document format — native = the unified StudioDocument under PostgreSQL/EventLedger authority; deliverables leave only via a StudioExportRecipe into a matrix format.",
+    "summary": "Implement the two canonical interop primitives (StudioImportProfile hsk.studio.import_profile@1, StudioExportRecipe hsk.studio.export_recipe@1; field-owned by 14.23, members of the [STU-DOC-002] set). StudioImportProfile is a typed deterministic decode from a source format into StudioDocument/StudioLayer/StudioMask/StudioTextStory/StudioColorProfile; StudioExportRecipe is a typed encode back. Together they satisfy the four-part per-format contract (import, edit-preserve, export, round-trip). Every import/export is StudioColorProfile-explicit + unit-explicit (decode is the conversion boundary, no implicit device color) and emits EventLedger events (studio.document/studio.export) with a KernelActor distinguishing model- vs operator-authored interop. Enforce [STU-IO-001]: Studio MUST NOT invent a new interchange document format — native = the unified StudioDocument under SurrealDB/EventLedger authority; deliverables leave only via a StudioExportRecipe into a matrix format. PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/interop/**",
       "tests/studio/**"
@@ -114,12 +114,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

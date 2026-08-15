@@ -65,7 +65,7 @@
       "A dated migration YYYY_MM_DD_tailor_material_assignments.sql MUST create the tailor_material_assignments table with assignment_id TEXT PK ('ASGN-{uuid_v7}'), garment_id FK tailor_garments, panel_id TEXT, preset_id FK tailor_material_presets, event_ledger_event_id FK, created_at, with a UNIQUE(garment_id, panel_id) constraint",
       "PanelSpec in tailor-solver/src/spec.rs MUST include an optional material_preset_id: Option<String> field; when present it references a tailor_material_presets.preset_id and overrides GarmentSpec.fabric for that panel at SolverMesh build time",
       "build_solver_mesh MUST apply per-panel material_preset_id override AFTER the garment-level FabricProperties decode, not before; the override wins per-field",
-      "Every INSERT to tailor_material_assignments MUST call guard_authority_write(AuthorityMode::PostgresPrimary) and emit TailorGarmentMaterialAssigned with aggregate 'tailor_material_assignment' and the assignment_id",
+      "Every create on tailor_material_assignment MUST pass through the typed SurrealDB store in one transaction and emit TailorGarmentMaterialAssigned with aggregate 'tailor_material_assignment' and the assignment_id",
       "The tailor_garment_panel_assign_material MCP tool (spec §<N>.<i>.7.2) MUST write to tailor_material_assignments, not to GarmentSpec directly, so the assignment is independently auditable via the EventLedger",
       "The FABRIC_PRESET_VALID ValidationDescriptor MUST verify that every material_preset_id referenced in a PanelSpec resolves to an existing tailor_material_presets row in the same workspace",
       "An integration test MUST assert: assign leather preset to one panel of a multi-panel garment, assign chiffon to another, run simulation, verify the two panels have measurably different per-particle compliance values in the solver output"
@@ -182,7 +182,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

@@ -63,16 +63,18 @@
       "Conformance requirement 11 structured-record readability [ADD v02.166]"
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/src/workflows.rs",
       "src/backend/handshake_core/src/storage/tests.rs"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
+    ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab",
+      "real SurrealDB structured-collaboration readability test against a disposable namespace/database",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board"
     ],
-    "risk_if_missed": "structured collaboration remains effectively single-backend or mirror-dependent",
+    "risk_if_missed": "structured collaboration remains mirror-dependent or bypasses the sole SurrealDB authority",
     "summary": "Conformance requirement 11 structured-record readability [ADD v02.166]"
   },
   "updated_at_utc": null,

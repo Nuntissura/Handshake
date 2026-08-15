@@ -68,14 +68,13 @@
     ],
     "allowed_paths": [
       "../handshake_main/src/backend/handshake_core/src/storage/mod.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/postgres.rs",
+      "../handshake_main/src/backend/handshake_core/src/storage/**",
       "../handshake_main/src/backend/handshake_core/src/api/loom.rs"
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "sqlite_loom_storage_conformance",
-      "postgres_loom_storage_conformance"
+      "surrealdb_loom_storage_conformance",
+      "legacy_database_tripwire_rejects_postgresql_and_sqlite"
     ],
     "risk_if_missed": "historical packet narratives can still hide real method drift or trigger unnecessary rework",
     "summary": "2.3.13.7 Loom storage trait surface (`get_backlinks`, `get_outgoing_edges`, `traverse_graph`, `recompute_block_metrics`, `recompute_all_metrics`)"

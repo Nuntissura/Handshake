@@ -37,7 +37,7 @@
     "STU-CON-001"
   ],
   "scope": {
-    "summary": "Wire the handshake_core::studio::prototype domain: register the studio.prototype.<command>.v<N> command family over the MT-007 command surface, bind StudioPrototypeFlow (hsk.studio.prototype_flow@1) as the single prototyping primitive owning the document's interaction graph (hotspot -> trigger -> action bindings between StudioLayer nodes, named flow starting points, per-flow settings), and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). It replaces every source-suite prototyping surface with one primitive and one command family.",
+    "summary": "Wire the handshake_core::studio::prototype domain: register the studio.prototype.<command>.v<N> command family over the MT-007 command surface, bind StudioPrototypeFlow (hsk.studio.prototype_flow@1) as the single prototyping primitive owning the document's interaction graph (hotspot -> trigger -> action bindings between StudioLayer nodes, named flow starting points, per-flow settings), and route every mutation through STUDIO_* EventLedger events (MT-003) + typed studio_* SurrealDB authority (MT-004). It replaces every source-suite prototyping surface with one primitive and one command family. PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/prototype/**",
       "studio-engine/**",
@@ -48,7 +48,7 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "studio.prototype command family routes through ledger + Postgres; StudioPrototypeFlow bound as single primitive"
+      "studio.prototype command family routes through EventLedger + typed SurrealDB authority; StudioPrototypeFlow bound as single primitive; PostgreSQL/SQLite rejected"
     ],
     "proof_targets": [
       "command-family + ledger/authority routing test"
@@ -112,12 +112,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

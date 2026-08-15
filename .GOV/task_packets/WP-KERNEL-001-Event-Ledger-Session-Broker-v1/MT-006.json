@@ -64,7 +64,7 @@
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/**",
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/migrations/**",
       "src/backend/handshake_core/tests/**"
     ],

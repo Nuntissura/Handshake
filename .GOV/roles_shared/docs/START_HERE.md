@@ -5,7 +5,7 @@ Product authority: Master Spec (see `.GOV/spec/SPEC_CURRENT.md`)
 Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active role protocols
 ---
 ## Build Rules (HBR)
-- The active build-rule registry is `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`; Master Spec authority is `.GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6`.
+- The active build-rule registry is `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`; Master Spec authority is the `SPEC_CURRENT.md`-resolved `spec-modules/05-security-and-observability.md#5.6`.
 - Codex law `CX-131` makes HBR build-time and handoff-time gate authority. Every WP touching product code must satisfy applicable `packet.acceptance_matrix.hbr` rows per `CX-503B1`.
 - Use `just hbr-matrix-check` for packet HBR matrix closure and `just gov-check` for the full HBR/governance bundle.
 
@@ -191,7 +191,7 @@ CI expectation: run the explicit frontend/backend product commands required by t
 - UI/frontend: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#ui-and-shell` (app React + Tauri window lifecycle).
 - Backend/API/logic: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#backend-api-and-logic` (Rust `api/*.rs`, models, logging).
 - IPC / orchestrator (Tauri <-> Rust core): see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#ipc-tauri-bridge` (`app/src-tauri/src/lib.rs` spawn + commands).
-- Data/migrations/storage: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#data-storage-and-migrations` (`migrations/`, SQLite, RDD model).
+- Data/storage/SurrealKit rollouts: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#data-storage-and-migrations` (SurrealDB/EventLedger authority, legacy SQL removal, RDD model).
 
 ## More context
 - Architecture table: `.GOV/roles_shared/docs/ARCHITECTURE.md`

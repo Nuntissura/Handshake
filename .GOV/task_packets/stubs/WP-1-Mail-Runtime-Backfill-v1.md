@@ -48,7 +48,7 @@ Rules:
   - Visibility and storage:
     - DCC/operator visibility.
     - Flight Recorder event expectations.
-    - PostgreSQL-only persistence expectations. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.
+    - Handshake-managed SurrealDB/EventLedger-only persistence expectations. PostgreSQL and SQLite connectivity, authority, fallback, cache, fixture, harness, compatibility, or proof paths are forbidden.
 - OUT_OF_SCOPE:
   - Full mail product implementation.
   - Provider-specific sync integrations beyond the canonical runtime contract.

@@ -28,23 +28,23 @@ Rules:
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (portable migrations posture)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.139.md Portable migrations posture (no hidden runtime schema mutation)
-  - Handshake_Master_Spec_v02.139.md PostgreSQL correctness (older SQLite parity language superseded by reset)
+  - Handshake Master Spec v02.205 SurrealDB exclusive-authority override (older PostgreSQL and SQLite implementation language is historical provenance only)
 
 ## INTENT (DRAFT)
-- What: Remove runtime schema mutation (CREATE/ALTER at runtime) by moving all schema evolution into numbered PostgreSQL migrations.
-- Why: Runtime DDL creates schema drift, breaks migration auditing, and can hide PostgreSQL authority bugs. SQLite parity is superseded by the reset and must not be retained as a test or fixture path.
+- What: Remove ad-hoc runtime schema mutation by moving all SurrealDB schema evolution into versioned SurrealKit rollouts over `SCHEMAFULL` records.
+- Why: Untracked schema mutation creates drift and breaks rollout auditing. PostgreSQL and SQLite connectivity, imports, reconciliation, fallbacks, caches, fixtures, harnesses, compatibility paths, and proof paths are forbidden.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
-  - Identify all runtime DDL sites (ensure_* schema functions, runtime ALTER TABLE) and migrate them into numbered migrations.
-  - Eliminate (or temporarily gate) runtime schema mutation code paths once migrations cover the schema.
+- Identify all runtime schema-mutation sites and migrate them into versioned SurrealKit rollouts for `SCHEMAFULL` records.
+- Eliminate (or temporarily gate) ad-hoc runtime schema mutation code paths once SurrealKit rollouts cover the schema.
   - Add a portability test that asserts no runtime DDL is executed (at least for core tables).
 - OUT_OF_SCOPE:
   - Rewriting the migration framework itself (use existing system).
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
-- run_migrations() does not execute ad-hoc CREATE/ALTER for core tables outside the migration framework.
-- Both backends start cleanly from empty DB using only migrations.
+- The SurrealKit rollout runner does not execute ad-hoc schema mutation for core `SCHEMAFULL` records outside versioned rollouts.
+- The sole Handshake-managed SurrealDB backend initializes cleanly from an empty database using only versioned SurrealKit rollouts.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Requires careful sequencing with any existing ensure_* compatibility shims.

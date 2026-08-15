@@ -41,7 +41,7 @@
       "WP-KERNEL-001-Event-Ledger-Session-Broker",
       "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
       "WP-KERNEL-003-Sandbox-Validation-Promotion",
-      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity",
       "WP-1-Capability-SSoT",
       "WP-1-Session-Scoped-Capabilities-Consent-Gate"
     ],
@@ -68,7 +68,7 @@
       "Principal is the kernel-level auditable subject for events, write boxes, CRDT identity, sessions, sandboxes, capabilities, and Flight Recorder attribution.",
       "KernelActor migrates to typed PrincipalRef.",
       "Handshake-spawned agents inherit only the intersection of parent authority and spawn grant.",
-      "PostgreSQL Row-Level Security is the fail-closed data boundary.",
+      "SurrealDB authenticated record-user permissions plus ResourceBroker are the fail-closed data boundary.",
       "RootOperator break-glass prevents a policy error from permanently bricking an installation.",
       "Existing KERNEL-001/002/003 authority data receives replay-safe ownership backfill."
     ],
@@ -84,7 +84,7 @@
       "A spawned agent keeps its own Principal identity and delegation chain; it does not collapse to the human principal_id.",
       "Principal is auditable actor identity, not the login credential row and not the complete authorization policy.",
       "A local config assertion alone is insufficient for break-glass; recovery requires strong re-authentication, narrow scope, expiry, and immutable audit.",
-      "Runtime PostgreSQL roles must not own protected tables or bypass FORCE RLS."
+      "Authenticated record users, service identities, and runtime sessions must not bypass SurrealDB permissions or ResourceBroker."
     ]
   },
   "naming_contract": {
@@ -98,10 +98,10 @@
     "CapabilityProfile": "tool and capability bundle"
   },
   "scope": {
-    "intent": "Establish trustworthy local login identity, auditable Principal identity, session attribution, account administration, and the PostgreSQL ownership/RLS substrate that every later resource grant, visitor/MCP gate, Persona, shared workspace, and SaaS link uses.",
+    "intent": "Establish trustworthy local login identity, auditable Principal identity, session attribution, account administration, and the SurrealDB authenticated record-user permissions plus ResourceBroker substrate that every later resource grant, visitor/MCP gate, Persona, shared workspace, and SaaS link uses.",
     "in_scope": [
       "UUID v7 identifiers and enums for LocalAccount, AuthenticatedSession, Principal, PrincipalKind, AccountRole, delegation, and revocation epochs.",
-      "LocalAccount PostgreSQL schema, username normalization, password-verifier metadata, account status, last-login/security timestamps, and lifecycle operations.",
+      "LocalAccount `SCHEMAFULL` SurrealDB records, username normalization, password-verifier metadata, account status, last-login/security timestamps, and lifecycle operations.",
       "Memory-hard password hashing with versioned parameters, rate-limited login, logout/lock/session renewal, password change, session revocation, and disabled-account denial.",
       "First-run installation Owner ceremony and explicit bootstrap invariants.",
       "Principal kinds for human account, local/remote model, spawned agent, MCP client, service identity, visitor pass, and break-glass operator.",
@@ -110,13 +110,13 @@
       "Spawned-agent capability and ResourceGrant intersection plus full delegation-chain attribution.",
       "KernelActor to PrincipalRef migration across EventLedger, Flight Recorder, WriteBox, CRDT, Sandbox, ValidationRunner, PromotionGate, ArtifactStore, memory, search/index, and diagnostics records touched by Kernel V1.",
       "Owner/account/principal/session columns and indexes on existing authority-bearing tables.",
-      "RLS policies with FORCE RLS, runtime-role tripwires, transaction-local context, fail-closed missing context, and constant-shape denial.",
+      "SurrealDB table/record permissions with ResourceBroker checks, authenticated record-user tripwires, request-scoped authority context, fail-closed missing context, and constant-shape denial.",
       "Replay-safe backfill, migration rollback/repair, orphan quarantine, and audit receipts.",
       "RootOperator break-glass with protected recovery material, strong re-authentication, reason, narrow scope, expiry, and immutable event trail.",
       "Windows Data Protection API or equivalent product-managed vault seam for session/credential-adjacent secrets and account keys.",
       "Backend APIs plus native login, account switch, lock, and account-administration UI with Argus identifiers.",
       "Flight Recorder/EventLedger login, account, session, role, delegation, and break-glass events.",
-      "Real PostgreSQL, negative authorization, concurrent-session, restart, migration, UserManual, and Argus verification."
+      "Real Handshake-managed SurrealDB, negative authorization, concurrent-session, restart, SurrealKit rollout, UserManual, and Argus verification; PostgreSQL and SQLite are forbidden as runtime, fallback, fixture, compatibility, or proof paths."
     ],
     "out_of_scope": [
       "AccessSpace and ResourceGrant CRUD/evaluation beyond the minimum foreign-key/context seam; WP-KERNEL-007 owns them.",
@@ -138,7 +138,7 @@
       "HBR-PRIV-008"
     ],
     "enforcement_boundaries": [
-      "PostgreSQL RLS/FORCE RLS",
+      "SurrealDB authenticated record-user permissions plus ResourceBroker",
       "server-derived AuthorityContext",
       "session cache and revocation",
       "EventLedger/Flight Recorder",
@@ -151,7 +151,7 @@
       "disabled account",
       "expired or revoked session",
       "role reduction during concurrent use",
-      "runtime database role attempts owner/BYPASSRLS path",
+      "authenticated record user or service identity attempts a permissions/ResourceBroker bypass",
       "forged client account/principal/session/Space identifiers",
       "restricted metadata in logs/errors/counts",
       "spawned agent requests broader authority than parent",
@@ -161,7 +161,7 @@
   "research_basis": {
     "status": "RECORDED_FOR_REFINEMENT",
     "sources": [
-      "https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
+      "Historical comparative provenance only; not implementation authority: https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
       "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
       "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
       "https://pages.nist.gov/800-63-4/sp800-63b.html",
@@ -172,21 +172,21 @@
       "memory-hard password verification",
       "short bounded sessions and revocation",
       "deny-by-default request authorization",
-      "PostgreSQL FORCE RLS with non-owner runtime role",
+      "SurrealDB authenticated record-user permissions with ResourceBroker enforcement",
       "stable actor/resource tuples and delegation chains",
       "OS-bound secret protection"
     ],
     "rejected_patterns": [
       "UI-only filtering",
       "Principal row as password/account/authorization/persona super-record",
-      "application checks without RLS",
-      "runtime table ownership",
+      "application checks without SurrealDB permissions and ResourceBroker enforcement",
+      "runtime permission bypass or unrestricted service identity",
       "provider chat identity as Handshake identity",
       "plaintext or reversible passwords"
     ]
   },
   "activation_acceptance": [
-    "Refinement locks all schemas, enum values, migrations, RLS policy templates, DB roles, transaction context, credential/session algorithms, break-glass procedure, and threat model.",
+    "Refinement locks all `SCHEMAFULL` records, enum values, SurrealKit rollouts, SurrealDB permission templates, authenticated record-user/service identities, request authority context, credential/session algorithms, break-glass procedure, and threat model.",
     "Refinement maps every existing authority table and failure path to ownership/session attribution and backfill behavior.",
     "Refinement carries the v02.202 research basis, rejected options, risks, mitigations, validation plan, and HBR-PRIV matrix.",
     "Official packet adopts the complete pre-created MT index without silent deletion; changes are explicit and traceable.",
@@ -194,9 +194,9 @@
   ],
   "risks_and_hardening": [
     {
-      "risk": "RLS lockout or bypass",
-      "failure_scenario": "policy denies legitimate owner or table-owning runtime bypasses policies",
-      "hardening": "FORCE RLS, non-owner runtime role, migration tripwire, break-glass test, explicit positive/negative policy matrix"
+      "risk": "SurrealDB permission lockout or bypass",
+      "failure_scenario": "permission policy denies a legitimate owner or an unrestricted runtime identity bypasses SurrealDB/ResourceBroker enforcement",
+      "hardening": "authenticated record-user permissions, ResourceBroker enforcement, SurrealKit rollout tripwire, break-glass test, explicit positive/negative permission matrix"
     },
     {
       "risk": "credential/session compromise",

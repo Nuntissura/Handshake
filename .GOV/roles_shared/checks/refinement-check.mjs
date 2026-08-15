@@ -508,7 +508,7 @@ function parsePillarDecompositionRows(lines) {
 
 function parseExecutionRuntimeAlignmentRows(lines) {
   const rows = [];
-  const re = /^\s*-\s*Capability:\s*(.+?)\s*\|\s*JobModel:\s*(AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE)\s*\|\s*Workflow:\s*(.+?)\s*\|\s*ToolSurface:\s*(UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE)\s*\|\s*ModelExposure:\s*(LOCAL|CLOUD|BOTH|OPERATOR_ONLY)\s*\|\s*CommandCenter:\s*(VISIBLE|PLANNED|NONE)\s*\|\s*FlightRecorder:\s*(.+?)\s*\|\s*Locus:\s*(VISIBLE|PLANNED|NONE)\s*\|\s*StoragePosture:\s*(SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N\/A)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  const re = /^\s*-\s*Capability:\s*(.+?)\s*\|\s*JobModel:\s*(AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE)\s*\|\s*Workflow:\s*(.+?)\s*\|\s*ToolSurface:\s*(UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE)\s*\|\s*ModelExposure:\s*(LOCAL|CLOUD|BOTH|OPERATOR_ONLY)\s*\|\s*CommandCenter:\s*(VISIBLE|PLANNED|NONE)\s*\|\s*FlightRecorder:\s*(.+?)\s*\|\s*Locus:\s*(VISIBLE|PLANNED|NONE)\s*\|\s*StoragePosture:\s*(SURREALDB_EXCLUSIVE_AUTHORITY|SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N\/A)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
   for (const line of lines) {
     const m = line.match(re);
     if (!m) continue;
@@ -1683,7 +1683,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       'MicroTask',
       'Command Center',
       'Spec to prompt',
-      'SQL to PostgreSQL shift readiness',
+      'SurrealDB exclusive authority readiness',
       'LLM-friendly data',
       'Stage',
       'Studio',

@@ -66,7 +66,7 @@
       "dedup",
       "state validation",
       "and audit trail run mechanically",
-      "SQLite/FTS5 references are reworked to reset-approved storage/search primitives."
+      "PostgreSQL/SQLite/FTS5 references are reworked to typed SurrealDB storage, SurrealDB-native search/index primitives, and explicit legacy-database tripwires."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/role_mailbox/**",
@@ -79,7 +79,7 @@
       "cargo test -p handshake_core kernel_collaboration_memory --target-dir ../Handshake_Artifacts/handshake-cargo-target"
     ],
     "risk_if_missed": "MT-034 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
-    "summary": "MT-034 FEMS Write-Time Safeguards: fold `WP-1-FEMS-Write-Time-Safeguards-v1`. Acceptance: novelty scoring, supersession, contradiction detection, dedup, state validation, and audit trail run mechanically; SQLite/FTS5 references are reworked to reset-approved storage/search primitives."
+    "summary": "MT-034 FEMS Write-Time Safeguards: preserve novelty scoring, supersession, contradiction detection, dedup, state validation, and audit trail while translating PostgreSQL/SQLite/FTS5 mechanics to typed SurrealDB storage and SurrealDB-native search/index primitives."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"

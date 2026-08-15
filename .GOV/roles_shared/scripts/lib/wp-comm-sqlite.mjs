@@ -4,10 +4,10 @@
  * This helper is repo-governance harness debt, not Handshake product architecture.
  * Do not copy it into Handshake runtime, tests, fixtures, caches, fallbacks,
  * compatibility paths, examples, harnesses, temporary adapters, or self-governance
- * implementation. New Handshake work is PostgreSQL/EventLedger-only.
+ * implementation. New Handshake product and self-governance work is SurrealDB/EventLedger-only.
  *
  * Uses Node.js built-in node:sqlite (Node 22.5+).
- * Schema uses ONLY features portable to PostgreSQL.
+ * This schema is legacy external-harness debt and is not a portability or future-product pattern.
  *
  * Database: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/{WP_ID}/wp_comm.db
  */

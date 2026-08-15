@@ -58,21 +58,23 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013]"
+      "Typed SurrealDB storage boundary plus real-SurrealDB conformance testing; the stable WP id is legacy lineage only"
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/storage/mod.rs",
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/src/storage/tests.rs",
-      "src/backend/handshake_core/migrations/"
+      "src/backend/handshake_core/migrations/**"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
+    ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml postgres_structured_collab",
+      "real SurrealDB structured-collaboration conformance against a disposable namespace/database",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml"
     ],
     "risk_if_missed": "portability remains theoretical and future backend migration debt keeps compounding",
-    "summary": "Storage Backend Portability Architecture [CX-DBP-001] plus Dual-Backend Testing Early [CX-DBP-013]"
+    "summary": "SurrealDB-only structured-collaboration storage conformance and legacy-database rejection"
   },
   "updated_at_utc": null,
   "wp_id": "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1"

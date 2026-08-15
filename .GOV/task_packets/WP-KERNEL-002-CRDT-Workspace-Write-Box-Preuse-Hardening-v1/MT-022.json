@@ -60,13 +60,13 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-022 Postgres Control-Plane Residual Scope: fold `WP-1-Postgres-Control-Plane-Shift-Bundle-v1` plus its transitive folded stubs. Acceptance: residual live Postgres service proof",
+      "MT-022 Legacy Control-Plane Residual Scope: preserve the intent folded from `WP-1-Postgres-Control-Plane-Shift-Bundle-v1` while translating every physical-store obligation to SurrealDB. Acceptance: real SurrealDB service proof",
       "leases/backpressure",
       "ModelSession queues",
       "FEMS memory store",
       "durable workflow execution",
       "DCC projections",
-      "and SQLite boundary obligations are carried into Kernel002 or explicitly mapped to Kernel003/Kernel004 without reopening the old bundle."
+      "and PostgreSQL/SQLite rejection obligations are carried into Kernel002 or explicitly mapped to Kernel003/Kernel004 without reopening the old bundle."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/**",
@@ -77,7 +77,7 @@
       "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target"
     ],
     "risk_if_missed": "MT-022 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
-    "summary": "MT-022 Postgres Control-Plane Residual Scope: fold `WP-1-Postgres-Control-Plane-Shift-Bundle-v1` plus its transitive folded stubs. Acceptance: residual live Postgres service proof, leases/backpressure, ModelSession queues, FEMS memory store, durable workflow execution, DCC projections, and SQLite boundary obligations are carried into Kernel002 or explicitly mapped to Kernel003/Kernel004 without reopening the old bundle."
+    "summary": "MT-022 Legacy Control-Plane Residual Scope: preserve the folded feature intent while translating live service proof, leases/backpressure, ModelSession queues, FEMS memory, durable workflows, and DCC projections to the typed SurrealDB boundary; PostgreSQL/SQLite remain forbidden historical mechanisms."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"

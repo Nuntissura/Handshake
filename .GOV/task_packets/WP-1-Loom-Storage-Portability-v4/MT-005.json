@@ -63,14 +63,13 @@
       "[CX-DBP-011] Portable schema and migrations"
     ],
     "allowed_paths": [
-      "../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/postgres.rs",
+      "../handshake_main/src/backend/handshake_core/src/storage/**",
       "../handshake_main/src/backend/handshake_core/migrations/"
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "sqlite_loom_storage_conformance",
-      "postgres_loom_storage_conformance"
+      "surrealdb_loom_storage_conformance",
+      "legacy_database_tripwire_rejects_postgresql_and_sqlite"
     ],
     "risk_if_missed": "portability appears closed in code review while migration/runtime behavior remains backend-fragile",
     "summary": "[CX-DBP-011] Portable schema and migrations"

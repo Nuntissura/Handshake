@@ -60,7 +60,7 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-011 CRDT Update Persistence: persist CRDT updates in Postgres with ordering",
+      "MT-011 CRDT Update Persistence: persist CRDT updates in SurrealDB through the typed official-SDK boundary with ordering",
       "hash",
       "actor/session attribution",
       "and replay metadata. Acceptance: a workspace can be reconstructed from persisted updates after restart without file-system authority assumptions."
@@ -75,7 +75,7 @@
       "cargo test -p handshake_core kernel_crdt --target-dir ../Handshake_Artifacts/handshake-cargo-target"
     ],
     "risk_if_missed": "MT-011 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
-    "summary": "MT-011 CRDT Update Persistence: persist CRDT updates in Postgres with ordering, hash, actor/session attribution, and replay metadata. Acceptance: a workspace can be reconstructed from persisted updates after restart without file-system authority assumptions."
+    "summary": "MT-011 CRDT Update Persistence: persist CRDT updates in typed SCHEMAFULL SurrealDB records with ordering, hash, actor/session attribution, and replay metadata. Acceptance: a workspace reconstructs after restart without filesystem, PostgreSQL, or SQLite authority assumptions."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"

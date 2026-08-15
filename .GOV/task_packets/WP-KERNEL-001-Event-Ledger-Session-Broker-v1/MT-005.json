@@ -60,23 +60,22 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Kernel authority APIs must fail closed under SQLite cache",
-      "SQLite offline",
+      "Kernel authority APIs must fail closed when SurrealDB is unavailable or misconfigured",
+      "PostgreSQL/SQLite/offline/fixture fallback is rejected",
       "fallback",
       "and test fixture modes."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/storage/mod.rs",
-      "src/backend/handshake_core/src/storage/sqlite.rs",
-      "src/backend/handshake_core/src/storage/locus_sqlite.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/tests/**"
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test -p handshake_core no_sqlite_kernel_authority"
+      "cargo test -p handshake_core no_legacy_database_kernel_authority"
     ],
     "risk_if_missed": "Split-brain Kernel V1 authority survives the reset.",
-    "summary": "Kernel authority APIs must fail closed under SQLite cache, SQLite offline, fallback, and test fixture modes."
+    "summary": "Kernel authority APIs require SurrealDB and fail closed without PostgreSQL, SQLite, offline, fixture, or in-memory fallback modes."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"

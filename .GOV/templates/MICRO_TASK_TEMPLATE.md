@@ -38,7 +38,7 @@ Projection note: this Markdown is a generated compatibility view for `{{MT_ID}}`
 - IDENTITY_AND_SCOPE_CONTEXTS:
   - <LocalAccount|Principal|AccountRole|MembershipRole|AccessSpace|ResourceGrant|Persona context or NONE>
 - PRIVACY_ENFORCEMENT_BOUNDARIES:
-  - <PostgreSQL_RLS|ResourceBroker|filesystem_broker|API|search|model_retrieval|tool|preview|export|sync|UI_query|NONE>
+  - <SurrealDB_record_user_permissions|ResourceBroker|filesystem_broker|API|search|model_retrieval|tool|preview|export|sync|UI_query|NONE>
 - RESOURCE_PRIVACY_NOT_APPLICABLE_REASON: <concrete pure-governance reason or NONE>
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
 

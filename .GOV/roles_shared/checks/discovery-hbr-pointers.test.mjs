@@ -41,7 +41,7 @@ function writeValidDiscovery(repoRoot) {
     # Start Here
     ## Build Rules (HBR)
     .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json
-    .GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6
+    SPEC_CURRENT.md-resolved spec-modules/05-security-and-observability.md#5.6
     CX-131
     CX-503B1
     packet.acceptance_matrix.hbr

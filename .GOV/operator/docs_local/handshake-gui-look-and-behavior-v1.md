@@ -569,7 +569,7 @@ Opened via `FILE > Settings / Options...` or `Ctrl+,`. A modal dialog with a two
 
 ### Backend / Workspace
 
-- Active PostgreSQL connection string (read-only display; managed by handshake_core).
+- Active Handshake-managed SurrealDB endpoint, namespace, database, and health identity (read-only display; credentials are never displayed; managed by handshake_core).
 - Workspace health check: button that triggers a liveness probe and displays result.
 - Event ledger (Flight Recorder) retention: days (numeric).
 - Layout snapshot retention: count of last-known-good snapshots to keep.

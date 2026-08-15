@@ -40,7 +40,7 @@ Mark each verified claim with `[VERIFIED: <evidence source>]`. If a claim cannot
 - Write `NONE` explicitly when a subsection truly has no findings. Do not leave sections blank.
 - Do not write only a verdict summary. Capture the failure ledger, role review, runtime truth, positive controls, and concrete remediations.
 - A closeout review should be honest about both what the WP fixed and what still remains adjacent debt outside the packet.
-- If the packet or remediation touches data-bearing surfaces and declares an active data contract, assess SQL/PostgreSQL readiness, LLM-first readability/parseability, and Loom-intertwined structure explicitly rather than folding that judgment into generic product prose.
+- If the packet or remediation touches data-bearing surfaces and declares an active data contract, assess SurrealDB-exclusive authority, SurrealKit rollout and authenticated record-user permission proof, LLM-first readability/parseability, and Loom-intertwined structure explicitly rather than folding that judgment into generic product prose.
 - Call out anti-vibe findings, accepted signed-scope debt, or shallow easy-surface work explicitly when they influenced the review. Do not leave those concerns implicit.
 - Use typed failure-ledger categories and typed positive controls. Do not hide script/check defects, governance drift, or operator-UX ambiguity inside generic workflow prose.
 

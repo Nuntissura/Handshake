@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-008",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-08-15T16:54:35.1779893Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -36,7 +36,7 @@
     "adopt_from_wp_kernel_012": "WP-KERNEL-012 (wtc-native-editors-v1) proves Argus with a reusable canonical driver (tests/native_gui_support/canonical_argus_driver.rs, emitting ArgusObservation with before/after, authoritative receipt correlation, agent identity and typed TerminalPredicateResult evidence) plus a declarative manifest (tests/mt108_argus_matrix.json, schema hsk.native_gui.argus_surface_matrix@1) and a SEPARATE post-run closure gate (test_mt108_argus_aggregate.rs) so a partial matrix can never silently close the aggregate. Its manifest explicitly EXCLUDES model-session.launch-workspace as outside the editor GUI matrix - i.e. exactly the Dexterity surfaces WP-1 owns. WP-1 should adopt that driver/manifest/closure-gate pattern for its own surfaces (operator chat, model runtime panel, swarm lane diagnostics, cloud model settings, WP-1 console stream, MODELS menu leaf) rather than keeping bespoke per-surface tests that can partially pass. The two Argus surfaces are the same 11-file MCP core in both worktrees, so this is convergence, not a fork."
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002",
       "MT-004",
@@ -48,23 +48,23 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:23:40Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-152028",
-    "ready_for_validation_at_utc": "2026-07-29T15:20:28Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260815-165435",
+    "ready_for_validation_at_utc": "2026-08-15T16:56:05.032Z",
     "completed_by": null,
-    "blocker": "Live detached-window Argus proof requires authenticated Palmistry provenance (WP-KERNEL-012); MT-008's own proof contract was separately repaired 2026-08-02 (missing --features test-utils on a required-features target, missing HANDSHAKE_ARTIFACTS_DIR + HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE, and two declared native targets that cannot produce pixels on this host).",
-    "missing_resource": "CORRECTED 2026-08-04: the previously recorded resource -- 'Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)' -- is STALE. Palmistry is PRESENT in this worktree and was verified by direct file inspection, not inference: migrations/0360_palmistry_durable_verifier.sql (+ .down), src/api/palmistry.rs (carries WatcherSigningSecret, i.e. the authenticated provenance seam), src/sandbox/palmistry_watcher.rs, src/frontend/handshake_native/src/palmistry.rs, the cargo-auto-discovered binary target src/frontend/handshake_native/src/bin/palmistry.rs, and the real end-to-end proof tests/palmistry_real_e2e_tests.rs. REMAINING GATE (smaller and actionable, not an absent component): palmistry_real_e2e_tests is #[ignore]-gated and needs an operator-provided environment -- CARGO_BIN_EXE_handshake_core via --features app-runtime, HANDSHAKE_NATIVE_BIN, HANDSHAKE_PALMISTRY_BIN, HANDSHAKE_PALMISTRY_SHA256 (exact lowercase pin), POSTGRES_TEST_URL on a disposable database, and HANDSHAKE_PALMISTRY_E2E_ISOLATED=1 -- plus exclusive use of the production-fixed listener 127.0.0.1:37501, so the target must run serially and fails closed if that port is occupied.",
-    "proof_status": "FAIL_V5: The required live diagnostics visual proof is absent. The diagnostics-specific production-socket test stops after privacy landmarks and omits filter/drilldown, exact-pane pop-out, screenshots, provenance, receipts, and artifact inspection; the named generic live test captures Settings and pane-a instead of SwarmLaneDiagnostics. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "READY_FOR_VALIDATION_V6: product commit 4a5f1596. Fresh nonce-owned PostgreSQL/EventLedger fixture and production handshake_core served the exact SwarmLaneDiagnostics projection; authenticated Palmistry/Argus drove menu navigation, run/lane/message filters, payload and promotion drilldowns, exact-pane pop-out/merge, and four WGC screenshots. The exact live test passed 1/1; all four canonical PNGs were directly inspected; manifest and evidence-chain hashes matched; temporary schema cleanup was independently verified by PostgreSQL count 0. Both ordinary native diagnostics tests passed on current source, the negative SetValue FIFO/disappearance tests passed independently, ARM64 cargo check passed, fresh adversarial review found no blockers, and the mandatory KB ready checklist emitted PASS at 2026-08-15T16:56:05.032Z.",
+    "hbr_status": "V6 PASS: HBR-VIS-001/002/003/004 production pixels directly inspected for normal, edge-empty, detached-main, and constrained pop-out states; HBR-QUIET-002 window recovery and automated interaction remained bounded and non-foreground; HBR-INT-009 tier posture and trace/EventLedger/Flight Recorder/Palmistry refs rendered; HBR-PRIV-005/008 exact five-dimensional resource-scope denials and capture redaction passed; same-change native UserManual/navigation coverage retained.",
     "kb_ready_checklist_receipt_id": null,
-    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "product_worktree_root_resolution": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "V6 MT008 proof at product commit 4a5f1596; canonical artifacts under Handshake_Artifacts/handshake-test/mt008-live-v17/proof",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_20260729",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
+    "post_implementation_adversarial_review_status": "COMPLETED_V6_20260815",
+    "adversarial_findings_status": "V6_POST_REVIEW_NO_OPEN_BLOCKERS; independent reviewer inspected all four canonical PNGs, recomputed manifest/evidence-chain hashes, and ran SetValue disappearance/FIFO negative tests",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
     "missing_resource_prior_2026_08_04": "Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)"

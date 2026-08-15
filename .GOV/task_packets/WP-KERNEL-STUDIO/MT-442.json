@@ -37,7 +37,7 @@
     "STU-OVR-003"
   ],
   "scope": {
-    "summary": "Implement the NORMATIVE format promotion gate: a format import/export feature MUST NOT be promoted (parity-complete/shippable) unless it declares ALL five artifacts — (a) compatibility scope (what is preserved/transformed/rasterized/unsupported), (b) fixtures per supported app-and-direction, (c) round-trip expectations (bounded fidelity envelope), (d) unsupported-feature diagnostics/receipts (machine-readable, emitted at decode/encode, surfaced to operator+model), (e) recovery behavior (deterministic non-destructive handling of malformed/partial/truncated/password-protected/version-newer inputs; fail closed, never silent partial write). A format missing any is `unsupported` or `optional adapter`, not promoted. Implement the preservation-blob law: vendor-private structures Studio cannot model are carried as an opaque preservation blob, re-emitted on same-family export, receipt-separated from semantically imported structure, and stored as authority data under the no-SQLite rule.",
+    "summary": "Implement the NORMATIVE format promotion gate: a format import/export feature MUST NOT be promoted (parity-complete/shippable) unless it declares ALL five artifacts — (a) compatibility scope (what is preserved/transformed/rasterized/unsupported), (b) fixtures per supported app-and-direction, (c) round-trip expectations (bounded fidelity envelope), (d) unsupported-feature diagnostics/receipts (machine-readable, emitted at decode/encode, surfaced to operator+model), (e) recovery behavior (deterministic non-destructive handling of malformed/partial/truncated/password-protected/version-newer inputs; fail closed, never silent partial write). A format missing any is `unsupported` or `optional adapter`, not promoted. Implement the preservation-blob law: vendor-private structures Studio cannot model are carried as an opaque preservation blob, re-emitted on same-family export, receipt-separated from semantically imported structure, and stored as typed SurrealDB authority data; PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/interop/**",
       "src/studio/**",
@@ -48,7 +48,7 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "five-artifact gate enforced fail-closed; preservation blob carried/re-emitted/receipted; no SQLite"
+      "five-artifact gate enforced fail-closed; preservation blob carried/re-emitted/receipted; no PostgreSQL/SQLite"
     ],
     "proof_targets": [
       "five-artifact gate fail-closed + preservation-blob round-trip test"
@@ -61,7 +61,7 @@
     "expected_tests": [
       "cargo test studio::interop::gate",
       "negative: format missing any of the 5 artifacts cannot be promoted (fails closed)",
-      "test: preservation blob carried + re-emitted on same-family export; receipt separates opaque vs semantic; no SQLite storage"
+      "test: preservation blob carried + re-emitted on same-family export; receipt separates opaque vs semantic; no PostgreSQL/SQLite storage"
     ]
   },
   "gui_obligation": {
@@ -113,12 +113,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

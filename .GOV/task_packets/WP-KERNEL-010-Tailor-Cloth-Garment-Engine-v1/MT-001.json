@@ -47,7 +47,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, sqlx, or tauri, per Section 13.2/13.3.",
+    "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, the SurrealDB SDK, sqlx, or tauri, per Section 13.2/13.3.",
     "allowed_paths": [
       "tailor-solver/Cargo.toml",
       "tailor-solver/src/lib.rs"
@@ -55,13 +55,13 @@
     "forbidden_paths": [],
     "acceptance_criteria": [
       "`tailor-solver` builds as an isolated crate via `cargo build -p tailor-solver`.",
-      "Crate has zero path/dep edge to handshake_core, sqlx, or tauri (grep proves it).",
+      "Crate has zero path/dep edge to handshake_core, the SurrealDB SDK, sqlx, or tauri (grep proves the solver remains storage-agnostic).",
       "Typed inputs, outputs, units, tolerances, invalid/non-finite behavior, and deterministic seed/order requirements are explicit; invalid input fails without mutating solver or authority state.",
       "Boundary, degeneracy, cancellation, and repeatability tests prove the behavior through the owning SolverCapture or typed run receipt, including an evidence-bearing failure path."
     ],
     "proof_targets": [
       "cargo build -p tailor-solver",
-      "grep -L \"handshake_core\\|sqlx\\|tauri\" tailor-solver/Cargo.toml (must match: no such deps)"
+      "grep -L \"handshake_core\\|surrealdb\\|sqlx\\|tauri\" tailor-solver/Cargo.toml (must match: no such deps)"
     ],
     "risk_if_missed": "A solver coupled to the kernel cannot be GPU-CI-gated or reused; violates the crate-boundary contract."
   },
@@ -170,7 +170,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

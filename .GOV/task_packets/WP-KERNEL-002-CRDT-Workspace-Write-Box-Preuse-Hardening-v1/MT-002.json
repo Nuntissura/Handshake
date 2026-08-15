@@ -60,10 +60,10 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-002 Reset Invariant Reconciliation: reconcile folded legacy assumptions with reset invariants. Acceptance: every source obligation that mentions SQLite",
+      "MT-002 Reset Invariant Reconciliation: reconcile folded legacy assumptions with reset invariants. Acceptance: every source obligation that mentions PostgreSQL or SQLite",
       "Markdown authority",
       "mailbox chronology",
-      "or UI-local truth is explicitly converted to Postgres authority",
+      "or UI-local truth is explicitly converted to typed SurrealDB/EventLedger authority",
       "projection/advisory status",
       "or promotion-gated action semantics."
     ],
@@ -76,7 +76,7 @@
       "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target"
     ],
     "risk_if_missed": "MT-002 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
-    "summary": "MT-002 Reset Invariant Reconciliation: reconcile folded legacy assumptions with reset invariants. Acceptance: every source obligation that mentions SQLite, Markdown authority, mailbox chronology, or UI-local truth is explicitly converted to Postgres authority, projection/advisory status, or promotion-gated action semantics."
+    "summary": "MT-002 Reset Invariant Reconciliation: every folded PostgreSQL/SQLite obligation is translated to typed SurrealDB/EventLedger authority, authenticated record-user permissions plus ResourceBroker, projection/advisory status, or promotion-gated action semantics; no legacy connection or fallback survives."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"

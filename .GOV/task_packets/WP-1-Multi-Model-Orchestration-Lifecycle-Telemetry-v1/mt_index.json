@@ -207,7 +207,7 @@
     },
     {
       "mt_id": "MT-006",
-      "status": "FAIL_V5",
+      "status": "CLAIMED",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -271,7 +271,7 @@
     },
     {
       "mt_id": "MT-008",
-      "status": "FAIL_V5",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002",
         "MT-004",
@@ -284,11 +284,11 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "FAIL_V5: The required live diagnostics visual proof is absent. The diagnostics-specific production-socket test stops after privacy landmarks and omits filter/drilldown, exact-pane pop-out, screenshots, provenance, receipts, and artifact inspection; the named generic live test captures Settings and pane-a instead of SwarmLaneDiagnostics. See integration_validation_v5_2026_08_14.",
-      "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
+      "proof_status": "READY_FOR_VALIDATION_V6: product commit 4a5f1596. Live nonce-owned PostgreSQL/EventLedger plus production handshake_core/Palmistry/Argus/WGC proof passed with normal, empty, detached-main, and constrained pop-out captures; ordinary positive/negative native tests, SetValue FIFO/disappearance negatives, ARM64 cargo check, teardown/schema cleanup, independent hash validation, direct pixel inspection, adversarial review, and KB ready checklist all passed.",
+      "hbr_status": "V6 PASS: HBR-VIS-001/002/003/004 production pixels directly inspected; HBR-QUIET-002 bounded quiet interaction; HBR-INT-009 tier posture and trace/EventLedger/Flight Recorder/Palmistry refs rendered; HBR-PRIV-005/008 exact-scope denials and capture redaction passed; native UserManual/navigation coverage retained.",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "COMPLETED_20260729",
-      "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
+      "post_implementation_adversarial_review_status": "COMPLETED_V6_20260815",
+      "adversarial_findings_status": "V6_POST_REVIEW_NO_OPEN_BLOCKERS; all four canonical PNGs and evidence hashes independently inspected; negative action-order tests passed",
       "validation_v4": {
         "verdict": "FAIL_V4",
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",

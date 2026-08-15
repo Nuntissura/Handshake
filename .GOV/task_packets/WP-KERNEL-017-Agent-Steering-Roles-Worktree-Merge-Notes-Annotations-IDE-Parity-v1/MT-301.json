@@ -172,7 +172,7 @@
       "CTRL-1 (RISK-1): Trigger function emits key-only hint payload; AC-301-5 live test asserts payload fields; MT-302 contract independently forbids payload-driven action.",
       "CTRL-2 (RISK-2): NOT NULL scope columns + UNIQUE scope key + per-row post-deserialization re-authorization; AC-301-4 cross-account live test.",
       "CTRL-3 (RISK-3): remove_desired writes 'absent', never DELETE; AC-301-7 grep proof plus code review.",
-      "CTRL-4 (RISK-4): ON CONFLICT DO UPDATE always sets desired_generation = desired_generation + 1; AC-301-3 live test proves the bump."
+      "CTRL-4 (RISK-4): the SurrealDB UPSERT transaction always sets desired_generation = desired_generation + 1; AC-301-3 live test proves the bump."
     ]
   },
   "research_provenance": {

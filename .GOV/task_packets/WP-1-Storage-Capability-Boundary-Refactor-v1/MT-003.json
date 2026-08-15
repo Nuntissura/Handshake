@@ -64,15 +64,14 @@
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/storage/tests.rs",
-      "src/backend/handshake_core/src/storage/sqlite.rs",
-      "src/backend/handshake_core/src/storage/postgres.rs"
+      "src/backend/handshake_core/src/storage/**"
     ],
     "forbidden_paths": [],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml"
     ],
-    "risk_if_missed": "the boundary can drift differently on SQLite and PostgreSQL while still looking cleaner in a narrow local read",
+    "risk_if_missed": "the typed SurrealDB boundary can be bypassed by direct SDK or legacy PostgreSQL/SQLite paths while still looking cleaner in a narrow local read",
     "summary": "Dual-Backend Testing Early [CX-DBP-013]"
   },
   "updated_at_utc": null,

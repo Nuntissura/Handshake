@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * DAL audit: checks DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend hints.
+ * DAL audit: checks the SurrealDB boundary, SurrealQL safety, typed storage
+ * isolation, SurrealKit rollout hygiene, and removal of legacy relational
+ * runtime backends.
  * Exits non-zero on violations or missing required sections.
  */
 import { execSync } from "node:child_process";
-import { readdirSync } from "node:fs";
-import path from "node:path";
 import { printValidatorContextMismatchAndExit, requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
 import { REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
@@ -26,7 +26,7 @@ function runRg(pattern, paths, extraArgs = "") {
 
 let failures = [];
 const targetContext = requireValidatorProductTargets("validator-dal-audit", [backendSrc, migrationsDir], {
-  extraDetails: ["This audit inspects product DAL/storage code and migrations only."],
+  extraDetails: ["This audit inspects product SurrealDB storage code and SurrealKit rollout/schema surfaces only."],
 });
 repoRoot = targetContext.repoRoot || REPO_ROOT;
 const existingTargetSet = new Set(targetContext.existingTargets);
@@ -36,78 +36,58 @@ if (!existingTargetSet.has(backendSrc)) {
   ]);
 }
 if (!existingTargetSet.has(migrationsDir)) {
-  failures.push(`CX-DBP-VAL-013 (migration hygiene): migrations dir missing: ${migrationsDir}`);
+  failures.push(`CX-DBP-VAL-013 (SurrealKit rollout hygiene): rollout/schema dir missing: ${migrationsDir}`);
 }
-const portabilityTargets = [backendSrc, migrationsDir].filter((target) => existingTargetSet.has(target));
+const storageTargets = [backendSrc, migrationsDir].filter((target) => existingTargetSet.has(target));
 
 // CX-DBP-VAL-010: No direct DB access outside storage/
 {
   const outPool = runRg("state\\.pool", [backendSrc], '--glob "!**/storage/**"');
-  const outSqlx = runRg("sqlx::query", [backendSrc], '--glob "!**/storage/**"');
-  const hits = [outPool, outSqlx].filter(Boolean).join("\n");
+  const outSurreal = runRg("surrealdb::|Surreal<", [backendSrc], '--glob "!**/storage/**"');
+  const hits = [outPool, outSurreal].filter(Boolean).join("\n");
   if (hits) {
     failures.push(`CX-DBP-VAL-010 (DB boundary) violations:\n${hits}`);
   }
 }
 
-// CX-DBP-VAL-011: SQL portability (SQLite-only patterns)
+// CX-DBP-VAL-011: SurrealQL safety and authenticated record-user permissions
 {
-  const patterns = ["\\?1", "strftime\\(", "CREATE TRIGGER"];
-  const hits = patterns
-    .map((p) => runRg(p, portabilityTargets))
-    .filter(Boolean)
-    .join("\n");
-  if (hits) {
-    failures.push(`CX-DBP-VAL-011 (SQL portability) violations:\n${hits}`);
+  const interpolated = runRg("query\\(format!|query\\(&format!", [backendSrc]);
+  const permissions = runRg("PERMISSIONS|DEFINE ACCESS|AUTHENTICATE", storageTargets);
+  if (interpolated) {
+    failures.push(`CX-DBP-VAL-011 (interpolated SurrealQL) violations:\n${interpolated}`);
+  }
+  if (!permissions) {
+    failures.push("CX-DBP-VAL-011 (SurrealQL safety): no authenticated record-user permissions found.");
   }
 }
 
-// CX-DBP-VAL-012: Trait boundary (concrete pool leakage)
+// CX-DBP-VAL-012: Typed storage boundary (concrete SurrealDB client leakage)
 {
-  const out = runRg("SqlitePool", [backendSrc], '--glob "!**/storage/**"');
+  const out = runRg("surrealdb::|Surreal<", [backendSrc], '--glob "!**/storage/**"');
   if (out) {
-    failures.push(`CX-DBP-VAL-012 (trait boundary) violations:\n${out}`);
+    failures.push(`CX-DBP-VAL-012 (typed storage boundary) violations:\n${out}`);
   }
 }
 
-// CX-DBP-VAL-013: Migration hygiene (basic check: consecutive numbering)
-try {
-  const allFiles = readdirSync(path.resolve(repoRoot, migrationsDir));
-
-  // Only treat `000X_name.sql` as versioned ups; ignore `*.down.sql` in numbering checks.
-  const upFiles = allFiles.filter(
-    (f) => /^\d{4}_.+\.sql$/.test(f) && !f.endsWith(".down.sql"),
-  );
-
-  const nums = upFiles.map((f) => parseInt(f.slice(0, 4), 10)).sort((a, b) => a - b);
-  for (let i = 1; i < nums.length; i++) {
-    if (nums[i] !== nums[i - 1] + 1) {
-      failures.push(
-        `CX-DBP-VAL-013 (migration hygiene): numbering gap between ${nums[i - 1]} and ${nums[i]}`,
-      );
-      break;
-    }
-  }
-
-  // Phase 1 requirement (spec v02.106 CX-DBP-022): every up migration must have a matching down file.
-  const fileSet = new Set(allFiles);
-  const missingDown = upFiles
-    .map((up) => up.replace(/\.sql$/, ".down.sql"))
-    .filter((down) => !fileSet.has(down));
-  if (missingDown.length > 0) {
-    failures.push(
-      `CX-DBP-VAL-013 (migration hygiene): missing down migrations for:\n${missingDown.join("\n")}`,
-    );
-  }
-} catch (err) {
-  failures.push(`CX-DBP-VAL-013 (migration hygiene): failed to read migrations dir: ${err.message}`);
-}
-
-// CX-DBP-VAL-014: Dual-backend readiness (presence of postgres/parameterization hints)
+// CX-DBP-VAL-013: SurrealKit rollout hygiene
 {
-  const out = runRg("postgres|Postgres|PgPool|PgConnection", portabilityTargets);
-  if (!out) {
-    failures.push("CX-DBP-VAL-014 (dual-backend readiness): no PostgreSQL hints/tests found; add or document gap.");
+  const rollout = runRg("SurrealKit|app-cutover|rollout", storageTargets);
+  const stages = runRg("start|app-cutover|complete|rollback", storageTargets);
+  if (!rollout || !stages) {
+    failures.push("CX-DBP-VAL-013 (SurrealKit rollout hygiene): rollout implementation or required stages missing.");
+  }
+}
+
+// CX-DBP-VAL-014: SurrealDB-only authority
+{
+  const surreal = runRg("surrealdb|SurrealDB|Surreal<", storageTargets);
+  const legacy = runRg("postgres|Postgres|PgPool|PgConnection|sqlx|SQLite|SqlitePool|rusqlite", storageTargets);
+  if (!surreal) {
+    failures.push("CX-DBP-VAL-014 (SurrealDB authority): no SurrealDB implementation/tests found.");
+  }
+  if (legacy) {
+    failures.push(`CX-DBP-VAL-014 (forbidden legacy relational runtime):\n${legacy}`);
   }
 }
 

@@ -619,7 +619,7 @@
     ],
     "canonical_hash_law": "crate::llm::canonical_json_bytes_nfc -> sha256:<64hex>; hash semantic versioned content/source hashes, exclude storage ids/timestamps/receipts, reject unknown major versions, and require explicit migrations.",
     "posekit_receipt_schema": "hsk.atelier.posekit.openpose_export_receipt@1",
-    "durable_authority_law": "Immutable evidence/proposal/camera/map/contact/graph payloads are content-addressed ArtifactStore artifacts linked by EventLedger events; guarded Postgres stores typed refs plus idempotency/query/outbox/orphan state and list/get/replay always reverify hashes.",
+    "durable_authority_law": "Immutable evidence/proposal/camera/map/contact/graph payloads are content-addressed ArtifactStore artifacts linked by EventLedger events; the typed SurrealDB store persists SCHEMAFULL refs plus idempotency/query/outbox/orphan state under authenticated record-user permissions, and list/get/replay always reverify hashes.",
     "body_pose_authority": "hsk.tailor.body_pose_asset@1 with canonical revision/hash/rest-pose/body-channel/contact/source lineage; multi-actor assets use hsk.tailor.multi_actor_pose_asset@1 and the complete stage-frame law."
   },
   "adult_anatomy_candidate": {

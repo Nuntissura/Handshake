@@ -60,19 +60,21 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Current storage portability and dual-backend testing law"
+      "Typed SurrealDB boundary, official-SDK isolation, and single-authority conformance law"
     ],
     "allowed_paths": [
       "storage/mod.rs",
-      "storage/postgres.rs",
+      "storage/**",
       "storage/tests.rs"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
+    ],
     "proof_targets": [
-      "database_trait_purity_capability_snapshot_reports_postgres"
+      "typed_surrealdb_boundary_exposes_no_legacy_database_types"
     ],
     "risk_if_missed": "Pivot bypasses established portability discipline.",
-    "summary": "Current storage portability and dual-backend testing law"
+    "summary": "SurrealDB official-SDK storage isolation and single-authority conformance"
   },
   "updated_at_utc": null,
   "wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation-v1"

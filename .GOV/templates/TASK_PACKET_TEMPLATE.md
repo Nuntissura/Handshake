@@ -267,7 +267,7 @@ Next: N/A
 
 ## DATA_CONTRACT_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - DATA_CONTRACT_ACTIVE: YES | NO
-- SQL_POSTURE: SQLITE_NOW_POSTGRES_READY | BACKEND_NEUTRAL | NOT_APPLICABLE
+- SQL_POSTURE: SURREALDB_EXCLUSIVE_AUTHORITY | NOT_APPLICABLE
 - LLM_READABILITY_POSTURE: REQUIRED | NOT_APPLICABLE
 - LOOM_INTERTWINED_POSTURE: REQUIRED_WHEN_APPLICABLE | NOT_APPLICABLE
 - PRIMARY_DATA_SURFACES:
@@ -277,7 +277,7 @@ Next: N/A
 - VALIDATOR_DATA_PROOF_HINTS:
   - <proof target or NONE>
 - Rule: `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1` requires `DATA_CONTRACT_ACTIVE=YES` and concrete non-empty lists in this section.
-- Rule: `SQL_POSTURE=SQLITE_NOW_POSTGRES_READY` means new persisted or emitted structure must stay portable to PostgreSQL unless the packet/spec explicitly authorizes a backend-specific exception.
+- Rule: `SQL_POSTURE=SURREALDB_EXCLUSIVE_AUTHORITY` means every new persisted or emitted authority structure uses Handshake-managed SurrealDB/EventLedger; PostgreSQL and SQLite connectivity, fixtures, caches, fallbacks, compatibility paths, imports, reconciliation, examples, harnesses, temporary adapters, tests, and proof paths are forbidden.
 - Rule: `LLM_READABILITY_POSTURE=REQUIRED` means meaning must live in explicit structured fields first; presentation-only strings or opaque blobs are insufficient unless the packet/spec says otherwise.
 - Rule: `LOOM_INTERTWINED_POSTURE=REQUIRED_WHEN_APPLICABLE` means stable ids, explicit relations, provenance anchors, and retrieval-friendly summaries must remain explicit wherever the packet touches Loom-facing data.
 
@@ -451,7 +451,7 @@ Next: N/A
 ## EXECUTION_RUNTIME_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - EXECUTION_RUNTIME_ALIGNMENT_VERDICT: <fill> (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
 - ALIGNMENT_ROWS:
-  - Capability: <fill> | JobModel: <AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE> | Workflow: <fill> | ToolSurface: <UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE> | ModelExposure: <LOCAL|CLOUD|BOTH|OPERATOR_ONLY> | CommandCenter: <VISIBLE|PLANNED|NONE> | FlightRecorder: <event ids | NONE> | Locus: <VISIBLE|PLANNED|NONE> | StoragePosture: <SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N/A> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
+  - Capability: <fill> | JobModel: <AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE> | Workflow: <fill> | ToolSurface: <UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE> | ModelExposure: <LOCAL|CLOUD|BOTH|OPERATOR_ONLY> | CommandCenter: <VISIBLE|PLANNED|NONE> | FlightRecorder: <event ids | NONE> | Locus: <VISIBLE|PLANNED|NONE> | StoragePosture: <SURREALDB_EXCLUSIVE_AUTHORITY|N/A> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
 
 ## EXISTING_CAPABILITY_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - EXISTING_CAPABILITY_ALIGNMENT_VERDICT: <fill> (OK | REUSE_EXISTING | NEEDS_SCOPE_EXPANSION | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
@@ -499,7 +499,7 @@ Next: N/A
 - METADATA_SIDE_CHANNEL_CASES:
   - <existence/name/count/thumbnail/search/activity/log/trace denial>
 - RUNTIME_ENFORCEMENT_BOUNDARIES:
-  - <PostgreSQL_RLS|ResourceBroker|filesystem_broker|API|search|model_retrieval|tool|preview|export|sync|UI_query>
+  - <SurrealDB_record_user_permissions|ResourceBroker|filesystem_broker|API|search|model_retrieval|tool|preview|export|sync|UI_query>
 - REQUIRED_HBR_ROWS: HBR-PRIV-001, HBR-PRIV-002, HBR-PRIV-003, HBR-PRIV-004, HBR-PRIV-005, HBR-PRIV-006, HBR-PRIV-007, HBR-PRIV-008
 - NOT_APPLICABLE_REASON: <concrete pure-governance reason or NONE>
 

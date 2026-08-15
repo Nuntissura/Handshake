@@ -23,7 +23,7 @@ Selected approach:
   not-applicable escape hatch for roadmap surfaces.
 - Resolve wired surfaces against product Rust roots plus governance script/schema roots. Current
   ModelManual wired HBR entries are governance code surfaces, while process-ledger entries are
-  Rust/Postgres product surfaces.
+  Rust/SurrealDB product surfaces.
 */
 
 const MANUAL_CONTENT_PATH = "src/backend/handshake_core/src/model_manual/content.rs";

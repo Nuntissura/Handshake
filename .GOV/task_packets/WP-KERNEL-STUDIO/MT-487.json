@@ -35,7 +35,7 @@
     "STU-DOC-004"
   ],
   "scope": {
-    "summary": "Expose the canonical primitive set as a typed read/write object model over the single StudioDocument (the scripting-DOM equivalent) WITHOUT a parallel object hierarchy and WITHOUT a second in-memory document model. Reads project canonical primitive fields; writes are expressed as Section-1 commands inheriting dry-run/receipt/undo/promotion. The object model IS a typed view over the one StudioDocument the engines and Postgres JSONB authority share.",
+    "summary": "Expose the canonical primitive set as a typed read/write object model over the single StudioDocument (the scripting-DOM equivalent) WITHOUT a parallel object hierarchy and WITHOUT a second in-memory document model. Reads project canonical primitive fields; writes are expressed as Section-1 commands inheriting dry-run/receipt/undo/promotion. The object model IS a typed view over the one StudioDocument shared by the engines and its typed SCHEMAFULL SurrealDB authority record.",
     "allowed_paths": [
       "src/studio/**",
       "tests/studio/**"
@@ -111,12 +111,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

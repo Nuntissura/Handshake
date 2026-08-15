@@ -70,7 +70,7 @@
       "cargo test -p handshake_core tailor::export::tests::archive_roundtrip_spec_equivalent",
       "cargo test -p handshake_core tailor::export::tests::archive_import_emits_draft_proposed"
     ],
-    "risk_if_missed": "Without a portable project archive, garment sessions are locked to a single Handshake PostgreSQL instance. Teams cannot share garment work across instances, operators cannot back up and restore individual garments, and the tool cannot be used in disconnected or multi-site workflows."
+    "risk_if_missed": "Without a portable project archive, garment sessions are locked to a single Handshake SurrealDB namespace/database. Teams cannot share garment work across instances, operators cannot back up and restore individual garments, and the tool cannot be used in disconnected or multi-site workflows."
   },
   "hbr_obligations": [
     "HBR-INT",
@@ -177,7 +177,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

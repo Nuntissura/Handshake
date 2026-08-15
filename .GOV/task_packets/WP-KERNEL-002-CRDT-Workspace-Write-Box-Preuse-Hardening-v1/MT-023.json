@@ -66,7 +66,7 @@
       "query",
       "Task Board projection",
       "and Flight Recorder obligations are preserved",
-      "but SQLite authority is replaced with Postgres/EventLedger/CRDT-compatible authority."
+      "and every legacy database authority is replaced with SurrealDB/EventLedger/CRDT-compatible authority."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/**",
@@ -77,7 +77,7 @@
       "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target"
     ],
     "risk_if_missed": "MT-023 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
-    "summary": "MT-023 Locus Work Tracking Reset Migration: fold `WP-1-Locus-Work-Tracking-System-Phase1-v1`. Acceptance: WP/MT tracking, dependencies, occupancy, query, Task Board projection, and Flight Recorder obligations are preserved, but SQLite authority is replaced with Postgres/EventLedger/CRDT-compatible authority."
+    "summary": "MT-023 Locus Work Tracking Reset Migration: preserve WP/MT tracking, dependencies, occupancy, query, Task Board projection, and Flight Recorder obligations while replacing every PostgreSQL/SQLite path with typed SurrealDB/EventLedger/CRDT-compatible authority."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"

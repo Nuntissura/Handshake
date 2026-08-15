@@ -227,7 +227,7 @@
       "compile_units": [
         {
           "name": "tailor-solver",
-          "responsibility": "UI-agnostic physics, contact, comparison, diagnostics, and checkpoints; no sqlx, Tauri, eframe, Axum, EventLedger, or product authority dependencies."
+          "responsibility": "UI-agnostic physics, contact, comparison, diagnostics, and checkpoints; no surrealdb, sqlx, Tauri, eframe, Axum, EventLedger, or product authority dependencies."
         },
         {
           "name": "handshake_core::tailor",

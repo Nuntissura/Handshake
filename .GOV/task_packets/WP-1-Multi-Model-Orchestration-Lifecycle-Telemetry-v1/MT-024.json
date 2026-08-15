@@ -19,43 +19,41 @@
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260814-135053",
     "discovered_at_utc": "2026-08-14T17:24:19.836Z",
-    "trigger": "MT-019 full PostgreSQL proof suites passed but their process-exit test cleanup timed out after 60 seconds and left 27 exact knowledge_test schemas; 13 still existed when independently reread and required exact manual cleanup.",
+    "trigger": "MT-019 exposed a general test-resource cleanup defect: process-exit cleanup can exhaust one aggregate budget and leave task-owned database scopes behind. The PostgreSQL instances are historical evidence only; current remediation targets real disposable SurrealDB namespace/database scopes from WP017 MT-341.",
     "why_a_new_mt": "The defect is owned by tests/knowledge_pg_support.rs and directly belongs to MT-019 test-resource lifecycle, not MT-020 production_factory.rs. The operator requires an unexpected same-WP gap to be retained as a future MT when it does not directly belong to the current MT."
   },
   "scope": {
-    "summary": "Make PostgreSQL integration-test schema teardown bounded, exact, and reliably leak-free for the WP-1 process-ledger and real-process lifecycle suites.",
-    "root_cause": "The process-exit cleanup sends many sequential DROP SCHEMA ... CASCADE operations through one psql process under one aggregate 60-second budget. Full MT-019 runs exceeded that shared budget after 10 and 17 schemas, so successful tests could leave large migrated schemas behind.",
+    "summary": "Make real-SurrealDB integration-test namespace/database teardown bounded, exact, and reliably leak-free for the WP-1 process-ledger and real-process lifecycle suites.",
+    "root_cause": "Sequential cleanup of many task-owned database scopes under one aggregate deadline lets one slow cleanup consume the budget for later scopes. Each disposable SurrealDB namespace/database needs its own bounded cleanup opportunity and independent canonical reread.",
     "owned_files": [
-      "src/backend/handshake_core/tests/knowledge_pg_support.rs"
+      "src/backend/handshake_core/tests/**"
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/tests/knowledge_pg_support.rs",
-      "src/backend/handshake_core/tests/process_ledger_reclaim_tests.rs",
-      "src/backend/handshake_core/tests/process_reclaim_real_lifecycle_pg_tests.rs"
+      "src/backend/handshake_core/tests/**"
     ],
     "forbidden_paths": [
-      "Production PostgreSQL storage or migration behavior",
-      "Broad database, schema-pattern, or cluster deletion",
+      "PostgreSQL or SQLite connection, fixture, migration, fallback, or proof behavior",
+      "Broad namespace, database-pattern, or server deletion",
       "Suppressing cleanup failures without a bounded observable receipt",
-      "Stopping PostgreSQL or any process not started by this MT"
+      "Stopping SurrealDB or any process not started by this MT"
     ],
     "acceptance_criteria": [
-      "AC-1: Cleanup operates only on the exact task-owned schema names returned by the test schema allocator; no wildcard, database-wide, or cluster-wide deletion is permitted.",
-      "AC-2: Every allocated schema receives an independent bounded cleanup opportunity, so one slow DROP cannot consume the cleanup budget for later schemas.",
+      "AC-1: Cleanup operates only on the exact task-owned namespace/database scopes returned by the WP017 MT-341 SurrealDB test allocator; no wildcard, server-wide, or foreign-scope deletion is permitted.",
+      "AC-2: Every allocated SurrealDB namespace/database receives an independent bounded cleanup opportunity, so one slow cleanup cannot consume the cleanup budget for later scopes.",
       "AC-3: Best-effort process-exit cleanup remains non-panicking and observable, while normal per-test cleanup happens early enough that process exit is only a recovery fence.",
-      "AC-4: Fresh full runs of process_ledger_reclaim_tests and process_reclaim_real_lifecycle_pg_tests pass against Handshake-managed PostgreSQL and an independent canonical pg_namespace reread proves zero schemas allocated by those runs remain.",
-      "AC-5: Failure-path tests prove an individual cleanup timeout/error does not prevent later exact schemas from receiving cleanup attempts and does not target foreign schemas."
+      "AC-4: Fresh full process-ledger and real-process lifecycle suites pass against Handshake-managed SurrealDB and an independent official-SDK canonical reread proves zero namespace/database scopes allocated by those runs remain.",
+      "AC-5: Failure-path tests prove an individual cleanup timeout/error does not prevent later exact scopes from receiving cleanup attempts and does not target foreign namespaces/databases."
     ],
     "proof_commands": [
-      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_reclaim_tests -- --nocapture --test-threads=1",
-      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests -- --nocapture --test-threads=1",
-      "Independent psql query of pg_namespace for the exact schema names allocated by both proof runs; expected count: 0",
+      "Focused process-ledger and real-process lifecycle suites using the WP017 MT-341 real-SurrealDB test helper",
+      "Independent official-SDK canonical reread for the exact task-owned namespace/database scopes allocated by both proof runs; expected count: 0",
+      "Repository tripwire proving no PostgreSQL/SQLite connection, fixture, migration, fallback, or proof path is introduced",
       "git diff --check"
     ],
-    "risk_if_missed": "Repeated full PostgreSQL validation leaks hundreds of migrated objects per schema, bloats the managed catalog and disk, slows later tests, and can make otherwise-correct work appear flaky or blocked."
+    "risk_if_missed": "Repeated full SurrealDB validation leaks task-owned namespace/database scopes, bloats managed state, slows later tests, and can make otherwise-correct work appear flaky or blocked."
   },
   "implementation_notes": [
-    "Preserve the existing real PostgreSQL authority and exact-schema allocator.",
+    "Preserve the cleanup intent, not the historical PostgreSQL mechanism: use the WP017 MT-341 real-SurrealDB exact-scope allocator and official SDK.",
     "Prefer normal-scope RAII or explicit teardown; retain process-exit cleanup only as a bounded recovery fence.",
     "Direct every Cargo target to Handshake_Artifacts and clean it after proof."
   ],
@@ -66,9 +64,9 @@
     "HBR-STOP-003"
   ],
   "red_team": [
-    "A single larger timeout preserves the aggregate-budget bug and will regress as migrations grow; the budget must be per exact schema or cleanup must occur earlier.",
-    "Dropping every knowledge_test_* schema could delete a parallel agent's live schema; exact allocator-owned names and foreign-schema survival are mandatory.",
-    "A green test binary does not prove cleanup; pg_namespace must be reread independently after process exit."
+    "A single larger timeout preserves the aggregate-budget bug and will regress as rollouts grow; the budget must be per exact namespace/database scope or cleanup must occur earlier.",
+    "Dropping every similarly named scope could delete a parallel agent's live SurrealDB namespace/database; exact allocator ownership and foreign-scope survival are mandatory.",
+    "A green test binary does not prove cleanup; canonical SurrealDB state must be reread independently after process exit."
   ],
   "lifecycle": {
     "status": "PENDING",

@@ -29,7 +29,7 @@ const KNOWN_PILLARS = [
   'Front End Memory System',
   'Execution / Job Runtime',
   'Spec to prompt',
-  'SQL to PostgreSQL shift readiness',
+  'SurrealDB exclusive authority readiness',
   'LLM-friendly data',
   'Stage',
   'Studio',

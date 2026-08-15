@@ -1,6 +1,6 @@
 [
   { "id": "MT-081", "clause": "Vector domain binding: studio.vector command family + kind=vector layer + engine boundary [STU-VEC-001,STU-VEC-041,STU-VEC-042,STU-VEC-045]",
-    "summary": "Wire the handshake_core::studio::vector domain to the studio-engine VectorEngine (MT-016) through the typed boundary only (no GPU/tessellation dep in handshake_core): register the studio.vector.<command>.v<N> command family over the MT-007 command surface, bind StudioLayer kind=vector to StudioVectorPath/StudioVectorNetwork (MT-002), route all mutations through studio.vector EventLedger events + studio_* Postgres authority (MT-003/MT-004), lossless path->network promotion + explicit network->path flatten command, and geometry precision carried zoom/artboard-independent with decode/encode only at the API boundary.",
+    "summary": "Wire the handshake_core::studio::vector domain to the studio-engine VectorEngine (MT-016) through the typed boundary only (no GPU/tessellation dep in handshake_core): register the studio.vector.<command>.v<N> command family over the MT-007 command surface, bind StudioLayer kind=vector to StudioVectorPath/StudioVectorNetwork (MT-002), route all mutations through studio.vector EventLedger events + typed studio_* SurrealDB authority (MT-003/MT-004), lossless path->network promotion + explicit network->path flatten command, and geometry precision carried zoom/artboard-independent with decode/encode only at the API boundary.",
     "spec_anchor": ["STU-VEC-001","STU-VEC-041","STU-VEC-042","STU-VEC-045","STU-DOC-004"],
     "code_surfaces": ["src/studio/vector/mod.rs","src/studio/vector/domain.rs","studio-engine/src/vector/**"],
     "allowed_paths": ["src/studio/vector/**","studio-engine/**","tests/studio/**"],
@@ -8,7 +8,7 @@
     "depends_on": ["MT-016","MT-002","MT-003","MT-004","MT-007"], "risk_if_missed": "No vector domain wiring; all 14.5 MTs unroutable and unauditable.",
     "gui": {"operator_surface_required":"NO"}, "manual": {"update":"NO"},
     "hbr": ["HBR-INT-003"], "observable_runtime": true, "proof_targets": ["command-family + ledger/authority routing + promotion test"],
-    "acceptance": ["studio.vector command family routes through VectorEngine boundary + ledger + Postgres; lossless promotion; precision at API boundary; no GPU dep leak"] },
+    "acceptance": ["studio.vector command family routes through VectorEngine boundary + EventLedger + typed SurrealDB authority; lossless promotion; precision at API boundary; no GPU dependency leak; PostgreSQL/SQLite rejected"] },
 
   { "id": "MT-082", "clause": "Anchor + segment editing: mirroring modes, corner<->smooth, cubic-bezier drag-to-bend [STU-VEC-002,STU-VEC-003]",
     "summary": "Implement the typed anchor model editing commands: per-anchor incoming/outgoing tangent handles + mirroring mode (independent / mirror-angle / mirror-angle-length), non-destructive corner<->smooth toggle preserving position + handle geometry, and cubic-bezier segments where a straight segment is the zero-length-handle degenerate case; dragging a straight segment synthesizes endpoint handles (drag-to-bend) without destroying adjacent geometry. Segments independently selectable/reshapeable as typed edits.",

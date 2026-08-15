@@ -60,11 +60,11 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Add Postgres migrations for append-only kernel EventLedger storage."
+      "Add forward-only SurrealKit rollouts with typed SCHEMAFULL SurrealQL for append-only kernel EventLedger storage."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/migrations/**",
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/tests/**"
     ],
     "forbidden_paths": [],
@@ -72,7 +72,7 @@
       "cargo test -p handshake_core kernel_event_ledger_migration"
     ],
     "risk_if_missed": "The ledger remains an in-memory or diagnostic-only concept.",
-    "summary": "Add Postgres migrations for append-only kernel EventLedger storage."
+    "summary": "Add forward-only SurrealKit rollouts and SCHEMAFULL SurrealQL for append-only kernel EventLedger storage."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"

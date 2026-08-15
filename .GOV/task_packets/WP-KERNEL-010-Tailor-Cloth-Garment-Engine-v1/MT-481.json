@@ -60,7 +60,7 @@
       "Migration creates bodykit_morph_assets (morph_asset_id TEXT PRIMARY KEY 'BMA-{uuid_v7}', channel_id TEXT, kind TEXT, key_pct INTEGER, delta_payload_ref TEXT NOT NULL, region_mask_ref TEXT NOT NULL, license_tag TEXT NOT NULL CHECK (license_tag <> ''), event_ledger_event_id TEXT NOT NULL).",
       "Migration creates bodykit_channel_registry (channel_id TEXT PRIMARY KEY 'BCH-{uuid_v7}', channel_key TEXT NOT NULL UNIQUE, kind TEXT NOT NULL CHECK (kind IN ('skeletal','tissue')), group_key TEXT NOT NULL, region_mask_ref TEXT NOT NULL, range_json JSONB NOT NULL, default_value REAL NOT NULL, event_ledger_event_id TEXT NOT NULL).",
       "Write path validates channel_key snake_case and range_json shape {min, max, design_max} with min <= default <= max <= design_max; malformed rows are rejected with a typed error before guard_authority_write.",
-      "guard_authority_write(AuthorityMode::PostgresPrimary) precedes all writes to both tables; PK prefix CHECK constraints enforce 'BMA-'/'BCH-'."
+      "All writes to both SCHEMAFULL record types pass through the typed SurrealDB store; typed record-id validation enforces the 'BMA-'/'BCH-' identity contract."
     ],
     "proof_targets": [
       "cargo test -p handshake_core tailor::bodykit::storage::morph_assets_require_license_tag_and_track_keys"
@@ -167,7 +167,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

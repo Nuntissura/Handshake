@@ -58,19 +58,21 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Proposed [ADD v02.182] PostgreSQL-primary control-plane authority"
+      "Stable legacy WP identifier retained; implement SurrealDB as the sole control-plane authority through the official SDK and typed store boundary"
     ],
     "allowed_paths": [
       "storage/mod.rs",
       "main.rs",
       "storage/tests.rs"
     ],
-    "forbidden_paths": [],
-    "proof_targets": [
-      "storage_mode_defaults_to_postgres_primary_when_required"
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
     ],
-    "risk_if_missed": "Runtime defaults remain SQLite-primary by accident.",
-    "summary": "Proposed [ADD v02.182] PostgreSQL-primary control-plane authority"
+    "proof_targets": [
+      "storage_mode_requires_surrealdb_as_sole_authority"
+    ],
+    "risk_if_missed": "Runtime can regress to PostgreSQL/SQLite or create a hidden second authority.",
+    "summary": "Implement SurrealDB as the sole control-plane authority; the WP id is stable historical lineage, not PostgreSQL approval"
   },
   "updated_at_utc": null,
   "wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation-v1"

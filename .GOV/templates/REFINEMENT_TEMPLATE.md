@@ -162,7 +162,7 @@ Requirements (HARD):
   - PILLAR: Front End Memory System | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Execution / Job Runtime | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Spec to prompt | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
-  - PILLAR: SQL to PostgreSQL shift readiness | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: SurrealDB exclusive authority readiness | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: LLM-friendly data | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Stage | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Studio | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
@@ -196,7 +196,7 @@ Requirements (HARD):
   - Persona: <preference/behavior contexts touched or NONE>
   - RESERVED_PROFILE_TERMS_CHECKED: <YES|NO>; `WorkProfile` and `CapabilityProfile` keep their existing meanings; a bare Profile cannot grant access.
 - Resource inventory rows:
-  - RESOURCE_KIND: <folder|file|database_row_or_namespace|project|asset|artifact|memory|model_context|workflow_record|log|trace|index|thumbnail|cache|derivative|export|remote_object|other> | PRODUCER: <fill> | CONSUMER: <fill> | STABLE_RESOURCE_ID: <fill> | OWNER_ACCOUNT_OR_PRINCIPAL: <fill> | ACCESS_SPACE_OR_VISIBILITY_SCOPE: <fill> | STORAGE_BOUNDARY: <fill> | DERIVED_FROM: <ids or NONE> | DEFAULT_DENY_ENFORCEMENT_POINTS: <PostgreSQL_RLS|ResourceBroker|API|search|model_retrieval|tool|preview|export|sync|UI_query|other> | REVOCATION_BEHAVIOR: <fill> | PROOF_TARGET: <fill>
+  - RESOURCE_KIND: <folder|file|database_row_or_namespace|project|asset|artifact|memory|model_context|workflow_record|log|trace|index|thumbnail|cache|derivative|export|remote_object|other> | PRODUCER: <fill> | CONSUMER: <fill> | STABLE_RESOURCE_ID: <fill> | OWNER_ACCOUNT_OR_PRINCIPAL: <fill> | ACCESS_SPACE_OR_VISIBILITY_SCOPE: <fill> | STORAGE_BOUNDARY: <fill> | DERIVED_FROM: <ids or NONE> | DEFAULT_DENY_ENFORCEMENT_POINTS: <SurrealDB_record_user_permissions|ResourceBroker|API|search|model_retrieval|tool|preview|export|sync|UI_query|other> | REVOCATION_BEHAVIOR: <fill> | PROOF_TARGET: <fill>
 - Required scenario rows:
   - SAME_PROJECT_PRIVACY: <owner plus coworker in same project plus unrelated account; private and explicitly shared resources>
   - METADATA_SIDE_CHANNEL: <names/counts/thumbnails/search/activity/logs/traces cannot reveal restricted resources>
@@ -215,7 +215,7 @@ Requirements (HARD):
 ### EXECUTION_RUNTIME_ALIGNMENT (job/workflow/tool/runtime visibility mapping)
 - Rule: every new or expanded capability must map to a Handshake runtime execution surface so local models, cloud models, and operators can invoke and observe it. This section is mandatory even when `ENRICHMENT_NEEDED=NO`.
 - Required row format:
-  - Capability: <fill> | JobModel: <AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE> | Workflow: <fill> | ToolSurface: <UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE> | ModelExposure: <LOCAL|CLOUD|BOTH|OPERATOR_ONLY> | CommandCenter: <VISIBLE|PLANNED|NONE> | FlightRecorder: <event ids | NONE> | Locus: <VISIBLE|PLANNED|NONE> | StoragePosture: <SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N/A> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
+  - Capability: <fill> | JobModel: <AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE> | Workflow: <fill> | ToolSurface: <UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE> | ModelExposure: <LOCAL|CLOUD|BOTH|OPERATOR_ONLY> | CommandCenter: <VISIBLE|PLANNED|NONE> | FlightRecorder: <event ids | NONE> | Locus: <VISIBLE|PLANNED|NONE> | StoragePosture: <SURREALDB_EXCLUSIVE_AUTHORITY|N/A> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
 - EXECUTION_RUNTIME_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
 
 ### PRIMITIVE_MATRIX (high-ROI combos; cross-primitive / cross-feature)

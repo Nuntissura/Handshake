@@ -61,7 +61,7 @@
       "Up/down migrations run clean in both directions."
     ],
     "proof_targets": [
-      "sqlx migrate run && sqlx migrate revert (tailor_uv_islands, tailor_pbr_materials, tailor_graphic_layers, tailor_material_assignments)"
+      "SurrealKit forward-only rollout apply/status plus independent SCHEMAFULL SurrealDB canonical reread for UV, PBR material, graphic-layer, and material-assignment records"
     ],
     "risk_if_missed": "No texture authority means textures cannot be promoted/reused; a tailor_uv_sets table would drift from the canonical 16-table set in 13.14 and break MT-153/MT-233/MT-379 UV validation wiring."
   },
@@ -167,7 +167,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

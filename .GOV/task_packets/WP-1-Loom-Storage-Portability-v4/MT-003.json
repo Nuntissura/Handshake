@@ -60,19 +60,19 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "[LM-SEARCH-001] and [LM-SEARCH-002] backend-agnostic search plus PostgreSQL graph filtering"
+      "[LM-SEARCH-001] and [LM-SEARCH-002] backend-agnostic search plus SurrealDB graph filtering"
     ],
     "allowed_paths": [
       "../handshake_main/src/backend/handshake_core/src/storage/loom.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/postgres.rs",
+      "../handshake_main/src/backend/handshake_core/src/storage/**",
       "../handshake_main/src/backend/handshake_core/src/storage/tests.rs"
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "postgres_loom_storage_conformance"
+      "surrealdb_loom_storage_conformance"
     ],
-    "risk_if_missed": "Postgres search behavior can drift from spec while still looking complete at the packet level",
-    "summary": "[LM-SEARCH-001] and [LM-SEARCH-002] backend-agnostic search plus PostgreSQL graph filtering"
+    "risk_if_missed": "SurrealDB graph-search behavior can drift from spec while still looking complete at the packet level",
+    "summary": "[LM-SEARCH-001] and [LM-SEARCH-002] backend-agnostic search plus SurrealDB graph filtering"
   },
   "updated_at_utc": null,
   "wp_id": "WP-1-Loom-Storage-Portability-v4"

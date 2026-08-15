@@ -61,7 +61,7 @@
       "Migration creates bodykit_skeleton_defs (skeleton_def_id TEXT PRIMARY KEY 'BSK-{uuid_v7}', skeleton_json JSONB NOT NULL, version TEXT NOT NULL, event_ledger_event_id TEXT NOT NULL) with the versioning rule (rename/restructure = major bump, additive chains = minor) recorded in the table comment.",
       "Migration creates bodykit_skin_materials (skin_material_id TEXT PRIMARY KEY 'BSM-{uuid_v7}', material_json JSONB NOT NULL, event_ledger_event_id TEXT NOT NULL) and bodykit_export_profiles (export_profile_id TEXT PRIMARY KEY 'BXP-{uuid_v7}', target TEXT NOT NULL, profile_json JSONB NOT NULL, event_ledger_event_id TEXT NOT NULL).",
       "All three tables enforce PK prefix CHECK constraints ('BSK-'/'BSM-'/'BXP-') and NOT NULL event_ledger_event_id.",
-      "storage.rs exposes typed insert/fetch functions for each table, each calling guard_authority_write(AuthorityMode::PostgresPrimary) first; fetch-by-id returns typed structs, not raw JSON."
+      "storage.rs exposes typed create/fetch functions for each SCHEMAFULL record type through the SurrealDB store; fetch-by-id returns typed structs, not raw JSON."
     ],
     "proof_targets": [
       "cargo test -p handshake_core tailor::bodykit::storage::skeleton_skin_export_tables_typed_roundtrip"
@@ -170,7 +170,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

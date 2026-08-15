@@ -70,7 +70,7 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "check-linkage tests proving result/evidence refs are persisted and projected without direct SQLite bypass"
+      "check-linkage tests proving result/evidence refs persist through the typed SurrealDB boundary without PostgreSQL, SQLite, or direct-SDK bypass"
     ],
     "risk_if_missed": "governed check state drifts from the runtime mirror or bypasses the storage contract",
     "summary": "7.5.4.9 Governance Check Runner additive overlay rule and storage boundary"

@@ -67,7 +67,7 @@
     "allowed_paths": [
       "../handshake_main/src/backend/handshake_core/src/locus/types.rs",
       "../handshake_main/src/backend/handshake_core/src/workflows.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/locus_sqlite.rs"
+      "../handshake_main/src/backend/handshake_core/src/storage/**"
     ],
     "forbidden_paths": [],
     "proof_targets": [

@@ -61,7 +61,7 @@
       "Negative, concurrent, partial-failure, retry, and recovery tests prove EventLedger/ArtifactStore effects are atomic, attributable, replayable, and leave no silent authority or orphan-artifact drift."
     ],
     "proof_targets": [
-      "sqlx migrate run && sqlx migrate revert (tailor_body_proxies)"
+      "SurrealKit forward-only rollout apply/status plus independent SCHEMAFULL SurrealDB canonical reread for tailor body-proxy records"
     ],
     "risk_if_missed": "Missing proxy authority forces re-derivation each sim and breaks determinism."
   },
@@ -166,7 +166,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

@@ -60,11 +60,11 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Implement minimal Postgres claim and lease mechanics for SessionBroker work."
+      "Implement minimal SurrealDB transactional claim, lease, and fencing mechanics for SessionBroker work."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/session_broker.rs",
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/migrations/**",
       "src/backend/handshake_core/tests/**"
     ],
@@ -73,7 +73,7 @@
       "cargo test -p handshake_core durable_claim_and_lease"
     ],
     "risk_if_missed": "The current process-local scheduler remains the only scheduler.",
-    "summary": "Implement minimal Postgres claim and lease mechanics for SessionBroker work."
+    "summary": "Implement minimal SurrealDB transactional claim, lease, and fencing mechanics for SessionBroker work."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"

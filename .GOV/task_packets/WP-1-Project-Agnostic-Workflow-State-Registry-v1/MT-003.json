@@ -68,7 +68,7 @@
       "../handshake_main/src/backend/handshake_core/src/locus/types.rs",
       "../handshake_main/src/backend/handshake_core/src/locus/task_board.rs",
       "../handshake_main/src/backend/handshake_core/src/runtime_governance.rs",
-      "../handshake_main/src/backend/handshake_core/src/storage/locus_sqlite.rs",
+      "../handshake_main/src/backend/handshake_core/src/storage/**",
       "../handshake_main/src/backend/handshake_core/src/workflows.rs"
     ],
     "forbidden_paths": [],

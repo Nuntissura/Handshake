@@ -66,7 +66,7 @@
     "acceptance": ["stable-id + label addressing; position/name/z-order-only rejected; deterministic re-run"] },
 
   { "id": "MT-487", "clause": "Typed read/write object model over StudioDocument (scripting DOM) [STU-AUT-006]",
-    "summary": "Expose the canonical primitive set as a typed read/write object model over the single StudioDocument (the scripting-DOM equivalent) WITHOUT a parallel object hierarchy and WITHOUT a second in-memory document model. Reads project canonical primitive fields; writes are expressed as Section-1 commands inheriting dry-run/receipt/undo/promotion. The object model IS a typed view over the one StudioDocument the engines and Postgres JSONB authority share.",
+    "summary": "Expose the canonical primitive set as a typed read/write object model over the single StudioDocument (the scripting-DOM equivalent) WITHOUT a parallel object hierarchy and WITHOUT a second in-memory document model. Reads project canonical primitive fields; writes are expressed as Section-1 commands inheriting dry-run/receipt/undo/promotion. The object model IS a typed view over the one StudioDocument the engines and typed SCHEMAFULL SurrealDB authority record share.",
     "spec_anchor": ["STU-AUT-006","STU-DOC-001","STU-DOC-004"],
     "code_surfaces": ["src/studio/command/object_model.rs"],
     "allowed_paths": ["src/studio/**","tests/studio/**"],
@@ -792,16 +792,16 @@
     "hbr": ["HBR-VIS-001","HBR-VIS-002","HBR-QUIET-002","HBR-MAN-001"], "observable_runtime": true, "proof_targets": ["Argus before/after evidence + no-OS-injection steering test"],
     "acceptance": ["every GUI/diagnostic change Argus-inspected with evidence; command-API-first steering; HBR-VIS debt recorded"] },
 
-  { "id": "MT-550", "clause": "Native-runtime + PostgreSQL/CRDT duty enforcement [STU-VAL-005]",
-    "summary": "Enforce STU-VAL-005: Studio durable authority is Handshake-managed PostgreSQL/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. A tripwire-class gate proves NO SQLite, no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST.",
+  { "id": "MT-550", "clause": "Native-runtime + SurrealDB/CRDT duty enforcement [STU-VAL-005]",
+    "summary": "Enforce STU-VAL-005: Studio durable authority is Handshake-managed SurrealDB/EventLedger through the official SDK and typed store; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. A tripwire-class gate rejects PostgreSQL, SQLite, SQL-portability shims, and direct-SDK/raw-query bypass, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST.",
     "spec_anchor": ["STU-VAL-005"],
     "code_surfaces": ["src/studio/validation/runtime_duty.rs","tests/studio/runtime_duty.rs"],
     "allowed_paths": ["src/studio/**","tests/studio/**"],
-    "expected_tests": ["negative: no_sqlite_tripwire fires on any studio_* write attempted outside managed Postgres","test: fixture-only proof is rejected as satisfying a runtime/storage MUST","live: CRDT reconnect/replay resolves through Postgres/EventLedger authority"],
-    "depends_on": ["MT-004","MT-013"], "risk_if_missed": "Non-Postgres/mock/Docker shortcuts satisfy MUSTs; authority-durability law broken.",
-    "gui": {"operator_surface_required":"NO"}, "manual": {"update":"YES","entries":["Studio / Validation / Native-runtime + Postgres/CRDT duty (model layer)"]},
-    "hbr": ["HBR-INT-003","HBR-MAN-001"], "observable_runtime": true, "proof_targets": ["no-SQLite tripwire + fixture-only-rejection + CRDT-replay test"],
-    "acceptance": ["Postgres/EventLedger authority + CRDT live state enforced; SQLite/shim/mock/Docker rejected as core proof"] },
+    "expected_tests": ["negative: no_legacy_database_tripwire fires on any studio_* write outside the typed managed-SurrealDB boundary","test: fixture-only proof is rejected as satisfying a runtime/storage MUST","live: CRDT reconnect/replay resolves through SurrealDB/EventLedger authority"],
+    "depends_on": ["MT-004","MT-013"], "risk_if_missed": "Legacy-database/mock/Docker shortcuts satisfy MUSTs; typed SurrealDB authority-durability law broken.",
+    "gui": {"operator_surface_required":"NO"}, "manual": {"update":"YES","entries":["Studio / Validation / Native-runtime + SurrealDB/CRDT duty (model layer)"]},
+    "hbr": ["HBR-INT-003","HBR-MAN-001"], "observable_runtime": true, "proof_targets": ["no-legacy-database tripwire + typed-SurrealDB-boundary + fixture-only-rejection + CRDT-replay test"],
+    "acceptance": ["SurrealDB/EventLedger authority + CRDT live state enforced; PostgreSQL/SQLite/shim/mock/Docker rejected as core proof"] },
 
   { "id": "MT-551", "clause": "Operator-unification shared-invariant enforcement [STU-UNI-003,STU-UNI-001]",
     "summary": "Implement the shared-operator-UX-invariant enforcement harness for STU-UNI-003: across ALL task modes there is ONE selection model (StudioSelectionSet regardless of raster/vector/layout/board context), ONE undo/history surface (14.19), ONE color pipeline (14.8), ONE asset/library surface (Loom - no Studio-private asset silo), and ONE export surface (StudioExportRecipe). A negative test proves no task mode forks a private selection/undo/color/asset/export silo.",
@@ -849,13 +849,13 @@
     "acceptance": ["auto-accept per resolved STU-CON-006(3); self-approval blocked; BLOCKED until resolved"] },
 
   { "id": "MT-555", "clause": "Open contract point: raster authority storage shape + CRDT rep [STU-CON-006(4)]",
-    "summary": "Resolve and implement the raster authority storage shape (tile table vs artifact-ref) and its CRDT representation (14.23). BLOCKED until STU-CON-006(4) is resolved via governed enrichment; defines how raster pixel authority persists (studio_layers tiles vs content-addressed artifact refs) and how it maps into CRDT live state + Postgres/EventLedger authority. MUST NOT invent a storage shape locally.",
+    "summary": "Resolve and implement the raster authority storage shape (tile table vs artifact-ref) and its CRDT representation (14.23). BLOCKED until STU-CON-006(4) is resolved via governed enrichment; defines how raster pixel authority persists (studio_layers tiles vs content-addressed artifact refs) and how it maps into CRDT live state + SurrealDB/EventLedger authority; PostgreSQL and SQLite are forbidden. MUST NOT invent a storage shape locally.",
     "spec_anchor": ["STU-CON-006","STU-HIS-004","STU-VAL-005"],
-    "code_surfaces": ["migrations/2026_MM_DD_studio_raster_authority.sql","src/studio/storage_glue.rs"],
+    "code_surfaces": ["surrealkit/rollouts/*_studio_raster_authority.surql","src/studio/storage_glue.rs"],
     "allowed_paths": ["src/studio/**","migrations/**","tests/studio/**"],
-    "expected_tests": ["live: raster authority persists per the resolved shape on managed Postgres (post-resolution)","test: CRDT representation round-trips + resolves through EventLedger authority (no SQLite)"],
+    "expected_tests": ["live: raster authority persists per the resolved shape on a managed disposable SurrealDB namespace/database (post-resolution)","test: CRDT representation round-trips + resolves through EventLedger authority (no PostgreSQL/SQLite)"],
     "depends_on": ["MT-004","MT-017","STU-CON-006(4)-resolution"], "risk_if_missed": "BLOCKED until STU-CON-006(4) resolved; raster storage shape is spec-debt until then.",
     "gui": {"operator_surface_required":"NO"}, "manual": {"update":"YES","entries":["Studio / Storage / Raster authority shape (model layer)"]},
     "hbr": ["HBR-INT-003","HBR-SWARM-002","HBR-MAN-001"], "observable_runtime": true, "proof_targets": ["raster-authority persistence + CRDT round-trip test (post-resolution)"],
-    "acceptance": ["raster authority storage + CRDT rep per resolved STU-CON-006(4); Postgres/EventLedger; BLOCKED until resolved"] }
+    "acceptance": ["raster authority storage + CRDT rep per resolved STU-CON-006(4); SurrealDB/EventLedger; BLOCKED until resolved"] }
 ]

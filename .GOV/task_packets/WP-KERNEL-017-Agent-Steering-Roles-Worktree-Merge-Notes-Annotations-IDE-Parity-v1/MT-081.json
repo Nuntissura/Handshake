@@ -70,7 +70,7 @@
     ],
     "proof_targets": [
       "cargo test -p handshake_core handshake_roles -- --nocapture",
-      "cargo official SurrealDB Rust SDK migrate run && cargo official SurrealDB Rust SDK migrate revert (or the project's managed-SurrealDB migration harness) applied against a live managed SurrealDB",
+      "SurrealKit forward-only rollout apply/status plus canonical SurrealDB reread (or the project's managed-SurrealDB migration harness) applied against a live managed SurrealDB",
       "cargo test -p handshake_core handshake_roles_http -- --nocapture (route tests incl. 422 negatives)",
       "grep -n \"FULL_SYSTEM_PROMPT\" src/backend/handshake_core/src/swarm_orchestration/handshake_roles.rs | wc -l  # expect 0"
     ],

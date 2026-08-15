@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -24,10 +24,10 @@
     "blocks": [
       "MT-009"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "FAIL_V5",
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260815-165435",
+    "claimed_at_utc": "2026-08-15T17:06:22.0323765Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
     "ready_for_validation_at_utc": "2026-08-04T17:45:00Z",
     "completed_by": null,

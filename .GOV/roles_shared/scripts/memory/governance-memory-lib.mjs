@@ -3,7 +3,7 @@
  *
  * Provider-agnostic cross-session memory for governed workflows.
  * Uses Node.js built-in node:sqlite (Node 22.5+) with FTS5 for keyword search.
- * Schema uses ONLY features portable to PostgreSQL.
+ * This SQLite schema is existing external repo-governance harness debt only; it is not a Handshake product or future self-governance storage pattern.
  *
  * Database: gov_runtime/roles_shared/GOVERNANCE_MEMORY.db
  *

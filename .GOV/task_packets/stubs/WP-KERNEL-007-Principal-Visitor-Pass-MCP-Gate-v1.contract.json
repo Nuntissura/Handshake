@@ -100,7 +100,7 @@
       "ResourceGrant schema with subject, resource/set, actions, conditions, inheritance, issue/expiry/revocation, provenance, and policy version.",
       "Central authorization evaluator combining Principal/session, ResourceGrant, MembershipRole, AccessSpace, capability, action, policy, and revocation.",
       "Project/workspace membership and exact resource linking without blanket project visibility.",
-      "Generalized RLS policies for resource, grant, Space, project, collaboration, index, log, and projection tables.",
+      "Generalized SurrealDB table/record permissions plus ResourceBroker enforcement for resource, grant, Space, project, collaboration, index, log, and projection records.",
       "Authorization-query and explain APIs that do not reveal restricted existence.",
       "ResourceBroker for registered external roots, canonical paths, symlink/junction/traversal defense, ArtifactStore handles, and post-revocation denial.",
       "Derived resources, mixed-scope source intersection, previews/thumbnails/caches/indexes/embeddings/search/model contexts/logs/exports/backups/archive/restore.",
@@ -113,7 +113,7 @@
       "ExternalIdentityBinding and RemoteServiceConnection contract.",
       "RemoteResourceManifest for moodboards, project starters, inspiration items, provenance/hash/deletion/visibility, quarantine, inspection, import, and local linking.",
       "Native Space/resource/share/visitor/MCP/service UI, privacy inspector, UserManual, Argus, EventLedger, and Flight Recorder.",
-      "Real PostgreSQL, filesystem, concurrency, side-channel, revocation, export/restore, MCP, and remote-import end-to-end proof."
+      "Real Handshake-managed SurrealDB, filesystem, concurrency, side-channel, revocation, export/restore, MCP, and remote-import end-to-end proof; PostgreSQL and SQLite are forbidden as runtime, fallback, fixture, compatibility, or proof paths."
     ],
     "out_of_scope": [
       "Password/login implementation and Principal foundation owned by WP-KERNEL-006.",
@@ -136,7 +136,7 @@
     ],
     "enforcement_boundaries": [
       "authorization evaluator",
-      "PostgreSQL RLS/FORCE RLS",
+      "SurrealDB authenticated record-user permissions plus ResourceBroker",
       "ResourceBroker/ArtifactStore",
       "API and backend navigation",
       "search/index/model context/tool retrieval",
@@ -162,7 +162,7 @@
   "research_basis": {
     "status": "RECORDED_FOR_REFINEMENT",
     "sources": [
-      "https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
+      "Historical comparative provenance only; not implementation authority: https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
       "https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/",
       "https://docs.aws.amazon.com/prescriptive-guidance/latest/saas-multitenant-api-access-authorization/introduction.html",
       "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
@@ -191,7 +191,7 @@
   },
   "activation_acceptance": [
     "WP-KERNEL-006 is implemented and Integration Validator-verified.",
-    "Refinement locks all resource kinds, grant semantics, Space behavior, membership interaction, RLS, ResourceBroker, revocation, side-channel, MCP, visitor, and remote-manifest contracts.",
+    "Refinement locks all resource kinds, grant semantics, Space behavior, membership interaction, SurrealDB table/record permissions, ResourceBroker, revocation, side-channel, MCP, visitor, and remote-manifest contracts.",
     "Refinement includes complete primary/derived resource inventory and every producer/consumer boundary.",
     "Official packet adopts the complete pre-created MT index without silent deletion.",
     "A new WP activation signature is obtained."
@@ -200,7 +200,7 @@
     {
       "risk": "visible filtering mistaken for security",
       "failure_scenario": "restricted rows are hidden in UI but retrievable through API/search/model/tool/export",
-      "hardening": "central evaluator plus RLS/Broker enforcement and negative tests at every consumer"
+      "hardening": "central evaluator plus SurrealDB permissions/ResourceBroker enforcement and negative tests at every consumer"
     },
     {
       "risk": "same-project privacy collapse",

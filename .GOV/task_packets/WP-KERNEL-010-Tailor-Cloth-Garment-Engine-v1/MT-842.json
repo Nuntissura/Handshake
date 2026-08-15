@@ -71,7 +71,7 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "From a staged offline bundle, create/recover two projects; build a GNM-v3 assembled character; edit face/anatomy/rig/weights/material/groom/performance and Cloth; render/inspect frame+sequence+AOVs; reload GLB/USD; qualify Unreal/manual Blender; inject dependency/device/solver/adapter/conflict failures; recover/replay; verify PostgreSQL privacy, artifacts, EventLedger/Flight Recorder, Loom/Locus, diagnostics, Argus/AccessKit and UserManual consistency.",
+      "From a staged offline bundle, create/recover two projects; build a GNM-v3 assembled character; edit face/anatomy/rig/weights/material/groom/performance and Cloth; render/inspect frame+sequence+AOVs; reload GLB/USD; qualify Unreal/manual Blender; inject dependency/device/solver/adapter/conflict failures; recover/replay; verify SurrealDB record-user privacy permissions, artifacts, EventLedger/Flight Recorder, Loom/Locus, diagnostics, Argus/AccessKit and UserManual consistency.",
       "Inputs, outputs, schemas, units, version/hash identities, capability state, authority/artifact ownership, privacy scope, diagnostics, cancellation/retry and unsupported behavior are explicit; a no-context implementer must not infer a provider, download, path, threshold or fallback.",
       "Automated proof covers a successful offline Rust path plus missing/corrupt/stale/incompatible input, cancellation or adapter-removal as applicable; it verifies EventLedger/ArtifactStore/Flight Recorder consistency, no partial mutation, no hidden network/Python process and reproducible receipts.",
       "Direct final evidence includes Argus and AccessKit inspection, accessibility/layout/no-focus checks, renderer-console scan, GUI-only and backend-only no-context runs, injected recovery, and direct opening of full-resolution still and sequence artifacts against pinned references."
@@ -148,7 +148,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

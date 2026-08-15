@@ -15,7 +15,7 @@ For live workflow dossiers and workflow-proof reviews that must link into repo-g
   - commit_sha: <sha>
 - SCOPE_SUMMARY: <1-3 sentences>
 - FOCUS_AREAS:
-  - <e.g. LLM-friendly data; Postgres readiness; Locus; Loom; Microtasking; Calendar drift>
+  - <e.g. LLM-friendly data; SurrealDB exclusive authority readiness; Locus; Loom; Microtasking; Calendar drift>
 - RELATED_WP_IDS:
   - <WP-...>
 - OUT_OF_SCOPE:

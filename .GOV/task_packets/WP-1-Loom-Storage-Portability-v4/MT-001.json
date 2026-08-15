@@ -66,12 +66,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "sqlite_loom_storage_conformance",
-      "postgres_loom_storage_conformance",
-      "sqlite_loom_traversal_performance_target",
-      "postgres_loom_traversal_performance_target"
+      "surrealdb_loom_storage_conformance",
+      "surrealdb_loom_traversal_performance_target",
+      "legacy_database_tripwire_rejects_postgresql_and_sqlite"
     ],
-    "risk_if_missed": "SQLite-only green checks are misreported as full portability closure",
+    "risk_if_missed": "fixture-only or legacy-database green checks are misreported as real SurrealDB portability closure",
     "summary": "[CX-DBP-013] Dual-backend testing early"
   },
   "updated_at_utc": null,

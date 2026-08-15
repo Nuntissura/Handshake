@@ -61,7 +61,7 @@
       ".GOV/**",
       "runtime downloads without pinned digests",
       "Docker/containerd/Kubernetes dependency",
-      "SurrealDB/SQLite authority"
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
     ],
     "acceptance_criteria": [
       "Two clean builds from the same manifest produce the same digest or a typed nondeterminism failure with a file-level difference report.",

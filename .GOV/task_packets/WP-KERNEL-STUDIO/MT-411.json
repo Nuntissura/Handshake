@@ -37,7 +37,7 @@
     "STU-ARC-004"
   ],
   "scope": {
-    "summary": "Implement the canonical StudioRawDevelop primitive (schema id hsk.studio.raw_develop@1, field-owned by 14.23) as a non-destructive, re-editable, ordered parametric graph over an immutable decoded raw input: every Basic/Curve/Detail/Color/Optics/Geometry/Effects/Calibration adjustment, mask, and Enhance result stored as parameters+derived buffers, fully reversible to the as-decoded state, and bit-reproducible under a fixed process version. Develop authority persists as studio_* authority rows bound to EventLedger (studio.raw/studio.raster family) per [STU-ARC-003]/[STU-ARC-004] with NO XMP sidecar, NO proprietary raw-settings DB, NO SQLite cache.",
+    "summary": "Implement the canonical StudioRawDevelop primitive (schema id hsk.studio.raw_develop@1, field-owned by 14.23) as a non-destructive, re-editable, ordered parametric graph over an immutable decoded raw input: every Basic/Curve/Detail/Color/Optics/Geometry/Effects/Calibration adjustment, mask, and Enhance result stored as parameters+derived buffers, fully reversible to the as-decoded state, and bit-reproducible under a fixed process version. Develop authority persists as typed SCHEMAFULL studio_* SurrealDB records bound to EventLedger (studio.raw/studio.raster family) per [STU-ARC-003]/[STU-ARC-004], with no XMP sidecar, proprietary raw-settings database, PostgreSQL, or SQLite cache.",
     "allowed_paths": [
       "src/studio/raw/**",
       "studio-engine/**",
@@ -58,13 +58,13 @@
       "src/studio/raw/mod.rs",
       "src/studio/raw/pipeline.rs",
       "studio-engine/src/raw/mod.rs",
-      "migrations/2026_MM_DD_studio_raw_develop.sql"
+      "surrealkit/rollouts/*_studio_raw_develop.surql"
     ],
     "expected_tests": [
       "cargo test studio::raw::pipeline",
       "test: same raw+params+process-version renders bit-identical on same engine build",
       "test: pipeline fully reversible to as-decoded state",
-      "test: develop state persists as authority rows (no XMP sidecar / no SQLite)"
+      "test: develop state persists as authority rows (no XMP sidecar / no PostgreSQL/SQLite)"
     ]
   },
   "gui_obligation": {
@@ -103,7 +103,7 @@
       "reason": "external watcher shipped later"
     }
   ],
-  "risk_if_missed": "No re-editable develop core; raw edits fork types or leak to sidecar files (dedup + no-SQLite violation).",
+  "risk_if_missed": "No re-editable develop core; raw edits fork types or leak to sidecar files (dedup + no-PostgreSQL/SQLite violation).",
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
@@ -116,12 +116,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

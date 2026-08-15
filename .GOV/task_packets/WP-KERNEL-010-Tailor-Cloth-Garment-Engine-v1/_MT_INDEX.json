@@ -78,7 +78,7 @@
       "group": "SolverCore",
       "depends_on": [],
       "status": "PENDING",
-      "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, sqlx, or tauri, per Section 13.2/13.3."
+      "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, surrealdb, sqlx, or tauri, per Section 13.2/13.3."
     },
     {
       "mt_id": "MT-002",
@@ -6444,7 +6444,7 @@
         "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Author the bodykit_bodies (BDY-) and bodykit_recipes (BRC-) PostgreSQL migrations per Section 13.16 (BK-16.3 storage authority/canonical DDL): TEXT primary keys with prefixed uuid_v7, NOT NULL event_ledger_event_id per ARCH-036/TAI-OVR-014, and guard_authority_write(AuthorityMode::PostgresPrimary) required before every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles."
+      "summary": "Author forward-only SurrealKit rollouts for SCHEMAFULL bodykit_body (BDY-) and bodykit_recipe (BRC-) records per Section 13.16 (BK-16.3 storage authority): typed record ids, required EventLedger record links per ARCH-036/TAI-OVR-014, authenticated record-user table/field PERMISSIONS, and typed SurrealDB-store transactions for every write. Bodies persist BodySpec authority state; recipes persist saved channel/skin/genital layer bundles. PostgreSQL and SQLite are forbidden."
     },
     {
       "mt_id": "MT-481",

@@ -64,7 +64,7 @@
       "src/backend/handshake_core/src/storage/mod.rs",
       "src/backend/handshake_core/src/workflows.rs",
       "src/backend/handshake_core/src/api/loom.rs",
-      "src/backend/handshake_core/src/storage/locus_sqlite.rs"
+      "src/backend/handshake_core/src/storage/**"
     ],
     "forbidden_paths": [],
     "proof_targets": [

@@ -51,7 +51,7 @@ const executionStatusByMt = new Map(
   (executionStatus.microtasks || []).map((entry) => [String(entry.mt_id || "").trim(), entry]),
 );
 
-const noSqliteRule = "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.";
+const noSqliteRule = "PostgreSQL and SQLite are forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, caches, compatibility adapters, temporary harnesses, imports, reconciliation, exports, product paths, and proof paths. Handshake-managed SurrealDB/EventLedger plus ArtifactStore are the only accepted storage and evidence direction.";
 
 const inScopePaths = [
   ".GOV/reference/ckc_atelier_lens_consolidation/**",
@@ -80,7 +80,7 @@ const specAnchors = [
   ".GOV/spec/master-spec-v02.185/spec-modules/12-end-of-file-appendices.md#PRIM-Moodboard",
   ".GOV/spec/master-spec-v02.185/spec-modules/12-end-of-file-appendices.md#TOOL-COMFYUI",
   ".GOV/spec/master-spec-v02.185/spec-modules/10-product-surfaces.md#Photo-Studio-and-Library-DAM-functions",
-  ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md#PostgreSQL-EventLedger-only-reset",
+  ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md#41-build-reset-operating-mode",
 ];
 
 const acceptanceCriteria = [
@@ -88,7 +88,7 @@ const acceptanceCriteria = [
   "CKC is preserved as an evolved sibling of Atelier/Lens and prompt-diary intent, not treated as a competing app.",
   "The overlap matrix maps CKC clusters to Handshake owners across Atelier/Lens, Photo Studio, Studio runtime, Loom/media/archive, artifact, and visual-debug surfaces.",
   "Every CKC evolved or convenience feature is classified as fold, dependency, defer, conflict, or operator-decision-needed.",
-  "CKC runtime assumptions are translated to Handshake PostgreSQL/EventLedger/ArtifactStore/CRDT/promotion boundaries.",
+  "CKC runtime assumptions are translated to Handshake-managed SurrealDB/EventLedger/ArtifactStore/CRDT/promotion boundaries.",
   noSqliteRule,
   "Electron IPC, CKC localhost intake authority, .GOV product outputs, and CKC product namespace authority are rejected or translated.",
   "Future CKC rebuild stubs are deferred until this packet, CKC greenroom review, and CKC research basis are complete.",
@@ -101,7 +101,7 @@ const clauseRows = [
   "CLAUSE: CKC/Atelier overlap matrix | CODE_SURFACES: .GOV/reference/ckc_atelier_lens_consolidation/greenroom-overlap-matrix.json, .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json | TESTS: node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs | EXAMPLES: OVR-001 through OVR-012 | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING",
   "CLAUSE: CKC evolved features | CODE_SURFACES: .GOV/reference/ckc_atelier_lens_consolidation/greenroom-evolved-feature-register.json, .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json | TESTS: node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs | EXAMPLES: EVOL-001 through EVOL-026 | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING",
   "CLAUSE: Runtime translation matrix | CODE_SURFACES: .GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.json, .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json | TESTS: node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs | EXAMPLES: module boundaries and conflict rows | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING",
-  `CLAUSE: SQLite absolute rejection | CODE_SURFACES: ${REF_BASE}/greenroom-output-index.json, ${PACKET_DIR}/packet.md | TESTS: rg -n "SQLite" ${REF_BASE} ${PACKET_DIR} | EXAMPLES: no runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING`,
+  `CLAUSE: PostgreSQL and SQLite absolute rejection | CODE_SURFACES: ${REF_BASE}/greenroom-output-index.json, ${PACKET_DIR}/packet.md | TESTS: rg -n "PostgreSQL|Postgres|SQLite" ${REF_BASE} ${PACKET_DIR} | EXAMPLES: no runtime, tests, fixtures, mocks, examples, fallbacks, caches, compatibility adapters, temporary harnesses, imports, reconciliation, exports, product paths, or proof paths | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING`,
   "CLAUSE: Future CKC rebuild stubs gated | CODE_SURFACES: .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.md, .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md | TESTS: node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs | EXAMPLES: deferred downstream WP register | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING",
   "CLAUSE: Model-facing manual diagnostics non-focus automation | CODE_SURFACES: .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.md, .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-*.md | TESTS: node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs | EXAMPLES: manual, visual debug, structured receipts, quiet model operation | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING",
   "CLAUSE: 75 MT coverage | CODE_SURFACES: .GOV/reference/ckc_atelier_lens_consolidation/greenroom-microtask-map.json, .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-*.json | TESTS: node -e \"const fs=require('fs'); const c=fs.readdirSync('.GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1').filter(f=>/^MT-\\\\d{3}\\\\.json$/.test(f)).length; if(c!==75) throw new Error(String(c));\" | EXAMPLES: MT-001 through MT-075 | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING",
@@ -147,9 +147,9 @@ const researchSources = [
     pattern: "Parallel model edits should flow through CRDT-friendly document and artifact boundaries instead of single-owner desktop state.",
   },
   {
-    source: "PostgreSQL full text search documentation",
+    source: "Rejected historical PostgreSQL full-text-search comparison",
     url: "https://www.postgresql.org/docs/17/textsearch.html",
-    pattern: "Search/tag/similarity features can start PostgreSQL-first with full-text search before specialized vector or media indexes.",
+    pattern: "Rejected for current work: search/tag/similarity features use SurrealDB-native indexes and search; PostgreSQL-first implementation is historical comparison only.",
   },
   {
     source: "Tauri WebviewWindow API reference",
@@ -188,7 +188,7 @@ function classifyMicrotask(title, index) {
 }
 
 function riskForMicrotask(title) {
-  if (/SQLite/i.test(title)) return "SQLite could re-enter as a runtime, test, fixture, mock, fallback, cache, compatibility, import, export, or temporary harness assumption.";
+  if (/PostgreSQL|Postgres|SQLite/i.test(title)) return "PostgreSQL or SQLite could re-enter as a runtime, test, fixture, mock, fallback, cache, compatibility, import, reconciliation, export, proof, or temporary harness assumption.";
   if (/Electron|Tauri|localhost|namespace|product-output/i.test(title)) return "CKC runtime authority could be copied into Handshake instead of translated to Handshake boundaries.";
   if (/Preserve/i.test(title)) return "Existing Atelier/Lens intent could be silently dropped during CKC folding.";
   if (/ComfyUI|PoseKit|OpenPose/i.test(title)) return "Media pipeline behavior could lose provenance, schema, or replay evidence.";
@@ -350,7 +350,7 @@ ${mdList(specAnchors, "  ")}
 
 ## STORAGE_AND_RUNTIME_CONSTRAINTS
 - ${noSqliteRule}
-- CKC SQLite assumptions are rejected even for tests, fixtures, mocks, examples, fallback cache, temporary adapters, compatibility shims, imports, exports, or demo harnesses.
+- CKC PostgreSQL and SQLite assumptions are rejected even for tests, fixtures, mocks, examples, fallback caches, temporary adapters, compatibility shims, imports, reconciliation, exports, proof, or demo harnesses.
 - CKC Electron IPC is source evidence only; Handshake implementation must use Handshake/Tauri command, window, event, and workspace contracts.
 - CKC localhost intake authority is source evidence only; Handshake implementation must use governed ingestion endpoints, ArtifactStore receipts, EventLedger entries, and model-visible diagnostics.
 - CKC product namespace and .GOV product-output habits are rejected; generated product data belongs in Handshake product surfaces, while repo governance stays under .GOV.
@@ -424,7 +424,7 @@ ${mdList([
     "Run node .GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs --check.",
     "Run node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs.",
     "Confirm 75 MT JSON contracts exist and all generated projection headers are in sync.",
-    "Search new packet/reference surfaces for weak SQLite language and stale Greenroom-WP phrasing.",
+    "Search new packet/reference surfaces for PostgreSQL/SQLite regressions and stale Greenroom-WP phrasing.",
   ], "  ")}
 
 ## VALIDATION_REPORTS
@@ -508,7 +508,7 @@ ${mdList(outputIndex.runtime_rejections || [], "  ")}
 ${mdList(researchSources.map((item) => `${item.source}: ${item.url} -> ${item.pattern}`), "  ")}
 
 ## REUSE_OPPORTUNITIES
-- Handshake PostgreSQL/EventLedger/ArtifactStore boundaries replace CKC SQLite, file-local persistence, and localhost authority.
+- Handshake-managed SurrealDB/EventLedger/ArtifactStore boundaries replace CKC PostgreSQL, SQLite, file-local persistence, and localhost authority.
 - Handshake CRDT/workspace surfaces carry parallel model editing and tab/window placement needs without copying CKC desktop state.
 - Handshake visual-debug and screenshot validation work can absorb CKC media review and contact-sheet review evidence.
 - Existing Photo Studio, Atelier/Lens, Lens ViewMode, Lens Extraction Tier, Stage media artifact portability, Loom archive, and artifact-system packets remain the runway for implementation.
@@ -516,13 +516,13 @@ ${mdList(researchSources.map((item) => `${item.source}: ${item.url} -> ${item.pa
 ## REJECTED_OPTIONS
 - Keep CKC as a separate source of product authority: rejected because the operator wants CKC folded into Handshake Atelier/Lens.
 - Create CKC rebuild stubs before consolidation: rejected because the operator made consolidation first the current task.
-- Use SQLite for runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths: rejected absolutely.
+- Use PostgreSQL or SQLite for runtime, tests, fixtures, mocks, examples, fallbacks, caches, compatibility adapters, temporary harnesses, imports, reconciliation, exports, product paths, or proof paths: rejected absolutely.
 - Copy Electron IPC, localhost intake, or CKC namespace authority into Handshake: rejected; translate to Handshake stack boundaries.
 
 ## RED_TEAM
 - Risk: CKC convenience features are treated as optional extras and lost. Mitigation: evolved feature register is acceptance evidence, and MTs classify every extra as folded, dependency, deferred, conflict, or operator-decision-needed.
 - Risk: Atelier/Lens stub intent is overwritten by CKC scope. Mitigation: preservation map is a required source and MT-027 through MT-038 preserve source stub intent before rebuild work.
-- Risk: SQLite sneaks back through tests, fixtures, caches, import/export compatibility, or temporary harnesses. Mitigation: absolute rejection is a clause row, acceptance criterion, and MT-039.
+- Risk: PostgreSQL or SQLite sneaks back through tests, fixtures, caches, import/export compatibility, reconciliation, proof, or temporary harnesses. Mitigation: absolute rejection is a clause row, acceptance criterion, and MT-039.
 - Risk: governance and product code blur. Mitigation: this packet is governance-only; future implementation packets must write product code under Handshake surfaces and keep .GOV for repo governance.
 - Risk: future coders implement UI first. Mitigation: packet constrains the next step to language/tech-stack translation and source-backed CKC fold-in, not GUI redesign.
 
@@ -654,7 +654,7 @@ function packetContract() {
       assumptions_to_attack: [
         "CKC and Atelier/Lens are separate enough to split now.",
         "CKC convenience features can be deferred without recording their intent.",
-        "SQLite can be harmless in test or fixture harnesses.",
+        "PostgreSQL or SQLite can be harmless in test or fixture harnesses.",
         "Electron/localhost patterns can be copied into Handshake because they worked in CKC.",
       ],
       minimum_controls: [
@@ -692,13 +692,13 @@ function refinementContract() {
       risks: [
         "Lost Atelier/Lens stub intent.",
         "Lost CKC convenience feature intent.",
-        "SQLite backdoor through tests or fixtures.",
+        "PostgreSQL/SQLite backdoor through tests or fixtures.",
         "CKC runtime copied instead of translated.",
       ],
       controls: [
         "Preservation-first rows.",
         "Feature classification rows.",
-        "Absolute no-SQLite clause.",
+        "Absolute no-PostgreSQL/no-SQLite clause.",
         "Handshake runtime translation matrix.",
       ],
     },
@@ -741,20 +741,20 @@ ${mdList(execution.evidence_artifacts, "  ")}
 - Execute this microtask as part of the Atelier/Lens consolidation packet, not as a separate CKC rebuild packet.
 - Preserve original Atelier/Lens and adjacent stub intent first, then fold CKC evidence into the Handshake owner surface.
 - Classify any CKC extra behavior as folded, dependency, deferred, conflict, or operator-decision-needed.
-- Translate CKC runtime assumptions to Handshake PostgreSQL/EventLedger/ArtifactStore/CRDT/promotion boundaries.
+- Translate CKC runtime assumptions to Handshake-managed SurrealDB/EventLedger/ArtifactStore/CRDT/promotion boundaries.
 - ${noSqliteRule}
 
 ## ACCEPTANCE
 - The microtask output is source-backed by the greenroom registers or preserved Handshake stubs.
 - No original source intent is discarded silently.
 - No CKC-only runtime authority is copied into Handshake.
-- SQLite remains rejected for runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.
+- PostgreSQL and SQLite remain rejected for runtime, tests, fixtures, mocks, examples, fallbacks, caches, compatibility adapters, temporary harnesses, imports, reconciliation, exports, product paths, and proof paths.
 - The packet/refinement/microtask projection stays aligned with ${PACKET_DIR}/packet.json and ${PACKET_DIR}/refinement.json.
 
 ## VERIFICATION
 - Run node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs.
 - Run node .GOV/roles_shared/checks/packet-contract-projection-check.mjs.
-- Inspect this microtask for source-backed evidence and no-SQLite compliance.
+- Inspect this microtask for source-backed evidence and SurrealDB-exclusive/no-PostgreSQL/no-SQLite compliance.
 ${executionSection}
 `;
 }

@@ -119,7 +119,7 @@
   { "id": "MT-150", "clause": "Sections + page numbering [STU-LAY-014]",
     "summary": "Implement sections partitioning a document for numbering: a named section restarts page numbering at a chosen start value, selects a number style (arabic, roman upper/lower, alphabetic, and locale-specific styles), optionally carries a section prefix and marker, and carries a per-section include-on-export flag. Section state is a record on the owning StudioPageSpread range (field-defined in 14.23). Typed command + studio.layout events; model-steerable and operator-facing.",
     "spec_anchor": ["STU-LAY-014","STU-CON-004","STU-LAY-067"],
-    "code_surfaces": ["src/studio/layout/sections.rs","migrations/2026_MM_DD_studio_layout_sections.sql"],
+    "code_surfaces": ["src/studio/layout/sections.rs","surrealkit/rollouts/*_studio_layout_sections.surql"],
     "allowed_paths": ["src/studio/layout/**","migrations/**","tests/studio/**"],
     "expected_tests": ["cargo test studio::layout::sections","live: section restarts numbering at start value with chosen number style + prefix/marker","test: per-section include-on-export flag honored on export; section record scoped to StudioPageSpread range"],
     "depends_on": ["MT-141","MT-004"], "risk_if_missed": "No section numbering; front-matter/roman-then-arabic documents impossible; export scoping broken.",

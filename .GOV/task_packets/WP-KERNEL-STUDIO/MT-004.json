@@ -28,14 +28,14 @@
     "active": false,
     "validator_verdict": "PENDING"
   },
-  "clause": "studio_* PostgreSQL tables + dated migrations (foundation set) [STU-ARC-004,STU-CON-004]",
+  "clause": "SCHEMAFULL studio_* SurrealDB records + forward-only SurrealKit rollouts (foundation set) [STU-ARC-004,STU-CON-004]",
   "spec_anchor": [
     "STU-ARC-004",
     "STU-CON-004",
     "STU-VAL-005"
   ],
   "scope": {
-    "summary": "Author the foundation studio_* tables (studio_documents SDOC-, studio_layers SLYR-, studio_artboards SART-, studio_page_spreads SPGS-, studio_history_entries SHIS-, studio_edit_proposals SEPR-) as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql), TEXT PRIMARY KEY prefixed ids, event_ledger_event_id NOT NULL FK, guard_authority_write(Postgres) on every write.",
+    "summary": "Author forward-only SurrealKit rollouts for SCHEMAFULL studio_* record types (studio_document SDOC-, studio_layer SLYR-, studio_artboard SART-, studio_page_spread SPGS-, studio_history_entry SHIS-, studio_edit_proposal SEPR-), with typed record ids, required EventLedger record links, authenticated record-user table/field PERMISSIONS, and typed SurrealDB-store writes. PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/**",
       "migrations/**",
@@ -46,18 +46,18 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "foundation tables migrate on managed Postgres; no SQLite; write-guard proven"
+      "foundation SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB; PostgreSQL/SQLite rejected; typed-store and record-user permissions proven"
     ],
     "proof_targets": [
-      "live PostgreSQL migration up/down + write-guard test"
+      "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test"
     ],
     "code_surfaces": [
-      "migrations/2026_MM_DD_studio_*.sql",
+      "surrealkit/rollouts/*_studio_*.surql",
       "src/studio/storage_glue.rs"
     ],
     "expected_tests": [
-      "live-PG: migrations up+down clean",
-      "test: no_sqlite_tripwire fires on any studio_* write without Postgres",
+      "live-SurrealDB: forward-only SurrealKit rollout applies cleanly and canonical records reread",
+      "test: no_legacy_database_tripwire rejects PostgreSQL/SQLite and any studio_* write outside the typed SurrealDB boundary",
       "test: prefixed-id + event_ledger_event_id FK enforced"
     ]
   },
@@ -110,12 +110,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

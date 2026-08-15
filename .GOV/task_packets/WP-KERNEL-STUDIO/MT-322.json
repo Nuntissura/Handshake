@@ -35,7 +35,7 @@
     "STU-ARC-004"
   ],
   "scope": {
-    "summary": "Author the design-system studio_* tables as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql) with TEXT PRIMARY KEY prefixed ids and event_ledger_event_id NOT NULL FK: studio_components (SCMP-), studio_component_instances (SCIN-), studio_variables (SVAR-), studio_variable_collections (SVCL-), studio_styles (SSTY-). StudioAutoLayout/StudioConstraint/StudioLayoutGrid persist as typed fields on the owning studio_layers row (MT-004), not new tables. guard_authority_write(Postgres) on every write; no SQLite.",
+    "summary": "Author forward-only SurrealKit rollouts for SCHEMAFULL design-system studio_* record types with typed record ids and required EventLedger record links: studio_component (SCMP-), studio_component_instance (SCIN-), studio_variable (SVAR-), studio_variable_collection (SVCL-), studio_style (SSTY-). StudioAutoLayout/StudioConstraint/StudioLayoutGrid persist as typed fields on the owning studio_layer record (MT-004), not new record types. Every write uses the typed SurrealDB store under authenticated record-user table/field PERMISSIONS; PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/design_system/**",
       "migrations/**",
@@ -46,18 +46,18 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "design-system tables migrate on managed Postgres; layout primitives as layer fields; no SQLite; write-guard proven"
+      "design-system SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB; layout primitives remain layer fields; PostgreSQL/SQLite rejected; typed-store and permissions proven"
     ],
     "proof_targets": [
-      "live PostgreSQL migration up/down + write-guard test"
+      "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test"
     ],
     "code_surfaces": [
-      "migrations/2026_MM_DD_studio_design_system.sql",
+      "surrealkit/rollouts/*_studio_design_system.surql",
       "src/studio/design_system/storage_glue.rs"
     ],
     "expected_tests": [
-      "live-PG: migrations up+down clean",
-      "test: no_sqlite_tripwire fires on any design-system authority write without Postgres",
+      "live-SurrealDB: forward-only SurrealKit rollout applies cleanly and canonical records reread",
+      "test: no_legacy_database_tripwire rejects PostgreSQL/SQLite and any design-system write outside the typed SurrealDB boundary",
       "test: prefixed-id + event_ledger_event_id FK enforced on all five tables"
     ]
   },
@@ -110,12 +110,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

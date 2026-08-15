@@ -60,12 +60,12 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Implement append/query APIs for kernel events through the Postgres backend."
+      "Implement append/query APIs for kernel events through the typed SurrealDB boundary and official SDK."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/**",
       "src/backend/handshake_core/src/storage/mod.rs",
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/tests/**"
     ],
     "forbidden_paths": [],
@@ -73,7 +73,7 @@
       "cargo test -p handshake_core kernel_event_ledger_api"
     ],
     "risk_if_missed": "Broker, tool, artifact, validation, and promotion code will bypass durable event authority.",
-    "summary": "Implement append/query APIs for kernel events through the Postgres backend."
+    "summary": "Implement append/query APIs for kernel events through the typed SurrealDB boundary and official SDK."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"

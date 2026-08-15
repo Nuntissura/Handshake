@@ -40,7 +40,7 @@
     "STU-DOC-004"
   ],
   "scope": {
-    "summary": "Wire the handshake_core::studio::vector domain to the studio-engine VectorEngine (MT-016) through the typed boundary only (no GPU/tessellation dep in handshake_core): register the studio.vector.<command>.v<N> command family over the MT-007 command surface, bind StudioLayer kind=vector to StudioVectorPath/StudioVectorNetwork (MT-002), route all mutations through studio.vector EventLedger events + studio_* Postgres authority (MT-003/MT-004), lossless path->network promotion + explicit network->path flatten command, and geometry precision carried zoom/artboard-independent with decode/encode only at the API boundary.",
+    "summary": "Wire the handshake_core::studio::vector domain to the studio-engine VectorEngine (MT-016) through the typed boundary only (no GPU/tessellation dep in handshake_core): register the studio.vector.<command>.v<N> command family over the MT-007 command surface, bind StudioLayer kind=vector to StudioVectorPath/StudioVectorNetwork (MT-002), route all mutations through studio.vector EventLedger events + typed studio_* SurrealDB authority (MT-003/MT-004), lossless path->network promotion + explicit network->path flatten command, and geometry precision carried zoom/artboard-independent with decode/encode only at the API boundary. PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/vector/**",
       "studio-engine/**",
@@ -51,7 +51,7 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "studio.vector command family routes through VectorEngine boundary + ledger + Postgres; lossless promotion; precision at API boundary; no GPU dep leak"
+      "studio.vector command family routes through VectorEngine boundary + EventLedger + typed SurrealDB authority; lossless promotion; precision at API boundary; no GPU dependency leak; PostgreSQL/SQLite rejected"
     ],
     "proof_targets": [
       "command-family + ledger/authority routing + promotion test"
@@ -116,12 +116,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

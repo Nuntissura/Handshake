@@ -35,7 +35,7 @@
     "STU-OVR-003"
   ],
   "scope": {
-    "summary": "Implement the develop read/observe projections of StudioRawDevelop state to operator UI and model command surface per [STU-DOC-004] (never a separate model shim): live histogram with shadow/highlight clipping toggles; zoom/pan/hand navigation with zoom presets + full-screen review; before/after cycling + per-panel adjustment-visibility toggling; multi-image filmstrip with sort/filter (capture date, name, rating, color label), per-image star ratings, color labels, mark-for-deletion; and a configurable preview/settings cache with max size, purge, relocation held under the no-SQLite authority rule.",
+    "summary": "Implement the develop read/observe projections of StudioRawDevelop state to operator UI and model command surface per [STU-DOC-004] (never a separate model shim): live histogram with shadow/highlight clipping toggles; zoom/pan/hand navigation with zoom presets + full-screen review; before/after cycling + per-panel adjustment-visibility toggling; multi-image filmstrip with sort/filter (capture date, name, rating, color label), per-image star ratings, color labels, mark-for-deletion; and a configurable preview/settings cache with max size, purge, and relocation held outside authority under the typed SurrealDB boundary and PostgreSQL/SQLite tripwire.",
     "allowed_paths": [
       "src/studio/raw/**",
       "src/frontend/handshake_native/src/studio/**",
@@ -46,7 +46,7 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "read/observe surfaces render + query; filmstrip sort/filter/rating; cache controls; no SQLite"
+      "read/observe surfaces render + query; filmstrip sort/filter/rating; cache controls; no PostgreSQL/SQLite"
     ],
     "proof_targets": [
       "Argus inspect of histogram/filmstrip + cache-control test"
@@ -58,7 +58,7 @@
     "expected_tests": [
       "argus: histogram + clipping toggles + navigation reachable with stable author_ids",
       "test: filmstrip sort/filter + rating/label/mark-for-deletion query",
-      "test: preview/settings cache purge+relocate; no SQLite"
+      "test: preview/settings cache purge+relocate; no PostgreSQL/SQLite"
     ]
   },
   "gui_obligation": {
@@ -121,12 +121,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

@@ -39,7 +39,7 @@
     "STU-CON-001"
   ],
   "scope": {
-    "summary": "Wire the handshake_core::studio::design_system domain to the studio-engine LayoutEngine (MT-020) through the typed boundary only: register the studio.design_system.<command>.v<N> command family over the MT-007 command surface, bind the canonical primitives StudioComponent/StudioComponentInstance/StudioVariable/StudioVariableCollection/StudioStyleRegistry/StudioAutoLayout/StudioConstraint/StudioLayoutGrid (MT-002) to StudioLayer nodes, and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). No solver/tessellation dep leaks into handshake_core; auto-layout/constraint solving lives behind the LayoutEngine trait.",
+    "summary": "Wire the handshake_core::studio::design_system domain to the studio-engine LayoutEngine (MT-020) through the typed boundary only: register the studio.design_system.<command>.v<N> command family over the MT-007 command surface, bind the canonical primitives StudioComponent/StudioComponentInstance/StudioVariable/StudioVariableCollection/StudioStyleRegistry/StudioAutoLayout/StudioConstraint/StudioLayoutGrid (MT-002) to StudioLayer nodes, and route every mutation through STUDIO_* EventLedger events (MT-003) + typed studio_* SurrealDB authority (MT-004). No solver/tessellation dependency leaks into handshake_core; auto-layout/constraint solving lives behind the LayoutEngine trait. PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/design_system/**",
       "studio-engine/**",
@@ -50,7 +50,7 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "studio.design_system command family routes through LayoutEngine boundary + ledger + Postgres; canonical primitives bound; no dep leak"
+      "studio.design_system command family routes through LayoutEngine boundary + EventLedger + typed SurrealDB authority; canonical primitives bound; no dependency leak; PostgreSQL/SQLite rejected"
     ],
     "proof_targets": [
       "command-family + ledger/authority routing test"
@@ -115,12 +115,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

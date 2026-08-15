@@ -65,7 +65,7 @@
       "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix."
     ],
     "proof_targets": [
-      "sqlx migrate run && sqlx migrate revert (tailor_panels)",
+      "SurrealKit forward-only rollout apply/status plus independent SCHEMAFULL SurrealDB canonical reread for tailor panel records",
       "cargo test -p handshake-native tailor_surface_manifest_mt_045"
     ],
     "risk_if_missed": "Panels orphaned from garments corrupt pattern authority."
@@ -172,7 +172,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

@@ -34,7 +34,7 @@
 
 This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
 
-- Account-resource privacy duty: for every product validation, independently verify stable owner/scope linkage and executable authorization across PostgreSQL RLS, ResourceBroker/filesystem, APIs, search/index, memory/model context, tools, UI, previews, exports, backups, logs/Flight Recorder, and SaaS/MCP seams touched by the WP. Require positive access plus cross-account, cross-Space, same-project-private, stale/revoked-context, metadata-side-channel, and mixed-source derived-scope non-widening proof as applicable. UI filtering and fixture-only authorization do not satisfy HBR-PRIV.
+- Account-resource privacy duty: for every product validation, independently verify stable owner/scope linkage and executable authorization across authenticated SurrealDB record-user table/field permissions, ResourceBroker/filesystem, APIs, search/index, memory/model context, tools, UI, previews, exports, backups, logs/Flight Recorder, and SaaS/MCP seams touched by the WP. Require positive access plus cross-account, cross-Space, same-project-private, stale/revoked-context, metadata-side-channel, and mixed-source derived-scope non-widening proof as applicable. UI filtering and fixture-only authorization do not satisfy HBR-PRIV.
 
 - At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
 - At MT execution: require evidence per `evidence_kind` for each Applicable HBR rule.
@@ -758,21 +758,21 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - Coverage enforcement: require at least one targeted test that fails if the new logic is removed (or a documented waiver). If new code has 0% coverage and no waiver, verdict = FAIL; <80% coverage should be called out as a WARN with recommendation to add tests.
 - Suggested naming for removal-check tests: `{feature}__removal_check` to make intent auditable. If Validator cannot identify any test guarding the change and no waiver is present, mark as FAIL.
 
-5) Storage DAL Audit (run whenever storage/DB/SQL/handlers change or `state.pool`/`sqlx` appear)
-- CX-DBP-VAL-010: No direct DB access outside storage/ DAL. Grep for `state.pool`, `sqlx::query` in non-storage paths.
-- CX-DBP-VAL-011: SQL portability. Flag `?1`, `strftime(`, `CREATE TRIGGER` SQLite-only syntax in migrations/queries.
-- CX-DBP-VAL-012: Trait boundary. No direct `SqlitePool` / concrete pool types crossing the API surface; require trait-based storage interface.
-- CX-DBP-VAL-013: Migration hygiene. Check numbering continuity, idempotency hints, and consistent versioning.
-- CX-DBP-VAL-014: Dual-backend readiness. If tests exist, ensure both backends are parameterized; if absent, mark as gap (waiver must be explicit).
-- For portable/shared storage contracts, CX-DBP-VAL-014 is field-level semantic parity, not just "a SQLite test exists and a PostgreSQL test exists". Backend-specific tests cannot close portable field behavior by themselves.
-- Block if storage portability requirements are missing from the resolved current Master Spec (A2.3.12) or DAL violations are present; re-open affected WPs.
+5) Storage DAL Audit (run whenever storage/DB/query/handlers change or direct SurrealDB client access appears)
+- CX-DBP-VAL-010: No direct database access outside storage/DAL. Grep for direct SurrealDB SDK client/query calls in non-storage paths.
+- CX-DBP-VAL-011: SurrealQL safety. Require official SurrealDB Rust SDK parameter binding, reject interpolated query strings, and require authenticated record-user table/field permissions.
+- CX-DBP-VAL-012: Typed storage boundary. No concrete SurrealDB client types cross the product API surface; require the typed storage interface.
+- CX-DBP-VAL-013: SurrealKit rollout hygiene. Check ordered `start`, application cutover, `complete`, and `rollback` stages, idempotency, interruption recovery, and version continuity.
+- CX-DBP-VAL-014: SurrealDB-exclusive authority. Require Handshake-managed SurrealDB/EventLedger runtime proof and prove PostgreSQL/SQLite unavailability cannot select a fallback, import, reconciliation path, fixture, cache, compatibility path, or dual authority.
+- For durable/shared storage contracts, CX-DBP-VAL-014 is field-level semantic and permission proof against a real WP-scoped SurrealDB namespace/database; generated schemas, mocks, fixtures, and legacy-backend tests cannot close behavior by themselves.
+- Block if SurrealDB-exclusive storage requirements are missing from the resolved current Master Spec (A2.3.12) or DAL violations are present; re-open affected WPs.
 
 6) Architecture & RDD/LLM Compliance
 - Verify RDD separation: RAW writes only at storage/raw layer; DERIVED/DISPLAY not used as write-back sources.
 - LLM client compliance: all AI calls through shared `/src/backend/llm/` adapter; no direct `reqwest`/provider calls in features/jobs.
 - Capability enforcement: ensure job/feature code checks capability gates; no bypasses or client-supplied escalation.
 - For new persisted/exported/request data shapes, prefer LLM-first structured fields over presentation-first blobs: stable field names, explicit enums/typed fields, and machine-readable meaning that does not require reparsing UI prose.
-- When the WP touches SQL/data access, prefer portable SQL/data modeling that remains PostgreSQL-ready; call out new SQLite-only semantics unless the packet/spec explicitly requires them.
+- When the WP touches storage/data access, require typed `SCHEMAFULL` SurrealDB records, bound SurrealQL through the official Rust SDK, authenticated record-user permissions, and SurrealKit rollout proof; PostgreSQL/SQLite dependencies or paths are blockers.
 - When the WP touches graph/search/provenance surfaces, preserve Loom-friendly linkage: stable ids, explicit relations, backlink-friendly fields, and retrieval-friendly summaries that stay traversable outside the UI.
 
 7) Security / Red Team Pass
@@ -800,7 +800,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - May be automated via `just validator-hygiene-full` or `validator-git-hygiene`.
 
 ## Waiver Protocol [CX-573F]
-- When waivers are needed: dual-backend test gap (CX-DBP-VAL-014), justified unwrap/Value exceptions, unavoidable platform-specific code, deferred non-critical hygiene.
+- When waivers are needed: justified unwrap/Value exceptions, unavoidable platform-specific code, deferred non-critical hygiene. SurrealDB-exclusive authority and the PostgreSQL/SQLite prohibition under CX-DBP-VAL-014 are not waivable by a portability or dual-backend rationale.
 - Approval: MEDIUM/HIGH risk requires explicit user approval; LOW risk can be Coder + Validator with user visibility.
 - Recording (in work packet under "WAIVERS GRANTED"): waiver ID/date, check waived, scope (per WP), justification, approver, expiry (e.g., Phase 1 completion or specific WP).
 - Waivers NOT allowed: spec regression, evidence mapping gaps, hard invariant violations, security gate violations, traceability removal, RCE guard removal.
@@ -827,7 +827,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just validator-next [ROLE] WP-{ID}` now projects a typed `VALIDATOR_GATE_{APPROVE|DEFER|SKIP}_RESUME` governed-action envelope from runtime route truth before falling back to packet markers; treat that as the canonical resume decision surface instead of reconstructing next work from transcript prose
 - `just validator-gate-*` mutations now also stamp typed governed gate actions into the validator gate ledger; `validator-gate-status`, `validator-next`, and audit readers should prefer that governed gate action history over the legacy raw `status` mirror when both are present
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
-- `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
+- `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: SurrealDB SDK boundary, SurrealQL binding and record-user permissions, typed storage boundary, SurrealKit rollout hygiene, and SurrealDB-exclusive authority)
 - `just validator-spec-regression` (`SPEC_CURRENT` resolves to the active indexed spec bundle; required anchors like A2.3.12 present)
 - `just spec-eof-appendices-check` (Spec Section 12 end-of-file appendix blocks exist + are parseable/valid)
 - `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
@@ -965,7 +965,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
   - `SHARED_SURFACE_INTERACTION_CHECKS:` with concrete producer/consumer, registry, type, runtime, or contract interaction evidence across shared surfaces
   - `CURRENT_MAIN_INTERACTION_CHECKS:` with concrete current-`main` caller/consumer compatibility evidence against the packet diff
 - When `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, also append:
-  - `DATA_CONTRACT_PROOF:` with concrete code, query, schema, or emitted-artifact evidence showing the packet was reviewed for SQL portability, LLM-first readability/parseability, and Loom-intertwined requirements
+  - `DATA_CONTRACT_PROOF:` with concrete code, bound SurrealQL, typed `SCHEMAFULL` schema, authenticated record-user permission, SurrealKit rollout, or emitted-artifact evidence showing the packet was reviewed for SurrealDB-exclusive authority, LLM-first readability/parseability, and Loom-intertwined requirements
   - `DATA_CONTRACT_GAPS:` with `- NONE` only when no gap remains in those data-contract obligations inside signed scope
 - `VALIDATOR_RISK_TIER` is validator-assigned and MUST NOT be lower than the packet `RISK_TIER`.
 - `LEGAL_VERDICT=PASS` is legal only when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
@@ -1253,7 +1253,7 @@ This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED
 
 **Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
 
-**Sub-rule 2 — External-resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every external resource named — model artifact, Postgres table/column, HTTP endpoint, subprocess, file-format round-trip, OS-level surface, IPC channel actually routed to a running process — confirm at least one proof command touches the real resource. If the proof only touches mocks the implementer authored alongside the impl, status `NEEDS_EXTERNAL_RESOURCE`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+**Sub-rule 2 — External-resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every external resource named — model artifact, SurrealDB table/record/field, HTTP endpoint, subprocess, file-format round-trip, OS-level surface, IPC channel actually routed to a running process — confirm at least one proof command touches the real resource. If the proof only touches mocks the implementer authored alongside the impl, status `NEEDS_EXTERNAL_RESOURCE`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
 
 **Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
 

@@ -60,18 +60,20 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Proposed fail-closed control-plane storage mode"
+      "Fail closed when required SurrealDB endpoint, namespace, database, authentication, or typed rollout state is unavailable"
     ],
     "allowed_paths": [
       "storage/mod.rs",
       "main.rs"
     ],
-    "forbidden_paths": [],
-    "proof_targets": [
-      "storage_mode_fails_closed_when_postgres_required_without_url"
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
     ],
-    "risk_if_missed": "PostgreSQL outages create hidden split brain.",
-    "summary": "Proposed fail-closed control-plane storage mode"
+    "proof_targets": [
+      "storage_mode_fails_closed_when_surrealdb_required_or_misconfigured"
+    ],
+    "risk_if_missed": "SurrealDB unavailability can trigger a hidden in-memory, PostgreSQL, or SQLite split brain.",
+    "summary": "Required SurrealDB control-plane authority fails closed without a legacy fallback"
   },
   "updated_at_utc": null,
   "wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation-v1"

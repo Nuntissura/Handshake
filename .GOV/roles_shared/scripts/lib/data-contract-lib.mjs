@@ -2,8 +2,9 @@ export const DATA_CONTRACT_PACKET_MIN_VERSION = "2026-04-01";
 export const DATA_CONTRACT_PROFILE_VALUES = ["NONE", "LLM_FIRST_DATA_V1"];
 export const DATA_CONTRACT_DECISION_VALUES = ["ACTIVE_REQUIRED", "WAIVED_NOT_DATA_BEARING"];
 export const DATA_CONTRACT_SQL_POSTURE_VALUES = [
+  "SURREALDB_EXCLUSIVE_AUTHORITY",
+  // Legacy parse-only values retained so pre-pivot packets can be read as historical evidence.
   "POSTGRESQL_ONLY",
-  // Legacy parse-only value retained so pre-reset packets can be read as historical evidence.
   "SQLITE_NOW_POSTGRES_READY",
   "BACKEND_NEUTRAL",
   "NOT_APPLICABLE",
@@ -114,7 +115,7 @@ function collectStructuredDataContractEvidence(refinementData = null) {
     ...(Array.isArray(refinementData?.codeRealitySummary) ? refinementData.codeRealitySummary.map((value) => `CODE_REALITY_EVIDENCE: ${value}`) : []),
   ];
   for (const signal of structuredSignals) {
-    if (/(LLM[- ]friendly data|LLM[- ]first|SQL to PostgreSQL shift readiness|PostgreSQL[- ]only|postgresql-ready|Loom|Locus|persist(?:ed|ence)?|schema|machine-readable|provenance|stable ids?|relations?)/i.test(signal)) {
+    if (/(LLM[- ]friendly data|LLM[- ]first|SurrealDB exclusive authority readiness|SurrealDB[- ]only|SURREALDB_EXCLUSIVE_AUTHORITY|SQL to PostgreSQL shift readiness|PostgreSQL[- ]only|postgresql-ready|Loom|Locus|persist(?:ed|ence)?|schema|machine-readable|provenance|stable ids?|relations?)/i.test(signal)) {
       evidence.push(signal);
     }
   }
@@ -180,8 +181,8 @@ export function validateDataContractSection(packetContent = "", { packetPath = "
   if (monitoring.active !== "YES") {
     errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_ACTIVE must be YES for DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`);
   }
-  if (!monitoring.sqlPosture || monitoring.sqlPosture === "NOT_APPLICABLE") {
-    errors.push(`${packetPath || "<packet>"}: SQL_POSTURE must be POSTGRESQL_ONLY or BACKEND_NEUTRAL for active data contract packets; SQLITE_NOW_POSTGRES_READY is legacy pre-reset evidence only`);
+  if (monitoring.sqlPosture !== "SURREALDB_EXCLUSIVE_AUTHORITY") {
+    errors.push(`${packetPath || "<packet>"}: SQL_POSTURE must be SURREALDB_EXCLUSIVE_AUTHORITY for active data contract packets; POSTGRESQL_ONLY, SQLITE_NOW_POSTGRES_READY, and BACKEND_NEUTRAL are legacy parse-only evidence`);
   }
   if (monitoring.llmReadabilityPosture !== "REQUIRED") {
     errors.push(`${packetPath || "<packet>"}: LLM_READABILITY_POSTURE must be REQUIRED for active data contract packets`);
@@ -267,17 +268,17 @@ export function formatDataContractMonitoringSection({ profile = "NONE", inScopeP
   return `
 ## DATA_CONTRACT_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - DATA_CONTRACT_ACTIVE: YES
-- SQL_POSTURE: POSTGRESQL_ONLY
+- SQL_POSTURE: SURREALDB_EXCLUSIVE_AUTHORITY
 - LLM_READABILITY_POSTURE: REQUIRED
 - LOOM_INTERTWINED_POSTURE: REQUIRED_WHEN_APPLICABLE
 - PRIMARY_DATA_SURFACES:
 ${formattedSurfaces}
 - DATA_CONTRACT_RULES:
-  - Keep persisted and emitted structure PostgreSQL-backed; do not introduce SQLite semantics, fixtures, caches, fallbacks, compatibility paths, harnesses, examples, temporary adapters, or tests.
+  - Keep persisted and emitted authority structure Handshake-managed SurrealDB/EventLedger-backed; do not introduce PostgreSQL or SQLite connectivity, semantics, fixtures, caches, fallbacks, compatibility paths, imports, reconciliation, harnesses, examples, temporary adapters, or tests.
   - Prefer explicit machine-readable fields, enums, ids, relations, and provenance over presentation-only strings, overloaded text blobs, or parser-only implied meaning.
   - Preserve stable ids, explicit relations, backlink-friendly fields, provenance anchors, and retrieval-friendly summaries so Loom and graph/search consumers can traverse the data without reparsing UI text.
 - VALIDATOR_DATA_PROOF_HINTS:
-  - Prove the touched data surfaces remain PostgreSQL-only and do not introduce SQLite in any form.
+  - Prove the touched data surfaces remain SurrealDB-exclusive and do not introduce PostgreSQL or SQLite in any form.
   - Prove the emitted or persisted shapes stay LLM-first readable and parseable with stable field names and explicit structured values.
   - Prove Loom-facing ids, relations, provenance anchors, and retrieval fields remain explicit where the packet touches them.
 `;
@@ -329,7 +330,7 @@ export function deriveDataContractDecisionFromRefinement({
       Array.isArray(inScopePaths) && inScopePaths.length > 0
         ? `IN_SCOPE_PATHS reviewed: ${inScopePaths.map((entry) => normalizeRepoLikePath(entry)).filter(Boolean).join(", ")}`
         : "IN_SCOPE_PATHS reviewed: NONE",
-      "No structured refinement rows explicitly marked LLM-friendly data, SQL-to-PostgreSQL readiness, Loom-facing data, or persisted/emitted schema surfaces.",
+      "No structured refinement rows explicitly marked LLM-friendly data, SurrealDB-exclusive authority readiness, Loom-facing data, or persisted/emitted schema surfaces.",
       refinementText ? "Refinement text was reviewed, but no packet-scope data-contract trigger was elevated without structured or scope evidence." : "",
     ]),
   };

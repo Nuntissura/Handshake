@@ -36,7 +36,7 @@
     "STU-VAL-005"
   ],
   "scope": {
-    "summary": "Resolve and implement the raster authority storage shape (tile table vs artifact-ref) and its CRDT representation (14.23). BLOCKED until STU-CON-006(4) is resolved via governed enrichment; defines how raster pixel authority persists (studio_layers tiles vs content-addressed artifact refs) and how it maps into CRDT live state + Postgres/EventLedger authority. MUST NOT invent a storage shape locally.",
+    "summary": "Resolve and implement the raster authority storage shape (typed SCHEMAFULL tile records vs artifact refs) and its CRDT representation (14.23). BLOCKED until STU-CON-006(4) is resolved via governed enrichment; defines how raster pixel authority persists (studio_layer tile records vs content-addressed artifact refs) and how it maps into CRDT live state + SurrealDB/EventLedger authority. MUST NOT invent a storage shape locally; PostgreSQL and SQLite are forbidden.",
     "allowed_paths": [
       "src/studio/**",
       "migrations/**",
@@ -47,18 +47,18 @@
       "app/src/** (legacy reference-only)"
     ],
     "acceptance_criteria": [
-      "raster authority storage + CRDT rep per resolved STU-CON-006(4); Postgres/EventLedger; BLOCKED until resolved"
+      "raster authority storage + CRDT rep per resolved STU-CON-006(4); SurrealDB/EventLedger; BLOCKED until resolved"
     ],
     "proof_targets": [
       "raster-authority persistence + CRDT round-trip test (post-resolution)"
     ],
     "code_surfaces": [
-      "migrations/2026_MM_DD_studio_raster_authority.sql",
+      "surrealkit/rollouts/*_studio_raster_authority.surql",
       "src/studio/storage_glue.rs"
     ],
     "expected_tests": [
-      "live: raster authority persists per the resolved shape on managed Postgres (post-resolution)",
-      "test: CRDT representation round-trips + resolves through EventLedger authority (no SQLite)"
+      "live: raster authority persists per the resolved shape on a managed disposable SurrealDB namespace/database (post-resolution)",
+      "test: CRDT representation round-trips + resolves through EventLedger authority (no PostgreSQL/SQLite)"
     ]
   },
   "gui_obligation": {
@@ -114,12 +114,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

@@ -2,7 +2,7 @@
   {
     "id": "MT-321",
     "clause": "Design-system domain binding: studio.design_system command family + primitive layer bindings + engine boundary [STU-DS-001,STU-DS-035,STU-ARC-002]",
-    "summary": "Wire the handshake_core::studio::design_system domain to the studio-engine LayoutEngine (MT-020) through the typed boundary only: register the studio.design_system.<command>.v<N> command family over the MT-007 command surface, bind the canonical primitives StudioComponent/StudioComponentInstance/StudioVariable/StudioVariableCollection/StudioStyleRegistry/StudioAutoLayout/StudioConstraint/StudioLayoutGrid (MT-002) to StudioLayer nodes, and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). No solver/tessellation dep leaks into handshake_core; auto-layout/constraint solving lives behind the LayoutEngine trait.",
+    "summary": "Wire the handshake_core::studio::design_system domain to the studio-engine LayoutEngine (MT-020) through the typed boundary only: register the studio.design_system.<command>.v<N> command family over the MT-007 command surface, bind the canonical primitives StudioComponent/StudioComponentInstance/StudioVariable/StudioVariableCollection/StudioStyleRegistry/StudioAutoLayout/StudioConstraint/StudioLayoutGrid (MT-002) to StudioLayer nodes, and route every mutation through STUDIO_* EventLedger events (MT-003) + typed studio_* SurrealDB authority (MT-004). No solver/tessellation dep leaks into handshake_core; auto-layout/constraint solving lives behind the LayoutEngine trait.",
     "spec_anchor": [
       "STU-DS-001",
       "STU-DS-035",
@@ -45,21 +45,21 @@
       "command-family + ledger/authority routing test"
     ],
     "acceptance": [
-      "studio.design_system command family routes through LayoutEngine boundary + ledger + Postgres; canonical primitives bound; no dep leak"
+      "studio.design_system command family routes through LayoutEngine boundary + EventLedger + typed SurrealDB authority; canonical primitives bound; no dependency leak; PostgreSQL/SQLite rejected"
     ],
     "observable_runtime": true
   },
   {
     "id": "MT-322",
     "clause": "studio_* design-system authority tables + dated migrations [STU-DS-049,STU-CON-004]",
-    "summary": "Author the design-system studio_* tables as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql) with TEXT PRIMARY KEY prefixed ids and event_ledger_event_id NOT NULL FK: studio_components (SCMP-), studio_component_instances (SCIN-), studio_variables (SVAR-), studio_variable_collections (SVCL-), studio_styles (SSTY-). StudioAutoLayout/StudioConstraint/StudioLayoutGrid persist as typed fields on the owning studio_layers row (MT-004), not new tables. guard_authority_write(Postgres) on every write; no SQLite.",
+    "summary": "Author the design-system studio_* tables through forward-only SurrealKit rollouts with typed record ids and required EventLedger record links: studio_components (SCMP-), studio_component_instances (SCIN-), studio_variables (SVAR-), studio_variable_collections (SVCL-), studio_styles (SSTY-). StudioAutoLayout/StudioConstraint/StudioLayoutGrid persist as typed fields on the owning studio_layers row (MT-004), not new tables. every write uses the typed SurrealDB store under authenticated record-user table/field PERMISSIONS; PostgreSQL and SQLite are forbidden.",
     "spec_anchor": [
       "STU-DS-049",
       "STU-CON-004",
       "STU-ARC-004"
     ],
     "code_surfaces": [
-      "migrations/2026_MM_DD_studio_design_system.sql",
+      "surrealkit/rollouts/*_studio_design_system.surql",
       "src/studio/design_system/storage_glue.rs"
     ],
     "allowed_paths": [
@@ -68,8 +68,8 @@
       "tests/studio/**"
     ],
     "expected_tests": [
-      "live-PG: migrations up+down clean",
-      "test: no_sqlite_tripwire fires on any design-system authority write without Postgres",
+      "live-SurrealDB: forward-only SurrealKit rollout applies cleanly and canonical records reread",
+      "test: no_legacy_database_tripwire rejects PostgreSQL/SQLite and any design-system write outside the typed SurrealDB boundary",
       "test: prefixed-id + event_ledger_event_id FK enforced on all five tables"
     ],
     "depends_on": [
@@ -87,10 +87,10 @@
       "HBR-INT-003"
     ],
     "proof_targets": [
-      "live PostgreSQL migration up/down + write-guard test"
+      "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test"
     ],
     "acceptance": [
-      "design-system tables migrate on managed Postgres; layout primitives as layer fields; no SQLite; write-guard proven"
+      "design-system SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB; layout primitives remain layer fields; PostgreSQL/SQLite rejected; typed-store and permissions proven"
     ],
     "observable_runtime": true
   },
@@ -2362,7 +2362,7 @@
   {
     "id": "MT-371",
     "clause": "Prototype domain binding: studio.prototype command family + StudioPrototypeFlow + engine boundary [STU-PRO-001,STU-ARC-002]",
-    "summary": "Wire the handshake_core::studio::prototype domain: register the studio.prototype.<command>.v<N> command family over the MT-007 command surface, bind StudioPrototypeFlow (hsk.studio.prototype_flow@1) as the single prototyping primitive owning the document's interaction graph (hotspot -> trigger -> action bindings between StudioLayer nodes, named flow starting points, per-flow settings), and route every mutation through STUDIO_* EventLedger events (MT-003) + studio_* Postgres authority (MT-004). It replaces every source-suite prototyping surface with one primitive and one command family.",
+    "summary": "Wire the handshake_core::studio::prototype domain: register the studio.prototype.<command>.v<N> command family over the MT-007 command surface, bind StudioPrototypeFlow (hsk.studio.prototype_flow@1) as the single prototyping primitive owning the document's interaction graph (hotspot -> trigger -> action bindings between StudioLayer nodes, named flow starting points, per-flow settings), and route every mutation through STUDIO_* EventLedger events (MT-003) + typed studio_* SurrealDB authority (MT-004). It replaces every source-suite prototyping surface with one primitive and one command family.",
     "spec_anchor": [
       "STU-PRO-001",
       "STU-ARC-002",
@@ -2402,14 +2402,14 @@
       "command-family + ledger/authority routing test"
     ],
     "acceptance": [
-      "studio.prototype command family routes through ledger + Postgres; StudioPrototypeFlow bound as single primitive"
+      "studio.prototype command family routes through EventLedger + typed SurrealDB authority; StudioPrototypeFlow bound as single primitive; PostgreSQL/SQLite rejected"
     ],
     "observable_runtime": true
   },
   {
     "id": "MT-372",
     "clause": "StudioPrototypeFlow + StudioMotionTimeline authority tables + dated migrations [STU-PRO-001,STU-PRO-028,STU-CON-004]",
-    "summary": "Author the prototyping/motion studio_* tables as dated migrations (YYYY_MM_DD_studio_*.sql + .down.sql) with TEXT PRIMARY KEY prefixed ids and event_ledger_event_id NOT NULL FK: studio_prototype_flows (SPFL-), studio_prototype_interactions (SPIN-), studio_motion_timelines (SMTL-), studio_motion_keyframes (SMKF-). Interactive-document roles (buttons/forms/MSO) persist as typed fields on the owning studio_layers row (MT-004), not new tables. guard_authority_write(Postgres) on every write; no SQLite.",
+    "summary": "Author the prototyping/motion studio_* tables through forward-only SurrealKit rollouts with typed record ids and required EventLedger record links: studio_prototype_flows (SPFL-), studio_prototype_interactions (SPIN-), studio_motion_timelines (SMTL-), studio_motion_keyframes (SMKF-). Interactive-document roles (buttons/forms/MSO) persist as typed fields on the owning studio_layers row (MT-004), not new tables. every write uses the typed SurrealDB store under authenticated record-user table/field PERMISSIONS; PostgreSQL and SQLite are forbidden.",
     "spec_anchor": [
       "STU-PRO-001",
       "STU-PRO-028",
@@ -2417,7 +2417,7 @@
       "STU-ARC-004"
     ],
     "code_surfaces": [
-      "migrations/2026_MM_DD_studio_prototype_motion.sql",
+      "surrealkit/rollouts/*_studio_prototype_motion.surql",
       "src/studio/prototype/storage_glue.rs"
     ],
     "allowed_paths": [
@@ -2426,8 +2426,8 @@
       "tests/studio/**"
     ],
     "expected_tests": [
-      "live-PG: migrations up+down clean",
-      "test: no_sqlite_tripwire fires on any prototype/motion authority write without Postgres",
+      "live-SurrealDB: forward-only SurrealKit rollout applies cleanly and canonical records reread",
+      "test: no_legacy_database_tripwire rejects PostgreSQL/SQLite and any prototype/motion write outside the typed SurrealDB boundary",
       "test: prefixed-id + event_ledger_event_id FK enforced on all four tables"
     ],
     "depends_on": [
@@ -2445,10 +2445,10 @@
       "HBR-INT-003"
     ],
     "proof_targets": [
-      "live PostgreSQL migration up/down + write-guard test"
+      "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test"
     ],
     "acceptance": [
-      "prototype/motion tables migrate on managed Postgres; interactive roles as layer fields; no SQLite; write-guard proven"
+      "prototype/motion SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB; interactive roles remain layer fields; PostgreSQL/SQLite rejected; typed-store and permissions proven"
     ],
     "observable_runtime": true
   },

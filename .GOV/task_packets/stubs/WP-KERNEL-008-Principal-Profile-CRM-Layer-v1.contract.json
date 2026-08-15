@@ -107,7 +107,7 @@
       "Imported Handshake SaaS/MCP moodboard/inspiration/project-starter provenance and quarantine-to-Persona association after WP-KERNEL-007 authorization.",
       "Backend APIs and native Persona/CRM/client/moodboard/inspiration UI.",
       "Persistent visible account + AccessSpace + Persona context and warnings when a switch leaves work pinned to the prior context.",
-      "Real PostgreSQL, FEMS, model-context, search, CRM, switch-race, deletion, import, UserManual, EventLedger/Flight Recorder, and Argus proof."
+      "Real Handshake-managed SurrealDB, FEMS, model-context, search, CRM, switch-race, deletion, import, UserManual, EventLedger/Flight Recorder, and Argus proof; PostgreSQL and SQLite are forbidden as runtime, fallback, fixture, compatibility, or proof paths."
     ],
     "out_of_scope": [
       "Credentials, account lifecycle, Principal, AccountRole, and foundational RLS owned by WP-KERNEL-006.",
@@ -149,7 +149,7 @@
   "research_basis": {
     "status": "RECORDED_FOR_REFINEMENT",
     "sources": [
-      "https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
+      "Historical comparative provenance only; not implementation authority: https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
       "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
       "https://huggingface.co/docs/hub/en/collections",
       "https://huggingface.co/docs/hub/en/organizations-security",

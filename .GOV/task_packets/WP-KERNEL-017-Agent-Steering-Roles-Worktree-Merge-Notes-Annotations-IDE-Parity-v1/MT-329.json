@@ -61,7 +61,7 @@
     ],
     "forbidden_paths": [
       ".GOV/**",
-      "SurrealDB/SQLite authority or fallback",
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path",
       "force-delete or unscoped recursive cleanup"
     ],
     "acceptance_criteria": [

@@ -35,7 +35,7 @@
     "STU-CON-002"
   ],
   "scope": {
-    "summary": "Author the canonical StudioDocument (hsk.studio.document@1) unified type + the 38 canonical primitive Rust types/enums from 14.23 with schemars::JsonSchema derive and the canonical schema-id consts (SCHEMA_STUDIO_*). Shared between LLM output, engine input, and the Postgres doc_json column.",
+    "summary": "Author the canonical StudioDocument (hsk.studio.document@1) unified type + the 38 canonical primitive Rust types/enums from 14.23 with schemars::JsonSchema derive and the canonical schema-id consts (SCHEMA_STUDIO_*). Shared between LLM output, engine input, and the typed SCHEMAFULL SurrealDB document record.",
     "allowed_paths": [
       "src/studio/**",
       "tests/studio/**"
@@ -94,12 +94,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

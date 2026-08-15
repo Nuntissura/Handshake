@@ -62,7 +62,7 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Every command/job/layout/selection/cache/receipt carries project_id; two projects run concurrently without retargeting, CRDT applies only to documented convergent data, semantic conflicts use revisions/leases/proposals, and RLS/ResourceBroker negative tests cover all source/derived resources.",
+      "Every command/job/layout/selection/cache/receipt carries project_id; two projects run concurrently without retargeting, CRDT applies only to documented convergent data, semantic conflicts use revisions/leases/proposals, and authenticated SurrealDB record-user PERMISSIONS/ResourceBroker negative tests cover all source/derived resources.",
       "Inputs, outputs, schemas, units, version/hash identities, capability state, authority/artifact ownership, privacy scope, diagnostics, cancellation/retry and unsupported behavior are explicit; a no-context implementer must not infer a provider, download, path, threshold or fallback.",
       "Automated proof covers a successful offline Rust path plus missing/corrupt/stale/incompatible input, cancellation or adapter-removal as applicable; it verifies EventLedger/ArtifactStore/Flight Recorder consistency, no partial mutation, no hidden network/Python process and reproducible receipts."
     ],
@@ -137,7 +137,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

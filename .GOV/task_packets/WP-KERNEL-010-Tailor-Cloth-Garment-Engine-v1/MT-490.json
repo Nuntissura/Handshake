@@ -60,7 +60,7 @@
       "save_body_spec / save_recipe / record_channel_change write via a single CTE (or transaction) inserting the TAILOR_BODY_* ledger event first and the authority row referencing event_ledger_event_id second; partial failure rolls back both.",
       "replay_body(body_id) folds the ordered tailor.body event stream into a BodySpec; for any body authored through the API, replay output == stored bodykit_bodies row (PartialEq), proven over a scripted authoring sequence.",
       "Replay reports unknown future event types as a typed ReplayWarning (no panic), keeping forward compatibility.",
-      "guard_authority_write(AuthorityMode::PostgresPrimary) is the first statement of every glue write; no unguarded write path exists (negative test)."
+      "Every glue write uses the typed SurrealDB store and atomically links its EventLedger record; no direct-SDK or legacy-database write path exists (negative test)."
     ],
     "proof_targets": [
       "cargo test -p handshake_core tailor::bodykit::storage_glue::replay_reconstructs_identical_body_spec"
@@ -167,7 +167,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

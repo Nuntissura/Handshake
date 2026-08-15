@@ -31,7 +31,7 @@ Terms used in this brief:
 - `Operator surface`: the app UI where the Operator controls sessions, models, tasks, artifacts, validation, and logs.
 - `Session broker`: the product service that routes model sessions, tool calls, sandbox work, receipts, and state updates.
 - `Model lane`: one execution path for a model, for example local inference, official CLI bridge, BYOK API, or manual handoff.
-- `Authority state`: durable truth stored in Postgres/event records.
+- `Authority state`: durable truth stored in SurrealDB/EventLedger records.
 - `CRDT state`: live collaborative workspace state for parallel operator/model editing.
 - `Projection`: generated UI, Markdown, reports, or summaries derived from authority state.
 - `Promotion gate`: the deterministic step that converts sandbox output or CRDT edits into authoritative product state.
@@ -98,7 +98,7 @@ The long-term edge is not just "an AI wrapper." The edge is a repeatable mechani
 - Unofficial consumer-web automation is not a Handshake kernel dependency.
 - Official CLIs may be used as backend transports when allowed, but Handshake must still own the operator surface, state, logs, and promotion gates.
 - CRDT is day-one for live parallel operator/model workspace state.
-- Postgres/event state is day-one for authoritative truth.
+- SurrealDB/EventLedger state is day-one for authoritative truth.
 - SQLite is not a Handshake technology going forward. Do not use SQLite for authority, cache, offline mode, compatibility mode, tests, fixtures, imports, examples, harnesses, temporary adapters, local fallback, or bootstrap convenience.
 - Sandboxed execution is day-one for model-written code.
 - Deterministic checks run before LLM review.
@@ -116,7 +116,7 @@ The working role for this mode is `KERNEL_BUILDER`: a temporary hybrid of Orches
 
 Refinement and spec enrichment should be kept to the minimum needed for speed and clarity. Large WPs are acceptable, but each WP and microtask must contain enough detail for a capable model with no chat context to implement the work and for a validator to review it.
 
-Storage direction is non-negotiable for the reset: Handshake is a harness for parallel swarm agents and the Operator working at the same time. PostgreSQL plus CRDT are the product direction. Existing SQLite-backed code, tests, fixtures, storage helpers, examples, harnesses, caches, or compatibility paths are migration/removal targets, not future architecture, fallback paths, or acceptable scaffolding. Any SQLite usage in the current external repo-governance harness is legacy harness debt and must not be copied, defended, or carried forward as a Handshake product, test, or self-governance pattern.
+Storage direction is non-negotiable for the reset: Handshake is a harness for parallel swarm agents and the Operator working at the same time. Handshake-managed SurrealDB/EventLedger plus CRDT are the product direction. Existing SQLite- or PostgreSQL-backed code, tests, fixtures, storage helpers, examples, harnesses, caches, compatibility paths, drivers, URLs, credentials, and tooling are removal targets, not future architecture, fallback paths, migration inputs, proof paths, or acceptable scaffolding. Initialize from a fresh SurrealDB namespace/database and cold EventLedger genesis; the existing PostgreSQL database has no migration value and must not be connected, read, imported, reconciled, replayed, replicated, or dual-written. Any SQLite usage in the current external repo-governance harness is legacy harness debt and must not be copied, defended, or carried forward as a Handshake product, test, or self-governance pattern.
 
 ## 5. Corrected State Model
 
@@ -136,7 +136,7 @@ CRDT Layer
 - canvases, notes, plans, editor buffers, task-board views, creative maps
 - optimized for parallel editing and presence
 
-Postgres/Event Ledger
+SurrealDB/EventLedger
 - authority, audit, verdicts, receipts, IDs
 - work packet accepted
 - microtask complete
@@ -157,7 +157,7 @@ Promotion Gate
 
 This keeps collaboration fluid without making live editable state the final source of truth.
 
-There is no SQLite layer in this state model. Kernel V1 and downstream Handshake features must not introduce or preserve SQLite as a local cache, offline replica, convenience database, fixture store, test-only authority, compatibility storage mode, import bridge, example path, harness, fallback, or temporary adapter. If a future implementation step encounters SQLite in existing product or governance code, the correct posture is removal or strict containment as legacy debt while moving the system toward PostgreSQL-backed authority and CRDT-backed collaboration.
+There is no SQLite or PostgreSQL layer in this state model. Kernel V1 and downstream Handshake features must not introduce or preserve either database as a local cache, offline replica, convenience database, fixture store, test-only authority, compatibility storage mode, import bridge, example path, harness, fallback, temporary adapter, migration input, or dual authority. If a future implementation step encounters SQLite or PostgreSQL in existing product or governance code, the correct posture is removal or strict containment as legacy evidence while moving the system to SurrealDB/EventLedger authority and CRDT-backed collaboration.
 
 ## 6. Proposed Kernel MVP
 
@@ -223,7 +223,7 @@ The differentiator is still mechanical determinism. Others increasingly provide 
 Implementation proposal:
 
 - Build a product-native runtime with typed events for sessions, actors, work packets, microtasks, artifacts, receipts, validation, and memory.
-- Store authoritative state in PostgreSQL.
+- Store authoritative state in Handshake-managed SurrealDB/EventLedger records through the official SurrealDB Rust SDK.
 - Do not add SQLite-backed runtime paths. Do not preserve SQLite as a fallback, cache, test target, fixture target, local-only authority, compatibility layer, import bridge, example, harness, temporary adapter, or migration bridge.
 - Treat generated Markdown and UI summaries as projections over machine state.
 - Keep a compact event schema from day one so models can consume small slices instead of huge context dumps.
@@ -251,7 +251,7 @@ Investigation:
 
 - Yjs for web/editor ecosystem, CodeMirror/Monaco integrations, and high-performance shared types.
 - Automerge for Rust/JS portability and local-first file-style documents.
-- Persistence model: CRDT updates persist through PostgreSQL-backed product state. Large artifacts may use product-managed artifact storage, but workflow/collaboration truth still resolves through PostgreSQL plus CRDT contracts.
+- Persistence model: CRDT updates persist through SurrealDB/EventLedger-backed product state. Large artifacts may use product-managed artifact storage, but workflow/collaboration truth still resolves through SurrealDB/EventLedger plus CRDT contracts.
 - How to expose CRDT state to LLMs without dumping entire documents into context.
 
 ### 6.3 Local Model Runtime
@@ -725,7 +725,7 @@ What it does not need yet:
 
 Minimum components:
 
-- `EventLedger`: Postgres-backed append-only events with schema version, event ID, actor ID, session ID, source, timestamp, and artifact links.
+- `EventLedger`: SurrealDB-backed append-only events with schema version, event ID, actor ID, session ID, source, timestamp, and artifact links.
 - `SessionBroker`: starts, dispatches, pauses/cancels if possible, closes, and records session state transitions.
 - `ContextBundle`: stored input package for the model adapter, with hash and source references.
 - `ModelAdapter`: dummy or trivial local adapter first; real adapters later.
@@ -749,7 +749,7 @@ Acceptance criteria:
 
 - Define product-native IDs.
 - Define actor/session/work-packet/microtask/artifact schemas.
-- Implement Postgres-backed event ledger.
+- Implement SurrealDB-backed EventLedger persistence.
 - Implement generated projections.
 - Add minimal UI to inspect state.
 - Add the audit event contract before any model lane is allowed to mutate project state.
@@ -785,7 +785,7 @@ Build-Rules Full Establishment (so Week 5 can enforce `HANDSHAKE_BUILD_RULES` fr
 - Capture matrix support (HBR-VIS-003): adapter accepts `[{viewport, state}]` and returns a typed manifest of captures (normal viewport + at least one constrained viewport + at least one edge state).
 - Focus audit instrumentation (HBR-QUIET-001): record foreground-window events during automated test runs; assert zero focus/Z-order change; headless or hidden-window mode required.
 - Automation-path negative-test framework (HBR-QUIET-002): harness that simulates global keyboard input and asserts no automation surface responded; every automation surface must be reachable without OS-level input injection.
-- Process ownership ledger (HBR-QUIET-003): every `Command::spawn` in the kernel registers in a `kernel_process_lifecycle` Postgres table with `owner_session`, `owner_wp`, `owner_role`, `started_at`; reclaim hook on session close, failure, staleness, or operator cancel; no orphan processes after a run.
+- Process ownership ledger (HBR-QUIET-003): every `Command::spawn` in the kernel registers in a typed `SCHEMAFULL` SurrealDB `kernel_process_lifecycle` record with `owner_session`, `owner_wp`, `owner_role`, `started_at`; reclaim hook on session close, failure, staleness, or operator cancel; no orphan processes after a run.
 - ModelManual same-commit CI hook (HBR-MAN-001): detect when a wired surface (command, IPC channel, schema field, config key, CLI flag) changes without a paired ModelManual diff; `MANUAL_VERSION` bump enforced.
 - No-context model operation harness (HBR-MAN-002): test fixture that runs a stripped agent against only ModelManual content and exercises a representative workflow end-to-end.
 - Manual self-consistency check (HBR-MAN-003): for every command/schema/IPC channel/CLI flag named in the manual, grep the codebase to confirm the named surface exists at the named contract; drift fails the gate.
@@ -859,11 +859,11 @@ Why this slot:
 - Project membership is not blanket visibility. Two accounts may work in the same project while private resources remain undiscoverable to each other unless an explicit `ResourceGrant` authorizes access. This applies to names, paths, identifiers, counts, thumbnails, search results, logs, diagnostics, exports, backups, and model/tool context as well as content bytes.
 - SFW, client, and other focused working contexts are `AccessSpace` records, not alternate logins and not authorization sources. They select from already authorized resources and can never widen access. Preferences, memory ranking, and presentation belong to `Persona` and also can never grant authority.
 - Week 4 is already heavy with Local Model + Memory V0 + Build-Rules establishment. Week 5 is the massive three-WP Atelier-Lens-CKC fold-in. Slotting Principal Authority before Week 4 would inflate it; slotting it into Week 5 would compete with the production-feature work. Week 6 is the right home.
-- PostgreSQL Row-Level Security with `FORCE ROW LEVEL SECURITY` is a primary defense-in-depth boundary for "locked away by default", but it is not sufficient by itself. Handshake must also enforce authorization at server APIs, filesystem and ArtifactStore brokers, search/index/memory/model/tool context assembly, previews, exports, diagnostics, and remote synchronization.
+- Authenticated SurrealDB record-user table/field `PERMISSIONS` plus ResourceBroker are primary fail-closed boundaries for "locked away by default", but they are not sufficient by themselves. Privileged SurrealDB sessions bypass table permissions and cannot run ordinary protected-resource flows or count as isolation proof. Handshake must also enforce authorization at server APIs, filesystem and ArtifactStore brokers, search/index/memory/model/tool context assembly, previews, exports, diagnostics, and remote synchronization.
 
 Canonical Week 6 WP stubs:
 
-- `WP-KERNEL-006-Principal-Authority-Foundation-v1` — Phase A. `LocalAccount`, secure credentials, `AuthenticatedSession`, `Principal`, account administration, delegation, revocation, recovery, PostgreSQL RLS, protected-resource ownership/linkage, `KernelActor` migration, and attributed EventLedger/Flight Recorder foundations. It pre-creates 28 inactive MT contracts. Stub authority lives in the `.contract.json`; no Markdown projection is generated.
+- `WP-KERNEL-006-Principal-Authority-Foundation-v1` — Phase A. `LocalAccount`, secure credentials, `AuthenticatedSession`, `Principal`, account administration, delegation, revocation, recovery, authenticated SurrealDB record-user table/field permissions, protected-resource ownership/linkage, `KernelActor` migration, and attributed EventLedger/Flight Recorder foundations. It pre-creates 28 inactive MT contracts. Stub authority lives in the `.contract.json`; no Markdown projection is generated.
 - `WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1` — Phase B. `MembershipRole`, `ResourceGrant`, `AccessSpace`, ResourceBroker and ArtifactStore enforcement, same-project private-resource isolation, visitor passes, MCP scrutiny, metadata-side-channel controls, derived-scope non-widening, and the `ExternalIdentityBinding`/SaaS synchronization seam. It pre-creates 30 inactive MT contracts, reuses existing `ToolGate` + `approval_preview`, and depends on KERNEL-006.
 - `WP-KERNEL-008-Principal-Profile-CRM-Layer-v1` — Phase C. `Persona`, CRM/client context, FEMS personalization, moodboard and inspiration collections, and privacy-safe suggestions. Authorization and source filtering happen before Persona ranking or presentation; client context and Persona are never grants. It pre-creates 20 inactive MT contracts and depends on KERNEL-006 and KERNEL-007.
 
@@ -882,7 +882,7 @@ Guardrails:
 - KERNEL-008 must not create or modify authority from Persona, CRM client selection, FEMS preferences, moodboard membership, or inspiration ranking. Authority schema and enforcement belong to KERNEL-006/007.
 - ExternalAgent / McpClient Principals cannot spawn child Principals; only HandshakeSpawnedAgent inheritance from KERNEL-006 is allowed.
 - Remote SaaS/MCP identity, token, collection, manifest, or ACL state never creates a local `ResourceGrant` implicitly. Imports arrive quarantined, preserve provenance and remote audience, and require explicit local authorization before becoming visible or executable.
-- No SQLite anywhere in account, Principal, ResourceGrant, AccessSpace, or Persona authority storage. PostgreSQL/EventLedger applies per [CX-503R], with Flight Recorder attribution and privacy-safe diagnostics.
+- No SQLite or PostgreSQL anywhere in account, Principal, ResourceGrant, AccessSpace, or Persona authority storage. SurrealDB/EventLedger applies per [CX-503R], with Flight Recorder attribution and privacy-safe diagnostics.
 - Canonical product authority is Master Spec v02.202 Section 2.3.13.12 plus the machine-readable stub and MT contracts. `TASK_BOARD` and `BUILD_ORDER` remain discovery/status projections and are not authorization to execute.
 
 ## 8. What To Freeze From Current Governance
@@ -944,7 +944,7 @@ The new rule should be: if a governance improvement belongs in Handshake, build 
 ## 10. Open Questions Before Rebuild
 
 1. Should Handshake V2 be a clean product branch, a new repo, or a new kernel crate/app inside the current repo?
-2. Which state is authoritative in Postgres, and which state is live-collaborative in CRDT?
+2. Which state is authoritative in SurrealDB/EventLedger, and which state is live-collaborative in CRDT?
 3. Which local model backend is the first embedded baseline?
 4. What is the first self-improvement metric?
 5. What is the first creative module to attach after the kernel is usable?
@@ -967,7 +967,7 @@ A model with no chat history should be able to read this brief and correctly inf
 - The Master Spec remains reference material, not the day-one execution shape.
 - The first target is a deterministic product kernel, not a creative module and not another external governance harness.
 - CRDT is required day one because the Operator and models must work inside the app in parallel.
-- Postgres/event state is required day one because live collaboration state is not final authority.
+- SurrealDB/EventLedger state is required day one because live collaboration state is not final authority.
 - SQLite is explicitly rejected going forward. Future models must not propose SQLite authority, fallback, cache, offline, test-fixture, fixture, import, compatibility, example, harness, or temporary-adapter paths for Handshake.
 - The operator surface is the primary control room and audit boundary.
 - The terminal may exist as a backend transport or debug panel, but it is not the Operator's main workspace.

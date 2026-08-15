@@ -60,7 +60,7 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Add targeted tests/search guards for accidental SQLite or locus_sqlite usage in kernel authority APIs."
+      "Add targeted tests/search guards for any PostgreSQL, SQLite, sqlx, PgPool, legacy database, or direct-SDK bypass in kernel authority APIs."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/tests/**",
@@ -69,10 +69,10 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test -p handshake_core product_sqlite_leakage_tripwire"
+      "cargo test -p handshake_core product_legacy_database_leakage_tripwire"
     ],
-    "risk_if_missed": "Future MTs reintroduce SQLite authority while tests still pass.",
-    "summary": "Add targeted tests/search guards for accidental SQLite or locus_sqlite usage in kernel authority APIs."
+    "risk_if_missed": "Future MTs reintroduce PostgreSQL/SQLite authority or bypass the typed SurrealDB boundary while tests still pass.",
+    "summary": "Add targeted tripwires for legacy databases and direct-SDK bypass in kernel authority APIs."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"

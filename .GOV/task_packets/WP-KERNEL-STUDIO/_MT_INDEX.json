@@ -83,7 +83,7 @@
     },
     {
       "mt_id": "MT-004",
-      "clause": "studio_* PostgreSQL tables + dated migrations (foundation set) [STU-ARC-004,STU-CON-004]",
+      "clause": "SCHEMAFULL studio_* SurrealDB records + forward-only SurrealKit rollouts (foundation set) [STU-ARC-004,STU-CON-004]",
       "spec_anchor": [
         "STU-ARC-004",
         "STU-CON-004",
@@ -11165,7 +11165,7 @@
     },
     {
       "mt_id": "MT-550",
-      "clause": "Native-runtime + PostgreSQL/CRDT duty enforcement [STU-VAL-005]",
+      "clause": "Native-runtime + SurrealDB/CRDT duty enforcement [STU-VAL-005]",
       "spec_anchor": [
         "STU-VAL-005"
       ],

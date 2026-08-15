@@ -60,18 +60,20 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "Proposed SQLite cache/offline boundary"
+      "Reject SQLite, embedded-cache, offline-authority, and compatibility fallback modes; SurrealDB remains the sole durable authority"
     ],
     "allowed_paths": [
       "storage/mod.rs",
       "storage/tests.rs"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
+    ],
     "proof_targets": [
-      "sqlite_cache_mode_is_not_control_plane_authority"
+      "legacy_database_and_offline_cache_modes_are_rejected"
     ],
     "risk_if_missed": "Cache/offline mode becomes undeclared runtime authority.",
-    "summary": "Proposed SQLite cache/offline boundary"
+    "summary": "SurrealDB-only authority boundary with explicit PostgreSQL/SQLite/offline-cache rejection"
   },
   "updated_at_utc": null,
   "wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation-v1"

@@ -55,7 +55,7 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "Every PostgreSQL authority write for tailor_* passes through guard_authority_write(); a direct write panics in test builds.",
+      "Every tailor_* authority write passes through the typed SurrealDB store, authenticated record-user permissions, and ResourceBroker; a direct SDK/raw-query or PostgreSQL/SQLite write fails closed in tests.",
       "The typed operation declares actor/session/correlation ids, expected base version, lease scope, idempotency key, preview/diff/apply semantics, cancellation/retry handles, and stale/conflict/error envelopes where applicable.",
       "Negative, concurrent, partial-failure, retry, and recovery tests prove EventLedger/ArtifactStore effects are atomic, attributable, replayable, and leave no silent authority or orphan-artifact drift."
     ],
@@ -165,7 +165,7 @@
     ],
     "requirements": [
       "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
-      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Use authenticated SurrealDB record-user table/field PERMISSIONS intersected with ResourceBroker-backed artifact/file handles; administrative/root credentials and UI filtering are never the security boundary. PostgreSQL and SQLite access paths are forbidden.",
       "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
     ],
     "expected_evidence": [

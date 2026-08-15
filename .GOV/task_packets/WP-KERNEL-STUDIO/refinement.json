@@ -37,7 +37,7 @@
       "STU-MAN-*", "STU-CON-001..006", "STU-VAL-001..006"
     ],
     "scope_edges": [
-      "IN: handshake_core::studio + studio-engine crate; StudioDocument unified model + 38 canonical primitives; studio_* Postgres tables + dated migrations; STUDIO_* EventLedger variants; StudioValidationDescriptor; StudioModelAdapter + MCP command surface; StudioEditProposal propose-work; per-file StudioHistoryEntry undo/redo; native egui/wgpu/AccessKit operator surface + Argus; dual-audience UserManual; import/export + format-compat.",
+      "IN: handshake_core::studio + studio-engine crate; StudioDocument unified model + 38 canonical primitives; SCHEMAFULL studio_* SurrealDB record types + forward-only SurrealKit rollouts; STUDIO_* EventLedger variants; StudioValidationDescriptor; StudioModelAdapter + MCP command surface; StudioEditProposal propose-work; per-file StudioHistoryEntry undo/redo; native egui/wgpu/AccessKit operator surface + Argus; dual-audience UserManual; import/export + format-compat.",
       "OUT: source-app menu-tree clones; pixel-perfect UI clone; vendor cloud services; vendor product naming; new invented interchange format; provider generative-AI as core dependency (adapter-only)."
     ],
     "assumptions": [
@@ -112,7 +112,7 @@
     "findings": [
       "Scaffold-only risk: Section 14 has many declarative contracts; each implementing MT must exercise the executable runtime or a Handshake-managed resource boundary (Spec-Realism Gate) - encoded per-MT.",
       "Dedup drift risk: a domain MT could reimplement a shared primitive; MTs MUST reference the canonical primitive (14.23), not fork it.",
-      "SQLite-creep risk: enforce no_sqlite_tripwire on every studio_* write path (14.24 [STU-VAL-005]).",
+      "Legacy-database-creep risk: enforce no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every studio_* write path (14.24 [STU-VAL-005]).",
       "Open-contract-point risk: MTs touching STU-CON-006 items must block until resolved.",
       "Headless-GPU proof risk: pixel screenshot readback may crash on headless hosts; MTs fall back to AccessKit-tree assertions (14.20 [STU-QUIET-005])."
     ],

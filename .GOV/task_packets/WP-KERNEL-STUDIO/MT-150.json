@@ -53,7 +53,7 @@
     ],
     "code_surfaces": [
       "src/studio/layout/sections.rs",
-      "migrations/2026_MM_DD_studio_layout_sections.sql"
+      "surrealkit/rollouts/*_studio_layout_sections.surql"
     ],
     "expected_tests": [
       "cargo test studio::layout::sections",
@@ -117,12 +117,12 @@
     "risks": [
       "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
       "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "SQLite creep on a studio_* write path."
+      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
     ],
     "minimum_controls": [
       "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
       "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_sqlite_tripwire on every authority write."
+      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
     ]
   }
 }

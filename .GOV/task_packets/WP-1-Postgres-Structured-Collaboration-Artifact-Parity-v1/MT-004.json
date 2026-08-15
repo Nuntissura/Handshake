@@ -65,16 +65,18 @@
       "and governed action contract [ADD v02.171]"
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/**",
       "src/backend/handshake_core/src/workflows.rs",
       "src/backend/handshake_core/src/locus/task_board.rs"
     ],
-    "forbidden_paths": [],
+    "forbidden_paths": [
+      "PostgreSQL/SQLite authority, fallback, connection, fixture, or proof path"
+    ],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml task_board",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml structured_collab"
     ],
-    "risk_if_missed": "Task Board and queue consumers remain backend-sensitive and semantically lossy",
+    "risk_if_missed": "Task Board and queue consumers bypass typed SurrealDB records and become semantically lossy",
     "summary": "Project-agnostic workflow state, queue reason, and governed action contract [ADD v02.171]"
   },
   "updated_at_utc": null,
