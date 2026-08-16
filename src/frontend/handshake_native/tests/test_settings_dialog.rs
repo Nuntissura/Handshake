@@ -21,11 +21,14 @@ use handshake_native::workspace_settings::{
 use serde_json::Value;
 
 fn ok_app() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
         db_status: "ok".to_string(),
         migration_version: Some(1),
-    }))
+    }));
+    app.bind_active_workspace_root(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+        .expect("settings tests bind an explicit workspace root");
+    app
 }
 
 /// A scriptable in-memory settings transport: records the last saved blob and serves a scripted load

@@ -33,6 +33,9 @@
 //! the MT-007 per-tab nodes use (dynamic count -> hashed string id) and the fresh-band convention the
 //! MT-010 scrollbar rails use (40..43) and merge-back buttons use (64..67).
 
+use std::fmt;
+use std::path::{Path, PathBuf};
+
 use egui::accesskit;
 
 use crate::context_menu::ContextMenu;
@@ -65,15 +68,152 @@ pub const PROJECT_TAB_BAR_HEIGHT: f32 = 26.0;
 /// at 120px).
 const MAX_TAB_LABEL_WIDTH: f32 = 120.0;
 
-/// One open project (workspace), mirroring the React `ProjectItem` (`app/src/App.tsx`). Mapped from a
-/// backend `Workspace { id, name, created_at, updated_at }` row, keeping only the two fields the tab
-/// strip needs.
+/// A canonical, existing filesystem directory explicitly bound to a workspace.
+///
+/// The path is canonicalized when it is bound, so launch-time consumers never need the process cwd to
+/// interpret a relative path. It stays private so callers cannot construct an unchecked root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceRoot(PathBuf);
+
+impl WorkspaceRoot {
+    fn resolve(
+        workspace_id: &str,
+        supplied_root: impl AsRef<Path>,
+    ) -> Result<Self, WorkspaceRootError> {
+        let supplied_root = supplied_root.as_ref();
+        let supplied_text = supplied_root.display().to_string();
+        if supplied_root.as_os_str().is_empty() {
+            return Err(WorkspaceRootError::Missing {
+                workspace_id: workspace_id.to_owned(),
+            });
+        }
+        if !supplied_root.is_absolute() {
+            return Err(WorkspaceRootError::NotAbsolute {
+                workspace_id: workspace_id.to_owned(),
+                supplied_root: supplied_text,
+            });
+        }
+        let canonical = std::fs::canonicalize(supplied_root).map_err(|error| {
+            WorkspaceRootError::Unresolvable {
+                workspace_id: workspace_id.to_owned(),
+                supplied_root: supplied_text.clone(),
+                reason: error.to_string(),
+            }
+        })?;
+        if !canonical.is_dir() {
+            return Err(WorkspaceRootError::NotDirectory {
+                workspace_id: workspace_id.to_owned(),
+                supplied_root: canonical.display().to_string(),
+            });
+        }
+        Ok(Self(canonical))
+    }
+
+    pub fn as_path(&self) -> &Path {
+        &self.0
+    }
+}
+
+/// Typed failures for workspace-root binding and launch-time resolution.
+///
+/// Every variant has a stable operator-facing code in its [`fmt::Display`] representation. In
+/// particular, `Missing` is deliberately not recoverable through `std::env::current_dir()`; that
+/// fallback is the MT-125 defect.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WorkspaceRootError {
+    WorkspaceNotOpen {
+        workspace_id: String,
+    },
+    Missing {
+        workspace_id: String,
+    },
+    NotAbsolute {
+        workspace_id: String,
+        supplied_root: String,
+    },
+    Unresolvable {
+        workspace_id: String,
+        supplied_root: String,
+        reason: String,
+    },
+    NotDirectory {
+        workspace_id: String,
+        supplied_root: String,
+    },
+    NonUnicode {
+        workspace_id: String,
+        supplied_root: String,
+    },
+}
+
+impl fmt::Display for WorkspaceRootError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WorkspaceNotOpen { workspace_id } => write!(
+                f,
+                "WorkspaceNotOpen workspace_id={workspace_id}; select an open workspace before launching"
+            ),
+            Self::Missing { workspace_id } => write!(
+                f,
+                "WorkspaceRootMissing workspace_id={workspace_id}; use FILE > Open Workspace… to bind an existing absolute folder before launching"
+            ),
+            Self::NotAbsolute {
+                workspace_id,
+                supplied_root,
+            } => write!(
+                f,
+                "WorkspaceRootNotAbsolute workspace_id={workspace_id} root={supplied_root}; bind an absolute workspace folder"
+            ),
+            Self::Unresolvable {
+                workspace_id,
+                supplied_root,
+                reason,
+            } => write!(
+                f,
+                "WorkspaceRootUnresolvable workspace_id={workspace_id} root={supplied_root}: {reason}"
+            ),
+            Self::NotDirectory {
+                workspace_id,
+                supplied_root,
+            } => write!(
+                f,
+                "WorkspaceRootNotDirectory workspace_id={workspace_id} root={supplied_root}"
+            ),
+            Self::NonUnicode {
+                workspace_id,
+                supplied_root,
+            } => write!(
+                f,
+                "WorkspaceRootNonUnicode workspace_id={workspace_id} root={supplied_root}; terminal and model-session requests require Unicode paths"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for WorkspaceRootError {}
+
+fn request_path_text(workspace_id: &str, path: &Path) -> Result<String, WorkspaceRootError> {
+    path.to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| WorkspaceRootError::NonUnicode {
+            workspace_id: workspace_id.to_owned(),
+            supplied_root: path.display().to_string(),
+        })
+}
+
+/// One open project (workspace), mirroring the React `ProjectItem` (`app/src/App.tsx`). The backend
+/// `Workspace { id, name, created_at, updated_at }` row supplies identity/display data; the native
+/// workspace-opening flow binds the canonical filesystem root separately because the backend row has
+/// no filesystem-root field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectItem {
     /// Stable workspace id (the `active_project_id` value and the `/workspaces/:id/...` path segment).
     pub id: String,
     /// Display name shown on the tab.
     pub name: String,
+    /// Canonical existing directory chosen for this workspace. `None` is a valid loaded state, but
+    /// terminal/model-folder launch must surface [`WorkspaceRootError::Missing`] rather than fall back.
+    filesystem_root: Option<WorkspaceRoot>,
 }
 
 impl ProjectItem {
@@ -81,7 +221,21 @@ impl ProjectItem {
         Self {
             id: id.into(),
             name: name.into(),
+            filesystem_root: None,
         }
+    }
+
+    /// Bind an existing absolute directory as this workspace's canonical filesystem root.
+    pub fn try_with_filesystem_root(
+        mut self,
+        root: impl AsRef<Path>,
+    ) -> Result<Self, WorkspaceRootError> {
+        self.filesystem_root = Some(WorkspaceRoot::resolve(&self.id, root)?);
+        Ok(self)
+    }
+
+    pub fn filesystem_root(&self) -> Option<&Path> {
+        self.filesystem_root.as_ref().map(WorkspaceRoot::as_path)
     }
 }
 
@@ -144,6 +298,61 @@ impl ProjectTabBar {
         &self.active_id
     }
 
+    /// Bind the canonical filesystem root for an already-open workspace.
+    ///
+    /// This is the single frontend plumbing seam for an operator-facing workspace chooser. It rejects
+    /// relative, missing, and non-directory paths without consulting the process cwd.
+    pub fn bind_workspace_root(
+        &mut self,
+        workspace_id: &str,
+        root: impl AsRef<Path>,
+    ) -> Result<(), WorkspaceRootError> {
+        let project = self
+            .projects
+            .iter_mut()
+            .find(|project| project.id == workspace_id)
+            .ok_or_else(|| WorkspaceRootError::WorkspaceNotOpen {
+                workspace_id: workspace_id.to_owned(),
+            })?;
+        project.filesystem_root = Some(WorkspaceRoot::resolve(workspace_id, root)?);
+        Ok(())
+    }
+
+    /// Resolve an open workspace's canonical root as request-safe Unicode text.
+    ///
+    /// The stored root was canonicalized at bind time. Metadata is checked again here so a directory
+    /// deleted or disconnected after binding fails typed instead of launching against stale state.
+    pub fn workspace_root_text(&self, workspace_id: &str) -> Result<String, WorkspaceRootError> {
+        let project = self
+            .projects
+            .iter()
+            .find(|project| project.id == workspace_id)
+            .ok_or_else(|| WorkspaceRootError::WorkspaceNotOpen {
+                workspace_id: workspace_id.to_owned(),
+            })?;
+        let root = project
+            .filesystem_root
+            .as_ref()
+            .ok_or_else(|| WorkspaceRootError::Missing {
+                workspace_id: workspace_id.to_owned(),
+            })?;
+        let path = root.as_path();
+        let request_text = request_path_text(workspace_id, path)?;
+        let metadata =
+            std::fs::metadata(path).map_err(|error| WorkspaceRootError::Unresolvable {
+                workspace_id: workspace_id.to_owned(),
+                supplied_root: path.display().to_string(),
+                reason: error.to_string(),
+            })?;
+        if !metadata.is_dir() {
+            return Err(WorkspaceRootError::NotDirectory {
+                workspace_id: workspace_id.to_owned(),
+                supplied_root: path.display().to_string(),
+            });
+        }
+        Ok(request_text)
+    }
+
     /// Set the active project id (called by the app after a successful switch so the highlight tracks
     /// the shell's `active_project_id`).
     pub fn set_active_id(&mut self, id: impl Into<String>) {
@@ -164,7 +373,19 @@ impl ProjectTabBar {
     /// by an empty list so the strip renders the "No projects" placeholder. The active id is preserved
     /// if it still exists in the new list, otherwise it falls back to the first project (so the
     /// highlight is never orphaned).
-    pub fn apply_fetched(&mut self, projects: Vec<ProjectItem>) {
+    pub fn apply_fetched(&mut self, mut projects: Vec<ProjectItem>) {
+        // GET /workspaces currently returns identity/display metadata only. Preserve any canonical root
+        // already chosen for the same workspace id so a background refresh cannot silently discard the
+        // launch boundary. New backend rows remain explicitly unbound and therefore fail typed.
+        for incoming in &mut projects {
+            if incoming.filesystem_root.is_none() {
+                incoming.filesystem_root = self
+                    .projects
+                    .iter()
+                    .find(|existing| existing.id == incoming.id)
+                    .and_then(|existing| existing.filesystem_root.clone());
+            }
+        }
         let active_still_present = projects.iter().any(|p| p.id == self.active_id);
         self.projects = projects;
         if !active_still_present {
@@ -510,6 +731,56 @@ mod tests {
         bar.apply_fetch_error("connection refused");
         assert_eq!(bar.projects().len(), 2, "previous list retained on error");
         assert!(matches!(bar.fetch_state(), FetchState::Error(_)));
+    }
+
+    #[test]
+    fn existing_file_is_rejected_as_workspace_root() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let error = ProjectItem::new("workspace-file", "Workspace File")
+            .try_with_filesystem_root(&manifest)
+            .expect_err("an existing file is not a workspace directory");
+        assert!(matches!(
+            error,
+            WorkspaceRootError::NotDirectory { ref workspace_id, .. }
+                if workspace_id == "workspace-file"
+        ));
+    }
+
+    #[test]
+    fn deleted_bound_root_fails_typed_instead_of_using_process_cwd() {
+        let root =
+            std::env::temp_dir().join(format!("handshake-mt125-stale-root-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("create isolated stale-root fixture");
+        let mut bar = ProjectTabBar::new(vec![ProjectItem::new("stale", "Stale")], "stale");
+        bar.bind_workspace_root("stale", &root)
+            .expect("bind existing fixture root");
+        std::fs::remove_dir(&root).expect("delete isolated empty fixture root");
+
+        let error = bar
+            .workspace_root_text("stale")
+            .expect_err("deleted root must not resolve through process cwd");
+        assert!(matches!(
+            error,
+            WorkspaceRootError::Unresolvable { ref workspace_id, .. }
+                if workspace_id == "stale"
+        ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn non_unicode_root_is_rejected_before_request_serialization() {
+        use std::ffi::OsString;
+        use std::os::windows::ffi::OsStringExt;
+
+        let path = PathBuf::from(OsString::from_wide(&[0xD800]));
+        let error = request_path_text("non-unicode", &path)
+            .expect_err("a lone surrogate cannot enter terminal/model JSON requests");
+        assert!(matches!(
+            error,
+            WorkspaceRootError::NonUnicode { ref workspace_id, .. }
+                if workspace_id == "non-unicode"
+        ));
     }
 
     #[test]

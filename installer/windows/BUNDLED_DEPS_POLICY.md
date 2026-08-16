@@ -1,25 +1,24 @@
 <!-- GOVARTIFACTS-019 exception: operator-facing prose surface; not a machine-readable authority artifact.
      CONTROL-5 / RISK-5: this is an explicit exception to the [no-default-md-files] JSON-authority
-     rule. It documents the bundled-dependency + installer policy for the WP-KERNEL-011 native shell
-     for no-context models and the operator. The machine-readable authority is the MT-004 contract
-     (.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-004.json) and the crate's
-     Cargo.toml / .cargo/config.toml. If this file conflicts with those, they win. -->
+     rule. It documents the bundled-dependency + installer policy for no-context models and the
+     operator. The crate's Cargo.toml, build script, installer integrity checker, and active WP-KERNEL-012
+     contracts are the executable sources. If this file conflicts with those, they win. -->
 ---
 file_id: wp-kernel-011-mt-004-bundled-deps-policy
 file_kind: operator_prose_policy
-updated_at: 2026-06-20
+updated_at: 2026-08-15
 ---
 
-<topic id="overview" status="active" wp="WP-KERNEL-011" summary="What ships and how a user installs Handshake native">
+<topic id="overview" status="active" wp="WP-KERNEL-012" summary="What ships and how a user installs Handshake native">
 
-# Bundled Dependencies & Installer Policy — Handshake Native (WP-KERNEL-011 MT-004)
+# Bundled Dependencies & Installer Policy — Handshake Native
 
 This document answers "how does a user install Handshake?" for the native (egui/wgpu) shell.
 
-The native app ships as **two binaries in one Windows MSI** plus an externally-managed PostgreSQL
-cluster that is **not** bundled as a binary. The MSI in MT-004 is a functional scaffold: it installs
-the binaries, creates a Start Menu shortcut, and supports clean upgrade/uninstall. It is **not yet
-code-signed** — signing is a later concern.
+The native app ships as one Windows installer containing `handshake-native.exe`, `handshake_core.exe`,
+and `palmistry.exe`. SurrealDB is compiled into `handshake_core.exe` and runs in process: the installer
+does not discover, stage, install, or launch a database executable or service. The MSI supports clean
+upgrade/uninstall. It is not yet code-signed; signing remains a later concern.
 
 </topic>
 
@@ -40,31 +39,26 @@ code-signed** — signing is a later concern.
 
 </topic>
 
-<topic id="core-binary" status="active" wp="WP-KERNEL-011" summary="handshake_core.exe is a separate binary that manages PostgreSQL">
+<topic id="core-binary" status="active" wp="WP-KERNEL-012" summary="handshake_core.exe hosts embedded SurrealDB in process">
 
-## 2. handshake_core.exe (the backend / managed-postgres host)
+## 2. handshake_core.exe (backend / embedded database host)
 
 - A **separate binary** shipped alongside `handshake-native.exe` in the same install folder.
-- Manages the PostgreSQL cluster lifecycle via
-  `handshake_core::managed_postgres::ManagedPostgres::ensure_running()`
-  (`src/backend/handshake_core/src/managed_postgres.rs`).
-- MT-004 **packages** this binary in the MSI but does **not** modify handshake_core (it lives under
-  `src/backend/`, which is reuse-via-API only for this MT). The native shell's sidecar launch of
-  handshake_core is a **later MT** — for MT-004 the two-binary handoff is documented, not wired.
+- Hosts the SurrealDB engine as an in-process Rust dependency.
+- No database child process, Windows service, port-discovery step, or separately installed database is
+  part of the installer contract.
 
 </topic>
 
-<topic id="postgres" status="active" wp="WP-KERNEL-011" summary="PostgreSQL cluster is managed, not bundled as a binary">
+<topic id="embedded-database" status="active" wp="WP-KERNEL-012" summary="SurrealDB is linked in process and has no external payload">
 
-## 3. PostgreSQL cluster (NOT bundled)
+## 3. Embedded SurrealDB
 
-- The PostgreSQL server is **not** bundled as a binary in the installer.
-- `handshake_core` discovers or provisions a cluster through
-  `ManagedPostgres` + `ManagedPostgresConfig::from_env()`
-  (`src/backend/handshake_core/src/managed_postgres.rs`).
-- This keeps the MSI small and avoids shipping/patching a full PostgreSQL distribution.
-- No Docker, no Docker Compose, no third-party daemons (CX-503S): PostgreSQL is a
-  Handshake-managed component, not an outside app the operator must start.
+- SurrealDB is linked into `handshake_core.exe`; there is no `surreal.exe` payload.
+- The installer does not inspect database environment variables or search `PATH` for database tools.
+- The staging tree must not contain legacy `bundled/postgres/`, PostgreSQL utilities, SQLite utilities,
+  or a standalone SurrealDB server binary.
+- Exact SurrealDB BUSL notices ship from `installer/windows/licenses/`.
 
 </topic>
 
@@ -136,29 +130,25 @@ UpgradeCode GUID: `609E7B1F-D861-4353-A0D6-85B79B459614` — **do not change** a
 
 </topic>
 
-<topic id="build-pipeline" status="active" wp="WP-KERNEL-011" summary="Three-step build pipeline + LTO and CI gating">
+<topic id="build-pipeline" status="active" wp="WP-KERNEL-012" summary="Installer build pipeline and artifact allocation">
 
 ## Build pipeline
 
-The full pipeline to produce a user-installable Handshake native app. **Build release-native into a
-SHORT target dir** (see the MAX_PATH note below) — `build_installer.ps1` does this automatically:
+The crate-local script builds and stages all three product binaries, then produces an MSI when WiX is
+available or a real zip fallback otherwise:
 
-```
-# from src/frontend/handshake_native, with a short CARGO_TARGET_DIR (e.g. D:\hsk-rn-target):
-set CARGO_TARGET_DIR=D:\hsk-rn-target
-cargo build --profile release-native -p handshake-native
-cargo build --profile release-native -p handshake_core --features app-runtime  # from its crate dir
-# then, from the repo root:
-pwsh installer/windows/build_installer.ps1 -OutDir ./dist
+```powershell
+pwsh -NoProfile -File src/frontend/handshake_native/scripts/build_installer.ps1
 ```
 
-`build_installer.ps1` sets a short `CARGO_TARGET_DIR` (`<DriveRoot>\hsk-rn-target` by default, or
-`-CargoTarget` / `$env:HANDSHAKE_RN_TARGET`) so the MAX_PATH issue below cannot recur.
+The script derives `Handshake_Artifacts/handshake-release-target` from its own location and rejects a
+`-ShortTargetDir` / `HANDSHAKE_SHORT_TARGET_DIR` override outside that project-allocated artifact root.
+It builds `handshake-native.exe` with `release-native`, builds `handshake_core.exe` with `app-runtime`,
+builds `palmistry.exe`, and stages the three siblings plus fonts, grammars, and license notices.
 
 **MAX_PATH (Windows 260-char) constraint — important.** The `release-native` profile name is longer
 than `release`, which pushes the deepest build-script output paths (`icu_*`, `parking_lot_core`,
-`windows_x86_64_msvc`) past the Windows 260-char `MAX_PATH` limit when the crate's default external
-target dir (`../Handshake_Artifacts/handshake-native-target`, set in `.cargo/config.toml`) is used.
+`windows_x86_64_msvc`) past the Windows 260-char `MAX_PATH` limit in a deeply nested target directory.
 `link.exe` does **not** honor the registry `LongPathsEnabled` opt-in, so it fails with
 `LNK1104: cannot open file build_script_build.exe`. The fix is purely environmental: build
 release-native into a short target dir (the `dev`/`release` profiles fit under 260 and are
@@ -174,36 +164,26 @@ cargo test --test test_single_binary -- --nocapture
 Notes:
 
 - **release-native profile is for installer builds only.** Dev builds use `--profile dev`; CI smoke
-  tests use `--profile release`. The profile pins `lto = "fat"` + `codegen-units = 1`, which is slow
-  (RISK-2): a clean release-native build takes ~3-4 min here. For faster iteration, prefer the
-  dev/release profiles; the `build_installer.ps1 -LtoFat` switch (and the `HANDSHAKE_LTO` env var)
-  is reserved for a future thin/fat LTO split (CONTROL-2).
+  tests use `--profile release`. The profile pins `lto = "fat"` + `codegen-units = 1`, so use the
+  installer script only for release proof rather than ordinary iteration.
 - **strip = "symbols"** on `release-native` reduces binary size and links fine on this toolchain
   (MSVC link.exe 14.44). Debug info lives in a side `.pdb`, not the `.exe`. If a future toolchain
   rejects strip, fall back to `strip = "none"` and note the limitation.
-- **Installer CI is optional (CONTROL-4 / RISK-4).** The default Cargo CI pipeline runs only the
-  Cargo steps. `build_installer.ps1` should be run only on release branches or when
-  `HANDSHAKE_BUILD_INSTALLER=1`. If WiX 4 is absent, the script exits non-zero with a clear message
-  and does **not** fail the Cargo build.
+- **Installer CI is optional (CONTROL-4 / RISK-4).** If WiX 4/5 is absent, the script emits the
+  self-contained zip fallback and never fabricates an MSI.
 - **Disk-agnostic ([GLOBAL-PORTABILITY-004]):** `build_installer.ps1` hardcodes no absolute paths.
-  The cargo target dir is discovered via `cargo metadata` when `-CargoTarget` is omitted, and the
-  WiX source + repo root are resolved relative to `$PSScriptRoot`. Note the native crate's
-  `.cargo/config.toml` redirects the cargo target dir to the external artifacts root
-  (`../Handshake_Artifacts/handshake-native-target`, CX-212E), so the `release-native` binary lives
-  there, not under the repo `target/`.
+  The artifact root, manifests, WiX source, and repo root resolve relative to `$PSScriptRoot`.
 
 </topic>
 
-<topic id="manual-validation-gaps" status="active" wp="WP-KERNEL-011" summary="What still needs manual proof in this environment">
+<topic id="manual-validation-gaps" status="active" wp="WP-KERNEL-012" summary="Focused proof still required after concurrent implementation settles">
 
-## Manual validation gaps (this environment)
+## Validation still required
 
-- **WiX 4 toolchain is not installed** on this build host (`wix` not on PATH), so
-  `wix build --validate handshake_native.wxs` and the MSI production step could not be exercised
-  here. The `.wxs` is authored to the WiX 4 schema and is gated behind the availability check in
-  `build_installer.ps1`. Validation/MSI production must be confirmed on a host with WiX 4 installed
-  (`dotnet tool install --global wix`). This is a documented proof gap, not a fabricated pass.
-- **release-native single-binary test** skips cleanly until the release-native binary is built;
-  building it requires the slow fat-LTO profile. See the handoff for which proofs were exercised.
+- Run the focused installer tests after concurrent Cargo-editing lanes settle.
+- Run `build_installer.ps1 -ForceZip`, inspect the archive, and confirm all three product binaries plus
+  both SurrealDB notices are present while no external database executable/directory is present.
+- On a WiX-equipped host, build and validate the MSI and inspect its installed payload. XML parsing alone
+  is structural evidence, not MSI production proof.
 
 </topic>

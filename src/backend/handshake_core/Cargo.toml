@@ -163,9 +163,12 @@ axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
+dirs = "5"
+dunce = "=1.0.5"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
 tower-http = { version = "0.6", features = ["cors"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
+surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-rocksdb"] }
 uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 chrono-tz = "0.10"
@@ -248,6 +251,7 @@ portable-pty = "0.9.0"
 
 [dev-dependencies]
 tempfile = "3"
+static_assertions = "1"
 wiremock = "0.6"
 
 [target.'cfg(windows)'.dependencies]
@@ -271,9 +275,15 @@ app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
+surreal-test-support = []
 wsl2-integration = []
 docker-integration = []
 win-native-integration = []
+
+[[test]]
+name = "surreal_test_inspector_contract_tests"
+path = "tests/surreal_test_inspector_contract_tests.rs"
+required-features = ["surreal-test-support"]
 
 [[test]]
 name = "ai_ready_data_arch_tests"

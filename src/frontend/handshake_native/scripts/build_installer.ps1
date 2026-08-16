@@ -3,10 +3,12 @@
   WP-KERNEL-011 MT-031 — single-installer build + package script (PowerShell 7).
 
   WHAT IT DOES
-    1. Builds the single self-contained native binary:
+    1. Builds the native shell, the handshake_core backend, and the Palmistry watcher:
          cargo build --profile release-native --bin handshake-native
+         cargo build --release --features app-runtime --bin handshake_core
+         cargo build --release --bin palmistry
        into the project-allocated external Handshake_Artifacts root.
-    2. Stages the binary + all bundled assets (fonts, grammars dir, postgres binaries) into
+    2. Stages the three product binaries + bundled assets (fonts and grammars) into
          <target>/release-native/staging/   matching the exe-relative bundle layout that
          installer::check_bundle_integrity verifies.
     3. Produces ONE installer artifact at <out>/handshake-setup.{msi|zip}:
@@ -30,8 +32,8 @@
     - Rust stable toolchain + cargo on PATH (required).
     - PowerShell 7 (required; this script).
     - WiX 4/5 (`dotnet tool install --global wix`) — OPTIONAL; absent => zip fallback.
-    - PostgreSQL binaries to stage — OPTIONAL; absent => a documented placeholder is staged so the
-      bundle layout is valid for the smoke (a real release MUST stage the real binaries).
+    SurrealDB is linked into handshake_core as an in-process embedded engine. No database executable,
+    service, discovery variable, or placeholder binary is staged.
 #>
 
 [CmdletBinding()]
@@ -71,7 +73,7 @@ if (-not $ShortTargetDir.StartsWith($artifactPrefix, [System.StringComparison]::
 New-Item -ItemType Directory -Force -Path $ShortTargetDir | Out-Null
 Write-Step "Allocated release CARGO_TARGET_DIR: $ShortTargetDir"
 
-# --- 1. Build the single self-contained binary -----------------------------------------------------
+# --- 1. Build the product binaries -----------------------------------------------------------------
 $env:CARGO_TARGET_DIR = $ShortTargetDir
 Write-Step "cargo build --profile release-native --bin handshake-native"
 Push-Location $CrateRoot
@@ -91,13 +93,37 @@ if (-not (Test-Path $ExePath)) {
 $exeSize = (Get-Item $ExePath).Length
 Write-Step "Built binary: $ExePath ($([math]::Round($exeSize/1MB,1)) MB)"
 
+$RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $CrateRoot '../../..'))
+$CoreManifest = Join-Path $RepoRoot 'src/backend/handshake_core/Cargo.toml'
+$PalmistryManifest = Join-Path $RepoRoot 'src/frontend/palmistry/Cargo.toml'
+
+Write-Step "cargo build --release --features app-runtime --bin handshake_core"
+& cargo build --manifest-path $CoreManifest --release --features app-runtime --bin handshake_core
+if ($LASTEXITCODE -ne 0) { throw "handshake_core cargo build failed (exit $LASTEXITCODE)" }
+
+Write-Step "cargo build --release --bin palmistry"
+& cargo build --manifest-path $PalmistryManifest --release --bin palmistry
+if ($LASTEXITCODE -ne 0) { throw "palmistry cargo build failed (exit $LASTEXITCODE)" }
+
+$CoreExeName = 'handshake_core.exe'
+$PalmistryExeName = 'palmistry.exe'
+$CoreExePath = Join-Path (Join-Path $ShortTargetDir 'release') $CoreExeName
+$PalmistryExePath = Join-Path (Join-Path $ShortTargetDir 'release') $PalmistryExeName
+foreach ($binary in @($CoreExePath, $PalmistryExePath)) {
+    if (-not (Test-Path $binary -PathType Leaf)) {
+        throw "Built binary not found at $binary after cargo build"
+    }
+}
+
 # --- 2. Stage the bundle (exe-relative layout) -----------------------------------------------------
 $StagingDir = Join-Path (Join-Path $ShortTargetDir 'release-native') 'staging'
 if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
 New-Item -ItemType Directory -Force -Path $StagingDir | Out-Null
 
-# 2a. the native binary
+# 2a. product binaries. SurrealDB is embedded in handshake_core; no database executable is copied.
 Copy-Item $ExePath (Join-Path $StagingDir $ExeName) -Force
+Copy-Item $CoreExePath (Join-Path $StagingDir $CoreExeName) -Force
+Copy-Item $PalmistryExePath (Join-Path $StagingDir $PalmistryExeName) -Force
 
 # 2b. fonts/  (from the crate's assets/fonts)
 $FontsSrc = Join-Path (Join-Path $CrateRoot 'assets') 'fonts'
@@ -114,37 +140,16 @@ Write-Step "Staged $fontCount font file(s)"
 # 2c. grammars/  (directory must exist; may be empty on first pass)
 New-Item -ItemType Directory -Force -Path (Join-Path $StagingDir 'grammars') | Out-Null
 
-# 2d. bundled/postgres/  — stage real binaries if a postgres toolchain is discoverable, else a
-#     documented placeholder so the bundle LAYOUT is valid for the smoke. A real release MUST stage
-#     the actual managed-postgres binaries (BUNDLED_DEPS_POLICY.md managed-postgres-path-contract).
-$PgDst = Join-Path (Join-Path $StagingDir 'bundled') 'postgres'
-New-Item -ItemType Directory -Force -Path $PgDst | Out-Null
-$pgBinDir = $null
-# Discover via the SAME env vars handshake_core::managed_postgres reads, in its order:
-# HANDSHAKE_MANAGED_PG_BIN (managed_postgres::MANAGED_PG_BIN_ENV) then the standard PGBIN.
-foreach ($cand in @($env:HANDSHAKE_MANAGED_PG_BIN, $env:PGBIN)) {
-    if (-not [string]::IsNullOrWhiteSpace($cand) -and (Test-Path (Join-Path $cand 'pg_ctl.exe'))) {
-        $pgBinDir = $cand; break
+# 2d. exact upstream SurrealDB license notices
+$LicenseSrc = Join-Path (Join-Path $CrateRoot 'installer/windows') 'licenses'
+$LicenseDst = Join-Path $StagingDir 'licenses'
+New-Item -ItemType Directory -Force -Path $LicenseDst | Out-Null
+foreach ($notice in @('SurrealDB-3.0-BUSL-1.1.txt', 'SurrealDB-Protocol-2.0-BUSL-1.1.txt')) {
+    $source = Join-Path $LicenseSrc $notice
+    if (-not (Test-Path $source -PathType Leaf)) {
+        throw "Required SurrealDB license notice missing: $source"
     }
-}
-if (-not $pgBinDir) {
-    $pgCtlCmd = Get-Command 'pg_ctl.exe' -ErrorAction SilentlyContinue
-    if ($pgCtlCmd) { $pgBinDir = Split-Path -Parent $pgCtlCmd.Source }
-}
-if ($pgBinDir) {
-    Write-Step "Staging real PostgreSQL binaries from $pgBinDir"
-    Copy-Item (Join-Path $pgBinDir '*') $PgDst -Recurse -Force
-}
-else {
-    Write-Step "WARNING: no PostgreSQL toolchain found (HANDSHAKE_MANAGED_PG_BIN/PGBIN/PATH). Staging placeholder pg_ctl.exe."
-    Write-Step "         A production installer MUST stage the real managed-postgres binaries here."
-    $placeholder = @(
-        '@echo off',
-        'REM MT-031 placeholder pg_ctl: bundle-layout placeholder only; replace with the real',
-        'REM managed-postgres binaries for a production installer. See BUNDLED_DEPS_POLICY.md.',
-        'echo handshake-bundled-postgres-placeholder & exit /b 0'
-    ) -join "`r`n"
-    Set-Content -Path (Join-Path $PgDst 'pg_ctl.exe') -Value $placeholder -Encoding ascii
+    Copy-Item $source (Join-Path $LicenseDst $notice) -Force
 }
 
 # --- 3. Produce the single installer artifact ------------------------------------------------------

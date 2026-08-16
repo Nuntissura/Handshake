@@ -286,6 +286,39 @@ impl McpResponse {
 pub struct McpError {
     pub code: i64,
     pub message: String,
+    pub(crate) source: McpErrorSource,
+}
+
+/// Internal provenance retained after errors are mapped onto the public JSON-RPC code taxonomy.
+/// `ActionError::TargetBusy` and registry timeout intentionally share wire code -32004, but only the
+/// former is retryable after the registry lease has already been acquired.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum McpErrorSource {
+    General,
+    ActionTargetBusy,
+    LeaseTimeout,
+}
+
+impl McpError {
+    pub(crate) fn general(code: i64, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            source: McpErrorSource::General,
+        }
+    }
+
+    pub(crate) fn lease_timeout(message: impl Into<String>) -> Self {
+        Self {
+            code: ERR_LEASE_TIMEOUT,
+            message: message.into(),
+            source: McpErrorSource::LeaseTimeout,
+        }
+    }
+
+    pub(crate) fn is_action_target_busy(&self) -> bool {
+        self.source == McpErrorSource::ActionTargetBusy
+    }
 }
 
 /// An error raised while parsing/handling a tool call, before a response id is necessarily known.
@@ -306,27 +339,25 @@ impl McpToolError {
 
 impl From<ActionError> for McpError {
     fn from(e: ActionError) -> Self {
-        let code = match &e {
-            ActionError::QueueFull => ERR_ACTION_QUEUE_FULL,
+        let (code, source) = match &e {
+            ActionError::QueueFull => (ERR_ACTION_QUEUE_FULL, McpErrorSource::General),
             ActionError::InvalidNumericValue { .. } | ActionError::InvalidValue { .. } => {
-                ERR_INVALID_PARAMS
+                (ERR_INVALID_PARAMS, McpErrorSource::General)
             }
-            ActionError::TargetBusy { .. } => ERR_LEASE_TIMEOUT,
-            _ => ERR_TOOL_FAILED,
+            ActionError::TargetBusy { .. } => (ERR_LEASE_TIMEOUT, McpErrorSource::ActionTargetBusy),
+            _ => (ERR_TOOL_FAILED, McpErrorSource::General),
         };
         McpError {
             code,
             message: e.to_string(),
+            source,
         }
     }
 }
 
 impl From<ScreenshotError> for McpError {
     fn from(e: ScreenshotError) -> Self {
-        McpError {
-            code: ERR_TOOL_FAILED,
-            message: e.to_string(),
-        }
+        McpError::general(ERR_TOOL_FAILED, e.to_string())
     }
 }
 
@@ -352,10 +383,7 @@ pub fn dispatch_request(
     if !token.matches(&request.session_token) {
         return McpResponse::err(
             request.id.clone(),
-            McpError {
-                code: ERR_UNAUTHORIZED,
-                message: "Unauthorized".to_owned(),
-            },
+            McpError::general(ERR_UNAUTHORIZED, "Unauthorized"),
         );
     }
 
@@ -363,10 +391,10 @@ pub fn dispatch_request(
     let Some(method) = ArgusMethod::from_wire_name(&request.method) else {
         return McpResponse::err(
             request.id.clone(),
-            McpError {
-                code: ERR_METHOD_NOT_FOUND,
-                message: format!("unknown method '{}'", request.method),
-            },
+            McpError::general(
+                ERR_METHOD_NOT_FOUND,
+                format!("unknown method '{}'", request.method),
+            ),
         );
     };
 
@@ -390,13 +418,7 @@ pub fn dispatch_request(
                 };
                 enqueue_response(request, snapshot, channel, &target, action)
             }
-            Err(e) => McpResponse::err(
-                request.id.clone(),
-                McpError {
-                    code: e.code,
-                    message: e.message,
-                },
-            ),
+            Err(e) => McpResponse::err(request.id.clone(), McpError::general(e.code, e.message)),
         },
         ArgusMethod::SetValue => match parse_target_and_value(&request.params) {
             Ok((target, value)) => enqueue_response(
@@ -406,13 +428,7 @@ pub fn dispatch_request(
                 &target,
                 UiAction::SetValue { text: value },
             ),
-            Err(e) => McpResponse::err(
-                request.id.clone(),
-                McpError {
-                    code: e.code,
-                    message: e.message,
-                },
-            ),
+            Err(e) => McpResponse::err(request.id.clone(), McpError::general(e.code, e.message)),
         },
         ArgusMethod::Screenshot => match capture() {
             Ok(shot) => McpResponse::ok(request.id.clone(), shot.to_json()),

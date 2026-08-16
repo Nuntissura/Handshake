@@ -31,6 +31,37 @@ license-files = [
   { path = "LICENSE", hash = 0xbd0eed23 },
 ]
 
+# SurrealDB's database crates are source-available under BUSL-1.1. Keep these
+# exceptions pinned to the exact versions in Cargo.lock so a dependency update
+# cannot silently inherit this policy decision.
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb@3.2.0"
+
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb-collections@3.2.0"
+
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb-core@3.2.0"
+
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb-protocol@0.10.2"
+
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb-strand@3.2.0"
+
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb-types@3.2.0"
+
+[[licenses.exceptions]]
+allow = ["BUSL-1.1"]
+crate = "surrealdb-types-derive@3.2.0"
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"

@@ -846,6 +846,77 @@ fn mt104_terminal_and_model_topics_are_honest_blockers() {
 }
 
 #[test]
+fn mt125_manual_documents_canonical_workspace_root_and_recovery() {
+    let section = editors_manual_section();
+    for heading in ["Terminal Launch", "Model Session Launch"] {
+        let body = topic_body(&section, heading);
+        for required in [
+            "canonical filesystem root",
+            "never the Handshake process cwd",
+            "FILE > Open Workspace…",
+            "workspace-root.path",
+            "workspace-root.apply",
+            "WorkspaceRootBound",
+        ] {
+            assert!(
+                body.contains(required),
+                "MT-125 manual topic '{heading}' must include '{required}'"
+            );
+        }
+    }
+
+    let rows = row_by_id();
+    for (author_id, tool) in [
+        ("menu.file.open-workspace", "argus.click"),
+        (
+            handshake_native::app::WORKSPACE_ROOT_DIALOG_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::app::WORKSPACE_ROOT_PATH_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::app::WORKSPACE_ROOT_APPLY_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::app::WORKSPACE_ROOT_CANCEL_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::app::WORKSPACE_ROOT_STATUS_AUTHOR_ID,
+            "argus.inspect",
+        ),
+    ] {
+        let row = rows
+            .get(author_id)
+            .unwrap_or_else(|| panic!("MT-125 structured tool row missing for {author_id}"));
+        assert_eq!(row.mcp_tool, tool, "wrong MT-125 tool for {author_id}");
+    }
+}
+
+#[test]
+fn mt134_agent_tool_reference_documents_bounded_same_widget_wait() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Agent Tool Reference");
+    for required in [
+        "Same-widget argus.click and argus.set_value requests are serialized through one bounded request deadline",
+        "without holding the ActionChannel mutex",
+        "returns typed JSON-RPC -32004",
+        "fresh argus.inspect",
+        "Different-widget mutations retain independent target/observer lease sets",
+        "Flight Recorder/EventLedger is NOT_APPLICABLE",
+        "internal_diagnostics and Palmistry integration are DEFERRED",
+    ] {
+        assert!(
+            body.contains(required),
+            "MT-134 no-context recovery/manual posture must include '{required}'"
+        );
+    }
+}
+
+#[test]
 fn mt104_agent_tool_reference_adds_real_terminal_model_diagnostics_rows() {
     let rows = row_by_id();
     let required = [

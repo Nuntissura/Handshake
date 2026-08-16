@@ -135,11 +135,29 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
 
     // --- explicit presence list for the report (the key deps a reviewer wants to see named) ---
     let has = |needle: &str| files.iter().any(|f| f.eq_ignore_ascii_case(needle));
-    let pg_ctl_rel = installer::bundled_pg_ctl_rel_path();
-    let postgres_binary = files
+    let forbidden_database_names = [
+        "pg_ctl.exe",
+        "postgres.exe",
+        "initdb.exe",
+        "pg_isready.exe",
+        "psql.exe",
+        "sqlite3.exe",
+        "surreal.exe",
+    ];
+    let external_database_binaries: Vec<String> = files
         .iter()
-        .find(|f| f.eq_ignore_ascii_case(&pg_ctl_rel))
-        .cloned();
+        .filter(|path| {
+            Path::new(path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    forbidden_database_names
+                        .iter()
+                        .any(|forbidden| name.eq_ignore_ascii_case(forbidden))
+                })
+        })
+        .cloned()
+        .collect();
     let font_file = files
         .iter()
         .find(|f| {
@@ -153,10 +171,30 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
         "native binary missing from bundle"
     );
     assert!(
-        postgres_binary.is_some(),
-        "bundled postgres pg_ctl.exe missing"
+        has(installer::CORE_BINARY_NAME),
+        "embedded-SurrealDB host binary missing from bundle"
+    );
+    assert!(
+        has(installer::PALMISTRY_BINARY_NAME),
+        "Palmistry binary missing from bundle"
+    );
+    assert!(
+        external_database_binaries.is_empty(),
+        "external database executables must not ship with embedded SurrealDB: {external_database_binaries:?}"
+    );
+    assert!(
+        !staging.join("bundled").join("postgres").exists(),
+        "legacy bundled/postgres directory must not be staged"
     );
     assert!(font_file.is_some(), "no bundled font file");
+    assert!(
+        has(installer::SURREALDB_LICENSE_NOTICE),
+        "SurrealDB license notice missing"
+    );
+    assert!(
+        has(installer::SURREALDB_PROTOCOL_LICENSE_NOTICE),
+        "SurrealDB protocol license notice missing"
+    );
 
     // --- write the report (HBR-VIS) ---
     let report = serde_json::json!({
@@ -164,7 +202,13 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
         "mt_id": "MT-031",
         "files_found": files,
         "native_binary": "handshake-native.exe",
-        "postgres_binary": postgres_binary,
+        "core_binary": installer::CORE_BINARY_NAME,
+        "palmistry_binary": installer::PALMISTRY_BINARY_NAME,
+        "database_mode": "in_process_embedded_surrealdb",
+        "external_database_binaries": external_database_binaries,
+        "legacy_postgres_bundle_present": staging.join("bundled").join("postgres").exists(),
+        "surrealdb_license_notice": installer::SURREALDB_LICENSE_NOTICE,
+        "surrealdb_protocol_license_notice": installer::SURREALDB_PROTOCOL_LICENSE_NOTICE,
         "font_file": font_file,
         "grammars_dir_present": staging.join("grammars").is_dir(),
         "missing": missing,
@@ -176,5 +220,5 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
     std::fs::write(&report_path, serde_json::to_string_pretty(&report).unwrap())
         .expect("write bundle_deps_audit_report.json");
     println!("WROTE {}", report_path.display());
-    println!("PASS: bundle complete, missing=[], disallowed_system_webview=false");
+    println!("PASS: bundle complete, embedded SurrealDB has no external database payload, missing=[], disallowed_system_webview=false");
 }

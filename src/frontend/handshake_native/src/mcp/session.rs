@@ -13,10 +13,10 @@
 //! 3. After a mutating tool successfully enqueues, the action is APPENDED to the shared
 //!    [`crate::mcp::attribution::ActionLog`] with this session's `agent_id` — the post-hoc audit trail.
 //!
-//! The registry lease protects the synchronous resolve+enqueue span. After it drops, the
-//! [`ActionChannel`] keeps a per-target transaction in flight through fresh-tree revalidation and
-//! post-render acknowledgement; a second write to that target receives the typed target-busy error.
-//! Different targets remain independently queueable.
+//! The registry lease protects the bounded resolve+enqueue wait. [`ActionChannel`] keeps a per-target
+//! transaction in flight through fresh-tree revalidation and post-render acknowledgement; a second
+//! write to that target waits above the channel mutex until the transaction terminalizes or the single
+//! request deadline returns typed -32004. Non-conflicting targets remain independently queueable.
 //!
 //! ## Why the lease key is the widget `author_id`
 //!
@@ -27,18 +27,19 @@
 //! only blocks while some op holds it exclusively (none currently does; reserved for a future snapshot
 //! write).
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, TryLockError};
 use std::time::Duration;
 
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
 use crate::mcp::argus::ArgusMethod;
 use crate::mcp::attribution::{agent_id_for_token, ActionLog};
-use crate::mcp::leases::{LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
+use crate::mcp::leases::{LeaseError, LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
 use crate::mcp::screenshot::{ScreenshotError, ScreenshotResult};
-use crate::mcp::tools::{
-    dispatch_request, McpError, McpRequest, McpResponse, SessionToken, ERR_LEASE_TIMEOUT,
-};
+use crate::mcp::tools::{dispatch_request, McpError, McpRequest, McpResponse, SessionToken};
+
+#[cfg(test)]
+use crate::mcp::tools::ERR_LEASE_TIMEOUT;
 
 /// The lease resource key for a whole-tree read (`list_widgets`). A read takes this SHARED, so many
 /// reads coexist; reserved exclusive use would be a future snapshot-rewrite op.
@@ -51,6 +52,25 @@ use crate::mcp::tools::{
 /// tradeoff for the single-snapshot model (the whole tree is rebuilt atomically); finer-grained
 /// per-subtree snapshot leasing would be the alternative if read throughput under a writer ever matters.
 pub const SNAPSHOT_RESOURCE: &str = "ui.snapshot";
+
+/// How long to wait between re-attempts when the exclusive lease was WON but the ActionChannel still
+/// holds an un-acknowledged transaction for the same target (MT-134).
+///
+/// Short enough that a freed slot is taken promptly, long enough that a contended target does not
+/// spin the tokio worker. The retry is bounded by the LEASE deadline, never by this interval.
+const CHANNEL_BUSY_RETRY_INTERVAL: Duration = Duration::from_millis(2);
+
+/// The capture closure is unreachable on the mutating lease path.
+///
+/// decide() routes ONLY click_widget / set_value to ExclusiveWrite, and dispatch_request invokes its
+/// capture argument solely for the screenshot method. Passing this makes that reachability argument
+/// explicit, and lets the enqueue be RETRIED - which a moved-in FnOnce could not be. If the routing
+/// ever changed, this returns a typed error rather than silently producing an empty capture.
+fn unreachable_capture() -> Result<ScreenshotResult, ScreenshotError> {
+    Err(ScreenshotError(
+        "screenshot capture is not reachable from the mutating lease path".to_owned(),
+    ))
+}
 
 /// The leasing + attribution decision for one request, computed ONCE from the auth-gated request so the
 /// synchronous [`McpSession::dispatch`] and the async [`McpSession::dispatch_shared_async`] entry points
@@ -249,14 +269,15 @@ impl McpSession {
     pub async fn dispatch_shared_async(
         &self,
         request: &McpRequest,
-        snapshot: &UiTreeSnapshot,
+        snapshot: &Arc<Mutex<UiTreeSnapshot>>,
         channel: &Arc<Mutex<ActionChannel>>,
         capture: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError>,
     ) -> McpResponse {
         match self.decide(request) {
             DispatchPlan::Direct => {
+                let snapshot = clone_snapshot(snapshot);
                 let mut ch = lock_channel(channel);
-                dispatch_request(request, &self.token, snapshot, &mut ch, capture)
+                dispatch_request(request, &self.token, &snapshot, &mut ch, capture)
             }
             DispatchPlan::SharedRead => {
                 let _read_guard = match self
@@ -267,24 +288,107 @@ impl McpSession {
                     Ok(g) => g,
                     Err(e) => return Self::lease_timeout_response(request, e),
                 };
+                let snapshot = clone_snapshot(snapshot);
                 let mut ch = lock_channel(channel);
-                dispatch_request(request, &self.token, snapshot, &mut ch, capture)
+                dispatch_request(request, &self.token, &snapshot, &mut ch, capture)
             }
             DispatchPlan::ExclusiveWrite { target } => {
+                // One request deadline covers BOTH serializer windows. Starting it before registry
+                // acquisition prevents a request from consuming `lease_timeout` in the registry and
+                // then receiving a second full timeout while the ActionChannel is still busy.
+                let deadline = std::time::Instant::now() + self.lease_timeout;
                 // LEASE FIRST (async wait — yields the worker thread; never holds the channel lock here).
                 let _guard = match self
                     .leases
-                    .acquire_async(&target, LeaseKind::Exclusive, self.lease_timeout)
+                    .acquire_async(
+                        &target,
+                        LeaseKind::Exclusive,
+                        deadline.saturating_duration_since(std::time::Instant::now()),
+                    )
                     .await
                 {
                     Ok(g) => g,
                     Err(e) => return Self::lease_timeout_response(request, e),
                 };
-                // Now lock the channel ONLY for the brief resolve+enqueue, under the held lease.
-                let response = {
-                    let mut ch = lock_channel(channel);
-                    dispatch_request(request, &self.token, snapshot, &mut ch, capture)
-                    // channel lock drops here — released before we attribute / drop the lease.
+                // LeaseRegistry performs a final grant attempt before its own elapsed check. Enforce
+                // this request's absolute deadline after acquisition as well, then let the guard drop.
+                if std::time::Instant::now() >= deadline {
+                    return Self::lease_timeout_response(
+                        request,
+                        LeaseError::Timeout {
+                            resource: target,
+                            kind: LeaseKind::Exclusive,
+                        },
+                    );
+                }
+                // MT-134: the lease is not the only serializer, and the two do not share a window.
+                //
+                // Winning the lease is NOT sufficient to enqueue. The ActionChannel keeps its own
+                // per-target in-flight transaction until POST-RENDER acknowledgement, and it fails
+                // FAST: `enqueue` scans queue + in_flight and returns `TargetBusy` immediately
+                // (mcp/action.rs), which maps to the same -32004 as a lease timeout. Because the
+                // lease guard is released as soon as this arm returns, the NEXT agent could win the
+                // lease while the previous action was still un-acknowledged, and then be rejected by
+                // the channel. The wait covered the wrong window, which is why five concurrent
+                // agents on one widget lost actions despite a generous lease timeout.
+                //
+                // Retrying under the HELD lease closes the gap without changing either mechanism's
+                // semantics: this agent already owns the target exclusively, so no other agent can
+                // interleave, and the channel lock is released between attempts so the egui frame
+                // loop can actually acknowledge the in-flight action and free the slot. The retry is
+                // bounded by the SAME lease deadline, so a genuinely wedged target still yields
+                // -32004 rather than hanging.
+                //
+                // The channel lock is never held across an await — that would deadlock against the
+                // frame loop that must acknowledge.
+                let response = loop {
+                    let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                    if remaining.is_zero() {
+                        break Self::lease_timeout_response(
+                            request,
+                            LeaseError::Timeout {
+                                resource: target.clone(),
+                                kind: LeaseKind::Exclusive,
+                            },
+                        );
+                    }
+
+                    let response = match try_dispatch_mutation(
+                        request,
+                        &self.token,
+                        snapshot,
+                        channel,
+                        deadline,
+                    ) {
+                        MutationDispatchAttempt::SnapshotContended => {
+                            tokio::time::sleep(CHANNEL_BUSY_RETRY_INTERVAL.min(remaining)).await;
+                            continue;
+                        }
+                        MutationDispatchAttempt::ChannelContended => {
+                            tokio::time::sleep(CHANNEL_BUSY_RETRY_INTERVAL.min(remaining)).await;
+                            continue;
+                        }
+                        MutationDispatchAttempt::DeadlineElapsed => {
+                            break Self::lease_timeout_response(
+                                request,
+                                LeaseError::Timeout {
+                                    resource: target.clone(),
+                                    kind: LeaseKind::Exclusive,
+                                },
+                            );
+                        }
+                        MutationDispatchAttempt::Response(response) => response,
+                    };
+                    if !Self::is_target_busy(&response) {
+                        break response;
+                    }
+                    // No channel guard survives this await. The next loop iteration performs both an
+                    // absolute-deadline check and a fresh snapshot read before retrying.
+                    let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                    if remaining.is_zero() {
+                        break response;
+                    }
+                    tokio::time::sleep(CHANNEL_BUSY_RETRY_INTERVAL.min(remaining)).await;
                 };
                 self.attribute_and_stamp(response, request, &target)
                 // _guard drops here.
@@ -292,18 +396,18 @@ impl McpSession {
         }
     }
 
-    /// Build the typed [`ERR_LEASE_TIMEOUT`] (-32004) response for a contended lease.
+    /// Does this response mean the ActionChannel still holds an un-acknowledged transaction for the
+    /// target? The internal producer discriminator survives mapping to public wire code -32004, so
+    /// registry timeouts or future same-code errors cannot silently become retryable.
+    fn is_target_busy(response: &McpResponse) -> bool {
+        matches!(response.result_ref(), Err(error) if error.is_action_target_busy())
+    }
+    /// Build the typed [`crate::mcp::tools::ERR_LEASE_TIMEOUT`] (-32004) response for a contended lease.
     fn lease_timeout_response(
         request: &McpRequest,
         e: crate::mcp::leases::LeaseError,
     ) -> McpResponse {
-        McpResponse::error(
-            request.id.clone(),
-            McpError {
-                code: ERR_LEASE_TIMEOUT,
-                message: e.to_string(),
-            },
-        )
+        McpResponse::error(request.id.clone(), McpError::lease_timeout(e.to_string()))
     }
 
     /// On a successful mutating enqueue: append the attributed action to the shared log AND rebuild the
@@ -344,12 +448,68 @@ impl McpSession {
     }
 }
 
+/// A synchronous mutation attempt owns every `std::sync::MutexGuard` it creates and returns only an
+/// owned outcome. Keeping this boundary non-async makes it structurally impossible for a channel guard
+/// to be retained in `dispatch_shared_async` across its retry sleep.
+enum MutationDispatchAttempt {
+    SnapshotContended,
+    ChannelContended,
+    DeadlineElapsed,
+    Response(McpResponse),
+}
+
+fn try_dispatch_mutation(
+    request: &McpRequest,
+    token: &SessionToken,
+    snapshot: &Arc<Mutex<UiTreeSnapshot>>,
+    channel: &Arc<Mutex<ActionChannel>>,
+    deadline: std::time::Instant,
+) -> MutationDispatchAttempt {
+    // Hold the snapshot guard through channel acquisition + dispatch. This makes the old-tree
+    // resolution and enqueue one snapshot->channel critical section with the UI's post-render
+    // publication/acknowledgement handoff; the UI can linearize before or after it, never between a
+    // stale clone and enqueue. Both mutexes are nonblocking so contention remains inside the caller's
+    // absolute request deadline, and every guard drops before the retry await.
+    let current_snapshot = match snapshot.try_lock() {
+        Ok(snapshot) => snapshot,
+        Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+        Err(TryLockError::WouldBlock) => return MutationDispatchAttempt::SnapshotContended,
+    };
+    let mut ch = match channel.try_lock() {
+        Ok(ch) => ch,
+        Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+        Err(TryLockError::WouldBlock) => return MutationDispatchAttempt::ChannelContended,
+    };
+    // A screenshot/capture or frame holder may have owned the global channel mutex through the
+    // deadline. Acquiring it late must not authorize a late enqueue.
+    if std::time::Instant::now() >= deadline {
+        return MutationDispatchAttempt::DeadlineElapsed;
+    }
+    MutationDispatchAttempt::Response(dispatch_request(
+        request,
+        token,
+        &current_snapshot,
+        &mut ch,
+        unreachable_capture,
+    ))
+}
+
 /// Lock the shared channel for the minimum span, recovering a poisoned lock (a prior holder panicked
 /// while holding it) so one agent's panic cannot wedge every other connection's enqueue path.
 fn lock_channel(channel: &Arc<Mutex<ActionChannel>>) -> std::sync::MutexGuard<'_, ActionChannel> {
     channel
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Clone the latest complete UI snapshot while preserving poison recovery. Mutation retries call this
+/// for every attempt so a target changed by the previous terminalized action is never resolved against
+/// the pre-wait tree.
+fn clone_snapshot(snapshot: &Arc<Mutex<UiTreeSnapshot>>) -> UiTreeSnapshot {
+    snapshot
+        .lock()
+        .map(|guard| guard.clone())
+        .unwrap_or_else(|poisoned| poisoned.into_inner().clone())
 }
 
 /// The shared steering + safety state the server hands to every [`McpSession`]. Built once at server

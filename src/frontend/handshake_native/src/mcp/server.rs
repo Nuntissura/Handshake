@@ -486,8 +486,9 @@ async fn handle_line(
 /// Dispatch one request through `session` so MT-028 leasing + attribution are applied, taking each
 /// shared lock for the MINIMUM span:
 ///
-/// - the snapshot lock is taken only to CLONE the current-frame snapshot (a cheap, lock-free-thereafter
-///   read surface), then released immediately;
+/// - [`McpSession::dispatch_shared_async`] takes the snapshot lock only to clone a complete current-frame
+///   snapshot, and repeats that cheap clone before a mutation retry so the request never resolves against
+///   the pre-wait tree;
 /// - the channel lock is NOT taken here — [`McpSession::dispatch_shared_async`] takes it ONLY for the
 ///   brief resolve+enqueue, AFTER acquiring the per-widget lease, and never across the lease wait. This
 ///   is the MAJOR fix: the global channel lock no longer serializes all dispatch, so the per-widget
@@ -503,15 +504,14 @@ async fn dispatch_with_session(
     session: &McpSession,
     state: &ServerState,
 ) -> McpResponse {
-    let snapshot = state
-        .safety
-        .snapshot
-        .lock()
-        .map(|g| g.clone())
-        .unwrap_or_else(|poisoned| poisoned.into_inner().clone());
     let capture = state.capture.clone();
     session
-        .dispatch_shared_async(request, &snapshot, &state.safety.channel, move || capture())
+        .dispatch_shared_async(
+            request,
+            &state.safety.snapshot,
+            &state.safety.channel,
+            move || capture(),
+        )
         .await
 }
 

@@ -34,7 +34,8 @@ use crate::pane_registry::{
 };
 use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
 use crate::project_tabs::{
-    fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
+    fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, WorkspaceRootError,
+    PROJECT_TAB_BAR_HEIGHT,
 };
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::rich_editor::renderer::rich_editor_widget::RichEditorState;
@@ -1455,12 +1456,7 @@ impl Mt064FemsProposalFlowCompletion {
         }
     }
 
-    fn begin(
-        &mut self,
-        target: String,
-        semantic_value: String,
-        expectation: Mt064FlowExpectation,
-    ) {
+    fn begin(&mut self, target: String, semantic_value: String, expectation: Mt064FlowExpectation) {
         if self.is_pending() {
             return;
         }
@@ -2179,9 +2175,9 @@ impl Mt079HostMountCompletion {
                 ref prior_sibling_tabs,
             } => {
                 let pane_tabs = observed.pane_tabs_for(pane_id);
-                let siblings_intact = prior_sibling_tabs.iter().all(|(sibling, count)| {
-                    observed.pane_tabs_for(sibling) == Some(*count)
-                });
+                let siblings_intact = prior_sibling_tabs
+                    .iter()
+                    .all(|(sibling, count)| observed.pane_tabs_for(sibling) == Some(*count));
                 let detail = serde_json::json!({
                     "schema_id": "hsk.wp_kernel_012.mt_079.close_tab_post_state@1",
                     "pane_id": pane_id,
@@ -3382,7 +3378,6 @@ impl Mt033ArgusActionCompletion {
     }
 }
 
-
 fn mt033_set_snapshot_node_value(
     node: &mut crate::accessibility::UiTreeNode,
     author_id: &str,
@@ -4276,6 +4271,15 @@ const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
 /// both route to the same typed blocker, then this status segment makes the result visible to the
 /// operator and addressable to a no-context model.
 pub const TERMINAL_LAUNCH_STATUS_AUTHOR_ID: &str = "terminal-launch-status";
+
+/// MT-125 canonical workspace-root binding dialog. FILE > Open Workspace and both typed no-root
+/// launch failures route here, so an operator or model has a reachable recovery path without an OS
+/// foreground dialog or hidden process-cwd assumption.
+pub const WORKSPACE_ROOT_DIALOG_AUTHOR_ID: &str = "workspace-root.dialog";
+pub const WORKSPACE_ROOT_PATH_AUTHOR_ID: &str = "workspace-root.path";
+pub const WORKSPACE_ROOT_APPLY_AUTHOR_ID: &str = "workspace-root.apply";
+pub const WORKSPACE_ROOT_CANCEL_AUTHOR_ID: &str = "workspace-root.cancel";
+pub const WORKSPACE_ROOT_STATUS_AUTHOR_ID: &str = "workspace-root.status";
 
 /// WP-KERNEL-012 MT-101: compact model-session launch dialog and status author ids. These are stable so
 /// MT-102/MT-103 model-driven navigation can open the dialog, set values, submit, and read back status
@@ -5901,6 +5905,9 @@ pub struct HandshakeApp {
     /// Clicking a non-active tab drives `active_project_id`, which the MT-009 lifecycle keys on to
     /// save the leaving project's layout and load the entered project's layout.
     project_tabs: ProjectTabBar,
+    /// MT-125 in-app binding surface for the active workspace's canonical filesystem root. This is
+    /// deliberately app-local and non-blocking: no foreground OS picker and no process-cwd fallback.
+    workspace_root_dialog: Option<WorkspaceRootDialogState>,
     /// In-flight `GET /workspaces` fetch (MT-011). Spawned non-blocking so a slow/absent backend never
     /// stalls the render loop; polled each frame and folded into `project_tabs` when it resolves.
     workspaces_handle: Option<tokio::task::JoinHandle<Result<Vec<ProjectItem>, AppError>>>,
@@ -6613,11 +6620,21 @@ impl ExplorerRenameTarget {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct WorkspaceRootDialogState {
+    workspace_id: String,
+    path: String,
+    error: Option<String>,
+}
+
 /// WP-KERNEL-012 MT-101: the compact model-session launch form. It stays in app state while the in-app
 /// dialog is open; no foreground OS window is spawned and no model session is claimed until the backend
 /// returns real evidence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelSessionLaunchDialogState {
+    /// Workspace identity captured when the dialog opens. Submission must not consult the live active
+    /// tab because the operator can switch tabs while completing this form.
+    pub workspace_id: String,
     pub provider: backend_client::ModelSessionProvider,
     pub workspace_folder: String,
     pub model_id: String,
@@ -6625,8 +6642,9 @@ pub struct ModelSessionLaunchDialogState {
 }
 
 impl ModelSessionLaunchDialogState {
-    pub fn new(workspace_folder: impl Into<String>) -> Self {
+    pub fn new(workspace_id: impl Into<String>, workspace_folder: impl Into<String>) -> Self {
         Self {
+            workspace_id: workspace_id.into(),
             provider: backend_client::ModelSessionProvider::Local,
             workspace_folder: workspace_folder.into(),
             model_id: String::new(),
@@ -7935,6 +7953,7 @@ impl HandshakeApp {
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
+            workspace_root_dialog: None,
             workspaces_handle,
             // The default seed pane (`pane-a`) is still the MAIN module target, so the switcher starts on MAIN.
             module_switcher: ModuleSwitcher::new(ModuleId::Main),
@@ -10250,8 +10269,8 @@ impl HandshakeApp {
         let Some((author_id, _payload, declared_semantic)) = activation else {
             return;
         };
-        let Some(declared_semantic) =
-            declared_semantic.filter(|semantic| Self::mt064_declaration_is_own(semantic, &author_id))
+        let Some(declared_semantic) = declared_semantic
+            .filter(|semantic| Self::mt064_declaration_is_own(semantic, &author_id))
         else {
             return;
         };
@@ -10308,7 +10327,8 @@ impl HandshakeApp {
             // failure of THIS action, not an unknown outcome, so it publishes a typed terminal
             // failure instead of decaying into a silent Indeterminate.
             self.mt064_fems_proposal_flow_completion.complete_failed(
-                "stale MT-064 proposal-flow context changed between inspect and dispatch".to_owned(),
+                "stale MT-064 proposal-flow context changed between inspect and dispatch"
+                    .to_owned(),
                 serde_json::json!({
                     "schema_id": "hsk.wp_kernel_012.mt_064.stale_context@1",
                     "declared_semantic": declared_semantic,
@@ -10444,7 +10464,8 @@ impl HandshakeApp {
                 let Some(app_status) = self.memory_proposal_status_value.clone() else {
                     return;
                 };
-                if mt064_structured_field(&app_status, "operation_id") != Some(operation_id.as_str())
+                if mt064_structured_field(&app_status, "operation_id")
+                    != Some(operation_id.as_str())
                 {
                     return;
                 }
@@ -10529,11 +10550,11 @@ impl HandshakeApp {
         self.advance_mt064_proposal_flow_completion(snapshot, &selection);
         // BOUNDED polling: a predicate that never appears fails with a TYPED rejection instead of
         // leaving the observer pending forever (which would block every later action from binding).
-        if self.mt064_fems_proposal_flow_completion.observation_window_elapsed() {
-            let expectation = self
-                .mt064_fems_proposal_flow_completion
-                .expectation
-                .clone();
+        if self
+            .mt064_fems_proposal_flow_completion
+            .observation_window_elapsed()
+        {
+            let expectation = self.mt064_fems_proposal_flow_completion.expectation.clone();
             self.mt064_fems_proposal_flow_completion.complete_failed(
                 format!(
                     "MT-064 proposal-flow completion predicate did not appear within the bounded {}s observation window",
@@ -11365,9 +11386,11 @@ impl HandshakeApp {
             "menu.view.open-loom-search" => PaneType::LoomSearchV2,
             "menu.view.open-find-in-files" => PaneType::FindInFiles,
             "menu.view.open-daily-journal" => PaneType::LoomDailyJournal,
-            "menu.view.open-knowledge-graph" => crate::editor_pane_factories::placeholder_pane_type(
-                crate::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
-            ),
+            "menu.view.open-knowledge-graph" => {
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+                )
+            }
             "menu.view.open-folders" => crate::editor_pane_factories::placeholder_pane_type(
                 crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
             ),
@@ -11541,11 +11564,7 @@ impl HandshakeApp {
                     .any(|tab| tab.pane_type.label() == pane_type_label && tab.content_id.is_none())
             })
             .unwrap_or(false);
-        let prior_total_tabs = self
-            .tab_bar_states
-            .values()
-            .map(|bar| bar.tabs.len())
-            .sum();
+        let prior_total_tabs = self.tab_bar_states.values().map(|bar| bar.tabs.len()).sum();
         self.mt079_host_mount_completion.begin(
             author_id.to_owned(),
             semantic,
@@ -11570,11 +11589,7 @@ impl HandshakeApp {
         let closed_pane_type_label = tab.pane_type.label();
         let closed_content_id = tab.content_id.clone();
         let prior_pane_tabs = bar.tabs.len();
-        let prior_total_tabs = self
-            .tab_bar_states
-            .values()
-            .map(|bar| bar.tabs.len())
-            .sum();
+        let prior_total_tabs = self.tab_bar_states.values().map(|bar| bar.tabs.len()).sum();
         let mut prior_sibling_tabs: Vec<(String, usize)> = self
             .tab_bar_states
             .iter()
@@ -11626,7 +11641,8 @@ impl HandshakeApp {
             };
             let semantic = if let Some(semantic) = Self::mt079_open_surface_semantic(author_id) {
                 semantic
-            } else if let Some((pane_id, index)) = Self::mt079_parse_tab_close_author_id(author_id) {
+            } else if let Some((pane_id, index)) = Self::mt079_parse_tab_close_author_id(author_id)
+            {
                 Self::mt079_close_tab_semantic(author_id, &pane_id, index)
             } else if matches!(
                 author_id,
@@ -11948,14 +11964,10 @@ impl HandshakeApp {
                     author_id: Some(
                         crate::find_in_files::RESULT_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
                     ),
-                    node_id: egui::Id::new(
-                        crate::find_in_files::RESULT_OPEN_COMPLETION_AUTHOR_ID,
-                    )
-                    .value(),
+                    node_id: egui::Id::new(crate::find_in_files::RESULT_OPEN_COMPLETION_AUTHOR_ID)
+                        .value(),
                     role: "Status".to_owned(),
-                    label: Some(
-                        "MT-029 Find-in-Files result navigation completion".to_owned(),
-                    ),
+                    label: Some("MT-029 Find-in-Files result navigation completion".to_owned()),
                     value: Some(value),
                     disabled: false,
                     actions: Vec::new(),
@@ -12057,18 +12069,16 @@ impl HandshakeApp {
             crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID => {
                 // Only an ALREADY-terminal embed is a baseline. `Persisting`/`LedgerPending`/`Failed`
                 // are not durable successes, so they must not suppress the transition this click makes.
-                let baseline = self
-                    .stage_pane
-                    .lock()
-                    .ok()
-                    .and_then(|pane| match pane.last_embed_back.as_ref() {
+                let baseline = self.stage_pane.lock().ok().and_then(|pane| {
+                    match pane.last_embed_back.as_ref() {
                         Some(crate::stage_pane::EmbedBackOutcome::Embedded {
                             artifact_id,
                             sha256,
                             ..
                         }) => Some((artifact_id.clone(), sha256.clone())),
                         _ => None,
-                    });
+                    }
+                });
                 serde_json::json!({
                     "action": "stage-embed-back",
                     "target": author_id,
@@ -12262,9 +12272,9 @@ impl HandshakeApp {
                     snapshot,
                     crate::stage_pane::STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
                 );
-                if !status.is_some_and(|value| {
-                    value.contains(&artifact_id) && value.contains(&short_sha)
-                }) {
+                if !status
+                    .is_some_and(|value| value.contains(&artifact_id) && value.contains(&short_sha))
+                {
                     return;
                 }
                 self.mt117_interop_action_completion.complete_applied(
@@ -12357,8 +12367,7 @@ impl HandshakeApp {
                     })
                 };
                 if settled && self.mt117_request_save_readback(&document_id) {
-                    self.mt117_interop_action_completion
-                        .save_readback_requested = true;
+                    self.mt117_interop_action_completion.save_readback_requested = true;
                 }
             }
             Mt117Expectation::CalendarEvent { calendar_event_id } => {
@@ -12404,10 +12413,9 @@ impl HandshakeApp {
                 activity_span_id,
                 edited_document_ids,
             } => {
-                let span_author =
-                    crate::graph::daily_journal_panel::calendar_event_span_author_id(
-                        &activity_span_id,
-                    );
+                let span_author = crate::graph::daily_journal_panel::calendar_event_span_author_id(
+                    &activity_span_id,
+                );
                 if snapshot.find_by_author_id(&span_author).is_none() {
                     return;
                 }
@@ -12662,14 +12670,22 @@ impl HandshakeApp {
             // observer claims, so publishing it last keeps its declarations from being overwritten
             // without ever overwriting another mechanism's declaration.
             self.project_mt065_fems_swarm_flow_completion(&mut snapshot);
-            match self.mcp_action_channel.lock() {
-                Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
-                Err(poisoned) => poisoned.into_inner().acknowledge_after_render(&snapshot),
-            }
-            match self.mcp_snapshot.lock() {
-                Ok(mut slot) => *slot = snapshot,
-                Err(poisoned) => *poisoned.into_inner() = snapshot,
-            }
+            // Publish the post-render tree and release its ActionChannel transactions as one ordered
+            // handoff. Mutation dispatch takes these locks snapshot -> channel; retaining that order
+            // here prevents a waiter from observing "target free" and cloning the pre-render tree in
+            // the gap before publication.
+            let mut slot = self
+                .mcp_snapshot
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut channel = self
+                .mcp_action_channel
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            channel.acknowledge_after_render(&snapshot);
+            *slot = snapshot;
+            drop(channel);
+            drop(slot);
             // A failed Retry uses a transient target. Keep it absent until this exact projected tree
             // has terminalized the receipt and been published, then permit a later fresh snapshot to
             // discover a new Retry declaration.
@@ -12817,6 +12833,7 @@ impl HandshakeApp {
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
+            workspace_root_dialog: None,
             // Headless/test shell: no background fetch (no runtime to spawn on). A test seeds tabs
             // directly via `project_tabs_mut`.
             workspaces_handle: None,
@@ -13557,20 +13574,16 @@ impl HandshakeApp {
                 .to_owned(),
                 Some(projection_id.clone()),
             ),
-            QuickSwitcherTarget::UserManual { slug } => (
-                PaneType::UserManual.label().to_owned(),
-                Some(slug.clone()),
-            ),
+            QuickSwitcherTarget::UserManual { slug } => {
+                (PaneType::UserManual.label().to_owned(), Some(slug.clone()))
+            }
             QuickSwitcherTarget::WorkPacket { wp_id } => (
                 PaneType::KernelDcc.label().to_owned(),
                 Some(format!("WP:{wp_id}")),
             ),
             QuickSwitcherTarget::MicroTask { mt_id, wp_id } => (
                 PaneType::KernelDcc.label().to_owned(),
-                Some(format!(
-                    "MT:{}:{mt_id}",
-                    wp_id.clone().unwrap_or_default()
-                )),
+                Some(format!("MT:{}:{mt_id}", wp_id.clone().unwrap_or_default())),
             ),
             QuickSwitcherTarget::CodeSymbol { .. } => {
                 (PaneType::CodeSymbol.label().to_owned(), None)
@@ -13870,6 +13883,60 @@ impl HandshakeApp {
     /// live backend), and a future workspace-sidebar MT pushes a refreshed list here.
     pub fn project_tabs_mut(&mut self) -> &mut ProjectTabBar {
         &mut self.project_tabs
+    }
+
+    /// Bind the operator-selected filesystem directory to the active workspace.
+    ///
+    /// Workspace opening/sidebars call this seam after a folder has been chosen. The path must already
+    /// exist, be a directory, and be absolute; failures stay typed and no process-cwd fallback exists.
+    pub fn bind_active_workspace_root(
+        &mut self,
+        root: impl AsRef<std::path::Path>,
+    ) -> Result<(), WorkspaceRootError> {
+        let workspace_id = self.active_project_id.clone();
+        self.bind_workspace_root(&workspace_id, root)
+    }
+
+    fn bind_workspace_root(
+        &mut self,
+        workspace_id: &str,
+        root: impl AsRef<std::path::Path>,
+    ) -> Result<(), WorkspaceRootError> {
+        self.project_tabs.bind_workspace_root(workspace_id, root)
+    }
+
+    fn open_workspace_root_dialog_with_error(&mut self, error: Option<WorkspaceRootError>) -> bool {
+        let path = self
+            .project_tabs
+            .workspace_root_text(&self.active_project_id)
+            .unwrap_or_default();
+        self.workspace_root_dialog = Some(WorkspaceRootDialogState {
+            workspace_id: self.active_project_id.clone(),
+            path,
+            error: error.map(|error| error.to_string()),
+        });
+        true
+    }
+
+    fn open_workspace_root_dialog(&mut self) -> bool {
+        self.open_workspace_root_dialog_with_error(None)
+    }
+
+    pub fn workspace_root_dialog_open_for_test(&self) -> bool {
+        self.workspace_root_dialog.is_some()
+    }
+
+    /// Deterministic proof seam for MT-125: both launch surfaces must resolve through the same active
+    /// workspace root. Returning both values lets a two-workspace regression test catch either surface
+    /// drifting back to the process cwd.
+    #[doc(hidden)]
+    pub fn active_workspace_launch_folders_for_test(
+        &self,
+    ) -> Result<(String, String), WorkspaceRootError> {
+        Ok((
+            self.active_workspace_terminal_cwd()?,
+            self.active_workspace_model_folder()?,
+        ))
     }
 
     /// The active work-surface MODULE (MT-012) — the switcher's current highlight.
@@ -19687,12 +19754,12 @@ impl HandshakeApp {
         // The MT-036 concern that motivated the gate is preserved by the wait that same commit added
         // (`active_rich_document_save_ready_for_test`), not by suppressing the reload;
         // test_event_emitter is re-run below to prove that.
-        let doc_to_reload =
-            if matches!(pane_type, PaneType::LoomWikiPage) && !content_id.is_empty() {
-                Some(content_id.clone())
-            } else {
-                None
-            };
+        let doc_to_reload = if matches!(pane_type, PaneType::LoomWikiPage) && !content_id.is_empty()
+        {
+            Some(content_id.clone())
+        } else {
+            None
+        };
         if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
             let tab = TabState {
                 pane_type,
@@ -22326,18 +22393,21 @@ impl HandshakeApp {
         self.open_content_on_active_pane(pane_type, None)
     }
 
-    fn active_workspace_terminal_cwd(&self) -> String {
-        std::env::current_dir()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|_| ".".to_owned())
+    /// Resolve the active workspace's explicitly bound canonical filesystem root.
+    ///
+    /// This is the single definition consumed by both terminal cwd and model-folder seeding. It never
+    /// consults the Handshake process cwd: an unbound/stale root is a typed launch blocker.
+    fn active_workspace_root_text(&self) -> Result<String, WorkspaceRootError> {
+        self.project_tabs
+            .workspace_root_text(&self.active_project_id)
     }
 
-    fn active_workspace_model_folder(&self) -> String {
-        // Project tabs currently carry workspace ids/names, not a canonical filesystem root. Seed the
-        // dialog from the process cwd, then require the operator/model to submit the explicit folder value.
-        std::env::current_dir()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|_| ".".to_owned())
+    fn active_workspace_terminal_cwd(&self) -> Result<String, WorkspaceRootError> {
+        self.active_workspace_root_text()
+    }
+
+    fn active_workspace_model_folder(&self) -> Result<String, WorkspaceRootError> {
+        self.active_workspace_root_text()
     }
 
     fn terminal_launch_status_text(err: &backend_client::TerminalLaunchError) -> String {
@@ -22345,9 +22415,11 @@ impl HandshakeApp {
             backend_client::TerminalLaunchError::EndpointMissing {
                 probed_path,
                 ipc_channel,
+                request,
                 ..
             } => format!(
-                "Terminal: EndpointMissing {probed_path} (PTY runtime terminal/** is IPC-only via {ipc_channel})"
+                "Terminal: EndpointMissing {probed_path} (PTY runtime terminal/** is IPC-only via {ipc_channel}); requested cwd={} shell={}",
+                request.cwd, request.shell
             ),
         }
     }
@@ -22386,7 +22458,16 @@ impl HandshakeApp {
     /// a native HTTP terminal-session route, this sets a typed visible blocker instead of pretending a
     /// terminal opened. Both RUN > Open Terminal in Workspace Folder and the palette command call here.
     fn open_workspace_terminal(&mut self) -> bool {
-        let cwd = self.active_workspace_terminal_cwd();
+        let cwd = match self.active_workspace_terminal_cwd() {
+            Ok(cwd) => cwd,
+            Err(error) => {
+                self.terminal_launch_status = Some(format!(
+                    "Terminal: {error}; recovery=FILE > Open Workspace… then retry"
+                ));
+                self.open_workspace_root_dialog_with_error(Some(error));
+                return true;
+            }
+        };
         match backend_client::TerminalLaunchClient::production().open_workspace_terminal(cwd) {
             Ok(session) => {
                 self.terminal_launch_status =
@@ -22408,8 +22489,19 @@ impl HandshakeApp {
     /// one-shot operational surface, not Settings and not a new worksurface pane.
     fn open_model_session_launch_dialog(&mut self) -> bool {
         if self.model_session_launch_dialog.is_none() {
+            let workspace_folder = match self.active_workspace_model_folder() {
+                Ok(workspace_folder) => workspace_folder,
+                Err(error) => {
+                    self.model_session_launch_status = Some(format!(
+                        "Model session: {error}; recovery=FILE > Open Workspace… then retry"
+                    ));
+                    self.open_workspace_root_dialog_with_error(Some(error));
+                    return true;
+                }
+            };
             self.model_session_launch_dialog = Some(ModelSessionLaunchDialogState::new(
-                self.active_workspace_model_folder(),
+                self.active_project_id.clone(),
+                workspace_folder,
             ));
         }
         self.model_session_launch_status
@@ -22423,7 +22515,7 @@ impl HandshakeApp {
     ) -> backend_client::ModelSessionLaunchRequest {
         backend_client::ModelSessionLaunchRequest::new(
             dialog.provider,
-            self.active_project_id.clone(),
+            dialog.workspace_id.clone(),
             dialog.workspace_folder.clone(),
             dialog.model_id.clone(),
             dialog.wrapper.clone(),
@@ -22541,6 +22633,134 @@ impl HandshakeApp {
                 node.clear_disabled();
             }
         });
+    }
+
+    fn drive_workspace_root_dialog(&mut self, ctx: &egui::Context) {
+        let Some(mut dialog) = self.workspace_root_dialog.take() else {
+            return;
+        };
+
+        let mut window_open = true;
+        let mut apply = false;
+        let mut cancel = false;
+        let target_workspace_id = dialog.workspace_id.clone();
+        let shown = egui::Window::new("Open Workspace Folder")
+            .id(egui::Id::new(WORKSPACE_ROOT_DIALOG_AUTHOR_ID))
+            .collapsible(false)
+            .resizable(false)
+            .default_width(500.0)
+            .open(&mut window_open)
+            .show(ctx, |ui| {
+                ui.set_min_width(460.0);
+                ui.label(format!("Workspace: {target_workspace_id}"));
+                ui.label(
+                    "Enter an existing absolute folder. Handshake stores its canonical path on this open workspace for terminal cwd and model-session folder seeding.",
+                );
+                ui.add_space(6.0);
+                let path = ui.add(
+                    egui::TextEdit::singleline(&mut dialog.path)
+                        .hint_text("Absolute workspace folder")
+                        .desired_width(440.0),
+                );
+                Self::name_launch_node(
+                    ui.ctx(),
+                    path.id,
+                    egui::accesskit::Role::TextInput,
+                    WORKSPACE_ROOT_PATH_AUTHOR_ID,
+                    "Workspace root path",
+                    true,
+                );
+                ui.ctx().accesskit_node_builder(path.id, |node| {
+                    node.add_action(egui::accesskit::Action::SetValue);
+                });
+                if let Some(value) = crate::mcp::accesskit_string_set_value(ui, path.id) {
+                    dialog.path = value;
+                }
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    let ready = !dialog.path.trim().is_empty();
+                    let apply_response = ui.add_enabled(ready, egui::Button::new("Use Folder"));
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        apply_response.id,
+                        egui::accesskit::Role::Button,
+                        WORKSPACE_ROOT_APPLY_AUTHOR_ID,
+                        "Use workspace folder",
+                        ready,
+                    );
+                    if apply_response.clicked() {
+                        apply = true;
+                    }
+                    let cancel_response = ui.button("Cancel");
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        cancel_response.id,
+                        egui::accesskit::Role::Button,
+                        WORKSPACE_ROOT_CANCEL_AUTHOR_ID,
+                        "Cancel workspace folder binding",
+                        true,
+                    );
+                    if cancel_response.clicked() {
+                        cancel = true;
+                    }
+                });
+                if let Some(error) = dialog.error.as_deref() {
+                    ui.add_space(6.0);
+                    let status = ui.add(egui::Label::new(error).wrap());
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        status.id,
+                        egui::accesskit::Role::Status,
+                        WORKSPACE_ROOT_STATUS_AUTHOR_ID,
+                        error,
+                        false,
+                    );
+                }
+            });
+
+        if let Some(inner) = shown {
+            Self::name_launch_node(
+                ctx,
+                inner.response.id,
+                egui::accesskit::Role::Dialog,
+                WORKSPACE_ROOT_DIALOG_AUTHOR_ID,
+                "Open Workspace Folder",
+                true,
+            );
+        }
+        if apply {
+            match self.bind_workspace_root(&target_workspace_id, dialog.path.trim()) {
+                Ok(()) => match self.project_tabs.workspace_root_text(&target_workspace_id) {
+                    Ok(root) => {
+                        self.terminal_launch_status = Some(format!(
+                                "Terminal: WorkspaceRootBound workspace_id={target_workspace_id} root={root}; retry terminal launch"
+                            ));
+                        self.model_session_launch_status = Some(format!(
+                                "Model session: WorkspaceRootBound workspace_id={target_workspace_id} root={root}; retry model-session launch"
+                            ));
+                        window_open = false;
+                    }
+                    Err(error) => {
+                        let error = error.to_string();
+                        self.terminal_launch_status = Some(format!(
+                                "Terminal: {error}; workspace root changed during binding; choose the folder again"
+                            ));
+                        self.model_session_launch_status = Some(format!(
+                                "Model session: {error}; workspace root changed during binding; choose the folder again"
+                            ));
+                        dialog.error = Some(error);
+                    }
+                },
+                Err(error) => dialog.error = Some(error.to_string()),
+            }
+            ctx.request_repaint();
+        }
+        if cancel {
+            window_open = false;
+        }
+        if window_open {
+            self.workspace_root_dialog = Some(dialog);
+        }
     }
 
     fn drive_model_session_launch_dialog(&mut self, ctx: &egui::Context) {
@@ -22752,6 +22972,25 @@ impl HandshakeApp {
         self.model_session_launch_dialog.is_some()
     }
 
+    pub fn model_session_workspace_folder_for_test(&self) -> Option<&str> {
+        self.model_session_launch_dialog
+            .as_ref()
+            .map(|dialog| dialog.workspace_folder.as_str())
+    }
+
+    #[doc(hidden)]
+    pub fn model_session_launch_request_for_test(
+        &self,
+    ) -> Option<backend_client::ModelSessionLaunchRequest> {
+        self.model_session_launch_dialog
+            .as_ref()
+            .map(|dialog| self.model_session_launch_request(dialog))
+    }
+
+    pub fn close_model_session_launch_dialog_for_test(&mut self) {
+        self.model_session_launch_dialog = None;
+    }
+
     pub fn set_model_session_launch_dialog_for_test(
         &mut self,
         dialog: ModelSessionLaunchDialogState,
@@ -22885,6 +23124,7 @@ impl HandshakeApp {
             }
             MenuBarAction::OpenModelSessionLaunch => self.open_model_session_launch_dialog(),
             MenuBarAction::OpenTerminal => self.open_workspace_terminal(),
+            MenuBarAction::OpenWorkspacePicker => self.open_workspace_root_dialog(),
             MenuBarAction::QuitApp => {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 false
@@ -22918,7 +23158,6 @@ impl HandshakeApp {
             // ── Disabled in MT-015 (target surface is a future MT) — leaves render disabled, so these
             //    are unreachable; handled as explicit no-ops to keep the match honest + exhaustive. ──
             MenuBarAction::NewDocument
-            | MenuBarAction::OpenWorkspacePicker
             | MenuBarAction::SaveActiveDocument
             | MenuBarAction::SaveAllDocuments
             | MenuBarAction::EditorUndo
@@ -35384,6 +35623,9 @@ impl HandshakeApp {
         // MT-020 explorer-row rename: drain any delivered PATCH result, then render the rename dialog.
         self.drive_rename(ctx);
         self.drive_dirty_code_tab_close_dialog(ctx);
+        // MT-125 canonical workspace-root recovery: FILE > Open Workspace and launch-time no-root
+        // blockers open this in-app, AccessKit-addressable binding dialog.
+        self.drive_workspace_root_dialog(ctx);
         // MT-101 model-session launch: render the compact one-shot launch dialog opened from RUN/palette
         // and drain the off-thread `/jobs` result without blocking the UI thread.
         self.drive_model_session_launch_dialog(ctx);
@@ -35534,9 +35776,9 @@ impl HandshakeApp {
             // WP-KERNEL-012 MT-079 V5: bind the canonical Argus close click to the durable host-mount
             // observer BEFORE the tab is removed, so the exact closed identity + sibling baseline are
             // captured from live state rather than reconstructed after the fact.
-            let close_target = self.mt033_dispatched_target().filter(|target| {
-                Self::mt079_parse_tab_close_author_id(target).is_some()
-            });
+            let close_target = self
+                .mt033_dispatched_target()
+                .filter(|target| Self::mt079_parse_tab_close_author_id(target).is_some());
             if let Some(target) = close_target {
                 if let Some((pane_id, index)) = Self::mt079_parse_tab_close_author_id(&target) {
                     let pane_id = PaneId::from(pane_id.as_str());
@@ -39522,10 +39764,7 @@ mod mt117_bounded_completion_tests {
     /// Drive one canonical click end to end over the REAL ActionChannel and return its terminal
     /// receipt status. `pre` is the tree the client inspected and steered from; `post` is the fresh
     /// authoritative tree the channel acknowledges against.
-    fn receipt_status_for(
-        pre: &UiTreeSnapshot,
-        post: &UiTreeSnapshot,
-    ) -> ActionReceiptStatus {
+    fn receipt_status_for(pre: &UiTreeSnapshot, post: &UiTreeSnapshot) -> ActionReceiptStatus {
         let mut channel = ActionChannel::new();
         let outcome = channel
             .enqueue(pre, TARGET, UiAction::Click)
@@ -39651,7 +39890,9 @@ mod mt117_bounded_completion_tests {
         );
 
         // The rejection is causally bound to THIS exact action, not a transport-wide failure.
-        let published = observer.observer_value().expect("failed observer publishes");
+        let published = observer
+            .observer_value()
+            .expect("failed observer publishes");
         let token: serde_json::Value =
             serde_json::from_str(&published).expect("the failure token is well-formed JSON");
         assert_eq!(token["state"], "failed");

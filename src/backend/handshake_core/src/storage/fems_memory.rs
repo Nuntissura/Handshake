@@ -1182,11 +1182,12 @@ fn build_memory_proposal_flight_recorder_event(
     // `_canonical_artifact`, and unreachable on the insert/mint path in any case.
     let legacy_proposal_id_admitted =
         artifact.origin == ProposalArtifactOrigin::HealedFromDurableColumns;
-    let canonical: MemoryWriteProposal = serde_json::from_value(artifact.value).map_err(|error| {
-        StorageError::Serialization(format!(
-            "memory proposal artifact is not hsk.memory_write_proposal@0.1: {error}"
-        ))
-    })?;
+    let canonical: MemoryWriteProposal =
+        serde_json::from_value(artifact.value).map_err(|error| {
+            StorageError::Serialization(format!(
+                "memory proposal artifact is not hsk.memory_write_proposal@0.1: {error}"
+            ))
+        })?;
     if canonical.schema_version != "hsk.memory_write_proposal@0.1"
         || canonical.proposal_id != proposal.proposal_id
         || (!legacy_proposal_id_admitted && uuid::Uuid::parse_str(&canonical.proposal_id).is_err())

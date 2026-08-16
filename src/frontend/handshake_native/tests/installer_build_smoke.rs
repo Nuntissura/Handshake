@@ -1,10 +1,11 @@
 // WP-KERNEL-011 MT-031 — single-installer build smoke (CX-008-VIS).
 //
 // Proves the product builds + packages into ONE installable artifact AND that the artifact is a single
-// self-contained binary that actually launches on a clean profile:
+// self-contained product payload that actually launches on a clean profile:
 //   1. runs scripts/build_installer.ps1 (cargo build --profile release-native + stage + package);
 //   2. asserts the produced installer artifact exists and is non-trivially sized;
-//   3. runs the staged single self-contained handshake-native.exe with `--version` and `--self-check`
+//   3. verifies the shell, embedded-SurrealDB backend, and Palmistry watcher are staged, then runs
+//      handshake-native.exe with `--version` and `--self-check`
 //      under a CLEAN-PROFILE environment (no HANDSHAKE_WORKSPACE_ROOT / HANDSHAKE_RUNTIME_ROOT) and
 //      asserts both launch and `--self-check` exits 0 with all bundled assets present;
 //   4. parses the staged exe's PE import table (object crate) and asserts WebView2Loader.dll is NOT a
@@ -22,15 +23,9 @@
 //     subdir would not register the `installer_build_smoke` target. This file therefore lives at
 //     tests/installer_build_smoke.rs (same decision MT-004/MT-029 documented). The JSON report lands in
 //     the external Handshake_Artifacts root; repo-local proof artifacts are forbidden.
-//   * SIZE BOUND: AC-031-01 asks for a >= 10 MB COMPRESSED artifact. That presumes the REAL managed-
-//     postgres binaries (tens of MB) are bundled. On this host no postgres toolchain is installed, so the
-//     script stages a documented pg_ctl placeholder (postgres-deferred) and Compress-Archive compresses
-//     the ~15 MB crt-static exe to ~6.5 MB — under the literal 10 MB COMPRESSED line for placeholder
-//     reasons, not because the build is a stub. The smoke uses the contract's OWN RISK-031-08 documented
-//     fallback: assert (a) the UNCOMPRESSED staging tree >= 10 MB (proves a real binary, not a stub — the
-//     meaningful bound) AND (b) the COMPRESSED artifact >= 5 MB (real zip ~6.47 MB; a far stronger floor
-//     than 1 MB). Both numbers + the postgres-deferred note are recorded in the report; the literal 10 MB
-//     COMPRESSED bound holds automatically once real postgres binaries are staged.
+//   * SIZE BOUND: assert the uncompressed staging tree is >= 10 MB and the compressed artifact is >=
+//     5 MB. These floors prove the release payload is not a stub without coupling installer validity to
+//     the size of a separately bundled database distribution; SurrealDB is linked into handshake_core.
 //   * BUILD: the release-native profile is built only inside the project-allocated external
 //     Handshake_Artifacts root. The test honors HANDSHAKE_SHORT_TARGET_DIR, which the script rejects if
 //     it escapes that root, so the script and test agree on where the artifact lands.
@@ -174,22 +169,7 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         staging.display()
     );
     let staging_size = dir_size_bytes(&staging);
-    // AC-031-01 size bound, applied via the contract's OWN RISK-031-08 documented fallback.
-    //
-    // The literal AC-031-01 bound is ">= 10 MB COMPRESSED artifact". That bound presumes the REAL
-    // managed-postgres binaries (tens of MB) are staged into bundled/postgres/. This host has NO
-    // postgres toolchain, so build_installer.ps1 stages a documented pg_ctl PLACEHOLDER (postgres-
-    // deferred) and Compress-Archive compresses the ~15 MB crt-static exe to ~6.5 MB — under the
-    // literal 10 MB COMPRESSED line for placeholder reasons, not because the build is a stub.
-    //
-    // RISK-031-08 fallback (used here, NOT the silent 1 MB bound the review flagged): assert
-    //   (a) the UNCOMPRESSED staging tree >= 10 MB  -> proves a real release-native binary, not a stub
-    //       (the meaningful bound; observed ~13.9 MB here), AND
-    //   (b) the COMPRESSED artifact itself >= 5 MB  -> the real zip is ~6.47 MB and passes; this is a
-    //       far stronger floor than the previous 1 MB and still survives placeholder postgres.
-    // Both numbers are recorded verbatim in installer_smoke_report.json. The literal 10 MB COMPRESSED
-    // assertion requires real bundled postgres binaries and will hold automatically once they are staged
-    // on a host that has the postgres toolchain (postgres-deferred — see BUNDLED_DEPS_POLICY.md).
+    // Size floors prove a real release payload without relying on an external database distribution.
     assert!(
         staging_size >= 10 * 1024 * 1024,
         "staging tree is only {staging_size} bytes (< 10 MB) — looks like a stub, not a real build",
@@ -206,6 +186,36 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         staged_exe.is_file(),
         "staged handshake-native.exe not found at {}",
         staged_exe.display()
+    );
+    let staged_core = staging.join(handshake_native::installer::CORE_BINARY_NAME);
+    let staged_palmistry = staging.join(handshake_native::installer::PALMISTRY_BINARY_NAME);
+    assert!(
+        staged_core.is_file(),
+        "embedded-SurrealDB host missing at {}",
+        staged_core.display()
+    );
+    assert!(
+        staged_palmistry.is_file(),
+        "Palmistry watcher missing at {}",
+        staged_palmistry.display()
+    );
+    for forbidden in [
+        "pg_ctl.exe",
+        "postgres.exe",
+        "initdb.exe",
+        "pg_isready.exe",
+        "psql.exe",
+        "sqlite3.exe",
+        "surreal.exe",
+    ] {
+        assert!(
+            !staging.join(forbidden).exists(),
+            "external database executable must not be staged: {forbidden}"
+        );
+    }
+    assert!(
+        !staging.join("bundled").join("postgres").exists(),
+        "legacy bundled/postgres directory must not be staged"
     );
 
     // --version: proves the single binary launches headlessly.
@@ -279,19 +289,14 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         "artifact_path": artifact_path.to_string_lossy(),
         "artifact_size_bytes": artifact_size,
         "staging_size_bytes": staging_size,
-        // AC-031-01 size bound, recorded so the reviewer sees the real numbers and the basis for the
-        // RISK-031-08 fallback. literal_ac_031_01 (>= 10 MB COMPRESSED) is deferred until real postgres
-        // binaries are staged; the asserted floors are staging >= 10 MB and artifact >= 5 MB.
+        "database_mode": "in_process_embedded_surrealdb",
+        "external_database_payload": false,
+        "core_binary": staged_core.to_string_lossy(),
+        "palmistry_binary": staged_palmistry.to_string_lossy(),
         "size_bound": {
             "asserted_staging_min_bytes": 10u64 * 1024 * 1024,
             "asserted_artifact_min_bytes": 5u64 * 1024 * 1024,
-            "literal_ac_031_01_compressed_min_bytes": 10u64 * 1024 * 1024,
-            "literal_ac_031_01_met": artifact_size >= 10 * 1024 * 1024,
-            "basis": "RISK-031-08 fallback (artifact>=5MB AND staging>=10MB)",
-            "postgres_deferred": true,
-            "postgres_note": "bundled/postgres holds a documented placeholder pg_ctl on this host (no \
-                postgres toolchain); the literal 10 MB COMPRESSED bound requires the real managed-postgres \
-                binaries and will hold automatically once they are staged (see BUNDLED_DEPS_POLICY.md)."
+            "basis": "artifact>=5MB AND staging>=10MB; database engine is linked into handshake_core"
         },
         "self_check_exit_code": self_check_code,
         "missing_assets": missing_assets,

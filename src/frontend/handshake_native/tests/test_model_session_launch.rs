@@ -41,11 +41,14 @@ struct CapturedRequest {
 }
 
 fn ok_app() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),
         db_status: "ok".to_owned(),
         migration_version: Some(1),
-    }))
+    }));
+    app.bind_active_workspace_root(Path::new(env!("CARGO_MANIFEST_DIR")))
+        .expect("model-session tests bind an explicit workspace root");
+    app
 }
 
 fn runtime() -> tokio::runtime::Runtime {
@@ -308,6 +311,7 @@ fn model_session_launch_dialog_renders_and_screenshots() {
     let _guard = wgpu_guard();
     let mut app = ok_app();
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Local,
         workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
         model_id: "qwen2.5-coder:7b".to_owned(),
@@ -375,6 +379,7 @@ fn foreground_safe_navigation_launch_posts_jobs_and_surfaces_status() {
     let mut app = ok_app();
     app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Local,
         workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
         model_id: "qwen2.5-coder:7b".to_owned(),
@@ -513,6 +518,7 @@ fn argus_set_value_authors_all_documented_model_session_text_inputs() {
     let mut app = ok_app();
     app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Local,
         workspace_folder: String::new(),
         model_id: String::new(),
@@ -868,6 +874,7 @@ fn launch_dialog_posts_jobs_on_the_wire_and_surfaces_honest_status() {
     let mut app = ok_app();
     app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Local,
         workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
         model_id: "qwen2.5-coder:7b".to_owned(),
@@ -1023,6 +1030,7 @@ fn launch_dialog_posts_cloud_jobs_without_governed_or_running_claim() {
     let mut app = ok_app();
     app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Cloud,
         workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
         model_id: "gpt-5.4".to_owned(),
@@ -1094,6 +1102,7 @@ fn launch_dialog_disables_duplicate_submit_while_jobs_request_is_pending() {
     let mut app = ok_app();
     app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Local,
         workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
         model_id: "qwen2.5-coder:7b".to_owned(),
@@ -1171,6 +1180,7 @@ fn launch_dialog_rejects_jobs_response_without_job_id() {
     let mut app = ok_app();
     app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
     app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        workspace_id: "default-project".to_owned(),
         provider: ModelSessionProvider::Local,
         workspace_folder: "D:/Projects/Handshake/repo".to_owned(),
         model_id: "qwen2.5-coder:7b".to_owned(),

@@ -28,6 +28,7 @@
 //! because each redirects the process-global app-data env var (the binding-file location) to its own
 //! temp dir.
 
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -35,14 +36,18 @@ use handshake_native::accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::mcp::{
-    agent_id_for_token, ActionChannel, ActionLog, LeaseKind, LeaseRegistry, ScreenshotError,
-    ScreenshotResult, SessionToken, SwarmMcpServer, SwarmSafetyState, ERR_LEASE_TIMEOUT,
+    agent_id_for_token, ActionChannel, ActionLog, ActionReceiptStatus, LeaseKind, LeaseRegistry,
+    ScreenshotError, ScreenshotResult, SessionToken, SwarmMcpServer, SwarmSafetyState,
+    ERR_LEASE_TIMEOUT, ERR_TOOL_FAILED,
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
 const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
 const RAIL_INPUT_AUTHOR_ID: &str = "bottom-rail.input";
+/// Windows scheduler allowance above an explicitly configured request deadline. This is deliberately
+/// small enough to catch a second full timeout window while tolerating one timer wake-up under load.
+const DEADLINE_SCHEDULING_TOLERANCE: Duration = Duration::from_millis(100);
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -65,6 +70,70 @@ fn live_snapshot() -> UiTreeSnapshot {
         .accesskit_update
         .expect("AccessKit update produced (accesskit enabled + one frame run)");
     collect_ui_tree_snapshot(&update)
+}
+
+/// Execute the same mutation lifetime as the production frame hook: revalidate against the latest
+/// complete tree, inject the resulting AccessKit requests into the real shell, collect the rendered
+/// tree, acknowledge terminal effects, and publish that tree for the next RPC retry.
+fn render_action_frame(
+    ctx: &egui::Context,
+    app: &mut HandshakeApp,
+    channel: &Arc<Mutex<ActionChannel>>,
+    snapshot: &Arc<Mutex<UiTreeSnapshot>>,
+) -> usize {
+    let pre_render = snapshot
+        .lock()
+        .map(|snapshot| snapshot.clone())
+        .unwrap_or_else(|poisoned| poisoned.into_inner().clone());
+    let events = channel
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .drain_revalidated_into_events(&pre_render);
+    let dispatched = events.len();
+
+    let mut input = egui::RawInput::default();
+    input.events = events;
+    let _ = ctx.run(input, |ctx| app.ui(ctx));
+    // Production acknowledges against refresh_mcp_snapshot's separate, side-effect-free capture pass,
+    // not the action frame's tree. Controls such as the search rail consume SetValue after drawing and
+    // therefore expose the applied value only in this fresh pass.
+    let post_render = app.capture_mcp_snapshot_for_navigation();
+    let mut published = snapshot
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    channel
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .acknowledge_after_render(&post_render);
+    *published = post_render;
+    dispatched
+}
+
+fn warm_up_action_frame(
+    ctx: &egui::Context,
+    app: &mut HandshakeApp,
+    snapshot: &Arc<Mutex<UiTreeSnapshot>>,
+) {
+    let output = ctx.run(egui::RawInput::default(), |ctx| app.ui(ctx));
+    let update = output
+        .platform_output
+        .accesskit_update
+        .expect("AccessKit update produced for the warm-up frame");
+    *snapshot
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = collect_ui_tree_snapshot(&update);
+}
+
+fn set_disabled(snapshot: &mut UiTreeSnapshot, author_id: &str) -> bool {
+    let mut pending = vec![&mut snapshot.root];
+    while let Some(node) = pending.pop() {
+        if node.author_id.as_deref() == Some(author_id) {
+            node.disabled = true;
+            return true;
+        }
+        pending.extend(node.children.iter_mut());
+    }
+    false
 }
 
 /// A dedicated multi-thread runtime so the concurrent tasks exercise TRUE parallelism (the contract's
@@ -184,6 +253,47 @@ fn test_swarm_concurrency_n5() {
             servers.push(server);
         }
 
+        // Run the REAL production transaction lifetime on a dedicated UI thread: fresh-tree
+        // revalidation -> AccessKit event injection into HandshakeApp -> fresh post-render snapshot ->
+        // acknowledgement. Constructing the non-Send app inside the thread keeps the wire runtime fully
+        // parallel without replacing the post-render window with the legacy immediate-terminal seam.
+        let stop_drain = Arc::new(AtomicBool::new(false));
+        let dispatched_count = Arc::new(AtomicUsize::new(0));
+        let drain_stop = stop_drain.clone();
+        let drain_dispatched = dispatched_count.clone();
+        let drain_channel = channel.clone();
+        let drain_snapshot = snapshot.clone();
+        let (frame_ready_tx, frame_ready_rx) = std::sync::mpsc::sync_channel(1);
+        let frame_drain = std::thread::spawn(move || {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let mut app = ok_app();
+            warm_up_action_frame(&ctx, &mut app, &drain_snapshot);
+            frame_ready_tx
+                .send(())
+                .expect("announce production frame warm-up");
+            loop {
+                let pending = drain_channel
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .pending();
+                if pending == 0 {
+                    if drain_stop.load(Ordering::Acquire) {
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(1));
+                    continue;
+                }
+                let dispatched =
+                    render_action_frame(&ctx, &mut app, &drain_channel, &drain_snapshot);
+                drain_dispatched.fetch_add(dispatched, Ordering::AcqRel);
+                std::thread::yield_now();
+            }
+        });
+        frame_ready_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("production frame thread warmed up before agents start");
+
         // Spawn N concurrent agent tasks. Each issues M mutating actions (alternating click_widget on the
         // theme toggle + set_value on the rail input — both SHARED widgets, so the agents contend on the
         // SAME exclusive leases) interleaved with list_widgets reads (shared leases, not logged).
@@ -251,6 +361,49 @@ fn test_swarm_concurrency_n5() {
         }
         assert_eq!(total_mutations, N * M, "every agent completed all its mutations");
         assert_eq!(total_reads, N * M, "every read returned the live tree");
+
+        let terminal_deadline = Instant::now() + Duration::from_secs(2);
+        while channel
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .pending()
+            != 0
+            && Instant::now() < terminal_deadline
+        {
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+        assert_eq!(
+            channel
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .pending(),
+            0,
+            "every accepted mutation reached terminal post-render acknowledgement"
+        );
+        stop_drain.store(true, Ordering::Release);
+        frame_drain.join().expect("production frame thread stopped cleanly");
+        let receipts = channel
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .receipts()
+            .to_vec();
+        assert_eq!(
+            dispatched_count.load(Ordering::Acquire),
+            N * M,
+            "every queued mutation traversed production fresh-tree dispatch; receipts={receipts:#?}"
+        );
+        assert!(
+            channel
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .receipts()
+                .iter()
+                .all(|receipt| !matches!(
+                    receipt.status,
+                    ActionReceiptStatus::Queued | ActionReceiptStatus::Dispatched
+                )),
+            "no receipt remains queued or in-flight after the final rendered frame"
+        );
 
         for mut server in servers {
             server.shutdown();
@@ -335,11 +488,661 @@ fn test_swarm_concurrency_n5() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
+/// MT-134 corrected-premise proof: the registry lease has already been won, but a previously queued
+/// same-target ActionChannel transaction still owns the target. The second request must wait above the
+/// channel mutex, then enqueue after frame progress frees the target instead of returning -32004.
+#[test]
+fn test_channel_busy_waits_then_enqueues() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(500);
+    let tmp =
+        std::env::temp_dir().join(format!("hsk_mcp_channel_busy_wait_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot.clone(),
+        channel.clone(),
+        LeaseRegistry::new(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    warm_up_action_frame(&ctx, &mut app, &snapshot);
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+
+        let first = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        assert_eq!(first["result"]["queued"], true, "first mutation owns the channel target");
+
+        let second_addr = addr.clone();
+        let second_token = token_hex.clone();
+        let started = Instant::now();
+        let second = tokio::spawn(async move {
+            rpc_once(
+                &second_addr,
+                serde_json::json!({
+                    "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                    "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                    "session_token": second_token,
+                }),
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        let drained = render_action_frame(&ctx, &mut app, &channel, &snapshot);
+        assert_eq!(drained, 1, "one frame accepts the first queued action");
+
+        let second = second.await.expect("second request task completed");
+        let waited = started.elapsed();
+        assert_eq!(
+            second["result"]["queued"], true,
+            "second same-target mutation waits for channel progress and then enqueues; got {second}"
+        );
+        assert!(second.get("error").is_none(), "waited request does not leak an error");
+        assert!(
+            waited >= Duration::from_millis(45) && waited < REQUEST_DEADLINE,
+            "request waited for frame progress ({waited:?}) but remained inside {REQUEST_DEADLINE:?}"
+        );
+        assert_eq!(
+            render_action_frame(&ctx, &mut app, &channel, &snapshot),
+            1,
+            "the second accepted mutation traverses a production frame"
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// The second half of MT-134's deadline contract: if ActionChannel never makes progress, the wait is
+/// bounded by the same request deadline and returns the existing typed -32004 rather than hanging.
+#[test]
+fn test_channel_busy_timeout_is_bounded() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(120);
+    let tmp = std::env::temp_dir().join(format!(
+        "hsk_mcp_channel_busy_timeout_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot.clone(),
+        channel.clone(),
+        LeaseRegistry::new(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    warm_up_action_frame(&ctx, &mut app, &snapshot);
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+        let first = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        assert_eq!(first["result"]["queued"], true);
+
+        let started = Instant::now();
+        let timed_out = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        let waited = started.elapsed();
+        assert_eq!(
+            timed_out["error"]["code"], ERR_LEASE_TIMEOUT,
+            "persistently busy channel returns typed -32004; got {timed_out}"
+        );
+        assert!(
+            waited >= Duration::from_millis(100)
+                && waited < REQUEST_DEADLINE + DEADLINE_SCHEDULING_TOLERANCE,
+            "channel-busy deadline fired in a bounded interval ({waited:?})"
+        );
+        assert_eq!(
+            channel.lock().unwrap_or_else(|p| p.into_inner()).pending(),
+            1
+        );
+        assert_eq!(
+            render_action_frame(&ctx, &mut app, &channel, &snapshot),
+            1,
+            "the timed-out request did not prevent production cleanup of the original action"
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// Registry acquisition and the later ActionChannel-busy window consume one absolute request budget.
+/// Holding the registry for roughly half the budget must not grant a second full channel timeout.
+#[test]
+fn test_registry_then_channel_busy_share_one_deadline() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(1_000);
+    const REGISTRY_HOLD: Duration = Duration::from_millis(600);
+    const COMBINED_WINDOW_TOLERANCE: Duration = Duration::from_millis(150);
+    let tmp = std::env::temp_dir().join(format!("hsk_mcp_one_deadline_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let leases = LeaseRegistry::new();
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot.clone(),
+        channel.clone(),
+        leases.clone(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    warm_up_action_frame(&ctx, &mut app, &snapshot);
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+        let first = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        assert_eq!(first["result"]["queued"], true);
+
+        let held = leases
+            .try_acquire(
+                THEME_TOGGLE_AUTHOR_ID,
+                LeaseKind::Exclusive,
+                Duration::from_secs(1),
+            )
+            .expect("hold registry lease after first action released its registry guard");
+        let request_addr = addr.clone();
+        let request_token = token_hex.clone();
+        let started = Instant::now();
+        let request = tokio::spawn(async move {
+            rpc_once(
+                &request_addr,
+                serde_json::json!({
+                    "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                    "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                    "session_token": request_token,
+                }),
+            )
+            .await
+        });
+        tokio::time::sleep(REGISTRY_HOLD).await;
+        drop(held);
+
+        let response = request.await.expect("combined-window request completed");
+        let waited = started.elapsed();
+        assert_eq!(
+            response["error"]["code"], ERR_LEASE_TIMEOUT,
+            "the remaining channel-busy window returns typed -32004; got {response}"
+        );
+        assert!(
+            waited >= REQUEST_DEADLINE.saturating_sub(Duration::from_millis(100))
+                && waited < REQUEST_DEADLINE + COMBINED_WINDOW_TOLERANCE,
+            "registry plus channel contention consumed one {REQUEST_DEADLINE:?} budget ({waited:?})"
+        );
+        assert_eq!(
+            channel.lock().unwrap_or_else(|p| p.into_inner()).pending(),
+            1,
+            "the timed-out second request did not enqueue"
+        );
+        assert_eq!(
+            render_action_frame(&ctx, &mut app, &channel, &snapshot),
+            1,
+            "the original transaction remains independently cleanable"
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// The request deadline also bounds contention on the global ActionChannel mutex itself. This is a
+/// distinct failure path from a target already present in queue/in_flight: an unrelated capture or
+/// frame holder may own the mutex before dispatch can inspect target state at all.
+#[test]
+fn test_channel_mutex_contention_respects_request_deadline() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(120);
+    let tmp = std::env::temp_dir().join(format!(
+        "hsk_mcp_channel_mutex_timeout_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot,
+        channel.clone(),
+        LeaseRegistry::new(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+
+        let held_channel = channel.clone();
+        let (locked_tx, locked_rx) = std::sync::mpsc::sync_channel(1);
+        let holder = std::thread::spawn(move || {
+            let _guard = held_channel
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            locked_tx.send(()).expect("announce held channel mutex");
+            std::thread::sleep(Duration::from_millis(240));
+        });
+        locked_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("channel mutex holder started");
+
+        let started = Instant::now();
+        let response = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        let waited = started.elapsed();
+        assert_eq!(
+            response["error"]["code"], ERR_LEASE_TIMEOUT,
+            "channel mutex contention returns the bounded typed error; got {response}"
+        );
+        assert!(
+            waited >= Duration::from_millis(100)
+                && waited < REQUEST_DEADLINE + DEADLINE_SCHEDULING_TOLERANCE,
+            "channel mutex contention respected the one request deadline ({waited:?})"
+        );
+        holder.join().expect("channel mutex holder exited");
+        assert_eq!(
+            channel.lock().unwrap_or_else(|p| p.into_inner()).pending(),
+            0,
+            "a late mutex acquisition never authorizes a post-deadline enqueue"
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// Snapshot publication is the first lock in the mutation critical section. A stalled publisher must
+/// consume the same bounded deadline and cannot leave a request hanging before the channel is inspected.
+#[test]
+fn test_snapshot_mutex_contention_respects_request_deadline() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(120);
+    let tmp = std::env::temp_dir().join(format!(
+        "hsk_mcp_snapshot_mutex_timeout_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot.clone(),
+        channel.clone(),
+        LeaseRegistry::new(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+
+        let held_snapshot = snapshot.clone();
+        let (locked_tx, locked_rx) = std::sync::mpsc::sync_channel(1);
+        let holder = std::thread::spawn(move || {
+            let _guard = held_snapshot
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            locked_tx.send(()).expect("announce held snapshot mutex");
+            std::thread::sleep(Duration::from_millis(240));
+        });
+        locked_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("snapshot mutex holder started");
+
+        let started = Instant::now();
+        let response = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        let waited = started.elapsed();
+        assert_eq!(
+            response["error"]["code"], ERR_LEASE_TIMEOUT,
+            "snapshot mutex contention returns the bounded typed error; got {response}"
+        );
+        assert!(
+            waited >= Duration::from_millis(100)
+                && waited < REQUEST_DEADLINE + DEADLINE_SCHEDULING_TOLERANCE,
+            "snapshot mutex contention respected the one request deadline ({waited:?})"
+        );
+        holder.join().expect("snapshot mutex holder exited");
+        assert_eq!(
+            channel.lock().unwrap_or_else(|p| p.into_inner()).pending(),
+            0,
+            "snapshot contention never authorized an enqueue"
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// A waiter must resolve against the frame published after the previous mutation, not the stale tree
+/// captured before its busy wait. The target is made disabled in the post-render publication while the
+/// snapshot mutex is held across acknowledgement, closing the test's scheduling race.
+#[test]
+fn test_channel_busy_retry_uses_fresh_snapshot() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(600);
+    let tmp = std::env::temp_dir().join(format!(
+        "hsk_mcp_channel_busy_fresh_snapshot_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot.clone(),
+        channel.clone(),
+        LeaseRegistry::new(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    warm_up_action_frame(&ctx, &mut app, &snapshot);
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+        let first = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        assert_eq!(first["result"]["queued"], true);
+
+        let second_addr = addr.clone();
+        let second_token = token_hex.clone();
+        let waiter = tokio::spawn(async move {
+            rpc_once(
+                &second_addr,
+                serde_json::json!({
+                    "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                    "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                    "session_token": second_token,
+                }),
+            )
+            .await
+        });
+        tokio::time::sleep(Duration::from_millis(45)).await;
+
+        let pre_render = snapshot.lock().unwrap_or_else(|p| p.into_inner()).clone();
+        let events = channel
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .drain_revalidated_into_events(&pre_render);
+        assert_eq!(events.len(), 1);
+        let mut input = egui::RawInput::default();
+        input.events = events;
+        let _ = ctx.run(input, |ctx| app.ui(ctx));
+        let mut post_render = app.capture_mcp_snapshot_for_navigation();
+        assert!(set_disabled(&mut post_render, THEME_TOGGLE_AUTHOR_ID));
+
+        // Keep the new snapshot locked while the old transaction terminalizes. The waiter can no
+        // longer race through a stale clone between acknowledgement and publication.
+        let mut published = snapshot.lock().unwrap_or_else(|p| p.into_inner());
+        channel
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .acknowledge_after_render(&post_render);
+        *published = post_render;
+        drop(published);
+
+        let response = waiter.await.expect("fresh-snapshot waiter completed");
+        assert_eq!(
+            response["error"]["code"], ERR_TOOL_FAILED,
+            "the fresh disabled target is rejected rather than enqueued; got {response}"
+        );
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("disabled"),
+            "the retry reports the fresh target state; got {response}"
+        );
+        assert_eq!(
+            channel.lock().unwrap_or_else(|p| p.into_inner()).pending(),
+            0
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// MT-134 adversarial boundary proof: a same-target request that is polling a busy ActionChannel must
+/// not monopolise the channel mutex or serialize an unrelated widget behind its full deadline.
+#[test]
+fn test_channel_busy_retry_does_not_block_different_widget() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(800);
+    const DIFFERENT_FAST_BOUND: Duration = Duration::from_millis(200);
+    let tmp = std::env::temp_dir().join(format!(
+        "hsk_mcp_channel_busy_distinct_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let _wire_guard = wire_guard();
+    let (var, prev) = redirect_app_data(&tmp);
+
+    let token = SessionToken::generate();
+    let token_hex = token.as_hex().to_owned();
+    let snapshot = Arc::new(Mutex::new(live_snapshot()));
+    let channel = Arc::new(Mutex::new(ActionChannel::new()));
+    let safety = SwarmSafetyState::with_shared(
+        token,
+        snapshot.clone(),
+        channel.clone(),
+        LeaseRegistry::new(),
+        ActionLog::new(),
+    )
+    .with_lease_timeout(REQUEST_DEADLINE);
+
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    warm_up_action_frame(&ctx, &mut app, &snapshot);
+    wire_runtime().block_on(async {
+        let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
+            .await
+            .expect("bind server");
+        let addr = server.tcp_addr().to_owned();
+
+        let first = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "click_widget",
+                "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        assert_eq!(first["result"]["queued"], true);
+
+        let same_addr = addr.clone();
+        let same_token = token_hex.clone();
+        let same_target_waiter = tokio::spawn(async move {
+            rpc_once(
+                &same_addr,
+                serde_json::json!({
+                    "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                    "params": { "target": THEME_TOGGLE_AUTHOR_ID },
+                    "session_token": same_token,
+                }),
+            )
+            .await
+        });
+
+        // Let the same-target request enter its channel-busy retry window before issuing the unrelated
+        // request. The unrelated request must take only a brief channel lock between retry attempts.
+        tokio::time::sleep(Duration::from_millis(45)).await;
+        let different_started = Instant::now();
+        let different = rpc_once(
+            &addr,
+            serde_json::json!({
+                "jsonrpc": "2.0", "id": 3, "method": "set_value",
+                "params": { "target": RAIL_INPUT_AUTHOR_ID, "value": "independent" },
+                "session_token": token_hex,
+            }),
+        )
+        .await;
+        let different_elapsed = different_started.elapsed();
+        assert_eq!(
+            different["result"]["queued"], true,
+            "different widget remains independently enqueueable; got {different}"
+        );
+        assert!(
+            different_elapsed < DIFFERENT_FAST_BOUND,
+            "different widget completed in {different_elapsed:?}, below the busy target's \
+             {REQUEST_DEADLINE:?} deadline"
+        );
+
+        let drained = render_action_frame(&ctx, &mut app, &channel, &snapshot);
+        assert_eq!(
+            drained, 2,
+            "both independently accepted actions reached the frame seam"
+        );
+        let same = same_target_waiter
+            .await
+            .expect("same-target waiter completed");
+        assert_eq!(
+            same["result"]["queued"], true,
+            "same-target waiter enqueues after the first target is released; got {same}"
+        );
+        assert_eq!(
+            render_action_frame(&ctx, &mut app, &channel, &snapshot),
+            1,
+            "the released same-target waiter traverses a production frame"
+        );
+        server.shutdown();
+    });
+
+    restore_app_data(var, prev);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
 /// AC / proof_target `test_lease_exclusive_timeout`: two agents contend for the SAME widget's exclusive
 /// lease with a SHORT timeout. One holds the lease out-of-band; the other's mutating request must get
 /// JSON-RPC -32004 "Lease timeout" within the timeout window (the contract's 100ms case).
 #[test]
 fn test_lease_exclusive_timeout() {
+    const REQUEST_DEADLINE: Duration = Duration::from_millis(100);
     let tmp = std::env::temp_dir().join(format!("hsk_mcp_lease_timeout_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
@@ -364,7 +1167,7 @@ fn test_lease_exclusive_timeout() {
             shared_leases.clone(),
             shared_log.clone(),
         )
-        .with_lease_timeout(Duration::from_millis(100));
+        .with_lease_timeout(REQUEST_DEADLINE);
         let mut server = SwarmMcpServer::bind_with_safety(safety, stub_capture())
             .await
             .expect("bind server");
@@ -392,7 +1195,11 @@ fn test_lease_exclusive_timeout() {
             "the contended click is rejected with -32004 Lease timeout; got {resp}"
         );
         assert!(resp.get("result").is_none(), "no result leaked when the lease timed out");
-        assert!(waited < Duration::from_secs(2), "the timeout fired promptly ({waited:?})");
+        assert!(
+            waited >= REQUEST_DEADLINE.saturating_sub(Duration::from_millis(20))
+                && waited < REQUEST_DEADLINE + DEADLINE_SCHEDULING_TOLERANCE,
+            "the registry timeout respected its configured deadline ({waited:?})"
+        );
         assert_eq!(channel.lock().unwrap().pending(), 0, "no action enqueued when the lease timed out");
 
         // Release agent A's lease; the SAME click now succeeds (the lease is acquirable again).

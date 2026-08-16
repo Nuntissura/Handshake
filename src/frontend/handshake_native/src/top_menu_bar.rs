@@ -24,7 +24,7 @@
 //! ```text
 //! FILE
 //!   New Document            DISABLED (needs the document model — future MT)
-//!   Open Workspace…         DISABLED (needs the workspace picker — future MT)
+//!   Open Workspace…         ENABLED -> OpenWorkspacePicker (binds the active workspace filesystem root)
 //!   ──────
 //!   Save            Ctrl+S  DISABLED (needs the document model — future MT)
 //!   Save All                DISABLED (needs the document model — future MT)
@@ -143,6 +143,7 @@ pub const MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID: &str = "menu.run.model-sessio
 /// document-mutating, but they are still real menu leaves discoverable while their dropdown is open.
 pub const EDITOR_MENU_LEAF_AUTHOR_IDS: &[&str] = &[
     "menu.file.new-document",
+    "menu.file.open-workspace",
     "menu.file.save",
     "menu.file.save-all",
     "menu.file.save-as",
@@ -380,10 +381,10 @@ pub const MENU_DEFINITIONS: [MenuId; 8] = [
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuBarAction {
     // FILE
-    NewDocument,         // disabled in MT-015 (needs document model)
-    OpenWorkspacePicker, // disabled in MT-015 (needs workspace picker)
-    SaveActiveDocument,  // disabled in MT-015 (needs document model)
-    SaveAllDocuments,    // disabled in MT-015 (needs document model)
+    NewDocument, // disabled in MT-015 (needs document model)
+    OpenWorkspacePicker,
+    SaveActiveDocument, // disabled in MT-015 (needs document model)
+    SaveAllDocuments,   // disabled in MT-015 (needs document model)
     CloseActiveTab,
     QuitApp,
     // EDIT (all disabled in MT-015 — needs the editor surface)
@@ -439,6 +440,7 @@ pub enum MenuBarAction {
 /// deliberately excluded. This MT only declares the list — wiring it into the broader swarm action
 /// registry is a later MT.
 pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
+    "menu.file.open-workspace",
     "menu.go.command-palette",
     "menu.go.quick-switcher",
     // WP-KERNEL-012 wave-6: non-destructive VIEW open routes for mounted native-editor surfaces.
@@ -661,12 +663,14 @@ impl MenuBar {
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_NEW),
                     action,
                 );
-                self.disabled_item(
+                self.item(
                     ui,
                     "menu.file.open-workspace",
                     "Open Workspace…",
                     None,
-                    "Needs the workspace picker (future MT)",
+                    true,
+                    MenuBarAction::OpenWorkspacePicker,
+                    action,
                 );
                 ui.separator();
                 self.item(
@@ -2447,15 +2451,16 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID));
-        // 8 base overlay/navigation actions + 15 VIEW open-surface leaves (incl. MT-098 open-runtime-chat)
+        // 9 base overlay/navigation actions + 15 VIEW open-surface leaves (incl. MT-098 open-runtime-chat)
         // + 4 GO editor-navigation leaves + 6 operator-control leaves.
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            33,
+            34,
             "all overlay/navigation actions listed"
         );
         // MT-098 operator menu-bar gap closeout: the Runtime Chat open route is swarm-discoverable.
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.open-runtime-chat"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.file.open-workspace"));
         // Wave-6 VIEW menu surface opens are swarm-discoverable and non-destructive.
         for id in [
             "menu.view.open-code-editor",

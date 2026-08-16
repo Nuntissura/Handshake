@@ -1,0 +1,1941 @@
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use sha2::{Digest, Sha256};
+use surrealdb::types::{
+    Array as SurrealArray, Object as SurrealObject, SurrealValue, Value as SurrealValueData,
+};
+use tokio::sync::Mutex;
+
+use super::{
+    SurrealAdminContext, SurrealStorage, SurrealStorageError, DEFAULT_DATABASE, DEFAULT_NAMESPACE,
+};
+
+pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
+pub const SCHEMA_REVISION: i64 = 59;
+pub const SOURCE_FORWARD_MIGRATION_COUNT: usize = 59;
+pub const SOURCE_FORWARD_WAVE_MANIFEST_SHA256: &str =
+    "dd6b7d624670b0c3d4d1caddff3034cb5eb194afa9217fa6f1e57123749423b6";
+pub const GENERATED_SURREALQL_SHA256: &str =
+    "f6e0d9914f20f35303f241e922e32ce4a8d40f5819f15b583b0707c1b5dc8529";
+/// Two-stage proof pin. The all-zero sentinel intentionally blocks finalization until a
+/// reviewed fresh-engine STRUCTURE receipt is captured and this constant is replaced.
+pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000";
+const PENDING_SCHEMA_INFO_SHA256: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000";
+
+const SCHEMA: &str = include_str!("schema.surql");
+const SOURCE_MANIFEST_DOMAIN: &[u8] = b"handshake.surreal.source-wave-manifest.v1\0";
+const BOOTSTRAP_STATE_TABLE: &str = "handshake_schema_state";
+const BOOTSTRAP_STATE_ID: &str = "handshake_schema_state:primary";
+const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
+    "accesses",
+    "analyzers",
+    "apis",
+    "buckets",
+    "configs",
+    "functions",
+    "models",
+    "modules",
+    "params",
+    "sequences",
+    "tables",
+    "users",
+];
+const TABLE_DEFINITION_COUNT: usize = 121;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 1316;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 98;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 66;
+const AUTHORED_FIELD_DEFINITION_COUNT: usize =
+    SOURCE_FIELD_DEFINITION_COUNT + FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT;
+// SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
+// level. Structured INFO reads the full persisted field catalog, so these engine-generated
+// definitions are part of the exact live schema even though they are not authored DEFINE lines.
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 29;
+const FIELD_DEFINITION_COUNT: usize =
+    AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
+const INDEX_DEFINITION_COUNT: usize = 347;
+const SOURCE_TABLE_COUNT: usize = 119;
+const SOURCE_VIEW_COUNT: usize = 1;
+const SOURCE_NAMED_INDEX_COUNT: usize = 244;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 102;
+const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
+const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
+const REFERENCE_FIELD_COUNT: usize = 122;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 84;
+
+static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
+
+const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
+    (
+        "0001_init.sql",
+        include_bytes!("../../../migrations/0001_init.sql"),
+    ),
+    (
+        "0002_create_ai_core_tables.sql",
+        include_bytes!("../../../migrations/0002_create_ai_core_tables.sql"),
+    ),
+    (
+        "0003_add_is_pinned.sql",
+        include_bytes!("../../../migrations/0003_add_is_pinned.sql"),
+    ),
+    (
+        "0004_mutation_traceability.sql",
+        include_bytes!("../../../migrations/0004_mutation_traceability.sql"),
+    ),
+    (
+        "0005_add_canvas_traceability.sql",
+        include_bytes!("../../../migrations/0005_add_canvas_traceability.sql"),
+    ),
+    (
+        "0006_expand_ai_job_model.sql",
+        include_bytes!("../../../migrations/0006_expand_ai_job_model.sql"),
+    ),
+    (
+        "0007_workflow_persistence.sql",
+        include_bytes!("../../../migrations/0007_workflow_persistence.sql"),
+    ),
+    (
+        "0008_expand_ai_job_model.sql",
+        include_bytes!("../../../migrations/0008_expand_ai_job_model.sql"),
+    ),
+    (
+        "0009_add_block_classification.sql",
+        include_bytes!("../../../migrations/0009_add_block_classification.sql"),
+    ),
+    (
+        "0010_normalize_ai_job_kind.sql",
+        include_bytes!("../../../migrations/0010_normalize_ai_job_kind.sql"),
+    ),
+    (
+        "0011_normalize_micro_task_execution.sql",
+        include_bytes!("../../../migrations/0011_normalize_micro_task_execution.sql"),
+    ),
+    (
+        "0012_ai_ready_data_arch.sql",
+        include_bytes!("../../../migrations/0012_ai_ready_data_arch.sql"),
+    ),
+    (
+        "0013_loom_mvp.sql",
+        include_bytes!("../../../migrations/0013_loom_mvp.sql"),
+    ),
+    (
+        "0014_ai_job_mcp_fields.sql",
+        include_bytes!("../../../migrations/0014_ai_job_mcp_fields.sql"),
+    ),
+    (
+        "0015_calendar_storage.sql",
+        include_bytes!("../../../migrations/0015_calendar_storage.sql"),
+    ),
+    (
+        "0016_locus_structured_collaboration.sql",
+        include_bytes!("../../../migrations/0016_locus_structured_collaboration.sql"),
+    ),
+    (
+        "0017_skill_bank_distillation.sql",
+        include_bytes!("../../../migrations/0017_skill_bank_distillation.sql"),
+    ),
+    (
+        "0018_kernel_event_ledger.sql",
+        include_bytes!("../../../migrations/0018_kernel_event_ledger.sql"),
+    ),
+    (
+        "0019_kernel_session_queue.sql",
+        include_bytes!("../../../migrations/0019_kernel_session_queue.sql"),
+    ),
+    (
+        "0020_kernel_crdt_storage.sql",
+        include_bytes!("../../../migrations/0020_kernel_crdt_storage.sql"),
+    ),
+    (
+        "0021_kernel_process_lifecycle.sql",
+        include_bytes!("../../../migrations/0021_kernel_process_lifecycle.sql"),
+    ),
+    (
+        "0022_role_mailbox_threads_messages.sql",
+        include_bytes!("../../../migrations/0022_role_mailbox_threads_messages.sql"),
+    ),
+    (
+        "0023_micro_task_job_queue.sql",
+        include_bytes!("../../../migrations/0023_micro_task_job_queue.sql"),
+    ),
+    (
+        "0024_session_checkpoint.sql",
+        include_bytes!("../../../migrations/0024_session_checkpoint.sql"),
+    ),
+    (
+        "0025_observability_spans.sql",
+        include_bytes!("../../../migrations/0025_observability_spans.sql"),
+    ),
+    (
+        "0026_mt_scheduler_starvation_watermark.sql",
+        include_bytes!("../../../migrations/0026_mt_scheduler_starvation_watermark.sql"),
+    ),
+    (
+        "0027_mt_outcome_distillation_status.sql",
+        include_bytes!("../../../migrations/0027_mt_outcome_distillation_status.sql"),
+    ),
+    (
+        "0028_restart_resume_report_wiring.sql",
+        include_bytes!("../../../migrations/0028_restart_resume_report_wiring.sql"),
+    ),
+    (
+        "0029_bitemporal_event_ledger_indexes.sql",
+        include_bytes!("../../../migrations/0029_bitemporal_event_ledger_indexes.sql"),
+    ),
+    (
+        "0030_atelier_foundation.sql",
+        include_bytes!("../../../migrations/0030_atelier_foundation.sql"),
+    ),
+    (
+        "0031_atelier_core_data.sql",
+        include_bytes!("../../../migrations/0031_atelier_core_data.sql"),
+    ),
+    (
+        "0032_atelier_pose_diagnostics.sql",
+        include_bytes!("../../../migrations/0032_atelier_pose_diagnostics.sql"),
+    ),
+    (
+        "0033_atelier_event_ledger_projection.sql",
+        include_bytes!("../../../migrations/0033_atelier_event_ledger_projection.sql"),
+    ),
+    (
+        "0034_atelier_preference_metadata.sql",
+        include_bytes!("../../../migrations/0034_atelier_preference_metadata.sql"),
+    ),
+    (
+        "0035_atelier_stealth_uuid_v7_bound_ids.sql",
+        include_bytes!("../../../migrations/0035_atelier_stealth_uuid_v7_bound_ids.sql"),
+    ),
+    (
+        "0036_atelier_downloader_capability_grants.sql",
+        include_bytes!("../../../migrations/0036_atelier_downloader_capability_grants.sql"),
+    ),
+    (
+        "0037_atelier_sheet_parser_ast.sql",
+        include_bytes!("../../../migrations/0037_atelier_sheet_parser_ast.sql"),
+    ),
+    (
+        "0038_atelier_contact_sheet_schema_namespace.sql",
+        include_bytes!("../../../migrations/0038_atelier_contact_sheet_schema_namespace.sql"),
+    ),
+    (
+        "0039_atelier_bulk_operation_receipts.sql",
+        include_bytes!("../../../migrations/0039_atelier_bulk_operation_receipts.sql"),
+    ),
+    (
+        "0040_atelier_media_artifact_manifest.sql",
+        include_bytes!("../../../migrations/0040_atelier_media_artifact_manifest.sql"),
+    ),
+    (
+        "0041_atelier_source_evidence_matrix.sql",
+        include_bytes!("../../../migrations/0041_atelier_source_evidence_matrix.sql"),
+    ),
+    (
+        "0042_atelier_source_evidence_matrix_scope.sql",
+        include_bytes!("../../../migrations/0042_atelier_source_evidence_matrix_scope.sql"),
+    ),
+    (
+        "0043_atelier_media_review_metadata.sql",
+        include_bytes!("../../../migrations/0043_atelier_media_review_metadata.sql"),
+    ),
+    (
+        "0044_atelier_media_derivatives.sql",
+        include_bytes!("../../../migrations/0044_atelier_media_derivatives.sql"),
+    ),
+    (
+        "0045_atelier_similarity_rebuild_jobs.sql",
+        include_bytes!("../../../migrations/0045_atelier_similarity_rebuild_jobs.sql"),
+    ),
+    (
+        "0046_atelier_ai_tag_suggestions.sql",
+        include_bytes!("../../../migrations/0046_atelier_ai_tag_suggestions.sql"),
+    ),
+    (
+        "0047_atelier_media_sidecars.sql",
+        include_bytes!("../../../migrations/0047_atelier_media_sidecars.sql"),
+    ),
+    (
+        "0048_atelier_filesystem_health.sql",
+        include_bytes!("../../../migrations/0048_atelier_filesystem_health.sql"),
+    ),
+    (
+        "0049_atelier_image_import.sql",
+        include_bytes!("../../../migrations/0049_atelier_image_import.sql"),
+    ),
+    (
+        "0050_atelier_media_source_provenance_refs.sql",
+        include_bytes!("../../../migrations/0050_atelier_media_source_provenance_refs.sql"),
+    ),
+    (
+        "0051_atelier_intake_batch_resume.sql",
+        include_bytes!("../../../migrations/0051_atelier_intake_batch_resume.sql"),
+    ),
+    (
+        "0052_atelier_intake_item_lifecycle.sql",
+        include_bytes!("../../../migrations/0052_atelier_intake_item_lifecycle.sql"),
+    ),
+    (
+        "0053_atelier_intake_profile_targets.sql",
+        include_bytes!("../../../migrations/0053_atelier_intake_profile_targets.sql"),
+    ),
+    (
+        "0054_atelier_export_intake_links.sql",
+        include_bytes!("../../../migrations/0054_atelier_export_intake_links.sql"),
+    ),
+    (
+        "0055_atelier_collection_metadata_application.sql",
+        include_bytes!("../../../migrations/0055_atelier_collection_metadata_application.sql"),
+    ),
+    (
+        "0056_atelier_contact_sheet_svg_artifact.sql",
+        include_bytes!("../../../migrations/0056_atelier_contact_sheet_svg_artifact.sql"),
+    ),
+    (
+        "0057_atelier_contact_sheet_raster_export_plan.sql",
+        include_bytes!("../../../migrations/0057_atelier_contact_sheet_raster_export_plan.sql"),
+    ),
+    (
+        "0058_atelier_character_documents.sql",
+        include_bytes!("../../../migrations/0058_atelier_character_documents.sql"),
+    ),
+    (
+        "0059_atelier_story_cards_beats.sql",
+        include_bytes!("../../../migrations/0059_atelier_story_cards_beats.sql"),
+    ),
+];
+
+const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
+    "handshake_schema_state",
+    "workspaces",
+    "documents",
+    "blocks",
+    "canvases",
+    "canvas_nodes",
+    "canvas_edges",
+    "ai_jobs",
+    "workflow_runs",
+    "workflow_node_executions",
+    "ai_embedding_models",
+    "ai_embedding_registry",
+    "ai_bronze_records",
+    "ai_silver_records",
+    "assets",
+    "loom_blocks",
+    "loom_edges",
+    "ai_job_mcp_fields",
+    "calendar_sources",
+    "calendar_events",
+    "work_packets",
+    "micro_tasks",
+    "skill_log_entry",
+    "skill_log_file_ref",
+    "distill_job",
+    "distill_example",
+    "adapter_checkpoint",
+    "eval_run",
+    "replay_candidates",
+    "kernel_event_ledger",
+    "kernel_session_queue",
+    "kernel_crdt_updates",
+    "kernel_crdt_snapshots",
+    "kernel_process_lifecycle",
+    "role_mailbox_thread",
+    "role_mailbox_message",
+    "role_mailbox_claim_lease",
+    "role_mailbox_handoff_bundle",
+    "kernel_micro_task_job",
+    "kernel_mt_loop_checkpoint",
+    "kernel_mt_outcome",
+    "kernel_distillation_candidate",
+    "kernel_session_checkpoint",
+    "kernel_restart_resume_report",
+    "kernel_idempotency_ledger",
+    "kernel_model_session_span",
+    "kernel_activity_span",
+    "atelier_character",
+    "atelier_sheet_version",
+    "atelier_media_asset",
+    "atelier_event",
+    "atelier_intake_batch",
+    "atelier_intake_item",
+    "atelier_collection",
+    "atelier_collection_item",
+    "atelier_contact_sheet",
+    "atelier_tag",
+    "atelier_character_tag",
+    "atelier_tag_rule",
+    "atelier_similarity_projection",
+    "atelier_export_request",
+    "atelier_export_result",
+    "atelier_export_manifest_entry",
+    "atelier_media_annotation",
+    "atelier_preference",
+    "atelier_pose_rig",
+    "atelier_pose_head_pose",
+    "atelier_pose_calibration",
+    "atelier_identity_profile",
+    "atelier_comfy_bridge_probe",
+    "atelier_comfy_capability_registration",
+    "atelier_comfy_declared_output",
+    "atelier_comfy_capability_reject",
+    "atelier_comfy_intake_output",
+    "atelier_comfy_fallback_marker",
+    "atelier_sourcing_spec",
+    "atelier_handler_version_matrix",
+    "atelier_sourcing_binding_decision",
+    "atelier_version_mismatch_receipt",
+    "atelier_sourcing_ingestion_receipt",
+    "atelier_media_probe_report",
+    "atelier_transcript_artifact",
+    "atelier_caption_artifact",
+    "atelier_transcript_receipt",
+    "atelier_md_output_root",
+    "atelier_md_allowlist_policy",
+    "atelier_md_auth_context",
+    "atelier_md_download_session",
+    "atelier_md_item_state",
+    "atelier_md_checkpoint",
+    "atelier_md_session_receipt",
+    "atelier_command_corpus_entry",
+    "atelier_command_corpus_blocked",
+    "atelier_command_corpus_parity_report",
+    "atelier_stealth_window",
+    "atelier_stealth_ref",
+    "atelier_stealth_capture",
+    "atelier_sheet_parse_snapshot",
+    "atelier_bulk_operation_receipt",
+    "atelier_trash_marker",
+    "atelier_source_evidence_record",
+    "atelier_anchor_verification_record",
+    "atelier_media_review_metadata",
+    "atelier_media_derivative",
+    "atelier_similarity_rebuild_job",
+    "atelier_ai_tag_suggestion",
+    "atelier_media_sidecar",
+    "atelier_filesystem_health_check",
+    "atelier_filesystem_health_finding",
+    "atelier_image_import_request",
+    "atelier_media_source_provenance_ref",
+    "atelier_intake_item_rejection_audit",
+    "atelier_export_intake_link",
+    "atelier_media_asset_tag",
+    "atelier_collection_metadata_application",
+    "atelier_contact_sheet_svg_artifact",
+    "atelier_contact_sheet_raster_export_plan",
+    "atelier_character_document",
+    "atelier_character_document_version",
+    "atelier_story_card",
+    "atelier_story_beat",
+];
+
+/// Tables whose source `id` column is represented only by the Surreal record ID.
+const RECORD_ID_ONLY_TABLES: [&str; 17] = [
+    "workspaces",
+    "documents",
+    "blocks",
+    "canvases",
+    "canvas_nodes",
+    "canvas_edges",
+    "ai_jobs",
+    "workflow_runs",
+    "workflow_node_executions",
+    "ai_embedding_registry",
+    "calendar_sources",
+    "calendar_events",
+    "skill_log_entry",
+    "skill_log_file_ref",
+    "distill_job",
+    "adapter_checkpoint",
+    "eval_run",
+];
+
+/// Referenced targets that retain a domain-facing single-column key alias.
+/// Each corresponding field ASSERTs equality with `record::id($this.id)`.
+const REFERENCED_BUSINESS_KEY_ALIASES: [(&str, &str); 9] = [
+    ("ai_bronze_records", "bronze_id"),
+    ("assets", "asset_id"),
+    ("loom_blocks", "block_id"),
+    ("work_packets", "wp_id"),
+    ("kernel_event_ledger", "event_id"),
+    ("role_mailbox_thread", "thread_id"),
+    ("role_mailbox_claim_lease", "lease_id"),
+    ("kernel_micro_task_job", "job_id"),
+    ("kernel_model_session_span", "span_id"),
+];
+
+#[derive(Debug, Clone, Deserialize, SurrealValue, PartialEq, Eq)]
+struct SchemaState {
+    version: String,
+    revision: i64,
+    namespace: String,
+    database: String,
+    source_manifest_sha256: String,
+    generated_surql_sha256: String,
+    info_fingerprint_sha256: String,
+    apply_state: String,
+    target_revision: i64,
+}
+
+#[derive(SurrealValue)]
+struct BootstrapBindings {
+    schema_version: String,
+    schema_revision: i64,
+    namespace: String,
+    database: String,
+    source_manifest_sha256: String,
+    generated_surql_sha256: String,
+}
+
+#[derive(SurrealValue)]
+struct FinalizeBindings {
+    schema_version: String,
+    schema_revision: i64,
+    namespace: String,
+    database: String,
+    source_manifest_sha256: String,
+    generated_surql_sha256: String,
+    pending_info_fingerprint_sha256: String,
+    info_fingerprint_sha256: String,
+}
+
+impl SchemaState {
+    fn has_current_lineage(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == SCHEMA_REVISION
+            && self.target_revision == SCHEMA_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SOURCE_FORWARD_WAVE_MANIFEST_SHA256
+            && self.generated_surql_sha256 == GENERATED_SURREALQL_SHA256
+    }
+
+    fn is_schema_applied_current(&self) -> bool {
+        self.has_current_lineage()
+            && self.apply_state == "schema_applied"
+            && self.info_fingerprint_sha256 == PENDING_SCHEMA_INFO_SHA256
+    }
+
+    fn is_exact_current(&self) -> bool {
+        self.has_current_lineage()
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
+    }
+}
+
+/// Receipt derived from the durable state row and live INFO introspection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemaBootstrapReport {
+    pub schema_version: String,
+    pub namespace: String,
+    pub database: String,
+    pub source_migration_files: usize,
+    pub source_manifest_sha256: String,
+    pub generated_surql_sha256: String,
+    pub info_fingerprint_sha256: String,
+    pub tables_defined: usize,
+    pub fields_defined: usize,
+    pub indexes_defined: usize,
+    pub table_names: Vec<String>,
+    pub reused_existing_schema: bool,
+}
+
+#[derive(Debug)]
+struct ObservedSchema {
+    info_fingerprint_sha256: String,
+    tables_defined: usize,
+    fields_defined: usize,
+    indexes_defined: usize,
+    table_names: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct CanonicalInfoEnvelope {
+    database: SurrealValueData,
+    tables: BTreeMap<String, SurrealValueData>,
+}
+
+/// Installs the fresh 0001-0029 Surreal schema wave or verifies an exact-current schema.
+///
+/// This is intentionally a transitional source-wave bridge, not a complete product-schema
+/// migration system. V1 fails closed for every lower or divergent lineage. The sole resumable
+/// incomplete state is the exact-current `schema_applied` receipt written after committed DDL;
+/// it is finalized only after complete live INFO matches the compiled fingerprint. A process-wide
+/// mutex serializes callers; the DDL transaction repeats the fresh-state guard before mutation.
+/// Exact-current restarts return before executing any `OVERWRITE` statement.
+pub async fn bootstrap_schema(
+    storage: &SurrealStorage,
+) -> Result<SchemaBootstrapReport, SurrealStorageError> {
+    let _bootstrap_guard = BOOTSTRAP_MUTEX.lock().await;
+    storage
+        .with_admin_operation(|database| {
+            Box::pin(async move {
+                verify_compiled_manifest(&database).await?;
+                let existing = read_context_and_state(&database).await?;
+                let reused_existing_schema = match existing {
+                    None => {
+                        database
+                            .query_bound(
+                                SCHEMA,
+                                BootstrapBindings {
+                                    schema_version: SCHEMA_VERSION.to_owned(),
+                                    schema_revision: SCHEMA_REVISION,
+                                    namespace: DEFAULT_NAMESPACE.to_owned(),
+                                    database: DEFAULT_DATABASE.to_owned(),
+                                    source_manifest_sha256:
+                                        SOURCE_FORWARD_WAVE_MANIFEST_SHA256.to_owned(),
+                                    generated_surql_sha256:
+                                        GENERATED_SURREALQL_SHA256.to_owned(),
+                                },
+                            )
+                            .await?;
+                        let applied_state = match read_context_and_state(&database).await? {
+                            Some(state) if state.is_schema_applied_current() => state,
+                            Some(state) => {
+                                return fail_closed(
+                                    &database,
+                                    format!(
+                                        "HANDSHAKE_SURREAL_SCHEMA_APPLY_STATE_MISMATCH: {state:?}"
+                                    ),
+                                )
+                                .await;
+                            }
+                            None => {
+                                return fail_closed(
+                                    &database,
+                                    "HANDSHAKE_SURREAL_SCHEMA_APPLY_STATE_MISSING".to_owned(),
+                                )
+                                .await;
+                            }
+                        };
+                        let observed = inspect_schema(&database).await?;
+                        verify_expected_info_fingerprint(&database, &observed).await?;
+                        finalize_schema_state(
+                            &database,
+                            &applied_state,
+                            &observed.info_fingerprint_sha256,
+                        )
+                        .await?;
+                        false
+                    }
+                    Some(state) if state.is_schema_applied_current() => {
+                        let observed = inspect_schema(&database).await?;
+                        verify_expected_info_fingerprint(&database, &observed).await?;
+                        finalize_schema_state(
+                            &database,
+                            &state,
+                            &observed.info_fingerprint_sha256,
+                        )
+                        .await?;
+                        true
+                    }
+                    Some(state) if state.is_exact_current() => true,
+                    Some(state) => {
+                        return fail_closed(
+                            &database,
+                            format!(
+                                "HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE: observed={state:?}; expected_revision={SCHEMA_REVISION}"
+                            ),
+                        )
+                        .await;
+                    }
+                };
+
+                let state = match read_context_and_state(&database).await? {
+                    Some(state) if state.is_exact_current() => state,
+                    Some(state) => {
+                        return fail_closed(
+                            &database,
+                            format!(
+                                "HANDSHAKE_SURREAL_SCHEMA_POST_APPLY_STATE_MISMATCH: {state:?}"
+                            ),
+                        )
+                        .await;
+                    }
+                    None => {
+                        return fail_closed(
+                            &database,
+                            "HANDSHAKE_SURREAL_SCHEMA_POST_APPLY_STATE_MISSING".to_owned(),
+                        )
+                        .await;
+                    }
+                };
+
+                observe_schema(&database, state, reused_existing_schema).await
+            })
+        })
+        .await
+}
+
+pub fn compute_source_wave_manifest_sha256() -> String {
+    compute_manifest_hash(&SOURCE_WAVE_FILES)
+}
+
+pub fn compute_generated_surql_sha256() -> String {
+    sha256_hex(SCHEMA.as_bytes())
+}
+
+fn compute_manifest_hash(files: &[(&str, &[u8])]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(SOURCE_MANIFEST_DOMAIN);
+    for (name, content) in files {
+        hasher.update((name.len() as u32).to_be_bytes());
+        hasher.update(name.as_bytes());
+        hasher.update((content.len() as u64).to_be_bytes());
+        hasher.update(content);
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+#[cfg(test)]
+fn generated_collection_subtype_field_count(schema: &str) -> usize {
+    schema
+        .lines()
+        .filter(|line| line.starts_with("DEFINE FIELD OVERWRITE "))
+        .map(|line| line.matches("array<").count() + line.matches("set<").count())
+        .sum()
+}
+
+async fn verify_compiled_manifest(
+    database: &SurrealAdminContext<'_>,
+) -> Result<(), SurrealStorageError> {
+    let source = compute_source_wave_manifest_sha256();
+    let generated = compute_generated_surql_sha256();
+    if source != SOURCE_FORWARD_WAVE_MANIFEST_SHA256 || generated != GENERATED_SURREALQL_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_COMPILED_MANIFEST_DRIFT: source={source}; generated={generated}"
+            ),
+        )
+        .await;
+    }
+    Ok(())
+}
+
+async fn read_context_and_state(
+    database: &SurrealAdminContext<'_>,
+) -> Result<Option<SchemaState>, SurrealStorageError> {
+    let mut response = database
+        .query("RETURN session::ns(); RETURN session::db(); INFO FOR DB STRUCTURE;")
+        .await?;
+    let namespace: Option<String> = response.take(0)?;
+    let namespace = match namespace {
+        Some(namespace) => namespace,
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_SCHEMA_CONTEXT_NAMESPACE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    let selected_database: Option<String> = response.take(1)?;
+    let selected_database = match selected_database {
+        Some(selected_database) => selected_database,
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_SCHEMA_CONTEXT_DATABASE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    if namespace != DEFAULT_NAMESPACE || selected_database != DEFAULT_DATABASE {
+        return Err(SurrealStorageError::ContextMismatch {
+            expected_namespace: DEFAULT_NAMESPACE.to_owned(),
+            expected_database: DEFAULT_DATABASE.to_owned(),
+            actual_namespace: namespace,
+            actual_database: selected_database,
+        });
+    }
+
+    let database_info: SurrealValueData = response.take(2)?;
+    let mut nonempty_categories = Vec::new();
+    for category in DATABASE_STRUCTURE_CATEGORIES {
+        let count = match array_len(&database_info, category) {
+            Ok(count) => count,
+            Err(reason) => return fail_closed(database, reason).await,
+        };
+        if count != 0 {
+            nonempty_categories.push(format!("{category}={count}"));
+        }
+    }
+    let table_names = match parse_named_array(&database_info, "tables") {
+        Ok(names) => names,
+        Err(reason) => return fail_closed(database, reason).await,
+    };
+    if !table_names.iter().any(|name| name == BOOTSTRAP_STATE_TABLE) {
+        if nonempty_categories.is_empty() {
+            return Ok(None);
+        }
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_DATABASE_NOT_EMPTY: missing_state_table; {}",
+                nonempty_categories.join(",")
+            ),
+        )
+        .await;
+    }
+
+    let mut state_response = database
+        .query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};"))
+        .await?;
+    let state: Option<SchemaState> = state_response.take(0)?;
+    match state {
+        Some(state) => Ok(Some(state)),
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_SCHEMA_STATE_ROW_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+async fn finalize_schema_state(
+    database: &SurrealAdminContext<'_>,
+    applied_state: &SchemaState,
+    info_fingerprint_sha256: &str,
+) -> Result<(), SurrealStorageError> {
+    if !applied_state.is_schema_applied_current() || info_fingerprint_sha256.len() != 64 {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_SCHEMA_FINALIZE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    database
+        .query_bound(
+            r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current = NONE
+    OR $current.version != $schema_version
+    OR $current.revision != $schema_revision
+    OR $current.target_revision != $schema_revision
+    OR $current.namespace != $namespace
+    OR $current.database != $database
+    OR $current.source_manifest_sha256 != $source_manifest_sha256
+    OR $current.generated_surql_sha256 != $generated_surql_sha256
+    OR $current.info_fingerprint_sha256 != $pending_info_fingerprint_sha256
+    OR $current.apply_state != 'schema_applied'
+{
+    THROW 'HANDSHAKE_SURREAL_SCHEMA_FINALIZE_STATE_CHANGED';
+};
+UPDATE ONLY handshake_schema_state:primary SET
+    info_fingerprint_sha256 = $info_fingerprint_sha256,
+    apply_state = 'complete',
+    updated_at = time::now();
+COMMIT TRANSACTION;
+"#,
+            FinalizeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SOURCE_FORWARD_WAVE_MANIFEST_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                info_fingerprint_sha256: info_fingerprint_sha256.to_owned(),
+            },
+        )
+        .await?;
+    Ok(())
+}
+
+async fn observe_schema(
+    database: &SurrealAdminContext<'_>,
+    state: SchemaState,
+    reused_existing_schema: bool,
+) -> Result<SchemaBootstrapReport, SurrealStorageError> {
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    if observed.info_fingerprint_sha256 != state.info_fingerprint_sha256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH: expected={}; observed={}",
+                state.info_fingerprint_sha256, observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+
+    Ok(SchemaBootstrapReport {
+        schema_version: state.version,
+        namespace: state.namespace,
+        database: state.database,
+        source_migration_files: SOURCE_WAVE_FILES.len(),
+        source_manifest_sha256: state.source_manifest_sha256,
+        generated_surql_sha256: state.generated_surql_sha256,
+        info_fingerprint_sha256: state.info_fingerprint_sha256,
+        tables_defined: observed.tables_defined,
+        fields_defined: observed.fields_defined,
+        indexes_defined: observed.indexes_defined,
+        table_names: observed.table_names,
+        reused_existing_schema,
+    })
+}
+
+async fn verify_expected_info_fingerprint(
+    database: &SurrealAdminContext<'_>,
+    observed: &ObservedSchema,
+) -> Result<(), SurrealStorageError> {
+    if EXPECTED_SCHEMA_INFO_SHA256.bytes().all(|byte| byte == b'0') {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_UNPINNED: observed={}",
+                observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    if observed.info_fingerprint_sha256 != EXPECTED_SCHEMA_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH: expected={EXPECTED_SCHEMA_INFO_SHA256}; observed={}",
+                observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    Ok(())
+}
+
+async fn inspect_schema(
+    database: &SurrealAdminContext<'_>,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    let mut db_info_response = database.query("INFO FOR DB STRUCTURE;").await?;
+    let db_info: SurrealValueData = db_info_response.take(0)?;
+    for category in DATABASE_STRUCTURE_CATEGORIES {
+        if let Err(reason) = array_len(&db_info, category) {
+            return fail_closed(database, reason).await;
+        }
+    }
+    let mut table_names = match parse_named_array(&db_info, "tables") {
+        Ok(names) => names,
+        Err(reason) => return fail_closed(database, reason).await,
+    };
+    table_names.sort();
+
+    let mut expected_names = TABLE_NAMES
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<Vec<_>>();
+    expected_names.sort();
+    if table_names != expected_names {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_TABLE_SET_MISMATCH: expected={expected_names:?}; observed={table_names:?}"
+            ),
+        )
+        .await;
+    }
+
+    let mut fields_defined = 0usize;
+    let mut indexes_defined = 0usize;
+    let mut table_info_by_name = BTreeMap::new();
+    for table in &table_names {
+        let mut table_response = database
+            .query(format!("INFO FOR TABLE `{table}` STRUCTURE;"))
+            .await?;
+        let table_info: SurrealValueData = table_response.take(0)?;
+        for category in ["events", "fields", "indexes", "lives", "tables"] {
+            if let Err(reason) = array_len(&table_info, category) {
+                return fail_closed(database, reason).await;
+            }
+        }
+        fields_defined += match array_len(&table_info, "fields") {
+            Ok(count) => count,
+            Err(reason) => return fail_closed(database, reason).await,
+        };
+        indexes_defined += match array_len(&table_info, "indexes") {
+            Ok(count) => count,
+            Err(reason) => return fail_closed(database, reason).await,
+        };
+        table_info_by_name.insert(table.clone(), canonicalize_info(table_info));
+    }
+
+    if fields_defined != FIELD_DEFINITION_COUNT || indexes_defined != INDEX_DEFINITION_COUNT {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_INFO_MISMATCH: tables={}; fields={fields_defined}; indexes={indexes_defined}",
+                table_names.len()
+            ),
+        )
+        .await;
+    }
+
+    let canonical = CanonicalInfoEnvelope {
+        database: canonicalize_info(db_info),
+        tables: table_info_by_name,
+    };
+    let canonical_json =
+        serde_json::to_string(&canonical).expect("canonical structured INFO serializes losslessly");
+
+    Ok(ObservedSchema {
+        info_fingerprint_sha256: sha256_hex(canonical_json.as_bytes()),
+        tables_defined: table_names.len(),
+        fields_defined,
+        indexes_defined,
+        table_names,
+    })
+}
+
+pub(super) fn info_entry_name(value: &SurrealValueData) -> Option<&str> {
+    let SurrealValueData::Object(object) = value else {
+        return None;
+    };
+    let Some(SurrealValueData::String(name)) = object.get("name") else {
+        return None;
+    };
+    Some(name)
+}
+
+pub(super) fn canonicalize_info(value: SurrealValueData) -> SurrealValueData {
+    match value {
+        SurrealValueData::Object(object) => {
+            let mut canonical = SurrealObject::new();
+            for (key, value) in object.into_inner() {
+                canonical.insert(key, canonicalize_info(value));
+            }
+            SurrealValueData::Object(canonical)
+        }
+        SurrealValueData::Array(array) => {
+            let mut canonical = array
+                .into_vec()
+                .into_iter()
+                .map(canonicalize_info)
+                .collect::<Vec<_>>();
+            if canonical
+                .iter()
+                .all(|entry| info_entry_name(entry).is_some())
+            {
+                canonical.sort_by(|left, right| info_entry_name(left).cmp(&info_entry_name(right)));
+            }
+            SurrealValueData::Array(SurrealArray::from(canonical))
+        }
+        scalar => scalar,
+    }
+}
+
+pub(super) fn parse_named_array(
+    value: &SurrealValueData,
+    key: &str,
+) -> Result<Vec<String>, String> {
+    let SurrealValueData::Object(object) = value else {
+        return Err("HANDSHAKE_SURREAL_SCHEMA_INFO_INVALID: expected object".to_owned());
+    };
+    let Some(SurrealValueData::Array(array)) = object.get(key) else {
+        return Err(format!(
+            "HANDSHAKE_SURREAL_SCHEMA_INFO_INVALID: missing `{key}` array"
+        ));
+    };
+    array
+        .iter()
+        .map(|entry| {
+            info_entry_name(entry).map(str::to_owned).ok_or_else(|| {
+                format!("HANDSHAKE_SURREAL_SCHEMA_INFO_INVALID: `{key}` entry missing name")
+            })
+        })
+        .collect()
+}
+
+fn array_len(value: &SurrealValueData, key: &str) -> Result<usize, String> {
+    let SurrealValueData::Object(object) = value else {
+        return Err("HANDSHAKE_SURREAL_SCHEMA_INFO_INVALID: expected object".to_owned());
+    };
+    let Some(SurrealValueData::Array(array)) = object.get(key) else {
+        return Err(format!(
+            "HANDSHAKE_SURREAL_SCHEMA_INFO_INVALID: missing `{key}` array"
+        ));
+    };
+    Ok(array.len())
+}
+
+async fn fail_closed<T>(
+    database: &SurrealAdminContext<'_>,
+    reason: String,
+) -> Result<T, SurrealStorageError> {
+    database
+        .query_bound("THROW $reason;", ("reason", reason))
+        .await?;
+    unreachable!("THROW must fail closed")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::{
+        surreal::{SurrealStorage, SurrealStorageConfig},
+        EntityRef, JobMetrics, OperationType, PlannedOperation,
+    };
+
+    #[derive(SurrealValue)]
+    struct NativeJsonBindings {
+        entity_refs: JsonValue,
+        planned_operations: JsonValue,
+        metrics: JsonValue,
+        job_inputs: JsonValue,
+    }
+
+    async fn open_test_storage(
+        directory: &tempfile::TempDir,
+    ) -> Result<SurrealStorage, SurrealStorageError> {
+        SurrealStorage::open(SurrealStorageConfig::with_path(
+            directory.path().join("store"),
+        )?)
+        .await
+    }
+
+    async fn index_names(
+        storage: &SurrealStorage,
+        table: &'static str,
+    ) -> Result<Vec<String>, SurrealStorageError> {
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query(format!("INFO FOR TABLE `{table}` STRUCTURE;"))
+                        .await?;
+                    let info: SurrealValueData = response.take(0)?;
+                    let mut names = parse_named_array(&info, "indexes")
+                        .unwrap_or_else(|reason| panic!("invalid index INFO: {reason}"));
+                    names.sort();
+                    Ok(names)
+                })
+            })
+            .await
+    }
+
+    #[test]
+    fn source_manifest_is_order_and_content_sensitive() {
+        assert_eq!(SOURCE_WAVE_FILES.len(), SCHEMA_REVISION as usize);
+        assert_eq!(
+            compute_source_wave_manifest_sha256(),
+            SOURCE_FORWARD_WAVE_MANIFEST_SHA256
+        );
+        assert_eq!(compute_generated_surql_sha256(), GENERATED_SURREALQL_SHA256);
+
+        let mut reordered = SOURCE_WAVE_FILES.to_vec();
+        reordered.swap(0, 1);
+        assert_ne!(
+            compute_manifest_hash(&reordered),
+            SOURCE_FORWARD_WAVE_MANIFEST_SHA256
+        );
+
+        let altered = [("0001_init.sql", b"changed".as_slice())];
+        assert_ne!(
+            compute_manifest_hash(&altered),
+            SOURCE_FORWARD_WAVE_MANIFEST_SHA256
+        );
+        assert_ne!(
+            sha256_hex(format!("{SCHEMA}\n").as_bytes()),
+            GENERATED_SURREALQL_SHA256
+        );
+    }
+
+    #[test]
+    fn canonical_info_sorts_named_catalog_entries_but_preserves_index_column_order() {
+        let left = serde_json::json!({
+            "indexes": [
+                { "name": "z", "cols": ["first", "second"] },
+                { "name": "a", "cols": ["only"] },
+            ]
+        });
+        let reordered_catalog = serde_json::json!({
+            "indexes": [
+                { "name": "a", "cols": ["only"] },
+                { "name": "z", "cols": ["first", "second"] },
+            ]
+        });
+        let changed_index_order = serde_json::json!({
+            "indexes": [
+                { "name": "a", "cols": ["only"] },
+                { "name": "z", "cols": ["second", "first"] },
+            ]
+        });
+
+        assert_eq!(
+            canonicalize_info(left.clone().into_value()),
+            canonicalize_info(reordered_catalog.into_value())
+        );
+        assert_ne!(
+            canonicalize_info(left.into_value()),
+            canonicalize_info(changed_index_order.into_value())
+        );
+    }
+
+    #[test]
+    fn schema_contract_is_wave_scoped_and_identity_safe() {
+        assert_eq!(
+            TABLE_DEFINITION_COUNT,
+            SOURCE_TABLE_COUNT + SOURCE_VIEW_COUNT + SURREAL_BOOTSTRAP_STATE_TABLE_COUNT
+        );
+        assert_eq!(
+            INDEX_DEFINITION_COUNT,
+            SOURCE_NAMED_INDEX_COUNT
+                + SURREAL_PRIMARY_KEY_INDEX_COUNT
+                + SURREAL_BOOTSTRAP_STATE_INDEX_COUNT
+        );
+        assert_eq!(
+            SCHEMA.matches("DEFINE TABLE OVERWRITE ").count(),
+            TABLE_DEFINITION_COUNT
+        );
+        assert_eq!(
+            SCHEMA.matches("DEFINE FIELD OVERWRITE ").count(),
+            AUTHORED_FIELD_DEFINITION_COUNT
+        );
+        assert_eq!(
+            SCHEMA.matches(" FLEXIBLE").count(),
+            FLEXIBLE_FIELD_DEFINITION_COUNT
+        );
+        let mut expected_type_any_wildcards = std::collections::BTreeSet::new();
+        for definition in SCHEMA.lines().filter(|line| {
+            line.starts_with("DEFINE FIELD OVERWRITE ") && line.contains(" FLEXIBLE")
+        }) {
+            let parts = definition.split_whitespace().collect::<Vec<_>>();
+            let field = parts[3];
+            let table = parts[6];
+            let collection_depth =
+                definition.matches("array<").count() + definition.matches("set<").count();
+            let wildcard = format!(
+                "DEFINE FIELD OVERWRITE {field}{} ON TABLE {table} TYPE any;",
+                ".*".repeat(collection_depth + 1)
+            );
+            assert!(
+                expected_type_any_wildcards.insert(wildcard.clone()),
+                "duplicate expected SCHEMAFULL wildcard: {wildcard}"
+            );
+            assert!(
+                SCHEMA.lines().any(|line| line == wildcard),
+                "missing SCHEMAFULL wildcard for {table}.{field}: {wildcard}"
+            );
+        }
+        for definition in SCHEMA.lines().filter(|line| {
+            line.starts_with("DEFINE FIELD OVERWRITE ")
+                && (line.contains(" TYPE array;")
+                    || line.contains(" TYPE array DEFAULT")
+                    || line.contains(" TYPE option<array>;")
+                    || line.contains(" TYPE option<array> DEFAULT"))
+        }) {
+            let parts = definition.split_whitespace().collect::<Vec<_>>();
+            let field = parts[3];
+            let table = parts[6];
+            let wildcard = format!("DEFINE FIELD OVERWRITE {field}.* ON TABLE {table} TYPE any;");
+            assert!(
+                expected_type_any_wildcards.insert(wildcard.clone()),
+                "duplicate expected untyped-array wildcard: {wildcard}"
+            );
+            assert!(
+                SCHEMA.lines().any(|line| line == wildcard),
+                "missing SCHEMAFULL wildcard for {table}.{field}: {wildcard}"
+            );
+        }
+        assert_eq!(
+            expected_type_any_wildcards.len(),
+            FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT
+        );
+        let type_any_definitions = SCHEMA
+            .lines()
+            .filter(|line| line.contains("TYPE any"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            type_any_definitions.len(),
+            FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT
+        );
+        for definition in type_any_definitions {
+            assert!(
+                expected_type_any_wildcards.remove(definition),
+                "unauthorized TYPE any definition: {definition}"
+            );
+        }
+        assert!(
+            expected_type_any_wildcards.is_empty(),
+            "missing expected TYPE any wildcards: {expected_type_any_wildcards:?}"
+        );
+        assert_eq!(
+            generated_collection_subtype_field_count(SCHEMA),
+            ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT
+        );
+        assert_eq!(
+            FIELD_DEFINITION_COUNT,
+            AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT
+        );
+        assert!(!SCHEMA.contains("array<any>"));
+        assert!(!SCHEMA.contains("set<any>"));
+        assert_eq!(
+            SCHEMA.matches("DEFINE INDEX OVERWRITE ").count(),
+            INDEX_DEFINITION_COUNT
+        );
+        assert_eq!(
+            SCHEMA.matches("REFERENCE ON DELETE ").count(),
+            REFERENCE_FIELD_COUNT
+        );
+        assert_eq!(
+            SCHEMA.matches("record::exists($value)").count(),
+            REFERENCE_FIELD_COUNT
+        );
+        assert_eq!(RECORD_ID_ONLY_TABLES.len(), 17);
+
+        for (table, field) in REFERENCED_BUSINESS_KEY_ALIASES {
+            let definition = SCHEMA
+                .lines()
+                .find(|line| {
+                    line.starts_with(&format!(
+                        "DEFINE FIELD OVERWRITE {field} ON TABLE {table} TYPE"
+                    ))
+                })
+                .unwrap_or_else(|| panic!("missing business-key alias {table}.{field}"));
+            assert!(definition.contains("ASSERT $value = record::id($this.id)"));
+        }
+        assert_eq!(
+            SCHEMA.matches("record::id($this.id)").count(),
+            RECORD_ID_ALIAS_ASSERTION_COUNT
+        );
+        for required_table in [
+            "atelier_character",
+            "atelier_source_evidence_record",
+            "atelier_contact_sheet_raster_export_plan",
+            "atelier_story_beat",
+        ] {
+            assert!(SCHEMA.contains(&format!(
+                "DEFINE TABLE OVERWRITE {required_table} SCHEMAFULL PERMISSIONS NONE;"
+            )));
+        }
+        assert!(SCHEMA.contains(
+            "record::exists(type::record('atelier_source_evidence_record', [$this.matrix_id, $value]))"
+        ));
+        assert!(SCHEMA.contains("cascade_atelier_source_evidence_record"));
+        assert!(!SCHEMA.contains("apply_state = 'applying'"));
+        assert!(SCHEMA.contains("HANDSHAKE_SURREAL_SCHEMA_DATABASE_NOT_EMPTY"));
+        for database_category in [
+            "accesses",
+            "analyzers",
+            "apis",
+            "buckets",
+            "configs",
+            "functions",
+            "models",
+            "modules",
+            "params",
+            "sequences",
+            "tables",
+            "users",
+        ] {
+            assert!(SCHEMA.contains(&format!(
+                "array::len($existing_database.{database_category}) != 0"
+            )));
+        }
+        assert!(SCHEMA.contains("generated_surql_sha256"));
+        assert!(SCHEMA.contains("BEGIN TRANSACTION;"));
+        assert!(SCHEMA.contains("COMMIT TRANSACTION;"));
+        assert!(!SCHEMA.to_ascii_lowercase().contains("jsonb"));
+    }
+
+    #[tokio::test]
+    async fn bootstrap_is_concurrent_restart_safe_and_receipt_is_live() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+
+        let left = storage.clone();
+        let right = storage.clone();
+        let (left_report, right_report) =
+            tokio::join!(bootstrap_schema(&left), bootstrap_schema(&right),);
+        let left_report = left_report.expect("left bootstrap");
+        let right_report = right_report.expect("right bootstrap");
+        assert_ne!(
+            left_report.reused_existing_schema,
+            right_report.reused_existing_schema
+        );
+        for report in [&left_report, &right_report] {
+            assert_eq!(report.schema_version, SCHEMA_VERSION);
+            assert_eq!(
+                report.source_manifest_sha256,
+                SOURCE_FORWARD_WAVE_MANIFEST_SHA256
+            );
+            assert_eq!(report.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
+            assert_eq!(report.info_fingerprint_sha256.len(), 64);
+            assert_eq!(report.tables_defined, TABLE_DEFINITION_COUNT);
+            assert_eq!(report.fields_defined, FIELD_DEFINITION_COUNT);
+            assert_eq!(report.indexes_defined, INDEX_DEFINITION_COUNT);
+            assert_eq!(report.table_names.len(), TABLE_DEFINITION_COUNT);
+        }
+        let before_restart = index_names(&storage, "kernel_event_ledger")
+            .await
+            .expect("pre-restart INFO");
+        storage.shutdown().await.expect("close first store");
+
+        let reopened = open_test_storage(&directory).await.expect("reopen store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("exact-current restart");
+        assert!(restarted.reused_existing_schema);
+        assert_eq!(
+            before_restart,
+            index_names(&reopened, "kernel_event_ledger")
+                .await
+                .expect("post-restart INFO")
+        );
+        reopened.shutdown().await.expect("close reopened store");
+    }
+
+    #[tokio::test]
+    async fn bootstrap_resumes_exact_current_schema_applied_state() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            SCHEMA,
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: SCHEMA_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SOURCE_FORWARD_WAVE_MANIFEST_SHA256
+                                    .to_owned(),
+                                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                            },
+                        )
+                        .await?;
+                    let pending = read_context_and_state(&database)
+                        .await?
+                        .expect("schema transaction must write pending state");
+                    assert!(pending.is_schema_applied_current());
+                    Ok(())
+                })
+            })
+            .await
+            .expect("install schema without finalization");
+
+        let resumed = bootstrap_schema(&storage)
+            .await
+            .expect("resume exact-current schema_applied state");
+        assert!(resumed.reused_existing_schema);
+        assert_eq!(resumed.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let finalized = read_context_and_state(&database)
+                        .await?
+                        .expect("finalized state must exist");
+                    assert!(finalized.is_exact_current());
+                    Ok(())
+                })
+            })
+            .await
+            .expect("post-verify finalized state");
+        storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn fresh_bootstrap_rejects_and_preserves_preexisting_data() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query("CREATE preexisting:keep SET marker = 'untouched';")
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed pre-existing record");
+
+        let error = bootstrap_schema(&storage)
+            .await
+            .expect_err("non-empty database must be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("HANDSHAKE_SURREAL_SCHEMA_DATABASE_NOT_EMPTY"),
+            "unexpected non-empty database error: {error}"
+        );
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database.query("RETURN preexisting:keep.marker;").await?;
+                    let marker: Option<String> = response.take(0)?;
+                    let marker = marker.expect("pre-existing marker must remain readable");
+                    assert_eq!(marker, "untouched");
+                    Ok(())
+                })
+            })
+            .await
+            .expect("pre-existing record remains intact");
+        storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn bootstrap_rejects_lower_or_divergent_lineage() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "DEFINE TABLE handshake_schema_state SCHEMALESS; \
+                             CREATE handshake_schema_state:primary CONTENT {{ \
+                               version: '{SCHEMA_VERSION}', revision: 28, \
+                               namespace: '{DEFAULT_NAMESPACE}', database: '{DEFAULT_DATABASE}', \
+                               source_manifest_sha256: '{SOURCE_FORWARD_WAVE_MANIFEST_SHA256}', \
+                               generated_surql_sha256: '{GENERATED_SURREALQL_SHA256}', \
+                               info_fingerprint_sha256: '0000000000000000000000000000000000000000000000000000000000000000', \
+                               apply_state: 'complete', target_revision: 28 \
+                             }};"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed lower lineage");
+
+        let error = bootstrap_schema(&storage)
+            .await
+            .expect_err("lower lineage must fail closed");
+        assert!(error
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"));
+        storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn exact_current_bootstrap_rejects_complete_info_tampering() {
+        let tamper_queries = [
+            (
+                "index definition",
+                "DEFINE INDEX OVERWRITE idx_ai_jobs_gc ON TABLE ai_jobs FIELDS created_at, status, is_pinned;",
+            ),
+            ("sequence removal", "REMOVE SEQUENCE kernel_event_sequence;"),
+            (
+                "field assertion",
+                "DEFINE FIELD OVERWRITE size_bytes ON TABLE assets TYPE int ASSERT $value >= -1;",
+            ),
+        ];
+
+        for (label, tamper_query) in tamper_queries {
+            let directory = tempfile::tempdir().expect("temporary Surreal directory");
+            let storage = open_test_storage(&directory)
+                .await
+                .expect("open fresh store");
+            bootstrap_schema(&storage).await.expect("bootstrap schema");
+            storage
+                .with_admin_operation(|database| {
+                    Box::pin(async move {
+                        database.query(tamper_query).await?;
+                        Ok(())
+                    })
+                })
+                .await
+                .unwrap_or_else(|error| panic!("apply {label} tamper: {error}"));
+
+            let error = match bootstrap_schema(&storage).await {
+                Ok(_) => panic!("{label} tamper must be rejected"),
+                Err(error) => error,
+            };
+            assert!(
+                error
+                    .to_string()
+                    .contains("HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH"),
+                "unexpected {label} verdict: {error}"
+            );
+            storage.shutdown().await.expect("close store");
+        }
+    }
+
+    #[tokio::test]
+    async fn native_json_fields_round_trip_real_domain_serialization_and_reject_wrong_shapes() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+
+        let metrics = JobMetrics::zero();
+        let entity_refs = vec![EntityRef {
+            entity_id: "document:serde".to_owned(),
+            entity_kind: "document".to_owned(),
+        }];
+        let planned_operations = vec![PlannedOperation {
+            op_type: OperationType::Read,
+            target: entity_refs[0].clone(),
+            description: Some("read representative document".to_owned()),
+        }];
+        let metrics_json = serde_json::to_value(&metrics).expect("serialize JobMetrics");
+        let entity_refs_json =
+            serde_json::to_value(&entity_refs).expect("serialize EntityRef list");
+        let planned_operations_json =
+            serde_json::to_value(&planned_operations).expect("serialize PlannedOperation list");
+        let job_inputs_json = serde_json::json!({ "document_id": "serde" });
+        let expected = serde_json::json!({
+            "entity_refs": entity_refs_json,
+            "planned_operations": planned_operations_json,
+            "metrics": metrics_json,
+            "job_inputs": job_inputs_json,
+        });
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query_bound(
+                            "CREATE ai_jobs:json_roundtrip SET \
+                               trace_id = '00000000-0000-0000-0000-000000000001', \
+                               job_kind = 'manual_prompt', status = 'queued', \
+                               protocol_id = 'test', profile_id = 'test', \
+                               capability_profile_id = 'test', access_mode = 'read_only', \
+                               safety_mode = 'strict', entity_refs = $entity_refs, \
+                               planned_operations = $planned_operations, metrics = $metrics, \
+                               job_inputs = $job_inputs; \
+                             RETURN { \
+                               entity_refs: ai_jobs:json_roundtrip.entity_refs, \
+                               planned_operations: ai_jobs:json_roundtrip.planned_operations, \
+                               metrics: ai_jobs:json_roundtrip.metrics, \
+                               job_inputs: ai_jobs:json_roundtrip.job_inputs \
+                             };",
+                            NativeJsonBindings {
+                                entity_refs: expected["entity_refs"].clone(),
+                                planned_operations: expected["planned_operations"].clone(),
+                                metrics: expected["metrics"].clone(),
+                                job_inputs: expected["job_inputs"].clone(),
+                            },
+                        )
+                        .await?;
+                    let observed: Option<JsonValue> = response.take(1)?;
+                    let observed = observed.expect("native JSON readback must exist");
+                    assert_eq!(observed, expected);
+                    let restored_metrics: JobMetrics =
+                        serde_json::from_value(observed["metrics"].clone())
+                            .expect("deserialize JobMetrics readback");
+                    assert_eq!(
+                        serde_json::to_value(restored_metrics).expect("reserialize JobMetrics"),
+                        expected["metrics"]
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("native JSON bind and readback");
+
+        for (label, wrong_shape) in [
+            (
+                "metrics string",
+                "UPDATE ai_jobs:json_roundtrip SET metrics = 'not-an-object';",
+            ),
+            (
+                "entity refs object",
+                "UPDATE ai_jobs:json_roundtrip SET entity_refs = {};",
+            ),
+            (
+                "job inputs array",
+                "UPDATE ai_jobs:json_roundtrip SET job_inputs = [];",
+            ),
+        ] {
+            let result = storage
+                .with_admin_operation(|database| {
+                    Box::pin(async move {
+                        database.query(wrong_shape).await?;
+                        Ok(())
+                    })
+                })
+                .await;
+            assert!(result.is_err(), "{label} must fail SCHEMAFULL validation");
+        }
+        storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn record_references_reject_orphans_and_preserve_identity_semantics() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+
+        let orphan = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(
+                            "CREATE documents:orphan SET \
+                             workspace_id = workspaces:missing, title = 'orphan';",
+                        )
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await;
+        assert!(
+            orphan.is_err(),
+            "required orphan reference must be rejected"
+        );
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query(
+                            "CREATE workspaces:identity SET name = 'Identity'; \
+                             CREATE documents:child SET workspace_id = workspaces:identity, title = 'Child'; \
+                             CREATE blocks:grandchild SET document_id = documents:child, \
+                               kind = 'paragraph', sequence = 0, raw_content = 'raw', \
+                               display_content = 'display', derived_content = {}; \
+                             RETURN documents:child.workspace_id.name; \
+                             DELETE workspaces:identity; \
+                             RETURN record::exists(documents:child); \
+                             RETURN record::exists(blocks:grandchild);",
+                        )
+                        .await?;
+                    let dereferenced_name: Option<String> = response.take(3)?;
+                    let child_remains: Option<bool> = response.take(5)?;
+                    let grandchild_remains: Option<bool> = response.take(6)?;
+                    let dereferenced_name =
+                        dereferenced_name.expect("dereferenced workspace name must exist");
+                    let child_remains = child_remains.expect("child existence result must exist");
+                    let grandchild_remains =
+                        grandchild_remains.expect("grandchild existence result must exist");
+                    assert_eq!(dereferenced_name, "Identity");
+                    assert!(!child_remains, "cascade must remove the referring record");
+                    assert!(
+                        !grandchild_remains,
+                        "multi-hop cascade must remove the grandchild record"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("identity, dereference, and delete behavior");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(
+                            "CREATE work_packets:wp_identity SET \
+                             wp_id = 'wp_identity', version = 1, title = 'Identity', \
+                             status = 'ready', priority = 1, task_board_status = 'ready', \
+                             reporter = 'test', created_at = 'now', updated_at = 'now', \
+                             vector_clock = '{}', metadata = '{}';",
+                        )
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("matching business-key alias");
+        let identity_change = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query("UPDATE work_packets:wp_identity SET wp_id = 'different';")
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await;
+        assert!(
+            identity_change.is_err(),
+            "business-key alias must be immutable"
+        );
+        storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn optional_unset_and_reject_self_references_enforce_delete_contracts() {
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query(
+                            "CREATE workspaces:unset_ws SET name = 'Unset'; \
+                             CREATE assets:unset_asset SET asset_id = 'unset_asset', \
+                               workspace_id = workspaces:unset_ws, kind = 'file', \
+                               mime = 'text/plain', content_hash = 'unset-hash', size_bytes = 1; \
+                             CREATE loom_blocks:unset_block SET block_id = 'unset_block', \
+                               workspace_id = workspaces:unset_ws, content_type = 'file', \
+                               asset_id = assets:unset_asset, derived_json = {}; \
+                             DELETE assets:unset_asset; \
+                             RETURN record::exists(loom_blocks:unset_block); \
+                             RETURN loom_blocks:unset_block.asset_id = NONE;",
+                        )
+                        .await?;
+                    let block_remains: Option<bool> = response.take(4)?;
+                    let reference_was_unset: Option<bool> = response.take(5)?;
+                    let block_remains = block_remains.expect("block existence result must exist");
+                    let reference_was_unset =
+                        reference_was_unset.expect("UNSET comparison result must exist");
+                    assert!(block_remains);
+                    assert!(reference_was_unset);
+                    Ok(())
+                })
+            })
+            .await
+            .expect("optional reference ON DELETE UNSET");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(
+                            "CREATE adapter_checkpoint:parent SET created_at = 'now', \
+                               base_model_name = 'base', adapter_type = 'lora', rank_r = 8, \
+                               alpha = 16, learning_rate = 0.001, precision = 'f16', \
+                               path = 'parent'; \
+                             CREATE adapter_checkpoint:child SET created_at = 'now', \
+                               parent_checkpoint_id = adapter_checkpoint:parent, \
+                               base_model_name = 'base', adapter_type = 'lora', rank_r = 8, \
+                               alpha = 16, learning_rate = 0.001, precision = 'f16', \
+                               path = 'child';",
+                        )
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("valid adapter self-reference");
+        let rejected_delete = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database.query("DELETE adapter_checkpoint:parent;").await?;
+                    Ok(())
+                })
+            })
+            .await;
+        assert!(
+            rejected_delete.is_err(),
+            "REJECT must protect referenced parent"
+        );
+        let orphan_self_reference = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(
+                            "CREATE adapter_checkpoint:orphan SET created_at = 'now', \
+                               parent_checkpoint_id = adapter_checkpoint:missing, \
+                               base_model_name = 'base', adapter_type = 'lora', rank_r = 8, \
+                               alpha = 16, learning_rate = 0.001, precision = 'f16', \
+                               path = 'orphan';",
+                        )
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await;
+        assert!(
+            orphan_self_reference.is_err(),
+            "self-reference must target an existing adapter"
+        );
+        storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn uuid_backed_record_ids_reject_textual_identity_aliases() {
+        const THREAD_UUID: &str = "018f0000-0000-7000-8000-000000000001";
+        const MESSAGE_UUID: &str = "018f0000-0000-7000-8000-000000000002";
+        const OTHER_UUID: &str = "018f0000-0000-7000-8000-000000000003";
+
+        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open fresh store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query(format!(
+                            "CREATE role_mailbox_thread:u'{THREAD_UUID}' SET \
+                               thread_id = u'{THREAD_UUID}', title = 'Typed UUID', \
+                               linked_record_kind = 'test', lifecycle_state = 'open', \
+                               claim_mode = 'exclusive', takeover_policy = 'reject', \
+                               response_authority_scope = 'thread'; \
+                             CREATE role_mailbox_message:u'{MESSAGE_UUID}' SET \
+                               message_id = u'{MESSAGE_UUID}', \
+                               thread_id = role_mailbox_thread:u'{THREAD_UUID}', \
+                               message_type = 'request', from_role = 'tester', \
+                               delivery_state = 'queued', body = {{ purpose: 'uuid-proof' }}; \
+                             RETURN record::id(role_mailbox_thread:u'{THREAD_UUID}');"
+                        ))
+                        .await?;
+                    let observed_id: Option<uuid::Uuid> = response.take(2)?;
+                    let observed_id = observed_id.expect("typed UUID record id must exist");
+                    assert_eq!(observed_id.to_string(), THREAD_UUID);
+                    Ok(())
+                })
+            })
+            .await
+            .expect("typed UUID record identity and reference");
+
+        for (label, invalid_query) in [
+            (
+                "textual reference to UUID-backed target",
+                format!(
+                    "CREATE role_mailbox_message:u'{OTHER_UUID}' SET \
+                       message_id = u'{OTHER_UUID}', \
+                       thread_id = role_mailbox_thread:'{THREAD_UUID}', \
+                       message_type = 'request', from_role = 'tester', \
+                       delivery_state = 'queued', body = {{}};"
+                ),
+            ),
+            (
+                "textual record ID with typed UUID alias",
+                format!(
+                    "CREATE role_mailbox_thread:'{OTHER_UUID}' SET \
+                       thread_id = u'{OTHER_UUID}', title = 'Wrong key kind', \
+                       linked_record_kind = 'test', lifecycle_state = 'open', \
+                       claim_mode = 'exclusive', takeover_policy = 'reject', \
+                       response_authority_scope = 'thread';"
+                ),
+            ),
+        ] {
+            let result = storage
+                .with_admin_operation(|database| {
+                    Box::pin(async move {
+                        database.query(invalid_query).await?;
+                        Ok(())
+                    })
+                })
+                .await;
+            assert!(result.is_err(), "{label} must be rejected");
+        }
+        storage.shutdown().await.expect("close store");
+    }
+}

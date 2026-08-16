@@ -116,6 +116,11 @@ pub struct DeclaredIdentity {
 /// one address and force agents to depend on tree order.
 #[allow(dead_code)]
 pub const DECLARED_HASHED_AUTHOR_IDS: &[&str] = &[
+    crate::app::WORKSPACE_ROOT_DIALOG_AUTHOR_ID,
+    crate::app::WORKSPACE_ROOT_PATH_AUTHOR_ID,
+    crate::app::WORKSPACE_ROOT_APPLY_AUTHOR_ID,
+    crate::app::WORKSPACE_ROOT_CANCEL_AUTHOR_ID,
+    crate::app::WORKSPACE_ROOT_STATUS_AUTHOR_ID,
     STAGE_PANE_AUTHOR_ID,
     STAGE_ROUTED_CONTENT_AUTHOR_ID,
     STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,

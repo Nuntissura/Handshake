@@ -1,12 +1,12 @@
 ---
 file_id: handshake-native-bundled-deps-policy
 file_kind: operator_prose_installer_policy
-updated_at: 2026-06-21
-wp: WP-KERNEL-011
+updated_at: 2026-08-15
+wp: WP-KERNEL-012
 mt: MT-031
 ---
 
-<topic id="purpose" wp="WP-KERNEL-011" summary="What the single-installer policy guarantees">
+<topic id="purpose" wp="WP-KERNEL-012" summary="What the single-installer policy guarantees">
 
 # Single-Installer Bundled-Deps Policy (CX-008-VIS)
 
@@ -14,7 +14,7 @@ Handshake ships as ONE installable artifact that bundles every runtime dependenc
 profile can install and launch the native shell with ZERO external prerequisites:
 
 - no system WebView2 runtime (the native shell uses wgpu/egui, not a webview);
-- no separately-installed PostgreSQL (the managed cluster binaries ship inside the bundle);
+- no separately installed or bundled database server (SurrealDB runs in-process in `handshake_core.exe`);
 - no CDN / network download at install time or first launch (fonts, grammars, runtime assets all bundled).
 
 This file is the human-reviewable policy and build manual for that guarantee (HBR-MAN). It is referenced
@@ -23,7 +23,7 @@ and `tests/test_single_binary.rs` (font provenance + CRT-static + MAX_PATH build
 
 </topic>
 
-<topic id="bundle-layout" wp="WP-KERNEL-011" summary="Exe-relative asset layout the installer stages and the runtime verifies">
+<topic id="bundle-layout" wp="WP-KERNEL-012" summary="Exe-relative asset layout the installer stages and the runtime verifies">
 
 # Bundle Layout (exe-relative)
 
@@ -35,54 +35,38 @@ stay in sync with that constant (the constant is authoritative).
 ```text
 <install_dir>/
   handshake-native.exe          # the single native shell binary (crt-static, no non-system DLLs)
-  bundled/
-    postgres/
-      pg_ctl.exe                # managed-postgres anchor binary (+ initdb/pg_isready/psql/postgres.exe + lib/share)
+  handshake_core.exe            # backend with in-process embedded SurrealDB
+  palmistry.exe                 # external crash/freeze watcher
   fonts/
     Inter-Regular.ttf           # bundled UI fonts (MT-004); >= 1 .ttf/.otf required
     Inter-Bold.ttf
     OFL.txt
   grammars/                     # tree-sitter syntax grammars; may be empty on first pass (dir must exist)
+  licenses/
+    SurrealDB-3.0-BUSL-1.1.txt
+    SurrealDB-Protocol-2.0-BUSL-1.1.txt
 ```
 
 </topic>
 
-<topic id="managed-postgres-path-contract" wp="WP-KERNEL-011" status="DONE" summary="How bundled postgres binaries are auto-discovered at runtime">
+<topic id="embedded-surrealdb-contract" wp="WP-KERNEL-012" status="active" summary="SurrealDB requires no external database payload or service">
 
-# Managed-PostgreSQL Path Contract (RISK-031-01)
+# Embedded SurrealDB Contract
 
-`handshake_core::managed_postgres` (`src/backend/handshake_core/src/managed_postgres.rs`) resolves
-`pg_ctl`/`initdb`/`pg_isready`/`psql` via this `bin_dir` precedence, highest first:
+`handshake_core.exe` contains the SurrealDB engine as an in-process Rust dependency. Packaging therefore:
 
-1. `HANDSHAKE_MANAGED_PG_BIN` env var (operator override; the constant `managed_postgres::MANAGED_PG_BIN_ENV`);
-2. the standard `PGBIN` env var;
-3. **exe-relative auto-discovery** of `<exe_dir>/bundled/postgres` — used automatically when its `pg_ctl`
-   (`pg_ctl.exe` on Windows) actually exists there;
-4. empty `bin_dir`, which falls through inside `resolve_bin` to `PGBIN` / the fixed Windows default install
-   path / `PATH`.
+1. stages `handshake_core.exe` beside `handshake-native.exe`;
+2. does not discover or consume database binary environment variables;
+3. does not create a database bundle directory or placeholder executable;
+4. does not install or start a database service; and
+5. ships the exact SurrealDB BUSL notices in `installer/windows/licenses/`.
 
-The single-installer guarantee therefore now requires only ONE installer-side piece:
-
-1. The installer stages the postgres binaries at the exe-relative path `bundled/postgres/`
-   (done by `build_installer.ps1` and verified by `installer::check_bundle_integrity`).
-
-`handshake_core` startup **no longer needs to export `HANDSHAKE_MANAGED_PG_BIN`/`PGBIN`**: when Handshake
-runs as an installed app, `ManagedPostgresConfig::from_env` auto-discovers `<exe_dir>/bundled/postgres`
-(via `current_exe()` -> `bundled_bin_dir`) and uses it as `bin_dir`. The discovery is exe-relative and
-disk-agnostic (no hardcoded absolute path), and is gated on `pg_ctl` actually existing there, so a
-non-bundled / dev build silently falls through to `PATH`/default behavior. An operator may still override
-with `HANDSHAKE_MANAGED_PG_BIN` (it wins over the bundle). An incomplete bundle (`pg_ctl` present but a
-sibling like `initdb` missing) hard-errors via `resolve_bin` step 1 rather than silently using a
-different-version system PostgreSQL.
-
-**Status: DONE.** The backend wiring (the previous single follow-up) has landed: `bundled_bin_dir` /
-`bundled_bin_dir_from_current_exe` plus the `from_env` precedence change, covered by unit tests in
-`managed_postgres.rs`. `bundled/postgres/` remains the staged, verified location; the runtime self-check
-still fails if it is missing (HBR-STOP).
+`installer::check_bundle_integrity` requires the backend binary itself. `bundled_deps_audit.rs` rejects
+legacy PostgreSQL utilities, SQLite utilities, a standalone `surreal.exe`, and `bundled/postgres/`.
 
 </topic>
 
-<topic id="installer-tooling-decision" wp="WP-KERNEL-011" summary="WiX chosen; zip fallback; toolchain gating on this host">
+<topic id="installer-tooling-decision" wp="WP-KERNEL-012" summary="WiX chosen; zip fallback; toolchain gating">
 
 # Installer Tooling Decision
 
@@ -91,13 +75,10 @@ ships a built-in `HarvestDirectory` that pulls the whole staging tree into the M
 when assets change), and produces a signed-installable `.msi`. NSIS is a documented alternative; the
 `build_installer.ps1` zip fallback is always available so the smoke can complete on any host.
 
-## Toolchain gating on this build host (verified 2026-06-21)
+## Toolchain gating
 
-The WiX toolchain is **NOT installed** on this host: `wix --version`, `cargo wix --version`, legacy
-`candle.exe`/`light.exe`, and `makensis` are all absent (`dotnet` IS present). The real MSI build step in
-`build_installer.ps1` is therefore GATED to run only when `wix` (or `cargo wix`) is on PATH — mirroring
-the GPU / live-desktop `#[ignore]` gating used elsewhere in WP-KERNEL-011. On this host the script
-produces `handshake-setup.zip` (a single self-contained artifact) instead of faking an `.msi`.
+The real MSI build step in `build_installer.ps1` is gated on `wix` being available. When it is absent,
+the script produces `handshake-setup.zip` (a single self-contained artifact) instead of faking an `.msi`.
 
 ## Build the MSI on a WiX-equipped host
 
@@ -112,7 +93,7 @@ of `handshake_native.wxs`.
 
 </topic>
 
-<topic id="build-path-max-path" wp="WP-KERNEL-011" summary="Where release-native build output is allocated">
+<topic id="build-path-max-path" wp="WP-KERNEL-012" summary="Where release-native build output is allocated">
 
 # release-native artifact allocation
 
@@ -123,7 +104,7 @@ TEMP directory, drive root, repo-local `target`, or another machine-global path.
 
 </topic>
 
-<topic id="font-provenance" wp="WP-KERNEL-011" summary="Bundled font identity and license">
+<topic id="font-provenance" wp="WP-KERNEL-012" summary="Bundled font identity and license">
 
 # Font provenance
 
@@ -136,16 +117,14 @@ font is caught:
 
 </topic>
 
-<topic id="ci-prerequisites" wp="WP-KERNEL-011" summary="What a CI runner needs to build the installer">
+<topic id="ci-prerequisites" wp="WP-KERNEL-012" summary="What a CI runner needs to build the installer">
 
 # CI / build prerequisites
 
-- Rust stable toolchain (rustc 1.91.1 pin), `cargo` on PATH.
+- Repo-pinned Rust toolchain, `cargo` on PATH.
 - PowerShell 7 (`pwsh`) for `build_installer.ps1`.
 - A writable project-allocated `Handshake_Artifacts` root; the script derives the release target.
 - OPTIONAL: WiX 4/5 (`dotnet tool install --global wix`) for the `.msi`. Absent it, the script emits a zip.
-- OPTIONAL: PostgreSQL binaries to stage under `bundled/postgres/`. If the host has no postgres toolchain,
-  `build_installer.ps1` stages a minimal placeholder so the bundle layout is correct and the smoke can
-  run; a real release MUST stage the actual managed-postgres binaries (see managed-postgres-path-contract).
+- No database server toolchain is a prerequisite. SurrealDB compiles into `handshake_core.exe`.
 
 </topic>

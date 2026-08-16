@@ -166,6 +166,35 @@ fn proof_log_path() -> PathBuf {
 
 const MT043_PARENT_PID_ENV: &str = "HSK_MT043_PARENT_PID";
 const MT043_ATTEMPT_ID_ENV: &str = "HSK_MT043_ATTEMPT_ID";
+const MT043_LIVE_CHILD_ENV: &str = "HSK_MT043_LIVE_CHILD";
+const MT128_CHILD_BUDGET_ENV: &str = "HSK_MT128_CHILD_BUDGET_MS";
+const MT128_FORCE_STALL_ENV: &str = "HSK_MT128_FORCE_STALL_MS";
+// MT-128's loaded child observation was 57.43s. The canonical 120s budget adds 62.57s (109%)
+// measured headroom while retaining a finite bound. The environment override is lower-only and exists
+// solely so the forced-stall proof can exercise the reap path without waiting two minutes.
+const MT128_MEASURED_LOADED_CHILD_MS: u64 = 57_430;
+const MT128_MEASURED_HEADROOM_MS: u64 = 62_570;
+const MT128_DEFAULT_CHILD_BUDGET_MS: u64 =
+    MT128_MEASURED_LOADED_CHILD_MS + MT128_MEASURED_HEADROOM_MS;
+const MT128_REAP_AND_CLEANUP_RESERVE: Duration = Duration::from_secs(6);
+const MT128_DIAGNOSTIC_RESERVE: Duration = Duration::from_millis(250);
+
+fn mt128_child_budget() -> Duration {
+    let configured_ms = std::env::var(MT128_CHILD_BUDGET_ENV)
+        .ok()
+        .map(|value| {
+            value.parse::<u64>().unwrap_or_else(|error| {
+                panic!("{MT128_CHILD_BUDGET_ENV} must be an unsigned millisecond duration: {error}")
+            })
+        })
+        .unwrap_or(MT128_DEFAULT_CHILD_BUDGET_MS)
+        .min(MT128_DEFAULT_CHILD_BUDGET_MS);
+    assert!(
+        configured_ms >= 250,
+        "{MT128_CHILD_BUDGET_ENV} must leave at least 250ms for deterministic child startup"
+    );
+    Duration::from_millis(configured_ms)
+}
 
 fn checked_in_proof_log_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/swarm_edit_proof_log.txt")
@@ -184,6 +213,137 @@ fn attempt_proof_log_path(attempt_id: &str) -> PathBuf {
         .expect("MT-043 proof path has a parent")
         .join("runs")
         .join(format!("{attempt_id}.txt"))
+}
+
+fn mt128_progress_path(attempt_id: &str) -> PathBuf {
+    assert!(
+        !attempt_id.is_empty()
+            && attempt_id
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')),
+        "MT-128 attempt id must be a safe filename component"
+    );
+    proof_log_path()
+        .parent()
+        .expect("MT-043 proof path has a parent")
+        .join("runs")
+        .join(format!("{attempt_id}.progress.jsonl"))
+}
+
+fn append_mt128_progress(attempt_id: &str, event: serde_json::Value) {
+    let path = mt128_progress_path(attempt_id);
+    std::fs::create_dir_all(path.parent().expect("MT-128 progress path has a parent"))
+        .expect("create MT-128 progress directory");
+    let mut line = serde_json::to_vec(&event).expect("serialize MT-128 progress event");
+    line.push(b'\n');
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .expect("open MT-128 append-only progress journal");
+    file.write_all(&line)
+        .expect("append MT-128 progress journal event");
+    file.sync_data()
+        .expect("flush MT-128 progress journal event before next proof action");
+}
+
+fn publish_mt128_last_gate(attempt_id: &str, gate: &str) {
+    append_mt128_progress(
+        attempt_id,
+        serde_json::json!({
+            "attempt_id": attempt_id,
+            "kind": "gate",
+            "gate": gate,
+            "child_pid": std::process::id(),
+        }),
+    );
+}
+
+#[derive(Debug, Default)]
+struct Mt128Progress {
+    last_gate: Option<String>,
+    workspace_id: Option<String>,
+    backend_pid: Option<u32>,
+    forced_stall_ready: bool,
+}
+
+fn read_mt128_progress(path: &Path, attempt_id: &str) -> Mt128Progress {
+    let mut progress = Mt128Progress::default();
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return progress;
+    };
+    // A process kill may interrupt the final append. JSONL makes every earlier newline-terminated
+    // record authoritative while an incomplete tail is safely ignored; there is no delete/rename gap.
+    for line in body.lines() {
+        let Ok(event) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if event["attempt_id"].as_str() != Some(attempt_id) {
+            continue;
+        }
+        match event["kind"].as_str() {
+            Some("gate") => {
+                progress.last_gate = event["gate"]
+                    .as_str()
+                    .filter(|gate| {
+                        gate.len() == 5
+                            && gate.starts_with('T')
+                            && gate[1..]
+                                .chars()
+                                .all(|character| character.is_ascii_digit())
+                    })
+                    .map(str::to_owned);
+            }
+            Some("forced_stall_ready") => {
+                progress.workspace_id = event["workspace_id"].as_str().map(str::to_owned);
+                progress.backend_pid = event["backend_pid"]
+                    .as_u64()
+                    .and_then(|pid| u32::try_from(pid).ok());
+                progress.forced_stall_ready = true;
+            }
+            _ => {}
+        }
+    }
+    progress
+}
+
+fn maybe_force_mt128_child_stall(
+    attempt_id: &str,
+    live: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+) {
+    let Some(stall_ms) = std::env::var(MT128_FORCE_STALL_ENV).ok().map(|value| {
+        value.parse::<u64>().unwrap_or_else(|error| {
+            panic!("{MT128_FORCE_STALL_ENV} must be an unsigned millisecond duration: {error}")
+        })
+    }) else {
+        return;
+    };
+    assert!(stall_ms > 0, "{MT128_FORCE_STALL_ENV} must be non-zero");
+    let backend = live.owned_backend_binding_receipt();
+    let backend_pid = backend["backend_pid"]
+        .as_u64()
+        .and_then(|pid| u32::try_from(pid).ok())
+        .expect("forced-stall proof requires a fixture-owned backend PID");
+    assert!(
+        !workspace_id.is_empty(),
+        "forced-stall proof requires a real workspace"
+    );
+    append_mt128_progress(
+        attempt_id,
+        serde_json::json!({
+            "attempt_id": attempt_id,
+            "kind": "forced_stall_ready",
+            "child_pid": std::process::id(),
+            "backend_pid": backend_pid,
+            "workspace_id": workspace_id,
+        }),
+    );
+    println!(
+        "MT128_FORCED_STALL_READY child_pid={} backend_pid={backend_pid} workspace_id={workspace_id} stall_ms={stall_ms}",
+        std::process::id()
+    );
+    std::thread::sleep(Duration::from_millis(stall_ms));
 }
 
 fn timeout_workspace_path(parent_pid: &str) -> PathBuf {
@@ -221,35 +381,151 @@ fn timeout_workspace_id(path: &Path) -> Option<String> {
         })
 }
 
-fn terminate_child_tree_bounded(child: &mut std::process::Child, budget: Duration) {
-    let deadline = Instant::now() + budget;
+#[derive(Clone, Debug)]
+struct Mt128ProcessIdentity {
+    pid: u32,
+    start_time: u64,
+}
+
+#[derive(Debug)]
+struct Mt128ReapReport {
+    tree_before: Vec<Mt128ProcessIdentity>,
+    root_identity_revalidated: bool,
+    taskkill_reaped: bool,
+    root_reaped: bool,
+    tree_reaped: bool,
+}
+
+fn mt128_process_tree(root_pid: u32) -> Vec<Mt128ProcessIdentity> {
+    let system = sysinfo::System::new_all();
+    let mut tree_pids = vec![root_pid];
+    loop {
+        let before = tree_pids.len();
+        for (pid, process) in system.processes() {
+            let pid = pid.as_u32();
+            if tree_pids.contains(&pid) {
+                continue;
+            }
+            if process
+                .parent()
+                .is_some_and(|parent| tree_pids.contains(&parent.as_u32()))
+            {
+                tree_pids.push(pid);
+            }
+        }
+        if tree_pids.len() == before {
+            break;
+        }
+    }
+    tree_pids
+        .into_iter()
+        .filter_map(|pid| {
+            system
+                .process(sysinfo::Pid::from_u32(pid))
+                .map(|process| Mt128ProcessIdentity {
+                    pid,
+                    start_time: process.start_time(),
+                })
+        })
+        .collect()
+}
+
+fn mt128_process_identities_are_gone(identities: &[Mt128ProcessIdentity]) -> bool {
+    let system = sysinfo::System::new_all();
+    identities.iter().all(|identity| {
+        !system
+            .process(sysinfo::Pid::from_u32(identity.pid))
+            .is_some_and(|process| process.start_time() == identity.start_time)
+    })
+}
+
+fn mt128_wait_for_process_before(process: &mut std::process::Child, deadline: Instant) -> bool {
+    loop {
+        match process.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Ok(None) | Err(_) => return false,
+        }
+    }
+}
+
+fn terminate_child_tree_before(
+    child: &mut std::process::Child,
+    absolute_deadline: Instant,
+) -> Mt128ReapReport {
+    let tree_before = mt128_process_tree(child.id());
+    terminate_observed_child_tree_before(child, tree_before, absolute_deadline)
+}
+
+fn terminate_observed_child_tree_before(
+    child: &mut std::process::Child,
+    tree_before: Vec<Mt128ProcessIdentity>,
+    absolute_deadline: Instant,
+) -> Mt128ReapReport {
+    let root_identity = tree_before
+        .iter()
+        .find(|identity| identity.pid == child.id())
+        .cloned();
+    let root_identity_revalidated = matches!(child.try_wait(), Ok(None))
+        && root_identity.as_ref().is_some_and(|identity| {
+            !mt128_process_identities_are_gone(std::slice::from_ref(identity))
+        });
+    let mut taskkill_reaped = true;
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        let mut taskkill = Command::new("taskkill");
-        taskkill
-            .args(["/PID", &child.id().to_string(), "/T", "/F"])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .creation_flags(0x0800_0000);
-        if let Ok(mut reaper) = taskkill.spawn() {
-            // Reserve at least half of the caller's hard budget for directly terminating and reaping
-            // the owned child if taskkill itself stalls. Otherwise taskkill can consume the entire
-            // deadline and leave `child.kill()` with no time to observe process exit.
-            let taskkill_deadline = Instant::now() + (budget / 2).min(Duration::from_millis(500));
-            while reaper.try_wait().ok().flatten().is_none() && Instant::now() < taskkill_deadline {
-                std::thread::sleep(Duration::from_millis(10));
+        if root_identity_revalidated {
+            let mut taskkill = Command::new("taskkill");
+            taskkill
+                .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .creation_flags(0x0800_0000);
+            match taskkill.spawn() {
+                Ok(mut reaper) => {
+                    let helper_deadline =
+                        (Instant::now() + Duration::from_secs(1)).min(absolute_deadline);
+                    if !mt128_wait_for_process_before(&mut reaper, helper_deadline) {
+                        let _ = reaper.kill();
+                        taskkill_reaped =
+                            mt128_wait_for_process_before(&mut reaper, absolute_deadline);
+                    }
+                }
+                Err(_) => taskkill_reaped = false,
             }
-            if reaper.try_wait().ok().flatten().is_none() {
-                let _ = reaper.kill();
-            }
+        } else {
+            // Child::kill uses the owned process handle; unlike taskkill-by-PID it cannot target a
+            // reused numeric PID. Mark tree reaping unproven and avoid issuing the unsafe PID command.
+            taskkill_reaped = false;
         }
     }
     let _ = child.kill();
-    while child.try_wait().ok().flatten().is_none() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
+    let root_reaped = mt128_wait_for_process_before(child, absolute_deadline);
+    let tree_reaped = loop {
+        let all_gone = mt128_process_identities_are_gone(&tree_before);
+        if all_gone || Instant::now() >= absolute_deadline {
+            break all_gone;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    Mt128ReapReport {
+        tree_before,
+        root_identity_revalidated,
+        taskkill_reaped,
+        root_reaped,
+        tree_reaped,
     }
+}
+
+fn terminate_child_tree_bounded(child: &mut std::process::Child, budget: Duration) -> bool {
+    let report = terminate_child_tree_before(child, Instant::now() + budget);
+    report.root_identity_revalidated
+        && report.taskkill_reaped
+        && report.root_reaped
+        && report.tree_reaped
 }
 
 /// Prefer the product workspace DELETE while the backend is still alive so its Flight Recorder purge
@@ -282,6 +558,10 @@ fn cleanup_timeout_workspace_via_api(path: &Path, budget: Duration) -> bool {
 /// Crash/timeout cleanup by exact workspace id or, if termination landed between workspace creation
 /// and sidecar publication, by the attempt-unique workspace name. The command and reap are bounded.
 fn cleanup_timeout_workspace(path: &Path, attempt_id: &str, budget: Duration) {
+    cleanup_timeout_workspace_before(path, attempt_id, Instant::now() + budget);
+}
+
+fn cleanup_timeout_workspace_before(path: &Path, attempt_id: &str, absolute_deadline: Instant) {
     assert!(
         !attempt_id.is_empty()
             && attempt_id
@@ -338,24 +618,31 @@ fn cleanup_timeout_workspace(path: &Path, attempt_id: &str, budget: Duration) {
     let mut cleanup = command
         .spawn()
         .expect("start bounded MT-043 PostgreSQL timeout cleanup");
-    let deadline = Instant::now() + budget;
+    let command_deadline = absolute_deadline
+        .checked_sub(Duration::from_millis(250))
+        .unwrap_or_else(Instant::now);
     let status = loop {
         match cleanup.try_wait() {
             Ok(Some(status)) => break status,
-            Ok(None) if Instant::now() < deadline => {
+            Ok(None) if Instant::now() < command_deadline => {
                 std::thread::sleep(Duration::from_millis(20));
             }
             Ok(None) => {
                 let _ = cleanup.kill();
-                let reap_deadline = Instant::now() + Duration::from_millis(250);
-                while cleanup.try_wait().ok().flatten().is_none() && Instant::now() < reap_deadline
-                {
-                    std::thread::sleep(Duration::from_millis(10));
-                }
-                panic!("MT-043 PostgreSQL timeout cleanup exceeded its bounded budget");
+                let reaped = mt128_wait_for_process_before(&mut cleanup, absolute_deadline);
+                assert!(
+                    reaped,
+                    "MT-043 PostgreSQL timeout cleanup helper was not reaped before the absolute deadline"
+                );
+                panic!("MT-043 PostgreSQL timeout cleanup exceeded its bounded execution budget");
             }
             Err(error) => {
                 let _ = cleanup.kill();
+                let reaped = mt128_wait_for_process_before(&mut cleanup, absolute_deadline);
+                assert!(
+                    reaped,
+                    "MT-043 PostgreSQL timeout cleanup helper was not reaped after poll failure"
+                );
                 panic!("poll MT-043 PostgreSQL timeout cleanup: {error}");
             }
         }
@@ -369,8 +656,167 @@ fn cleanup_timeout_workspace(path: &Path, attempt_id: &str, budget: Duration) {
     }
 }
 
+/// A short, read-only canonical witness used immediately before tree termination. It proves that the
+/// forced-stall workspace was real without deleting it or extending the PID-observation window by more
+/// than the caller's small deadline. Failure is returned, never panicked through the reap path.
+struct Mt128WorkspaceProbe {
+    exists: bool,
+    helper_reaped: bool,
+}
+
+fn probe_timeout_workspace_exists_before(
+    path: &Path,
+    attempt_id: &str,
+    absolute_deadline: Instant,
+) -> Mt128WorkspaceProbe {
+    let Some(workspace_id) = timeout_workspace_id(path) else {
+        return Mt128WorkspaceProbe {
+            exists: false,
+            helper_reaped: true,
+        };
+    };
+    let Some(database_url) = [
+        "HANDSHAKE_TEST_PG_DSN",
+        "HSK_PROOF_DATABASE_URL",
+        "POSTGRES_TEST_URL",
+        "DATABASE_URL",
+    ]
+    .into_iter()
+    .find_map(|name| {
+        std::env::var(name)
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+    }) else {
+        return Mt128WorkspaceProbe {
+            exists: false,
+            helper_reaped: true,
+        };
+    };
+    let workspace_predicate = format!(
+        "id = {} OR name = {}",
+        sql_literal(&workspace_id),
+        sql_literal(&format!("mt043-{attempt_id}"))
+    );
+    let sql = format!(
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM workspaces WHERE {workspace_predicate}) THEN RAISE EXCEPTION 'MT-128 forced-stall workspace missing before reap'; END IF; END $$;"
+    );
+    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
+    let mut command = Command::new(psql);
+    command
+        .arg("--no-psqlrc")
+        .arg("--set")
+        .arg("ON_ERROR_STOP=1")
+        .arg("--dbname")
+        .arg(database_url)
+        .arg("--command")
+        .arg(sql)
+        .env("PGCONNECT_TIMEOUT", "1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let Ok(mut probe) = command.spawn() else {
+        return Mt128WorkspaceProbe {
+            exists: false,
+            helper_reaped: true,
+        };
+    };
+    let command_deadline = absolute_deadline
+        .checked_sub(Duration::from_millis(100))
+        .unwrap_or_else(Instant::now);
+    loop {
+        match probe.try_wait() {
+            Ok(Some(status)) => {
+                return Mt128WorkspaceProbe {
+                    exists: status.success(),
+                    helper_reaped: true,
+                };
+            }
+            Ok(None) if Instant::now() < command_deadline => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Ok(None) | Err(_) => {
+                let _ = probe.kill();
+                return Mt128WorkspaceProbe {
+                    exists: false,
+                    helper_reaped: mt128_wait_for_process_before(&mut probe, absolute_deadline),
+                };
+            }
+        }
+    }
+}
+
 fn sql_literal(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
+}
+
+struct Mt128TimeoutCleanup {
+    progress: Mt128Progress,
+    child_alive_before: bool,
+    backend_alive_before: bool,
+    workspace_identity_matched: bool,
+    workspace_existed_before_reap: bool,
+    probe_helper_reaped: bool,
+    workspace_cleanup_verified: bool,
+    reap: Mt128ReapReport,
+}
+
+fn mt128_cleanup_timed_out_attempt(
+    child: &mut std::process::Child,
+    attempt_id: &str,
+    progress_path: &Path,
+    workspace_sidecar: &Path,
+    absolute_deadline: Instant,
+) -> Mt128TimeoutCleanup {
+    let progress = read_mt128_progress(progress_path, attempt_id);
+    let child_alive_before = child
+        .try_wait()
+        .expect("poll MT-128 child before timeout cleanup")
+        .is_none();
+    let tree_before = mt128_process_tree(child.id());
+    let backend_alive_before = progress.backend_pid.is_some_and(|backend_pid| {
+        tree_before
+            .iter()
+            .any(|identity| identity.pid == backend_pid)
+    });
+    let workspace_identity_matched =
+        progress.workspace_id.as_deref() == timeout_workspace_id(workspace_sidecar).as_deref();
+
+    // Keep pre-reap database evidence read-only and short. It cannot delete the workspace or prevent
+    // tree termination. The reaper immediately revalidates the exact root PID/start-time identity so a
+    // delayed probe cannot turn the captured PID set into a PID-reuse kill target.
+    let probe_deadline = (Instant::now() + Duration::from_millis(500)).min(absolute_deadline);
+    let pre_reap_probe = std::panic::catch_unwind(|| {
+        probe_timeout_workspace_exists_before(workspace_sidecar, attempt_id, probe_deadline)
+    })
+    .unwrap_or(Mt128WorkspaceProbe {
+        exists: false,
+        helper_reaped: true,
+    });
+    // Reap first. Reserve enough of the same absolute deadline for the unconditional PostgreSQL
+    // delete-and-absence assertion that follows, even if taskkill/root/tree verification fails.
+    let reap_deadline = absolute_deadline
+        .checked_sub(Duration::from_millis(2_250))
+        .unwrap_or(absolute_deadline);
+    let reap = terminate_observed_child_tree_before(child, tree_before, reap_deadline);
+    let workspace_cleanup = std::panic::catch_unwind(|| {
+        cleanup_timeout_workspace_before(workspace_sidecar, attempt_id, absolute_deadline)
+    });
+    let workspace_cleanup_verified = workspace_cleanup.is_ok();
+    Mt128TimeoutCleanup {
+        progress,
+        child_alive_before,
+        backend_alive_before,
+        workspace_identity_matched,
+        workspace_existed_before_reap: pre_reap_probe.exists,
+        probe_helper_reaped: pre_reap_probe.helper_reaped,
+        workspace_cleanup_verified,
+        reap,
+    }
 }
 
 // ── proof-log recorder (IN-043-07 format + CTRL-043-03 atomic PROOF_PASS) ─────────────────────────
@@ -480,7 +926,13 @@ impl ProofLog {
     /// keeps the IN-043-07 `[<timestamp>]` slot present + ordered without nondeterministic noise.
     fn ts(&mut self) -> String {
         self.seq += 1;
-        format!("T{:04}", self.seq)
+        let gate = format!("T{:04}", self.seq);
+        if self.live_authority
+            && std::env::var_os(MT043_LIVE_CHILD_ENV).as_deref() == Some(std::ffi::OsStr::new("1"))
+        {
+            publish_mt128_last_gate(&self.attempt_id, &gate);
+        }
+        gate
     }
 
     /// Record a DISPATCH line (IN-043-07): the action a swarm agent dispatched, by author_id.
@@ -1919,7 +2371,8 @@ impl Drop for Mt043NativeBindingRoot {
 
 fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     let started = Instant::now();
-    let deadline = started + Duration::from_secs(24);
+    let child_budget = mt128_child_budget();
+    let deadline = started + child_budget;
     let nonce = std::env::var(MT043_ATTEMPT_ID_ENV)
         .unwrap_or_else(|_| format!("{}-{}", std::process::id(), uuid::Uuid::new_v4()));
     let mut live_log = ProofLog::begin_live_attempt(&nonce);
@@ -1938,6 +2391,11 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     let workspace = live.create_workspace(&format!("mt043-{nonce}"));
     let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
     let timeout_workspace_sidecar = publish_timeout_workspace(&workspace_id);
+    // MT-128's RED path is deliberately non-vacuous: the fixture-owned current-source backend is
+    // healthy and the real workspace has been created and published before the injected stall begins.
+    // The parent consumes the append-only readiness record to prove those owned resources existed,
+    // then deletes the workspace canonically and reaps the exact process tree it observed.
+    maybe_force_mt128_child_stall(&nonce, &live, &workspace_id);
     let mut cleanup = Mt043WorkspaceCleanup {
         backend: &live,
         workspace_id: workspace_id.clone(),
@@ -3172,7 +3630,8 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     );
     assert!(
         Instant::now() < deadline,
-        "complete MT-043 scenario exceeded 30 seconds"
+        "complete MT-043 scenario exceeded its MT-128 child budget of {}ms",
+        child_budget.as_millis()
     );
     // MT-115: the native-editor EventLedger MIRROR rows are keyed
     // `native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}` and carry no
@@ -3273,16 +3732,15 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
 /// only the process tree this test started and replaces any in-progress artifact with a terminal failure.
 #[test]
 fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
-    const CHILD_ENV: &str = "HSK_MT043_LIVE_CHILD";
-    if std::env::var_os(CHILD_ENV).as_deref() == Some(std::ffi::OsStr::new("1")) {
+    if std::env::var_os(MT043_LIVE_CHILD_ENV).as_deref() == Some(std::ffi::OsStr::new("1")) {
         run_swarm_edit_live_pg_conflict_merge_search_and_receipts();
         return;
     }
 
     let wall_started = Instant::now();
-    let hard_deadline = wall_started + Duration::from_secs(30);
-    let child_deadline = wall_started + Duration::from_secs(24);
+    let child_budget = mt128_child_budget();
     let attempt_id = format!("{}-{}", std::process::id(), uuid::Uuid::new_v4());
+    let progress_path = mt128_progress_path(&attempt_id);
     // Replace any prior success before the bounded process even starts. If process creation, exact test
     // selection, or fixture acquisition fails, the artifact can never retain a stale PROOF_PASS.
     ProofLog::write_terminal_fail(
@@ -3312,9 +3770,10 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .arg("--exact")
         .arg("swarm_edit_live_pg_conflict_merge_search_and_receipts")
         .arg("--nocapture")
-        .env(CHILD_ENV, "1")
+        .env(MT043_LIVE_CHILD_ENV, "1")
         .env(MT043_PARENT_PID_ENV, &parent_pid)
         .env(MT043_ATTEMPT_ID_ENV, &attempt_id)
+        .env(MT128_CHILD_BUDGET_ENV, child_budget.as_millis().to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
@@ -3331,6 +3790,10 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         );
         panic!("spawn bounded MT-043 live child: {error}");
     });
+    let child_pid = child.id();
+    let child_started = Instant::now();
+    let child_deadline = child_started + child_budget;
+    let hard_deadline = child_deadline + MT128_REAP_AND_CLEANUP_RESERVE;
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status,
@@ -3338,41 +3801,106 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
                 std::thread::sleep(Duration::from_millis(20));
             }
             Ok(None) => {
-                let _ = cleanup_timeout_workspace_via_api(
-                    &timeout_workspace_sidecar,
-                    Duration::from_secs(1),
-                );
-                terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
-                let cleanup = std::panic::catch_unwind(|| {
-                    cleanup_timeout_workspace(
-                        &timeout_workspace_sidecar,
-                        &attempt_id,
-                        Duration::from_secs(2),
-                    )
-                });
-                ProofLog::write_terminal_fail(
+                let child_elapsed = child_started.elapsed();
+                let cleanup_deadline = hard_deadline
+                    .checked_sub(MT128_DIAGNOSTIC_RESERVE)
+                    .unwrap_or(hard_deadline);
+                let cleanup = mt128_cleanup_timed_out_attempt(
+                    &mut child,
                     &attempt_id,
-                    "complete managed-runtime scenario exceeded 30 seconds",
-                    Duration::from_millis(100),
+                    &progress_path,
+                    &timeout_workspace_sidecar,
+                    cleanup_deadline,
+                );
+                let last_gate = cleanup
+                    .progress
+                    .last_gate
+                    .as_deref()
+                    .unwrap_or("NO_GATE_REPORTED");
+                let workspace_id = cleanup
+                    .progress
+                    .workspace_id
+                    .as_deref()
+                    .unwrap_or("NO_WORKSPACE_REPORTED");
+                let backend_pid = cleanup
+                    .progress
+                    .backend_pid
+                    .map(|pid| pid.to_string())
+                    .unwrap_or_else(|| "NO_BACKEND_REPORTED".to_owned());
+                let tree_pids = cleanup
+                    .reap
+                    .tree_before
+                    .iter()
+                    .map(|identity| identity.pid.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let diagnostic = format!(
+                    "MT128_BOUNDED_CHILD_REAP child_pid={child_pid} backend_pid={backend_pid} workspace_id={workspace_id} elapsed_ms={} budget_ms={} last_gate={last_gate} forced_stall_ready={} child_alive_before={} backend_alive_before={} workspace_identity_matched={} workspace_existed_before_reap={} probe_helper_reaped={} root_identity_revalidated={} observed_tree_pids=[{tree_pids}] taskkill_reaped={} child_reaped={} descendant_tree_reaped={} workspace_cleanup_verified={}",
+                    child_elapsed.as_millis(),
+                    child_budget.as_millis(),
+                    cleanup.progress.forced_stall_ready,
+                    cleanup.child_alive_before,
+                    cleanup.backend_alive_before,
+                    cleanup.workspace_identity_matched,
+                    cleanup.workspace_existed_before_reap,
+                    cleanup.probe_helper_reaped,
+                    cleanup.reap.root_identity_revalidated,
+                    cleanup.reap.taskkill_reaped,
+                    cleanup.reap.root_reaped,
+                    cleanup.reap.tree_reaped,
+                    cleanup.workspace_cleanup_verified,
+                );
+                ProofLog::write_terminal_fail(&attempt_id, &diagnostic, Duration::from_millis(100));
+                assert!(
+                    cleanup.child_alive_before,
+                    "{diagnostic}; timeout path was vacuous because the owned child was already gone"
                 );
                 assert!(
-                    cleanup.is_ok(),
-                    "bounded MT-043 timeout cleanup failed after child termination"
+                    cleanup.workspace_cleanup_verified,
+                    "{diagnostic}; post-reap canonical workspace deletion/absence was not verified"
                 );
+                assert!(
+                    cleanup.reap.root_identity_revalidated,
+                    "{diagnostic}; captured root PID/start-time identity was not live immediately before taskkill"
+                );
+                assert!(
+                    cleanup.probe_helper_reaped,
+                    "{diagnostic}; read-only PostgreSQL pre-reap probe helper was not fully reaped"
+                );
+                assert!(
+                    cleanup.reap.taskkill_reaped,
+                    "{diagnostic}; taskkill/helper process was not fully reaped"
+                );
+                assert!(
+                    cleanup.reap.root_reaped && cleanup.reap.tree_reaped,
+                    "{diagnostic}; owned child or an observed descendant survived cleanup"
+                );
+                if std::env::var_os(MT128_FORCE_STALL_ENV).is_some() {
+                    assert!(
+                        cleanup.progress.forced_stall_ready
+                            && cleanup.progress.workspace_id.is_some()
+                            && cleanup.workspace_identity_matched
+                            && cleanup.workspace_existed_before_reap
+                            && cleanup.backend_alive_before
+                            && cleanup.reap.tree_before.len() >= 2,
+                        "{diagnostic}; forced-stall RED must begin only after the real workspace and fixture-owned backend descendant exist"
+                    );
+                }
                 assert!(
                     Instant::now() <= hard_deadline,
-                    "MT-043 timeout failure path exceeded the 30-second wall-clock bound"
+                    "{diagnostic}; timeout failure path exceeded the child budget plus {}ms cleanup reserve",
+                    MT128_REAP_AND_CLEANUP_RESERVE.as_millis()
                 );
-                panic!(
-                    "complete MT-043 managed-runtime scenario exceeded 30 seconds and was reaped"
-                );
+                panic!("{diagnostic}");
             }
             Err(error) => {
                 let _ = cleanup_timeout_workspace_via_api(
                     &timeout_workspace_sidecar,
                     Duration::from_secs(1),
                 );
-                terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
+                let child_reaped = terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
+                let progress = read_mt128_progress(&progress_path, &attempt_id);
+                let last_gate = progress.last_gate.as_deref().unwrap_or("NO_GATE_REPORTED");
                 cleanup_timeout_workspace(
                     &timeout_workspace_sidecar,
                     &attempt_id,
@@ -3380,17 +3908,27 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
                 );
                 ProofLog::write_terminal_fail(
                     &attempt_id,
-                    &format!("failed polling bounded live child: {error}"),
+                    &format!(
+                        "failed polling bounded live child: {error}; child_pid={child_pid} elapsed_ms={} budget_ms={} last_gate={last_gate} child_reaped={child_reaped}",
+                        child_started.elapsed().as_millis(),
+                        child_budget.as_millis(),
+                    ),
                     Duration::from_millis(100),
                 );
                 assert!(
+                    child_reaped,
+                    "poll-error cleanup did not reap child pid {child_pid}"
+                );
+                assert!(
                     Instant::now() <= hard_deadline,
-                    "MT-043 poll-error failure path exceeded the 30-second wall-clock bound"
+                    "MT-043 poll-error failure path exceeded the child budget plus cleanup reserve"
                 );
                 panic!("poll bounded MT-043 live child: {error}");
             }
         }
     };
+    let progress = read_mt128_progress(&progress_path, &attempt_id);
+    let last_gate = progress.last_gate.as_deref().unwrap_or("NO_GATE_REPORTED");
     if !status.success() {
         let _ =
             cleanup_timeout_workspace_via_api(&timeout_workspace_sidecar, Duration::from_secs(1));
@@ -3401,12 +3939,14 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         );
         assert!(
             Instant::now() <= hard_deadline,
-            "MT-043 child-failure cleanup exceeded the 30-second wall-clock bound"
+            "MT-043 child-failure cleanup exceeded the child budget plus cleanup reserve"
         );
     }
     assert!(
         status.success(),
-        "bounded MT-043 live child failed with {status}"
+        "bounded MT-043 live child failed with {status}; child_pid={child_pid} elapsed_ms={} budget_ms={} last_gate={last_gate}",
+        child_started.elapsed().as_millis(),
+        child_budget.as_millis(),
     );
     let proof = std::fs::read_to_string(attempt_proof_log_path(&attempt_id))
         .expect("bounded live child must leave a readable attempt-scoped proof artifact");
@@ -3422,9 +3962,16 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         Some("PROOF_PASS"),
         "a successful bounded child process must have executed the exact live test and issued its own current PROOF_PASS"
     );
+    println!(
+        "MT128_CHILD_PASS child_pid={child_pid} elapsed_ms={} budget_ms={} last_gate={last_gate} measured_loaded_worst_case_ms={MT128_MEASURED_LOADED_CHILD_MS} headroom_ms={MT128_MEASURED_HEADROOM_MS}",
+        child_started.elapsed().as_millis(),
+        child_budget.as_millis(),
+    );
     assert!(
-        wall_started.elapsed() <= Duration::from_secs(30),
-        "complete MT-043 managed-runtime test exceeded the 30-second wall-clock bound"
+        Instant::now() <= hard_deadline,
+        "complete MT-043 managed-runtime test exceeded the child budget plus {}ms cleanup reserve (wall_elapsed_ms={})",
+        MT128_REAP_AND_CLEANUP_RESERVE.as_millis(),
+        wall_started.elapsed().as_millis(),
     );
 }
 
@@ -3779,6 +4326,28 @@ fn watchdog_failure_write_is_bounded_under_live_log_contention() {
     if attempt_path.exists() {
         std::fs::remove_file(attempt_path).expect("remove contention-probe attempt artifact");
     }
+    let progress_attempt_id = format!("progress-probe-{}", uuid::Uuid::new_v4());
+    let path = mt128_progress_path(&progress_attempt_id);
+    append_mt128_progress(
+        &progress_attempt_id,
+        serde_json::json!({
+            "attempt_id": progress_attempt_id,
+            "kind": "gate",
+            "gate": "T0042",
+            "child_pid": std::process::id(),
+        }),
+    );
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .expect("open progress journal for interrupted-tail probe");
+    file.write_all(br#"{"attempt_id":"interrupted""#)
+        .expect("append deliberately interrupted JSON tail");
+    file.sync_data().expect("flush interrupted JSON tail");
+
+    let progress = read_mt128_progress(&path, &progress_attempt_id);
+    assert_eq!(progress.last_gate.as_deref(), Some("T0042"));
+    std::fs::remove_file(path).expect("remove owned progress-journal probe artifact");
 }
 
 #[cfg(windows)]
@@ -3786,21 +4355,36 @@ fn watchdog_failure_write_is_bounded_under_live_log_contention() {
 fn ac09_process_tree_termination_is_bounded() {
     use std::os::windows::process::CommandExt;
     let mut child = Command::new("powershell.exe")
-        .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 30"])
+        .args([
+            "-NoProfile",
+            "-Command",
+            "$null=Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 30' -PassThru; Start-Sleep -Seconds 30",
+        ])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .creation_flags(0x0800_0000)
         .spawn()
         .expect("spawn owned MT-043 timeout probe");
+    let descendant_deadline = Instant::now() + Duration::from_secs(2);
+    while mt128_process_tree(child.id()).len() < 2 && Instant::now() < descendant_deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
     let started = Instant::now();
-    terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
+    let report = terminate_child_tree_before(&mut child, Instant::now() + Duration::from_secs(2));
     assert!(
-        started.elapsed() <= Duration::from_secs(2),
+        started.elapsed() <= Duration::from_secs(3),
         "owned child-tree termination exceeded its bounded test budget"
     );
     assert!(
-        child.try_wait().expect("poll terminated probe").is_some(),
-        "bounded terminator must reap the owned probe process"
+        report.tree_before.len() >= 2,
+        "termination proof must observe a real descendant before reaping"
+    );
+    assert!(
+        report.root_identity_revalidated
+            && report.taskkill_reaped
+            && report.root_reaped
+            && report.tree_reaped,
+        "bounded terminator must reap taskkill, the owned root, and every observed descendant: {report:?}"
     );
 }

@@ -46,7 +46,7 @@ crt_static = true
 bundled_fonts = ["Inter-Regular.ttf", "Inter-Bold.ttf"]
 installer = "installer/windows/handshake_native.wxs"
 # WP-KERNEL-012 MT-094 (AC-014-6): three-binary install layout — native shell + the handshake_core
-# backend (managed-postgres host) + the external Palmistry watcher (§6.13.3 spawned WITH Handshake at
+# backend (in-process embedded SurrealDB host) + the external Palmistry watcher (§6.13.3 spawned WITH Handshake at
 # startup). The installer ships palmistry.exe SIDE-BY-SIDE with handshake-native.exe so the launcher
 # resolves it via `current_exe()`-relative sibling lookup (no hardcoded path; GLOBAL-PORTABILITY).
 install_payload = ["handshake-native.exe", "handshake_core.exe", "palmistry.exe"]

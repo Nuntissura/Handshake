@@ -942,7 +942,13 @@ for the still-active document, and another retry requires another explicit click
 fn terminal_launch_body() -> String {
     "Terminal launch is documented as an honest typed blocker in this native frontend build. The top-menu \
 Run item menu.run.terminal is visible as 'Open Terminal in Workspace Folder' and is clickable. Selecting it \
-does not fabricate a PTY: it records terminal-launch-status with 'EndpointMissing: native terminal launch \
+resolves the active workspace's canonical filesystem root, never the Handshake process cwd. A newly fetched \
+or stale workspace with no usable root returns visible WorkspaceRootMissing/WorkspaceRootUnresolvable and \
+opens the FILE > Open Workspace… recovery dialog. Enter an existing absolute directory at \
+workspace-root.path and activate workspace-root.apply; after WorkspaceRootBound, retry the terminal launch. \
+The binding belongs to the captured workspace id, survives in-session workspace refresh, and is also the \
+single source used by Model Session in Workspace Folder. \
+The terminal launch does not fabricate a PTY: it records terminal-launch-status with 'EndpointMissing: native terminal launch \
 needs HTTP /terminal/sessions' because current PTY reach is Tauri IPC-only. The backend PTY runtime exists in \
 handshake_core terminal/** and its TerminalRequest carries cwd plus command/args for the shell wrapper, but \
 native Handshake currently has no reachable HTTP /terminal/sessions route and no native terminal client; the \
@@ -960,7 +966,14 @@ fn model_session_launch_body() -> String {
     "Model/session launch is a compact native dialog, not a worksurface pane. Open it from Run -> Launch \
 Model Session in Workspace Folder (author_id menu.run.model-session-launch) or the command palette row \
 command-palette.option.hs-model-session-palette-launch-workspace (command id \
-model-session.launch-workspace). The dialog exposes provider, workspace folder, model, wrapper, Launch, \
+model-session.launch-workspace). Its initial workspace folder is the active workspace's canonical filesystem \
+root—the same single definition used by Terminal in Workspace Folder, never the Handshake process cwd. If \
+the operator switches tabs while the dialog is open, workspace_id remains the workspace captured when the \
+dialog opened; submission never mixes the original folder with the newly active tab. If \
+the workspace has no usable root, launch remains closed and model-session-launch-status reports the typed \
+WorkspaceRootMissing/WorkspaceRootUnresolvable blocker. Recover through FILE > Open Workspace…, set the \
+existing absolute folder at workspace-root.path, activate workspace-root.apply, and retry after \
+WorkspaceRootBound. The dialog exposes provider, workspace folder, model, wrapper, Launch, \
 Cancel, and inline status through model-session-launch.dialog, model-session-launch.provider, \
 model-session-launch.provider.local, model-session-launch.provider.cloud, \
 model-session-launch.folder, model-session-launch.model, model-session-launch.wrapper, \
@@ -2263,7 +2276,17 @@ click_widget, set_value, and screenshot spellings are compatibility aliases only
 rows in the pane below; each row is author_id -> canonical mcp_tool for a real, live-registered control. \
 Every JSON-RPC request must carry the owner-restricted session_token. Parallel clients should also carry \
 a stable top-level client_session_id (1..=64 ASCII letters, digits, '-', '_' or '.') so receipts retain \
-the same participant identity across reconnects; callers that omit it receive a connection-scoped id."
+the same participant identity across reconnects; callers that omit it receive a connection-scoped id.\n\n\
+Same-widget argus.click and argus.set_value requests are serialized through one bounded request \
+deadline. If the current mutation is still awaiting post-render acknowledgement, the next request waits \
+without holding the ActionChannel mutex and retries after frame progress. If the registry lease or \
+ActionChannel remains busy through that deadline, the request returns typed JSON-RPC -32004; retry from \
+a fresh argus.inspect instead of assuming the mutation landed. Different-widget mutations retain \
+independent target/observer lease sets and do not wait on each other when those sets are disjoint. \
+Diagnostic posture: Flight \
+Recorder/EventLedger is NOT_APPLICABLE because this is transport coordination rather than a business \
+event; internal_diagnostics and Palmistry integration are DEFERRED because this bounded wait introduces \
+no new diagnostic payload or process-liveness tracker."
         .to_owned()
 }
 
@@ -2696,6 +2719,41 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Cancel active Runtime Chat request",
             mcp_tool: "click_widget",
             description: "click_widget{target:'runtime-chat-cancel'} aborts the exact active request generation; read runtime-chat-status for Cancelled, then enter a new draft to recover.",
+        },
+        AgentToolRow {
+            author_id: crate::app::WORKSPACE_ROOT_DIALOG_AUTHOR_ID,
+            surface: ManualSurface::Interop,
+            action_label: "Inspect workspace-root binding",
+            mcp_tool: "argus.inspect",
+            description: "Open FILE, click menu.file.open-workspace, then argus.inspect reads workspace-root.dialog and its captured workspace id before mutation.",
+        },
+        AgentToolRow {
+            author_id: crate::app::WORKSPACE_ROOT_PATH_AUTHOR_ID,
+            surface: ManualSurface::Interop,
+            action_label: "Set the captured workspace root",
+            mcp_tool: "argus.set_value",
+            description: "argus.set_value{target:'workspace-root.path', value:'<existing absolute folder>'} replaces the path for the workspace captured when the dialog opened.",
+        },
+        AgentToolRow {
+            author_id: crate::app::WORKSPACE_ROOT_APPLY_AUTHOR_ID,
+            surface: ManualSurface::Interop,
+            action_label: "Bind the captured workspace root",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:'workspace-root.apply'} canonicalizes and binds the folder; require an attributed receipt and fresh workspace-root.status or launch-status inspection.",
+        },
+        AgentToolRow {
+            author_id: crate::app::WORKSPACE_ROOT_CANCEL_AUTHOR_ID,
+            surface: ManualSurface::Interop,
+            action_label: "Cancel workspace-root binding",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:'workspace-root.cancel'} closes the binding dialog without changing any workspace root.",
+        },
+        AgentToolRow {
+            author_id: crate::app::WORKSPACE_ROOT_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Interop,
+            action_label: "Read workspace-root binding failure",
+            mcp_tool: "argus.inspect",
+            description: "A fresh argus.inspect reads workspace-root.status for WorkspaceNotOpen, missing, relative, stale, non-directory, or non-Unicode root failures.",
         },
         AgentToolRow {
             author_id: TERMINAL_MENU_AUTHOR_ID,

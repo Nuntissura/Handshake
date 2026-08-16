@@ -33,11 +33,14 @@ use handshake_native::top_menu_bar::{
 };
 
 fn ok_app() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
         db_status: "ok".to_string(),
         migration_version: Some(1),
-    }))
+    }));
+    app.bind_active_workspace_root(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+        .expect("top-menu tests bind an explicit workspace root");
+    app
 }
 
 fn shell_harness() -> Harness<'static, HandshakeApp> {

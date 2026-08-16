@@ -32,6 +32,7 @@ pub mod loom_ai;
 pub mod postgres;
 pub mod retention;
 pub mod stage_artifacts;
+pub mod surreal;
 
 pub use calendar::*;
 pub use calendar_activity::*;

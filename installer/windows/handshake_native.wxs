@@ -2,15 +2,13 @@
 <!--
   WP-KERNEL-011 MT-004 - Handshake native Windows installer (WiX 4 scaffold).
 
-  Scaffold scope ONLY (MT-004): bundles the two product binaries (handshake-native.exe shell +
-  handshake_core.exe backend) into a single MSI under one install folder, with a Start Menu
+  Bundles the three product binaries (handshake-native.exe shell + handshake_core.exe backend +
+  palmistry.exe watcher) into a single MSI under one install folder, with a Start Menu
   shortcut to the shell and a standard uninstall entry (MajorUpgrade). No custom dialogs, no
   registry writes beyond the uninstall metadata, no file associations, no code signing: those are
   deferred to later MTs. Must pass WiX validation (wix build with validation) cleanly.
 
-  Two binaries are shipped together because the native shell delegates PostgreSQL cluster lifecycle
-  to handshake_core (handshake_core::managed_postgres::ManagedPostgres::ensure_running). PostgreSQL
-  itself is NOT bundled - see installer/windows/BUNDLED_DEPS_POLICY.md.
+  SurrealDB runs in process inside handshake_core. No database executable or service is bundled.
 
   UpgradeCode GUID: 609E7B1F-D861-4353-A0D6-85B79B459614 - DO NOT CHANGE after first release
   (changing it breaks the upgrade chain for already-installed users).
@@ -19,6 +17,7 @@
   [GLOBAL-PORTABILITY-004]):
     $(env.HANDSHAKE_NATIVE_EXE) -> path to handshake-native.exe
     $(env.HANDSHAKE_CORE_EXE)   -> path to handshake_core.exe
+    $(env.HANDSHAKE_PALMISTRY_EXE) -> path to palmistry.exe
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
@@ -37,9 +36,11 @@
   </Package>
 
   <Fragment>
-    <!-- Install layout: %ProgramFiles%\Handshake\ holding both binaries side by side. -->
+    <!-- Install layout: %ProgramFiles%\Handshake\ holding all product binaries side by side. -->
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="Handshake" />
+      <Directory Id="INSTALLFOLDER" Name="Handshake">
+        <Directory Id="LicenseFolder" Name="licenses" />
+      </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="HandshakeStartMenuDir" Name="Handshake" />
@@ -52,9 +53,23 @@
       <Component Id="HandshakeNativeExe" Bitness="always64">
         <File Id="HandshakeNativeExeFile" Source="$(env.HANDSHAKE_NATIVE_EXE)" KeyPath="yes" />
       </Component>
-      <!-- Backend / managed-postgres host binary, shipped alongside the shell. -->
+      <!-- Backend / embedded-SurrealDB host binary, shipped alongside the shell. -->
       <Component Id="HandshakeCoreExe" Bitness="always64">
         <File Id="HandshakeCoreExeFile" Source="$(env.HANDSHAKE_CORE_EXE)" KeyPath="yes" />
+      </Component>
+      <Component Id="PalmistryExe" Bitness="always64">
+        <File Id="PalmistryExeFile" Source="$(env.HANDSHAKE_PALMISTRY_EXE)" KeyPath="yes" />
+      </Component>
+      <!-- Exact upstream BUSL notices for the bundled SurrealDB crates. -->
+      <Component Id="SurrealDbLicense" Directory="LicenseFolder" Bitness="always64">
+        <File Id="SurrealDbLicenseFile"
+              Source="$(sys.SOURCEFILEDIR)licenses\SurrealDB-3.0-BUSL-1.1.txt"
+              KeyPath="yes" />
+      </Component>
+      <Component Id="SurrealDbProtocolLicense" Directory="LicenseFolder" Bitness="always64">
+        <File Id="SurrealDbProtocolLicenseFile"
+              Source="$(sys.SOURCEFILEDIR)licenses\SurrealDB-Protocol-2.0-BUSL-1.1.txt"
+              KeyPath="yes" />
       </Component>
     </ComponentGroup>
   </Fragment>

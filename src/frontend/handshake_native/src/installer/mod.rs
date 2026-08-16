@@ -5,42 +5,27 @@
 //! The product-side half of the single-installer guarantee. The MT-031 installer
 //! (`build_installer.ps1` + `installer/windows/handshake_native.wxs`) packages the native shell plus
 //! every runtime asset it needs into ONE artifact, so a clean Windows profile can install and launch
-//! with ZERO external prerequisites (no system WebView2, no separate PostgreSQL install, no CDN
+//! with ZERO external prerequisites (no system WebView2, no database service, no CDN
 //! download at first run). `check_bundle_integrity` is the runtime self-test that proves that contract
 //! held on the installed machine. It walks the asset tree relative to the running executable and fails
 //! loudly (HBR-STOP) when a required bundled asset is missing, instead of letting the app start
-//! half-initialised and crash later when it reaches for postgres, fonts, or grammars.
+//! half-initialised and crash later when it reaches for its backend, watcher, fonts, or grammars.
 //!
-//! ## Why exe-relative, and the bundled-postgres path contract
+//! ## Embedded database contract
 //!
-//! The MT-031 contract (RISK-031-01) requires matching `handshake_core::managed_postgres`'s binary
-//! discovery. That module (`src/backend/handshake_core/src/managed_postgres.rs`, read-only for this MT)
-//! resolves `pg_ctl`/`initdb`/etc. via, in order: an explicit `bin_dir` config, the
-//! `HANDSHAKE_MANAGED_PG_BIN` env var (the constant `managed_postgres::MANAGED_PG_BIN_ENV`), the
-//! standard `PGBIN` env var, a fixed Windows default install path, then `PATH`. It does **not** today
-//! derive a path from `current_exe()`. The single-installer guarantee therefore requires the installer
-//! to (a) stage the postgres binaries at a stable exe-relative location and (b) point `managed_postgres`
-//! at that location by exporting `HANDSHAKE_MANAGED_PG_BIN` (or `PGBIN`) = `<exe_dir>/bundled/postgres`
-//! before the cluster starts. This module defines and verifies that staged location
-//! ([`BUNDLED_POSTGRES_SUBDIR`]).
-//! Wiring the env export lives in `handshake_core` startup (backend, out of scope for this MT and a
-//! `forbidden_path`); the wire-up is recorded as a follow-up in `installer/windows/BUNDLED_DEPS_POLICY.md`.
-//! Until then, this checker is the authoritative single source of the bundle layout both halves target.
+//! SurrealDB runs in-process inside `handshake_core.exe`. The installer therefore requires the backend
+//! binary but deliberately has no database executable, service, discovery variable, or database bundle
+//! directory. The shell and Palmistry watcher remain exe-relative sibling binaries.
 //!
 //! ## Self-check command (HBR-STOP)
 //!
 //! `handshake-native.exe --self-check` calls [`check_bundle_integrity`] against the installed exe's
 //! directory, prints a machine-readable JSON verdict, and exits 0 (all assets present) or 1 (a required
 //! asset is missing). It deliberately does NOT start the egui event loop, open a window, or connect to
-//! postgres, so it is safe to run in a minimal/headless CI sandbox. See `src/main.rs` arg parsing.
+//! a database service, so it is safe to run in a minimal/headless CI sandbox. See `src/main.rs` arg parsing.
 
 use std::fmt;
 use std::path::Path;
-
-/// Subdirectory (relative to the executable) where the installer stages the bundled PostgreSQL
-/// binaries. `managed_postgres` must be pointed here via `HANDSHAKE_MANAGED_PG_BIN`/`PGBIN` at startup
-/// (see module docs). The anchor binary `pg_ctl` lives directly under this dir.
-pub const BUNDLED_POSTGRES_SUBDIR: &str = "bundled/postgres";
 
 /// Subdirectory (relative to the executable) holding the bundled UI fonts. Must contain at least one
 /// `.ttf`/`.otf` file (the Inter faces bundled by MT-004), or egui text rendering would fall back to a
@@ -52,24 +37,20 @@ pub const BUNDLED_FONTS_SUBDIR: &str = "fonts";
 /// grammar additions land in a known, already-bundled location rather than triggering a CDN fetch.
 pub const BUNDLED_GRAMMARS_SUBDIR: &str = "grammars";
 
+/// Directory containing exact upstream notices for embedded dependencies.
+pub const BUNDLED_LICENSES_SUBDIR: &str = "licenses";
+pub const SURREALDB_LICENSE_NOTICE: &str = "licenses/SurrealDB-3.0-BUSL-1.1.txt";
+pub const SURREALDB_PROTOCOL_LICENSE_NOTICE: &str = "licenses/SurrealDB-Protocol-2.0-BUSL-1.1.txt";
+
 /// The native shell binary's own file name. Verified present so a corrupt/partial install (exe deleted
 /// but launcher shortcut intact) is caught by `--self-check` rather than surfacing as a vague OS error.
 pub const NATIVE_BINARY_NAME: &str = "handshake-native.exe";
 
-/// The platform-appropriate `pg_ctl` binary name (the managed-postgres anchor binary).
-#[cfg(windows)]
-pub const PG_CTL_BINARY_NAME: &str = "pg_ctl.exe";
-/// The platform-appropriate `pg_ctl` binary name (the managed-postgres anchor binary).
-#[cfg(not(windows))]
-pub const PG_CTL_BINARY_NAME: &str = "pg_ctl";
+/// Backend binary that contains the in-process embedded SurrealDB engine.
+pub const CORE_BINARY_NAME: &str = "handshake_core.exe";
 
-/// Exe-relative path of the bundled managed-postgres anchor binary, built at runtime from
-/// [`BUNDLED_POSTGRES_SUBDIR`] + [`PG_CTL_BINARY_NAME`] so the platform-specific binary name
-/// (`pg_ctl.exe` on Windows, `pg_ctl` elsewhere) is defined exactly once and stays cross-platform.
-/// Returns a forward-slash relative path (matching the rest of [`REQUIRED_ASSETS`]).
-pub fn bundled_pg_ctl_rel_path() -> String {
-    format!("{BUNDLED_POSTGRES_SUBDIR}/{PG_CTL_BINARY_NAME}")
-}
+/// External crash/freeze watcher shipped beside the native shell.
+pub const PALMISTRY_BINARY_NAME: &str = "palmistry.exe";
 
 /// A required bundled asset and how to verify it. Kept as data (not ad-hoc `if` blocks) so the same
 /// list drives both the runtime self-check and the build-time `bundled_deps_audit` test, and so a
@@ -77,21 +58,15 @@ pub fn bundled_pg_ctl_rel_path() -> String {
 #[derive(Debug, Clone, Copy)]
 pub struct RequiredAsset {
     /// Path of the asset relative to the executable directory (forward slashes; joined per-OS).
-    /// For [`AssetKind::PgCtlBinary`] this is the directory label only; the verified/displayed path
-    /// is the cross-platform binary path from [`bundled_pg_ctl_rel_path`] — use [`Self::display_rel_path`].
     pub rel_path: &'static str,
     /// What kind of filesystem check proves this asset is present.
     pub kind: AssetKind,
 }
 
 impl RequiredAsset {
-    /// The exe-relative path to report for this asset (in `--self-check` JSON and errors). Resolves the
-    /// cross-platform managed-postgres binary path for [`AssetKind::PgCtlBinary`]; otherwise `rel_path`.
+    /// The exe-relative path to report for this asset in `--self-check` JSON and errors.
     pub fn display_rel_path(&self) -> String {
-        match self.kind {
-            AssetKind::PgCtlBinary => bundled_pg_ctl_rel_path(),
-            _ => self.rel_path.to_string(),
-        }
+        self.rel_path.to_string()
     }
 }
 
@@ -105,10 +80,6 @@ pub enum AssetKind {
     /// `rel_path` must be an existing directory containing at least one file whose extension matches
     /// any of these (case-insensitive, no leading dot), e.g. fonts.
     DirWithExt(&'static [&'static str]),
-    /// The managed-postgres anchor binary. The verified path is built at runtime from
-    /// [`bundled_pg_ctl_rel_path`] so the platform-specific binary name ([`PG_CTL_BINARY_NAME`]) is
-    /// defined once and not hardcoded in the asset table. `rel_path` is the human-facing label.
-    PgCtlBinary,
 }
 
 /// The full ordered list of assets the single-installer bundle MUST contain. This is the canonical
@@ -120,9 +91,12 @@ pub const REQUIRED_ASSETS: &[RequiredAsset] = &[
         kind: AssetKind::File,
     },
     RequiredAsset {
-        // Label only; the verified path is computed cross-platform by `bundled_pg_ctl_rel_path()`.
-        rel_path: BUNDLED_POSTGRES_SUBDIR,
-        kind: AssetKind::PgCtlBinary,
+        rel_path: CORE_BINARY_NAME,
+        kind: AssetKind::File,
+    },
+    RequiredAsset {
+        rel_path: PALMISTRY_BINARY_NAME,
+        kind: AssetKind::File,
     },
     RequiredAsset {
         rel_path: BUNDLED_FONTS_SUBDIR,
@@ -131,6 +105,14 @@ pub const REQUIRED_ASSETS: &[RequiredAsset] = &[
     RequiredAsset {
         rel_path: BUNDLED_GRAMMARS_SUBDIR,
         kind: AssetKind::Dir,
+    },
+    RequiredAsset {
+        rel_path: SURREALDB_LICENSE_NOTICE,
+        kind: AssetKind::File,
+    },
+    RequiredAsset {
+        rel_path: SURREALDB_PROTOCOL_LICENSE_NOTICE,
+        kind: AssetKind::File,
     },
 ];
 
@@ -221,14 +203,6 @@ fn verify_asset(root: &Path, asset: &RequiredAsset) -> Result<(), BundleIntegrit
                     path: asset.rel_path.to_string(),
                     expected_ext: exts.join("/"),
                 });
-            }
-        }
-        AssetKind::PgCtlBinary => {
-            // Compute the real path (cross-platform binary name) instead of reading asset.rel_path,
-            // which is only the directory label for this kind.
-            let rel = bundled_pg_ctl_rel_path();
-            if !root.join(&rel).is_file() {
-                return Err(BundleIntegrityError::MissingAsset { path: rel });
             }
         }
     }
@@ -348,16 +322,26 @@ mod tests {
         fn write_valid_bundle(&self) {
             // handshake-native.exe (content is irrelevant to the integrity check; size > 0).
             fs::write(self.dir.join(NATIVE_BINARY_NAME), b"MZ-fake-exe").unwrap();
-            // bundled/postgres/<pg_ctl> (cross-platform binary name)
-            let pg = self.dir.join("bundled").join("postgres");
-            fs::create_dir_all(&pg).unwrap();
-            fs::write(pg.join(PG_CTL_BINARY_NAME), b"fake-pg_ctl").unwrap();
+            fs::write(self.dir.join(CORE_BINARY_NAME), b"MZ-fake-core").unwrap();
+            fs::write(self.dir.join(PALMISTRY_BINARY_NAME), b"MZ-fake-palmistry").unwrap();
             // fonts/ with one .ttf
             let fonts = self.dir.join(BUNDLED_FONTS_SUBDIR);
             fs::create_dir_all(&fonts).unwrap();
             fs::write(fonts.join("Inter-Regular.ttf"), b"fake-ttf").unwrap();
             // grammars/ (empty dir is acceptable)
             fs::create_dir_all(self.dir.join(BUNDLED_GRAMMARS_SUBDIR)).unwrap();
+            let licenses = self.dir.join(BUNDLED_LICENSES_SUBDIR);
+            fs::create_dir_all(&licenses).unwrap();
+            fs::write(
+                self.dir.join(SURREALDB_LICENSE_NOTICE),
+                b"fake-surrealdb-license",
+            )
+            .unwrap();
+            fs::write(
+                self.dir.join(SURREALDB_PROTOCOL_LICENSE_NOTICE),
+                b"fake-surrealdb-protocol-license",
+            )
+            .unwrap();
         }
     }
 
@@ -380,27 +364,20 @@ mod tests {
         );
     }
 
-    /// AC-031-08 (negative): removing the postgres anchor binary makes the check fail with the exact
-    /// missing path. This is CTRL-031-05 — proves `--self-check` would exit non-zero on a broken install.
+    /// AC-031-08 (negative): removing the embedded-database host makes the check fail with the exact
+    /// missing path. This proves `--self-check` exits non-zero on a broken install.
     #[test]
-    fn check_bundle_integrity_fails_on_missing_postgres() {
-        let staging = TempStaging::new("nopg");
+    fn check_bundle_integrity_fails_on_missing_core() {
+        let staging = TempStaging::new("nocore");
         staging.write_valid_bundle();
-        fs::remove_file(
-            staging
-                .dir
-                .join("bundled")
-                .join("postgres")
-                .join(PG_CTL_BINARY_NAME),
-        )
-        .unwrap();
+        fs::remove_file(staging.dir.join(CORE_BINARY_NAME)).unwrap();
         let result = check_bundle_integrity_at(&staging.dir);
         assert_eq!(
             result,
             Err(BundleIntegrityError::MissingAsset {
-                path: bundled_pg_ctl_rel_path()
+                path: CORE_BINARY_NAME.to_string()
             }),
-            "missing pg_ctl must report the exact (cross-platform) rel_path"
+            "missing handshake_core must report the exact relative path"
         );
     }
 
@@ -444,16 +421,17 @@ mod tests {
     fn self_check_json_shapes_are_valid() {
         let ok = self_check_json(&Ok(()));
         assert!(ok.contains("\"status\":\"ok\""));
-        assert!(ok.contains("bundled/postgres/pg_ctl.exe"));
+        assert!(ok.contains(CORE_BINARY_NAME));
+        assert!(ok.contains(PALMISTRY_BINARY_NAME));
         let parsed: serde_json::Value = serde_json::from_str(&ok).expect("ok json parses");
         assert_eq!(parsed["status"], "ok");
 
         let miss = self_check_json(&Err(BundleIntegrityError::MissingAsset {
-            path: "bundled/postgres/pg_ctl.exe".into(),
+            path: CORE_BINARY_NAME.into(),
         }));
         let parsed: serde_json::Value = serde_json::from_str(&miss).expect("miss json parses");
         assert_eq!(parsed["status"], "missing_asset");
-        assert_eq!(parsed["path"], "bundled/postgres/pg_ctl.exe");
+        assert_eq!(parsed["path"], CORE_BINARY_NAME);
     }
 
     /// The exit-code policy (`Ok` -> 0, any failure -> 1) and the JSON verdict are driven by REAL bundle
@@ -476,15 +454,8 @@ mod tests {
         let ok_parsed: serde_json::Value = serde_json::from_str(&ok_json).expect("ok json parses");
         assert_eq!(ok_parsed["status"], "ok");
 
-        // Break the bundle (remove the postgres anchor) -> Err -> exit 1 -> status "missing_asset".
-        fs::remove_file(
-            staging
-                .dir
-                .join("bundled")
-                .join("postgres")
-                .join(PG_CTL_BINARY_NAME),
-        )
-        .unwrap();
+        // Break the bundle (remove the embedded-database host) -> Err -> exit 1.
+        fs::remove_file(staging.dir.join(CORE_BINARY_NAME)).unwrap();
         let bad_result = check_bundle_integrity_at(&staging.dir);
         assert!(bad_result.is_err(), "broken bundle should fail");
         let bad_code = if bad_result.is_ok() { 0 } else { 1 };
@@ -493,6 +464,6 @@ mod tests {
         let bad_parsed: serde_json::Value =
             serde_json::from_str(&bad_json).expect("bad json parses");
         assert_eq!(bad_parsed["status"], "missing_asset");
-        assert_eq!(bad_parsed["path"], bundled_pg_ctl_rel_path());
+        assert_eq!(bad_parsed["path"], CORE_BINARY_NAME);
     }
 }
