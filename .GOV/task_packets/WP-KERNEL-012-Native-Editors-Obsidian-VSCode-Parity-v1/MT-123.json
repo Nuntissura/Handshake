@@ -19,10 +19,10 @@
   },
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-123",
-  "title": "B8-MT-123-Make-Isolated-Test-Schema-Teardown-Crash-Safe-And-Reclaim-The-Leaked-Backlog",
+  "title": "B8-MT-123-Make-Isolated-Test-Store-Teardown-Crash-Safe-And-Reclaim-Stranded-Embedded-Store-Directories",
   "group": "B-Backend",
   "created_at_utc": "2026-08-12T11:50:00Z",
-  "updated_at_utc": "2026-08-16T05:10:00Z",
+  "updated_at_utc": "2026-08-16T08:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_RESCOPE",
+    "status": "READY_FOR_DEV",
     "active": false,
     "depends_on": [],
     "blocks": [],
@@ -49,10 +49,22 @@
       "reason": "The claiming session KERNEL_BUILDER-20260813-224157 ended without completing this microtask. A stale CLAIMED status makes the work look owned and live when no session holds it, which blocks any other implementer from picking it up.",
       "released_by": "KERNEL_BUILDER-20260815-173127",
       "released_at_utc": "2026-08-16T05:10:00Z"
+    },
+    "rescoped_2026_08_16": {
+      "by": "KERNEL_BUILDER-20260815-173127",
+      "at_utc": "2026-08-16T08:20:00Z",
+      "from": "isolated per-test PostgreSQL schema teardown and a 1009-schema backlog",
+      "to": "crash-safe teardown and reclamation of stranded embedded SurrealDB store directories under the artifacts root",
+      "why": "The PostgreSQL premise was physically deleted, but the failure mode it protected against - an aborted test process stranding its isolation store - survives the pivot unchanged and is now measured in gigabytes per stranded store rather than rows in pg_class.",
+      "authored_acceptance_criteria": "The source contract had SIX EMPTY acceptance_criteria entries, which under CX-653B blocks execution outright. They are authored here so the microtask is implementable by a no-context model.",
+      "voided_proof_targets": [
+        "PT-123-1 (schema count / pg_class relation count / cluster directory size)",
+        "PT-123-3 (parallel-run schema reclamation)"
+      ]
     }
   },
   "scope": {
-    "summary": "Make isolated per-test PostgreSQL schema teardown survive an aborted test process, and reclaim the 1009-schema backlog, so proof runs and crash recovery stop degrading.",
+    "summary": "RESCOPED 2026-08-16 from PostgreSQL to the embedded SurrealDB store. The original microtask targeted isolated per-test POSTGRESQL SCHEMA teardown and a 1009-schema backlog; PostgreSQL has been physically deleted, so there are no schemas to leak and no pg_class rows to count. THE UNDERLYING RISK IS UNCHANGED AND STILL REAL, which is why this is rescoped rather than closed: test isolation now comes from a per-run HANDSHAKE_DATA_DIR directory containing a handshake-surreal RocksDB store, and a test process that is killed or panics mid-run strands that directory on disk. Each store is measured in hundreds of megabytes to gigabytes, so a stranded-store backlog degrades proof runs and consumes the artifacts volume exactly the way the schema backlog did. Prior work exists and must be built on, not duplicated: tests/surreal_test_store_crash_safety_tests.rs and tests/surreal_test_store_support/ were created by the 2026-08-13 session and are committed. RocksDB holds an exclusive LOCK file while a store is open, and SurrealStorage::shutdown on Windows already waits until that LOCK is re-acquirable, so LOCK acquirability is the available liveness signal for deciding whether a store directory is genuinely orphaned or still owned by a live run.",
     "defect_detail": {
       "first_hypothesis_was_WRONG_and_is_corrected": "The initial guess was that storage_test_{uuid} schemas (src/backend/handshake_core/src/storage/tests.rs:183) leak because the shared helper has no Drop impl. QUERYING THE LIVE CLUSTER DISPROVED THAT AS THE CAUSE: only 18 storage_test_ schemas exist. Recorded rather than quietly replaced, because the corrected mechanism below is what the implementer must act on.",
       "measured_cause": "The backlog is knowledge_test_<uuidv7> schemas created by src/backend/handshake_core/tests/knowledge_pg_support.rs:233. Live counts in database handshake: 1045 schemas total, of which 1009 are knowledge_test_ and 18 are storage_test_. pg_class holds 1,809,030 relations, which is ~1793 relations per leaked schema and matches the 1,814,397 on-disk file count almost exactly. Each isolated schema materializes the full migration set, so one leaked schema costs ~1793 relations.",
@@ -60,9 +72,9 @@
       "verification_still_required": "Confirm whether any live process currently owns a knowledge_test_ schema before reclaiming, and whether other databases in this 27-database cluster carry the same backlog. The counts above are for database handshake only."
     },
     "allowed_paths": [
-      "src/backend/handshake_core/tests/knowledge_pg_support.rs",
-      "src/backend/handshake_core/src/storage/tests.rs",
-      "src/backend/handshake_core/tests/**"
+      "src/backend/handshake_core/tests/surreal_test_store_support/",
+      "src/backend/handshake_core/tests/surreal_test_store_crash_safety_tests.rs",
+      "src/backend/handshake_core/tests/"
     ],
     "forbidden_paths": [
       ".GOV/**",
@@ -70,17 +82,36 @@
       "src/frontend/**"
     ],
     "acceptance_criteria": [
-      "AC-123-1: the real leak mechanism is confirmed at runtime - demonstrate that an ABORTED test process (killed, not panicking) leaves its knowledge_test_ schema behind, so the fix targets the actual failure mode rather than the already-working happy path.",
-      "AC-123-2: teardown becomes crash-safe. A schema orphaned by a killed process must be reclaimable without a human. Acceptable shapes include a startup sweep that reclaims schemas provably older than any live run, or an ownership/heartbeat record the sweeper can check. State explicitly which failure modes still leak.",
-      "AC-123-3: reclamation must NOT drop a schema belonging to a concurrently running test or another worktree. This cluster is shared across work packets running in parallel. Prove the ownership predicate is safe - this is the safety-critical part of the MT.",
-      "AC-123-4: the existing 1009-schema backlog is reclaimed, with before/after schema count, pg_class relation count, and on-disk size recorded. Verify emptiness or back up before dropping; a dropped schema is unrecoverable.",
-      "AC-123-5: no test changes its assertions. This is teardown only. If any test depended on a leaked schema surviving, surface that dependency rather than silently satisfying it.",
-      "AC-123-6: re-measure unclean-shutdown recovery time after reclamation and record it, so the operational benefit is evidenced rather than assumed."
+      {
+        "id": "AC-123-1",
+        "text": "A test store directory is reclaimable after the owning process dies without running any teardown code. Reclamation must not depend on a graceful shutdown path, because the whole failure mode is that the process never reached one."
+      },
+      {
+        "id": "AC-123-2",
+        "text": "Reclamation NEVER removes a store belonging to a live run. Ownership is decided from an observable liveness signal - the RocksDB LOCK file is exclusively held while a store is open - and not from age heuristics or a naming convention alone. A concurrent proof run must survive a reclamation pass untouched."
+      },
+      {
+        "id": "AC-123-3",
+        "text": "Reclamation is safe under concurrency: two reclamation passes running at once, or a reclamation racing a starting run, must not delete a store that the starting run is about to open, and must not double-delete."
+      },
+      {
+        "id": "AC-123-4",
+        "text": "Reclamation is bounded and reports what it did: how many store directories were examined, how many were reclaimed, how many were skipped as live, and how much space was freed. A silent pass is not acceptable, because a reclaimer that quietly does nothing is indistinguishable from one that works."
+      },
+      {
+        "id": "AC-123-5",
+        "text": "Reclamation stays inside the artifacts root and refuses any path outside it, so a misconfigured HANDSHAKE_DATA_DIR can never point the reclaimer at the repository, the governance runtime root, or an operator directory."
+      },
+      {
+        "id": "AC-123-6",
+        "text": "The existing surreal_test_store_support harness gains the teardown path so ordinary tests inherit it, rather than each test having to remember to clean up. Existing tests keep passing unchanged."
+      }
     ],
     "proof_targets": [
-      "PT-123-1: before/after schema count, pg_class relation count, and directory size from the live managed cluster.",
-      "PT-123-2: a killed-process test proving the orphan is created, then reclaimed by the new mechanism.",
-      "PT-123-3: a parallel-run proof showing reclamation does not remove another live run schema."
+      "PT-123-1: a killed-process proof - spawn a child that opens a store and kill it without teardown, then show the directory stranded and subsequently reclaimed, with before/after directory listings and byte counts captured verbatim.",
+      "PT-123-2: a live-run safety proof - run reclamation while a store is open and show that store survives, then show it becomes reclaimable after its owner exits. This is the counterfactual that proves AC-123-2 is not vacuous.",
+      "PT-123-3: a containment proof - point the reclaimer at a path outside the artifacts root and show it refuses rather than deleting.",
+      "PT-123-4: the reclamation report showing examined / reclaimed / skipped-live counts and bytes freed, from a real run."
     ],
     "risk_if_missed": "Every PostgreSQL-backed proof in this and future work packets pays a growing startup tax, and an unclean shutdown can cost 15+ minutes before any work can start. It also inflates the artifact footprint the Operator asked to keep optimal."
   },
@@ -93,5 +124,20 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DESTRUCTIVE_RECLAMATION_V1",
+    "risks": [
+      "A reclaimer that deletes by age or filename pattern will eventually delete a live run store during a slow proof and produce a failure that looks like a product defect.",
+      "A reclaimer walking outside the artifacts root could delete repository or governance state; this is the highest-severity failure in this microtask and is why AC-123-5 exists.",
+      "A reclaimer that reports nothing cannot be distinguished from one that silently does nothing, so the backlog would grow again unnoticed.",
+      "Reclamation racing a starting run could delete a directory between creation and open."
+    ],
+    "minimum_controls": [
+      "AC-123-2 plus PT-123-2 require a live-store counterfactual, not just a happy-path deletion.",
+      "AC-123-5 plus PT-123-3 require a refusal proof for paths outside the artifacts root.",
+      "AC-123-4 plus PT-123-4 require a report with real counts."
+    ]
   }
 }
