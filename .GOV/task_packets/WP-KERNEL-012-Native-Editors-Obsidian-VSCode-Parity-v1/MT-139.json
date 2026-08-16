@@ -25,7 +25,7 @@
   "title": "B12-MT-139-Decide-And-Execute-The-Surreal-Schema-Provenance-Boundary",
   "group": "B12",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T09:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-139.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -38,7 +38,15 @@
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": null,
-    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
+    "operator_scope_decision_2026_08_16": {
+      "basis": "OPERATOR DECISION 2026-08-16, verbatim instruction: \"continue remediating every MT and remove all dependency on postgresql and make surrealDB the only db used in handshake\". \"ALL dependency\" and \"the ONLY db\" resolve the scope question that was held open: the Atelier subsystem is IN SCOPE for this work packet and no longer waits on a separate decision.",
+      "recorded_by": "KERNEL_BUILDER-20260815-173127",
+      "at_utc": "2026-08-16T09:05:00Z",
+      "reading": "The directive removes all PostgreSQL DEPENDENCY - runtime, driver, connection, and code paths. The migrations/ corpus is none of those: it is compile-time DDL text that storage/surreal/schema.rs hash-verifies to prove the generated SurrealQL covers every source table. Nothing in it is executed, connected to, or read at runtime.",
+      "sequencing": "This microtask CANNOT run first. The corpus is currently the SOURCE the schema is being transcribed FROM - coverage went 121 -> 187 tables by embedding 40 more of those files, and 84 tables remain to transcribe. Severing the source while still transcribing from it would destroy both the remaining work and the completeness proof. So the corpus stays until the port is complete, and this microtask then decides its end state: either keep the hash chain and document why .sql files legitimately remain after PostgreSQL is gone, or sever it and replace the source-forward proof with an equivalent that does not depend on PostgreSQL DDL.",
+      "status_effect": "Remains READY_FOR_DEV, gated behind schema completion rather than behind a decision."
+    }
   },
   "scope": {
     "summary": "storage/surreal/schema.rs embeds 59 PostgreSQL migration files via include_bytes and hash-verifies them (SOURCE_FORWARD_WAVE_MANIFEST_SHA256 and GENERATED_SURREALQL_SHA256) to prove the generated SurrealQL covers all 119 source tables and 244 named indexes. Those migrations were deleted during the PostgreSQL removal and had to be restored, because deleting them destroyed the SurrealDB port own completeness proof and caused 152 compile errors. They are now compile-time provenance only, with no server, driver or runtime path. This microtask decides and executes the end state: either keep the verification chain and document why .sql files legitimately remain after PostgreSQL is gone, or make schema.surql self-contained and replace the source-forward hash check with an equivalent proof that does not depend on PostgreSQL DDL. OPERATOR DECISION REQUIRED before implementation. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",

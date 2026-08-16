@@ -22,10 +22,10 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "mt_id": "MT-138",
-  "title": "B11-MT-138-Port-The-Atelier-Subsystem-Off-sqlx-OPERATOR-SCOPE-DECISION-REQUIRED",
+  "title": "B11-MT-138-Port-The-Atelier-Subsystem-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B11",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T09:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -40,7 +40,14 @@
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": null,
-    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
+    "operator_scope_decision_2026_08_16": {
+      "decision": "IN_SCOPE_FOR_WP_KERNEL_012",
+      "basis": "OPERATOR DECISION 2026-08-16, verbatim instruction: \"continue remediating every MT and remove all dependency on postgresql and make surrealDB the only db used in handshake\". \"ALL dependency\" and \"the ONLY db\" resolve the scope question that was held open: the Atelier subsystem is IN SCOPE for this work packet and no longer waits on a separate decision.",
+      "recorded_by": "KERNEL_BUILDER-20260815-173127",
+      "at_utc": "2026-08-16T09:05:00Z",
+      "effect": "AC-138-1 (the Operator has explicitly assigned this work to a work packet) is now SATISFIED. Implementation may begin. The 50 uncovered atelier_* tables move from deliberately-excluded to required schema work."
+    }
   },
   "scope": {
     "summary": "Port src/backend/handshake_core/src/atelier/ off sqlx onto the embedded SurrealDB store. This is the single largest cluster at 850 of the 1716 errors, about half the total, spread over roughly 25 files with atelier/mod.rs alone at 187. SCOPE FLAG FOR THE OPERATOR: Atelier and CKC is the WP-KERNEL-005 and Week-5 Atelier-Lens-CKC feature area, NOT the native-editors scope of WP-KERNEL-012. It is recorded here so the work is not lost, but the Operator decides whether it stays in this work packet, moves to its own, or waits. Do not start it without that decision. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
@@ -51,7 +58,7 @@
     "acceptance_criteria": [
       {
         "id": "AC-138-1",
-        "text": "The Operator has explicitly assigned this work to a work packet before implementation begins."
+        "text": "SATISFIED 2026-08-16: the Operator assigned this work to WP-KERNEL-012 by directing that ALL PostgreSQL dependency be removed and SurrealDB be the only database in Handshake."
       },
       {
         "id": "AC-138-2",
