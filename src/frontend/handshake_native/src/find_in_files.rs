@@ -3297,6 +3297,21 @@ pub struct FindInFilesCallbacks<'a> {
 
 // ── Render ────────────────────────────────────────────────────────────────────────────────────────────
 
+/// WP-KERNEL-012 MT-122. A text field with a HARDCODED `desired_width` is static chrome that ignores
+/// the pane it was docked into. Clamp the preferred width to the width the row actually has.
+///
+/// This is a NO-OP at every width where the field already fitted — `min` returns the preferred width
+/// whenever the row is wide enough — so it cannot move the MT-029 mounted baselines, which run at the
+/// full window width. It only bites on a narrow pane, which is exactly where the overflow was measured.
+///
+/// Read inside a `horizontal_wrapped` row this returns the row's FULL width, not the width remaining
+/// after the widgets already placed (`egui-0.33.3/src/layout.rs:449-459` returns `max_rect.width()`
+/// for a wrapping horizontal layout). That is the wanted denominator: the field should be clamped to
+/// the pane, and let the LAYOUT decide whether it starts a new row.
+fn fit_width(ui: &egui::Ui, preferred: f32) -> f32 {
+    preferred.min(ui.available_width())
+}
+
 /// Render the panel: query/replace bars, match toggles, kind/tag/path filters, action buttons, the
 /// results list, and the preview list. Drains the async cells first; dispatches actions through the two
 /// clients + the callbacks. `workspace_id` is the active workspace (the no-workspace guards show an error
@@ -3388,10 +3403,29 @@ fn show_with_author_scope(
     let bookmark_retry_author_id = scoped(BOOKMARK_RETRY_AUTHOR_ID);
 
     // ── Query + match toggles ──
-    ui.horizontal(|ui| {
+    //
+    // WP-KERNEL-012 MT-122 — `horizontal_wrapped`, not `horizontal`, on all THREE static action rows.
+    //
+    // MT-119 proved the user-content half of this defect class. Proving its guard turned up the other
+    // half, MEASURED not inferred: at a 420px pane this panel's STATIC chrome overran the pane on its
+    // own, with no user content involved at all — `find-in-files.save-bookmark` rendered to
+    // x=[388.00, 496.41] and `find-in-files.cancel` to x=[402.28, 448.59] against a 420px right edge.
+    //
+    // A plain `horizontal` row NEVER wraps, so those buttons simply left the pane. Worse, they took
+    // every later row with them: `egui::Region::expand_to_include_rect` widens a Ui's max_rect (not
+    // only its min_rect) to cover the overflow, so every row laid out AFTER this chrome was handed a
+    // layout width LARGER than the visible pane. That is why MT-119's saved-search controls still
+    // landed outside a 420px pane even with MT-119's own fix correctly applied — the row was doing the
+    // right thing with a poisoned width.
+    //
+    // `horizontal_wrapped` sets `main_wrap`, which makes the layout start a new row when the next
+    // widget does not fit (`egui-0.33.3/src/layout.rs:545-556`) instead of overflowing. Nothing wraps
+    // at the widths the MT-029 baselines run at, so this is invisible until the pane is genuinely too
+    // narrow — at which point a control on a second line is strictly better than a control off-pane.
+    ui.horizontal_wrapped(|ui| {
         let edit = egui::TextEdit::singleline(&mut state.query)
             .hint_text("Search workspace")
-            .desired_width(220.0);
+            .desired_width(fit_width(ui, 220.0));
         let resp = ui.add(edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &query_author_id);
         ui.ctx().accesskit_node_builder(resp.id, |node| {
@@ -3543,11 +3577,13 @@ fn show_with_author_scope(
         });
 
     // ── Replacement + replace actions ──
-    ui.horizontal(|ui| {
+    // MT-122: wrapped for the reason documented on the query row above. This is the row that carried
+    // the measured `find-in-files.cancel` overflow at x=[402.28, 448.59].
+    ui.horizontal_wrapped(|ui| {
         let replacement_enabled = !state.apply_in_flight();
         let edit = egui::TextEdit::singleline(&mut state.replacement)
             .hint_text("Replace with")
-            .desired_width(220.0);
+            .desired_width(fit_width(ui, 220.0));
         let resp = ui.add_enabled(replacement_enabled, edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &replace_author_id);
         let mut replacement_set_via_accesskit = false;
@@ -3669,7 +3705,10 @@ fn show_with_author_scope(
     );
 
     // ── Kind / tag / path filters ──
-    ui.horizontal(|ui| {
+    // MT-122: wrapped for the reason documented on the query row above. This is the row that carried
+    // the measured `find-in-files.save-bookmark` overflow at x=[388.00, 496.41] — the widest static
+    // control in the panel and the one INTERLOCK I0 of the MT-119 guard measures.
+    ui.horizontal_wrapped(|ui| {
         let combo = egui::ComboBox::from_id_salt(&kind_filter_author_id)
             .selected_text(state.kind.label())
             .show_ui(ui, |ui| {
@@ -3690,7 +3729,7 @@ fn show_with_author_scope(
 
         let tag = egui::TextEdit::singleline(&mut state.tag_filter)
             .hint_text("tag ids")
-            .desired_width(120.0);
+            .desired_width(fit_width(ui, 120.0));
         let tag_resp = ui.add(tag);
         accessibility::emit_interactive_node(ui.ctx(), tag_resp.id, &tag_filter_author_id);
         ui.ctx().accesskit_node_builder(tag_resp.id, |node| {
@@ -3717,7 +3756,7 @@ fn show_with_author_scope(
 
         let path = egui::TextEdit::singleline(&mut state.path_filter)
             .hint_text("path")
-            .desired_width(120.0);
+            .desired_width(fit_width(ui, 120.0));
         let path_resp = ui.add(path);
         accessibility::emit_interactive_node(ui.ctx(), path_resp.id, &path_filter_author_id);
         ui.ctx().accesskit_node_builder(path_resp.id, |node| {
@@ -3939,12 +3978,45 @@ fn show_with_author_scope(
                     let frame = egui::Frame::group(ui.style());
                     let inner = frame.show(ui, |ui| {
                         ui.vertical(|ui| {
+                            // WP-KERNEL-012 MT-122, the SAME defect class as MT-119 one row down.
+                            // `hit.title` is BACKEND CONTENT and therefore unbounded — a Loom block
+                            // title or a file path can be arbitrarily long. Laid out FIRST in a
+                            // left-to-right row it consumed the whole row width and pushed the
+                            // `[source_kind]` badge past the pane's right edge, where the enclosing
+                            // vertical `ScrollArea` simply clips it: the operator loses the only
+                            // at-a-glance signal telling a document hit from a file or loom_block hit.
+                            //
+                            // Severity is BELOW MT-119 and the difference is recorded deliberately:
+                            // no control becomes unreachable here, because the click target is the
+                            // whole `Frame::group` response below (`inner.response.interact`), not
+                            // anything inside this row. A signal is lost, not an action.
+                            //
+                            // Fix is MT-119's idiom, not a second pattern: reserve the BOUNDED widget
+                            // first against the row's right edge with `right_to_left`, then let the
+                            // unbounded title truncate into whatever remains. The full title stays
+                            // recoverable through egui's `show_tooltip_when_elided` (default TRUE,
+                            // fires only when the galley was actually elided), which is what keeps two
+                            // long hits distinguishable — AC-122-2, mirroring AC-119-2.
+                            //
+                            // The interaction contract is UNTOUCHED (AC-122-4): the row's single click
+                            // target is still the frame response, and both widgets here are the same
+                            // `Label` widget class they were before, so neither starts consuming clicks.
                             ui.horizontal(|ui| {
-                                ui.strong(&hit.title);
-                                ui.label(
-                                    egui::RichText::new(format!("[{}]", hit.source_kind))
-                                        .color(ui.visuals().weak_text_color())
-                                        .small(),
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        ui.label(
+                                            egui::RichText::new(format!("[{}]", hit.source_kind))
+                                                .color(ui.visuals().weak_text_color())
+                                                .small(),
+                                        );
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(hit.title.as_str()).strong(),
+                                            )
+                                            .truncate(),
+                                        );
+                                    },
                                 );
                             });
                             if !hit.excerpt.is_empty() {
@@ -6415,22 +6487,26 @@ mod tests {
             runtime.handle().clone(),
         );
 
-        // 560px, not the 420px first tried, and the difference is a MEASURED product finding rather
-        // than a tuning convenience. At 420px the panel's STATIC action row already overflows on its
-        // own — `find-in-files.save-bookmark` ("Bookmark Search") measured x=[388.00, 496.41] and
-        // `find-in-files.cancel` x=[402.28, 448.59]. egui's `Region::expand_to_include_rect` widens a
-        // Ui's max_rect (not just its min_rect) to cover overflow, so that earlier row hands EVERY
-        // later row — including the saved-search row — a layout width larger than the visible pane.
-        // The saved-search controls then land at Restore x=[380.16, 433.28] and Remove
-        // x=[441.28, 496.41], i.e. outside a 420px pane EVEN WITH the MT-119 fix in place.
+        // 420px. WP-KERNEL-012 MT-122 LOWERED this from the 560px MT-119 shipped with, and the change
+        // of number IS the acceptance evidence for AC-122-0 — not a tuning convenience.
         //
-        // That is a real second-order defect (static chrome that does not fit a narrow pane drags
-        // user-content rows off-pane with it), but it is NOT the defect MT-119 fixed and fixing it
-        // would be a product change outside this MT. Guarding MT-119 at 420px would therefore pin the
-        // WRONG failure. The width is chosen so the static chrome fits, and INTERLOCK I0 below asserts
-        // that premise explicitly so the guard reports "static chrome outgrew the pane" instead of
-        // silently blaming the saved-search layout if it ever stops holding.
-        const PANE_WIDTH: f32 = 560.0;
+        // MT-119 could not guard at 420px. At that width the panel's STATIC action row overflowed on
+        // its own, before any user content existed: `find-in-files.save-bookmark` ("Bookmark Search")
+        // measured x=[388.00, 496.41] and `find-in-files.cancel` x=[402.28, 448.59]. egui's
+        // `Region::expand_to_include_rect` widens a Ui's max_rect (not just its min_rect) to cover
+        // overflow, so that earlier row handed EVERY later row — the saved-search row included — a
+        // layout width larger than the visible pane. The saved-search controls consequently landed at
+        // Restore x=[380.16, 433.28] and Remove x=[441.28, 496.41], i.e. outside a 420px pane EVEN
+        // WITH the MT-119 fix correctly in place. Guarding MT-119 at 420px would have pinned the WRONG
+        // failure, so MT-119 chose a width where its own premise held and left INTERLOCK I0 as the
+        // tripwire that says so out loud.
+        //
+        // MT-122 fixed that static chrome (`horizontal_wrapped` + `fit_width` on the three action
+        // rows), so the premise now holds at the narrow width the operator actually docks this pane
+        // at. Dropping the width here is what proves it: I0 fails LOUDLY if the static chrome ever
+        // stops fitting 420px again, and the containment assertions below now exercise the saved-search
+        // row at a width that used to be unreachable.
+        const PANE_WIDTH: f32 = 420.0;
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         // Pin DPI: AccessKit bounds are logical pixels, and pinning ppp keeps them directly
@@ -6630,6 +6706,302 @@ mod tests {
              rendered {:.3}px wide against an untruncated {untruncated_label_width:.3}px, so nothing \
              is being bounded and the containment assertions above prove nothing",
             label_bounds.w
+        );
+    }
+
+    /// PT-122-2 / AC-122-5 — the regression guard for MT-122's result row.
+    ///
+    /// Same defect class as MT-119, one row down and one severity lower: an unbounded `hit.title`
+    /// laid out FIRST in a left-to-right row consumed the whole row and pushed the `[source_kind]`
+    /// badge past the pane's right edge, where the results `ScrollArea` clips it away. No control
+    /// becomes unreachable — the click target is the whole `Frame::group` — so what the operator
+    /// loses is the at-a-glance signal telling a `document` hit from a `file` or `loom_block` hit.
+    ///
+    /// The harness is deliberately the MT-119 one, interlocks included, because both guards are
+    /// answering the same question and a second shape would mean a second set of ways to be vacuous:
+    ///
+    /// * I1 proves the pane is genuinely bounded (the first MT-119 attempt measured ~9984px because
+    ///   egui's default viewport with no `screen_rect` is 10000x10000, and every containment claim it
+    ///   made was therefore meaningless).
+    /// * I2 proves the fixture title genuinely overflows the row, measured in THIS context rather
+    ///   than hardcoded, so a font change cannot quietly shrink the fixture below the overflow point.
+    /// * I3 fails closed on missing bounds rather than passing silently.
+    /// * I4 proves truncation is actually in force — without it, dropping `.truncate()` would keep the
+    ///   badge assertion green while the title ran off the pane's LEFT edge instead.
+    ///
+    /// One interlock is NEW here and is what makes this test an MT-122 guard rather than a second
+    /// MT-119: I5 asserts the row is still ONE click target carrying its `Click` action at its
+    /// unchanged content-derived author_id (AC-122-4). A "fix" that bounded the badge by breaking the
+    /// row into separately clickable pieces, or that renamed the route, would pass containment and
+    /// fail the product.
+    ///
+    /// Non-vacuity was PROVEN by mutation, not assumed: restoring the pre-fix
+    /// `ui.horizontal(|ui| { ui.strong(&hit.title); ui.label(badge); })` fails the badge assertion,
+    /// and the RED output is captured in the MT-122 evidence.
+    ///
+    /// The badge and the title carry no author_id — the product stamps routes on the ROW, not on its
+    /// text — so both are addressed by role + text, exactly as MT-119 addresses its saved-search
+    /// label. `Role::Label` nodes get their text as `value` (egui `response.rs:884`), and
+    /// `Galley::text()` returns the FULL job text, so an elided title is still identified by its
+    /// untruncated prefix.
+    #[test]
+    fn mt122_result_row_badge_stays_inside_the_find_pane() {
+        use crate::accessibility::{collect_ui_tree_snapshot, UiNodeBounds};
+
+        // A realistic long Loom-block title. The defect only appears with backend content long enough
+        // to consume the row before the badge is placed.
+        let title = "Session token refresh scheduler: retry backoff plus every call site that still \
+                     builds a bearer header by hand, collected from the authentication middleware \
+                     refactor review notes for the workspace";
+        assert!(
+            (180..=240).contains(&title.len()),
+            "fixture drift: the guard is calibrated for a ~200-character title, got {}",
+            title.len()
+        );
+        const SOURCE_KIND: &str = "loom_block";
+        const REF_ID: &str = "LB-mt122-badge";
+        let badge_text = format!("[{SOURCE_KIND}]");
+
+        let hit = LoomGraphSearchHit {
+            source_kind: SOURCE_KIND.into(),
+            result_kind: "loom_block".into(),
+            ref_id: REF_ID.into(),
+            title: title.to_owned(),
+            excerpt: "…builds a bearer header by hand…".into(),
+            metadata: json!({}),
+            block: None,
+        };
+        // The row's route is content-derived and layout-independent (MT-113's bounded composer), so a
+        // layout-only fix must leave it byte-identical. I5 below asserts exactly that.
+        let row_author_id = result_author_id(SOURCE_KIND, REF_ID);
+
+        let mut panel = FindInFilesPanelState::new();
+        panel.bind_workspace(Some("ws-mt122"), 0);
+        panel.results = vec![hit];
+        // Query stays empty on purpose: `with_visible_indices` then compiles no regex and every hit is
+        // visible, so this proof cannot be perturbed by the client-side option filter.
+        assert_eq!(
+            panel.visible_result_count(),
+            1,
+            "the fixture hit must be visible before the row can be measured"
+        );
+        let panel = std::cell::RefCell::new(panel);
+
+        // Endpoint 127.0.0.1:1 is deliberately dead: this proof is about layout, and no request must
+        // ever be able to change what is rendered.
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build current-thread runtime");
+        let search_client = crate::backend_client::WorkspaceSearchClient::new(
+            "http://127.0.0.1:1",
+            runtime.handle().clone(),
+        );
+        let doc_client = crate::backend_client::RichDocClient::new(
+            "http://127.0.0.1:1",
+            runtime.handle().clone(),
+        );
+
+        // The same 420px narrow pane the MT-119 guard now runs at (AC-122-0). Before MT-122 fixed the
+        // static action rows this width was unusable for ANY containment claim, because the chrome
+        // overflowed on its own and egui's `expand_to_include_rect` handed every later row — this one
+        // included — a layout width larger than the pane.
+        const PANE_WIDTH: f32 = 420.0;
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        // Pin DPI: AccessKit bounds are logical pixels, and pinning ppp keeps them directly
+        // comparable to the egui points the pane rect is measured in.
+        ctx.set_pixels_per_point(1.0);
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1280.0, 800.0),
+            )),
+            ..Default::default()
+        };
+
+        let pane_rect_cell = std::cell::Cell::new(egui::Rect::NOTHING);
+        let run_pass = || {
+            ctx.run(input.clone(), |ctx| {
+                egui::SidePanel::left("mt122-find-in-files-pane")
+                    .resizable(false)
+                    .exact_width(PANE_WIDTH)
+                    .show(ctx, |ui| {
+                        // MEASURED from this pass, and it must be the CLIP rect, not the panel's
+                        // response rect: the response rect is the Frame's and GROWS to include
+                        // overflowing content (MT-119 measured 504.406px for a 420px pane that way).
+                        // The clip rect is where egui stops painting, which is the human-visibility
+                        // question this guard is about.
+                        pane_rect_cell.set(ui.clip_rect());
+                        let palette = crate::theme::HsTheme::Dark.palette();
+                        let mut on_open = |_hit: &crate::backend_client::LoomGraphSearchHit| {};
+                        let mut callbacks = FindInFilesCallbacks {
+                            on_open_hit: &mut on_open,
+                        };
+                        show(
+                            ui,
+                            &mut panel.borrow_mut(),
+                            &palette,
+                            &search_client,
+                            &doc_client,
+                            Some("ws-mt122"),
+                            &mut callbacks,
+                        );
+                    });
+            })
+        };
+        // Two passes: the results `ScrollArea` sizes its viewport on the first and lays the visible
+        // rows out against it on the second, the same two-frame settle the mounted proofs use.
+        let _first = run_pass();
+        let second = run_pass();
+
+        let update = second
+            .platform_output
+            .accesskit_update
+            .expect("AccessKit update produced (accesskit enabled + frame run)");
+        let snapshot = collect_ui_tree_snapshot(&update);
+        let pane_rect = pane_rect_cell.get();
+
+        // ── INTERLOCK I1: the pane really is bounded ──────────────────────────────────────────────
+        assert!(
+            pane_rect.width() > 0.0 && pane_rect.width() <= PANE_WIDTH + 2.0,
+            "INTERLOCK I1: the Find pane must be genuinely bounded to ~{PANE_WIDTH}px before \
+             containment means anything; measured {:.3}px",
+            pane_rect.width()
+        );
+
+        // ── INTERLOCK I2: the fixture genuinely stresses the row ──────────────────────────────────
+        // `RichText::strong()` changes the COLOUR, not the font, so the Body font is the right ruler
+        // for the title's width. Colour comes from the palette because `test_theme` bans `Color32`
+        // literals in this file, test module included.
+        let body_font = egui::TextStyle::Body.resolve(&ctx.style());
+        let measure_palette = crate::theme::HsTheme::Dark.palette();
+        let untruncated_title_width = ctx.fonts_mut(|fonts| {
+            fonts
+                .layout_no_wrap(title.to_owned(), body_font, measure_palette.text)
+                .size()
+                .x
+        });
+        assert!(
+            untruncated_title_width >= pane_rect.width() * 1.5,
+            "INTERLOCK I2: the fixture title must genuinely overflow the row — it lays out at \
+             {untruncated_title_width:.3}px against a {:.3}px pane, under the 1.5x floor",
+            pane_rect.width()
+        );
+
+        // ── INTERLOCK I3: fail closed on missing bounds ───────────────────────────────────────────
+        // Both nodes are addressed by role + exact text and asserted UNIQUE. A duplicate would make
+        // the measurement depend on tree order, which is the quiet ambiguity this guard refuses.
+        let unique_label_bounds = |what: &str, matches_value: &dyn Fn(&str) -> bool| -> UiNodeBounds {
+            let mut found = snapshot.iter_nodes().filter(|node| {
+                node.role == "Label" && node.value.as_deref().is_some_and(|v| matches_value(v))
+            });
+            let node = found
+                .next()
+                .unwrap_or_else(|| panic!("the result row must publish a Label node for the {what}"));
+            assert!(
+                found.next().is_none(),
+                "the result row must publish EXACTLY ONE Label node for the {what}; a duplicate \
+                 makes this measurement tree-order dependent"
+            );
+            node.bounds
+                .unwrap_or_else(|| panic!("the {what} Label node must carry rendered AccessKit bounds"))
+        };
+        let badge_bounds = unique_label_bounds("[source_kind] badge", &|value| value == badge_text);
+        let title_prefix: String = title.chars().take(40).collect();
+        let title_bounds =
+            unique_label_bounds("hit title", &|value| value.starts_with(&title_prefix));
+
+        // ── INTERLOCK I0: the static chrome premise still holds at this width ─────────────────────
+        // Inherited from the MT-119 guard and kept deliberately: if the panel's static action rows
+        // ever outgrow the pane again, egui expands the shared max_rect over the overflow and pushes
+        // EVERY later row — this one included — outside the pane no matter how the row is laid out.
+        // Without I0 this guard would report "the badge left the pane" and send the next reader to
+        // the wrong file.
+        let widest_static_control = snapshot
+            .find_unique_by_author_id(&pane_scoped_author_id(SAVE_BOOKMARK_AUTHOR_ID, None))
+            .expect("the static action row must publish exactly one Bookmark Search node")
+            .bounds
+            .expect("the Bookmark Search control must carry rendered AccessKit bounds");
+        assert!(
+            widest_static_control.x + widest_static_control.w <= pane_rect.right() + 1.0,
+            "INTERLOCK I0: the panel's STATIC action row must fit the {PANE_WIDTH}px test pane before \
+             a result-row containment claim is meaningful. 'Bookmark Search' rendered to {:.3}px \
+             against a pane right edge of {:.3}px — fix the static row (MT-122's `horizontal_wrapped` \
+             chrome fix has regressed); do not read the assertion below as a result-row defect.",
+            widest_static_control.x + widest_static_control.w,
+            pane_rect.right()
+        );
+
+        // ── The guard proper ──────────────────────────────────────────────────────────────────────
+        // The badge catches MT-122's defect (a long title pushing it off the right edge); the title
+        // catches the other half — with `.truncate()` removed the badge stays put and the title runs
+        // off the pane's LEFT edge instead, because the row reserves right-to-left.
+        const TOL: f32 = 1.0;
+        for (name, b) in [
+            ("[source_kind] badge", badge_bounds),
+            ("hit title", title_bounds),
+        ] {
+            assert!(
+                b.x >= pane_rect.left() - TOL
+                    && b.x + b.w <= pane_rect.right() + TOL
+                    && b.y >= pane_rect.top() - TOL
+                    && b.y + b.h <= pane_rect.bottom() + TOL,
+                "MT-122: the {name} must render FULLY INSIDE the Find-in-Files pane. \
+                 rect x=[{:.3}, {:.3}] y=[{:.3}, {:.3}] vs pane x=[{:.3}, {:.3}] y=[{:.3}, {:.3}] \
+                 (tolerance {TOL}px). The results ScrollArea CLIPS anything outside the pane, so a \
+                 badge outside it is simply gone from the operator's view.",
+                b.x,
+                b.x + b.w,
+                b.y,
+                b.y + b.h,
+                pane_rect.left(),
+                pane_rect.right(),
+                pane_rect.top(),
+                pane_rect.bottom()
+            );
+        }
+
+        // ── INTERLOCK I4: truncation is actually in force ─────────────────────────────────────────
+        // Ordered AFTER the containment loop for the MT-119 reason: when the row is broken, the
+        // operator-meaningful message is WHICH element left the pane and by how much.
+        assert!(
+            title_bounds.w < untruncated_title_width,
+            "INTERLOCK I4: the title must render TRUNCATED into the width left by the badge; it \
+             rendered {:.3}px wide against an untruncated {untruncated_title_width:.3}px, so nothing \
+             is being bounded and the containment assertions above prove nothing",
+            title_bounds.w
+        );
+
+        // ── INTERLOCK I5: the interaction contract survived the layout fix (AC-122-4) ─────────────
+        // The whole row stays ONE click target at its unchanged content-derived route.
+        let row_node = snapshot
+            .find_unique_by_author_id(&row_author_id)
+            .unwrap_or_else(|| {
+                panic!(
+                    "INTERLOCK I5: the result row must still publish exactly one node at \
+                     {row_author_id} — a layout fix must not change the row's route or split it into \
+                     several targets"
+                )
+            });
+        assert!(
+            row_node.actions.iter().any(|action| action == "Click"),
+            "INTERLOCK I5: the whole result row must remain a single CLICK target; \
+             {row_author_id} advertises actions {:?}",
+            row_node.actions
+        );
+        let row_bounds = row_node
+            .bounds
+            .expect("INTERLOCK I5: the result row must carry rendered AccessKit bounds");
+        assert!(
+            row_bounds.x + row_bounds.w >= badge_bounds.x + badge_bounds.w - TOL
+                && row_bounds.x <= title_bounds.x + TOL,
+            "INTERLOCK I5: the row click target must still SPAN both the title and the badge. \
+             row x=[{:.3}, {:.3}] vs title x={:.3} and badge right edge {:.3}",
+            row_bounds.x,
+            row_bounds.x + row_bounds.w,
+            title_bounds.x,
+            badge_bounds.x + badge_bounds.w
         );
     }
 }
