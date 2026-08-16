@@ -1,0 +1,114 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-139",
+  "title": "B12-MT-139-Decide-And-Execute-The-Surreal-Schema-Provenance-Boundary",
+  "group": "B12",
+  "created_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-139.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+  },
+  "scope": {
+    "summary": "storage/surreal/schema.rs embeds 59 PostgreSQL migration files via include_bytes and hash-verifies them (SOURCE_FORWARD_WAVE_MANIFEST_SHA256 and GENERATED_SURREALQL_SHA256) to prove the generated SurrealQL covers all 119 source tables and 244 named indexes. Those migrations were deleted during the PostgreSQL removal and had to be restored, because deleting them destroyed the SurrealDB port own completeness proof and caused 152 compile errors. They are now compile-time provenance only, with no server, driver or runtime path. This microtask decides and executes the end state: either keep the verification chain and document why .sql files legitimately remain after PostgreSQL is gone, or make schema.surql self-contained and replace the source-forward hash check with an equivalent proof that does not depend on PostgreSQL DDL. OPERATOR DECISION REQUIRED before implementation. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      {
+        "id": "AC-139-1",
+        "text": "The Operator decision between retaining and severing the provenance corpus is recorded in this contract before any code changes."
+      },
+      {
+        "id": "AC-139-2",
+        "text": "Whichever path is chosen, the SurrealDB schema retains a mechanical proof that it covers every table and index it claims to cover."
+      },
+      {
+        "id": "AC-139-3",
+        "text": "If severed, no .sql file remains anywhere under src/ and the replacement proof is not weaker than the hash chain it replaces."
+      }
+    ],
+    "proof_targets": [
+      "PT-139-1: the recorded Operator decision.",
+      "PT-139-2: the coverage proof executing green, with table and index counts matching schema.surql.",
+      "PT-139-3: if severed, a repo-wide scan proving no .sql file remains under src/."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend storage port with no operator-visible surface of its own; the surfaces it restores are proven by their own microtasks."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "where the SurrealDB schema comes from and how its completeness is proven"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STORAGE_PORT_V1",
+    "risks": [
+      "Severing without an equivalent proof would silently drop the guarantee that the SurrealDB schema is complete.",
+      "Retaining silently leaves PostgreSQL DDL in a project the Operator asked to be free of PostgreSQL."
+    ],
+    "minimum_controls": [
+      "No method may be left returning NotImplemented while any microtask claims that behaviour works.",
+      "Every ported method needs a proof that touches a real embedded SurrealDB store, never a mock.",
+      "DECLARED_NOT_IMPLEMENTED must be decremented in the same change that ports a method."
+    ]
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

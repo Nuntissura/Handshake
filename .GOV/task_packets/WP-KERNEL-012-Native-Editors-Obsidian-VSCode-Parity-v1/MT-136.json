@@ -1,0 +1,117 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-136",
+  "title": "B9-MT-136-Port-The-Storage-Layer-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
+  "group": "B9",
+  "created_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+  },
+  "scope": {
+    "summary": "Port the storage modules off sqlx onto the embedded SurrealDB store. These modules were helpers of the deleted PostgresDatabase and account for 463 of the errors: storage/knowledge.rs (184), storage/fems_memory.rs (72), storage/knowledge_crdt.rs (46), plus knowledge_memory, knowledge_retrieval, kb003_storage, block_view_outbox, calendar, retention and loom. Decide per module whether it is ported into storage/surreal/ or deleted as dead PostgreSQL implementation detail: storage/loom.rs and storage/retention.rs currently have ZERO external consumers while storage/knowledge.rs has 39, so they are not all the same case. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      {
+        "id": "AC-136-1",
+        "text": "No file under src/backend/handshake_core/src/storage/ references sqlx."
+      },
+      {
+        "id": "AC-136-2",
+        "text": "Every Database method backing a native-editor surface is implemented against the embedded SurrealDB store, and DECLARED_NOT_IMPLEMENTED is decremented accordingly."
+      },
+      {
+        "id": "AC-136-3",
+        "text": "Each retained module is justified by a real consumer; modules with zero consumers are deleted rather than ported."
+      },
+      {
+        "id": "AC-136-4",
+        "text": "Persistence round-trips survive a store close and reopen, proving durability rather than in-memory behaviour."
+      }
+    ],
+    "proof_targets": [
+      "PT-136-1: cargo check output showing zero sqlx errors under src/storage/.",
+      "PT-136-2: a round-trip test against a real embedded SurrealDB store opened at a temporary HANDSHAKE_DATA_DIR, including close and reopen.",
+      "PT-136-3: the not_implemented_surface_is_declared test green at the reduced count."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend storage port with no operator-visible surface of its own; the surfaces it restores are proven by their own microtasks."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "storage authority and persistence behaviour for the ported domain"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STORAGE_PORT_V1",
+    "risks": [
+      "A method ported without a real-store proof can pass against a mock and still fail at runtime.",
+      "Deleting a module that still has a live consumer would silently remove a product behaviour."
+    ],
+    "minimum_controls": [
+      "No method may be left returning NotImplemented while any microtask claims that behaviour works.",
+      "Every ported method needs a proof that touches a real embedded SurrealDB store, never a mock.",
+      "DECLARED_NOT_IMPLEMENTED must be decremented in the same change that ports a method."
+    ]
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

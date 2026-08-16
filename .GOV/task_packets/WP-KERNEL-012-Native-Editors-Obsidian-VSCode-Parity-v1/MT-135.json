@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-135",
+  "title": "E11-MT-135-Project-Memory-Backed-Context-Menus-Into-The-MCP-Capture-Pass-So-Models-Can-See-Them",
+  "group": "E11",
+  "created_at_utc": "2026-08-16T04:40:00Z",
+  "updated_at_utc": "2026-08-16T04:40:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-135.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-121"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Discovered and proven during MT-121 implementation on 2026-08-16; deferred to a new MT in the same WP per Operator directive so the finding is not lost."
+  },
+  "scope": {
+    "summary": "HandshakeApp::refresh_mcp_snapshot builds a BRAND-NEW egui::Context for the model-vision capture pass. That fresh context has an EMPTY egui::Memory, so any surface whose open/closed state lives in egui::Memory is absent from the published MCP snapshot even when it is visibly open in the live window. app.rs already works around this for two surfaces by hand-copying the Reading-mode store and the open top-menu into the capture context, but pointer-opened PANE CONTEXT MENUS have no such projection. Consequence: a model driving Argus cannot see, target, or steer any context menu - it is invisible in argus.inspect while a human sees it on screen. This was proven live during MT-121 by tests/test_mcp_snapshot_viewport.rs::mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass, which shows author_id 'ctx-menu.pane.pop_out' present in the rendered kittest frame and absent from the published snapshot. MT-121 fixed viewport SIZING only and deliberately did not fix this; the failing condition is asserted as current behaviour there, so that assertion MUST be inverted by this MT.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/accessibility/",
+      "src/frontend/handshake_native/src/mcp/",
+      "src/frontend/handshake_native/tests/"
+    ],
+    "forbidden_paths": [
+      "src/backend/"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-135-1",
+        "text": "A pane context menu that is open in the live window appears in the published MCP snapshot with its stable author_id, role and bounds, exactly as it appears in the rendered AccessKit tree."
+      },
+      {
+        "id": "AC-135-2",
+        "text": "The projection is general, not a hard-coded allowlist of one menu: any egui::Memory-backed surface the shell can open is projected into the capture context by a single documented mechanism, and adding a new menu does not require a new bespoke copy step."
+      },
+      {
+        "id": "AC-135-3",
+        "text": "Bounds published for the projected menu lie inside the declared SnapshotViewport and match the rendered frame, preserving the MT-121 coordinate contract."
+      },
+      {
+        "id": "AC-135-4",
+        "text": "The MT-121 test mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass is inverted to assert the menu IS visible, and its comment is updated so it no longer documents the defect as expected behaviour."
+      },
+      {
+        "id": "AC-135-5",
+        "text": "A closed context menu is still absent from the snapshot: the fix must not make menus permanently visible, which would be a different falsehood."
+      }
+    ],
+    "proof_targets": [
+      "PT-135-1: RED/GREEN of the inverted MT-121 assertion, both outputs captured verbatim.",
+      "PT-135-2: a mounted frame with a context menu open, OPENED and described, showing the menu present in both the rendered tree and the published snapshot with matching bounds.",
+      "PT-135-3: a negative proof that a CLOSED context menu does not appear in the snapshot.",
+      "PT-135-4: the full native lib suite still green (MT-121 baseline was 2069 passed / 0 failed)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "surfaces": [
+      "pane context menu",
+      "MCP navigation snapshot"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "before_after_observation"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "agent tool reference: which surfaces are visible to argus.inspect and which are not"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "MODEL_VISIBILITY_V1",
+    "risks": [
+      "A blanket Memory copy could leak stale or half-open surfaces into the snapshot and make models act on a menu the operator already dismissed.",
+      "Copying Memory wholesale could import focus/scroll state that changes layout and breaks the MT-121 coordinate contract.",
+      "A per-menu allowlist would regress the moment a new menu is added, recreating this defect silently."
+    ],
+    "minimum_controls": [
+      "AC-135-5 negative proof for the closed state.",
+      "AC-135-3 coordinate-contract regression check.",
+      "AC-135-2 forbids a one-off allowlist."
+    ]
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

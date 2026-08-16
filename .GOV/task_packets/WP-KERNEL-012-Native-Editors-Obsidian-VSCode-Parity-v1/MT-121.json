@@ -22,7 +22,7 @@
   "title": "E11-MT-121-Size-The-MCP-Snapshot-Viewport-So-Model-Visible-Bounds-Describe-The-Real-Window",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-12T11:40:00Z",
-  "updated_at_utc": "2026-08-12T11:40:00Z",
+  "updated_at_utc": "2026-08-16T04:35:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-121.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": true,
     "depends_on": [],
     "blocks": [],
@@ -39,7 +39,15 @@
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Discovered while designing the MT-119 PT-119-3 geometry guard. Every geometry value the MCP snapshot publishes to models is measured in an unsized 10000x10000 egui viewport, so no model can reason about layout, containment, clipping, or overlap from argus.inspect(). This is a live product defect on the model-vision surface, not a test artifact. It is outside MT-119 (layout-only) allowed_paths, so it is deferred here per the Operator standing rule rather than silently absorbed or lost."
+    "creation_reason": "Discovered while designing the MT-119 PT-119-3 geometry guard. Every geometry value the MCP snapshot publishes to models is measured in an unsized 10000x10000 egui viewport, so no model can reason about layout, containment, clipping, or overlap from argus.inspect(). This is a live product defect on the model-vision surface, not a test artifact. It is outside MT-119 (layout-only) allowed_paths, so it is deferred here per the Operator standing rule rather than silently absorbed or lost.",
+    "ready_for_validation_v4_at_utc": "2026-08-16T04:35:00Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260815-173127",
+    "ready_for_validation_summary": "MT-121 implemented. ROOT CAUSE: refresh_mcp_snapshot ran the model-vision capture with egui::RawInput::default(), whose screen_rect is None, so egui substituted its synthetic 10000x10000 viewport_rect; those widget rects flowed straight into AccessKit bounds and were published as UiNodeBounds. FIX: capture now runs with screen_rect: Some(viewport_rect) and publishes a declared SnapshotViewport carrying a ViewportSource of LiveWindow or DeclaredFallback, so a headless fallback can never be laundered into a live-window claim; ui() no longer adopts the capture context as frame_ctx. PT-121-1 RED/GREEN captured verbatim: pre-fix 91 of 385 published nodes fell outside the declared 1400x900 viewport (shell.chrome.theme-toggle at x=9952.594); post-fix 5/5 tests pass. PT-121-3 before/after for shell.chrome.theme-toggle: published x moved 9952.594 -> 1352.594 against a rendered x of 1352.594, error 8600.0pt -> 0.000. PT-121-2 partial: MT-029 mounted visual proof green (1 passed, 1 pre-existing headless-GPU ignore) and the full native lib suite is 2069 passed / 0 failed, but MT-113 test_author_id_budget was COMPILED ONLY, not run - it is cfg(feature=integration) and needs a live backend plus a real GPU host. PT-121-2 is therefore NOT closed and an independent validator must execute MT-113 on a backend+GPU host. Disclosed scope additions: a UserManual coordinate-contract paragraph in manual_content_editors.rs (AC-121-5 requires a manual entry and no manual surface exists inside allowed_paths), and the frame_ctx adoption guard. Separately proven and NOT fixed here: egui::Memory-backed context menus remain invisible to the capture pass (fresh-context defect, needs its own MT). Implementer evidence only - no self-certification.",
+    "ready_for_validation_v4_open_items": [
+      "PT-121-2 incomplete: MT-113 test_author_id_budget compiled but not executed (needs live backend + real GPU host).",
+      "Memory-backed context-menu invisibility to the capture pass is a separate defect requiring a new MT in this WP.",
+      "MT-121 has no isolated commit: its files were swept into 4f92cc25 by the concurrent PostgreSQL-removal checkpoint."
+    ]
   },
   "scope": {
     "summary": "Give the MCP navigation snapshot a real screen rect so the bounds it publishes to models describe the actual window instead of egui's unsized 10000x10000 default viewport.",

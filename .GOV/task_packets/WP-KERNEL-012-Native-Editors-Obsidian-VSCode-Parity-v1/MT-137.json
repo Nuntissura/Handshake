@@ -1,0 +1,123 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-137",
+  "title": "B10-MT-137-Port-Backend-Infrastructure-Modules-Off-sqlx",
+  "group": "B10",
+  "created_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-136"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+  },
+  "scope": {
+    "summary": "Port the non-storage backend infrastructure off sqlx: swarm_orchestration/state_recovery.rs (60), user_manual/store.rs (48), process_ledger (48), role_mailbox_v1 (34), mt_executor (32), knowledge_ingestion (32), flight_recorder (29), knowledge_memory (20), kernel (18), knowledge_retrieval (13) and session_checkpoint (7). These own process and session lifecycle, the role mailbox, the microtask executor queue and Flight Recorder spans, so they must keep their existing durability and ordering semantics. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/src/process_ledger/",
+      "src/backend/handshake_core/src/role_mailbox_v1/",
+      "src/backend/handshake_core/src/mt_executor/",
+      "src/backend/handshake_core/src/knowledge_ingestion/",
+      "src/backend/handshake_core/src/flight_recorder/",
+      "src/backend/handshake_core/src/kernel/",
+      "src/backend/handshake_core/src/session_checkpoint/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      {
+        "id": "AC-137-1",
+        "text": "None of these modules references sqlx."
+      },
+      {
+        "id": "AC-137-2",
+        "text": "Process-ledger and session-checkpoint durability and restart-recovery semantics are preserved and proven across a store reopen."
+      },
+      {
+        "id": "AC-137-3",
+        "text": "Flight Recorder append and query behaviour is unchanged from the consumer side."
+      }
+    ],
+    "proof_targets": [
+      "PT-137-1: cargo check output showing zero sqlx errors in these modules.",
+      "PT-137-2: a restart-recovery proof against a real embedded store showing state survives a process restart.",
+      "PT-137-3: a Flight Recorder append-then-read proof against the real store."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend storage port with no operator-visible surface of its own; the surfaces it restores are proven by their own microtasks."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "process, session and Flight Recorder persistence behaviour after the port"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STORAGE_PORT_V1",
+    "risks": [
+      "Losing ordering or idempotency in the process ledger would corrupt restart recovery.",
+      "Flight Recorder is the Tier 1 diagnostic ledger; weakening it silently removes observability."
+    ],
+    "minimum_controls": [
+      "No method may be left returning NotImplemented while any microtask claims that behaviour works.",
+      "Every ported method needs a proof that touches a real embedded SurrealDB store, never a mock.",
+      "DECLARED_NOT_IMPLEMENTED must be decremented in the same change that ports a method."
+    ]
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

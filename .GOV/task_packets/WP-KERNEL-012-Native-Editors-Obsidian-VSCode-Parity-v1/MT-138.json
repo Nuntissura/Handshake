@@ -1,0 +1,115 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-138",
+  "title": "B11-MT-138-Port-The-Atelier-Subsystem-Off-sqlx-OPERATOR-SCOPE-DECISION-REQUIRED",
+  "group": "B11",
+  "created_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-136"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+  },
+  "scope": {
+    "summary": "Port src/backend/handshake_core/src/atelier/ off sqlx onto the embedded SurrealDB store. This is the single largest cluster at 850 of the 1716 errors, about half the total, spread over roughly 25 files with atelier/mod.rs alone at 187. SCOPE FLAG FOR THE OPERATOR: Atelier and CKC is the WP-KERNEL-005 and Week-5 Atelier-Lens-CKC feature area, NOT the native-editors scope of WP-KERNEL-012. It is recorded here so the work is not lost, but the Operator decides whether it stays in this work packet, moves to its own, or waits. Do not start it without that decision. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      {
+        "id": "AC-138-1",
+        "text": "The Operator has explicitly assigned this work to a work packet before implementation begins."
+      },
+      {
+        "id": "AC-138-2",
+        "text": "No file under src/atelier/ references sqlx."
+      },
+      {
+        "id": "AC-138-3",
+        "text": "Atelier schema bootstrap runs against the embedded SurrealDB store and is idempotent across restarts."
+      }
+    ],
+    "proof_targets": [
+      "PT-138-1: the Operator scope decision recorded in this contract.",
+      "PT-138-2: cargo check output showing zero sqlx errors under src/atelier/.",
+      "PT-138-3: an idempotent schema-bootstrap proof against a real embedded store, executed twice."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend storage port with no operator-visible surface of its own; the surfaces it restores are proven by their own microtasks."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Atelier storage authority after the port"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STORAGE_PORT_V1",
+    "risks": [
+      "Starting without an Operator scope decision would silently expand WP-KERNEL-012 by roughly half the backend.",
+      "Atelier bootstrap runs at startup, so a partial port would break boot for every lane."
+    ],
+    "minimum_controls": [
+      "No method may be left returning NotImplemented while any microtask claims that behaviour works.",
+      "Every ported method needs a proof that touches a real embedded SurrealDB store, never a mock.",
+      "DECLARED_NOT_IMPLEMENTED must be decremented in the same change that ports a method."
+    ]
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}
