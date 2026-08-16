@@ -1760,7 +1760,7 @@ async fn reconcile_block_view_events(
             ))
         })?;
         let event = match block_view_outbox::load_scoped_publication(
-            &state.postgres_pool,
+            &state.surreal,
             workspace_id,
             event_id,
         )
@@ -1773,7 +1773,7 @@ async fn reconcile_block_view_events(
         if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
             let error_summary = format!("{}:{}", error.0, error.1 .0.error);
             block_view_outbox::record_failure(
-                &state.postgres_pool,
+                &state.surreal,
                 workspace_id,
                 event.event_id,
                 &error_summary,
@@ -1782,7 +1782,7 @@ async fn reconcile_block_view_events(
             .map_err(map_storage_error)?;
             return Err(error);
         }
-        block_view_outbox::mark_published(&state.postgres_pool, workspace_id, event.event_id)
+        block_view_outbox::mark_published(&state.surreal, workspace_id, event.event_id)
             .await
             .map_err(map_storage_error)?;
         return Ok(());
@@ -1790,7 +1790,7 @@ async fn reconcile_block_view_events(
 
     loop {
         let pending =
-            block_view_outbox::list_pending(&state.postgres_pool, workspace_id, None, 200)
+            block_view_outbox::list_pending(&state.surreal, workspace_id, None, 200)
                 .await
                 .map_err(map_storage_error)?;
         let pending_count = pending.len();
@@ -1799,7 +1799,7 @@ async fn reconcile_block_view_events(
             if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
                 let error_summary = format!("{}:{}", error.0, error.1 .0.error);
                 block_view_outbox::record_failure(
-                    &state.postgres_pool,
+                    &state.surreal,
                     &event_workspace_id,
                     event.event_id,
                     &error_summary,
@@ -1810,7 +1810,7 @@ async fn reconcile_block_view_events(
                 continue;
             }
             block_view_outbox::mark_published(
-                &state.postgres_pool,
+                &state.surreal,
                 &event_workspace_id,
                 event.event_id,
             )

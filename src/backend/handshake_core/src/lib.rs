@@ -294,6 +294,16 @@ use crate::storage::Database;
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Arc<dyn Database>,
+    /// The embedded store itself.
+    ///
+    /// `storage` above is the trait object and is what routes should reach for.
+    /// This handle exists for the narrow set of surfaces that need statements
+    /// the `Database` trait does not express - the block-view outbox is the
+    /// current one. It replaces the former `postgres_pool` field and is
+    /// deliberately NOT a general escape hatch: reaching past the trait is what
+    /// made the PostgreSQL removal cascade through the whole API layer, so a new
+    /// use of this field should be a considered decision, not a convenience.
+    pub surreal: storage::surreal::SurrealStorage,
     pub flight_recorder: Arc<dyn FlightRecorder>,
     pub diagnostics: Arc<dyn DiagnosticsStore>,
     pub llm_client: Arc<dyn LlmClient>,

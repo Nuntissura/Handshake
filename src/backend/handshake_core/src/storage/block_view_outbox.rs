@@ -5,14 +5,16 @@
 //! Publication into the recorder is an idempotent projection that can resume
 //! after a process restart.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): this module still binds
-//! `sqlx` against the deleted relational backend and does not compile today.
-//! Handshake's only database is the embedded SurrealDB store.
+//! Persistence lives in [`super::block_view_outbox_surreal`]; this module owns
+//! the parts that are not storage-specific - building the Flight Recorder
+//! event, hashing it, and verifying a stored envelope still matches its
+//! identity and hash on the way back out.
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::storage::{MutationMetadata, StorageError, StorageResult, WriteActorKind};
+use super::block_view_outbox_surreal::{self as surreal_outbox, OutboxRow};
+use super::surreal::SurrealStorage;
 use serde_json::json;
-use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 const ERROR_MAX_CHARS: usize = 1_000;
@@ -130,72 +132,18 @@ fn same_event(left: &FlightRecorderEvent, right: &FlightRecorderEvent) -> bool {
         && left.payload == right.payload
 }
 
-pub(crate) async fn store_event(
-    tx: &mut Transaction<'_, Postgres>,
-    workspace_id: &str,
-    block_id: &str,
-    operation: BlockViewMutationOperation,
-    event: &FlightRecorderEvent,
-) -> StorageResult<()> {
-    let serialized = serde_json::to_string(event)
+/// Verify a stored envelope and decode it.
+///
+/// The hash and the event id are re-checked on every read: a row whose body was
+/// altered in storage, or whose id no longer matches the envelope it carries,
+/// is a Conflict rather than something to publish. This is the check that makes
+/// the outbox safe to resume after a crash.
+fn decode_row(row: &OutboxRow) -> StorageResult<FlightRecorderEvent> {
+    let event: FlightRecorderEvent = serde_json::from_value(row.event.clone())
         .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    let hash = event_hash(event)?;
-    sqlx::query(
-        r#"
-        INSERT INTO loom_block_view_fr_outbox
-            (event_id, workspace_id, block_id, operation, event, event_hash, created_at)
-        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
-        "#,
-    )
-    .bind(event.event_id.to_string())
-    .bind(workspace_id)
-    .bind(block_id)
-    .bind(operation.as_str())
-    .bind(serialized)
-    .bind(hash)
-    .bind(event.timestamp)
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
-}
-
-fn bounded_error(error: &str) -> String {
-    error.chars().take(ERROR_MAX_CHARS).collect()
-}
-
-async fn quarantine_invalid(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: &str,
-    error: &str,
-) -> StorageResult<()> {
-    sqlx::query(
-        r#"
-        UPDATE loom_block_view_fr_outbox
-        SET attempt_count = attempt_count + 1,
-            last_error = $3,
-            last_error_at = now(),
-            quarantined_at = COALESCE(quarantined_at, now())
-        WHERE workspace_id = $1 AND event_id = $2 AND published_at IS NULL
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id)
-    .bind(bounded_error(error))
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
-fn decode_event_row(row: &sqlx::postgres::PgRow) -> StorageResult<FlightRecorderEvent> {
-    let event_id: String = row.try_get("event_id")?;
-    let event_text: String = row.try_get("event")?;
-    let stored_hash: String = row.try_get("event_hash")?;
-    let event: FlightRecorderEvent = serde_json::from_str(&event_text)
+    let expected_id = Uuid::parse_str(&row.event_id)
         .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    let expected_id = Uuid::parse_str(&event_id)
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    if event.event_id != expected_id || event_hash(&event)? != stored_hash {
+    if event.event_id != expected_id || event_hash(&event)? != row.event_hash {
         return Err(StorageError::Conflict(
             "block-view outbox event hash or identity does not match its envelope",
         ));
@@ -206,156 +154,108 @@ fn decode_event_row(row: &sqlx::postgres::PgRow) -> StorageResult<FlightRecorder
     Ok(event)
 }
 
+fn bounded_error(error: &str) -> String {
+    error.chars().take(ERROR_MAX_CHARS).collect()
+}
+
+/// Write one outbox row.
+pub(crate) async fn store_event(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    block_id: &str,
+    operation: BlockViewMutationOperation,
+    event: &FlightRecorderEvent,
+) -> StorageResult<()> {
+    let hash = event_hash(event)?;
+    surreal_outbox::store_event(
+        storage,
+        workspace_id,
+        block_id,
+        operation.as_str(),
+        event,
+        hash,
+    )
+    .await
+}
+
+/// Read one event, deciding whether it still needs publishing.
+///
+/// A row that fails verification is quarantined before the error is returned,
+/// so a poisoned envelope is taken out of the publication path instead of being
+/// retried forever.
 pub(crate) async fn load_scoped_publication(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     event_id: Uuid,
 ) -> StorageResult<ScopedPublicationEvent> {
-    let event_id = event_id.to_string();
-    let row = sqlx::query(
-        r#"
-        SELECT event_id, event::text AS event, event_hash, published_at, quarantined_at
-        FROM loom_block_view_fr_outbox
-        WHERE workspace_id = $1 AND event_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(&event_id)
-    .fetch_optional(pool)
-    .await?
-    .ok_or(StorageError::NotFound(
-        "block-view flight-recorder outbox event",
-    ))?;
-
-    if row
-        .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("published_at")?
-        .is_some()
-    {
+    let row = surreal_outbox::load_row(storage, workspace_id, event_id).await?;
+    if row.published_at.is_some() {
         return Ok(ScopedPublicationEvent::Published);
     }
-    if row
-        .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("quarantined_at")?
-        .is_some()
-    {
+    if row.quarantined_at.is_some() {
         return Err(StorageError::Conflict(
             "block_view_flight_event_quarantined",
         ));
     }
-
-    match decode_event_row(&row) {
+    match decode_row(&row) {
         Ok(event) => Ok(ScopedPublicationEvent::Pending(event)),
         Err(error) => {
-            quarantine_invalid(pool, workspace_id, &event_id, &error.to_string()).await?;
+            surreal_outbox::quarantine_invalid(
+                storage,
+                workspace_id,
+                &row.event_id,
+                bounded_error(&error.to_string()),
+            )
+            .await?;
             Err(error)
         }
     }
 }
 
+/// Events still awaiting publication, oldest first.
 pub(crate) async fn list_pending(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: Option<&str>,
     event_id: Option<Uuid>,
     limit: i64,
 ) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
-    let event_id = event_id.map(|value| value.to_string());
-    let rows = sqlx::query(
-        r#"
-        SELECT workspace_id, event_id, event::text AS event, event_hash
-        FROM loom_block_view_fr_outbox
-        WHERE ($1::text IS NULL OR workspace_id = $1)
-          AND ($2::text IS NULL OR event_id = $2)
-          AND published_at IS NULL
-          AND quarantined_at IS NULL
-        ORDER BY created_at ASC, event_id ASC
-        LIMIT $3
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id)
-    .bind(limit.clamp(1, 200))
-    .fetch_all(pool)
-    .await?;
-
+    let rows = surreal_outbox::list_pending_rows(storage, workspace_id, event_id, limit).await?;
     let mut events = Vec::with_capacity(rows.len());
     for row in rows {
-        let workspace_id: String = row.try_get("workspace_id")?;
-        let event_id: String = row.try_get("event_id")?;
-        let decoded = decode_event_row(&row);
-        match decoded {
-            Ok(event) => events.push((workspace_id, event)),
+        let owner = row.workspace_key()?;
+        match decode_row(&row) {
+            Ok(event) => events.push((owner, event)),
             Err(error) => {
-                quarantine_invalid(pool, &workspace_id, &event_id, &error.to_string()).await?;
+                surreal_outbox::quarantine_invalid(
+                    storage,
+                    &owner,
+                    &row.event_id,
+                    bounded_error(&error.to_string()),
+                )
+                .await?;
             }
         }
     }
     Ok(events)
 }
 
+/// Mark an event published. Idempotent on replay.
 pub(crate) async fn mark_published(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     event_id: Uuid,
 ) -> StorageResult<()> {
-    let result = sqlx::query(
-        r#"
-        UPDATE loom_block_view_fr_outbox
-        SET published_at = COALESCE(published_at, GREATEST(now(), created_at))
-        WHERE workspace_id = $1 AND event_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id.to_string())
-    .execute(pool)
-    .await?;
-    if result.rows_affected() != 1 {
-        return Err(StorageError::NotFound(
-            "block-view flight-recorder outbox event",
-        ));
-    }
-    Ok(())
+    surreal_outbox::mark_published(storage, workspace_id, event_id).await
 }
 
+/// Record a publication failure, tolerating the benign already-published race.
 pub(crate) async fn record_failure(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     event_id: Uuid,
     error: &str,
 ) -> StorageResult<()> {
-    let result = sqlx::query(
-        r#"
-        UPDATE loom_block_view_fr_outbox
-        SET attempt_count = attempt_count + 1,
-            last_error = $3,
-            last_error_at = now()
-        WHERE workspace_id = $1 AND event_id = $2 AND published_at IS NULL
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id.to_string())
-    .bind(bounded_error(error))
-    .execute(pool)
-    .await?;
-    if result.rows_affected() != 1 {
-        let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(
-                SELECT 1 FROM loom_block_view_fr_outbox
-                WHERE workspace_id = $1 AND event_id = $2
-            )",
-        )
-        .bind(workspace_id)
-        .bind(event_id.to_string())
-        .fetch_one(pool)
-        .await?;
-        if exists {
-            // A concurrent idempotent reconciler may have published the row
-            // after this worker observed a recorder error.
-            return Ok(());
-        }
-        return Err(StorageError::NotFound(
-            "block-view flight-recorder outbox event",
-        ));
-    }
-    Ok(())
+    surreal_outbox::record_failure(storage, workspace_id, event_id, bounded_error(error)).await
 }
 
 pub(crate) fn events_equal(left: &FlightRecorderEvent, right: &FlightRecorderEvent) -> bool {

@@ -98,6 +98,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let state = AppState {
         storage: storage.clone(),
+        surreal: control_plane.surreal.clone(),
         flight_recorder: flight_recorder.clone(),
         diagnostics,
         llm_client,
