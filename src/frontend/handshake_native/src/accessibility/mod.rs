@@ -38,6 +38,7 @@
 pub mod editor_action_registry;
 pub mod knowledge_action_registry;
 mod live;
+pub mod popup_projection;
 mod registry;
 mod snapshot;
 
@@ -58,6 +59,9 @@ pub use knowledge_action_registry::{
 pub use live::{
     emit_chrome_node, emit_interactive_node, emit_pane_node, ChromeWidget, STATUS_BAR_NODE_ID,
     TITLE_BAR_NODE_ID,
+};
+pub use popup_projection::{
+    apply_open_popup_projection, open_popup_projection, project_open_popup, OpenPopupProjection,
 };
 pub use registry::{
     assert_no_unnamed_interactive, DeclaredIdentity, DECLARED_HASHED_AUTHOR_IDS,

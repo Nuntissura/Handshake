@@ -2321,9 +2321,23 @@ internally consistent but was not measured against a live window. The capture pa
 egui's unsized 10000x10000 default viewport; a snapshot whose viewport is absent (null) carries \
 coordinates that must not be treated as window-relative at all. A node's origin always lies inside the \
 declared viewport; a node's full rect may extend past an edge when it is a clipped child of a scroll \
-area, which is a correct measurement rather than an off-screen control. Note that sizing the viewport \
-fixes COORDINATES only: pointer-opened context menus and other egui::Memory-backed popups still live on \
-the live context and remain absent from the capture pass, which is a separate known fresh-context gap. \
+area, which is a correct measurement rather than an off-screen control.\n\n\
+WHAT ARGUS.INSPECT CAN AND CANNOT SEE (MT-135). Open popups ARE visible. A context menu that is open in \
+the live window - a pane, tab, folder-tree, or editor-body menu opened by right-click or by \
+Shift+F10 - is published in the snapshot with its stable author_id (ctx-menu.surface.<surface> for the \
+menu container, ctx-menu.<item id> for each item), its Role, and bounds that lie inside the declared \
+viewport and match the rendered frame, exactly like any always-mounted control. So the canonical \
+sequence works on menus too: argus.inspect -> read the ctx-menu.* ids -> argus.click{target:<id>} -> \
+fresh argus.inspect. Before MT-135 those menus lived only in the live context's egui::Memory while the \
+capture pass ran on a fresh context, so they were on screen and absent from the snapshot; MT-135 \
+projects the live open-popup state (id + anchor position) into the capture pass, which covers every \
+egui::Memory-backed popup surface through one mechanism rather than a list of known menus. Two \
+consequences to rely on: only ONE popup can be open at a time (egui keeps a single open-popup slot), \
+and a CLOSED or dismissed menu is absent from the snapshot - absence means it is genuinely not on \
+screen, so never treat a missing ctx-menu.* id as a capture gap, and re-inspect after opening the menu \
+rather than assuming its items exist. What is still NOT visible to argus.inspect: OS-owned surfaces \
+(native file dialogs, the platform window chrome, tray menus and IME candidate windows), because they \
+are not egui widgets and never enter the AccessKit tree; use the in-app equivalents instead. \
 Diagnostic posture for the coordinate contract: Flight Recorder/EventLedger is NOT_APPLICABLE (reading \
 geometry is not a business event); internal_diagnostics and Palmistry are DEFERRED while those tiers are \
 unshipped, per CX-981-005."

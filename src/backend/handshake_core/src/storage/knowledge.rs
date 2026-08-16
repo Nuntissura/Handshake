@@ -2275,38 +2275,79 @@ fn rich_document_crdt_id_change_requested(
 /// is still to be written under `storage/surreal/`. The removed PostgreSQL
 /// bodies remain the reference for the required table/column shapes and are
 /// recoverable from git at commit 1af216a1.
+///
+/// # Why every method has a default body
+///
+/// All 81 methods default to `StorageError::NotImplemented`. This mirrors the
+/// [`Database`](super::Database) trait, where 88 of 93 defaults already do the
+/// same thing, and it exists for one reason: without defaults an implementor
+/// must supply all 81 methods before the crate compiles at all, which forces
+/// the entire SurrealDB knowledge port into a single unreviewable change. With
+/// them, the port lands domain by domain - documents, then entities, then
+/// claims - and every method that has not been written yet FAILS CLOSED at its
+/// own call site with the subsystem named, instead of silently returning
+/// something plausible.
+///
+/// A defaulted method is NOT an implemented one. No microtask may be closed
+/// while a behaviour it claims still resolves to one of these defaults, and an
+/// implementor overrides the methods it actually implements rather than relying
+/// on the default to look finished.
 #[async_trait]
 pub trait KnowledgeStore: Send + Sync {
     // -- MT-049 namespace ---------------------------------------------------
     async fn list_knowledge_schema_registry(
         &self,
-    ) -> StorageResult<Vec<KnowledgeSchemaRegistryRow>>;
+    ) -> StorageResult<Vec<KnowledgeSchemaRegistryRow>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Audits the `knowledge_` namespace boundary in the active schema.
-    async fn audit_knowledge_namespace(&self) -> StorageResult<KnowledgeNamespaceAudit>;
+    async fn audit_knowledge_namespace(&self) -> StorageResult<KnowledgeNamespaceAudit> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-050 source roots ------------------------------------------------
     async fn create_knowledge_source_root(
         &self,
         new_root: NewKnowledgeSourceRoot,
-    ) -> StorageResult<KnowledgeSourceRoot>;
+    ) -> StorageResult<KnowledgeSourceRoot> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn get_knowledge_source_root(
         &self,
         root_id: &str,
-    ) -> StorageResult<Option<KnowledgeSourceRoot>>;
+    ) -> StorageResult<Option<KnowledgeSourceRoot>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn list_knowledge_source_roots(
         &self,
         workspace_id: &str,
-    ) -> StorageResult<Vec<KnowledgeSourceRoot>>;
+    ) -> StorageResult<Vec<KnowledgeSourceRoot>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Updates eligibility (eligible/paused/excluded) and bumps `updated_at`.
     async fn set_knowledge_root_eligibility(
         &self,
         root_id: &str,
         eligibility: KnowledgeIndexingEligibility,
-    ) -> StorageResult<KnowledgeSourceRoot>;
+    ) -> StorageResult<KnowledgeSourceRoot> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-051 sources -------------------------------------------------------
     /// Registers or refreshes a knowledge source. File-kind sources upsert on
@@ -2316,10 +2357,18 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_source(
         &self,
         new_source: NewKnowledgeSource,
-    ) -> StorageResult<KnowledgeSource>;
+    ) -> StorageResult<KnowledgeSource> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn get_knowledge_source(&self, source_id: &str)
-        -> StorageResult<Option<KnowledgeSource>>;
+        -> StorageResult<Option<KnowledgeSource>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Looks up the knowledge source indexing a RichDocument (adversarial-v2
     /// MT-154: documents are first-class Project-Knowledge-Index sources; the
@@ -2328,15 +2377,27 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         workspace_id: &str,
         document_id: &str,
-    ) -> StorageResult<Option<KnowledgeSource>>;
+    ) -> StorageResult<Option<KnowledgeSource>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     async fn list_knowledge_sources_for_root(
         &self,
         root_id: &str,
-    ) -> StorageResult<Vec<KnowledgeSource>>;
+    ) -> StorageResult<Vec<KnowledgeSource>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Marks a source stale (content changed since last index).
-    async fn mark_knowledge_source_stale(&self, source_id: &str) -> StorageResult<KnowledgeSource>;
+    async fn mark_knowledge_source_stale(&self, source_id: &str) -> StorageResult<KnowledgeSource> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Records the index receipt for a source: parser/extraction outcome plus
     /// the EventLedger receipt ref (FK-enforced replayable evidence).
@@ -2346,26 +2407,42 @@ pub trait KnowledgeStore: Send + Sync {
         parser_status: KnowledgeParserStatus,
         extraction_status: KnowledgeExtractionStatus,
         receipt_event_id: &str,
-    ) -> StorageResult<KnowledgeSource>;
+    ) -> StorageResult<KnowledgeSource> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-052 index runs ----------------------------------------------------
     /// Starts a new index run in `started` state.
     async fn start_knowledge_index_run(
         &self,
         new_run: NewKnowledgeIndexRun,
-    ) -> StorageResult<KnowledgeIndexRun>;
+    ) -> StorageResult<KnowledgeIndexRun> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn get_knowledge_index_run(
         &self,
         index_run_id: &str,
-    ) -> StorageResult<Option<KnowledgeIndexRun>>;
+    ) -> StorageResult<Option<KnowledgeIndexRun>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Persists a restart checkpoint on a still-running run.
     async fn checkpoint_knowledge_index_run(
         &self,
         index_run_id: &str,
         restart_checkpoint: Value,
-    ) -> StorageResult<KnowledgeIndexRun>;
+    ) -> StorageResult<KnowledgeIndexRun> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Moves a run from `started` into a terminal state. Guarded: finishing a
     /// run that is not in `started` state is a typed `Conflict` (terminal
@@ -2375,20 +2452,36 @@ pub trait KnowledgeStore: Send + Sync {
         index_run_id: &str,
         outcome: KnowledgeIndexRunOutcome,
         finish_receipt_event_id: Option<&str>,
-    ) -> StorageResult<KnowledgeIndexRun>;
+    ) -> StorageResult<KnowledgeIndexRun> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-055 spans ---------------------------------------------------------
     async fn create_knowledge_span(
         &self,
         new_span: NewKnowledgeSpan,
-    ) -> StorageResult<KnowledgeSpan>;
+    ) -> StorageResult<KnowledgeSpan> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
-    async fn get_knowledge_span(&self, span_id: &str) -> StorageResult<Option<KnowledgeSpan>>;
+    async fn get_knowledge_span(&self, span_id: &str) -> StorageResult<Option<KnowledgeSpan>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn list_knowledge_spans_for_source(
         &self,
         source_id: &str,
-    ) -> StorageResult<Vec<KnowledgeSpan>>;
+    ) -> StorageResult<Vec<KnowledgeSpan>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-053 entities --------------------------------------------------------
     /// Upserts an entity on its stable (workspace, kind, key) identity and
@@ -2398,26 +2491,46 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_entity(
         &self,
         new_entity: NewKnowledgeEntity,
-    ) -> StorageResult<KnowledgeEntity>;
+    ) -> StorageResult<KnowledgeEntity> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     async fn get_knowledge_entity(&self, entity_id: &str)
-        -> StorageResult<Option<KnowledgeEntity>>;
+        -> StorageResult<Option<KnowledgeEntity>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     async fn get_knowledge_entity_by_identity(
         &self,
         workspace_id: &str,
         entity_kind: KnowledgeEntityKind,
         entity_key: &str,
-    ) -> StorageResult<Option<KnowledgeEntity>>;
+    ) -> StorageResult<Option<KnowledgeEntity>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     async fn list_knowledge_entities_by_kind(
         &self,
         workspace_id: &str,
         entity_kind: KnowledgeEntityKind,
-    ) -> StorageResult<Vec<KnowledgeEntity>>;
+    ) -> StorageResult<Vec<KnowledgeEntity>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Lists the evidence span ids an entity was detected from.
-    async fn list_knowledge_entity_span_ids(&self, entity_id: &str) -> StorageResult<Vec<String>>;
+    async fn list_knowledge_entity_span_ids(&self, entity_id: &str) -> StorageResult<Vec<String>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     /// Replaces the entity evidence spans scoped to one source and span kind.
     ///
@@ -2432,10 +2545,18 @@ pub trait KnowledgeStore: Send + Sync {
         span_kind: KnowledgeSpanKind,
         evidence_span_ids: &[String],
         detected_in_run: Option<&str>,
-    ) -> StorageResult<()>;
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     /// Marks an entity retired (it stops participating in new detection).
-    async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity>;
+    async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     // -- MT-054 edges -----------------------------------------------------------
     /// Upserts a typed edge with its REQUIRED span evidence in one
@@ -2448,24 +2569,44 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_edge(
         &self,
         new_edge: NewKnowledgeEdge,
-    ) -> StorageResult<KnowledgeEdge>;
+    ) -> StorageResult<KnowledgeEdge> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
-    async fn get_knowledge_edge(&self, edge_id: &str) -> StorageResult<Option<KnowledgeEdge>>;
+    async fn get_knowledge_edge(&self, edge_id: &str) -> StorageResult<Option<KnowledgeEdge>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn get_knowledge_edge_by_relationship_id(
         &self,
         workspace_id: &str,
         relationship_id: &str,
-    ) -> StorageResult<Option<KnowledgeEdge>>;
+    ) -> StorageResult<Option<KnowledgeEdge>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Lists edges touching an entity (as source or target).
     async fn list_knowledge_edges_for_entity(
         &self,
         entity_id: &str,
-    ) -> StorageResult<Vec<KnowledgeEdge>>;
+    ) -> StorageResult<Vec<KnowledgeEdge>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge entity backend",
+        ))
+    }
 
     /// Lists the evidence span ids attached to an edge.
-    async fn list_knowledge_edge_span_ids(&self, edge_id: &str) -> StorageResult<Vec<String>>;
+    async fn list_knowledge_edge_span_ids(&self, edge_id: &str) -> StorageResult<Vec<String>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Updates edge lifecycle; entering `conflicted` requires a conflict
     /// marker, leaving it clears the marker.
@@ -2474,7 +2615,11 @@ pub trait KnowledgeStore: Send + Sync {
         edge_id: &str,
         lifecycle: KnowledgeEdgeLifecycle,
         conflict_marker: Option<Value>,
-    ) -> StorageResult<KnowledgeEdge>;
+    ) -> StorageResult<KnowledgeEdge> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-056 claims ------------------------------------------------------------
     /// Creates a claim (born `proposed`) with its REQUIRED evidence spans in
@@ -2483,12 +2628,24 @@ pub trait KnowledgeStore: Send + Sync {
     async fn create_knowledge_claim(
         &self,
         new_claim: NewKnowledgeClaim,
-    ) -> StorageResult<KnowledgeClaim>;
+    ) -> StorageResult<KnowledgeClaim> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
-    async fn get_knowledge_claim(&self, claim_id: &str) -> StorageResult<Option<KnowledgeClaim>>;
+    async fn get_knowledge_claim(&self, claim_id: &str) -> StorageResult<Option<KnowledgeClaim>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
     /// Lists the evidence span ids attached to a claim.
-    async fn list_knowledge_claim_span_ids(&self, claim_id: &str) -> StorageResult<Vec<String>>;
+    async fn list_knowledge_claim_span_ids(&self, claim_id: &str) -> StorageResult<Vec<String>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
     /// Guarded lifecycle transition (proposed -> accepted|conflicted|retired,
     /// accepted -> conflicted|retired, conflicted -> accepted|retired,
@@ -2502,7 +2659,11 @@ pub trait KnowledgeStore: Send + Sync {
         to_state: KnowledgeClaimState,
         retirement: Option<KnowledgeClaimRetirement>,
         resolution_receipt_event_id: Option<&str>,
-    ) -> StorageResult<KnowledgeClaim>;
+    ) -> StorageResult<KnowledgeClaim> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
     /// Records a conflict between two claims and moves both into the
     /// `conflicted` lifecycle state transactionally.
@@ -2512,19 +2673,31 @@ pub trait KnowledgeStore: Send + Sync {
         conflicting_claim_id: &str,
         conflict_reason: &str,
         detected_in_run: Option<&str>,
-    ) -> StorageResult<KnowledgeClaimConflict>;
+    ) -> StorageResult<KnowledgeClaimConflict> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
     /// Resolves a recorded conflict with an EventLedger receipt ref.
     async fn resolve_knowledge_claim_conflict(
         &self,
         conflict_id: &str,
         resolution_receipt_event_id: &str,
-    ) -> StorageResult<KnowledgeClaimConflict>;
+    ) -> StorageResult<KnowledgeClaimConflict> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
     async fn list_knowledge_claim_conflicts(
         &self,
         claim_id: &str,
-    ) -> StorageResult<Vec<KnowledgeClaimConflict>>;
+    ) -> StorageResult<Vec<KnowledgeClaimConflict>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge claim backend",
+        ))
+    }
 
     // -- MT-057 memory passages -----------------------------------------------------
     /// Creates a memory passage with its REQUIRED derivation lineage
@@ -2532,18 +2705,30 @@ pub trait KnowledgeStore: Send + Sync {
     async fn create_knowledge_memory_passage(
         &self,
         new_passage: NewKnowledgeMemoryPassage,
-    ) -> StorageResult<KnowledgeMemoryPassage>;
+    ) -> StorageResult<KnowledgeMemoryPassage> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge memory-passage backend",
+        ))
+    }
 
     async fn get_knowledge_memory_passage(
         &self,
         passage_id: &str,
-    ) -> StorageResult<Option<KnowledgeMemoryPassage>>;
+    ) -> StorageResult<Option<KnowledgeMemoryPassage>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge memory-passage backend",
+        ))
+    }
 
     /// Lists the derivation lineage of a passage in insertion order.
     async fn list_knowledge_passage_evidence(
         &self,
         passage_id: &str,
-    ) -> StorageResult<Vec<KnowledgePassageEvidenceRef>>;
+    ) -> StorageResult<Vec<KnowledgePassageEvidenceRef>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge passage backend",
+        ))
+    }
 
     /// Refreshes passage freshness and/or compaction policy.
     async fn set_knowledge_passage_compaction(
@@ -2551,7 +2736,11 @@ pub trait KnowledgeStore: Send + Sync {
         passage_id: &str,
         compaction_policy: KnowledgeCompactionPolicy,
         refresh_freshness: bool,
-    ) -> StorageResult<KnowledgeMemoryPassage>;
+    ) -> StorageResult<KnowledgeMemoryPassage> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge passage backend",
+        ))
+    }
 
     // -- MT-058 wiki projections (NEVER authority) ----------------------------------
     /// Upserts a projection by its stable (workspace, kind, title) identity.
@@ -2559,12 +2748,20 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_wiki_projection(
         &self,
         new_projection: NewKnowledgeWikiProjection,
-    ) -> StorageResult<KnowledgeWikiProjection>;
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn get_knowledge_wiki_projection(
         &self,
         projection_id: &str,
-    ) -> StorageResult<Option<KnowledgeWikiProjection>>;
+    ) -> StorageResult<Option<KnowledgeWikiProjection>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Records a completed rebuild: fresh content, new staleness hash, and an
     /// optional EventLedger rebuild receipt.
@@ -2574,7 +2771,11 @@ pub trait KnowledgeStore: Send + Sync {
         staleness_hash: &str,
         rendered_content: &str,
         rebuild_receipt_event_id: Option<&str>,
-    ) -> StorageResult<KnowledgeWikiProjection>;
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Moves a projection through stale/rebuilding/failed without touching
     /// the rendered content.
@@ -2582,11 +2783,19 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         projection_id: &str,
         rebuild_status: KnowledgeRebuildStatus,
-    ) -> StorageResult<KnowledgeWikiProjection>;
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     /// Deletes a projection row. Projections are regenerable; deleting one
     /// MUST NOT mutate authority records (spec 2.3.13.11).
-    async fn delete_knowledge_wiki_projection(&self, projection_id: &str) -> StorageResult<()>;
+    async fn delete_knowledge_wiki_projection(&self, projection_id: &str) -> StorageResult<()> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-059 rich documents + editor code nodes ----------------------------------
     /// Creates a rich document at `doc_version = 1` and records revision 1 in
@@ -2594,7 +2803,11 @@ pub trait KnowledgeStore: Send + Sync {
     async fn create_knowledge_rich_document(
         &self,
         new_document: NewKnowledgeRichDocument,
-    ) -> StorageResult<KnowledgeRichDocument>;
+    ) -> StorageResult<KnowledgeRichDocument> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Wikilink create-if-absent authority path. Concurrent callers for the same workspace and
     /// normalized title serialize inside PostgreSQL; one creates and every loser receives that same
@@ -2602,12 +2815,20 @@ pub trait KnowledgeStore: Send + Sync {
     async fn create_knowledge_rich_document_if_title_absent(
         &self,
         new_document: NewKnowledgeRichDocument,
-    ) -> StorageResult<(KnowledgeRichDocument, bool)>;
+    ) -> StorageResult<(KnowledgeRichDocument, bool)> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     async fn get_knowledge_rich_document(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<Option<KnowledgeRichDocument>>;
+    ) -> StorageResult<Option<KnowledgeRichDocument>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// MT-258 transclusion: resolve the rich document that ANCHORS to a legacy
     /// `documents` row (its `document_id` foreign-key anchor) within a
@@ -2619,22 +2840,38 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         workspace_id: &str,
         document_id: &str,
-    ) -> StorageResult<Option<KnowledgeRichDocument>>;
+    ) -> StorageResult<Option<KnowledgeRichDocument>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     async fn get_knowledge_rich_document_draft(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<Option<KnowledgeRichDocumentDraft>>;
+    ) -> StorageResult<Option<KnowledgeRichDocumentDraft>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     async fn upsert_knowledge_rich_document_draft(
         &self,
         upsert: UpsertKnowledgeRichDocumentDraft,
-    ) -> StorageResult<KnowledgeRichDocumentDraft>;
+    ) -> StorageResult<KnowledgeRichDocumentDraft> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     async fn clear_knowledge_rich_document_draft(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<bool>;
+    ) -> StorageResult<bool> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Optimistic-concurrency save: succeeds only when `expected_version`
     /// matches the current `doc_version`; bumps the version, recomputes the
@@ -2649,13 +2886,21 @@ pub trait KnowledgeStore: Send + Sync {
         crdt_document_id: Option<&str>,
         crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
-    ) -> StorageResult<KnowledgeRichDocument>;
+    ) -> StorageResult<KnowledgeRichDocument> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Lists the append-only promoted revision history in version order.
     async fn list_knowledge_rich_document_versions(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<Vec<KnowledgeRichDocumentVersion>>;
+    ) -> StorageResult<Vec<KnowledgeRichDocumentVersion>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Paginated revision-history METADATA in version order (adversarial-v2
     /// MT-156): no content bodies, bounded by `limit`/`offset`.
@@ -2664,13 +2909,21 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<KnowledgeRichDocumentVersionMeta>>;
+    ) -> StorageResult<Vec<KnowledgeRichDocumentVersionMeta>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Total number of revisions in the document's history (MT-156 pagination).
     async fn count_knowledge_rich_document_versions(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<i64>;
+    ) -> StorageResult<i64> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Loads ONE revision including its full content body (MT-156 lazy body
     /// load — the list endpoint returns metadata only).
@@ -2678,7 +2931,11 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
         doc_version: i64,
-    ) -> StorageResult<Option<KnowledgeRichDocumentVersion>>;
+    ) -> StorageResult<Option<KnowledgeRichDocumentVersion>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// MT-157 batch op: rename a document (title only). Does NOT bump
     /// doc_version (content is unchanged); a safe metadata-only op.
@@ -2687,7 +2944,11 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
         title: &str,
         expected_updated_at: Option<DateTime<Utc>>,
-    ) -> StorageResult<KnowledgeRichDocument>;
+    ) -> StorageResult<KnowledgeRichDocument> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// MT-157 batch op: move a document to a project/folder. `None` for an arg
     /// clears that membership; `Some(value)` sets it. Metadata-only.
@@ -2696,7 +2957,11 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
         project_ref: Option<&str>,
         folder_ref: Option<&str>,
-    ) -> StorageResult<KnowledgeRichDocument>;
+    ) -> StorageResult<KnowledgeRichDocument> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// MT-157 batch op: set a document's authority label
     /// (`draft`|`promoted`|`archived`). Metadata-only.
@@ -2704,7 +2969,11 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
         authority_label: &str,
-    ) -> StorageResult<KnowledgeRichDocument>;
+    ) -> StorageResult<KnowledgeRichDocument> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Lists a workspace's rich documents, optionally scoped to a project/
     /// folder (MT-145 membership lookup, MT-157 batch targeting).
@@ -2713,7 +2982,11 @@ pub trait KnowledgeStore: Send + Sync {
         workspace_id: &str,
         project_ref: Option<&str>,
         folder_ref: Option<&str>,
-    ) -> StorageResult<Vec<KnowledgeRichDocument>>;
+    ) -> StorageResult<Vec<KnowledgeRichDocument>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 
     /// Upserts a Monaco code node by its stable (document, node_path)
     /// identity; the round-trip integrity hash is recomputed from the exact
@@ -2721,12 +2994,20 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_editor_code_node(
         &self,
         upsert: UpsertEditorCodeNode,
-    ) -> StorageResult<KnowledgeEditorCodeNode>;
+    ) -> StorageResult<KnowledgeEditorCodeNode> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn list_knowledge_editor_code_nodes(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<Vec<KnowledgeEditorCodeNode>>;
+    ) -> StorageResult<Vec<KnowledgeEditorCodeNode>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-152/153 document embeds (typed refs + broken-embed repair) ---------------
     /// Upserts a typed embed reference by its stable `(document, block_id)`
@@ -2735,12 +3016,20 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_document_embed(
         &self,
         upsert: UpsertKnowledgeDocumentEmbed,
-    ) -> StorageResult<KnowledgeDocumentEmbed>;
+    ) -> StorageResult<KnowledgeDocumentEmbed> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     async fn list_knowledge_document_embeds(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     /// Marks an embed broken (MT-153) with a repair reason, or repairs it back
     /// to `ok` (pass `None` for the reason). Returns the updated embed.
@@ -2748,13 +3037,21 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         embed_id: &str,
         broken_reason: Option<&str>,
-    ) -> StorageResult<KnowledgeDocumentEmbed>;
+    ) -> StorageResult<KnowledgeDocumentEmbed> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     /// Lists only the broken embeds for a document (the repair queue, MT-153).
     async fn list_knowledge_document_broken_embeds(
         &self,
         rich_document_id: &str,
-    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     /// Replaces ALL embed references for a document with the supplied set in
     /// one transaction (adversarial-v2 MT-152: the document content is the
@@ -2766,7 +3063,11 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
         upserts: Vec<UpsertKnowledgeDocumentEmbed>,
-    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     // -- MT-155 document backlinks (stable relationship id) --------------------------
     /// Upserts a document backlink by its stable `(workspace, relationship_id)`
@@ -2775,7 +3076,11 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_knowledge_document_backlink(
         &self,
         upsert: UpsertKnowledgeDocumentBacklink,
-    ) -> StorageResult<KnowledgeDocumentBacklink>;
+    ) -> StorageResult<KnowledgeDocumentBacklink> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     /// Replaces ALL backlinks for a source document with the supplied set in
     /// one transaction (MT-155 rebuild: the document content is the source of
@@ -2785,13 +3090,21 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         source_document_id: &str,
         upserts: Vec<UpsertKnowledgeDocumentBacklink>,
-    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     /// Lists the backlinks a source document emits (MT-155).
     async fn list_knowledge_document_backlinks_from(
         &self,
         source_document_id: &str,
-    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     /// Reverse lookup: who links TO this target (MT-155 backlink direction).
     async fn list_knowledge_document_backlinks_to(
@@ -2799,7 +3112,11 @@ pub trait KnowledgeStore: Send + Sync {
         workspace_id: &str,
         link_kind: &str,
         target: &str,
-    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge document backend",
+        ))
+    }
 
     // -- MT-060 context bundles + retrieval traces ----------------------------------
     /// Persists a kernel ContextBundle V1 run with its per-item retrieval
@@ -2807,25 +3124,41 @@ pub trait KnowledgeStore: Send + Sync {
     async fn record_knowledge_context_bundle(
         &self,
         new_bundle: NewKnowledgeContextBundle,
-    ) -> StorageResult<KnowledgeContextBundle>;
+    ) -> StorageResult<KnowledgeContextBundle> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge context-bundle backend",
+        ))
+    }
 
     /// Fetches a bundle run plus its item decisions in ordinal order.
     async fn get_knowledge_context_bundle(
         &self,
         bundle_id: &str,
-    ) -> StorageResult<Option<(KnowledgeContextBundle, Vec<KnowledgeContextBundleItem>)>>;
+    ) -> StorageResult<Option<(KnowledgeContextBundle, Vec<KnowledgeContextBundleItem>)>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge context-bundle backend",
+        ))
+    }
 
     /// Records a replayable retrieval trace; `mode_reason` is a spec MUST
     /// (why broader retrieval was used or skipped).
     async fn record_knowledge_retrieval_trace(
         &self,
         new_trace: NewKnowledgeRetrievalTrace,
-    ) -> StorageResult<KnowledgeRetrievalTrace>;
+    ) -> StorageResult<KnowledgeRetrievalTrace> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     async fn list_knowledge_retrieval_traces_for_bundle(
         &self,
         bundle_id: &str,
-    ) -> StorageResult<Vec<KnowledgeRetrievalTrace>>;
+    ) -> StorageResult<Vec<KnowledgeRetrievalTrace>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge edge backend",
+        ))
+    }
 
     // -- MT-062 transactional idempotency keys --------------------------------------
     /// Idempotent passage write (parallel-indexing surface): the write and
@@ -2836,7 +3169,11 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         idempotency_key: &str,
         new_passage: NewKnowledgeMemoryPassage,
-    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeMemoryPassage>>;
+    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeMemoryPassage>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge memory-passage backend",
+        ))
+    }
 
     /// Idempotent editor save (rich_document_save surface): replaying the
     /// same save (same key + same payload) returns the already-promoted
@@ -2851,7 +3188,11 @@ pub trait KnowledgeStore: Send + Sync {
         crdt_document_id: Option<&str>,
         crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
-    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeRichDocument>>;
+    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeRichDocument>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge rich-document backend",
+        ))
+    }
 }
 
 // ===========================================================================

@@ -1,4 +1,16 @@
 //! WP-KERNEL-012 MT-121 — the MCP navigation snapshot publishes VIEWPORT-RELATIVE bounds.
+//! WP-KERNEL-012 MT-135 — and it publishes the memory-backed popups that are actually open.
+//!
+//! ## MT-135 (the second defect, fixed here)
+//!
+//! MT-121 sized the capture viewport, which fixed coordinates only. The capture pass still ran on a
+//! brand-new `egui::Context` whose `egui::Memory` was empty, and popup open state lives in exactly
+//! that memory — so a context menu the operator could see was absent from the published snapshot and
+//! a model driving Argus could not see, target, or steer it. `refresh_mcp_snapshot` now projects the
+//! live context's single open-popup entry (id + anchor position) into the capture context via
+//! `accessibility::popup_projection`. The MT-121 known-gap witness below is inverted accordingly, and
+//! the `mt135_*` tests add the positive bounds proof, the closed-menu negative proof, and the manual
+//! self-consistency check.
 //!
 //! ## The defect these tests exist to keep out
 //!
@@ -23,6 +35,9 @@ use egui_kittest::Harness;
 use handshake_native::accessibility::{SnapshotViewport, UiTreeSnapshot, ViewportSource};
 use handshake_native::app::{HandshakeApp, HealthDisplayState, SNAPSHOT_FALLBACK_VIEWPORT};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::manual_content_editors::{
+    editors_manual_section, AGENT_TOOL_REFERENCE_HEADING,
+};
 
 /// The harness window size. Deliberately far below egui's 10000pt unsized default so an unsized
 /// capture cannot accidentally satisfy containment.
@@ -237,18 +252,22 @@ fn mt121_headless_capture_declares_the_documented_fallback_viewport() {
     );
 }
 
-/// AC-121-4 — KNOWN-GAP WITNESS. Sizing the capture viewport fixes COORDINATES; it does not make
-/// `egui::Memory`-backed surfaces readable.
+/// AC-121-4 / AC-135-1 — an `egui::Memory`-backed pane context menu that is OPEN in the live window is
+/// published to models.
 ///
-/// `RawInput::screen_rect` feeds `InputState`, not `Memory`. Popup/context-menu open state lives in the
-/// LIVE context's `Memory`, and the capture pass builds a brand-new `egui::Context` that starts with an
-/// empty one — which is precisely why `refresh_mcp_snapshot` has to hand-copy the per-document Reading
-/// mode and the open top-menu into the capture context. A pointer-opened pane menu has no such
-/// projection, so it stays invisible to `argus.inspect` after MT-121.
+/// ## History (why this test reads as an inversion)
 ///
-/// This test asserts the CURRENT, HONEST state so no one can claim MT-121 fixed it. When the separate
-/// fresh-context memory defect is repaired, this witness is expected to fail — invert it then, and cite
-/// the MT that did the repair.
+/// MT-121 sized the capture viewport, which fixed COORDINATES only. `RawInput::screen_rect` feeds
+/// `InputState`, not `Memory`: popup/context-menu open state lives in the LIVE context's `Memory`, and
+/// the capture pass builds a brand-new `egui::Context` that starts with an empty one. Under MT-121 this
+/// test therefore asserted the DEFECT — the pane menu was present in the rendered frame and absent from
+/// the published snapshot — and it was left in the suite as a known-gap witness.
+///
+/// **WP-KERNEL-012 MT-135 repaired that defect** by projecting the live context's open-popup memory
+/// state (id + anchor position) into the capture context in
+/// `HandshakeApp::refresh_mcp_snapshot`, via `accessibility::popup_projection`. The assertion below is
+/// the INVERSION: the menu must now be visible to the capture pass. It no longer documents the defect
+/// as expected behaviour.
 #[test]
 fn mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass() {
     let mut harness = shell_harness();
@@ -273,17 +292,230 @@ fn mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass(
         "the capture pass is sized from the live window: {viewport:?}"
     );
     assert!(
-        snapshot.find_by_author_id(PANE_POP_OUT_AUTHOR_ID).is_none(),
-        "AC-121-4 witness changed: '{PANE_POP_OUT_AUTHOR_ID}' is now visible to the capture pass. \
-Sizing the viewport was NOT expected to fix egui::Memory-backed surfaces — if another change made \
-this readable, invert this assertion and record which MT did it."
+        snapshot.find_by_author_id(PANE_POP_OUT_AUTHOR_ID).is_some(),
+        "AC-135-1: '{PANE_POP_OUT_AUTHOR_ID}' is open in the live rendered frame, so it MUST appear in \
+the published MCP snapshot. If this fails, the MT-135 open-popup projection into the capture context \
+has regressed and models are blind to context menus again."
     );
     println!(
-        "MT-121 AC-121-4 sized capture viewport={:?} source={:?}; memory-backed leaf \
-'{PANE_POP_OUT_AUTHOR_ID}' live=true published=false (separate fresh-context defect, NOT fixed here)",
+        "MT-135 AC-135-1 sized capture viewport={:?} source={:?}; memory-backed leaf \
+'{PANE_POP_OUT_AUTHOR_ID}' live=true published=true (fresh-context popup defect repaired by MT-135)",
         (viewport.w, viewport.h),
         viewport.source
     );
+}
+
+/// PT-135-2 / AC-135-3 — the projected context menu is not merely PRESENT, it is published with the
+/// SAME bounds the rendered frame carries, and those bounds lie inside the declared viewport.
+///
+/// This is the assertion that keeps the projection honest against the MT-121 coordinate contract: a
+/// projection that re-opened the popup without its stored anchor position, or that imported live
+/// focus/scroll state and shifted layout, would put the menu somewhere the operator's window does not
+/// show it — a worse falsehood than not publishing it at all.
+#[test]
+fn mt135_projected_context_menu_bounds_match_the_rendered_frame_inside_the_viewport() {
+    let mut harness = shell_harness();
+    harness.get_by_label("Pane header pane-a").click_secondary();
+    harness.run();
+    harness.run();
+
+    let rendered = rendered_frame_bounds(&harness, PANE_POP_OUT_AUTHOR_ID)
+        .expect("precondition: the pointer-opened pane menu leaf is in the live rendered frame");
+
+    let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    let viewport = snapshot.viewport.expect("declared viewport");
+    let node = snapshot
+        .find_unique_by_author_id(PANE_POP_OUT_AUTHOR_ID)
+        .expect(
+            "AC-135-1: the open pane menu leaf is uniquely addressable in the published snapshot",
+        );
+    let published = node
+        .bounds
+        .expect("a projected, mounted menu item publishes bounds");
+
+    assert!(
+        viewport.contains_rect(&published),
+        "AC-135-3: published pane-menu rect {published:?} must lie wholly inside the declared viewport \
+{viewport:?}"
+    );
+
+    let tolerance = 1.0_f32;
+    let rendered_x = rendered.x0 as f32;
+    let rendered_y = rendered.y0 as f32;
+    let rendered_w = (rendered.x1 - rendered.x0) as f32;
+    let rendered_h = (rendered.y1 - rendered.y0) as f32;
+    let deltas = [
+        ("x", published.x, rendered_x),
+        ("y", published.y, rendered_y),
+        ("w", published.w, rendered_w),
+        ("h", published.h, rendered_h),
+    ];
+    let mismatches: Vec<String> = deltas
+        .iter()
+        .filter(|(_, published, rendered)| (published - rendered).abs() > tolerance)
+        .map(|(axis, published, rendered)| {
+            format!("{axis}: published={published:.3} rendered={rendered:.3}")
+        })
+        .collect();
+    assert!(
+        mismatches.is_empty(),
+        "AC-135-3: published bounds must describe the rendered frame for \
+'{PANE_POP_OUT_AUTHOR_ID}'.\n  published=(x={:.3}, y={:.3}, w={:.3}, h={:.3})\n  \
+rendered=(x={rendered_x:.3}, y={rendered_y:.3}, w={rendered_w:.3}, h={rendered_h:.3})\n  \
+mismatched: {}",
+        published.x,
+        published.y,
+        published.w,
+        published.h,
+        mismatches.join(", ")
+    );
+
+    // The whole-tree containment guard must still hold with a menu projected into the capture pass —
+    // the projection must not push any node outside the declared viewport (MT-121 regression guard).
+    let escapees = bounds_outside_declared_viewport(&snapshot, &viewport);
+    assert!(
+        escapees.is_empty(),
+        "AC-135-3: {} of {} published nodes escape the declared {}x{} viewport while a context menu is \
+projected:\n{}",
+        escapees.len(),
+        snapshot.widget_count,
+        viewport.w,
+        viewport.h,
+        escapees.join("\n")
+    );
+
+    println!(
+        "MT-135 PT-135-2 viewport={:?} source={:?} published=(x={:.3}, y={:.3}, w={:.3}, h={:.3}) \
+rendered=(x={rendered_x:.3}, y={rendered_y:.3}, w={rendered_w:.3}, h={rendered_h:.3})",
+        (viewport.w, viewport.h),
+        viewport.source,
+        published.x,
+        published.y,
+        published.w,
+        published.h
+    );
+}
+
+/// PT-135-3 / AC-135-5 — NEGATIVE PROOF. A context menu that is CLOSED must stay absent from the
+/// snapshot.
+///
+/// Two closed states are checked, because they fail differently:
+/// 1. never opened — a projection that unconditionally forced menus open would publish it here;
+/// 2. opened and then dismissed with Escape — a projection that latched the open state, or that copied
+///    a stale `egui::Memory` entry, would keep publishing a menu the operator already dismissed and
+///    models would act on a surface that is not on screen.
+#[test]
+fn mt135_closed_context_menu_is_absent_from_the_published_snapshot() {
+    let mut harness = shell_harness();
+
+    let never_opened = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert!(
+        never_opened
+            .find_by_author_id(PANE_POP_OUT_AUTHOR_ID)
+            .is_none(),
+        "AC-135-5: a context menu that was never opened must not appear in the published snapshot"
+    );
+
+    harness.get_by_label("Pane header pane-a").click_secondary();
+    harness.run();
+    harness.run();
+    let while_open = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert!(
+        while_open
+            .find_by_author_id(PANE_POP_OUT_AUTHOR_ID)
+            .is_some(),
+        "precondition for the dismissal half of this proof: the OPEN menu is published"
+    );
+
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    harness.run();
+
+    let live_leaf_present = harness
+        .root()
+        .children_recursive()
+        .any(|node| node.accesskit_node().author_id() == Some(PANE_POP_OUT_AUTHOR_ID));
+    assert!(
+        !live_leaf_present,
+        "precondition: Escape dismissed the menu in the LIVE rendered frame"
+    );
+
+    let after_dismiss = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert!(
+        after_dismiss
+            .find_by_author_id(PANE_POP_OUT_AUTHOR_ID)
+            .is_none(),
+        "AC-135-5: a dismissed context menu must disappear from the published snapshot — the \
+projection must track the live open/closed state, not latch it"
+    );
+    println!(
+        "MT-135 PT-135-3 '{PANE_POP_OUT_AUTHOR_ID}' published: never_opened=false while_open=true \
+after_escape=false"
+    );
+}
+
+/// MT-135 UserManual self-consistency — the in-product Agent Tool Reference must describe the
+/// capture pass's REAL context-menu visibility, proven in the same test run rather than asserted
+/// against prose alone.
+///
+/// The manual previously told models that "pointer-opened context menus and other egui::Memory-backed
+/// popups ... remain absent from the capture pass". That sentence was true under MT-121 and is false
+/// now; a manual that keeps it would send models looking for a capture gap that no longer exists. This
+/// test drives the live shell to establish the runtime truth (menu open => published, dismissed =>
+/// absent) and only then checks that the manual states that same truth.
+#[test]
+fn mt135_manual_agent_tool_reference_matches_capture_pass_truth() {
+    // 1. Runtime truth, taken from the live shell.
+    let mut harness = shell_harness();
+    harness.get_by_label("Pane header pane-a").click_secondary();
+    harness.run();
+    harness.run();
+    let open_menu_is_published = harness
+        .state_mut()
+        .capture_mcp_snapshot_for_navigation()
+        .find_by_author_id(PANE_POP_OUT_AUTHOR_ID)
+        .is_some();
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    harness.run();
+    let closed_menu_is_published = harness
+        .state_mut()
+        .capture_mcp_snapshot_for_navigation()
+        .find_by_author_id(PANE_POP_OUT_AUTHOR_ID)
+        .is_some();
+    assert!(
+        open_menu_is_published && !closed_menu_is_published,
+        "code truth for this test: open menu published={open_menu_is_published}, \
+closed menu published={closed_menu_is_published}"
+    );
+
+    // 2. The manual entry a no-context model reads must state that same truth.
+    let section = editors_manual_section();
+    let body = section
+        .topics
+        .iter()
+        .find(|topic| topic.heading == AGENT_TOOL_REFERENCE_HEADING)
+        .map(|topic| topic.body.clone())
+        .expect("the editors manual section carries the Agent Tool Reference topic");
+
+    assert!(
+        !body.contains("remain absent from the capture pass"),
+        "the manual still documents the MT-121-era defect (context menus absent from the capture \
+pass) while the runtime publishes them — a no-context model would be told to expect a gap that no \
+longer exists"
+    );
+    for required in [
+        "ctx-menu.surface.",
+        "argus.click",
+        "MT-135",
+        "CLOSED or dismissed menu is absent",
+    ] {
+        assert!(
+            body.contains(required),
+            "the Agent Tool Reference must state '{required}' so a no-context model knows how to \
+address an open menu and how to read its absence"
+        );
+    }
 }
 
 /// AC-121-1 — a repeated headless capture keeps reporting `DeclaredFallback`. The capture pass must not

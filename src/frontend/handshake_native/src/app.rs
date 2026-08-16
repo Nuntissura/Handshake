@@ -12693,6 +12693,11 @@ impl HandshakeApp {
     /// MT-121: the capture pass is given an explicit `screen_rect` from [`Self::snapshot_viewport`], and
     /// that viewport is published on the snapshot, so the bounds a model reads through `argus.inspect`
     /// are viewport-relative to a REAL window rather than to egui's unsized 10000x10000 default.
+    ///
+    /// MT-135: the fresh context also starts with an EMPTY [`egui::Memory`], which is where popup
+    /// open state lives — so an open context menu was visible on screen and absent from the published
+    /// snapshot. [`crate::accessibility::project_open_popup`] carries the live context's single
+    /// open-popup entry across, which covers every memory-backed popup surface through one mechanism.
     fn refresh_mcp_snapshot(&mut self) {
         let (viewport_rect, declared_viewport) = self.snapshot_viewport();
         let ctx = egui::Context::default();
@@ -12705,7 +12710,21 @@ impl HandshakeApp {
         if let Some(live_ctx) = self.frame_ctx.as_ref() {
             let reading_modes = crate::rich_editor::reading_mode::reading_mode_store(live_ctx);
             crate::rich_editor::reading_mode::write_reading_mode_store(&ctx, &reading_modes);
+            // MT-135: carry the live context's OPEN POPUP into the capture context. egui keeps at
+            // most one open popup per viewport, so this single call projects EVERY memory-backed
+            // popup surface - top menu-bar dropdowns, pane/tab/tree/editor context menus, and any
+            // future `egui::Popup` caller - without a per-menu allowlist and without a registration
+            // step when a new menu is added. Only the popup id and its stored anchor position
+            // cross the context boundary: focus, scroll, and the rest of `egui::Memory` stay behind
+            // so the capture pass lays out exactly like the live frame and the MT-121 coordinate
+            // contract still holds. See `accessibility::popup_projection` for the full rationale.
+            crate::accessibility::project_open_popup(live_ctx, &ctx);
         }
+        // The tracked top menu is a FORWARD projection, not a second visibility allowlist: a
+        // model-dispatched menu open sets `mcp_open_top_menu` before the live context has rendered
+        // that popup, so there is nothing for the memory projection above to discover yet. When the
+        // live context HAS rendered it, both paths name the same popup id and the write is
+        // idempotent.
         if let Some(menu) = self.mcp_open_top_menu {
             crate::top_menu_bar::set_menu_popup_open(&ctx, menu, true);
         }
