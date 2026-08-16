@@ -22,7 +22,7 @@
   "title": "E7-MT-128-Give-The-MT-043-Live-Child-A-Wall-Clock-Budget-That-Is-Not-1.4-Seconds-From-Reaping-Itself",
   "group": "E7-Swarm-Proof",
   "created_at_utc": "2026-08-13T06:15:00Z",
-  "updated_at_utc": "2026-08-13T22:45:30.000Z",
+  "updated_at_utc": "2026-08-16T05:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -68,19 +68,27 @@
     "risk_if_missed": "MT-120 and every future change guarded by this suite become unverifiable on a working machine: the proof reds for reasons unrelated to the code under test, and the honest response - re-run until quiet - is exactly the habit that hides a real regression."
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_DEV",
+    "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
     "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER-20260813-224157",
-    "claimed_at_utc": "2026-08-13T22:45:30.000Z",
+    "claimed_by": null,
+    "claimed_at_utc": null,
     "parallel_coder_agent": "019ffd4c-927a-7871-8e1b-1e85fdf0916e",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Isolated at runtime while re-proving AC-120-3 after the MT-120 per-request-credential fix. The residual red is a hard-coded 24s wall-clock budget against a ~23.0s measured child body, NOT an MT-120 defect: the panic site (:3366, wall-clock reap) differs from the pre-MT-120 failure (document_saved attribution), and the same binary writes PROOF_PASS with all 54 gates green when the machine is quiet. Filed as its own microtask per the Operator standing rule so the finding is not absorbed into MT-120 or lost."
+    "creation_reason": "Isolated at runtime while re-proving AC-120-3 after the MT-120 per-request-credential fix. The residual red is a hard-coded 24s wall-clock budget against a ~23.0s measured child body, NOT an MT-120 defect: the panic site (:3366, wall-clock reap) differs from the pre-MT-120 failure (document_saved attribution), and the same binary writes PROOF_PASS with all 54 gates green when the machine is quiet. Filed as its own microtask per the Operator standing rule so the finding is not absorbed into MT-120 or lost.",
+    "pivot_impact_2026_08_16": "PIVOT IMPACT 2026-08-16: the defect this microtask fixes SURVIVES the SurrealDB pivot and the work remains valid. The problem is a wall-clock MARGIN, not a database: the proof spawns a bounded live child reaped at a hard-coded 24-second budget while the child body measures about 23.0s on an idle machine, so roughly 1.4s of headroom makes the proof go red on machine load rather than on product behaviour. That is unchanged by the storage swap. Two things DID change and must be handled when this is implemented: the test named in scope, swarm_edit_live_pg_conflict_merge_search_and_receipts, is PostgreSQL-named and its harness path src/frontend/handshake_native/tests/pg_proof_support/ has been converted to the embedded SurrealDB store (psql spawning removed, isolation now via HANDSHAKE_DATA_DIR), so the timings this budget was calibrated against must be RE-MEASURED on the embedded store rather than assumed. Do not simply raise the constant: measure first, then justify the margin.",
+    "stale_claim_released_2026_08_16": {
+      "previous_status": "CLAIMED",
+      "previous_claimed_by": "KERNEL_BUILDER-20260813-224157",
+      "reason": "The claiming session KERNEL_BUILDER-20260813-224157 ended without completing this microtask. A stale CLAIMED status makes the work look owned and live when no session holds it, which blocks any other implementer from picking it up.",
+      "released_by": "KERNEL_BUILDER-20260815-173127",
+      "released_at_utc": "2026-08-16T05:10:00Z"
+    }
   },
   "hbr_obligations": {
     "MAN": "UserManual must state the governed invocation condition for this proof - that it needs a machine not under concurrent build load - if the budget cannot be made load-independent.",

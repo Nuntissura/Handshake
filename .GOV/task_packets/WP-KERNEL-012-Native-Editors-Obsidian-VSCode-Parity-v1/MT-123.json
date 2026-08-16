@@ -22,7 +22,7 @@
   "title": "B8-MT-123-Make-Isolated-Test-Schema-Teardown-Crash-Safe-And-Reclaim-The-Leaked-Backlog",
   "group": "B-Backend",
   "created_at_utc": "2026-08-12T11:50:00Z",
-  "updated_at_utc": "2026-08-13T22:45:30.000Z",
+  "updated_at_utc": "2026-08-16T05:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,17 +31,25 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "BLOCKED_ON_RESCOPE",
+    "active": false,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER-20260813-224157",
-    "claimed_at_utc": "2026-08-13T22:45:30.000Z",
+    "claimed_by": null,
+    "claimed_at_utc": null,
     "parallel_coder_agent": "019ffd4c-8a78-7821-afc4-d453853d4b34",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Measured directly on 2026-08-12 while bringing the managed cluster up for MT-118 proof. The managed_pgdata directory for database handshake (oid 16384) holds 1,814,397 files / 19.1 GB, and an unclean-shutdown recovery spent over 900 seconds fsyncing it before accepting a single connection. Every PostgreSQL-backed proof in this work packet pays that startup tax, including the MT-108 capstone sweep."
+    "creation_reason": "Measured directly on 2026-08-12 while bringing the managed cluster up for MT-118 proof. The managed_pgdata directory for database handshake (oid 16384) holds 1,814,397 files / 19.1 GB, and an unclean-shutdown recovery spent over 900 seconds fsyncing it before accepting a single connection. Every PostgreSQL-backed proof in this work packet pays that startup tax, including the MT-108 capstone sweep.",
+    "pivot_impact_2026_08_16": "PIVOT IMPACT 2026-08-16: this microtask was written against PostgreSQL. Its premise - isolated PER-TEST POSTGRESQL SCHEMA teardown and a 1009-schema backlog to reclaim - no longer exists. PostgreSQL has been physically deleted from the product (storage/postgres.rs, managed_postgres.rs, the .sqlx cache and the sqlx dependency are gone) and Handshake now uses an EMBEDDED SurrealDB store whose test isolation is a per-run HANDSHAKE_DATA_DIR directory, not a schema name. There are no schemas to leak and no pg_class rows to count, so proof targets PT-123-1 (schema count, pg_class relation count, cluster directory size) and PT-123-3 (parallel-run schema reclamation) are VOID as written. The underlying risk is REAL and CARRIED FORWARD: an aborted test process can still leave an embedded store directory behind, and crash-safe teardown plus reclamation of orphaned stores is still required. The 2026-08-13 session already began this work - tests/surreal_test_store_crash_safety_tests.rs and tests/surreal_test_store_support/ exist and are committed. This contract must be re-scoped to the embedded store before implementation resumes: restate the acceptance criteria and proof targets in terms of store DIRECTORIES, and note that the six acceptance_criteria entries below are empty in the source contract and must be authored.",
+    "stale_claim_released_2026_08_16": {
+      "previous_status": "CLAIMED",
+      "previous_claimed_by": "KERNEL_BUILDER-20260813-224157",
+      "reason": "The claiming session KERNEL_BUILDER-20260813-224157 ended without completing this microtask. A stale CLAIMED status makes the work look owned and live when no session holds it, which blocks any other implementer from picking it up.",
+      "released_by": "KERNEL_BUILDER-20260815-173127",
+      "released_at_utc": "2026-08-16T05:10:00Z"
+    }
   },
   "scope": {
     "summary": "Make isolated per-test PostgreSQL schema teardown survive an aborted test process, and reclaim the 1009-schema backlog, so proof runs and crash recovery stop degrading.",
