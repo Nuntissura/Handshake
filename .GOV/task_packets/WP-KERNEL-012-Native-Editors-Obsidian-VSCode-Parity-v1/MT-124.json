@@ -22,7 +22,7 @@
   "title": "E13-MT-124-Make-The-Wikilink-Chip-Label-Wrap-With-Its-Galley-So-A-Long-Chip-Cannot-Paint-Outside-The-Reading-Column",
   "group": "E13-RichEditor",
   "created_at_utc": "2026-08-12T13:05:00Z",
-  "updated_at_utc": "2026-08-12T13:05:00Z",
+  "updated_at_utc": "2026-08-16T06:15:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-124.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -41,7 +41,23 @@
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Found and MEASURED while proving MT-116 PT-116-1 on 2026-08-12. It is a DIFFERENT defect from the one MT-116 fixed (spec-size vs paint-size mismatch), it is not covered by the MT-116 pixel guard, and fixing it would have been an unscoped product change. Deferred here per the Operator standing rule rather than absorbed or lost."
+    "creation_reason": "Found and MEASURED while proving MT-116 PT-116-1 on 2026-08-12. It is a DIFFERENT defect from the one MT-116 fixed (spec-size vs paint-size mismatch), it is not covered by the MT-116 pixel guard, and fixing it would have been an unscoped product change. Deferred here per the Operator standing rule rather than absorbed or lost.",
+    "kernel_builder_diagnosis_2026_08_16": {
+      "by": "KERNEL_BUILDER-20260815-173127",
+      "at_utc": "2026-08-16T06:15:00Z",
+      "why_recorded": "A first fix attempt was made and REVERTED after the real-GPU pixel proof disproved it. The diagnosis below is recorded from that evidence so the next implementer does not repeat the wrong fix. No product code from that attempt remains: rich_editor_widget.rs is byte-identical to its committed state.",
+      "proof_harness_is_a_false_green_without_the_gpu_flag": "CRITICAL. tests/test_mt124_chip_label_wrap.rs reports \"1 passed\" on a plain cargo test run while printing MT124_PROOF_STATUS=DEFERRED reason=HANDSHAKE_GPU_SCREENSHOT unset; NO pixel assertion ran. Stdout is captured by default, so the deferral is invisible in the summary line. ALWAYS run it as: HANDSHAKE_GPU_SCREENSHOT=1 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_mt124_chip_label_wrap -- --nocapture",
+      "gpu_is_available_here": "The real-GPU path WORKS on this host, contrary to the assumption recorded in several MTs. With HANDSHAKE_GPU_SCREENSHOT=1 the harness rendered and pixel-asserted all 3 scenarios in 22.7s with no 0xc0000005 access violation.",
+      "rejected_fix": "Wrapping the label at the pill width in rich_editor_widget.rs paint_chip - replacing Painter::text with painter.layout(spec.label, font, fg, rect.width()-2) + painter.galley - DOES NOT WORK and makes the rendering visibly worse. The captured frame Handshake_Artifacts/handshake-test/wp-kernel-012-mt-124/mt124-paragraph-unresolved-locus-after-wrapping.png was opened and inspected directly: the label wraps into the NARROW pill and cascades as a ~120px-wide ribbon of text down roughly 15 rows of the page, while the pink pill covers only the first two rows. The proof failed 3 of 3 scenarios with 225 glyph scanlines carrying label ink outside the pill fill.",
+      "root_cause": "NOT a label-painting bug and NOT a galley text mismatch. line_layout.rs:354 already lays out exactly inline_view::chip_label(link) for the hsLink atom (the MT-068 glyph-overlap fix), so the pill and the label are built from the SAME string. The defect is in inline_view::chip_rect_for_span (src/rich_editor/wikilinks/inline_view.rs:396). It collapses the atom to ONE bounding rect derived from only the FIRST and LAST cursor rects: Rect::from_min_max(min(start.min.x, end.min.x), min(start.min.y, end.min.y)) .. (max(start.max.x, end.max.x), max(start.max.y, end.max.y)). For an atom that wraps across MANY rows that is geometrically wrong: the true painted region is the union of one rect PER WRAPPED ROW, each spanning that row to the column edge, but the collapsed rect is only the narrow x-band between the two cursor positions. So the pill is narrow while the text occupies the full column on every row - measured as pill_max_x=984 against label ink reaching x=2399, with the 720pt reading column ending at x=1560.",
+      "correct_fix_direction": "Make the chip PER-ROW instead of one collapsed rect. The chip must derive one rect per galley row the atom spans (egui Galley exposes rows, and pos_from_cursor gives per-cursor rects), paint one pill segment per row, and paint the label per row aligned to those same rows - or stop painting the label separately and let the underlying galley run paint in the chip colour instead of transparent, which removes the two-rules problem at the source. Whichever is chosen, the hit-test/AccessKit rect must still enclose the whole atom so pointer activation and swarm targeting do not regress, and MT-068 must not regress into doubled glyph runs.",
+      "do_not": "Do NOT fix this by shrinking, clipping, or eliding the label, and do NOT wrap the label into the collapsed pill - that is the rejected fix above. Do NOT change chip_rect_for_span to a single row-1-only rect either: the existing unit test chip_rect_offsets_by_scroll_adjusted_origin_mc001 and the MT-068 hit-test contract require the activation rect to cover the whole atom.",
+      "affected_scenarios": [
+        "paragraph-unresolved-locus",
+        "h1-default-editor-size",
+        "h1-editor-20-contract-case"
+      ]
+    }
   },
   "scope": {
     "summary": "Make the wikilink chip label wrap the same way its galley does, so a long chip inside a narrow reading column cannot paint outside the column with a mis-sized pill behind it.",
