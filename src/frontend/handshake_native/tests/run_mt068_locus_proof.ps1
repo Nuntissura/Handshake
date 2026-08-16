@@ -38,9 +38,7 @@ param(
     [int]$PerScenarioTimeoutSeconds = 1800,
 
     [ValidateRange(600, 10800)]
-    [int]$WholeRunTimeoutSeconds = 7200,
-
-    [string]$PostgresDsn = 'postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_068'
+    [int]$WholeRunTimeoutSeconds = 7200
 )
 
 Set-StrictMode -Version Latest
@@ -164,31 +162,22 @@ $summaryPath = Join-Path $runRoot 'mt068-aggregate-proof.json'
 $runStartedAtUtc = [DateTimeOffset]::UtcNow
 $wholeRunDeadline = $runStartedAtUtc.AddSeconds($WholeRunTimeoutSeconds)
 
-# ── PostgreSQL identity (existing internal server, never started or stopped here) ─────────────────
-$pgUri = [Uri]$PostgresDsn
-if ($pgUri.Scheme -notin @('postgres', 'postgresql')) { throw 'MT-068 requires a PostgreSQL DSN' }
-$pgDatabase = $pgUri.AbsolutePath.TrimStart('/')
-if ([string]::IsNullOrWhiteSpace($pgDatabase)) { throw 'MT-068 PostgreSQL DSN requires a database name' }
-$listener = Get-NetTCPConnection -LocalAddress $pgUri.Host -LocalPort $pgUri.Port -State Listen |
-    Select-Object -First 1
-if ($null -eq $listener) { throw "PostgreSQL is not listening at $($pgUri.Host):$($pgUri.Port)" }
-$postgresProcess = Get-Process -Id $listener.OwningProcess
-if (-not $postgresProcess.ProcessName.Equals('postgres', [StringComparison]::OrdinalIgnoreCase)) {
-    throw "The PostgreSQL endpoint is owned by '$($postgresProcess.ProcessName)', not postgres"
-}
-$psql = Join-Path (Split-Path ([IO.Path]::GetFullPath($postgresProcess.Path)) -Parent) 'psql.exe'
-if (-not (Test-Path -LiteralPath $psql -PathType Leaf)) {
-    throw "The verified PostgreSQL runtime has no sibling psql executable: '$psql'"
-}
+# ── Embedded store identity (opened and closed by the backend, never by this script) ──────────────
+# Handshake's database runs INSIDE the backend process. There is no listener to
+# find, no owning process to identify, and no psql to locate: the store is a
+# directory under this run's root, held under an exclusive RocksDB lock for as
+# long as the backend lives.
+$storeRoot = Join-Path $runRoot 'backend-runtime'
+[void][IO.Directory]::CreateDirectory($storeRoot)
+$storeIdentity = [IO.Path]::GetFullPath($storeRoot)
 
-function Invoke-ProofSql {
-    param([Parameter(Mandatory)][string]$Sql, [Parameter(Mandatory)][string]$Label)
-    $output = & $psql -X -q -A -t -v ON_ERROR_STOP=1 --dbname $PostgresDsn -c $Sql 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "${Label}: psql exited $LASTEXITCODE : $($output -join '; ')"
-    }
-    return @($output | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-}
+# Invoke-ProofSql is GONE and deliberately has no replacement here. It existed so
+# this supervisor could interrogate the database itself after the run, because -
+# as this file's own header says - a passing run writing `*_rows_zero: true` is
+# not proof of its own cleanliness. An embedded in-process store cannot be
+# queried from outside the backend, so that independence cannot be reconstructed
+# from PowerShell. See the residue section below: the check is downgraded and
+# labelled, not silently kept.
 
 # ── Reviewed MT-045 Windows Job Object containment (extracted, never duplicated) ──────────────────
 $jobHelperPath = Join-Path $PSScriptRoot 'run_mt045_perf_proof.ps1'
@@ -284,8 +273,7 @@ try {
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
     $env:HANDSHAKE_TEST_ARTIFACTS_ROOT = $testArtifactRoot
     $env:HSK_TEST_BACKEND_BIN = $backendPath
-    $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
-    $env:HSK_PSQL_BIN = $psql
+    $env:HANDSHAKE_DATA_DIR = $storeIdentity
     $env:HANDSHAKE_GPU_SCREENSHOT = '1'
     $env:HSK_MT045_RUN_ID = $RunId
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
@@ -408,39 +396,20 @@ try {
         throw "MT-068 requires exactly four canonical frames (WP before/after, MT before/after); got $($frames.Count)"
     }
 
-    # ── Direct PostgreSQL residue interrogation (the run's own claims are not evidence) ───────────
-    $ws = [string]$evidence.persisted_fixture.workspace_id
-    $wp = [string]$evidence.persisted_fixture.work_packet_id
-    $mt = [string]$evidence.persisted_fixture.microtask_id
-    $doc = [string]$evidence.persisted_fixture.document_id
-    $legacyDoc = [string]$evidence.reverse_lookup_alias_boundary.legacy_document_id
-    $aliasBlock = [string]$evidence.reverse_lookup_alias_boundary.alias_block_id
-    foreach ($identity in @($ws, $wp, $mt, $doc, $legacyDoc, $aliasBlock)) {
-        if ([string]::IsNullOrWhiteSpace($identity) -or $identity -match "['\\]") {
-            throw "Canonical evidence carries an unusable fixture identity '$identity'"
-        }
-    }
-    # These five classes are the validator's own `verification_required` list and are HARD ZERO. The
-    # MT-109 workspace-partitioned Flight Recorder ledger keys are included by prefix, not only by the
-    # four ids the run tracked: MT-066 proved a passing run can write `*_rows_zero: true` while real
-    # native-editor rows survive, because the mounted app emits more events than a proof tracks by id.
-    $residueSql = @"
-SELECT 'work_packets=' || (SELECT COUNT(*) FROM work_packets WHERE wp_id = '$wp')
-    || ',micro_tasks=' || (SELECT COUNT(*) FROM micro_tasks WHERE mt_id = '$mt' OR wp_id = '$wp')
-    || ',rich_documents=' || (SELECT COUNT(*) FROM knowledge_rich_documents WHERE rich_document_id = '$doc')
-    || ',legacy_documents=' || (SELECT COUNT(*) FROM documents WHERE id = '$legacyDoc' OR id = '$aliasBlock')
-    || ',native_editor_fr_ledger=' || (SELECT COUNT(*) FROM kernel_event_ledger
-                          WHERE idempotency_key LIKE 'native-editor-fr-pending:${ws}:%'
-                             OR idempotency_key LIKE 'native-editor-fr-complete:${ws}:%')
-"@
-    $residueRows = Invoke-ProofSql -Sql $residueSql -Label 'post-proof residue interrogation'
-    $residue = [string]($residueRows | Select-Object -First 1)
-    $nonZero = @([regex]::Matches($residue, '(?<name>[a-z_]+)=(?<count>\d+)') |
-        Where-Object { [int]$_.Groups['count'].Value -ne 0 } |
-        ForEach-Object { $_.Value })
-    if ($nonZero.Count -ne 0) {
-        throw "MT-068 left PostgreSQL residue after a passing run: $($nonZero -join ', ')"
-    }
+    # ── Residue verification: DOWNGRADED, and this is the honest statement of it ──────────────
+    # This section used to interrogate the database directly after the run,
+    # precisely because the run's own claims are not evidence. That independent
+    # check is NOT possible against an embedded in-process store from here.
+    #
+    # What remains is the fixture-owned containment proof in the Rust harness:
+    # the run's store lives inside a fixture-owned runtime root and goes away
+    # with it. That proves the run cannot have written outside its own store; it
+    # does NOT prove the per-table row counts the old probe asserted.
+    #
+    # Restoring the original strength needs an out-of-process verifier that opens
+    # the store AFTER the backend exits and releases the RocksDB lock. That is
+    # deferred to its own microtask rather than faked here.
+    $residue = 'containment_only:per_table_row_counts_not_independently_verified'
     # Recorded, not gated: any OTHER ledger row carrying this workspace id. MT-068 owns neither the
     # workspace lifecycle events nor another edge's rows, so silently deleting them would be a
     # cross-owner mutation; surfacing the exact count keeps the observation honest either way.
@@ -468,11 +437,14 @@ SELECT COUNT(*) FROM kernel_event_ledger
         job_helper_sha256 = $jobHelperSha256
         backend_path = $backendPath
         backend_sha256 = $backendSha256
-        postgres = [ordered]@{
-            dsn = "$($pgUri.Scheme)://$($pgUri.Host):$($pgUri.Port)/$pgDatabase"
-            pid = [int]$postgresProcess.Id
-            psql_path = $psql
-            lifecycle = 'existing_internal_postgresql_preserved'
+        store = [ordered]@{
+            kind = 'embedded_surrealdb'
+            identity = $storeIdentity
+            store_directory_name = 'handshake-surreal'
+            namespace = 'handshake'
+            database = 'primary'
+            lifecycle = 'opened_and_closed_by_the_backend_process'
+            external_server = $false
         }
         discovered_scenarios = [ordered]@{
             inventory_source = 'built binary --list'
@@ -487,7 +459,7 @@ SELECT COUNT(*) FROM kernel_event_ledger
         canonical_evidence_path = $evidencePath
         canonical_evidence_sha256 = Get-FileSha256 $evidencePath
         canonical_frames = @($frames)
-        postgres_residue_probe = $residue
+        store_residue_probe = $residue
         workspace_scoped_other_ledger_rows = $otherLedgerRows
         commands = @($scenarioReceipts)
     }
