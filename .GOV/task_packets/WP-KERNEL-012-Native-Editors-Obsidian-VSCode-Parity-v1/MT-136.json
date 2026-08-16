@@ -25,7 +25,7 @@
   "title": "B9-MT-136-Port-The-Storage-Layer-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B9",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T07:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -38,7 +38,18 @@
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": null,
-    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
+    "progress_2026_08_16": {
+      "by": "KERNEL_BUILDER-20260815-173127",
+      "at_utc": "2026-08-16T07:10:00Z",
+      "landed": [
+        "storage/knowledge.rs 8309 -> 3281 lines, 184 errors -> 0. Removed ONLY provably dead private implementation detail of the deleted PostgresDatabase: 3 impl PostgresDatabase blocks, the impl KnowledgeStore for PostgresDatabase block, 21 private *_from_pg row mappers and 3 private tx/pool helpers. Every deleted item had all its call sites inside a deleted range. All 69 names externally imported from storage::knowledge still exist and the KnowledgeStore trait is intact; it now truthfully documents that it has NO implementor."
+      ],
+      "triage_correction": "AC-136-3 triage found that NONE of the ten storage modules is dead. The KERNEL_BUILDER claim that storage/loom.rs and storage/retention.rs had zero external consumers was WRONG and was disproved before any deletion: loom.rs is a pure type module (86 pub items, 0 sqlx, 0 errors) reached through the storage/mod.rs glob re-export \"pub use loom::*\", and retention.rs is used by src/main.rs through a multi-line grouped import that a single-line grep cannot see. Nothing was deleted. A consumer grep on \"storage::<module>\" is unsound in Rust.",
+      "unblocked_since": "The dominant blocker at the time of that pass - the sealed SurrealDataContext exposing only upsert_one and select_one - has since been REMOVED by the KERNEL_BUILDER. storage/surreal.rs now also provides select_all, delete_one, query_values, query_first, execute_returning and create_if_absent, all compiling clean. The next pass on this MT should therefore no longer be blocked on query expressiveness.",
+      "still_blocked_on": "Schema coverage. The remaining five modules (fems_memory 72, knowledge_crdt 46, knowledge_memory 33, knowledge_retrieval 9, block_view_outbox 9) need tables that schema.surql does not yet define. A dedicated schema lane is extending the source-forward wave to add them.",
+      "remaining_work": "The KnowledgeStore trait (~180 methods) has no implementor. impl KnowledgeStore for SurrealDatabase is the single largest remaining item and is what the entire knowledge API layer is waiting on; the API modules are already re-typed to consume &dyn KnowledgeStore."
+    }
   },
   "scope": {
     "summary": "Port the storage modules off sqlx onto the embedded SurrealDB store. These modules were helpers of the deleted PostgresDatabase and account for 463 of the errors: storage/knowledge.rs (184), storage/fems_memory.rs (72), storage/knowledge_crdt.rs (46), plus knowledge_memory, knowledge_retrieval, kb003_storage, block_view_outbox, calendar, retention and loom. Decide per module whether it is ported into storage/surreal/ or deleted as dead PostgreSQL implementation detail: storage/loom.rs and storage/retention.rs currently have ZERO external consumers while storage/knowledge.rs has 39, so they are not all the same case. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",

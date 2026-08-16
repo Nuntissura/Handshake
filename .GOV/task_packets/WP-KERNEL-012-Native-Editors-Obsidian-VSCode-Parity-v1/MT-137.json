@@ -25,7 +25,7 @@
   "title": "B10-MT-137-Port-Backend-Infrastructure-Modules-Off-sqlx",
   "group": "B10",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T04:45:00Z",
+  "updated_at_utc": "2026-08-16T07:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -40,7 +40,26 @@
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": null,
-    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost."
+    "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
+    "progress_2026_08_16": {
+      "by": "KERNEL_BUILDER-20260815-173127",
+      "at_utc": "2026-08-16T07:10:00Z",
+      "landed": [
+        "process_ledger/writer.rs: PostgresProcessLedgerStore -> SurrealProcessLedgerStore over the kernel_process_lifecycle table. The two ON CONFLICT update lists were reproduced field-for-field in Rust: START coalesces optional identity columns and takes the earliest started_at but never touches stopped_at/exit_code/stop_reason, so a replayed START cannot erase a STOP that already landed; STOP overwrites only the stop triple. Both merges stay idempotent, so the existing retain-and-retry loop re-converges.",
+        "session_checkpoint/writer.rs: append-only writes keyed on checkpoint_id. An existing id is skipped and NOT counted in the returned row count, reproducing ON CONFLICT (checkpoint_id) DO NOTHING plus rows_affected, so an idempotent retry neither errors nor double-counts.",
+        "flight_recorder/fr_emitter.rs: batch flusher appends kernel_event_ledger through the embedded store. Ledger ordering stays owned by the database via event_sequence DEFAULT sequence::nextval. A real regression was prevented: the old batch was one transaction, so a mid-batch failure rolled back and the retained batch replayed each event exactly once; with per-record commits the flusher now drains the successfully-written prefix before propagating the error, restoring exactly-once.",
+        "process_ledger/table.rs: deleted the three PostgreSQL DDL/DML constants as dead residue."
+      ],
+      "known_regression_disclosed": "Batch atomicity is lost in the process ledger: rows now commit individually rather than as one transaction. The merges are idempotent so recovery still converges, but this is a real semantic change and is recorded rather than hidden.",
+      "deliberate_non_regression": "process_ledger/reclaim.rs went 4 -> 5 errors ON PURPOSE. Its store no longer has a PgPool, and reclaim depends on an atomic UPDATE ... WHERE stopped_at IS NULL ... RETURNING whose lock covers the kill-and-STOP decision. Emulating that with read-then-write would be a silent correctness regression, so the honest compile error was left in place.",
+      "still_blocked_on": [
+        "Schema coverage: user_manual_* (7 tables), knowledge_ingestion_* (6) and knowledge_agent_* (6) do not exist in schema.surql. A dedicated schema lane is adding them.",
+        "The deleted crate::storage::postgres module is still imported by user_manual/{store,seed,freshness,fixtures,bundle_bridge}.rs and knowledge_ingestion/engine.rs, which need the SurrealDatabase equivalent plus an in-transaction ledger-append helper."
+      ],
+      "unblocked_since": "The SurrealDataContext seam has been widened by the KERNEL_BUILDER since this pass and now provides bound queries, delete, and an atomic create_if_absent that replaces the ON CONFLICT DO NOTHING plus SQLSTATE 23505 pattern. Transaction scope is available by writing BEGIN TRANSACTION; ...; COMMIT TRANSACTION; as a single statement through query_values.",
+      "proofs_not_run": "PT-137-2 and PT-137-3 could not execute: handshake_core does not compile as a whole, so no test binary can be built. AC-137-1 is NOT met - sqlx references remain in the modules that lack the schema or the ported dependencies.",
+      "tests_needing_their_own_mt": "tests/process_ledger_tests.rs, tests/process_ledger_reclaim_tests.rs, tests/focus_audit_tests.rs and tests/hbr_e2e_smoke_test.rs assert on the deleted PostgreSQL DDL constants and call apply_migration(). Those assertions cannot survive the pivot and need their own microtask."
+    }
   },
   "scope": {
     "summary": "Port the non-storage backend infrastructure off sqlx: swarm_orchestration/state_recovery.rs (60), user_manual/store.rs (48), process_ledger (48), role_mailbox_v1 (34), mt_executor (32), knowledge_ingestion (32), flight_recorder (29), knowledge_memory (20), kernel (18), knowledge_retrieval (13) and session_checkpoint (7). These own process and session lifecycle, the role mailbox, the microtask executor queue and Flight Recorder spans, so they must keep their existing durability and ordering semantics. EVIDENCE: Measured from a full cargo check of handshake_core after the physical PostgreSQL removal on 2026-08-16 (log Handshake_Artifacts/handshake-test/wp012-surreal-breakage-20260816T033259Z.log): 1716 errors across 119 files. Root causes: 1493 unresolved sqlx, 152 missing migrations .sql include_bytes (since restored), 51 deleted-postgres-module references, 20 other. SEAM: The Database trait has 201 methods: 108 required and 93 with default bodies (88 of those return StorageError::NotImplemented and 5 are supports_ capability flags). storage/surreal/database.rs already implements all 108 required methods and compiles clean; 106 currently return NotImplemented. storage/surreal/schema.surql already defines 121 tables, 1414 fields and 347 indexes, and storage/surreal/documents.rs, blocks.rs, workspaces.rs and preferences.rs already implement 36 working functions - use those as the implementation pattern. Decrement DECLARED_NOT_IMPLEMENTED in database.rs in the SAME change that ports each method; the not_implemented_surface_is_declared test enforces it.",
