@@ -1,13 +1,16 @@
 //! MT-191 Checkpoint write path: periodic + event-triggered + pre-shutdown.
 
-use sqlx::postgres::PgPool;
+use chrono::{DateTime, Utc};
+use serde_json::Value;
 use std::sync::{Arc, Mutex as StdMutex};
+use surrealdb::types::SurrealValue;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{mpsc, Mutex};
 use uuid::Uuid;
 
 use super::checkpoint::{CheckpointStateKind, SessionCheckpoint};
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 use crate::flight_recorder::{
     fr_event_registry::FrEventId, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
     FlightRecorderEventType, RecorderError,
@@ -62,8 +65,8 @@ pub trait CheckpointSink: Send + Sync {
 }
 
 /// In-memory `CheckpointSink` for tests. Production wires
-/// [`PostgresCheckpointSink`] (below), which batch-inserts checkpoint rows into
-/// the `kernel_session_checkpoint` table from migration 0024.
+/// [`SurrealCheckpointSink`] (below), which writes checkpoint rows into the
+/// embedded SurrealDB `kernel_session_checkpoint` table.
 pub struct InMemoryCheckpointSink {
     pub written: Mutex<Vec<SessionCheckpoint>>,
 }
@@ -95,37 +98,98 @@ impl CheckpointSink for InMemoryCheckpointSink {
     }
 }
 
-/// Production `CheckpointSink` backed by a real `PgPool`.
+const SESSION_CHECKPOINT_TABLE: &str = "kernel_session_checkpoint";
+
+/// One `kernel_session_checkpoint` record.
 ///
-/// Each `write_batch` performs a single append-only multi-row `INSERT` into the
-/// `kernel_session_checkpoint` table (migration 0024). The column list, ordering,
-/// UUID-v7 `checkpoint_id`, and `state_kind` text encoding match the direct
-/// INSERTs used by MT-193's restart-resume path
-/// (`process_ledger::restart_resume`), so cadence-driven checkpoints and
-/// recovery-time checkpoints land in the same schema with the same conventions.
-///
-/// Inserts are batched (up to one statement per drained batch) so the writer's
-/// background drainer never round-trips per row. The table's `checkpoint_id`
-/// primary key makes the write idempotent against duplicate-id retries; rows are
-/// never updated in place (append-only), consistent with the checkpoint table's
-/// `ORDER BY created_at_utc DESC` latest-wins read pattern.
-#[derive(Clone)]
-pub struct PostgresCheckpointSink {
-    pool: PgPool,
+/// Mirrors the `SCHEMAFULL` table definition in
+/// `storage/surreal/schema.surql`. `checkpoint_id` is also the record id, which
+/// is what makes a duplicate write detectable without a secondary lookup path.
+#[derive(Debug, Clone, SurrealValue)]
+struct SessionCheckpointRow {
+    checkpoint_id: Uuid,
+    session_id: Uuid,
+    model_session_id: Uuid,
+    last_event_ledger_seq: i64,
+    compact_state: Value,
+    state_kind: String,
+    pending_artifacts: Vec<String>,
+    created_at_utc: DateTime<Utc>,
+    created_by_process: i64,
+    schema_version: i64,
 }
 
-impl PostgresCheckpointSink {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+impl From<&SessionCheckpoint> for SessionCheckpointRow {
+    fn from(cp: &SessionCheckpoint) -> Self {
+        Self {
+            checkpoint_id: cp.checkpoint_id.as_uuid(),
+            session_id: cp.session_id,
+            model_session_id: cp.model_session_id,
+            last_event_ledger_seq: cp.last_event_ledger_seq,
+            compact_state: cp.compact_state.clone(),
+            state_kind: cp.state_kind.as_str().to_string(),
+            pending_artifacts: cp.pending_artifacts.clone(),
+            created_at_utc: cp.created_at_utc,
+            created_by_process: i64::from(cp.created_by_process),
+            schema_version: i64::from(cp.schema_version),
+        }
+    }
+}
+
+/// Production `CheckpointSink` backed by the Handshake-managed embedded
+/// SurrealDB store.
+///
+/// Each `write_batch` writes the drained rows into `kernel_session_checkpoint`,
+/// keyed by the UUID-v7 `checkpoint_id` record id. The field names, the
+/// `state_kind` text encoding and the append-only convention match the ones
+/// MT-193's restart-resume path uses, so cadence-driven checkpoints and
+/// recovery-time checkpoints land in the same table with the same shape.
+///
+/// Rows are append-only and never updated in place, which preserves the
+/// `ORDER BY created_at_utc DESC` latest-wins read pattern. A checkpoint id that
+/// is already present is skipped rather than rewritten and is not counted in the
+/// returned row count, which is the behaviour the previous
+/// `ON CONFLICT (checkpoint_id) DO NOTHING` clause provided: an idempotent retry
+/// of an already-persisted batch neither errors nor double-counts.
+#[derive(Clone)]
+pub struct SurrealCheckpointSink {
+    storage: SurrealStorage,
+}
+
+impl SurrealCheckpointSink {
+    pub fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
     }
 
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
+    pub fn storage(&self) -> &SurrealStorage {
+        &self.storage
+    }
+
+    /// Writes one checkpoint, returning `true` when it was newly persisted and
+    /// `false` when the id was already present (the DO NOTHING branch).
+    async fn write_one(&self, row: SessionCheckpointRow) -> Result<bool, SurrealStorageError> {
+        let record_id = row.checkpoint_id.to_string();
+        self.storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    let existing: Option<SessionCheckpointRow> = database
+                        .select_one(SESSION_CHECKPOINT_TABLE, &record_id)
+                        .await?;
+                    if existing.is_some() {
+                        return Ok(false);
+                    }
+                    let _: Option<SessionCheckpointRow> = database
+                        .upsert_one(SESSION_CHECKPOINT_TABLE, &record_id, row)
+                        .await?;
+                    Ok(true)
+                })
+            })
+            .await
     }
 }
 
 #[async_trait::async_trait]
-impl CheckpointSink for PostgresCheckpointSink {
+impl CheckpointSink for SurrealCheckpointSink {
     async fn write_batch(
         &self,
         batch: Vec<SessionCheckpoint>,
@@ -134,39 +198,17 @@ impl CheckpointSink for PostgresCheckpointSink {
             return Ok(0);
         }
 
-        // Single multi-row INSERT keyed off the v7 checkpoint_id primary key.
-        // Append-only: on a duplicate checkpoint_id (idempotent retry of an
-        // already-persisted batch) we DO NOTHING rather than error, matching the
-        // append-only/latest-wins convention of kernel_session_checkpoint.
-        let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
-            "INSERT INTO kernel_session_checkpoint (\
-                checkpoint_id, session_id, model_session_id, last_event_ledger_seq, \
-                compact_state, state_kind, pending_artifacts, created_at_utc, \
-                created_by_process, schema_version) ",
-        );
-        builder.push_values(batch.iter(), |mut row, cp| {
-            row.push_bind(cp.checkpoint_id.as_uuid())
-                .push_bind(cp.session_id)
-                .push_bind(cp.model_session_id)
-                .push_bind(cp.last_event_ledger_seq)
-                .push_bind(cp.compact_state.clone())
-                .push_bind(cp.state_kind.as_str())
-                .push_bind(
-                    serde_json::to_value(&cp.pending_artifacts)
-                        .unwrap_or_else(|_| serde_json::json!([])),
-                )
-                .push_bind(cp.created_at_utc)
-                .push_bind(cp.created_by_process)
-                .push_bind(i32::from(cp.schema_version));
-        });
-        builder.push(" ON CONFLICT (checkpoint_id) DO NOTHING");
-
-        let result = builder
-            .build()
-            .execute(&self.pool)
-            .await
-            .map_err(|err| CheckpointWriterError::Sink(err.to_string()))?;
-        Ok(result.rows_affected())
+        let mut written = 0u64;
+        for checkpoint in batch.iter() {
+            let inserted = self
+                .write_one(SessionCheckpointRow::from(checkpoint))
+                .await
+                .map_err(|err| CheckpointWriterError::Sink(err.to_string()))?;
+            if inserted {
+                written += 1;
+            }
+        }
+        Ok(written)
     }
 }
 

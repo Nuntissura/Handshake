@@ -219,6 +219,141 @@ impl SurrealDataContext<'_> {
     {
         Ok(self.client.select((table, id)).await?)
     }
+
+    /// Every row of `table`.
+    pub(crate) async fn select_all<R>(&self, table: &str) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+    {
+        Ok(self.client.select(table).await?)
+    }
+
+    /// Deletes one record, returning it when it existed.
+    pub(crate) async fn delete_one<R>(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+    {
+        Ok(self.client.delete((table, id)).await?)
+    }
+
+    /// Runs a parameterized SurrealQL statement and returns the rows of the
+    /// FIRST result set.
+    ///
+    /// Caller values travel as BINDINGS and are never concatenated into the
+    /// statement text, so this widens what the facade can express without
+    /// giving callers a way to build an injectable query or to reach the SDK
+    /// handle. The statement stays a `&'static str` for the same reason: a
+    /// runtime-assembled query string cannot be passed in.
+    ///
+    /// Multiple statements separated by `;` execute in one round trip, so a
+    /// caller that needs several statements to be atomic writes them as
+    /// `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` here rather than issuing
+    /// them separately.
+    pub(crate) async fn query_values<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let mut response = self
+            .client
+            .query(statement)
+            .bind(surrealdb::types::SurrealValue::into_value(bindings))
+            .await?
+            .check()?;
+        Ok(response.take(0)?)
+    }
+
+    /// [`Self::query_values`] returning only the first row.
+    pub(crate) async fn query_first<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        Ok(self
+            .query_values::<R, B>(statement, bindings)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    /// Runs a parameterized statement for its effect and reports how many rows
+    /// the first result set returned.
+    ///
+    /// Statements whose affected-row count matters must end in `RETURN AFTER`
+    /// (or `RETURN BEFORE`), because SurrealDB reports affected rows by
+    /// returning them. A conditional update that matched nothing therefore
+    /// yields `0`, which is the signal callers use to detect a lost race.
+    pub(crate) async fn execute_returning<B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<usize, SurrealStorageError>
+    where
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let rows = self
+            .query_values::<surrealdb::types::Value, B>(statement, bindings)
+            .await?;
+        Ok(rows.len())
+    }
+
+    /// Creates a record only when its id is free, returning `Ok(None)` when it
+    /// is already taken.
+    ///
+    /// This is the fail-closed counterpart of [`Self::upsert_one`] and replaces
+    /// the PostgreSQL `INSERT ... ON CONFLICT DO NOTHING` plus unique-violation
+    /// SQLSTATE handling that idempotency keys, mailbox lease acquisition and
+    /// duplicate-outcome detection relied on. The existence test and the create
+    /// run inside ONE statement, so two callers racing for the same id cannot
+    /// both observe it as free.
+    pub(crate) async fn create_if_absent<R, D>(
+        &self,
+        table: &'static str,
+        id: &str,
+        content: D,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        D: surrealdb::types::SurrealValue + Send,
+    {
+        // The derive expands to unqualified `SurrealValue` references, so the
+        // trait has to be in scope here rather than named by full path.
+        use surrealdb::types::SurrealValue;
+
+        #[derive(SurrealValue)]
+        struct CreateIfAbsentBindings<D> {
+            tb: String,
+            id: String,
+            content: D,
+        }
+
+        let rows = self
+            .query_values::<R, _>(
+                "LET $record = type::thing($tb, $id); \
+                 IF (SELECT VALUE id FROM $record) IS NONE \
+                 { RETURN CREATE $record CONTENT $content; } \
+                 ELSE { RETURN []; };",
+                CreateIfAbsentBindings {
+                    tb: table.to_owned(),
+                    id: id.to_owned(),
+                    content,
+                },
+            )
+            .await?;
+        Ok(rows.into_iter().next())
+    }
 }
 
 struct SurrealAdminContext<'a> {

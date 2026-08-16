@@ -3545,7 +3545,6 @@ pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
 #[derive(Clone)]
 pub struct ControlPlaneStorage {
     pub database: Arc<dyn Database>,
-    pub postgres_pool: sqlx::postgres::PgPool,
 }
 
 pub async fn init_control_plane_storage() -> Result<ControlPlaneStorage, StorageError> {
@@ -3557,19 +3556,18 @@ pub async fn init_control_plane_storage_with_config(
     config: &ControlPlaneStorageConfig,
 ) -> Result<ControlPlaneStorage, StorageError> {
     match config.mode {
-        ControlPlaneStorageMode::PostgresPrimary => {
-            // Keep the conservative default for ordinary operator traffic, but
-            // let bounded bulk/index routes opt into a larger shared pool via
-            // explicit runtime configuration. Invalid values fail closed to
-            // the default rather than changing safety unexpectedly.
-            let max_connections = configured_postgres_max_connections();
-            let db =
-                postgres::PostgresDatabase::connect(&config.database_url, max_connections).await?;
+        ControlPlaneStorageMode::SurrealEmbedded => {
+            // The embedded store is opened and owned by this process: no
+            // operator-launched database, external service, or container
+            // runtime is part of core operation [CX-503R/CX-503S].
+            let surreal_config = config.surreal_config()?;
+            let storage = surreal::SurrealStorage::open(surreal_config)
+                .await
+                .map_err(|err| StorageError::Database(err.to_string()))?;
+            let db = surreal::SurrealDatabase::new(storage);
             db.run_migrations().await?;
-            let postgres_pool = db.pool().clone();
             Ok(ControlPlaneStorage {
-                database: db.into_arc(),
-                postgres_pool,
+                database: Arc::new(db),
             })
         }
     }

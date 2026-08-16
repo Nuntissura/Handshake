@@ -1,4 +1,7 @@
-//! MT-190 SessionCheckpoint primitive + Postgres schema.
+//! MT-190 SessionCheckpoint primitive.
+//!
+//! Persisted into the embedded SurrealDB `kernel_session_checkpoint` table by
+//! [`crate::session_checkpoint::writer::SurrealCheckpointSink`].
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -97,8 +100,8 @@ pub enum CheckpointError {
     CompactStateTooLarge { size: usize },
     #[error("serde error: {0}")]
     Serde(#[from] serde_json::Error),
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("embedded store error: {0}")]
+    Storage(#[from] crate::storage::surreal::SurrealStorageError),
 }
 
 #[cfg(test)]

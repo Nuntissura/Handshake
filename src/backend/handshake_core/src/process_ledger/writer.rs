@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::{postgres::PgPool, Postgres, Transaction};
+use surrealdb::types::SurrealValue;
 use thiserror::Error;
 use tokio::{
     sync::{
@@ -23,11 +23,12 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 use super::table::{
     LedgerEvent, LedgerEventKind, ProcessStart, ProcessStop, PROCESS_LEDGER_DEFAULT_BATCH_SIZE,
     PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY, PROCESS_LEDGER_DEFAULT_FLUSH_INTERVAL_MS,
-    PROCESS_LEDGER_MIGRATION_SQL, PROCESS_START_INSERT_SQL, PROCESS_STOP_UPSERT_SQL,
+    PROCESS_LEDGER_TABLE_NAME,
 };
 
 pub const FR_EVT_LEDGER_OVERFLOW: &str = "FR_EVT_LEDGER_OVERFLOW";
@@ -66,15 +67,18 @@ pub enum ProcessLedgerError {
     OverflowEmit(String),
     #[error("PROCESS_LEDGER_STORE: {0}")]
     Store(String),
-    #[error("PROCESS_LEDGER_POSTGRES: {source}")]
-    Postgres { source: sqlx::Error },
+    #[error("PROCESS_LEDGER_SURREAL: {source}")]
+    Surreal {
+        #[source]
+        source: SurrealStorageError,
+    },
     #[error("PROCESS_LEDGER_EVENT: {0}")]
     Event(String),
 }
 
-impl From<sqlx::Error> for ProcessLedgerError {
-    fn from(source: sqlx::Error) -> Self {
-        Self::Postgres { source }
+impl From<SurrealStorageError> for ProcessLedgerError {
+    fn from(source: SurrealStorageError) -> Self {
+        Self::Surreal { source }
     }
 }
 
@@ -513,102 +517,239 @@ fn clear_degraded(degraded: &AtomicBool) {
     }
 }
 
-pub struct PostgresProcessLedgerStore {
-    pool: PgPool,
+/// One `kernel_process_lifecycle` record.
+///
+/// The field set mirrors the SurrealDB `SCHEMAFULL` table definition in
+/// `storage/surreal/schema.surql`. The schema's derived mirrors (`process_id`,
+/// `spawned_at_utc`, `adapter_id`, `stopped_at_utc`) carry `VALUE` clauses and
+/// are computed by the store, so they are deliberately absent here; reads
+/// tolerate them because `SurrealValue` ignores unmodelled record fields.
+#[derive(Debug, Clone, SurrealValue)]
+struct ProcessLifecycleRow {
+    process_uuid: Uuid,
+    os_pid: Option<i64>,
+    parent_session_id: Option<String>,
+    parent_process_id: Option<Uuid>,
+    sandbox_adapter_id: Option<String>,
+    sandbox_internal_id: Option<String>,
+    engine_kind: String,
+    started_at: DateTime<Utc>,
+    stopped_at: Option<DateTime<Utc>>,
+    exit_code: Option<i64>,
+    stop_reason: Option<String>,
+    model_artifact_sha256: Option<String>,
+    work_profile_id: Option<String>,
+    owner_role: String,
+    owner_wp: Option<String>,
+    role_id: Option<String>,
+    wp_id: Option<String>,
+    mt_id: Option<String>,
+    sandbox_capabilities_snapshot: Value,
+    metadata: Value,
 }
 
-impl PostgresProcessLedgerStore {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-
-    pub(crate) fn pool(&self) -> &PgPool {
-        &self.pool
-    }
-
-    pub async fn apply_migration(&self) -> Result<(), ProcessLedgerError> {
-        for statement in PROCESS_LEDGER_MIGRATION_SQL
-            .split(';')
-            .map(str::trim)
-            .filter(|statement| !statement.is_empty())
-        {
-            sqlx::query(statement).execute(&self.pool).await?;
+impl ProcessLifecycleRow {
+    fn from_start(start: &ProcessStart) -> Self {
+        Self {
+            process_uuid: start.process_uuid,
+            os_pid: start.os_pid.map(i64::from),
+            parent_session_id: start.parent_session_id.clone(),
+            parent_process_id: start.parent_process_id,
+            sandbox_adapter_id: start.sandbox_adapter_id.clone(),
+            sandbox_internal_id: start.sandbox_internal_id.clone(),
+            engine_kind: start.engine_kind.as_str().to_string(),
+            started_at: start.started_at,
+            stopped_at: None,
+            exit_code: None,
+            stop_reason: None,
+            model_artifact_sha256: start.model_artifact_sha256.clone(),
+            work_profile_id: start.work_profile_id.clone(),
+            owner_role: start.owner_role.clone(),
+            owner_wp: start.owner_wp.clone(),
+            role_id: start.role_id.clone(),
+            wp_id: start.wp_id.clone(),
+            mt_id: start.mt_id.clone(),
+            sandbox_capabilities_snapshot: start.sandbox_capabilities_snapshot.clone(),
+            metadata: start.metadata_jsonb.clone(),
         }
-        Ok(())
+    }
+
+    fn from_stop(stop: &ProcessStop) -> Self {
+        Self {
+            process_uuid: stop.process_uuid,
+            os_pid: stop.os_pid.map(i64::from),
+            parent_session_id: stop.parent_session_id.clone(),
+            parent_process_id: stop.parent_process_id,
+            sandbox_adapter_id: stop.sandbox_adapter_id.clone(),
+            sandbox_internal_id: stop.sandbox_internal_id.clone(),
+            engine_kind: stop.engine_kind.as_str().to_string(),
+            started_at: stop.started_at,
+            stopped_at: Some(stop.stopped_at),
+            exit_code: stop.exit_code.map(i64::from),
+            stop_reason: stop.stop_reason.clone(),
+            model_artifact_sha256: stop.model_artifact_sha256.clone(),
+            work_profile_id: stop.work_profile_id.clone(),
+            owner_role: stop.owner_role.clone(),
+            owner_wp: stop.owner_wp.clone(),
+            role_id: stop.role_id.clone(),
+            wp_id: stop.wp_id.clone(),
+            mt_id: stop.mt_id.clone(),
+            sandbox_capabilities_snapshot: stop.sandbox_capabilities_snapshot.clone(),
+            metadata: stop.metadata_jsonb.clone(),
+        }
+    }
+
+    /// START conflict merge.
+    ///
+    /// Field-for-field equivalent of the previous
+    /// `ON CONFLICT (process_uuid) DO UPDATE` clause: incoming values win for
+    /// `engine_kind`, `owner_role` and both JSON columns, `COALESCE(new, old)`
+    /// applies everywhere the incoming value is optional, `started_at` keeps the
+    /// earliest of the two, and `stopped_at` / `exit_code` / `stop_reason` are
+    /// NOT in the update list, so a replayed START can never erase a STOP that
+    /// already landed.
+    fn merge_start_onto(self, previous: Self) -> Self {
+        Self {
+            process_uuid: previous.process_uuid,
+            os_pid: self.os_pid.or(previous.os_pid),
+            parent_session_id: self.parent_session_id.or(previous.parent_session_id),
+            parent_process_id: self.parent_process_id.or(previous.parent_process_id),
+            sandbox_adapter_id: self.sandbox_adapter_id.or(previous.sandbox_adapter_id),
+            sandbox_internal_id: self.sandbox_internal_id.or(previous.sandbox_internal_id),
+            engine_kind: self.engine_kind,
+            started_at: self.started_at.min(previous.started_at),
+            stopped_at: previous.stopped_at,
+            exit_code: previous.exit_code,
+            stop_reason: previous.stop_reason,
+            model_artifact_sha256: self
+                .model_artifact_sha256
+                .or(previous.model_artifact_sha256),
+            work_profile_id: self.work_profile_id.or(previous.work_profile_id),
+            owner_role: self.owner_role,
+            owner_wp: self.owner_wp.or(previous.owner_wp),
+            role_id: self.role_id.or(previous.role_id),
+            wp_id: self.wp_id.or(previous.wp_id),
+            mt_id: self.mt_id.or(previous.mt_id),
+            sandbox_capabilities_snapshot: self.sandbox_capabilities_snapshot,
+            metadata: self.metadata,
+        }
+    }
+
+    /// STOP conflict merge.
+    ///
+    /// Mirrors the previous STOP `ON CONFLICT` update list: the stop triple is
+    /// overwritten unconditionally, optional identity columns coalesce, and
+    /// `parent_session_id`, `sandbox_adapter_id`, `engine_kind` and `started_at`
+    /// are absent from the update list so the START row keeps ownership of them.
+    fn merge_stop_onto(self, previous: Self) -> Self {
+        Self {
+            process_uuid: previous.process_uuid,
+            os_pid: self.os_pid.or(previous.os_pid),
+            parent_session_id: previous.parent_session_id,
+            parent_process_id: self.parent_process_id.or(previous.parent_process_id),
+            sandbox_adapter_id: previous.sandbox_adapter_id,
+            sandbox_internal_id: self.sandbox_internal_id.or(previous.sandbox_internal_id),
+            engine_kind: previous.engine_kind,
+            started_at: previous.started_at,
+            stopped_at: self.stopped_at,
+            exit_code: self.exit_code,
+            stop_reason: self.stop_reason,
+            model_artifact_sha256: self
+                .model_artifact_sha256
+                .or(previous.model_artifact_sha256),
+            work_profile_id: self.work_profile_id.or(previous.work_profile_id),
+            owner_role: self.owner_role,
+            owner_wp: self.owner_wp.or(previous.owner_wp),
+            role_id: self.role_id.or(previous.role_id),
+            wp_id: self.wp_id.or(previous.wp_id),
+            mt_id: self.mt_id.or(previous.mt_id),
+            sandbox_capabilities_snapshot: self.sandbox_capabilities_snapshot,
+            metadata: self.metadata,
+        }
+    }
+}
+
+/// `ProcessLedgerStore` backed by the Handshake-managed embedded SurrealDB
+/// store.
+///
+/// Every row is keyed by `process_uuid` (the record id), so a replayed batch
+/// re-applies the same merge and converges on the same record. That keeps the
+/// retry loop in [`flush_batch`] safe: on a store error the batch is retained
+/// and re-sent whole, and re-sending an already-applied event is a no-op.
+///
+/// The embedded store is opened in-process and RocksDB holds an exclusive lock
+/// on its directory, so the read-merge-write pair below has no cross-process
+/// competitor; within the process, ledger rows are drained and written by the
+/// single writer task in [`run_writer`].
+pub struct SurrealProcessLedgerStore {
+    storage: SurrealStorage,
+}
+
+impl SurrealProcessLedgerStore {
+    pub fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
+    }
+
+    pub(crate) fn storage(&self) -> &SurrealStorage {
+        &self.storage
+    }
+
+    async fn apply(
+        &self,
+        record_id: String,
+        incoming: ProcessLifecycleRow,
+        kind: LedgerEventKind,
+    ) -> Result<(), ProcessLedgerError> {
+        self.storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    let previous: Option<ProcessLifecycleRow> = database
+                        .select_one(PROCESS_LEDGER_TABLE_NAME, &record_id)
+                        .await?;
+                    let merged = match previous {
+                        Some(previous) => match kind {
+                            LedgerEventKind::Start => incoming.merge_start_onto(previous),
+                            LedgerEventKind::Stop => incoming.merge_stop_onto(previous),
+                        },
+                        None => incoming,
+                    };
+                    let _: Option<ProcessLifecycleRow> = database
+                        .upsert_one(PROCESS_LEDGER_TABLE_NAME, &record_id, merged)
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .map_err(ProcessLedgerError::from)
     }
 }
 
 #[async_trait]
-impl ProcessLedgerStore for PostgresProcessLedgerStore {
+impl ProcessLedgerStore for SurrealProcessLedgerStore {
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
         if events.is_empty() {
             return Ok(());
         }
-        let mut tx = self.pool.begin().await?;
         for event in events {
             match event {
-                LedgerEvent::Start(start) => insert_start(&mut tx, &start).await?,
-                LedgerEvent::Stop(stop) => upsert_stop(&mut tx, &stop).await?,
+                LedgerEvent::Start(start) => {
+                    self.apply(
+                        start.process_uuid.to_string(),
+                        ProcessLifecycleRow::from_start(&start),
+                        LedgerEventKind::Start,
+                    )
+                    .await?
+                }
+                LedgerEvent::Stop(stop) => {
+                    self.apply(
+                        stop.process_uuid.to_string(),
+                        ProcessLifecycleRow::from_stop(&stop),
+                        LedgerEventKind::Stop,
+                    )
+                    .await?
+                }
             }
         }
-        tx.commit().await?;
         Ok(())
     }
-}
-
-async fn insert_start(
-    tx: &mut Transaction<'_, Postgres>,
-    start: &ProcessStart,
-) -> Result<(), ProcessLedgerError> {
-    sqlx::query(PROCESS_START_INSERT_SQL)
-        .bind(start.process_uuid.to_string())
-        .bind(start.os_pid.map(i64::from))
-        .bind(start.parent_session_id.clone())
-        .bind(start.parent_process_id.map(|id| id.to_string()))
-        .bind(start.sandbox_adapter_id.clone())
-        .bind(start.sandbox_internal_id.clone())
-        .bind(start.engine_kind.as_str())
-        .bind(start.started_at)
-        .bind(start.model_artifact_sha256.clone())
-        .bind(start.work_profile_id.clone())
-        .bind(start.owner_role.clone())
-        .bind(start.owner_wp.clone())
-        .bind(start.role_id.clone())
-        .bind(start.wp_id.clone())
-        .bind(start.mt_id.clone())
-        .bind(start.sandbox_capabilities_snapshot.to_string())
-        .bind(start.metadata_jsonb.to_string())
-        .execute(&mut **tx)
-        .await?;
-    Ok(())
-}
-
-async fn upsert_stop(
-    tx: &mut Transaction<'_, Postgres>,
-    stop: &ProcessStop,
-) -> Result<(), ProcessLedgerError> {
-    sqlx::query(PROCESS_STOP_UPSERT_SQL)
-        .bind(stop.process_uuid.to_string())
-        .bind(stop.os_pid.map(i64::from))
-        .bind(stop.parent_session_id.clone())
-        .bind(stop.parent_process_id.map(|id| id.to_string()))
-        .bind(stop.sandbox_adapter_id.clone())
-        .bind(stop.sandbox_internal_id.clone())
-        .bind(stop.engine_kind.as_str())
-        .bind(stop.started_at)
-        .bind(stop.stopped_at)
-        .bind(stop.exit_code)
-        .bind(stop.stop_reason.clone())
-        .bind(stop.model_artifact_sha256.clone())
-        .bind(stop.work_profile_id.clone())
-        .bind(stop.owner_role.clone())
-        .bind(stop.owner_wp.clone())
-        .bind(stop.role_id.clone())
-        .bind(stop.wp_id.clone())
-        .bind(stop.mt_id.clone())
-        .bind(stop.sandbox_capabilities_snapshot.to_string())
-        .bind(stop.metadata_jsonb.to_string())
-        .execute(&mut **tx)
-        .await?;
-    Ok(())
 }

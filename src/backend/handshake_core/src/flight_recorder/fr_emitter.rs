@@ -20,7 +20,7 @@
 //!    default emitter in untouched call sites.
 //!  - [`InMemoryStubFrRecorder`] — async-capable in-memory recorder for
 //!    integration assertions.
-//!  - [`PostgresFrRecorder`] — production sink. Adapts MT-191's batched-
+//!  - [`SurrealFrRecorder`] — production sink. Adapts MT-191's batched-
 //!    channel pattern: every `record` call non-blockingly sends onto a
 //!    bounded mpsc; a background flusher drains the channel into
 //!    `kernel_event_ledger` in batched inserts. The recorder's [`Drop`]
@@ -54,7 +54,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
-use sqlx::PgPool;
+use surrealdb::types::SurrealValue;
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -63,6 +63,7 @@ use uuid::Uuid;
 
 use super::fr_event_registry::FrEventId;
 use super::spans::SpanId;
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 /// Default sample rate when [`SpanFrEmitterConfig::default`] is used.
 /// `1.0` means "emit every span boundary".
@@ -73,19 +74,19 @@ pub const DEFAULT_SAMPLE_RATE: f32 = 1.0;
 /// "failures are never silently dropped".
 pub const DEFAULT_FORCE_EMIT_FAILURES: bool = true;
 
-/// Default mpsc capacity for [`PostgresFrRecorder`]. Sized for ~1k
+/// Default mpsc capacity for [`SurrealFrRecorder`]. Sized for ~1k
 /// in-flight span events; producers `try_send` and fall back to
 /// dropping with [`FrRecorderError::Backpressure`] when full so a
-/// slow Postgres does not block span Drop.
-pub const DEFAULT_POSTGRES_CHANNEL_CAPACITY: usize = 1024;
+/// slow store does not block span Drop.
+pub const DEFAULT_LEDGER_CHANNEL_CAPACITY: usize = 1024;
 
 /// Default batch size for the background flusher.
-pub const DEFAULT_POSTGRES_BATCH_SIZE: usize = 64;
+pub const DEFAULT_LEDGER_BATCH_SIZE: usize = 64;
 
 /// Default flush interval (events are flushed at the earlier of
 /// batch_size reached OR interval elapsed since the first queued
 /// event in the current batch).
-pub const DEFAULT_POSTGRES_FLUSH_INTERVAL: Duration = Duration::from_millis(50);
+pub const DEFAULT_LEDGER_FLUSH_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Source-component string written into `kernel_event_ledger.source_component`.
 pub const FR_EMITTER_SOURCE_COMPONENT: &str = "flight_recorder.span_fr_emitter";
@@ -102,10 +103,10 @@ pub enum FrRecorderError {
     /// [`SpanFrEmitter`] before the recorder is even called.
     #[error("recorder backpressure: in-flight channel full")]
     Backpressure,
-    /// Underlying Postgres write failed; the flusher logs and
+    /// Underlying embedded-store write failed; the flusher logs and
     /// continues (does not poison the recorder).
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("embedded store error: {0}")]
+    Storage(#[from] SurrealStorageError),
     /// JSON serialisation failed.
     #[error("serde_json error: {0}")]
     Serde(#[from] serde_json::Error),
@@ -164,11 +165,11 @@ impl SpanContextRef {
 pub type RecordFuture<'a> = Pin<Box<dyn Future<Output = Result<(), FrRecorderError>> + Send + 'a>>;
 
 /// MT-199 canonical recorder trait. Async by construction so a
-/// Postgres-backed recorder can lean on tokio mpsc + sqlx without
-/// blocking the Drop path.
+/// store-backed recorder can lean on tokio mpsc + the embedded
+/// SurrealDB store without blocking the Drop path.
 ///
 /// Implementations MUST be cheap on the calling thread; the
-/// [`PostgresFrRecorder`] satisfies this by `try_send`-ing onto a
+/// [`SurrealFrRecorder`] satisfies this by `try_send`-ing onto a
 /// bounded channel and returning immediately.
 pub trait FrRecorder: Send + Sync {
     fn record<'a>(
@@ -588,10 +589,10 @@ pub fn current_span_emitter() -> Option<Arc<SpanFrEmitter>> {
     CURRENT_SPAN_EMITTER.try_with(|e| Arc::clone(e)).ok()
 }
 
-// ---------------- PostgresFrRecorder ----------------
+// ---------------- SurrealFrRecorder ----------------
 
 #[derive(Debug, Clone)]
-pub struct PostgresFrRecorderConfig {
+pub struct SurrealFrRecorderConfig {
     pub channel_capacity: usize,
     pub batch_size: usize,
     pub flush_interval: Duration,
@@ -599,28 +600,28 @@ pub struct PostgresFrRecorderConfig {
     pub session_run_id: String,
 }
 
-impl Default for PostgresFrRecorderConfig {
+impl Default for SurrealFrRecorderConfig {
     fn default() -> Self {
         Self {
-            channel_capacity: DEFAULT_POSTGRES_CHANNEL_CAPACITY,
-            batch_size: DEFAULT_POSTGRES_BATCH_SIZE,
-            flush_interval: DEFAULT_POSTGRES_FLUSH_INTERVAL,
+            channel_capacity: DEFAULT_LEDGER_CHANNEL_CAPACITY,
+            batch_size: DEFAULT_LEDGER_BATCH_SIZE,
+            flush_interval: DEFAULT_LEDGER_FLUSH_INTERVAL,
             kernel_task_run_id: "mt199-default-task-run".to_string(),
             session_run_id: "mt199-default-session-run".to_string(),
         }
     }
 }
 
-struct PostgresFrRecorderEnvelope {
+struct SurrealFrRecorderEnvelope {
     event_id: FrEventId,
     payload: JsonValue,
     span_context: Option<SpanContextRef>,
     queued_at: DateTime<Utc>,
 }
 
-/// Postgres-backed `FrRecorder`. Adapts MT-191's batched channel
-/// pattern: producers `try_send` onto a bounded mpsc; a background
-/// flusher drains the queue into `kernel_event_ledger`.
+/// Embedded-SurrealDB-backed `FrRecorder`. Adapts MT-191's batched
+/// channel pattern: producers `try_send` onto a bounded mpsc; a
+/// background flusher drains the queue into `kernel_event_ledger`.
 ///
 /// Span Drop is non-blocking: a full channel returns
 /// [`FrRecorderError::Backpressure`] which the span path treats as a
@@ -629,17 +630,17 @@ struct PostgresFrRecorderEnvelope {
 /// — failures are dropped only if the channel is full AND the
 /// flusher cannot keep up, which is a system-level back-pressure
 /// signal worth surfacing on its own.
-pub struct PostgresFrRecorder {
-    tx: mpsc::Sender<PostgresFrRecorderEnvelope>,
+pub struct SurrealFrRecorder {
+    tx: mpsc::Sender<SurrealFrRecorderEnvelope>,
     flusher: Option<JoinHandle<()>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
 }
 
-impl PostgresFrRecorder {
-    pub fn spawn(pool: PgPool, cfg: PostgresFrRecorderConfig) -> Self {
-        let (tx, rx) = mpsc::channel::<PostgresFrRecorderEnvelope>(cfg.channel_capacity);
+impl SurrealFrRecorder {
+    pub fn spawn(storage: SurrealStorage, cfg: SurrealFrRecorderConfig) -> Self {
+        let (tx, rx) = mpsc::channel::<SurrealFrRecorderEnvelope>(cfg.channel_capacity);
         let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
-        let flusher = tokio::spawn(flusher_loop(pool, cfg, rx, shutdown_rx));
+        let flusher = tokio::spawn(flusher_loop(storage, cfg, rx, shutdown_rx));
         Self {
             tx,
             flusher: Some(flusher),
@@ -664,14 +665,14 @@ impl PostgresFrRecorder {
     }
 }
 
-impl FrRecorder for PostgresFrRecorder {
+impl FrRecorder for SurrealFrRecorder {
     fn record<'a>(
         &'a self,
         event_id: FrEventId,
         payload: JsonValue,
         span_context: Option<SpanContextRef>,
     ) -> RecordFuture<'a> {
-        let envelope = PostgresFrRecorderEnvelope {
+        let envelope = SurrealFrRecorderEnvelope {
             event_id,
             payload,
             span_context,
@@ -688,7 +689,7 @@ impl FrRecorder for PostgresFrRecorder {
     }
 }
 
-impl Drop for PostgresFrRecorder {
+impl Drop for SurrealFrRecorder {
     fn drop(&mut self) {
         // Best-effort shutdown signal; the flusher will see the
         // mpsc closure when `tx` drops and exit on its own loop
@@ -708,12 +709,12 @@ impl Drop for PostgresFrRecorder {
 }
 
 async fn flusher_loop(
-    pool: PgPool,
-    cfg: PostgresFrRecorderConfig,
-    mut rx: mpsc::Receiver<PostgresFrRecorderEnvelope>,
+    pool: SurrealStorage,
+    cfg: SurrealFrRecorderConfig,
+    mut rx: mpsc::Receiver<SurrealFrRecorderEnvelope>,
     mut shutdown_rx: mpsc::Receiver<()>,
 ) {
-    let mut batch: Vec<PostgresFrRecorderEnvelope> = Vec::with_capacity(cfg.batch_size);
+    let mut batch: Vec<SurrealFrRecorderEnvelope> = Vec::with_capacity(cfg.batch_size);
     loop {
         let collected = tokio::select! {
             _ = shutdown_rx.recv() => {
@@ -760,22 +761,59 @@ async fn flusher_loop(
     }
 }
 
+/// Table this recorder appends to.
+const KERNEL_EVENT_LEDGER_TABLE: &str = "kernel_event_ledger";
+
+/// One `kernel_event_ledger` record.
+///
+/// Field-for-field the column list the previous `INSERT` wrote. The schema's
+/// `event_sequence` carries `DEFAULT sequence::nextval('kernel_event_sequence')`
+/// and is therefore assigned by the store, which is what keeps ledger ordering
+/// monotonic and owned by the database rather than by this emitter.
+#[derive(Debug, Clone, SurrealValue)]
+struct KernelEventLedgerRow {
+    event_id: String,
+    event_version: String,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    idempotency_key: String,
+    event_type: String,
+    actor_kind: String,
+    actor_id: String,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    payload_hash: String,
+    source_component: String,
+    payload: JsonValue,
+    created_at: DateTime<Utc>,
+}
+
 async fn flush_batch(
-    pool: &PgPool,
-    cfg: &PostgresFrRecorderConfig,
-    batch: &mut Vec<PostgresFrRecorderEnvelope>,
+    pool: &SurrealStorage,
+    cfg: &SurrealFrRecorderConfig,
+    batch: &mut Vec<SurrealFrRecorderEnvelope>,
 ) -> Result<(), FrRecorderError> {
     if batch.is_empty() {
         return Ok(());
     }
-    // Multi-row INSERT into kernel_event_ledger. Idempotency key
-    // is unique-per-event so concurrent flushers cannot double-write.
-    // Note: this is a best-effort path — sqlx errors are logged and
+    // Appends into kernel_event_ledger. The idempotency key is unique per
+    // emitted event, so concurrent flushers cannot double-write and the
+    // schema's UNIQUE idempotency index is never contended.
+    // Note: this is a best-effort path — store errors are logged and
     // the batch is dropped (we have no retry queue yet). The contract
     // for failures being preserved at the SOURCE is held by the
     // SpanGuard Drop emitting an in-process recorder before any
     // batched recorder is touched.
-    let mut tx = pool.begin().await?;
+    //
+    // The previous implementation wrapped the whole batch in one transaction,
+    // so a mid-batch failure rolled every row back and a retry of the retained
+    // batch re-emitted each event exactly once. The embedded store commits per
+    // record instead, so the successfully written prefix is drained before the
+    // error propagates; without that, the retry would append a second ledger
+    // row (under a fresh event id) for every event that had already landed.
+    let mut written = 0usize;
     for env in batch.iter() {
         let event_uuid = Uuid::now_v7();
         let event_id_str = env.event_id.as_str();
@@ -797,36 +835,41 @@ async fn flush_batch(
             .as_ref()
             .and_then(|s| s.parent_span_id)
             .map(|s| s.as_uuid().to_string());
-        sqlx::query(
-            r#"
-            INSERT INTO kernel_event_ledger (
-                event_id, event_version, kernel_task_run_id, session_run_id,
-                aggregate_type, aggregate_id, idempotency_key, event_type,
-                actor_kind, actor_id, causation_id, correlation_id,
-                payload_hash, source_component, payload, created_at
-            )
-            VALUES ($1,'1', $2, $3, $4, $5, $6, $7, 'system', 'mt199_fr_emitter',
-                    $8, $9, $10, $11, $12, $13)
-            ON CONFLICT (idempotency_key) DO NOTHING
-            "#,
-        )
-        .bind(event_uuid.to_string())
-        .bind(&cfg.kernel_task_run_id)
-        .bind(&cfg.session_run_id)
-        .bind(aggregate_type)
-        .bind(&aggregate_id)
-        .bind(&idempotency_key)
-        .bind(event_id_str)
-        .bind(causation_id)
-        .bind(correlation_id)
-        .bind(&payload_hash)
-        .bind(FR_EMITTER_SOURCE_COMPONENT)
-        .bind(&env.payload)
-        .bind(env.queued_at)
-        .execute(&mut *tx)
-        .await?;
+        let record_id = event_uuid.to_string();
+        let row = KernelEventLedgerRow {
+            event_id: record_id.clone(),
+            event_version: "1".to_string(),
+            kernel_task_run_id: cfg.kernel_task_run_id.clone(),
+            session_run_id: cfg.session_run_id.clone(),
+            aggregate_type: aggregate_type.to_string(),
+            aggregate_id,
+            idempotency_key,
+            event_type: event_id_str.to_string(),
+            actor_kind: "system".to_string(),
+            actor_id: "mt199_fr_emitter".to_string(),
+            causation_id,
+            correlation_id,
+            payload_hash,
+            source_component: FR_EMITTER_SOURCE_COMPONENT.to_string(),
+            payload: env.payload.clone(),
+            created_at: env.queued_at,
+        };
+        let outcome = pool
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    let _: Option<KernelEventLedgerRow> = database
+                        .upsert_one(KERNEL_EVENT_LEDGER_TABLE, &record_id, row)
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await;
+        if let Err(error) = outcome {
+            batch.drain(..written);
+            return Err(FrRecorderError::from(error));
+        }
+        written += 1;
     }
-    tx.commit().await?;
     batch.clear();
     Ok(())
 }

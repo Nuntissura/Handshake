@@ -32,5 +32,5 @@ pub use restart::{
 };
 pub use writer::{
     CheckpointHandle, CheckpointSink, CheckpointWriter, CheckpointWriterConfig,
-    CheckpointWriterError, InMemoryCheckpointSink, PostgresCheckpointSink, StateSnapshotter,
+    CheckpointWriterError, InMemoryCheckpointSink, StateSnapshotter, SurrealCheckpointSink,
 };

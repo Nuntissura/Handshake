@@ -141,6 +141,11 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
+/// WP-KERNEL-012 TRAIT-SURFACE GAP: the reads below are typed against
+/// `storage::knowledge::KnowledgeStore`, which has no live implementor after
+/// PostgreSQL removal (`SurrealDatabase` implements `storage::Database` only)
+/// and `AppState` carries no `Arc<dyn KnowledgeStore>`. The gap is confined to
+/// this one constructor.
 fn db_for(state: &AppState) -> PostgresDatabase {
     PostgresDatabase::new(state.postgres_pool.clone())
 }
@@ -168,7 +173,7 @@ fn canonical_rich_document_crdt_document_id(rich_document_id: &str) -> String {
 }
 
 async fn validated_save_crdt_document_id(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     rich_document_id: &str,
     requested_crdt_document_id: Option<&str>,
 ) -> Result<Option<String>, ApiError> {
@@ -376,7 +381,7 @@ fn api_error_detail(err: &ApiError) -> String {
 /// MT-149): a receipt failure must never turn a committed write into an error
 /// response — it is recorded in the response (and the log) instead.
 async fn record_receipt_non_fatal(
-    db: &PostgresDatabase,
+    db: &dyn Database,
     ctx: &DocContext,
     event_type: KernelEventType,
     rich_document_id: &str,
@@ -408,7 +413,7 @@ async fn record_receipt_non_fatal(
 /// through the entity surface and the blocks' bytes are the source's
 /// content-hash-tracked indexing unit.
 async fn index_document_into_knowledge_index(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     document: &KnowledgeRichDocument,
 ) -> Result<(), StorageError> {
     let source = match db
@@ -472,7 +477,7 @@ async fn index_document_into_knowledge_index(
 /// Run the MT-154 index step post-commit and RECORD a failure instead of
 /// erroring a committed write (MT-149 law). Returns (indexed, error).
 async fn index_document_non_fatal(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     document: &KnowledgeRichDocument,
 ) -> (bool, Option<String>) {
     match index_document_into_knowledge_index(db, document).await {
@@ -508,7 +513,7 @@ fn embed_upserts(
 
 /// Append a document EventLedger receipt (save/promotion/nav) and return its id.
 async fn record_receipt(
-    db: &PostgresDatabase,
+    db: &dyn Database,
     ctx: &DocContext,
     event_type: KernelEventType,
     rich_document_id: &str,
@@ -845,7 +850,7 @@ async fn create_document(
     // ---- post-commit (MT-149): the create above is committed; the steps
     // below are best-effort and RECORDED, never an error for a committed write.
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &created.rich_document_id,
@@ -1278,7 +1283,7 @@ async fn upsert_document_draft(
             .await
             .map_err(storage_error)?;
         let (receipt, receipt_error) = record_receipt_non_fatal(
-            &db,
+            state.storage.as_ref(),
             &ctx,
             KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
             &document.rich_document_id,
@@ -1309,7 +1314,7 @@ async fn upsert_document_draft(
         .map_err(storage_error)?;
 
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
         &document.rich_document_id,
@@ -1351,7 +1356,7 @@ async fn clear_document_draft(
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
         &document.rich_document_id,
@@ -1449,7 +1454,7 @@ async fn save_document(
         }
     }
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &saved.rich_document_id,
@@ -1705,7 +1710,7 @@ async fn import_document(
 
     // Post-commit receipt (MT-149): never an error for a committed import.
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &created.rich_document_id,
@@ -1781,7 +1786,7 @@ async fn repair_embed(
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &updated.rich_document_id,
@@ -1925,7 +1930,7 @@ async fn rename_document(
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &updated.rich_document_id,
@@ -1983,7 +1988,7 @@ async fn move_document(
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &updated.rich_document_id,
@@ -2078,7 +2083,7 @@ async fn batch_documents(
                 succeeded += 1;
                 // Per-item receipt (post-commit, non-fatal per MT-149).
                 let (receipt, receipt_error) = record_receipt_non_fatal(
-                    &db,
+                    state.storage.as_ref(),
                     &ctx,
                     KernelEventType::KnowledgeRichDocumentSaved,
                     &updated.rich_document_id,

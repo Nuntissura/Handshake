@@ -108,6 +108,11 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
+/// WP-KERNEL-012 TRAIT-SURFACE GAP: the reads below are typed against
+/// `storage::knowledge::KnowledgeStore`, which has no live implementor after
+/// PostgreSQL removal (`SurrealDatabase` implements `storage::Database` only)
+/// and `AppState` carries no `Arc<dyn KnowledgeStore>`. The gap is confined to
+/// this one constructor.
 fn db_for(state: &AppState) -> PostgresDatabase {
     PostgresDatabase::new(state.postgres_pool.clone())
 }
@@ -202,7 +207,7 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
 /// navigation is auditable. A receipt failure is surfaced (the nav is not served
 /// silently without its trace).
 async fn record_nav_receipt(
-    db: &PostgresDatabase,
+    db: &dyn Database,
     ctx: &NavContext,
     query_kind: &str,
     query: Value,
@@ -476,7 +481,7 @@ async fn lookup_symbols(
     }
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "symbol_lookup",
         json!({"workspace_id": params.workspace_id, "name": name, "prefix": prefix, "path": path, "matches": results.len()}),
@@ -503,8 +508,13 @@ async fn get_symbol(
     let ctx = nav_context(&headers)?;
     let symbol = require_symbol(&db, &entity_id).await?;
     let body = symbol_to_json(&db, &symbol).await;
-    let receipt =
-        record_nav_receipt(&db, &ctx, "symbol_get", json!({"entity_id": entity_id})).await?;
+    let receipt = record_nav_receipt(
+        state.storage.as_ref(),
+        &ctx,
+        "symbol_get",
+        json!({"entity_id": entity_id}),
+    )
+    .await?;
     let quiet_receipt =
         record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
     Ok(Json(
@@ -565,7 +575,7 @@ async fn symbol_references(
     // The queried symbol's own staleness is surfaced alongside its relations.
     let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "symbol_references",
         json!({"entity_id": entity_id, "callers": callers.len(), "callees": callees.len()}),
@@ -622,7 +632,7 @@ async fn symbol_tests(
 
     let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "symbol_tests",
         json!({"entity_id": entity_id, "tests": tests.len()}),
@@ -677,7 +687,7 @@ async fn symbol_spans(
 
     let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "symbol_spans",
         json!({"entity_id": entity_id, "spans": spans.len()}),
@@ -725,7 +735,7 @@ async fn file_lens(
     .map_err(code_index_error)?;
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "file_lens",
         json!({"workspace_id": params.workspace_id, "relative_path": relative_path, "entries": payload.entries.len()}),
@@ -756,7 +766,7 @@ async fn file_lens(
 
 /// Resolve an entity id, 404 if missing, 400 if it is not a code symbol.
 async fn require_symbol(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     entity_id: &str,
 ) -> Result<KnowledgeEntity, ApiError> {
     let entity = db
@@ -774,7 +784,7 @@ async fn require_symbol(
 }
 
 /// The evidence span refs of an edge as JSON (id + line range), best-effort.
-async fn edge_span_refs(db: &PostgresDatabase, edge_id: &str) -> Vec<Value> {
+async fn edge_span_refs(db: &dyn KnowledgeStore, edge_id: &str) -> Vec<Value> {
     let mut out = Vec::new();
     if let Ok(span_ids) = db.list_knowledge_edge_span_ids(edge_id).await {
         for span_id in span_ids {

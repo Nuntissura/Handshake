@@ -24,7 +24,6 @@ use crate::kernel::context_bundle::ContextBundle;
 use crate::storage::knowledge::{
     KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind, KnowledgeSpan, KnowledgeStore,
 };
-use crate::storage::postgres::PostgresDatabase;
 
 use super::staleness::{evaluate_staleness, IndexedState, LiveSourceState, StalenessVerdict};
 use super::{CodeIndexError, CodeIndexResult};
@@ -83,7 +82,7 @@ fn estimate_tokens(text: &str) -> usize {
 /// [`DEFAULT_CODE_CONTEXT_TOKEN_BUDGET`] for the default.
 #[allow(clippy::too_many_arguments)]
 pub async fn build_code_context_bundle(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     kernel_task_run_id: &str,
     session_run_id: &str,
     workspace_id: &str,
@@ -272,7 +271,7 @@ pub async fn build_code_context_bundle(
 
 /// The first `ast`-kind evidence span of an entity (its definition site).
 async fn first_ast_span(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     entity: &KnowledgeEntity,
 ) -> CodeIndexResult<Option<KnowledgeSpan>> {
     let span_ids = db.list_knowledge_entity_span_ids(&entity.entity_id).await?;
@@ -292,7 +291,7 @@ async fn first_ast_span(
 /// The doc text attached to a symbol via an incoming `documents` edge (source
 /// concept's display_name carries the doc passage).
 async fn symbol_doc(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     symbol: &KnowledgeEntity,
 ) -> CodeIndexResult<Option<String>> {
     let edges = db
@@ -312,7 +311,7 @@ async fn symbol_doc(
 
 /// Staleness of the file containing the focus symbol.
 async fn file_staleness(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     workspace_id: &str,
     relative_path: &str,
     current_content_hash: &str,
@@ -328,6 +327,14 @@ async fn file_staleness(
     let Some(source_id) = file_entity.primary_source_id else {
         return Ok(StalenessVerdict::MarkedStale);
     };
+    // WP-KERNEL-012 TRAIT-SURFACE GAP: `get_knowledge_code_file_by_source` was
+    // an inherent method on the removed `PostgresDatabase`, not a member of
+    // `storage::knowledge::KnowledgeStore`. It must be promoted onto that trait
+    // as
+    //   async fn get_knowledge_code_file_by_source(
+    //       &self, source_id: &str,
+    //   ) -> StorageResult<Option<KnowledgeCodeFile>>;
+    // before this staleness read can resolve through the trait object.
     match db.get_knowledge_code_file_by_source(&source_id).await? {
         Some(code_file) => Ok(evaluate_staleness(
             &IndexedState {

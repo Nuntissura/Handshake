@@ -92,6 +92,11 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
+/// WP-KERNEL-012 TRAIT-SURFACE GAP: the reads below are typed against
+/// `storage::knowledge::KnowledgeStore`, which has no live implementor after
+/// PostgreSQL removal (`SurrealDatabase` implements `storage::Database` only)
+/// and `AppState` carries no `Arc<dyn KnowledgeStore>`. The gap is confined to
+/// this one constructor.
 fn db_for(state: &AppState) -> PostgresDatabase {
     PostgresDatabase::new(state.postgres_pool.clone())
 }
@@ -182,7 +187,7 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
 
 /// Append the retrieval-debug navigation receipt (spec 2.3.13.11).
 async fn record_nav_receipt(
-    db: &PostgresDatabase,
+    db: &dyn Database,
     ctx: &NavContext,
     query_kind: &str,
     query: Value,
@@ -249,8 +254,13 @@ async fn explain_bundle(
         .await
         .map_err(storage_error)?;
 
-    let receipt =
-        record_nav_receipt(&db, &ctx, "explain_bundle", json!({"bundle_id": bundle_id})).await?;
+    let receipt = record_nav_receipt(
+        state.storage.as_ref(),
+        &ctx,
+        "explain_bundle",
+        json!({"bundle_id": bundle_id}),
+    )
+    .await?;
 
     Ok(Json(json!({
         "bundle": bundle,
@@ -286,7 +296,7 @@ async fn export_bundle_evidence(
     let manifest = build_evidence_manifest(&bundle, &traces);
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "export_bundle_evidence",
         json!({"bundle_id": bundle_id}),
@@ -402,7 +412,7 @@ async fn bundle_staleness(
     }
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "bundle_staleness",
         json!({"bundle_id": bundle_id}),
@@ -475,7 +485,7 @@ async fn repair_bundle(
     .map_err(storage_error)?;
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "repair_bundle",
         json!({
@@ -508,7 +518,6 @@ async fn list_catalog(
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     let ctx = nav_context(&headers)?;
-    let db = db_for(&state);
     let limit = clamp_limit(params.limit);
 
     let entries = list_semantic_catalog_entries(&state.postgres_pool, &params.workspace_id, limit)
@@ -516,7 +525,7 @@ async fn list_catalog(
         .map_err(storage_error)?;
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "list_catalog",
         json!({"workspace_id": params.workspace_id}),

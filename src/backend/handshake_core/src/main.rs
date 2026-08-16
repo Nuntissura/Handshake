@@ -104,7 +104,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         llm_client,
         capability_registry,
         session_registry,
-        postgres_pool: control_plane.postgres_pool.clone(),
     };
 
     match workflows::repair_model_run_workflow_bindings(&state).await {

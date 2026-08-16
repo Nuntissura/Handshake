@@ -12,7 +12,7 @@ use tokio::{
 use uuid::Uuid;
 
 use super::{
-    LedgerEventKind, PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerError,
+    LedgerEventKind, SurrealProcessLedgerStore, ProcessEngineKind, ProcessLedgerError,
     ProcessLedgerWriter, ProcessStop,
 };
 
@@ -268,7 +268,7 @@ impl ReclaimStopWriter for ProcessLedgerWriter {
 }
 
 #[async_trait]
-impl ReclaimProcessStore for PostgresProcessLedgerStore {
+impl ReclaimProcessStore for SurrealProcessLedgerStore {
     async fn active_processes_for_session(
         &self,
         session_id: &str,

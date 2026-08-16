@@ -79,6 +79,12 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
+/// WP-KERNEL-012 TRAIT-SURFACE GAP: these routes read through the
+/// `storage::knowledge::KnowledgeStore` trait, which has no live implementor
+/// after PostgreSQL removal (`SurrealDatabase` implements `storage::Database`
+/// only). `AppState` carries no `Arc<dyn KnowledgeStore>` to hand back, so the
+/// construction cannot be satisfied here. Every consumer below is already
+/// typed against the trait object, so the fix is local to this one function.
 fn db_for(state: &AppState) -> PostgresDatabase {
     PostgresDatabase::new(state.postgres_pool.clone())
 }
@@ -169,7 +175,7 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
 
 /// Append the memory-graph navigation retrieval-trace receipt (spec 2.3.13.11).
 async fn record_nav_receipt(
-    db: &PostgresDatabase,
+    db: &dyn Database,
     ctx: &NavContext,
     query_kind: &str,
     query: Value,
@@ -257,7 +263,7 @@ async fn get_claim_with_evidence(
         .map_err(storage_error)?;
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "claim_with_evidence",
         json!({"claim_id": claim_id}),
@@ -280,7 +286,6 @@ async fn list_conflicts(
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     let ctx = nav_context(&headers)?;
-    let db = db_for(&state);
     let open_only = params.open_only.unwrap_or(true);
     let limit = clamp_limit(params.limit);
 
@@ -308,7 +313,7 @@ async fn list_conflicts(
     .map_err(|err| storage_error(StorageError::from(err)))?;
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "conflict_review",
         json!({"workspace_id": params.workspace_id, "open_only": open_only}),
@@ -342,14 +347,19 @@ async fn get_fact(
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     let ctx = nav_context(&headers)?;
-    let db = db_for(&state);
 
     let fact = get_memory_fact(&state.postgres_pool, &fact_id)
         .await
         .map_err(storage_error)?
         .ok_or_else(|| not_found("memory fact"))?;
 
-    let receipt = record_nav_receipt(&db, &ctx, "fact_trace", json!({"fact_id": fact_id})).await?;
+    let receipt = record_nav_receipt(
+        state.storage.as_ref(),
+        &ctx,
+        "fact_trace",
+        json!({"fact_id": fact_id}),
+    )
+    .await?;
 
     Ok(Json(json!({
         "fact": fact,
@@ -386,7 +396,7 @@ async fn entity_neighborhood(
     }
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "entity_neighborhood",
         json!({"entity_id": entity_id}),
@@ -423,7 +433,7 @@ async fn visual_debug(
     .map_err(storage_error)?;
 
     let receipt = record_nav_receipt(
-        &db,
+        state.storage.as_ref(),
         &ctx,
         "visual_debug",
         json!({"workspace_id": params.workspace_id, "trusted_only": trusted_only}),
