@@ -178,7 +178,7 @@ fn mt045_mt046_manual_covers_large_documents_interconnection_settings_and_menu()
         "run_mt045_perf_proof.ps1",
         "Cargo release mode",
         "1,200-second ceiling",
-        "existing internal PostgreSQL process is never stopped",
+        "attached handshake_core process is never stopped",
     ] {
         assert!(
             manual_body_contains(body, needle),
@@ -229,7 +229,7 @@ fn mt025_wiki_projection_manual_uses_exact_runtime_accesskit_patterns() {
         "committed-overlay reconciliation failure",
         "Retry Reload is GET-only",
         "KNOWLEDGE_LOOM_WIKI_MUTATED",
-        "committed atomically in PostgreSQL",
+        "committed atomically in SurrealDB",
         "If EventLedger append fails, the overlay insert rolls back",
         "projected into Flight Recorder for replay and audit",
     ] {
@@ -327,7 +327,7 @@ fn mt033_ckc_stage_manual_is_no_context_and_matches_runtime_ids() {
         "Tier 3 Palmistry is WIRED",
         "cargo test -p handshake-native --test test_ckc_embed -- --nocapture",
         "cargo test -p handshake-native --features integration --test test_ckc_embed -- --nocapture",
-        "self-seed PostgreSQL",
+        "self-seed the embedded SurrealDB store",
         "workspace_id plus canvas_id",
         "late success/failure for board A cannot reload or paint board B",
     ] {
@@ -1666,7 +1666,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "Plain typing",
             "undo-count-{pane_id}",
             "NEEDS_MANAGED_RESOURCE_PROOF",
-            "PostgreSQL/EventLedger",
+            "SurrealDB/EventLedger",
         ],
         "Rich Text Editor" => &[
             "editor.rich.format-bold",
@@ -1761,7 +1761,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "bcv.new-view.kind.calendar",
             "bcv.new-view.confirm",
             "stable client-generated block_id",
-            "transactional PostgreSQL outbox",
+            "transactional SurrealDB outbox",
             "bcv.table.sort.{field}",
             "bcv.table.row.{block_id}",
             "bcv.kanban.lane.{key}",
@@ -2246,7 +2246,7 @@ fn mt022_folder_tree_manual_documents_live_ids_routes_and_recovery() {
         "Change color",
         "No folders",
         "Retry",
-        "Handshake-managed PostgreSQL backend",
+        "Handshake-managed embedded SurrealDB backend",
         "Flight Recorder/EventLedger",
         "folder_tree_live_pg_self_seeded_round_trip",
         "cleanup_verified=true",
@@ -2335,7 +2335,7 @@ fn mt023_tags_manual_documents_live_ids_routes_and_recovery() {
         "Back priority",
         "Switching projects clears",
         "No tags",
-        "Handshake-managed PostgreSQL/EventLedger",
+        "Handshake-managed SurrealDB/EventLedger",
         "mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
         "receipt status applied",
         "argus.inspect",

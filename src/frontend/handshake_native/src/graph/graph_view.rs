@@ -8,7 +8,7 @@
 //! knowledge layer: every other E3 MT (folder tree, tags, breadcrumbs, canvas) hangs navigation off
 //! this graph.
 //!
-//! It binds the REAL PostgreSQL/EventLedger backend through the WP-011
+//! It binds the REAL SurrealDB/EventLedger backend through the WP-011
 //! [`crate::backend_client::LoomGraphClient`] (added by this MT alongside the widget): Global mode
 //! loads `GET /workspaces/{id}/loom/graph/global`; Local mode loads the focused block's authoritative
 //! neighbourhood via `GET /workspaces/{id}/loom/graph/local?start_block_id={id}&max_depth=2`.

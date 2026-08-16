@@ -216,7 +216,7 @@ pub struct SettingsView<'a> {
     /// MT-102 Visual Debugger: transient status for the last Settings -> Diagnostics worksurface dump.
     pub worksurface_inspector_last_dump: Option<&'a str>,
     /// WP-KERNEL-012 MT-072 (validation V4 item 8): the resolved SET-REC-001 `source` + `revision` for
-    /// every editor preference id, as last read from the canonical PostgreSQL PreferenceRecord surface.
+    /// every editor preference id, as last read from the canonical SurrealDB PreferenceRecord surface.
     /// Rendered as a per-control chip in the Editor / Syntax / Keybindings sections so default-vs-custom
     /// provenance is visible next to the value and the reset affordance.
     pub preference_provenance: &'a crate::settings_editor_section::EditorPreferenceProvenance,

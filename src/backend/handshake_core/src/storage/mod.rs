@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::path::PathBuf;
 use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
@@ -29,7 +30,6 @@ pub mod knowledge_memory;
 pub mod knowledge_retrieval;
 pub mod loom;
 pub mod loom_ai;
-pub mod postgres;
 pub mod retention;
 pub mod stage_artifacts;
 pub mod surreal;
@@ -116,40 +116,40 @@ pub struct DebugBreakpoint {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageBackendKind {
-    Postgres,
+    Surreal,
 }
 
-pub const DATABASE_URL_ENV: &str = "DATABASE_URL";
 pub const HANDSHAKE_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
-pub const HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV: &str =
-    "HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ControlPlaneStorageMode {
-    PostgresPrimary,
+    /// The Handshake-native embedded SurrealDB store. It is opened and closed by
+    /// the Handshake process itself, so no operator-launched database, external
+    /// service, or container runtime is part of core operation [CX-503R/CX-503S].
+    SurrealEmbedded,
 }
 
 impl ControlPlaneStorageMode {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::PostgresPrimary => "postgres_primary",
+            Self::SurrealEmbedded => "surreal_embedded",
         }
     }
 
     pub fn is_control_plane_authority(&self) -> bool {
-        matches!(self, Self::PostgresPrimary)
+        matches!(self, Self::SurrealEmbedded)
     }
 
     pub fn authority_label(&self) -> &'static str {
         match self {
-            Self::PostgresPrimary => "primary_authority",
+            Self::SurrealEmbedded => "primary_authority",
         }
     }
 
     pub fn freshness_label(&self) -> &'static str {
         match self {
-            Self::PostgresPrimary => "current_source_of_truth",
+            Self::SurrealEmbedded => "current_source_of_truth",
         }
     }
 }
@@ -165,7 +165,7 @@ impl FromStr for ControlPlaneStorageMode {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "postgres_primary" => Ok(Self::PostgresPrimary),
+            "surreal_embedded" | "surreal" => Ok(Self::SurrealEmbedded),
             _ => Err(StorageError::Validation("unsupported storage mode")),
         }
     }
@@ -174,80 +174,49 @@ impl FromStr for ControlPlaneStorageMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ControlPlaneStorageConfig {
     pub mode: ControlPlaneStorageMode,
-    pub database_url: String,
+    /// Directory that owns the embedded store. Resolved from `HANDSHAKE_DATA_DIR`
+    /// when set, otherwise from the platform-local application data directory, so
+    /// no machine-local absolute path is baked into the product [CX-109B].
+    pub data_dir: Option<PathBuf>,
 }
 
 impl ControlPlaneStorageConfig {
     pub fn from_env() -> Result<Self, StorageError> {
         let mode = std::env::var(HANDSHAKE_STORAGE_MODE_ENV).ok();
-        let requires_postgres = std::env::var(HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV).ok();
-        let database_url = std::env::var(DATABASE_URL_ENV).ok();
+        let data_dir = std::env::var(surreal::HANDSHAKE_DATA_DIR_ENV).ok();
 
-        Self::resolve(
-            mode.as_deref(),
-            requires_postgres.as_deref(),
-            database_url.as_deref(),
-        )
+        Self::resolve(mode.as_deref(), data_dir.as_deref())
     }
 
-    pub fn resolve(
-        mode: Option<&str>,
-        requires_postgres: Option<&str>,
-        database_url: Option<&str>,
-    ) -> Result<Self, StorageError> {
+    /// Resolves the control-plane storage configuration.
+    ///
+    /// SurrealDB is the only accepted authority, so an absent mode resolves to it
+    /// rather than failing; an explicitly named unsupported mode still errors so a
+    /// stale `postgres_primary` setting fails closed instead of being ignored.
+    pub fn resolve(mode: Option<&str>, data_dir: Option<&str>) -> Result<Self, StorageError> {
         let mode = match non_empty(mode) {
             Some(value) => ControlPlaneStorageMode::from_str(value)?,
-            None if parse_requires_postgres(requires_postgres)? => {
-                ControlPlaneStorageMode::PostgresPrimary
-            }
-            None if non_empty(database_url).is_some_and(is_postgres_url) => {
-                ControlPlaneStorageMode::PostgresPrimary
-            }
-            None => ControlPlaneStorageMode::PostgresPrimary,
+            None => ControlPlaneStorageMode::SurrealEmbedded,
         };
 
-        let database_url = match mode {
-            ControlPlaneStorageMode::PostgresPrimary => {
-                let url = non_empty(database_url).ok_or(StorageError::Validation(
-                    "postgres_primary requires DATABASE_URL",
-                ))?;
-                if !is_postgres_url(url) {
-                    return Err(StorageError::Validation(
-                        "postgres_primary requires a PostgreSQL DATABASE_URL",
-                    ));
-                }
-                url.to_string()
-            }
-        };
+        Ok(Self {
+            mode,
+            data_dir: non_empty(data_dir).map(PathBuf::from),
+        })
+    }
 
-        Ok(Self { mode, database_url })
+    /// Builds the embedded-store configuration this control plane opens.
+    pub fn surreal_config(&self) -> Result<surreal::SurrealStorageConfig, StorageError> {
+        let config = match self.data_dir.as_ref() {
+            Some(dir) => surreal::SurrealStorageConfig::for_data_dir(dir),
+            None => surreal::SurrealStorageConfig::from_env(),
+        };
+        config.map_err(|_| StorageError::Validation("invalid embedded storage data directory"))
     }
 }
 
 fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
-}
-
-fn is_postgres_url(value: &str) -> bool {
-    value.starts_with("postgres://") || value.starts_with("postgresql://")
-}
-
-fn parse_requires_postgres(value: Option<&str>) -> Result<bool, StorageError> {
-    match non_empty(value).map(|value| value.to_ascii_lowercase()) {
-        None => Ok(false),
-        Some(value)
-            if matches!(
-                value.as_str(),
-                "1" | "true" | "yes" | "required" | "postgres_primary"
-            ) =>
-        {
-            Ok(true)
-        }
-        Some(value) if matches!(value.as_str(), "0" | "false" | "no" | "optional") => Ok(false),
-        Some(_) => Err(StorageError::Validation(
-            "invalid HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES value",
-        )),
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -106,7 +106,7 @@ const MT042_GRAPH_OPEN_CONTEXT: &str = "wp-kernel-012-mt-042-v4";
 ///   * `Applied` when the Remove control is GONE, and
 ///   * `Failed` when the exact Remove control is still mounted (the rollback preserved the pin),
 /// and the app only publishes `Applied` after the AUTHORITATIVE post-mutation pin refresh has been
-/// received from PostgreSQL and no longer contains the block. Target disappearance alone can never
+/// received from SurrealDB and no longer contains the block. Target disappearance alone can never
 /// terminalize the receipt.
 pub const MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID: &str =
     "mt024.sidebar-pin-removal-completion";
@@ -200,7 +200,7 @@ impl Mt024SidebarPinRemovalCompletion {
     }
 
     /// Retain the backend's authoritative operation receipt while the app awaits the refreshed
-    /// PostgreSQL pin list. This is deliberately NOT a terminal transition.
+    /// SurrealDB pin list. This is deliberately NOT a terminal transition.
     ///
     /// Returns `false` when the delivery does not belong to the in-flight action, so a slow or
     /// reordered completion can never attach another block's receipt to this observer.
@@ -751,7 +751,7 @@ impl Mt068LocusRefOpenCompletion {
 //     a FRESH authoritative `GET /knowledge/documents/{id}` reports a `doc_version` STRICTLY GREATER
 //     than the pre-dispatch version. The local dirty-flag clear is NOT sufficient, and neither is the
 //     save response the frontend already holds: the readback is an independent re-read of canonical
-//     PostgreSQL state, exactly what MT-074's
+//     SurrealDB state, exactly what MT-074's
 //     `mt074-op01-save-persists-exact-embed-provenance-in-postgresql` performs.
 //   * `daily-journal-calendar-event-chip` (TRANSIENT target — activating it routes a `CalendarEvent`
 //     tab over the journal that painted the chip, so the chip is gone by acknowledgement) -> the EXACT
@@ -5723,11 +5723,11 @@ pub struct HandshakeApp {
     code_document_saves_queued: HashMap<String, QueuedCodeDocumentSave>,
     /// Last buffer version durably saved per normalized document identity.
     code_document_saved_versions: HashMap<String, u64>,
-    /// Stable virtual-code-document id -> exact PostgreSQL rich-document code-block binding.
+    /// Stable virtual-code-document id -> exact SurrealDB rich-document code-block binding.
     rich_code_block_bindings: HashMap<String, RichCodeBlockBinding>,
     /// Saves dispatched through the rich document SaveManager and awaiting its canonical completion.
     pending_rich_code_block_saves: HashMap<String, PendingRichCodeBlockSave>,
-    /// Canonical PostgreSQL `KnowledgeSource` identity for code tabs opened from code navigation.
+    /// Canonical SurrealDB `KnowledgeSource` identity for code tabs opened from code navigation.
     /// The filesystem tab key remains the editor identity; FEMS provenance uses this separate KSRC id.
     code_document_source_ids: HashMap<(String, String), String>,
     /// Dirty code-tab close awaiting explicit operator confirmation.
@@ -5812,7 +5812,7 @@ pub struct HandshakeApp {
     active_project_id: String,
     /// Per-project layout persistence manager (MT-009): debounce-on-change, retry-on-transient,
     /// in-memory last-known-good, and a UI-readable status. Persists THROUGH the backend's
-    /// PostgreSQL-authoritative `/workspaces/:id/workbench/layout` REST endpoint — no local file.
+    /// SurrealDB-authoritative `/workspaces/:id/workbench/layout` REST endpoint — no local file.
     /// Wrapped in `Arc<Mutex<_>>` so a debounced save can run on a short-lived worker off the egui UI
     /// thread (HBR-QUIET) while the UI thread reads its status.
     layout_manager: Arc<Mutex<LayoutPersistenceManager>>,
@@ -5967,7 +5967,7 @@ pub struct HandshakeApp {
     /// satisfying a later parameterized model action.
     quick_switcher_explicit_search_submission: Option<(String, u64)>,
     /// The Loom-graph search transport the quick switcher (MT-017) drives: `GET graph-search`,
-    /// `GET/POST quick-switcher/recents` against the REAL PostgreSQL backend. A synchronous seam
+    /// `GET/POST quick-switcher/recents` against the REAL SurrealDB backend. A synchronous seam
     /// ([`crate::quick_switcher::LoomGraphSearchTransport`]) so the search state machine stays
     /// unit-testable; the production [`crate::quick_switcher::LoomGraphSearchClient`] bridges async onto
     /// the app's tokio runtime. `None` in the headless/test shell (no runtime) — a test injects a stub
@@ -6093,7 +6093,7 @@ pub struct HandshakeApp {
     /// [`set_preference_transport`]: HandshakeApp::set_preference_transport
     preference_transport: Option<Arc<dyn crate::preference_client::PreferenceTransport>>,
     /// WP-KERNEL-012 MT-072 (validation V4 item 8): the resolved SET-REC-001 `source` + `revision`
-    /// for each editor preference id, projected from the canonical PostgreSQL PreferenceRecord surface
+    /// for each editor preference id, projected from the canonical SurrealDB PreferenceRecord surface
     /// so the Settings sections can render default-vs-custom provenance next to each control. This is a
     /// DISPLAY projection only — never a second settings authority.
     editor_preference_provenance: crate::settings_editor_section::EditorPreferenceProvenance,
@@ -7608,6 +7608,32 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
+/// The viewport the MCP snapshot capture pass falls back to when no live window viewport exists yet
+/// (WP-KERNEL-012 MT-121).
+///
+/// This is the shell's OWN declared default window size — the same `with_inner_size([1280.0, 800.0])`
+/// the real window opens at in `main.rs` — so a headless or pre-first-frame capture still publishes
+/// geometry for a window shape Handshake actually ships, and the snapshot marks it
+/// [`crate::accessibility::ViewportSource::DeclaredFallback`] so no reader mistakes it for a
+/// measurement of a live window.
+pub const SNAPSHOT_FALLBACK_VIEWPORT: egui::Vec2 = egui::vec2(1280.0, 800.0);
+
+/// Side length of egui's synthetic "nobody told me the window size" viewport
+/// (`egui-0.33.3/src/input_state/mod.rs:368`: `Rect::from_min_size(Default::default(), vec2(10_000.0,
+/// 10_000.0))`). Recognised so the snapshot path can refuse to publish it as if it were a real window.
+const EGUI_UNSIZED_VIEWPORT_SIDE: f32 = 10_000.0;
+
+/// Smallest viewport side the capture pass will accept from a live context. Below this a "live"
+/// viewport is a degenerate/zero-sized rect (a context that has not laid out), not a window.
+const MIN_SNAPSHOT_VIEWPORT_SIDE: f32 = 1.0;
+
+/// True when `rect` IS egui's unsized default viewport, which must never be published as real geometry.
+fn is_egui_unsized_viewport(rect: egui::Rect) -> bool {
+    rect.min == egui::Pos2::ZERO
+        && (rect.width() - EGUI_UNSIZED_VIEWPORT_SIDE).abs() < f32::EPSILON
+        && (rect.height() - EGUI_UNSIZED_VIEWPORT_SIDE).abs() < f32::EPSILON
+}
+
 /// The placeholder UI-tree snapshot the MCP slot (MT-027) holds before the first frame publishes the
 /// real live tree. A single `Window` root with `widget_count` 1, so `list_widgets` over the wire before
 /// the first frame returns a well-formed (if empty) snapshot rather than a lock on uninitialized state.
@@ -7627,6 +7653,9 @@ fn empty_snapshot() -> crate::accessibility::UiTreeSnapshot {
         },
         captured_at_utc: "0.000000000Z".to_owned(),
         widget_count: 1,
+        // Nothing has been laid out yet, so there is no coordinate space to declare. A reader must not
+        // treat the placeholder as window-relative geometry.
+        viewport: None,
     }
 }
 
@@ -7792,7 +7821,7 @@ impl HandshakeApp {
         // seeded default-project tab; when the fetch resolves, the real workspace tabs replace it.
         let workspaces_handle =
             Some(rt.spawn(async { fetch_workspaces(backend_client::BACKEND_BASE_URL).await }));
-        // Real transport: the backend's PostgreSQL-authoritative layout REST endpoint, bridged onto
+        // Real transport: the backend's SurrealDB-authoritative layout REST endpoint, bridged onto
         // this app's tokio runtime handle. No local file authority (CX-503S / Data Posture).
         let transport = WorkbenchLayoutClient::production(rt.handle().clone());
         let layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
@@ -12609,11 +12638,63 @@ impl HandshakeApp {
         }
     }
 
+    /// Resolve the viewport the MCP snapshot capture pass must lay out against (WP-KERNEL-012 MT-121).
+    ///
+    /// The capture pass renders on an ISOLATED `egui::Context`, so it does not inherit the live
+    /// window's size. Left unset, `RawInput::screen_rect` is `None` and egui substitutes a synthetic
+    /// 10000x10000 viewport (`egui-0.33.3/src/input_state/mod.rs:368`) — every bound the snapshot then
+    /// publishes to a model describes a window that does not exist. This resolver is the single place
+    /// that decides the capture viewport, and it never returns egui's unsized default:
+    ///
+    /// 1. The live frame context's own viewport, when the shell has rendered at least one frame. These
+    ///    coordinates are directly comparable to the pixels the operator (and `argus.screenshot`) sees.
+    /// 2. Otherwise the shell's declared default window size ([`SNAPSHOT_FALLBACK_VIEWPORT`], the same
+    ///    `with_inner_size` the real window opens at in `main.rs`), reported as
+    ///    [`crate::accessibility::ViewportSource::DeclaredFallback`] so a reader can tell the geometry
+    ///    was not measured against a live window.
+    ///
+    /// The live value is also REJECTED when it is non-finite, degenerate, or is itself egui's unsized
+    /// default — a live context that never received a `screen_rect` (a bare `Context::default()` held
+    /// by a headless caller) must not launder the 10000x10000 rect into the published contract.
+    fn snapshot_viewport(&self) -> (egui::Rect, crate::accessibility::SnapshotViewport) {
+        let declare = |rect: egui::Rect, source: crate::accessibility::ViewportSource| {
+            (
+                rect,
+                crate::accessibility::SnapshotViewport {
+                    x: rect.min.x,
+                    y: rect.min.y,
+                    w: rect.width(),
+                    h: rect.height(),
+                    source,
+                },
+            )
+        };
+        if let Some(live_ctx) = self.frame_ctx.as_ref() {
+            let live = live_ctx.input(|i| i.viewport_rect());
+            let usable = live.is_finite()
+                && live.width() >= MIN_SNAPSHOT_VIEWPORT_SIDE
+                && live.height() >= MIN_SNAPSHOT_VIEWPORT_SIDE
+                && !is_egui_unsized_viewport(live);
+            if usable {
+                return declare(live, crate::accessibility::ViewportSource::LiveWindow);
+            }
+        }
+        declare(
+            egui::Rect::from_min_size(egui::Pos2::ZERO, SNAPSHOT_FALLBACK_VIEWPORT),
+            crate::accessibility::ViewportSource::DeclaredFallback,
+        )
+    }
+
     /// Capture the live UI tree into the shared MCP snapshot slot. Runs `ui()` once on a fresh
     /// AccessKit-enabled context with `capturing_snapshot` set, so the async pollers / event drains /
     /// layout scheduler are skipped (no double side effects); the resulting `accesskit::TreeUpdate` is
     /// projected to a [`UiTreeSnapshot`] (the MT-026 path) and stored for the MCP `list_widgets` tool.
+    ///
+    /// MT-121: the capture pass is given an explicit `screen_rect` from [`Self::snapshot_viewport`], and
+    /// that viewport is published on the snapshot, so the bounds a model reads through `argus.inspect`
+    /// are viewport-relative to a REAL window rather than to egui's unsized 10000x10000 default.
     fn refresh_mcp_snapshot(&mut self) {
+        let (viewport_rect, declared_viewport) = self.snapshot_viewport();
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         // Snapshot capture renders on an isolated egui context to avoid replaying live-frame side
@@ -12637,7 +12718,13 @@ impl HandshakeApp {
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(true);
         self.capturing_snapshot = true;
-        let output = ctx.run(egui::RawInput::default(), |ctx| self.ui(ctx));
+        // MT-121: `RawInput::default()` leaves `screen_rect: None`, which makes egui lay the whole
+        // capture pass out in a synthetic 10000x10000 viewport. Declare the real one instead.
+        let raw_input = egui::RawInput {
+            screen_rect: Some(viewport_rect),
+            ..Default::default()
+        };
+        let output = ctx.run(raw_input, |ctx| self.ui(ctx));
         self.capturing_snapshot = false;
         if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
             board.set_snapshot_capture_mode(false);
@@ -12648,7 +12735,10 @@ impl HandshakeApp {
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(false);
         if let Some(update) = output.platform_output.accesskit_update {
-            let mut snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
+            let mut snapshot = crate::accessibility::collect_ui_tree_snapshot_with_viewport(
+                &update,
+                Some(declared_viewport),
+            );
             self.project_mt033_argus_completion(&mut snapshot);
             self.project_mt034_argus_completion(&mut snapshot);
             self.project_mt035_argus_completion(&mut snapshot);
@@ -14489,7 +14579,8 @@ impl HandshakeApp {
     /// - **Save / Save All / Save As / Export** route to the MT-020 editor save path via the mounted code
     ///   pane's command channel (`request_save_for_host`), recording `last_editor_command` so the dispatch
     ///   is observable; the editor command owns the handshake_core write — the shell never writes directly
-    ///   and never opens a SQLite/shell-local path (AC-004 / MC-004 / RISK-004).
+    ///   and never opens a local-database/shell-local path — SQLite is banned outright
+    ///   (AC-004 / MC-004 / RISK-004).
     /// - **Command Palette / Quick Switcher** open the ONE WP-011 palette / switcher (no second palette).
     /// - **GO-nav ids** ([`is_go_nav_pending`](crate::command_registry::is_go_nav_pending)) whose owning
     ///   command is not yet registered emit a typed LOGGED no-op — never `todo!()`/`unimplemented!()`/
@@ -17114,7 +17205,7 @@ impl HandshakeApp {
     /// WP-KERNEL-012 MT-034 test seam: point both the mounted code panel and the shell-level
     /// open-code-symbol resolver at the same code-nav backend. Production uses
     /// [`CodeNavClient::production`]; kittests use this to prove the live shell route against an
-    /// in-process HTTP server without touching the managed PG gate.
+    /// in-process HTTP server without touching the managed-SurrealDB gate.
     pub fn install_mounted_code_nav_client_for_test(&mut self, client: CodeNavClient) {
         self.editor_mounts
             .code_documents
@@ -17991,7 +18082,7 @@ impl HandshakeApp {
 
     /// WP-KERNEL-012 MT-035: inject a resolved canvas create response into the same pending-create drain
     /// production uses after `dispatch_created_placement` returns. This keeps the host proof off a live
-    /// PostgreSQL dependency while still exercising the real frame drain and shared InteractionBus.
+    /// SurrealDB dependency while still exercising the real frame drain and shared InteractionBus.
     pub fn deliver_canvas_created_placement_for_test(
         &mut self,
         workspace_id: impl Into<String>,
@@ -20878,10 +20969,10 @@ impl HandshakeApp {
             self.settings_open_count = self.settings_open_count.wrapping_add(1);
             self.settings_snapshot_query.clear();
             // Reload the persisted settings on open so the dialog reflects the durable state (and so a
-            // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
+            // SurrealDB round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
             self.settings_load_pending = true;
             // MT-072 (FAIL_V2): editor preferences are authoritative on the PreferenceRecord surface, so
-            // hydrate them from canonical PostgreSQL state on open too (SET-REC-003 — unset resolves to
+            // hydrate them from canonical SurrealDB state on open too (SET-REC-003 — unset resolves to
             // the registry default, never null).
             self.enqueue_preference_hydrate();
         }
@@ -20974,7 +21065,7 @@ impl HandshakeApp {
         }
     }
 
-    /// Enqueue a hydrate of the editor preferences from canonical PostgreSQL state (SET-REC-003). Called
+    /// Enqueue a hydrate of the editor preferences from canonical SurrealDB state (SET-REC-003). Called
     /// when the settings surface binds a workspace so the dialog + live editors show authoritative values.
     fn enqueue_preference_hydrate(&mut self) {
         self.enqueue_preference_write(crate::preference_client::PreferenceWriteKind::Hydrate);
@@ -21034,7 +21125,7 @@ impl HandshakeApp {
         }));
     }
 
-    /// Apply a resolved PreferenceRecord projection (the canonical PostgreSQL-authoritative effective
+    /// Apply a resolved PreferenceRecord projection (the canonical SurrealDB-authoritative effective
     /// values) onto the live workspace settings AND push it into every mounted editor: scalar editor
     /// prefs + reading-mode default, the syntax palette, and BOTH editor keymaps (the `code.` overrides
     /// onto each mounted [`CodeEditorPanel`] and the `rich.` overrides onto every mounted
@@ -21073,7 +21164,7 @@ impl HandshakeApp {
 
     /// WP-KERNEL-012 MT-072 remediation item 5/6 proof seam: hydrate this app from a preference
     /// projection exactly as a freshly-opened client does after its `GET /workspaces/:id/preferences`
-    /// completes. Takes the SAME rows the production transport returns (a live-PostgreSQL proof passes
+    /// completes. Takes the SAME rows the production transport returns (a live-SurrealDB proof passes
     /// the real [`crate::preference_client::PreferenceClient`] response straight through), and runs the
     /// SAME [`apply_preference_hydration`](Self::apply_preference_hydration) body the drained delivery
     /// runs — no test-only reimplementation of hydration.
@@ -25838,8 +25929,8 @@ impl HandshakeApp {
                             })
                             .flatten();
                             let target = staged.unwrap_or_else(|| ref_value.clone());
-                            // The command bridge stages the original-case canonical URI because PostgreSQL
-                            // Locus IDs are case-sensitive strings. Prefer the raw chip value so this direct
+                            // The command bridge stages the original-case canonical URI because the
+                            // stored Locus IDs are case-sensitive strings. Prefer the raw chip value so this direct
                             // drain retains authored identity too; use the staged value as a defensive parse
                             // fallback. The parsed record still carries its normalized lookup/correlation key.
                             let parsed = crate::interop::locus_interop::parse_locus_ref(&ref_value)
@@ -26100,7 +26191,7 @@ impl HandshakeApp {
     ///    `CanvasBoardClient` PATCH (resize / group / clear-group); the host dispatches it + re-fetches the
     ///    board. An `EditTextCard`/`TextCardEditBlocked` has no bindable persistence route, so it stays the
     ///    honest typed blocker (no fake write). The live PATCH round-trip is `NEEDS_MANAGED_RESOURCE_PROOF`
-    ///    (needs a live PG board) — the host wiring is proven; the DB write is gated.
+    ///    (needs a live SurrealDB board) — the host wiring is proven; the DB write is gated.
     /// 2. **Graph depth** (AC-080-3 / MT-060). A `GraphEvent::DepthChanged { depth }` re-fires the
     ///    depth-parameterized `graph/local` (`fetch_local_with_depth`) carrying the NEW `max_depth`;
     ///    `OpenNode`/`SelectNode` route to the active pane open path.
@@ -26903,7 +26994,8 @@ impl HandshakeApp {
         // stable Refresh control can force a new read for the same context; both paths use the app-bound
         // backend URL and run off-thread. The FEMS read route EXISTS (WP-009
         // MT-109 shipped `GET /workspaces/{ws}/memory/pack`, bound in `api::memory::routes`); the live
-        // /memory/pack round-trip is NEEDS_MANAGED_RESOURCE_PROOF (it needs a running backend + PostgreSQL).
+        // /memory/pack round-trip is NEEDS_MANAGED_RESOURCE_PROOF (it needs a running backend + its
+        // embedded SurrealDB store).
         // In a harness with no backend the fetch resolves to a typed blocker (a Transport error, or the
         // `EndpointMissing` 404 variant) and the panel renders its empty-state banner — an HONEST typed
         // blocker, never a faked pack. `refresh_for_context` is the sole automatic debounce, so switching
@@ -27886,7 +27978,7 @@ impl HandshakeApp {
                         .load(std::sync::atomic::Ordering::Relaxed)
             {
                 // MT-024 V4: the AUTHORITATIVE post-mutation refresh. A pin removal only reaches
-                // `Applied` when this refreshed PostgreSQL list is observed and no longer contains the
+                // `Applied` when this refreshed SurrealDB list is observed and no longer contains the
                 // removed block; a refresh failure or a still-present block is a terminal typed
                 // failure. Target disappearance alone never terminalizes the receipt.
                 let mut refreshed_terminal: Option<(Option<usize>, Option<bool>, Option<String>)> =
@@ -28084,7 +28176,7 @@ impl HandshakeApp {
                     Ok(receipt) => {
                         if section == SectionKind::Pins {
                             // MT-024 V4: retain the backend's authoritative operation receipt. The
-                            // observer stays Pending until the refreshed PostgreSQL pin list below
+                            // observer stays Pending until the refreshed SurrealDB pin list below
                             // proves the persisted absence.
                             let _bound = self
                                 .mt024_sidebar_pin_removal_completion
@@ -30437,7 +30529,7 @@ impl HandshakeApp {
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061) + W3 REMEDIATION (MT-026): map EVERY drained
     /// [`crate::graph::canvas_board::CanvasEvent`] mutation kind to its EXISTING verified
     /// `CanvasBoardClient` builder + the shared op-cell/re-fetch drain (the live round-trips are gated
-    /// `NEEDS_MANAGED_RESOURCE_PROOF` — they need a live PG board). The full wiring:
+    /// `NEEDS_MANAGED_RESOURCE_PROOF` — they need a live SurrealDB board). The full wiring:
     ///
     /// - `ResizePlacement` -> `PATCH .../canvas-placements/:id {w,h}`;
     /// - `AssignSection` -> the same placement PATCH with `{group_id}` (`Some`) / `{clear_group:true}` (`None`);
@@ -30825,8 +30917,8 @@ impl HandshakeApp {
     /// `graph/local` neighbourhood for Local); `AddEdge`/`RemoveEdge` run the REAL semantic-edge
     /// mutations (`POST /loom/edges` / `DELETE /loom/edges/:id`) with result cells the feed drain reads
     /// (Ok AND Err both re-fetch the graph — reconcile/rollback to server truth). An
-    /// `OpenNode`/`SelectNode` opens the block on the active pane. The live PG round-trips remain
-    /// `NEEDS_MANAGED_RESOURCE_PROOF` (they need a live board/graph in PostgreSQL); the host wiring is
+    /// `OpenNode`/`SelectNode` opens the block on the active pane. The live SurrealDB round-trips remain
+    /// `NEEDS_MANAGED_RESOURCE_PROOF` (they need a live board/graph in SurrealDB); the host wiring is
     /// the proven part.
     /// Dispatch one graph projection and make its full identity the only completion allowed to mutate
     /// the mounted view. The shared HTTP client applies finite connect/request timeouts, so Retry cannot
@@ -31719,7 +31811,7 @@ impl HandshakeApp {
     ///   wikilink resolver index whenever the index grows (the MT-057 seed enumeration landing), so
     ///   links resolve without any per-frame extraction walk.
     ///
-    /// The live PostgreSQL round-trips remain `NEEDS_MANAGED_RESOURCE_PROOF` (they need a live
+    /// The live SurrealDB round-trips remain `NEEDS_MANAGED_RESOURCE_PROOF` (they need a live
     /// workspace/graph/board); this host wiring is the proven part. HBR-QUIET: all IO is off-thread;
     /// this drain only takes locks + swaps cells.
     fn drive_graph_and_canvas_feeds(&mut self, ctx: &egui::Context) {
@@ -33933,7 +34025,7 @@ impl HandshakeApp {
 
     /// Persist the current layout for the active project NOW (MT-009), bypassing the debounce window.
     /// Captures a snapshot and routes it through the persistence manager's retry/LKG `save_now` against
-    /// the backend's PostgreSQL-authoritative layout endpoint. Used by tests and for an explicit
+    /// the backend's SurrealDB-authoritative layout endpoint. Used by tests and for an explicit
     /// save-on-exit; the steady-state path is the debounced flush in
     /// [`drive_layout_persistence`](Self::drive_layout_persistence). Blocks until the save attempt(s)
     /// resolve, so it is NOT called on the steady-state UI path.
@@ -35020,7 +35112,12 @@ impl HandshakeApp {
         // UI exactly once on completion (event-driven wake) instead of the frame loop polling for delivery
         // every frame. `Context` is `Arc`-backed (cheap clone); the capture is idempotent. Done BEFORE
         // `poll_health` so a `/health` re-probe spawned this frame already has the wake context available.
-        if self.frame_ctx.is_none() {
+        // MT-121: never adopt the MCP snapshot capture context as the live frame context. That context
+        // is a throwaway created by `refresh_mcp_snapshot`; adopting it would (a) point background
+        // `request_repaint()` wakes at a context nothing renders, and (b) make the NEXT capture report
+        // its own fallback viewport back as `ViewportSource::LiveWindow`, i.e. claim a measurement of a
+        // window that was never involved.
+        if self.frame_ctx.is_none() && !self.capturing_snapshot {
             self.frame_ctx = Some(ctx.clone());
         }
         if !self.capturing_snapshot {
@@ -36068,7 +36165,7 @@ impl HandshakeApp {
 
         // ── Quick switcher overlay (MT-017) ─────────────────────────────────────────────────────────
         // Rendered after the command palette so its backdrop + window sit on the Foreground order ABOVE
-        // the whole workspace. The overlay searches the REAL Loom graph over PostgreSQL: on open it
+        // the whole workspace. The overlay searches the REAL Loom graph over SurrealDB: on open it
         // loads durable recents (`GET quick-switcher/recents`); typing debounces (~150ms) then queries
         // `GET graph-search`; selecting a hit records the visit (`POST recents`) + opens its typed
         // target on a pane. All backend I/O happens on the tokio runtime off the egui frame thread
@@ -36083,7 +36180,7 @@ impl HandshakeApp {
         // app/src/components/SettingsMenu.tsx: Appearance (wired theme + view mode), Keybindings (editable
         // with live conflict detection), Swarm (wired board-default-open checkbox + not-yet-wired
         // intervals), Terminal (not-yet-wired), Layout (wired reset), About (real Cargo version). Wired
-        // changes persist THROUGH `PUT /workspaces/{id}/settings` (PostgreSQL-authoritative) on a tokio
+        // changes persist THROUGH `PUT /workspaces/{id}/settings` (SurrealDB-authoritative) on a tokio
         // task off the egui frame thread (HBR-QUIET), debounced 500ms (red-team R2); a dialog close
         // flushes a pending save immediately (red-team MC2). Closed by default, so the default-seed live
         // tree is unchanged (MT-025 default snapshot stays at its baseline node count).
@@ -36537,6 +36634,7 @@ mod mt033_argus_causality_and_menu_tests {
         crate::accessibility::UiTreeSnapshot {
             widget_count: children.len() + 1,
             captured_at_utc: "mt046-test".to_owned(),
+            viewport: None,
             root: crate::accessibility::UiTreeNode {
                 id: "root".to_owned(),
                 author_id: None,
@@ -39056,6 +39154,7 @@ mod mt064_v5_completion_negative_tests {
                 children,
             },
             captured_at_utc: "0.0Z".to_owned(),
+            viewport: None,
             widget_count,
         }
     }
@@ -39734,6 +39833,7 @@ mod mt117_bounded_completion_tests {
                 children,
             },
             captured_at_utc: "0.0Z".to_owned(),
+            viewport: None,
             widget_count,
         }
     }

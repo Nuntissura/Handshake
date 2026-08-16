@@ -5,7 +5,7 @@
 //! The three editor-focused Settings sections the Handshake GUI look-and-behavior doc defines and that
 //! WP-KERNEL-011 only stubbed, mounted INTO the existing WP-011 [`crate::settings_dialog`] dialog (this
 //! module is NOT a new dialog. It renders inside the existing dialog, and editor-specific values persist
-//! through canonical PostgreSQL-backed PreferenceRecord routes:
+//! through canonical SurrealDB-backed PreferenceRecord routes:
 //! `GET`/`PUT /workspaces/:id/preferences/:pref_id` and
 //! `POST /workspaces/:id/preferences/:pref_id/reset`.
 //!
@@ -35,11 +35,12 @@
 //!
 //! ## Persistence-authority note (RISK-001 / the load-bearing extensibility question)
 //!
-//! The backend `validate_workspace_settings_state_shape` accepts EXTRA top-level keys but
-//! deny-unknown-validates the `keybindings` map (its keys must be exactly the two WP-011 app actions).
-//! So editor values use separate `view-defaults.editor.*` PreferenceRecord ids — NOT the shared map.
-//! Writing editor bindings into the shared WP-011 map would hard-fail. No SQLite and no opaque
-//! workspace-settings editor blob.
+//! The backend carries `settings_state` as an opaque JSON value and accepts EXTRA top-level keys, but
+//! the shared WP-011 `keybindings` map is contractually limited to exactly the two WP-011 app actions
+//! (an earlier storage layer hard-rejected any other key in it). Editor values therefore use separate
+//! `view-defaults.editor.*` PreferenceRecord ids — NOT the shared map — and that separation is kept
+//! under the embedded SurrealDB authority so the wire shape stays safe if the deny-unknown constraint
+//! is re-asserted. No SQLite and no opaque workspace-settings editor blob.
 
 use egui::accesskit;
 
@@ -399,7 +400,7 @@ pub struct EditorSettingsView<'a> {
     /// the Editor section so the editor prefs read together WITHOUT this MT re-adding the field.
     pub auto_save_interval_label: &'a str,
     /// SET-REC-001 provenance for every editor preference id, as last resolved from the canonical
-    /// PostgreSQL PreferenceRecord surface. Rendered as a small per-control chip so the operator (and a
+    /// SurrealDB PreferenceRecord surface. Rendered as a small per-control chip so the operator (and a
     /// no-context model reading the AccessKit tree) can see whether a value is the registry DEFAULT or a
     /// CUSTOM operator value, and at which revision — the state MT-072 validation V4 required to be
     /// visible next to the default/custom/reset affordances.

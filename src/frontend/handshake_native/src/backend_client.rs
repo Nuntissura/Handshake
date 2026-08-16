@@ -762,14 +762,16 @@ pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
     })
 }
 
-/// REST client for the backend's PostgreSQL-authoritative workbench-layout surface
-/// (`GET`/`PUT /workspaces/:workspace_id/workbench/layout`, migration `0323_workbench_layout_state`).
+/// REST client for the backend's SurrealDB-authoritative workbench-layout surface
+/// (`GET`/`PUT /workspaces/:workspace_id/workbench/layout`, schema id
+/// `hsk.workbench_layout_state@1`).
 ///
 /// This is the REAL [`LayoutTransport`] the app wires into its [`LayoutPersistenceManager`]: the
-/// native layout persists THROUGH this REST endpoint into PostgreSQL/EventLedger — there is no local
-/// file authority (CX-503S / Data Posture). The endpoint stores the snapshot as an opaque JSONB
-/// `layout_state` blob, so this client speaks `serde_json::Value` directly and never depends on the
-/// `handshake_core` crate's types.
+/// native layout persists THROUGH this REST endpoint into the embedded SurrealDB store +
+/// EventLedger `handshake_core` owns in-process — there is no local
+/// file authority (CX-503S / Data Posture). The endpoint stores the snapshot as an opaque
+/// `layout_state` JSON value, so this client speaks `serde_json::Value` directly and never depends on
+/// the `handshake_core` crate's types.
 ///
 /// ## Why a blocking transport over an async client
 ///
@@ -2203,9 +2205,9 @@ async fn put_expect_success(
 //     `LoomGraph`. Disabling hub suppression is required for the MT-021 "all LoomBlocks" graph; a
 //     valid backend-capped response remains renderable with an explicit truncation affordance.
 //   - LOCAL: `GET /workspaces/:ws/loom/graph/local?start_block_id={id}&max_depth={depth}&node_limit=200`
-//     -> `LoomGraph`, the authoritative undirected PostgreSQL neighbourhood with real LoomEdges.
+//     -> `LoomGraph`, the authoritative undirected SurrealDB neighbourhood with real LoomEdges.
 //
-// `views/all` remains the independent count oracle used by the managed-PG proof. `graph-search` is a
+// `views/all` remains the independent count oracle used by the managed-SurrealDB proof. `graph-search` is a
 // heterogeneous retrieval/search surface, not a graph projection, and MUST NOT be used to fabricate
 // star edges for this view.
 //
@@ -3288,8 +3290,9 @@ impl CanvasBoardClient {
 
     /// Converge one Stage capture tuple onto exactly one canonical Canvas placement. The card POST
     /// carries the structured provenance separately from its persisted body; handshake_core validates
-    /// both representations and holds a PostgreSQL transaction advisory lock through preflight and
-    /// creation. Independent native processes therefore cannot both pass a read-before-create window.
+    /// both representations and serializes preflight and creation inside a single backend
+    /// transaction against its embedded SurrealDB store. Independent native processes therefore
+    /// cannot both pass a read-before-create window.
     /// A transport-lost success is still reconciled from canonical board/document state before failure
     /// is exposed.
     #[allow(clippy::too_many_arguments)]
@@ -5665,7 +5668,7 @@ pub type SidebarUnlinkedCell = Arc<Mutex<VecDeque<SidebarUnlinkedDelivery>>>;
 /// from a failed request, stale refresh, or target disappearance". This receipt is the authoritative
 /// answer: it is built from the mutation route's own response body (never from UI state, never from a
 /// row disappearing) and correlated to the durable EventLedger row the backend appended in the SAME
-/// PostgreSQL transaction as the write.
+/// SurrealDB transaction as the write.
 ///
 /// Fields required by the FAIL_V4 remediation plan:
 /// - workspace ID + block ID: `workspace_id` / `block_id` (echoed by the backend, not by the caller).
@@ -5803,7 +5806,7 @@ impl LoomSidebarClient {
 
     /// WP-KERNEL-012 MT-024 FAIL_V4: the read-only EventLedger correlation surface
     /// (`GET /kernel/events/aggregates/loom_block/{block_id}` -> `Vec<KernelEvent>`). The Loom block
-    /// mutation events are appended with `aggregate("loom_block", block_id)` in the same PostgreSQL
+    /// mutation events are appended with `aggregate("loom_block", block_id)` in the same SurrealDB
     /// transaction as the write, so this is the durable authority the operation receipt cites. Read
     /// only; no backend change.
     fn block_event_ledger_url(&self, block_id: &str) -> String {
@@ -6150,7 +6153,7 @@ impl LoomSidebarClient {
 /// The receipt is derived only from authoritative backend state:
 ///   1. the mutation route's HTTP status and its returned `LoomBlock` body (post-write `pinned`,
 ///      `favorite`, `pin_order`, `updated_at`), and
-///   2. the durable EventLedger row for `loom_block/{block_id}` appended inside the same PostgreSQL
+///   2. the durable EventLedger row for `loom_block/{block_id}` appended inside the same SurrealDB
 ///      transaction as the write.
 ///
 /// A non-2xx status, an unparseable body, or a body that still reports the mutation as unapplied all

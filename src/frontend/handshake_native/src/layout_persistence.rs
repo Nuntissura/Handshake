@@ -10,14 +10,15 @@
 //! - the [`crate::pane_registry::PaneRecord`] set — the pane registry source of truth (MT-005);
 //! - the active pane id.
 //!
-//! ## Storage backend (CX-503S / Data Posture — PostgreSQL-authoritative, NO local-file authority)
+//! ## Storage backend (CX-503S / Data Posture — SurrealDB-authoritative, NO local-file authority)
 //!
-//! The native layout is **PostgreSQL/EventLedger-authoritative**. The running `handshake_core`
-//! backend already owns a durable workbench-layout surface (migration `0323_workbench_layout_state`)
-//! exposed over its REST API as `GET`/`PUT /workspaces/:workspace_id/workbench/layout`. The native
+//! The native layout is **SurrealDB/EventLedger-authoritative**. The running `handshake_core`
+//! backend already owns a durable workbench-layout surface in its embedded SurrealDB store (RocksDB
+//! engine, namespace `handshake` / database `primary`, opened in-process at startup), exposed over
+//! its REST API as `GET`/`PUT /workspaces/:workspace_id/workbench/layout`. The native
 //! shell persists the layout by sending the snapshot through that endpoint — there is NO local JSON
 //! file, NO SQLite, and NO alternate on-disk authority. The backend stores the snapshot as an opaque
-//! JSONB `layout_state` blob (and stamps an EventLedger event id), so the native shell's richer field
+//! `layout_state` JSON value (and stamps an EventLedger event id), so the native shell's richer field
 //! set (full `PaneRecord` registry + per-pane `TabBarState`) round-trips through the same endpoint the
 //! React workbench uses, distinguished by this snapshot's own `schema_id`.
 //!

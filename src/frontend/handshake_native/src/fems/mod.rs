@@ -15,7 +15,7 @@
 //!   provenance-first (grouped by kind, a "Go to source" affordance per item routed through the MT-030
 //!   navigation seam) and shows a calm empty-state banner for the `EndpointMissing` 404 typed blocker.
 //!
-//! MT-064 memory-write proposals and MT-065 end-to-end PostgreSQL/EventLedger proofs build on this
+//! MT-064 memory-write proposals and MT-065 end-to-end SurrealDB/EventLedger proofs build on this
 //! read-only consumer. The live pane dock, authoritative active-editor context subscription, shared-bus
 //! proposal command, and MT-030 navigation wiring are mounted in `app.rs`.
 

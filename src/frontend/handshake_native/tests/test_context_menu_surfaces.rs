@@ -823,6 +823,7 @@ fn mt070_argus_snapshot(harness: &Harness<'_>) -> handshake_native::accessibilit
             children,
         },
         captured_at_utc: "mt070-argus-frame".to_owned(),
+        viewport: None,
     }
 }
 

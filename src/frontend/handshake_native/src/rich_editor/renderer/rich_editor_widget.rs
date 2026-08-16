@@ -578,7 +578,7 @@ impl RichEditorState {
     /// the union of this document's inline tags ([`Self::collect_inline_tags`]) with the MT-017
     /// property-panel tag set, deduped by normalized identity (one tag, one hub — RISK-004 / MC-004 /
     /// AC-005). This is the payload the shell persists via `POST /loom/edges` (one edge per distinct
-    /// canonical tag) on save; the LIVE POST is gated on a managed PostgreSQL + per-canonical tag_hub
+    /// canonical tag) on save; the LIVE POST is gated on a managed SurrealDB store + per-canonical tag_hub
     /// resolution (NEEDS_MANAGED_RESOURCE_PROOF), but the deduped builder output is provable standalone.
     /// The property tags are read from the live [`crate::rich_editor::properties::PropertiesState::tags`]
     /// when present (MT-017's local-only list — see TB-058-NORMALIZE on its persistence gap).
@@ -757,7 +757,7 @@ impl RichEditorState {
     /// backend call off the frame thread. Returns `true` when the save entry was reached (a save context
     /// is installed), `false` when no save context exists (the honest "save not yet wireable" path the
     /// host keeps the leaf disabled for). No shell-local / SQLite write — the SaveManager owns the
-    /// handshake_core PostgreSQL/EventLedger write (MC-004 / RISK-004).
+    /// handshake_core SurrealDB/EventLedger write (MC-004 / RISK-004).
     pub fn request_save_for_host(&mut self) -> bool {
         let content =
             crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
@@ -5265,7 +5265,7 @@ impl RichEditorWidget {
 
                     // WP-KERNEL-012 MT-043: expose an operator- and AccessKit-reachable route from
                     // one EXACT rich-note code block into the native CodeEditorPanel. The event binds
-                    // the PostgreSQL document id, stable model path, current code snapshot, and the
+                    // the SurrealDB document id, stable model path, current code snapshot, and the
                     // owning document's structural snapshot; the host later verifies all four before
                     // applying `editor.code.save`, so identical code blocks cannot silently drift into
                     // a different positional target.

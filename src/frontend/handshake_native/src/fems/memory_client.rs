@@ -6,7 +6,8 @@
 //! ([`MemoryPack`]) that Pillar 12 (FEMS — Fast Episodic Memory System) produces. The native editors
 //! CONSUME this capsule inline so relevant project memory surfaces where a model or operator is editing
 //! a document. This MT is **read-only consumption** — there is NO write/POST/PUT/DELETE to any memory
-//! endpoint and NO direct store access (RISK-008/MC-007, AC-006). PostgreSQL/EventLedger is the only
+//! endpoint and NO direct store access (RISK-008/MC-007, AC-006). The embedded SurrealDB store +
+//! EventLedger `handshake_core` owns in-process is the only
 //! durable backing store on the backend side; this client never touches it directly — it only consumes
 //! the read API.
 //!
@@ -34,7 +35,7 @@
 //! missing product capability. On an unstructured route-absent 404
 //! [`MemoryClient::fetch_pack`] returns that typed blocker (never a panic, never a silent no-op —
 //! RISK-001, RISK-005/MC-002, AC-005), the panel renders a calm banner, and the blocker is surfaced
-//! upward so the WP validator sees it. The end-to-end fetch against the LIVE managed-PG MT-109 route is
+//! upward so the WP validator sees it. The end-to-end fetch against the LIVE managed-SurrealDB MT-109 route is
 //! proven separately (`NEEDS_MANAGED_RESOURCE_PROOF`; no backend is started here).
 //!
 //! ## This model is ALIGNED to the real backend shape (`ace::MemoryPack`)
@@ -51,14 +52,14 @@
 //! accepted (serde aliases on the id/kind fields + a fallback single-`source` object) so the widget /
 //! transport / clamp / AccessKit fixtures keep proving those contracts unchanged.
 //!
-//! ## Proof posture: golden backend-shape decode + mock transport; live managed-PG fetch is separate
+//! ## Proof posture: golden backend-shape decode + mock transport; live managed-SurrealDB fetch is separate
 //!
 //! The decode tests in `tests/test_relevant_memory.rs` include a GOLDEN decode of the backend's own FEMS
 //! item serialization (`tests/fixtures/memory_capsule_e2e/sample_fems_items.json`) through THIS
 //! deserializer, proving the client decodes the real `ace::MemoryPack` item shape with LIVE provenance —
 //! the old `id`/`kind`/`source` model could NOT (it fails with `missing field id`). The in-process mock
 //! `TcpListener` proves transport + the 404 typed-blocker fallback + the defensive <=24 clamp + the
-//! render/AccessKit contract. The end-to-end fetch against the running managed-PG MT-109 route stays
+//! render/AccessKit contract. The end-to-end fetch against the running managed-SurrealDB MT-109 route stays
 //! `NEEDS_MANAGED_RESOURCE_PROOF` (batched separately).
 //!
 //! ## Reuse, no second HTTP stack (RISK-006/MC-005)

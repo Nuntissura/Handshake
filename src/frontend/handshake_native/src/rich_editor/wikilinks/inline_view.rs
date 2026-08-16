@@ -49,7 +49,7 @@ pub enum EditorEvent {
     /// code panel so `editor.code.save` can reject a stale/replaced block instead of overwriting the
     /// first code block it happens to find.
     CodeBlockOpenRequested {
-        /// The PostgreSQL-backed rich document that owns the code block.
+        /// The SurrealDB-backed rich document that owns the code block.
         document_id: String,
         /// Exact owning-document structural snapshot captured with the block path. The save bridge
         /// rejects any intervening document change, including identical-text positional drift.

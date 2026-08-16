@@ -108,7 +108,6 @@ pub mod mte_retry_budget;
 pub mod mte_validation_report_projection;
 pub mod overlay_coordination_records;
 pub mod overlay_lifecycle_recovery;
-pub mod postgres_control_plane_residual;
 pub mod pre_use_kernel_acceptance_run;
 pub mod product_screenshot_capture;
 #[cfg(feature = "runtime-full")]

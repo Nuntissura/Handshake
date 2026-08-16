@@ -9,13 +9,15 @@
 //!
 //! ## Persistence-authority reconciliation (KERNEL_BUILDER gate)
 //!
-//! The contract flags two candidate homes: this portable file AND the existing PostgreSQL-backed
+//! The contract flags two candidate homes: this portable file AND the existing SurrealDB-backed
 //! `/workspaces/:id/settings` surface MT-072 uses. To avoid a SECOND settings authority while MT-072 is
 //! not yet landed, this module keeps a SINGLE local-file authority that is intentionally narrow (only
 //! keybinding overrides) and portable. When MT-072 lands, the editor-keybindings settings section it
-//! adds should read/write THIS same override list (it is plain serde JSON), so PG stays the durable
-//! authority and this file is the VS-Code-parity local mirror — one logical authority, two transports.
-//! NO SQLite is introduced; this is a flat JSON file plus the existing PG settings surface (future).
+//! adds should read/write THIS same override list (it is plain serde JSON), so the backend's embedded
+//! SurrealDB store stays the durable authority and this file is the VS-Code-parity local mirror — one
+//! logical authority, two transports.
+//! NO SQLite is introduced; this is a flat JSON file plus the existing SurrealDB settings surface
+//! (future).
 //!
 //! ## No silent wrong binding (RISK-003 / MC-002)
 //!

@@ -7,11 +7,14 @@
 //! [`APP_KEYBINDING_ACTIONS`] catalog, the chord-normalization / conflict-detection helpers, the
 //! settings-search term matcher, and the `not yet wired` descriptors the settings dialog renders.
 //!
-//! ## Persistence (CX-503S / Data Posture — PostgreSQL-authoritative, NO local-file authority)
+//! ## Persistence (CX-503S / Data Posture — SurrealDB-authoritative, NO local-file authority)
 //!
-//! Settings persist THROUGH the running `handshake_core` backend's PostgreSQL-authoritative REST
+//! Settings persist THROUGH the running `handshake_core` backend's SurrealDB-authoritative REST
 //! surface `GET`/`PUT /workspaces/:workspace_id/settings` (verified live in
-//! `src/backend/handshake_core/src/api/workspaces.rs`). The HTTP transport is abstracted behind the
+//! `src/backend/handshake_core/src/api/workspaces.rs`). The durable authority behind that surface is
+//! the embedded SurrealDB store `handshake_core` opens in-process at startup (RocksDB engine,
+//! namespace `handshake` / database `primary`); there is no external database server and no
+//! connection string. The HTTP transport is abstracted behind the
 //! synchronous [`SettingsTransport`] seam so the load/save logic stays directly unit-testable with a
 //! stub; the production [`SettingsClient`] bridges async reqwest onto the app's tokio runtime handle
 //! (the MT-009 `WorkbenchLayoutClient` pattern). There is NO local JSON file, NO SQLite, and NO
@@ -165,22 +168,23 @@ pub struct Keybinding {
 // WP-KERNEL-012 MT-072 — editor-specific settings (EditorPrefs + SyntaxPalette
 // + editor keybinding overrides). These are NEW NESTED FIELDS appended into the
 // SAME WorkspaceSettingsState the WP-011 dialog already serializes through the
-// existing PostgreSQL-backed GET/PUT /workspaces/:id/settings surface. No new
+// existing SurrealDB-backed GET/PUT /workspaces/:id/settings surface. No new
 // persistence system, no SQLite, no new endpoint (AC-009).
 //
 // PERSISTENCE-AUTHORITY NOTE (the load-bearing extensibility question — RISK-001):
-// the backend `validate_workspace_settings_state_shape`
-// (src/backend/handshake_core/src/storage/postgres.rs) inspects ONLY the known
-// top-level keys (`theme`, `custom_theme_tokens`, `keybindings`, `settings`) and
-// NEVER rejects EXTRA top-level keys. So `editor_prefs` and `syntax_palette`,
-// emitted as NEW TOP-LEVEL keys, ride the opaque settings_state JSON through PUT
-// and are stored verbatim in PostgreSQL (verified read-only against the backend
-// validator). The `keybindings` map, however, IS deny-unknown on the backend
-// (its keys MUST equal exactly ["app.quick_switcher.open", "app.command_palette.open"]),
-// so editor keybinding OVERRIDES are kept in a SEPARATE top-level `editor_keybindings`
-// list, NOT written into the shared `keybindings` map — writing them there would
-// hard-fail every PUT for the workspace (RISK-001 realized). See the MT handoff
-// typed blocker for the editor-keybindings-into-shared-map path.
+// the backend carries `settings_state` as an opaque JSON `Value` end to end
+// (`SaveWorkspaceSettingsRequest` in src/backend/handshake_core/src/api/workspaces.rs ->
+// `WorkspaceSettingsStateInput` in src/backend/handshake_core/src/storage/mod.rs) and NEVER
+// rejects EXTRA top-level keys. So `editor_prefs` and `syntax_palette`,
+// emitted as NEW TOP-LEVEL keys, ride that opaque settings_state JSON through PUT
+// and reach the embedded SurrealDB authority verbatim (verified read-only against the
+// backend API + storage contract). The `keybindings` map, however, is a SHARED WP-011 surface whose
+// key set is contractually exactly ["app.quick_switcher.open", "app.command_palette.open"], and an
+// earlier storage layer hard-rejected any other key in it. Editor keybinding OVERRIDES are therefore
+// kept in a SEPARATE top-level `editor_keybindings` list, NOT written into the shared `keybindings`
+// map, so the wire shape stays safe if the SurrealDB storage layer re-asserts that deny-unknown
+// constraint (RISK-001). See the MT handoff typed blocker for the
+// editor-keybindings-into-shared-map path.
 // ===========================================================================
 
 /// The editor word-wrap mode. Port of the VS Code `editor.wordWrap` setting
@@ -343,7 +347,7 @@ impl Default for EditorPrefs {
 pub const DEFAULT_EDITOR_FONT_SIZE: f32 = 13.0;
 
 /// The inclusive editor-font-size clamp range (the UI `DragValue` enforces it; the loader clamps a
-/// stored value too, so a hand-edited out-of-range PostgreSQL row cannot smuggle an invalid size).
+/// stored value too, so a hand-edited out-of-range SurrealDB record cannot smuggle an invalid size).
 pub const EDITOR_FONT_SIZE_RANGE: std::ops::RangeInclusive<f32> = 6.0..=48.0;
 
 /// The inclusive tab-size clamp range.
@@ -351,8 +355,8 @@ pub const TAB_SIZE_RANGE: std::ops::RangeInclusive<u8> = 1..=16;
 
 /// WP-KERNEL-012 MT-035 wave-7: the inclusive editor line-height MULTIPLIER clamp range. `1.0` is the
 /// natural single-spaced row height the font measures; `2.0` is double-spaced. The UI `DragValue`
-/// enforces it and the loader clamps a stored value too, so a hand-edited out-of-range PostgreSQL row
-/// cannot smuggle an invalid multiplier.
+/// enforces it and the loader clamps a stored value too, so a hand-edited out-of-range SurrealDB
+/// record cannot smuggle an invalid multiplier.
 pub const EDITOR_LINE_HEIGHT_RANGE: std::ops::RangeInclusive<f32> = 1.0..=2.0;
 
 /// The default editor line-height multiplier (single-spaced — the font's natural row height).
@@ -693,7 +697,7 @@ impl WorkspaceSettingsState {
 
     /// MT-072 (PreferenceRecord migration): drop every editor-keybinding override. Used when
     /// [`crate::preference_client::apply_projection`] hydrates the override map from the canonical
-    /// `view-defaults.editor.keybinding-overrides` preference so the local list mirrors PostgreSQL
+    /// `view-defaults.editor.keybinding-overrides` preference so the local list mirrors SurrealDB
     /// authority exactly (no stale local override survives a projection load).
     pub fn clear_all_editor_chords(&mut self) {
         self.editor_keybindings.clear();
@@ -1139,7 +1143,7 @@ pub trait SettingsTransport: Send + Sync {
         -> Result<(), SettingsTransportError>;
 }
 
-/// Production transport: the backend's PostgreSQL-authoritative workspace-settings REST surface
+/// Production transport: the backend's SurrealDB-authoritative workspace-settings REST surface
 /// (`GET`/`PUT /workspaces/:workspace_id/settings`), bridged onto the app's tokio runtime handle (the
 /// MT-009 `WorkbenchLayoutClient` pattern). reqwest is async; this holds a runtime [`Handle`] and
 /// bridges with `Handle::block_on` so the transport stays a synchronous seam, and the app calls it
@@ -1514,7 +1518,7 @@ mod tests {
     #[test]
     fn legacy_settings_doc_without_editor_fields_deserializes_to_defaults() {
         // A WP-011-era blob: valid schema_id + theme + keybindings + settings, but NO editor_prefs /
-        // syntax_palette / editor_keybindings keys at all (exactly what a pre-MT-072 PostgreSQL row holds).
+        // syntax_palette / editor_keybindings keys at all (exactly what a pre-MT-072 stored record holds).
         let legacy = serde_json::json!({
             "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
             "theme": "dark",
@@ -1548,7 +1552,7 @@ mod tests {
         assert_eq!(got.chord_for("app.quick_switcher.open"), Some("Mod-p"));
     }
 
-    /// A stored value out of the clamp ranges is clamped on load (a hand-edited PostgreSQL row cannot
+    /// A stored value out of the clamp ranges is clamped on load (a hand-edited SurrealDB record cannot
     /// smuggle an invalid font size / tab size into the live editor).
     #[test]
     fn out_of_range_stored_editor_prefs_are_clamped_on_load() {

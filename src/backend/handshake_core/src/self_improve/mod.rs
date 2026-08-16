@@ -26,7 +26,6 @@ pub mod iteration;
 pub mod loop_core;
 pub mod promotion_floor;
 pub mod promotion_gate_adapter;
-pub mod promotion_gate_postgres;
 pub mod scheduler;
 
 pub use corpus::{

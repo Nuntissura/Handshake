@@ -93,7 +93,7 @@ pub const NOTE_REFS_MAX_CANDIDATES: usize = 10_000;
 /// 422 and the WHOLE search fails. Every value here MUST therefore be a real
 /// `LoomBlockContentType::as_str()` token. The verified set is:
 /// `note, file, annotated_file, tag_hub, journal, canvas, view_def` (loom.rs:58-69) — there is NO
-/// `document` variant (an earlier draft used `"document"`, which 422'd against real PG; the `Document`
+/// `document` variant (an earlier draft used `"document"`, which 422'd against the real backend; the `Document`
 /// at loom.rs:502 belongs to the UNRELATED `LoomSearchSourceKind` hit-source enum, not this filter).
 /// A code reference in a note lives in a `note` block, and daily-note coverage lives in a `journal`
 /// block — both are real tokens (asserted by the `note_ref_content_types_are_valid_backend_tokens`
@@ -201,7 +201,7 @@ pub struct CodeRef {
     pub symbol_entity_id: String,
     /// The full symbol key (`<kind>:<path>#<name>`), preserved for display + the find-notes query.
     pub symbol_key: String,
-    /// The canonical PostgreSQL `KnowledgeSource` identity for the file. This is provenance, not a
+    /// The canonical SurrealDB `KnowledgeSource` identity for the file. This is provenance, not a
     /// filesystem path: callers may bind it to a loaded code tab but must never try to open it.
     pub source_id: String,
     /// The file path the symbol is defined in (extracted from the definition source / symbol key).
@@ -1508,10 +1508,10 @@ mod tests {
             assert!(
                 BACKEND_LOOM_CONTENT_TYPE_TOKENS.contains(ct),
                 "content_type {ct:?} is NOT a real LoomBlockContentType token (loom.rs:58-69) — it would \
-                 422 against real PG; valid tokens: {BACKEND_LOOM_CONTENT_TYPE_TOKENS:?}"
+                 422 against the real backend; valid tokens: {BACKEND_LOOM_CONTENT_TYPE_TOKENS:?}"
             );
         }
-        // The invalid value that 422'd against real PG must NOT have crept back in.
+        // The invalid value that 422'd against the real backend must NOT have crept back in.
         assert!(
             !NOTE_REF_CONTENT_TYPES.contains(&"document"),
             "`document` is not a LoomBlockContentType variant (it 422s); use `note`/`journal`"

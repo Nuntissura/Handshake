@@ -21,12 +21,14 @@ use tokio::sync::{watch, Mutex, RwLock};
 use super::{DefaultStorageGuard, StorageGuard};
 
 mod blocks;
+mod database;
 mod documents;
 mod schema;
 #[cfg(feature = "surreal-test-support")]
 mod test_inspector;
 mod workspaces;
 
+pub use database::SurrealDatabase;
 pub use schema::{
     bootstrap_schema, SchemaBootstrapReport, EXPECTED_SCHEMA_INFO_SHA256,
     GENERATED_SURREALQL_SHA256, SCHEMA_REVISION, SCHEMA_VERSION, SOURCE_FORWARD_MIGRATION_COUNT,

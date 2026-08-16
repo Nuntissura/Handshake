@@ -37,7 +37,7 @@
 //! leaf children by their `block_id` (the open key). The split the MT `implementation_notes` describe is
 //! honored: the flat-rows -> tree build, cycle/depth guard (RISK-1/MC-1), hex-color parse, lazy-load
 //! caching (RISK-3/MC-3), empty "No folders" (AC7), and backend-error + Retry (AC8) are ALL unit/kittest
-//! testable STANDALONE with row lists; the live-PG integration test is gated behind the
+//! testable STANDALONE with row lists; the live-backend integration test is gated behind the
 //! `integration` feature and requires the managed backend resource — it never fakes the backend.
 //!
 //! ## Repaint discipline (the MT-015 idle-repaint lesson)
@@ -633,7 +633,7 @@ pub struct LoomFolderTree {
     pub selected_folder_id: Option<String>,
     create_draft: Option<(Option<String>, String)>,
     rename_draft: Option<(String, String)>,
-    /// Folder id, visible title, and the number of descendant folders that PostgreSQL will cascade.
+    /// Folder id, visible title, and the number of descendant folders the SurrealDB store will cascade.
     delete_draft: Option<(String, String, usize)>,
 }
 

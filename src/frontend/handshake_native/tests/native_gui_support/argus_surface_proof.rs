@@ -570,6 +570,7 @@ fn snapshot_harness<State>(harness: &ScreenshotHarness<'_, State>) -> UiTreeSnap
             children,
         },
         captured_at_utc: "0.000000000Z".to_owned(),
+        viewport: None,
     }
 }
 

@@ -1222,7 +1222,7 @@ impl LoomSearchV2PaneShared {
 /// `PaneFactory::render` is `&self`, so the mutable panel state lives behind a `Mutex` (Send + Sync, as
 /// the trait requires) and the per-frame workspace id + palette + open-block drain flow through the
 /// shared [`LoomSearchV2PaneShared`] cell. The HTTP transport reuses the real
-/// [`LoomSearchV2Client`] (the SAME verified routes the request-builder + live-PG proofs bind).
+/// [`LoomSearchV2Client`] (the SAME verified routes the request-builder + live-backend proofs bind).
 pub struct LoomSearchV2PaneFactory {
     /// Pane-local state keyed by the registry's stable pane identity. Two mounted search panes must
     /// never share query, response, loading, save, or delivery-cell state.

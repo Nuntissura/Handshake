@@ -27,7 +27,7 @@
 //! ## Persistence target (NOT the EventLedger)
 //!
 //! View-mode state is PURE frontend view-state with no backend binding. It persists via egui's local
-//! context persistence only — it is NOT routed through the EventLedger/PostgreSQL (those govern
+//! context persistence only — it is NOT routed through the EventLedger/SurrealDB (those govern
 //! durable backend state, which this MT does not touch).
 
 use std::collections::HashMap;

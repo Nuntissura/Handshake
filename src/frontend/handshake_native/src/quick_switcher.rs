@@ -3,7 +3,7 @@
 //! ## What this provides (no-context model navigation — HBR-VIS / HBR-SWARM)
 //!
 //! A modal, centred, always-on-top floating panel (the Ctrl+P quick switcher): a search text input, a
-//! live-search list over the **Loom graph** backed by the REAL PostgreSQL backend, keyboard navigation
+//! live-search list over the **Loom graph** backed by the REAL SurrealDB backend, keyboard navigation
 //! (ArrowUp/ArrowDown/Enter/Escape), and jump-on-Enter or click. It is a direct port of the React
 //! `app/src/components/QuickSwitcher.tsx`: it searches documents, blocks, symbols, work packets,
 //! microtasks, user-manual pages, wiki pages, files and tag hubs across the project graph and jumps the
@@ -12,7 +12,7 @@
 //! ### Source of the rows (NOT faked, NOT local panes)
 //!
 //! Every row is a REAL hit from `GET /workspaces/{id}/loom/graph-search?q=...&source_kinds=...&limit=25`
-//! against handshake_core + PostgreSQL — the same endpoint the React app uses
+//! against handshake_core + its embedded SurrealDB store — the same endpoint the React app uses
 //! ([`LoomGraphSearchTransport`] is the synchronous seam; [`LoomGraphSearchClient`] is the production
 //! reqwest implementation bridged onto the app's tokio runtime, the MT-009 `WorkbenchLayoutClient`
 //! pattern). When the query is empty the list is empty and a hint is shown; when no workspace is
@@ -21,7 +21,7 @@
 //! the ordered rows from the AccessKit ListBox/Option tree, and presses Enter to jump — no screen
 //! scraping, no live-server dependency for the unit/kittest proofs (the seam is stubbable).
 //!
-//! ### Recents ordering (durable PostgreSQL store)
+//! ### Recents ordering (durable SurrealDB store)
 //!
 //! On open the switcher loads `GET /workspaces/{id}/loom/quick-switcher/recents?limit=20` and stores the
 //! returned `hit_key` list (`"{source_kind}:{ref_id}"`, most-recent first). Any visible hit whose
@@ -729,7 +729,7 @@ pub trait LoomGraphSearchTransport: Send + Sync {
     ) -> Result<String, SearchTransportError>;
 }
 
-/// Production transport: the backend's PostgreSQL-authoritative Loom graph-search + quick-switcher
+/// Production transport: the backend's SurrealDB-authoritative Loom graph-search + quick-switcher
 /// recents REST surface, bridged onto the app's tokio runtime handle (the MT-009
 /// `WorkbenchLayoutClient` pattern). reqwest is async; this holds a runtime [`Handle`] and bridges with
 /// `Handle::block_on` so the transport stays a synchronous seam, and the app calls it ONLY from a
@@ -2095,7 +2095,7 @@ mod tests {
 
     /// An in-memory [`LoomGraphSearchTransport`] stub for unit tests: canned search results, a recents
     /// list, and a record-recent that returns the hit's key. Proves the seam is driveable without a
-    /// live backend (the same property the kittest + the gated live-PG test rely on).
+    /// live backend (the same property the kittest + the gated live-backend test rely on).
     struct StubTransport {
         results: Vec<LoomGraphSearchHit>,
         recents: Vec<String>,

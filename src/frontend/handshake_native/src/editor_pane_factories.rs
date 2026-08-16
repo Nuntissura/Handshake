@@ -614,7 +614,7 @@ impl RichEditorDocumentStore {
         }
     }
 
-    /// WP-KERNEL-012 MT-043: replace one exact PostgreSQL-backed rich-note code block with the text
+    /// WP-KERNEL-012 MT-043: replace one exact SurrealDB-backed rich-note code block with the text
     /// authored in its mounted native [`CodeEditorPanel`], then dispatch the SAME MT-020
     /// [`SaveManager`](crate::rich_editor::save::save_manager::SaveManager) used by rich-editor
     /// Ctrl+S. The caller must supply the original model path, complete owning-document structural

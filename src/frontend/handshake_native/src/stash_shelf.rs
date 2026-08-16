@@ -11,7 +11,7 @@
 //! ## The drawer is a downstream CONSUMER that CALLS the backend (the MT-022 contrast)
 //!
 //! Unlike the MT-022 rail (which only EMITS a search intent and makes no backend call), the MT-023
-//! drawer's contract requires it to FETCH live card data from the real PostgreSQL/EventLedger backend.
+//! drawer's contract requires it to FETCH live card data from the real SurrealDB/EventLedger backend.
 //! On open it fires three one-shot off-thread GET/PUTs through [`DrawerDataClient`] (the MT-009/020/021
 //! off-thread + delivery-cell pattern) and folds the results into the cards. Mail makes NO backend call
 //! (no mail backend exists yet).

@@ -167,7 +167,6 @@ dirs = "5"
 dunce = "=1.0.5"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
 tower-http = { version = "0.6", features = ["cors"] }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
 surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-rocksdb"] }
 uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
@@ -321,26 +320,6 @@ path = "tests/kernel_end_to_end_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
-name = "kernel_postgres_event_ledger_tests"
-path = "tests/kernel_postgres_event_ledger_tests.rs"
-required-features = ["test-utils"]
-
-[[test]]
-name = "memory_persistence_postgres_tests"
-path = "tests/memory_persistence_postgres_tests.rs"
-required-features = ["test-utils"]
-
-[[test]]
-name = "memory_ipc_postgres_tests"
-path = "tests/memory_ipc_postgres_tests.rs"
-required-features = ["test-utils"]
-
-[[test]]
-name = "memory_capsule_e2e_postgres_tests"
-path = "tests/memory_capsule_e2e_postgres_tests.rs"
-required-features = ["test-utils"]
-
-[[test]]
 name = "mcp_e2e_tests"
 path = "tests/mcp_e2e_tests.rs"
 required-features = ["duckdb-flight-recorder", "test-utils"]
@@ -438,11 +417,6 @@ required-features = ["test-utils"]
 [[test]]
 name = "restart_resume_tests"
 path = "tests/restart_resume_tests.rs"
-required-features = ["test-utils"]
-
-[[test]]
-name = "restart_resume_postgres_tests"
-path = "tests/restart_resume_postgres_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]

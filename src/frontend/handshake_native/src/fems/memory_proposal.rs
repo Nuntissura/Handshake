@@ -31,7 +31,7 @@
 //! ## FR-EVT-MEM-001 transaction outbox
 //!
 //! handshake_core commits the proposal, EventLedger receipt, and normative FR-EVT-MEM-001 outbox row
-//! in one PostgreSQL transaction. It projects that row idempotently and returns its durable event UUID
+//! in one SurrealDB transaction. It projects that row idempotently and returns its durable event UUID
 //! in the acknowledgement. [`submit_proposal_and_emit`] retains its historical signature but does not
 //! enqueue a duplicate native-editor envelope.
 //!
@@ -217,7 +217,7 @@ impl MemoryClass {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemorySourceProvenance {
     /// The canonical document/source the content was selected from. Rich text carries its persisted
-    /// RichDocument id; code carries its PostgreSQL `KnowledgeSource` (`KSRC-*`) id separately from the
+    /// RichDocument id; code carries its SurrealDB `KnowledgeSource` (`KSRC-*`) id separately from the
     /// filesystem tab key. A `BlockRef`/`NodeRef` carries its already-addressable block/node id.
     pub document_id: String,
     /// The start byte offset of the selection inside the document (a whole-block/whole-node selection
@@ -362,7 +362,7 @@ pub struct ProposalAck {
     pub proposal_id: String,
     /// The proposal's review status (e.g. `"pending_review"`). Never `"committed"` from the editor path.
     pub status: String,
-    /// Canonical proposal creation time returned from PostgreSQL. Retries return the original value so
+    /// Canonical proposal creation time returned from SurrealDB. Retries return the original value so
     /// the correlated native-editor event can replay the exact same immutable envelope.
     pub created_at: String,
     /// Durable canonical FR-EVT-MEM-001 UUID projected by handshake_core's transactional outbox.

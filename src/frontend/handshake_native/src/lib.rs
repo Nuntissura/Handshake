@@ -106,7 +106,7 @@ pub mod search_rail;
 pub mod settings_dialog;
 // WP-KERNEL-012 MT-072 (E12 — structured settings): the editor-specific Settings sections (Editor prefs,
 // Syntax palette editor, editor Keybindings) mounted INTO the WP-011 settings_dialog. Renders from a
-// read-only view + returns outcomes the shell applies + persists via the existing PostgreSQL-backed
+// read-only view + returns outcomes the shell applies + persists via the existing SurrealDB-backed
 // /workspaces/:id/settings surface (no new persistence, no SQLite).
 pub mod settings_editor_section;
 // WP-KERNEL-012 MT-087 (D3 — §5.8.4 in-app Diagnostics Panel): the Diagnostics Settings section hosting

@@ -4,7 +4,7 @@
 //!
 //! [`LoomWikiPagePanel`] is the native, AccessKit-addressable port of the React `LoomWikiPagePanel.tsx`
 //! (MT-184/185 parity), extended with the editable OVERLAY the MT title names. It loads a
-//! [`crate::backend_client::WikiProjection`] from the REAL PostgreSQL/EventLedger backend through the
+//! [`crate::backend_client::WikiProjection`] from the REAL SurrealDB/EventLedger backend through the
 //! WP-011 [`crate::backend_client::LoomWikiClient`] (`GET /workspaces/{id}/loom/wiki/{projection_id}`)
 //! and renders, read-only: the title, a `page_type` badge, a `rebuild_status` badge, the source count,
 //! the `rendered_content` text in a scroll area, and a "Stale" footer when the page's

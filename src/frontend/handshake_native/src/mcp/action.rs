@@ -2192,6 +2192,7 @@ mod tests {
         UiTreeSnapshot {
             root,
             captured_at_utc: "0.000000000Z".to_owned(),
+            viewport: None,
             widget_count: 4,
         }
     }

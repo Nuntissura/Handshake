@@ -24,7 +24,7 @@
 //! "currently at" within the history. [`back`](JumpHistory::back) moves the cursor toward the past and
 //! returns the prior location (recording the CURRENT location so Forward can return to it);
 //! [`forward`](JumpHistory::forward) moves toward the future. This is in-memory SESSION state only — no
-//! PostgreSQL/EventLedger persistence (the MT is pure frontend; jump positions come from in-process
+//! SurrealDB/EventLedger persistence (the MT is pure frontend; jump positions come from in-process
 //! editor cursor state).
 
 use std::path::PathBuf;

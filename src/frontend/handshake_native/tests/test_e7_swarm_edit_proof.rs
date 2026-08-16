@@ -1702,6 +1702,7 @@ fn snapshot_harness<S>(harness: &mut Harness<'_, S>) -> UiTreeSnapshot {
     UiTreeSnapshot {
         root: synthetic_root,
         captured_at_utc: "0.000000000Z".to_owned(),
+        viewport: None,
         widget_count,
     }
 }

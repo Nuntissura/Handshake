@@ -2,7 +2,7 @@
 //!
 //! Houses the native Obsidian-class Loom graph surfaces. MT-021 delivers the local + global
 //! force-directed [`graph_view::LoomGraphView`]; later E3 MTs (folder tree, tags, breadcrumbs, canvas)
-//! extend this module. The graph binds the EXISTING PostgreSQL/EventLedger backend through the WP-011
+//! extend this module. The graph binds the EXISTING SurrealDB/EventLedger backend through the WP-011
 //! [`crate::backend_client::LoomGraphClient`] — no new backend, no Tauri.
 
 pub mod block_collection_view;

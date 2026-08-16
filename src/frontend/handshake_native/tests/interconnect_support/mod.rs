@@ -19,9 +19,8 @@
 #![allow(dead_code)] // each suite uses a subset of the helpers; the others are not dead in aggregate.
 
 use std::collections::HashSet;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -324,6 +323,13 @@ fn write_entry(
     .unwrap_or_else(|error| panic!("write immutable attempt digest {history_path:?}: {error}"));
 }
 
+/// Supervisor-declared identity of the embedded SurrealDB store this canonical run is bound to.
+///
+/// This REPLACES `HSK_MT046_POSTGRES_IDENTITY`: there is no DSN any more, so the supervisor declares
+/// the store root it allocated for the run and the scenario receipts bind to that instead. The
+/// matching `provenance.store.identity` key in the supervisor-owned `current-run.json` moves with it.
+const MT046_STORE_IDENTITY_ENV: &str = "HSK_MT046_STORE_IDENTITY";
+
 fn required_env(name: &str) -> String {
     std::env::var(name)
         .ok()
@@ -357,7 +363,7 @@ fn required_supervisor_provenance() -> serde_json::Value {
         "cargo_locked": required_env("HSK_MT046_CARGO_LOCKED") == "true",
         "backend_path": required_env("HSK_MT046_BACKEND_PATH"),
         "backend_sha256": required_env("HSK_MT046_BACKEND_SHA256"),
-        "postgres_identity": required_env("HSK_MT046_POSTGRES_IDENTITY"),
+        "store_identity": required_env(MT046_STORE_IDENTITY_ENV),
         "manifest_sha256": required_env("HSK_MT046_MANIFEST_SHA256"),
         "supervisor_pid": required_env("HSK_MT046_SUPERVISOR_PID"),
         "command_receipt_path": required_env("HSK_MT046_COMMAND_RECEIPT_PATH"),
@@ -476,8 +482,8 @@ fn begin_scenario_run(scenario_id: &str, attempt_id: &str, started_at: &str) -> 
         "MT-046 backend hash changed after supervisor preflight"
     );
     assert_eq!(
-        state["provenance"]["postgres"]["dsn"], provenance["postgres_identity"],
-        "MT-046 PostgreSQL identity changed after supervisor preflight"
+        state["provenance"]["store"]["identity"], provenance["store_identity"],
+        "MT-046 embedded-store identity changed after supervisor preflight"
     );
     assert_eq!(
         state["provenance"]["manifest_sha256"], provenance["manifest_sha256"],
@@ -796,7 +802,7 @@ impl Drop for LiveBackend {
 
 /// Start a fixture-owned current-source backend and immediately publish an immutable, run-bound
 /// ownership receipt while the child is live. The supervisor independently binds this receipt to the
-/// exact test process, backend binary, PostgreSQL identity, and retained runtime diagnostics.
+/// exact test process, backend binary, embedded-store identity, and retained runtime diagnostics.
 pub fn require_live_backend() -> LiveBackend {
     let backend = pg_proof_support::require_live_backend();
     publish_owned_backend_binding_receipt(&backend);
@@ -962,242 +968,117 @@ pub fn save_rich_document_via_production_manager(
     }
 }
 
-/// Read the immutable PostgreSQL EventLedger authority row named by a production save receipt.
-/// `/events` is the Flight Recorder UUID projection and therefore cannot accept a typed `KE-*` id.
+/// Read the immutable EventLedger authority row named by a production save receipt, through the
+/// product's own kernel aggregate route.
+///
+/// `GET /kernel/events/aggregates/{aggregate_type}/{aggregate_id}` is the ONLY EventLedger read
+/// surface the backend exposes (`api::kernel::list_kernel_events_for_aggregate`); the Flight Recorder
+/// `/events` projection is a curated business-event stream and cannot accept a typed `KE-*` id. There
+/// is no by-event-id route, so the caller must name the aggregate the receipt belongs to — which is a
+/// STRONGER binding than the old `WHERE event_id = ...` query, because the row is now proven to sit
+/// under the exact aggregate rather than merely to exist somewhere in the ledger.
+///
 /// The canonical payload remains at the top level; `_event_*`/`_aggregate_*` fields expose immutable
-/// row identity so callers can prove a receipt belongs to the exact document, not merely a workspace.
-pub fn event_ledger_payload(event_id: &str) -> serde_json::Value {
+/// row identity, each copied from the observed `KernelEvent`, so callers can prove a receipt belongs
+/// to the exact document and not merely to a workspace.
+pub fn event_ledger_payload(
+    backend: &LiveBackend,
+    aggregate_type: &str,
+    aggregate_id: &str,
+    event_id: &str,
+) -> serde_json::Value {
     assert!(
         event_id.starts_with("KE-")
             && uuid::Uuid::parse_str(event_id.trim_start_matches("KE-")).is_ok(),
         "production save receipt must carry a typed KE UUID"
     );
-    let database_url = [
-        "HANDSHAKE_TEST_PG_DSN",
-        "HSK_PROOF_DATABASE_URL",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-    .into_iter()
-    .find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    })
-    .expect("EventLedger proof requires a managed PostgreSQL DSN");
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let mut command = Command::new(psql);
-    command
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--tuples-only")
-        .arg("--no-align")
-        .arg("--dbname")
-        .arg(database_url)
-        .arg("--command")
-        .arg(format!(
-            "SELECT (payload || jsonb_build_object(\
-                '_event_id', event_id, \
-                '_event_type', event_type, \
-                '_aggregate_type', aggregate_type, \
-                '_aggregate_id', aggregate_id\
-            ))::text FROM kernel_event_ledger WHERE event_id = '{event_id}'"
-        ))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("PGCONNECT_TIMEOUT", "5");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let mut child = command
-        .spawn()
-        .expect("start bounded psql EventLedger receipt query");
-    let deadline = Instant::now() + Duration::from_secs(10);
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if Instant::now() < deadline => {
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("EventLedger receipt query exceeded 10 seconds and was reaped");
-            }
-            Err(error) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("poll EventLedger receipt query: {error}");
-            }
-        }
-    };
-    let mut stdout = String::new();
-    child
-        .stdout
-        .take()
-        .expect("capture EventLedger query stdout")
-        .read_to_string(&mut stdout)
-        .expect("read EventLedger query stdout");
-    let mut stderr = String::new();
-    child
-        .stderr
-        .take()
-        .expect("capture EventLedger query stderr")
-        .read_to_string(&mut stderr)
-        .expect("read EventLedger query stderr");
     assert!(
-        status.success(),
-        "EventLedger receipt query failed with {status}: {stderr}"
+        !aggregate_type.trim().is_empty() && !aggregate_id.trim().is_empty(),
+        "EventLedger correlation requires a non-empty aggregate identity"
     );
-    serde_json::from_str(stdout.trim()).unwrap_or_else(|error| {
-        panic!("EventLedger receipt {event_id} payload missing or invalid ({error}): {stdout}")
-    })
+    let path = format!("/kernel/events/aggregates/{aggregate_type}/{aggregate_id}");
+    let events = backend.get_json(&path);
+    let rows = events
+        .as_array()
+        .unwrap_or_else(|| panic!("GET {path} must return a kernel event array: {events}"));
+    let event = rows
+        .iter()
+        .find(|row| row.get("event_id").and_then(serde_json::Value::as_str) == Some(event_id))
+        .unwrap_or_else(|| {
+            panic!("kernel EventLedger aggregate {aggregate_type}/{aggregate_id} has no row {event_id}: {events}")
+        });
+    let mut payload = event
+        .get("payload")
+        .cloned()
+        .unwrap_or_else(|| panic!("kernel event {event_id} has no payload: {event}"));
+    let object = payload
+        .as_object_mut()
+        .unwrap_or_else(|| panic!("kernel event {event_id} payload is not an object: {event}"));
+    for (key, source) in [
+        ("_event_id", "event_id"),
+        ("_event_type", "event_type"),
+        ("_aggregate_type", "aggregate_type"),
+        ("_aggregate_id", "aggregate_id"),
+    ] {
+        let value = event
+            .get(source)
+            .cloned()
+            .unwrap_or_else(|| panic!("kernel event {event_id} has no {source}: {event}"));
+        object.insert(key.to_owned(), value);
+    }
+    payload
 }
 
-/// Durable PostgreSQL residue relevant to the IC-13 typed no-model branch. The workspace-scoped
-/// suggestion and joined EventLedger counts must remain zero; the fixture-owned session's recorded-event
-/// count must not change across the request, catching an orphan append without observing another WP.
+/// Durable embedded-store residue relevant to the IC-13 typed no-model branch, observed through the
+/// product's own workspace-scoped route `GET /workspaces/{id}/loom/ai-suggestions`
+/// (`api::loom::list_loom_ai_suggestions`, which returns `Vec<LoomAiSuggestionRow>`).
+///
+/// * `suggestion_rows` is the exact number of Loom AI suggestion rows the product reports for the
+///   workspace — the direct replacement for `SELECT COUNT(*) FROM loom_ai_suggestions`.
+/// * `recorded_event_rows` counts those rows that carry a non-empty `recorded_event_id`, i.e. rows
+///   bound to an `AI_EDIT_PROPOSAL_RECORDED` EventLedger append. This is WEAKER than the SQL join it
+///   replaces: it proves the suggestion claims a recorded event, not that the ledger row exists,
+///   because the only EventLedger read route is aggregate-scoped and this residue check has no
+///   aggregate id to name. Recorded as a known gap, not silently equated to the old join.
+///
+/// GAP — NO HTTP ROUTE: the PostgreSQL version also counted, across the WHOLE ledger,
+/// `AI_EDIT_PROPOSAL_RECORDED` rows emitted by `source_component = 'loom_ai_job'` for
+/// `session_run_id = 'wp-kernel-012-native-proof-session'` (`fixture_session_recorded_events`). That
+/// caught an ORPHAN append: an event written without a suggestion row, which no workspace-scoped
+/// route can see. The backend exposes no route that lists kernel events by event_type,
+/// source_component, or session_run_id, so the check CANNOT be performed over HTTP. The field is
+/// removed rather than stubbed, so every caller fails to compile instead of silently losing the
+/// assertion. Restoring it requires a backend read surface for session-scoped kernel events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoomAiResidueCounts {
     pub suggestion_rows: i64,
     pub recorded_event_rows: i64,
-    pub fixture_session_recorded_events: i64,
 }
 
-pub fn loom_ai_residue_counts(workspace_id: &str) -> LoomAiResidueCounts {
+pub fn loom_ai_residue_counts(backend: &LiveBackend, workspace_id: &str) -> LoomAiResidueCounts {
     assert!(
         !workspace_id.is_empty()
             && workspace_id
                 .chars()
                 .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')),
-        "IC-13 workspace id is not safe for a psql variable"
+        "IC-13 workspace id is not a safe single URL path segment"
     );
-    let query = r#"
-SELECT COUNT(*) FROM loom_ai_suggestions WHERE workspace_id = :'workspace_id';
-SELECT COUNT(*)
-FROM kernel_event_ledger AS event
-JOIN loom_ai_suggestions AS suggestion ON suggestion.recorded_event_id = event.event_id
-WHERE suggestion.workspace_id = :'workspace_id'
-  AND event.event_type = 'AI_EDIT_PROPOSAL_RECORDED'
-  AND event.source_component = 'loom_ai_job';
-SELECT COUNT(*) FROM kernel_event_ledger
-WHERE event_type = 'AI_EDIT_PROPOSAL_RECORDED'
-  AND source_component = 'loom_ai_job'
-  AND session_run_id = 'wp-kernel-012-native-proof-session';
-"#;
-    let output = run_bounded_psql(query, Some(("workspace_id", workspace_id)));
-    let counts: Vec<i64> = output
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            (!trimmed.is_empty()).then(|| {
-                trimmed.parse::<i64>().unwrap_or_else(|error| {
-                    panic!("parse IC-13 PostgreSQL count {trimmed:?}: {error}")
-                })
-            })
+    let path = format!("/workspaces/{workspace_id}/loom/ai-suggestions");
+    let response = backend.get_json(&path);
+    let rows = response
+        .as_array()
+        .unwrap_or_else(|| panic!("GET {path} must return a suggestion array: {response}"));
+    let recorded_event_rows = rows
+        .iter()
+        .filter(|row| {
+            row.get("recorded_event_id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|id| !id.trim().is_empty())
         })
-        .collect();
-    assert_eq!(
-        counts.len(),
-        3,
-        "IC-13 residue query must return exactly three scalar counts: {output:?}"
-    );
+        .count();
     LoomAiResidueCounts {
-        suggestion_rows: counts[0],
-        recorded_event_rows: counts[1],
-        fixture_session_recorded_events: counts[2],
+        suggestion_rows: i64::try_from(rows.len()).expect("suggestion row count fits i64"),
+        recorded_event_rows: i64::try_from(recorded_event_rows)
+            .expect("recorded event row count fits i64"),
     }
-}
-
-pub(crate) fn run_bounded_psql(sql: &str, variable: Option<(&str, &str)>) -> String {
-    let database_url = [
-        "HANDSHAKE_TEST_PG_DSN",
-        "HSK_PROOF_DATABASE_URL",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-    .into_iter()
-    .find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    })
-    .expect("managed PostgreSQL proof requires a DSN");
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let mut command = Command::new(psql);
-    command
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--tuples-only")
-        .arg("--no-align")
-        .arg("--dbname")
-        .arg(database_url);
-    if let Some((name, value)) = variable {
-        command.arg("--set").arg(format!("{name}={value}"));
-    }
-    command
-        // psql does not expand `:variable` references in text supplied through
-        // `--command`. Feed the query through stdin so the `--set` value above
-        // is expanded by psql while the query remains a real PostgreSQL proof.
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("PGCONNECT_TIMEOUT", "5");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let mut child = command
-        .spawn()
-        .expect("start bounded managed PostgreSQL query");
-    child
-        .stdin
-        .take()
-        .expect("open managed PostgreSQL query stdin")
-        .write_all(sql.as_bytes())
-        .expect("write managed PostgreSQL query");
-    let deadline = Instant::now() + Duration::from_secs(10);
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if Instant::now() < deadline => {
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("managed PostgreSQL query exceeded 10 seconds and was reaped");
-            }
-            Err(error) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("poll managed PostgreSQL query: {error}");
-            }
-        }
-    };
-    let mut stdout = String::new();
-    child
-        .stdout
-        .take()
-        .expect("capture managed PostgreSQL query stdout")
-        .read_to_string(&mut stdout)
-        .expect("read managed PostgreSQL query stdout");
-    let mut stderr = String::new();
-    child
-        .stderr
-        .take()
-        .expect("capture managed PostgreSQL query stderr")
-        .read_to_string(&mut stderr)
-        .expect("read managed PostgreSQL query stderr");
-    assert!(
-        status.success(),
-        "managed PostgreSQL query failed with {status}: {stderr}"
-    );
-    stdout
 }

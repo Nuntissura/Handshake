@@ -31,7 +31,7 @@
 //!
 //! ## VERIFIED BACKEND REALITY
 //!
-//! `handshake_core` exposes read-only Locus routes backed by the canonical PostgreSQL `work_packets` and
+//! `handshake_core` exposes read-only Locus routes backed by the canonical SurrealDB `work_packets` and
 //! `micro_tasks` tables. The workspace path segment is validated, while WP/MT identity remains globally keyed
 //! by the canonical record id.
 //!
@@ -429,7 +429,7 @@ pub type LocusResult<T> = Result<T, LocusInteropError>;
 /// - the workspace the WP/MT records belong to.
 ///
 /// All methods are async and READ-ONLY (a single GET, never a write verb). The Locus READ routes resolve
-/// canonical PostgreSQL work-packet and microtask records. A genuinely missing route remains distinguishable
+/// canonical SurrealDB work-packet and microtask records. A genuinely missing route remains distinguishable
 /// from an unknown record by inspecting the backend's typed 404 body. Reverse lookup is the REAL MT-034
 /// search mechanism, keyed on the normalized `locus://` ref.
 #[derive(Clone)]

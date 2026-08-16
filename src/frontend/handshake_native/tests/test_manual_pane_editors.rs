@@ -689,6 +689,7 @@ fn argus_snapshot<S>(harness: &Harness<'_, S>) -> UiTreeSnapshot {
             children,
         },
         captured_at_utc: "manual-argus-generation".to_owned(),
+        viewport: None,
     }
 }
 
@@ -1077,10 +1078,17 @@ fn manual_content_has_no_sqlite_and_no_direct_db_writes() {
         !lower.contains("sqlite"),
         "MC-006: the manual must not mention SQLite"
     );
-    // Persistence must be described as PostgreSQL/EventLedger via handshake_core.
+    // Persistence must be described as the embedded SurrealDB/EventLedger authority via handshake_core.
     assert!(
-        lower.contains("postgresql") || lower.contains("eventledger"),
-        "MC-006: persistence must be described as PostgreSQL/EventLedger"
+        lower.contains("surrealdb") && lower.contains("eventledger"),
+        "MC-006: persistence must be described as SurrealDB/EventLedger"
+    );
+    // The only surviving PostgreSQL token is the legacy proof-harness variable HANDSHAKE_TEST_PG_DSN,
+    // which is still literally required by tests/pg_proof_support/mod.rs. No persistence-authority
+    // sentence may describe PostgreSQL as the store.
+    assert!(
+        !lower.contains("postgresql/eventledger") && !lower.contains("postgresql authority"),
+        "MC-006: PostgreSQL must not be described as the persistence authority"
     );
     assert!(
         lower.contains("handshake_core"),

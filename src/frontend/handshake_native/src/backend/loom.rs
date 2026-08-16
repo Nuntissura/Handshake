@@ -302,7 +302,7 @@ pub struct LoomKnowledgeBridge {
 
 /// The result of importing markdown into Loom authority (`POST /loom/import/markdown`). Mirrors
 /// `storage::loom::LoomMarkdownImport`. The markdown source is NEVER authority — only the returned
-/// PostgreSQL authority rows are (vault-never-authority, MT-187).
+/// SurrealDB authority records are (vault-never-authority, MT-187).
 #[derive(Debug, Clone, Deserialize)]
 pub struct LoomMarkdownImport {
     /// The new authority LoomBlock (content_type = note), bridged to the ProjectKnowledgeIndex.

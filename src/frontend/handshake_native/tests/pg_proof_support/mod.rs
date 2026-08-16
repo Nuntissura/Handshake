@@ -1,4 +1,4 @@
-//! Real managed-PostgreSQL + handshake_core fixture shared by native-editor integration proofs.
+//! Embedded-SurrealDB + handshake_core fixture shared by native-editor integration proofs.
 //!
 //! The frontend/backend Cargo graphs intentionally stay separate (their tree-sitter ABI lines differ).
 //! The fixture attaches to `HSK_TEST_BASE` when a healthy root-managed product backend is present, or
@@ -6,6 +6,16 @@
 //! use an owned process so the backend inherits their private discovery-binding root. It never invokes Cargo.
 //! An owned process is killed on drop; an attached process is never touched. Every proof creates its own
 //! workspace through production HTTP and deletes that workspace before releasing the fixture lock.
+//!
+//! ## Storage authority
+//!
+//! The product now opens a Handshake-managed EMBEDDED SurrealDB store inside the `handshake_core`
+//! process (`HANDSHAKE_STORAGE_MODE=surreal_embedded`). There is no database server, no DSN, and no
+//! `psql` child process anywhere in this fixture. Isolation between proof runs comes from the DATA
+//! DIRECTORY, not from a schema or database name: every owned backend receives its own
+//! `HANDSHAKE_DATA_DIR` under a per-run/per-scenario/per-UUID runtime root, so its store lives at
+//! `<runtime_root>/data/handshake-surreal` and can never be observed or mutated by another run.
+//! All fixture seeding and verification therefore goes through the product's own HTTP routes.
 
 #![allow(dead_code)]
 
@@ -42,10 +52,10 @@ use sha2::{Digest, Sha256};
 // command-wide deadline.
 const FIXTURE_LOCK_TIMEOUT: Duration = Duration::from_secs(1200);
 // Every owned backend replays the complete production startup path before it can publish its listen
-// report. On a shared PostgreSQL cluster, another worktree can hold the migration advisory lock and
-// serialize schema/corpus work for more than five minutes. Keep one aggregate startup deadline across
-// listen-report + health readiness, separate from every measured route budget and capped by the
-// supervisor-injected command-wide deadline.
+// report: it creates its private data directory, opens the embedded SurrealDB store (RocksDB engine)
+// and applies the schema/corpus work for a COLD store, which is the slowest path this fixture has.
+// Keep one aggregate startup deadline across listen-report + health readiness, separate from every
+// measured route budget and capped by the supervisor-injected command-wide deadline.
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(1200);
 const DEFAULT_COMMAND_TIMEOUT: Duration = Duration::from_secs(1620);
 const COMMAND_DEADLINE_ENV: &str = "HSK_MT045_COMMAND_DEADLINE_UNIX_MS";
@@ -55,7 +65,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const SHUTDOWN_GRACE_TIMEOUT: Duration = Duration::from_secs(10);
 const HELPER_REAP_RESERVE: Duration = Duration::from_secs(2);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
-// Contract-sized 5k-row corpora traverse public validation, PostgreSQL, EventLedger, projections, and
+// Contract-sized 5k-row corpora traverse public validation, the embedded SurrealDB store,
+// EventLedger, projections, and
 // search refresh at the product's measured ~12-writes/s write ceiling, so large corpora (LK-03's 10k
 // rows) legitimately need the full bounded setup window to SEED. Setup is explicitly OUTSIDE measured
 // query time (it never affects a budget). The default and maximum are identical for the canonical proof;
@@ -65,6 +76,17 @@ const MAX_SETUP_TIMEOUT: Duration = Duration::from_secs(1200);
 static PROOF_COMMAND_DEADLINE: OnceLock<Instant> = OnceLock::new();
 
 pub const DEFAULT_BASE: &str = "http://127.0.0.1:37501";
+
+/// Embedded-store contract mirrored from `handshake_core::storage`. These are the exact strings the
+/// backend reads (`storage::mod::HANDSHAKE_STORAGE_MODE_ENV`,
+/// `storage::surreal::HANDSHAKE_DATA_DIR_ENV`, `ControlPlaneStorageMode::SurrealEmbedded::as_str()`,
+/// `storage::surreal::DEFAULT_STORE_DIRECTORY`). The native crate does not depend on
+/// `handshake_core`, so they are pinned here and asserted against the real spawned child rather than
+/// imported.
+pub const EMBEDDED_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
+pub const EMBEDDED_STORAGE_MODE: &str = "surreal_embedded";
+pub const EMBEDDED_DATA_DIR_ENV: &str = "HANDSHAKE_DATA_DIR";
+pub const EMBEDDED_STORE_DIRECTORY: &str = "handshake-surreal";
 
 pub struct LiveBackend {
     pub base: String,
@@ -237,21 +259,6 @@ fn proof_request_timeout(maximum: Duration) -> Option<Duration> {
 }
 
 struct PendingChild(Option<Child>);
-
-struct RemoveFileOnDrop(PathBuf);
-
-impl Drop for RemoveFileOnDrop {
-    fn drop(&mut self) {
-        match std::fs::remove_file(&self.0) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => eprintln!(
-                "WARN: failed to remove transient fixture input {}: {error}",
-                self.0.display()
-            ),
-        }
-    }
-}
 
 impl PendingChild {
     fn new(child: Child) -> Self {
@@ -625,10 +632,6 @@ fn spawn_backend_at(
         );
     }
     let report_path = run_root.join("listen-report.json");
-    let database_url = std::env::var("HANDSHAKE_TEST_PG_DSN")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| panic!("owned backend requires explicit HANDSHAKE_TEST_PG_DSN"));
     let stdout =
         File::create(run_root.join("backend.stdout.log")).expect("create backend stdout log");
     let stderr =
@@ -644,11 +647,15 @@ fn spawn_backend_at(
         .stderr(Stdio::from(stderr))
         .env("HANDSHAKE_BACKEND_LISTEN_ADDR", listen_addr)
         .env("HANDSHAKE_BACKEND_LISTEN_REPORT_FILE", &report_path)
-        .env("HANDSHAKE_DATA_DIR", &data_dir)
-        .env("DATABASE_URL", database_url)
-        .env("HANDSHAKE_STORAGE_MODE", "postgres_primary")
-        .env("HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES", "true")
-        .env("HANDSHAKE_MANAGED_PG_ENABLED", "false");
+        // Embedded-store contract (src/backend/handshake_core/src/storage/{mod,surreal}.rs):
+        // `HANDSHAKE_STORAGE_MODE=surreal_embedded` selects `ControlPlaneStorageMode::SurrealEmbedded`
+        // and `HANDSHAKE_DATA_DIR` resolves the store root, so the child opens exactly
+        // `<data_dir>/handshake-surreal`. `data_dir` is unique per owned backend (per run, per
+        // scenario, per UUID), which is what isolates one proof run from every other one — there is
+        // no shared cluster, no schema/database name to collide on, and nothing to clean up between
+        // runs beyond removing this directory.
+        .env(EMBEDDED_STORAGE_MODE_ENV, EMBEDDED_STORAGE_MODE)
+        .env(EMBEDDED_DATA_DIR_ENV, &data_dir);
     let child = no_window(&mut command)
         .spawn()
         .unwrap_or_else(|error| panic!("start {}: {error}", binary.display()));
@@ -768,6 +775,10 @@ fn no_window(command: &mut Command) -> &mut Command {
     command
 }
 
+/// Health gate for the embedded store. `/health` reports `db_status: "ok"` only after
+/// `Storage::ping` AND `Storage::migration_version` both succeed against the opened embedded
+/// SurrealDB store, so this remains the exact same readiness semantics it had against the external
+/// server: a reachable HTTP listener whose storage authority is NOT open still reads as unhealthy.
 fn healthy(
     rt: &tokio::runtime::Runtime,
     client: &reqwest::Client,
@@ -862,19 +873,46 @@ impl LiveBackend {
             .expect("owned backend records its exact binary");
         let bytes = std::fs::read(binary)
             .unwrap_or_else(|error| panic!("hash owned backend {}: {error}", binary.display()));
-        let dsn = std::env::var("HANDSHAKE_TEST_PG_DSN")
-            .expect("owned backend proof requires HANDSHAKE_TEST_PG_DSN");
-        let parsed = reqwest::Url::parse(&dsn).expect("parse HANDSHAKE_TEST_PG_DSN");
         serde_json::json!({
             "owned": true,
             "base_url": self.base,
             "backend_pid": child.id(),
             "backend_binary": binary,
             "backend_binary_sha256": format!("{:x}", Sha256::digest(bytes)),
-            "database_host": parsed.host_str(),
-            "database_port": parsed.port_or_known_default(),
-            "database_name": parsed.path().trim_start_matches('/'),
+            "embedded_store": self.embedded_store_identity(),
             "runtime_data_dir": self.owned_data_dir,
+        })
+    }
+
+    /// Identity of the embedded SurrealDB store this fixture's backend is bound to.
+    ///
+    /// Every field is OBSERVED, never assumed:
+    /// * `storage_mode` / `data_dir` are the exact values this fixture passed to the child process.
+    /// * `store_path` is the contract path (`<data_dir>/handshake-surreal`) and `store_path_present`
+    ///   is a live filesystem check of it, so a backend that failed to open its store is visible.
+    ///
+    /// GAP (typed, not fabricated): the active SurrealDB NAMESPACE and DATABASE are chosen inside the
+    /// backend (`DEFAULT_NAMESPACE`/`DEFAULT_DATABASE`) and are not published by `/health` or any
+    /// other route, and they are not derivable from the store directory. They are reported as `null`
+    /// with `identity_observability` naming the missing surface rather than echoed from a constant
+    /// this fixture cannot verify.
+    pub fn embedded_store_identity(&self) -> serde_json::Value {
+        let data_dir = self.owned_data_dir.clone();
+        let store_path = data_dir
+            .as_ref()
+            .map(|dir| dir.join(EMBEDDED_STORE_DIRECTORY));
+        serde_json::json!({
+            "storage_mode": EMBEDDED_STORAGE_MODE,
+            "storage_mode_env": EMBEDDED_STORAGE_MODE_ENV,
+            "data_dir_env": EMBEDDED_DATA_DIR_ENV,
+            "data_dir": data_dir,
+            "store_path": store_path,
+            "store_path_present": store_path.as_ref().map(|path| path.exists()),
+            "isolation": "per_owned_backend_data_directory",
+            "namespace": serde_json::Value::Null,
+            "database": serde_json::Value::Null,
+            "identity_observability":
+                "no_backend_route_publishes_the_active_surrealdb_namespace_or_database",
         })
     }
 
@@ -897,9 +935,11 @@ impl LiveBackend {
             .expect("owned_binary_path requires a fixture-owned backend")
     }
 
-    /// Restart the exact backend process owned by this fixture while preserving its PostgreSQL
-    /// authority. The replacement is spawned from the same current-source executable and private
-    /// binding root, then health-gated before the new ephemeral base URL is returned.
+    /// Restart the exact backend process owned by this fixture while preserving its embedded-store
+    /// authority: the replacement re-opens the SAME `HANDSHAKE_DATA_DIR`, so the durable
+    /// `<data_dir>/handshake-surreal` store survives the process boundary. The replacement is spawned
+    /// from the same current-source executable and private binding root, then health-gated before the
+    /// new ephemeral base URL is returned.
     pub fn restart_owned(&mut self) -> (String, String) {
         let restart_deadline = bounded_command_deadline(STARTUP_TIMEOUT);
         assert!(
@@ -967,7 +1007,7 @@ impl LiveBackend {
     fn assert_healthy(&self) {
         assert!(
             healthy(&self.rt, &self.client, &self.base, proof_command_deadline()),
-            "product backend is not PostgreSQL-healthy at {}",
+            "product backend embedded store is not healthy at {}",
             self.base
         );
     }
@@ -992,104 +1032,6 @@ impl LiveBackend {
                 .json(&serde_json::json!({"name": name})),
             "POST /workspaces",
         )
-    }
-
-    /// Seed a large fixture in one PostgreSQL transaction through the canonical Loom tables. This is
-    /// fixture-only setup: the measured query still enters through the production HTTP route. The psql
-    /// child is hard-bounded to 60 seconds and is always killed/reaped on timeout.
-    pub fn run_fixture_sql(&self, label: &str, sql: &str) {
-        let setup_deadline = SetupDeadline::begin(label);
-        let database_url = [
-            "HANDSHAKE_TEST_PG_DSN",
-            "HSK_PROOF_DATABASE_URL",
-            "POSTGRES_TEST_URL",
-            "DATABASE_URL",
-        ]
-            .into_iter()
-            .find_map(|name| std::env::var(name).ok().filter(|value| !value.trim().is_empty()))
-            .unwrap_or_else(|| {
-                panic!(
-                    "{label}: batch fixture needs HANDSHAKE_TEST_PG_DSN, HSK_PROOF_DATABASE_URL, POSTGRES_TEST_URL, or DATABASE_URL"
-                )
-            });
-        let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-        let log_dir = external_artifact_root().join("fixture-runtime");
-        std::fs::create_dir_all(&log_dir).expect("create fixture runtime artifact directory");
-        let run_id = uuid::Uuid::new_v4();
-        let stdout_path = log_dir.join(format!("{label}-{run_id}.stdout.log"));
-        let stderr_path = log_dir.join(format!("{label}-{run_id}.stderr.log"));
-        let sql_path = log_dir.join(format!("{label}-{run_id}.sql"));
-        let _sql_input_guard = RemoveFileOnDrop(sql_path.clone());
-        let mut sql_file = File::create(&sql_path).expect("create fixture SQL input");
-        sql_file
-            .write_all(sql.as_bytes())
-            .unwrap_or_else(|error| panic!("{label}: write psql fixture file: {error}"));
-        sql_file
-            .flush()
-            .unwrap_or_else(|error| panic!("{label}: flush psql fixture file: {error}"));
-        drop(sql_file);
-        setup_deadline.check();
-        let stdout = File::create(&stdout_path).expect("create fixture stdout log");
-        let stderr = File::create(&stderr_path).expect("create fixture stderr log");
-        let mut command = Command::new(psql);
-        command
-            // Adversarial review B4: pin psql CWD to the external fixture log dir, never the repo worktree.
-            .current_dir(&log_dir)
-            .arg("--no-psqlrc")
-            .arg("--set")
-            .arg("ON_ERROR_STOP=1")
-            .arg("--dbname")
-            .arg(database_url)
-            .arg("--file")
-            .arg(&sql_path)
-            .stdin(Stdio::null())
-            .stdout(Stdio::from(stdout))
-            .stderr(Stdio::from(stderr))
-            .env("PGCONNECT_TIMEOUT", "5");
-        let child = no_window(&mut command)
-            .spawn()
-            .unwrap_or_else(|error| panic!("{label}: start psql batch fixture: {error}"));
-        let mut pending = PendingChild::new(child);
-
-        let deadline = Instant::now() + setup_deadline.remaining();
-        loop {
-            match pending.child_mut().try_wait() {
-                Ok(Some(status)) => {
-                    let _ = pending.take();
-                    assert!(
-                        status.success(),
-                        "{label}: psql batch fixture failed with {status}; stderr={}",
-                        stderr_path.display()
-                    );
-                    break;
-                }
-                Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
-                Ok(None) => {
-                    force_kill_tree_and_reap(pending.child_mut(), "time out psql batch fixture")
-                        .unwrap_or_else(|error| {
-                            let _ = std::fs::remove_file(&sql_path);
-                            eprintln!("FATAL: {error}");
-                            std::process::abort();
-                        });
-                    let _ = pending.take();
-                    panic!(
-                        "{label}: psql batch fixture exceeded hard {}s deadline and was killed/reaped; stderr={}",
-                        setup_deadline.timeout_secs(),
-                        stderr_path.display()
-                    );
-                }
-                Err(error) => {
-                    force_kill_tree_and_reap(pending.child_mut(), "poll failed psql batch fixture")
-                        .unwrap_or_else(|cleanup_error| {
-                            let _ = std::fs::remove_file(&sql_path);
-                            eprintln!("FATAL: {cleanup_error}");
-                            std::process::abort();
-                        });
-                    let _ = pending.take();
-                    panic!("{label}: poll psql batch fixture: {error}");
-                }
-            }
-        }
     }
 
     pub fn delete_workspace(&self, workspace_id: &str) -> u16 {
@@ -1803,12 +1745,14 @@ impl LiveBackend {
             .collect::<Vec<_>>();
         let workspace_cleanup = if stable_logs && process["owned"] == true {
             match active_runtime_root.first() {
-                Some(runtime_root) => {
-                    cleanup_workspace_after_backend_reap(&self.workspace_id, runtime_root)
-                }
+                Some(_) => verify_owned_store_containment_after_reap(
+                    &self.workspace_id,
+                    &self.owned_runtime_roots,
+                    self.owned_data_dir.as_deref(),
+                ),
                 None => serde_json::json!({
                     "status": "failed",
-                    "error": "owned backend has no active runtime root for bounded psql cleanup",
+                    "error": "owned backend has no active runtime root for embedded-store containment proof",
                 }),
             }
         } else if process["owned"] == false {
@@ -1879,136 +1823,72 @@ impl LiveBackend {
     }
 }
 
-fn cleanup_workspace_after_backend_reap(
+/// Post-reap workspace-residue proof for a fixture-owned backend.
+///
+/// The PostgreSQL predecessor had to shell out to `psql` and run
+/// `DELETE FROM workspaces ... ; SELECT COUNT(*) ...` because every worktree shared ONE long-lived
+/// cluster, so a workspace left behind by a crashed proof really did leak into the next run. The
+/// embedded store has no such reachability: the workspace row lives inside
+/// `<data_dir>/handshake-surreal`, that store is opened only by the child this fixture just reaped,
+/// and `data_dir` is a per-run/per-scenario/per-UUID directory owned by this fixture. There is no
+/// second process that can observe it and no shared namespace to sweep.
+///
+/// The honest post-reap check is therefore CONTAINMENT, not deletion, and every field below is an
+/// observation:
+/// * `store_path` is the contract path derived from the exact `HANDSHAKE_DATA_DIR` handed to the
+///   child, and `store_path_present` is a live filesystem check;
+/// * `data_dir_inside_runtime_root` proves the store is inside the runtime root this fixture owns and
+///   removes on successful publication, so no residue can outlive the run.
+///
+/// This deliberately does NOT claim `verified_absent`. On the failure path the runtime root is
+/// retained for diagnostics, so the workspace row is still on disk — asserting absence there would be
+/// false. Absence is guaranteed by removing the owned runtime roots, which is proven separately by
+/// [`remove_runtime_root_and_empty_parents`].
+///
+/// The check takes ALL of the fixture's owned runtime roots, not just the active one: `restart_owned`
+/// deliberately re-opens the ORIGINAL `HANDSHAKE_DATA_DIR` from a NEW runtime root, so after a restart
+/// the store lives under an earlier root and comparing it only against the newest one would report a
+/// false escape.
+fn verify_owned_store_containment_after_reap(
     workspace_id: &str,
-    runtime_root: &Path,
+    owned_runtime_roots: &[PathBuf],
+    data_dir: Option<&Path>,
 ) -> serde_json::Value {
-    if workspace_id.is_empty() {
-        return serde_json::json!({
-            "status": "no_workspace",
-            "workspace_id": null,
-            "verified_absent": true,
-            "remaining_workspace_count": 0,
-            "error": null,
-        });
-    }
-    let Some(database_url) = std::env::var("HANDSHAKE_TEST_PG_DSN")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-    else {
+    let Some(data_dir) = data_dir else {
         return serde_json::json!({
             "status": "failed",
-            "workspace_id": workspace_id,
-            "error": "HANDSHAKE_TEST_PG_DSN is unavailable for post-reap workspace cleanup",
+            "workspace_id": (!workspace_id.is_empty()).then(|| workspace_id.to_owned()),
+            "error": "fixture-owned backend has no recorded HANDSHAKE_DATA_DIR to contain its embedded store",
         });
     };
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let stdout_path = runtime_root.join("workspace-cleanup.stdout.log");
-    let stderr_path = runtime_root.join("workspace-cleanup.stderr.log");
-    let stdout = match File::create(&stdout_path) {
-        Ok(file) => file,
-        Err(error) => {
-            return serde_json::json!({
-                "status": "failed",
-                "workspace_id": workspace_id,
-                "error": format!("create post-reap cleanup stdout: {error}"),
-            });
-        }
+    let store_path = data_dir.join(EMBEDDED_STORE_DIRECTORY);
+    let containing_runtime_root = owned_runtime_roots
+        .iter()
+        .find(|root| data_dir.starts_with(root));
+    let containment_verified = containing_runtime_root.is_some();
+    let status = if !containment_verified {
+        "failed"
+    } else if workspace_id.is_empty() {
+        "no_workspace"
+    } else {
+        "contained_in_owned_embedded_store"
     };
-    let stderr = match File::create(&stderr_path) {
-        Ok(file) => file,
-        Err(error) => {
-            return serde_json::json!({
-                "status": "failed",
-                "workspace_id": workspace_id,
-                "error": format!("create post-reap cleanup stderr: {error}"),
-            });
-        }
-    };
-    let literal = workspace_id.replace('\'', "''");
-    let sql = format!(
-        "DELETE FROM workspaces WHERE id = '{literal}'; SELECT COUNT(*) FROM workspaces WHERE id = '{literal}';"
-    );
-    let mut command = Command::new(&psql);
-    command
-        .current_dir(runtime_root)
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--quiet")
-        .arg("--tuples-only")
-        .arg("--no-align")
-        .arg("--dbname")
-        .arg(&database_url)
-        .arg("--command")
-        .arg(sql)
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .env("PGCONNECT_TIMEOUT", "5");
-    let child = match no_window(&mut command).spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            return serde_json::json!({
-                "status": "failed",
-                "workspace_id": workspace_id,
-                "psql": psql,
-                "error": format!("start bounded post-reap psql cleanup: {error}"),
-            });
-        }
-    };
-    let pid = child.id();
-    let mut pending = PendingChild::new(child);
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let exit_status = loop {
-        match pending.child_mut().try_wait() {
-            Ok(Some(status)) => {
-                let _ = pending.take();
-                break Ok(status);
-            }
-            Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
-            Ok(None) => {
-                let cleanup = force_kill_tree_and_reap(
-                    pending.child_mut(),
-                    "time out post-reap workspace cleanup psql",
-                );
-                let _ = pending.take();
-                break Err(format!(
-                    "post-reap workspace cleanup psql timed out; reap={cleanup:?}"
-                ));
-            }
-            Err(error) => {
-                let cleanup = force_kill_tree_and_reap(
-                    pending.child_mut(),
-                    "poll failed post-reap workspace cleanup psql",
-                );
-                let _ = pending.take();
-                break Err(format!(
-                    "poll post-reap workspace cleanup psql: {error}; reap={cleanup:?}"
-                ));
-            }
-        }
-    };
-    let stdout_text = std::fs::read_to_string(&stdout_path).unwrap_or_default();
-    let stderr_text = std::fs::read_to_string(&stderr_path).unwrap_or_default();
-    let verified_absent =
-        exit_status.as_ref().is_ok_and(|status| status.success()) && stdout_text.trim() == "0";
     serde_json::json!({
-        "status": if verified_absent { "deleted_and_verified_absent" } else { "failed" },
-        "workspace_id": workspace_id,
-        "psql": psql,
-        "psql_pid": pid,
-        "exit_code": exit_status.as_ref().ok().and_then(|status| status.code()),
-        "success": exit_status.as_ref().ok().map(std::process::ExitStatus::success),
-        "verified_absent": verified_absent,
-        "remaining_workspace_count": if verified_absent { Some(0_u64) } else { None },
-        "stdout_path": stdout_path,
-        "stdout_sha256": sha256_file(&stdout_path).ok(),
-        "stdout_tail": stdout_text.lines().rev().take(8).collect::<Vec<_>>(),
-        "stderr_path": stderr_path,
-        "stderr_sha256": sha256_file(&stderr_path).ok(),
-        "stderr_tail": stderr_text.lines().rev().take(8).collect::<Vec<_>>(),
-        "error": exit_status.err(),
+        "status": status,
+        "workspace_id": (!workspace_id.is_empty()).then(|| workspace_id.to_owned()),
+        "containment_verified": containment_verified,
+        "residue_scope": "fixture_owned_data_directory_only",
+        "runtime_root": containing_runtime_root,
+        "owned_runtime_roots": owned_runtime_roots,
+        "data_dir": data_dir,
+        "data_dir_inside_runtime_root": containment_verified,
+        "store_path": store_path,
+        "store_path_present": store_path.exists(),
+        "error": (!containment_verified).then(|| format!(
+            "embedded store data dir {} escaped every fixture-owned runtime root {:?}",
+            data_dir.display(),
+            owned_runtime_roots
+        )),
     })
 }
 
@@ -2691,122 +2571,68 @@ fn retain_backend_failure_files(
         }
     }
 
-    if workspace_cleanup["status"] == "deleted_and_verified_absent" {
-        let retain_cleanup_file = |source_field: &str,
-                                   expected_name: &str,
-                                   retained_name: &str|
-         -> Result<(PathBuf, u64, String), String> {
-            if runtime_roots.len() != 1 {
-                return Err(
-                    "post-reap workspace cleanup proof requires exactly one runtime root"
-                        .to_owned(),
-                );
-            }
-            let source = workspace_cleanup[source_field]
+    // The embedded store publishes no out-of-band cleanup transcript to retain: containment is proven
+    // from the owned runtime roots themselves. The extra binding worth making here is that the
+    // runtime root the containment proof named is a REAL fixture-owned runtime root (inside the owned
+    // backend-runtime boundary, with no reparse point in its chain) and really does contain the store
+    // — the same containment property the retained-file capture below relies on.
+    if matches!(
+        workspace_cleanup["status"].as_str(),
+        Some("no_workspace" | "contained_in_owned_embedded_store")
+    ) {
+        let bound = (|| -> Result<PathBuf, String> {
+            let claimed_runtime_root = workspace_cleanup["runtime_root"]
                 .as_str()
                 .map(PathBuf::from)
-                .ok_or_else(|| format!("workspace cleanup receipt has no {source_field}"))?;
-            let canonical_runtime_root = validate_owned_runtime_root(&runtime_roots[0])?;
-            let expected_source = canonical_runtime_root.join(expected_name);
-            let canonical_source = std::fs::canonicalize(&source).map_err(|error| {
+                .ok_or_else(|| "containment receipt names no owning runtime root".to_owned())?;
+            // `restart_owned` keeps the ORIGINAL data dir under an EARLIER runtime root, so this
+            // validates the root the containment proof actually named rather than assuming the single
+            // root this capture publishes.
+            let canonical_runtime_root = validate_owned_runtime_root(&claimed_runtime_root)?;
+            let data_dir = workspace_cleanup["data_dir"]
+                .as_str()
+                .map(PathBuf::from)
+                .ok_or_else(|| "containment receipt has no data_dir".to_owned())?;
+            // Compare canonical-to-canonical: `validate_owned_runtime_root` returns a canonical path
+            // (verbatim-prefixed on Windows), so a lexical `starts_with` against the raw spawn-time
+            // path would reject a perfectly contained store.
+            let canonical_data_dir = std::fs::canonicalize(&data_dir).map_err(|error| {
                 format!(
-                    "canonicalize workspace cleanup proof {}: {error}",
-                    source.display()
+                    "canonicalize embedded store data dir {}: {error}",
+                    data_dir.display()
                 )
             })?;
-            if canonical_source != expected_source {
+            if !canonical_data_dir.starts_with(&canonical_runtime_root) {
                 return Err(format!(
-                    "workspace cleanup proof {} is not the expected owned runtime file {}",
-                    canonical_source.display(),
-                    expected_source.display()
+                    "embedded store data dir {} is not inside its claimed owned runtime root {}",
+                    canonical_data_dir.display(),
+                    canonical_runtime_root.display()
                 ));
             }
-            let metadata = std::fs::symlink_metadata(&canonical_source).map_err(|error| {
-                format!(
-                    "inspect workspace cleanup proof {}: {error}",
-                    canonical_source.display()
-                )
-            })?;
-            if !metadata.is_file() || path_is_reparse_or_symlink(&canonical_source).unwrap_or(true)
-            {
-                return Err(format!(
-                    "workspace cleanup proof {} is not a regular non-reparse file",
-                    canonical_source.display()
-                ));
-            }
-            let retained = canonical_destination.join("backend-00").join(retained_name);
-            let (bytes, sha256) = copy_hash_atomic(&canonical_source, &retained)?;
-            Ok((retained, bytes, sha256))
-        };
-        let retained_cleanup = retain_cleanup_file(
-            "stdout_path",
-            "workspace-cleanup.stdout.log",
-            "workspace-cleanup.stdout.log",
-        )
-        .and_then(|stdout| {
-            retain_cleanup_file(
-                "stderr_path",
-                "workspace-cleanup.stderr.log",
-                "workspace-cleanup.stderr.log",
-            )
-            .map(|stderr| (stdout, stderr))
-        });
-        match retained_cleanup {
-            Ok((
-                (stdout_path, stdout_bytes, stdout_sha256),
-                (stderr_path, stderr_bytes, stderr_sha256),
-            )) => {
-                let cleanup = workspace_cleanup
-                    .as_object_mut()
-                    .expect("workspace cleanup receipt is an object");
+            Ok(canonical_data_dir.join(EMBEDDED_STORE_DIRECTORY))
+        })();
+        let cleanup = workspace_cleanup
+            .as_object_mut()
+            .expect("workspace cleanup receipt is an object");
+        match bound {
+            Ok(store_path) => {
                 cleanup.insert(
-                    "retained_stdout_path".to_owned(),
-                    serde_json::json!(stdout_path),
-                );
-                cleanup.insert(
-                    "retained_stdout_bytes".to_owned(),
-                    serde_json::json!(stdout_bytes),
-                );
-                cleanup.insert(
-                    "retained_stdout_sha256".to_owned(),
-                    serde_json::json!(stdout_sha256),
-                );
-                cleanup.insert(
-                    "retained_stderr_path".to_owned(),
-                    serde_json::json!(stderr_path),
-                );
-                cleanup.insert(
-                    "retained_stderr_bytes".to_owned(),
-                    serde_json::json!(stderr_bytes),
-                );
-                cleanup.insert(
-                    "retained_stderr_sha256".to_owned(),
-                    serde_json::json!(stderr_sha256),
+                    "store_path_bound_to_owned_runtime_root".to_owned(),
+                    serde_json::json!(store_path),
                 );
             }
             Err(error) => {
-                let cleanup = workspace_cleanup
-                    .as_object_mut()
-                    .expect("workspace cleanup receipt is an object");
                 cleanup.insert("status".to_owned(), serde_json::json!("failed"));
                 cleanup.insert("publication_error".to_owned(), serde_json::json!(error));
             }
         }
     }
     let cleanup_complete = match workspace_cleanup["status"].as_str() {
-        Some("no_workspace") => {
-            workspace_cleanup["verified_absent"] == true
-                && workspace_cleanup["remaining_workspace_count"] == 0
-        }
-        Some("deleted_and_verified_absent") => {
-            workspace_cleanup["verified_absent"] == true
-                && workspace_cleanup["remaining_workspace_count"] == 0
-                && workspace_cleanup["retained_stdout_path"].is_string()
-                && workspace_cleanup["retained_stdout_sha256"].is_string()
-                && workspace_cleanup["retained_stdout_bytes"].is_u64()
-                && workspace_cleanup["retained_stderr_path"].is_string()
-                && workspace_cleanup["retained_stderr_sha256"].is_string()
-                && workspace_cleanup["retained_stderr_bytes"].is_u64()
+        Some("no_workspace" | "contained_in_owned_embedded_store") => {
+            workspace_cleanup["containment_verified"] == true
+                && workspace_cleanup["data_dir_inside_runtime_root"] == true
+                && workspace_cleanup["store_path_bound_to_owned_runtime_root"].is_string()
+                && workspace_cleanup["store_path_present"].is_boolean()
         }
         _ => false,
     };
@@ -2913,10 +2739,17 @@ mod failure_diagnostic_tests {
             std::fs::write(complete_runtime_root.join(name), contents)
                 .expect("write complete runtime diagnostic");
         }
-        let cleanup_stdout = complete_runtime_root.join("workspace-cleanup.stdout.log");
-        let cleanup_stderr = complete_runtime_root.join("workspace-cleanup.stderr.log");
-        std::fs::write(&cleanup_stdout, b"0\n").expect("write workspace cleanup stdout");
-        std::fs::write(&cleanup_stderr, b"").expect("write workspace cleanup stderr");
+        let store_data_dir = complete_runtime_root.join("data");
+        std::fs::create_dir_all(store_data_dir.join(EMBEDDED_STORE_DIRECTORY))
+            .expect("create owned embedded store");
+        let containment = verify_owned_store_containment_after_reap(
+            "unit-workspace",
+            std::slice::from_ref(&complete_runtime_root),
+            Some(&store_data_dir),
+        );
+        assert_eq!(containment["status"], "contained_in_owned_embedded_store");
+        assert_eq!(containment["containment_verified"], true);
+        assert_eq!(containment["store_path_present"], true);
         let outcome = retain_backend_failure_files(
             &[complete_runtime_root],
             "unit_test_failure",
@@ -2926,14 +2759,7 @@ mod failure_diagnostic_tests {
             serde_json::json!({"reachable": false}),
             Some(serde_json::json!({"is_connect": true})),
             true,
-            serde_json::json!({
-                "status": "deleted_and_verified_absent",
-                "workspace_id": "unit-workspace",
-                "verified_absent": true,
-                "remaining_workspace_count": 0,
-                "stdout_path": cleanup_stdout,
-                "stderr_path": cleanup_stderr,
-            }),
+            containment,
         )
         .expect("retain test failure diagnostics");
         let receipt_path = outcome.receipt_path;
@@ -2964,26 +2790,19 @@ mod failure_diagnostic_tests {
         assert_eq!(receipt["stage"], "request_send");
         assert_eq!(
             receipt["workspace_cleanup"]["status"],
-            "deleted_and_verified_absent"
+            "contained_in_owned_embedded_store"
         );
-        for stream in ["stdout", "stderr"] {
-            let path = PathBuf::from(
-                receipt["workspace_cleanup"][format!("retained_{stream}_path")]
-                    .as_str()
-                    .expect("retained cleanup proof path"),
-            );
-            assert!(path.starts_with(&canonical_receipt_directory));
-            assert_eq!(
-                receipt["workspace_cleanup"][format!("retained_{stream}_sha256")],
-                sha256_file(&path).expect("hash retained cleanup proof")
-            );
-            assert_eq!(
-                receipt["workspace_cleanup"][format!("retained_{stream}_bytes")],
-                std::fs::metadata(&path)
-                    .expect("inspect retained cleanup proof")
-                    .len()
-            );
-        }
+        assert_eq!(receipt["workspace_cleanup"]["containment_verified"], true);
+        let bound_store = PathBuf::from(
+            receipt["workspace_cleanup"]["store_path_bound_to_owned_runtime_root"]
+                .as_str()
+                .expect("containment proof binds the embedded store to its owned runtime root"),
+        );
+        assert_eq!(
+            bound_store.file_name().and_then(|name| name.to_str()),
+            Some(EMBEDDED_STORE_DIRECTORY)
+        );
+        assert!(bound_store.exists());
 
         let retained_files = receipt["retained_files"]
             .as_array()
@@ -3113,11 +2932,16 @@ mod failure_diagnostic_tests {
             serde_json::json!({"reachable": false}),
             Some(serde_json::json!({"is_request": true})),
             true,
-            serde_json::json!({
-                "status": "no_workspace",
-                "verified_absent": true,
-                "remaining_workspace_count": 0,
-            }),
+            {
+                let store_data_dir = runtime_root.join("data");
+                std::fs::create_dir_all(store_data_dir.join(EMBEDDED_STORE_DIRECTORY))
+                    .expect("create partial-test embedded store");
+                verify_owned_store_containment_after_reap(
+                    "",
+                    std::slice::from_ref(&runtime_root),
+                    Some(&store_data_dir),
+                )
+            },
         )
         .expect("publish typed partial receipt");
         let receipt_cleanup = ExactTestDirectory(
@@ -3518,26 +3342,75 @@ mod failure_diagnostic_tests {
             .expect("remove missing-child runtime root");
     }
 
+    /// The post-reap residue proof must accept a store contained by the owned runtime root and must
+    /// REJECT a data dir that escaped it. Unlike its psql predecessor this needs no external database,
+    /// so it runs unconditionally instead of behind an operator env gate.
     #[test]
-    fn post_reap_psql_cleanup_deletes_and_verifies_exact_workspace() {
-        let Some(workspace_id) = std::env::var("HSK_WORKSPACE_CLEANUP_PROOF_ID")
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-        else {
-            return;
-        };
-        let runtime_root = unique_runtime_root("post-reap-workspace-cleanup-test");
-        std::fs::create_dir_all(&runtime_root).expect("create psql cleanup runtime root");
-        restrict_runtime_directory(&runtime_root).expect("restrict psql cleanup runtime root");
+    fn post_reap_containment_accepts_owned_store_and_rejects_escaped_data_dir() {
+        let runtime_root = unique_runtime_root("post-reap-store-containment-test");
+        let store_data_dir = runtime_root.join("data");
+        std::fs::create_dir_all(store_data_dir.join(EMBEDDED_STORE_DIRECTORY))
+            .expect("create containment-test embedded store");
+        restrict_runtime_directory(&runtime_root).expect("restrict containment runtime root");
         let runtime_cleanup = ExactTestDirectory(runtime_root.clone());
-        let cleanup = cleanup_workspace_after_backend_reap(&workspace_id, &runtime_root);
-        assert_eq!(
-            cleanup["status"], "deleted_and_verified_absent",
-            "post-reap psql cleanup receipt: {cleanup}"
+
+        let contained = verify_owned_store_containment_after_reap(
+            "unit-workspace",
+            std::slice::from_ref(&runtime_root),
+            Some(&store_data_dir),
         );
-        assert_eq!(cleanup["verified_absent"], true);
-        assert!(cleanup["stdout_sha256"].as_str().is_some());
-        assert!(cleanup["stderr_sha256"].as_str().is_some());
+        assert_eq!(
+            contained["status"], "contained_in_owned_embedded_store",
+            "containment receipt: {contained}"
+        );
+        assert_eq!(contained["containment_verified"], true);
+        assert_eq!(contained["data_dir_inside_runtime_root"], true);
+        assert_eq!(contained["store_path_present"], true);
+        assert_eq!(contained["error"], serde_json::Value::Null);
+
+        let empty_workspace = verify_owned_store_containment_after_reap(
+            "",
+            std::slice::from_ref(&runtime_root),
+            Some(&store_data_dir),
+        );
+        assert_eq!(empty_workspace["status"], "no_workspace");
+        assert_eq!(empty_workspace["containment_verified"], true);
+        assert_eq!(empty_workspace["workspace_id"], serde_json::Value::Null);
+
+        // A restarted backend keeps its ORIGINAL data dir while publishing a NEW runtime root, so a
+        // stale root in the list must not turn a contained store into a false escape.
+        let restarted = verify_owned_store_containment_after_reap(
+            "unit-workspace",
+            &[
+                runtime_root.clone(),
+                unique_runtime_root("post-reap-store-containment-restart"),
+            ],
+            Some(&store_data_dir),
+        );
+        assert_eq!(restarted["status"], "contained_in_owned_embedded_store");
+        assert_eq!(restarted["containment_verified"], true);
+
+        let escaped = verify_owned_store_containment_after_reap(
+            "unit-workspace",
+            std::slice::from_ref(&runtime_root),
+            Some(&external_artifact_root()),
+        );
+        assert_eq!(escaped["status"], "failed", "escaped receipt: {escaped}");
+        assert_eq!(escaped["containment_verified"], false);
+        assert!(escaped["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("escaped every fixture-owned runtime root")));
+
+        let missing = verify_owned_store_containment_after_reap(
+            "unit-workspace",
+            std::slice::from_ref(&runtime_root),
+            None,
+        );
+        assert_eq!(missing["status"], "failed");
+        assert!(missing["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("HANDSHAKE_DATA_DIR")));
+
         drop(runtime_cleanup);
         let scenario_parent = runtime_root.parent().expect("cleanup scenario parent");
         let run_parent = scenario_parent.parent().expect("cleanup run parent");
@@ -3652,16 +3525,23 @@ impl Drop for LiveBackend {
             owned_backend_reaped = true;
         }
         if owned_backend_reaped && !self.workspace_id.is_empty() {
+            // The HTTP delete above did not clear the workspace, and the owning process is now gone,
+            // so the embedded store can no longer be reached over HTTP. Nothing can delete the row
+            // out-of-band; the residue is bounded instead by proving the store is contained in this
+            // fixture's own runtime root, which is removed on successful publication.
             match self.owned_runtime_roots.last() {
-                Some(runtime_root) => {
-                    let cleanup =
-                        cleanup_workspace_after_backend_reap(&self.workspace_id, runtime_root);
-                    if cleanup["status"] == "deleted_and_verified_absent" {
+                Some(_) => {
+                    let containment = verify_owned_store_containment_after_reap(
+                        &self.workspace_id,
+                        &self.owned_runtime_roots,
+                        self.owned_data_dir.as_deref(),
+                    );
+                    if containment["containment_verified"] == true {
                         self.workspace_id.clear();
                     } else {
                         self.preserve_runtime_roots.set(true);
                         eprintln!(
-                            "WARN: post-reap Drop workspace cleanup failed and source evidence is preserved: {cleanup}"
+                            "WARN: post-reap Drop embedded-store containment failed and source evidence is preserved: {containment}"
                         );
                     }
                 }

@@ -7,7 +7,6 @@ pub mod injection;
 pub mod ipc;
 pub mod outcome_feedback;
 pub mod persistence;
-pub mod persistence_postgres;
 pub mod pinned_core;
 pub mod policy_table;
 pub mod progressive_retrieval;
@@ -15,7 +14,6 @@ pub mod replay_eval;
 pub mod retrieval_mode;
 pub mod scoring;
 pub mod trace_export;
-pub mod trace_export_postgres;
 
 pub use builder::{
     BuildContext, BuilderError, CapsuleBuilder, FemsError, FemsMtHandoffRetriever, FemsRetriever,

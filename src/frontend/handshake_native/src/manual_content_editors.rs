@@ -34,7 +34,7 @@
 //!
 //! ## Honest interop-edge failure semantics (RISK-007)
 //!
-//! FEMS has a live PostgreSQL/EventLedger-backed read, review, and explicit approved-proposal commit
+//! FEMS has a live SurrealDB/EventLedger-backed read, review, and explicit approved-proposal commit
 //! round trip. Stage,
 //! Calendar, and Locus have live cross-edge routes; endpoint, fetch, and record failures remain typed and
 //! visible so the manual never reports a fabricated success.
@@ -521,7 +521,22 @@ steering surface (mcp/server.rs) speaks the JSON-RPC tools list_widgets / click_
 screenshot over the per-session token written into the binding file. A fresh MT-098 layout seeds pane-a \
 as Code, pane-b as Notes, and pane-c as Runtime Chat; a stale two-pane persisted layout is rejected by the \
 canonical-pane validator and falls back to this default. To open the manual itself, surface the manual-pane \
-and type a keyword into manual-search."
+and type a keyword into manual-search.\n\
+\n\
+Database startup and shutdown are part of the Handshake process; there is nothing for an operator to launch. \
+handshake_core opens an EMBEDDED SurrealDB store in-process (SurrealDB's local RocksDB engine) when the \
+backend starts and closes it during shutdown, so the store's lifetime is exactly the backend process's \
+lifetime. There is no external database server, no database service or daemon, no Docker, no connection \
+string, and no DATABASE_URL to configure — the installer bundles handshake_core.exe with the engine inside it \
+and ships no separate database executable. The store directory resolves from the HANDSHAKE_DATA_DIR \
+environment variable when it is set and non-empty; otherwise it resolves to the platform-local application \
+data directory joined with 'handshake'. Either way the store itself lives in the 'handshake-surreal' \
+subdirectory of that data directory, and handshake_core opens namespace 'handshake', database 'primary' and \
+verifies that the live session really reports that namespace/database before serving any request. Shutdown \
+is idempotent and drains in-flight operations, with each caller waiting up to 30 seconds while the close \
+continues in the background if a caller stops waiting. To run against an isolated store, point \
+HANDSHAKE_DATA_DIR at a fresh empty directory before starting handshake_core; to inspect the default one, \
+look under the platform-local application data directory."
         .to_owned()
 }
 
@@ -529,8 +544,8 @@ fn inputs_and_outputs_body() -> String {
     "Inputs: a file path (code editor), a loom:// block reference (everything-is-a-block addressing, \
 loom_address.rs), an atelier:// CKC ref dragged in from the atelier_side_panel, a graph node block id \
 (graph.open-node), or a locus:// WP/MT reference. Outputs: edited buffers PERSISTED through the existing \
-handshake_core APIs — PostgreSQL/EventLedger is the only durable authority, and the editors never write \
-to a database directly; clipboard payloads on the shared clipboard; and command-bus / event-ledger \
+handshake_core APIs — the SurrealDB/EventLedger store embedded inside handshake_core is the only durable \
+authority, and the editors never write to a database directly; clipboard payloads on the shared clipboard; and command-bus / event-ledger \
 events (event_bus.rs + the Flight Recorder) that record each editor action. A rich-text document saves \
 to the knowledge-documents route family: GET /knowledge/documents/:id loads content_json/doc_version, \
 PUT /knowledge/documents/:id/save writes {expected_version, content_json}, GET/PUT/DELETE \
@@ -559,7 +574,9 @@ status-bar-render-whitespace."
 fn safety_constraints_body() -> String {
     "The editors NEVER write to .GOV/** (it is a live governance junction). They NEVER touch the legacy \
 app/src/** React surface except as a read-only parity reference. ALL persistence goes through \
-handshake_core — PostgreSQL/EventLedger only; there are no direct database writes from the editors. \
+handshake_core — its embedded SurrealDB/EventLedger authority only; there are no direct database writes \
+from the editors, and there is no external database server, connection string, or operator-launched database \
+process anywhere in this contract. \
 Destructive actions are bounded and QUIET (HBR-QUIET, quiet_mode/focus_guard.rs): no focus-stealing \
 popup appears while a swarm agent is driving, no window grabs the keyboard, and background work does not \
 steal OS focus. FEMS memory writes are ALWAYS review-gated proposals (fems-propose-dialog -> \
@@ -592,7 +609,10 @@ accessibility/registry.rs + the live editor/knowledge action registries. For a n
 unusable, reopen its document tab through the project tree/quick switcher; the shell invalidates the \
 mounted rich state and issues a fresh GET /knowledge/documents/:id before rebinding SaveManager/DraftManager \
 to that id. Retry persistence after the typed backend error clears (a save conflict resolves once the newer \
-    revision is loaded). A Stage route or embed-back failure remains visible at stage-route-status or \
+    revision is loaded). handshake_core owns the embedded SurrealDB store, so recovering persistence means \
+restarting handshake_core itself: the store is reopened from the same HANDSHAKE_DATA_DIR (or platform-local \
+application data) location on the next start. There is no database service to restart separately and no \
+connection string to repoint. A Stage route or embed-back failure remains visible at stage-route-status or \
 stage-embed-back-status; restore the endpoint and use stage-route-retry for the retained route. If the \
 document saved but EventLedger acknowledgement failed, the HsLink is already saved and the stable \
 stage-embed-back-status exposes LedgerPending with the exact event id. stage-capture-embed-back is then \
@@ -707,9 +727,9 @@ src/frontend/handshake_native, run the focused proof as `cargo test \
 -p handshake-native --test test_ckc_embed -- --nocapture` with CARGO_TARGET_DIR set to the standardized \
 outside-repo artifacts folder; run the canonical GPU/Argus proof as `cargo test -p handshake-native \
 --features wgpu_screenshots --test test_ckc_embed atelier_panel_screenshot -- --nocapture \
---test-threads=1`; run its managed PostgreSQL proof as `cargo test -p handshake-native --features \
+--test-threads=1`; run its managed embedded-SurrealDB proof as `cargo test -p handshake-native --features \
 integration --test test_ckc_embed -- --nocapture --test-threads=1`. From repo root, add `--manifest-path \
-src/frontend/handshake_native/Cargo.toml` to either command. The integration-gated cases self-seed PostgreSQL, require nonzero \
+src/frontend/handshake_native/Cargo.toml` to either command. The integration-gated cases self-seed the embedded SurrealDB store, require nonzero \
 batches/items/corpus, use the real pointer drag source, save/reload the hsLink with a fresh client, read the \
 exact typed `KE-UUID` `KNOWLEDGE_RICH_DOCUMENT_SAVED` EventLedger receipt and exact route_to_stage \
 Flight Recorder/EventLedger receipt, and clean their workspace, Atelier, save-receipt, and exact \
@@ -819,7 +839,7 @@ proofs are written outside the worktree under \
 ../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/<scenario>/run-*/ as \
 <scenario>-canonical-argus.json plus non-empty PNG screenshots and before/action/after accessibility trees. The \
 current flush mechanism is the ActionChannel raw_input_hook drain plus bounded Harness::run_steps; there is \
-no separate flush_pending_updates API. Direct PostgreSQL rows in this proof are fixture-only setup and \
+no separate flush_pending_updates API. Direct SurrealDB record writes in this proof are fixture-only setup and \
 cleanup boundaries; user interactions and readback use the production Stage, Calendar, Locus, knowledge, \
 EventLedger, and Argus routes. A typed failure remains visible and must be recovered through the owning \
 edge's documented retry/reload path; never infer success from a stale tree or immediate indeterminate \
@@ -874,26 +894,27 @@ navigation targets; diagnostic related-note chips in the code gutter open and fo
 destination; and InteractionBus undo restores native RichEditorState/CodeEditorPanel snapshots per focused \
 pane through the canonical Ctrl+Z key-command route. Rich undo proof saves EDIT_A, sends Ctrl+Z to the \
 AccessKit-focused rich surface, saves the restored snapshot, and \
-confirms absence with a backend GET. Save and cross-surface receipts are PostgreSQL/EventLedger authority, \
+confirms absence with a backend GET. Save and cross-surface receipts are SurrealDB/EventLedger authority, \
 never a cached widget. \
 For MT-045 validation, run tests/run_mt045_perf_proof.ps1 from src/frontend/handshake_native. The \
 source-controlled supervisor uses the existing sibling Handshake_Artifacts/handshake-cargo-target, builds \
-the exact committed product backend, requires the existing internal PostgreSQL authority, and invokes \
+the exact committed product backend, requires that backend's embedded SurrealDB authority, and invokes \
 test_perf_large_code, test_perf_large_rich, and test_perf_large_knowledge serially in Cargo release mode. \
 For broader WP-012 validation, run those focused binaries and the \
 four test_interconnect_* binaries from src/frontend/handshake_native. The `perf_proof` test-name filter runs \
 the performance proof suite; `perf_lr05_transclusion_chain` selects separate linear and cycle-detected LR05 \
 paths. IC-13 skips only when SKIP_AI_TESTS is exactly 1; when unset or any other value it runs the real AI + \
-PostgreSQL suggestion/accept/backlink path and fails closed if the configured model is unavailable. Managed tests attach to HSK_TEST_BASE \
+SurrealDB suggestion/accept/backlink path and fails closed if the configured model is unavailable. Managed tests attach to HSK_TEST_BASE \
 or start the already-built HSK_TEST_BACKEND_BIN, create one owned workspace, and never stop an attached \
 backend. Current run receipts live outside the repo under Handshake_Artifacts/wp-kernel-012/mt-045/measurements \
 and Handshake_Artifacts/wp-kernel-012/mt-046/measurements. Each rerun writes RUNNING with a unique attempt id \
 before any skip gate, health/setup work, or assertion, then terminal PASS/SKIPPED or FAIL; an exact skip is \
 terminal SKIPPED, while panic/drop records FAIL. This current receipt supersedes an earlier verdict, so a \
 stale PASS cannot survive a failed rerun. Large fixtures traverse production HTTP mutation routes against \
-real PostgreSQL; fixture setup is outside measured query time and has a hard 1,200-second ceiling \
+the real embedded SurrealDB store; fixture setup is outside measured query time and has a hard 1,200-second ceiling \
 (HSK_PROOF_SETUP_TIMEOUT_SECS may lower it). Owned product backends are killed and reaped on timeout, but the \
-existing internal PostgreSQL process is never stopped. PASS is written only after workspace/process/temp-dir \
+attached handshake_core process is never stopped, and there is no separate database process to stop because \
+SurrealDB is embedded in that backend and closes with it. PASS is written only after workspace/process/temp-dir \
 cleanup assertions succeed. Recovery: a budget miss, missing EventLedger receipt, unavailable RSS sample, \
 fixture timeout, malformed native parse, unresolved drag payload, missing graph root, or absent search hit is \
 a failing proof. Fix the product/backend cause and rerun the exact scenario; do not edit the catalog or \
@@ -1124,7 +1145,8 @@ an unauthenticated post would be rejected 401 HSK-401-FR-SESSION; an authorizati
 exact status plus the HSK-4xx-FR error code the backend returned and means no durable write occurred. The \
 binding is re-read from disk on every request, so republishing it is picked up by the very next event with \
 no app restart. \
-Recovery: restore handshake_core/PostgreSQL reachability, confirm the native-MCP binding file exists and its \
+Recovery: restore handshake_core reachability — its SurrealDB store is embedded in that process, so there is \
+no separate database service to restart — confirm the native-MCP binding file exists and its \
 recorded owner process is still live, inspect the error ring and quarantine message, then \
 press Refresh. The backend's durable pending-mirror receipt and reconciler repair interrupted EventLedger -> \
 Flight Recorder mirror windows; never fabricate a row or treat an empty pane as proof that no action occurred. \
@@ -1171,14 +1193,14 @@ Settings… (or Help -> Open Settings…), then search for diagnostics. A model 
 read the status bar plus diagnostics_events, keep editing local buffers, avoid repeated commands while a write outcome is \
 unknown, and verify BackendRecovered before retrying a mutation.\n\nThe exact V4 integrated recovery \
 proof binds the current worktree candidate and one mounted run: it starts a fixture-owned handshake_core against \
-real PostgreSQL, launches the real out-of-process Palmistry binary on the app's exact shared diagnostics \
+its real embedded SurrealDB store, launches the real out-of-process Palmistry binary on the app's exact shared diagnostics \
 ring, observes the connected status through canonical localhost Argus, OS-suspends only that owned backend \
 process so its real listener becomes half-open/silent, starts a fresh production layout load against that \
 silent listener, and proves the layout worker drains while frames plus the Palmistry-shared heartbeat \
 continue and one endpoint-attributed BackendUnreachable edge plus the finite Disconnected state appear. \
 Canonical Argus also opens Settings -> Diagnostics and observes diagnostics_panel, diagnostics_events, \
 diagnostics_palmistry, the BackendUnreachable row, and the active shared-memory ring. It then resumes and \
-restarts handshake_core on the exact listener and PostgreSQL authority, proves one BackendRecovered edge, \
+restarts handshake_core on the exact listener and reopens the same embedded SurrealDB store, proves one BackendRecovered edge, \
 and has canonical Argus re-observe Backend: OK plus the recovered Diagnostics projection. Palmistry must \
 stay alive across both phases and persist a CleanShutdown survivor receipt beside the exact ring for the \
 same session. From src/frontend/handshake_native, use the configured single \
@@ -1200,10 +1222,10 @@ samples, exact backend process/listener/workspace identities, endpoint-attribute
 Palmistry control-socket/ring/session binding. Palmistry must report the test process as parent, write \
 parent_exit_code null with CleanShutdown, and produce zero Freeze/Crash/ChildStall incident survivors while \
 the heartbeat advances. The canonical Argus trace contains exactly four terminal-refreshed rows. Evidence is \
-published only after Argus finish, app/layout-worker teardown, Palmistry clean shutdown/reaping, backend/PG \
+published only after Argus finish, app/layout-worker teardown, Palmistry clean shutdown/reaping, backend/store \
 fixture cleanup, and deletion of every fixture runtime root. HBR-INT-009 posture for backend \
 reachability is explicit: Tier 1 Flight Recorder/EventLedger is NOT_APPLICABLE-with-reason for local \
-reachability edges because it remains the PostgreSQL-backed business-event ledger and is not repurposed as \
+reachability edges because it remains the SurrealDB-backed business-event ledger and is not repurposed as \
 a health log; Tier 2 internal_diagnostics is WIRED through the shared heartbeat plus BackendUnreachable and \
 BackendRecovered; Tier 3 Palmistry is WIRED as the external child reading that exact ring and surviving the \
 backend fault/restart."
@@ -1242,7 +1264,7 @@ freeze/crash/child-stall survival when the app itself or its child process is no
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // WP-KERNEL-012 wave-5 per-surface topic bodies (one dedicated no-context topic per native editor
 // surface). Every author_id/route named here is a LIVE surface verified against the source, and
-// persistence in every body is described only as handshake_core PostgreSQL/EventLedger so the content
+// persistence in every body is described only as handshake_core SurrealDB/EventLedger so the content
 // guard (which bans the local-store token + the direct-write phrase) stays green.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1279,7 +1301,7 @@ editor.fold.unfoldAtCursor / editor.fold.all / editor.fold.unfoldAll, Ctrl+Shift
     code_editor_references list; enrichment is capped at 20 results with at most four backend requests in flight and \
     is cancelled when the request generation changes or the overlay closes. code_editor_reference_{n} opens the exact \
     same-file or cross-file target and \
-    code_editor_references_close dismisses it. Backend-populated CodeNav content requires an indexed PostgreSQL \
+    code_editor_references_close dismisses it. Backend-populated CodeNav content requires an indexed SurrealDB \
     workspace and is honestly treated as NEEDS_MANAGED_RESOURCE_PROOF when no indexed workspace is seeded. Code \
     navigation is reachable from the GO \
     menu or keys: Go to Definition (F12), Go to References (Shift+F12), Go to Symbol in File (Ctrl+Shift+O), Go to Line \
@@ -1287,7 +1309,7 @@ editor.fold.unfoldAtCursor / editor.fold.all / editor.fold.unfoldAll, Ctrl+Shift
 paste/cut, completion accept, and whole-buffer edits record into the MT-035 focused-pane undo ring; Ctrl+Z, \
 menu.edit.undo, and the header indicator undo-count-{pane_id} all read the same shared InteractionBus depth. \
 Save with editor.code.save (Ctrl+S); the buffer \
-    persists through the handshake_core backend client onto PostgreSQL/EventLedger, never bypassing handshake_core. \
+    persists through the handshake_core backend client onto SurrealDB/EventLedger, never bypassing handshake_core. \
 For a code block inside a mounted rich note, activate its stable editor.rich.code-block.open.re-block-* \
 Edit-code action (a model uses click_widget on that exact author_id). The selected block opens as an \
 independent native Code Editor tab; editor.code.text accepts AccessKit SetValue/ReplaceSelectedText, and \
@@ -1325,7 +1347,7 @@ rich-reading-mode-toggle with segments rich-reading-mode-edit and rich-reading-m
 is per-document and reuses the ONE MT-011 document model (no second render path). Save with editor.rich.save \
 (Ctrl+S) or FILE > Save; the authoritative route is PUT /knowledge/documents/:id/save with expected_version \
 and content_json, and drafts use GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. All \
-    persistence is handshake_core PostgreSQL/EventLedger; a successful mounted save automatically emits document_saved \
+    persistence is handshake_core SurrealDB/EventLedger; a successful mounted save automatically emits document_saved \
     only when its canonical save receipt plus actor/task/session/correlation attribution are present and backend-authentic. \
     Every desktop/headless HandshakeApp constructor allocates a distinct hsk:native_editor:host:<uuid> save-participant \
     actor automatically; an embedding host may override it only before any rich document mounts. \
@@ -1402,7 +1424,7 @@ means no hubs were suppressed. Empty workspaces show 0 nodes. Backend failures s
 with graph.retry instead of clearing the surface. A workspace switch clears nodes, selection, local focus, errors, \
 and queued request identity even while the graph tab is closed, so an older A response cannot re-enter after \
 A -> B -> A. The integration-gated graph_view_live_pg_self_seeds_local_global proof creates an isolated \
-Handshake-managed PostgreSQL workspace, verifies the real pre-seed 0-node Global projection, seeds linked \
+Handshake-managed embedded SurrealDB workspace, verifies the real pre-seed 0-node Global projection, seeds linked \
 Loom blocks, verifies populated Global and Local projections, forces a bounded typed transport failure, and \
 retries the exact same workspace/mode/depth before its cleanup guard removes the seeded workspace. A missing \
 backend fails that proof instead of skipping it. Recovery: prefer argus.inspect (list_widgets remains a compatibility inventory) to verify the \
@@ -1443,7 +1465,7 @@ For a table, activate bcv.table.sort.{field}; the host PATCHes \
 bcv.table.row.{block_id}; sorting is backend-authoritative, never a local reorder. Kanban lanes/cards \
 are bcv.kanban.lane.{key} and bcv.kanban.card.{block_id}; the sanitized lane key is a tag id for \
 tag grouping, a field value for field grouping, or untagged for the synthetic untagged lane. Moving a card writes real add_tags and \
-remove_tags mutations, then re-queries; the card does not move locally before PostgreSQL confirms it. \
+remove_tags mutations, then re-queries; the card does not move locally before SurrealDB confirms it. \
 Calendar inputs bcv.calendar.date-from and bcv.calendar.date-to accept YYYY-MM-DD; activate \
 bcv.calendar.apply-range to persist the definition and re-query. Switch and persist kinds with \
 bcv.kind.table, bcv.kind.kanban, and bcv.kind.calendar.\n\n\
@@ -1468,25 +1490,25 @@ date range. Backend or malformed-response failures remain at bcv.status as View 
 bcv.retry to replay a retained create with the same block id or to reload the same view with one \
 bounded definition fetch and one bounded results query. Workspace/generation guards discard stale \
 deliveries. Diagnostic posture: Tier 1 Flight Recorder is WIRED for create/update through the \
-transactional PostgreSQL outbox and restart reconciler; query events are observational. Tier 2 \
+transactional SurrealDB outbox and restart reconciler; query events are observational. Tier 2 \
 internal_diagnostics is WIRED at the shared host/watchdog but collection-specific counters are \
 deferred. Tier 3 Palmistry is WIRED at the shared out-of-process freeze/crash boundary with no \
 collection-specific child. Canonical proof: run tests/run_mt027_argus_proof.ps1 with a fresh RunId; \
 it drives creation, mutation, switching, empty/error/retry, and post-action inspection through the \
-real localhost Argus transport against real PostgreSQL and stores source-bound evidence only in the \
+real localhost Argus transport against the real embedded SurrealDB store and stores source-bound evidence only in the \
 allocated external Handshake_Artifacts MT-027 root."
         .to_owned()
 }
 
 fn wiki_projection_body() -> String {
-    "Wiki Projection is the dedicated generated Loom wiki-page surface. It is distinct from Rich Note: Rich Note opens PaneType::LoomWikiPage for an editable document, while Wiki Projection opens the mounted PaneType::Placeholder(\"Wiki Page\") host for a backend LoomWikiProjection. VIEW > Open Wiki Projection (menu.view.open-wiki-projection), the Command Palette row command-palette.option.hs-view-palette-wiki-projection, and command id view.wiki-projection reopen the concrete mounted projection when one exists; otherwise they open Quick Switcher with wiki discovery and the truthful status No active wiki projection instead of creating an empty pane. Selecting a wiki_page result opens its concrete projection id. The host strictly validates every GET /workspaces/{workspace_id}/loom/wiki/{projection_id} response: required fields must exist and returned workspace/projection ids must match the request. The title, page type, rebuild time, source-block count, and rendered_content are derived and read-only. Persisted overlay annotations are loaded through GET /overlays and rendered below the projection as wiki.overlays.{sanitized_projection_id} with each annotation at wiki.overlay.{sanitized_overlay_id}. Edit opens an additive annotation buffer. Save POSTs to /overlays and only exits after the identity-matched projection-plus-overlay reload succeeds. While Save and reload are in flight, Cancel and editing are locked so an old completion cannot clear a newer same-pane buffer. Cancel otherwise discards the unsaved buffer and performs no write. Rebuild calls /regenerate only for untyped Loom projections; typed project-wiki pages display that rebuild belongs to the project wiki engine. A rebuild failure retains the last-good page and appears at wiki.error.{sanitized_projection_id}; Retry repeats an initial failed load. Every asynchronous load, save, rebuild, and post-save reload carries workspace id, projection id, pane generation, and Save action generation. A late delivery for A is rejected after A -> B or A -> B -> A and cannot replace B or clear B's edit buffer. Edit, Cancel, and Save expose target declarations plus the durable observer wiki.action-status.{sanitized_projection_id}. Terminal receipts bind workspace, projection, pane generation, action generation, edit-mode generation, draft identity and SHA-256, source projection updated_at revision, source staleness hash, and source content SHA-256. Edit and Cancel finish Applied with write_count=0; Cancel additionally proves draft_discarded, edit_closed, and original_source_authoritative. Save remains Pending through POST and GET and finishes Applied only when the exact overlay_id, annotation, created_at, and updated_at returned by POST are present unchanged in GET /overlays and the source revision/hash/content are unchanged. The Applied receipt records write_count=1 plus overlay_persisted_revision and overlay_readback_revision. A POST failure finishes Rejected with typed wiki_save_transport, exact draft retained, edit still open, and write_count=0. A POST success followed by GET failure or source/readback conflict finishes Rejected as committed-overlay reconciliation failure with write_count=1; Save and Cancel stay locked and Retry Reload is GET-only. Stable AccessKit targets are wiki.title.{sanitized_projection_id}, wiki.content.{sanitized_projection_id}, wiki.metadata.{sanitized_projection_id}, wiki.edit.{sanitized_projection_id}, wiki.edit-area.{sanitized_projection_id}, wiki.save.{sanitized_projection_id}, wiki.cancel.{sanitized_projection_id}, wiki.rebuild.{sanitized_projection_id}, wiki.stale.{sanitized_projection_id}, wiki.error.{sanitized_projection_id}, wiki.retry.{sanitized_projection_id}, wiki.overlays.{sanitized_projection_id}, wiki.overlay.{sanitized_overlay_id}, and wiki.action-status.{sanitized_projection_id}. The Editor Settings section exposes settings-editor-wiki-projection-posture to state the contract truth: Wiki Projection has no dedicated preference; it uses the active workspace/theme and does not invent a second setting. Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}. The managed-PostgreSQL proof retires the previous canonical receipt before starting, self-seeds generated live ids, drives the mounted HandshakeApp host through canonical localhost Argus, proves Cancel no-write and Save persisted/readback terminal receipts, verifies overlays through the visible mounted panel after reload, captures the GPU frame when enabled, cleans up, and writes current evidence only under Handshake_Artifacts. The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence."
+    "Wiki Projection is the dedicated generated Loom wiki-page surface. It is distinct from Rich Note: Rich Note opens PaneType::LoomWikiPage for an editable document, while Wiki Projection opens the mounted PaneType::Placeholder(\"Wiki Page\") host for a backend LoomWikiProjection. VIEW > Open Wiki Projection (menu.view.open-wiki-projection), the Command Palette row command-palette.option.hs-view-palette-wiki-projection, and command id view.wiki-projection reopen the concrete mounted projection when one exists; otherwise they open Quick Switcher with wiki discovery and the truthful status No active wiki projection instead of creating an empty pane. Selecting a wiki_page result opens its concrete projection id. The host strictly validates every GET /workspaces/{workspace_id}/loom/wiki/{projection_id} response: required fields must exist and returned workspace/projection ids must match the request. The title, page type, rebuild time, source-block count, and rendered_content are derived and read-only. Persisted overlay annotations are loaded through GET /overlays and rendered below the projection as wiki.overlays.{sanitized_projection_id} with each annotation at wiki.overlay.{sanitized_overlay_id}. Edit opens an additive annotation buffer. Save POSTs to /overlays and only exits after the identity-matched projection-plus-overlay reload succeeds. While Save and reload are in flight, Cancel and editing are locked so an old completion cannot clear a newer same-pane buffer. Cancel otherwise discards the unsaved buffer and performs no write. Rebuild calls /regenerate only for untyped Loom projections; typed project-wiki pages display that rebuild belongs to the project wiki engine. A rebuild failure retains the last-good page and appears at wiki.error.{sanitized_projection_id}; Retry repeats an initial failed load. Every asynchronous load, save, rebuild, and post-save reload carries workspace id, projection id, pane generation, and Save action generation. A late delivery for A is rejected after A -> B or A -> B -> A and cannot replace B or clear B's edit buffer. Edit, Cancel, and Save expose target declarations plus the durable observer wiki.action-status.{sanitized_projection_id}. Terminal receipts bind workspace, projection, pane generation, action generation, edit-mode generation, draft identity and SHA-256, source projection updated_at revision, source staleness hash, and source content SHA-256. Edit and Cancel finish Applied with write_count=0; Cancel additionally proves draft_discarded, edit_closed, and original_source_authoritative. Save remains Pending through POST and GET and finishes Applied only when the exact overlay_id, annotation, created_at, and updated_at returned by POST are present unchanged in GET /overlays and the source revision/hash/content are unchanged. The Applied receipt records write_count=1 plus overlay_persisted_revision and overlay_readback_revision. A POST failure finishes Rejected with typed wiki_save_transport, exact draft retained, edit still open, and write_count=0. A POST success followed by GET failure or source/readback conflict finishes Rejected as committed-overlay reconciliation failure with write_count=1; Save and Cancel stay locked and Retry Reload is GET-only. Stable AccessKit targets are wiki.title.{sanitized_projection_id}, wiki.content.{sanitized_projection_id}, wiki.metadata.{sanitized_projection_id}, wiki.edit.{sanitized_projection_id}, wiki.edit-area.{sanitized_projection_id}, wiki.save.{sanitized_projection_id}, wiki.cancel.{sanitized_projection_id}, wiki.rebuild.{sanitized_projection_id}, wiki.stale.{sanitized_projection_id}, wiki.error.{sanitized_projection_id}, wiki.retry.{sanitized_projection_id}, wiki.overlays.{sanitized_projection_id}, wiki.overlay.{sanitized_overlay_id}, and wiki.action-status.{sanitized_projection_id}. The Editor Settings section exposes settings-editor-wiki-projection-posture to state the contract truth: Wiki Projection has no dedicated preference; it uses the active workspace/theme and does not invent a second setting. Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}. The managed embedded-SurrealDB proof retires the previous canonical receipt before starting, self-seeds generated live ids, drives the mounted HandshakeApp host through canonical localhost Argus, proves Cancel no-write and Save persisted/readback terminal receipts, verifies overlays through the visible mounted panel after reload, captures the GPU frame when enabled, cleans up, and writes current evidence only under Handshake_Artifacts. The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence."
         .replace(
             "Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}.",
             "Recovery: a POST failure preserves the annotation and allows Save retry or Cancel because no overlay was committed. If the overlay was saved but its follow-up reload fails, Save and Cancel remain locked, the panel says the overlay is already saved, and wiki.retry.{sanitized_projection_id} performs only Retry Reload; restore the backend and activate that control so no duplicate overlay is posted. Initial load failures use the same stable retry id for a normal load.",
         )
         .replace(
             "The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence.",
-            "The overlay insert and KNOWLEDGE_LOOM_WIKI_MUTATED EventLedger business event are committed atomically in PostgreSQL; the event is projected into Flight Recorder for replay and audit. If EventLedger append fails, the overlay insert rolls back. internal_diagnostics and Palmistry remain general runtime recovery surfaces for transport, freeze, and crash investigation.",
+            "The overlay insert and KNOWLEDGE_LOOM_WIKI_MUTATED EventLedger business event are committed atomically in SurrealDB; the event is projected into Flight Recorder for replay and audit. If EventLedger append fails, the overlay insert rolls back. internal_diagnostics and Palmistry remain general runtime recovery surfaces for transport, freeze, and crash investigation.",
         )
 }
 
@@ -1502,7 +1524,7 @@ folder-tree.node.{folder_id} context menu: New subfolder opens a create dialog w
 Rename opens the rename dialog; Move to root clears parent and order; Move under opens a target-folder \
 submenu whose choices are addressable as folder-tree.move-target.{source_folder_id}.{target_folder_id}, so \
 same-title targets remain unambiguous; Delete opens an explicit confirmation. The confirmation reports the \
-current in-memory descendant-folder count because PostgreSQL recursively deletes that subtree and its folder \
+current in-memory descendant-folder count because SurrealDB recursively deletes that subtree and its folder \
 memberships. Loom blocks are not deleted. These emit FolderTreeEvent::CreateFolder, RenameFolder, \
 MoveFolder, or DeleteFolder and use the production POST, PATCH, and DELETE folder routes. Every successful \
 write triggers an authoritative list refetch, so labels, hierarchy, ordering, selection removal, moves, and \
@@ -1551,9 +1573,9 @@ the row action. Deletion has no automatic undo: cancel before confirming, or rec
 subtree and reassigning surviving Loom blocks from authoritative block data. Populated live folder, child, \
 CRUD, conflict, move-to-root, delete, and recolor persistence \
 is covered by the self-seeding folder_tree_live_pg_self_seeded_round_trip proof against a \
-Handshake-managed PostgreSQL backend. It records exact seed ids and cleanup_verified=true in the external \
+Handshake-managed embedded SurrealDB backend. It records exact seed ids and cleanup_verified=true in the external \
 MT-022-live-pg-seed.json receipt; a missing backend fails the proof rather than skipping it. Folder and membership \
-mutations commit their matching EventLedger receipt atomically with the PostgreSQL change; a ledger failure rolls \
+mutations commit their matching EventLedger receipt atomically with the SurrealDB change; a ledger failure rolls \
 the mutation back rather than leaving unaudited state. HBR-INT-009 diagnostic posture: Flight Recorder/EventLedger \
 = SHIPPED for those durable mutations; internal_diagnostics = DEFERRED-with-reason because this host has no folder-operation-specific event \
 code yet; Palmistry = DEFERRED-with-reason because no folder-tree-specific external tracker is registered. \
@@ -1594,11 +1616,11 @@ fixed sleep. Switching projects clears the previous workspace's tag rows, search
 events, and stale async deliveries before refetching, so a no-context model should trust the active \
 workspace in the visible pane rather than cached row text. Empty workspaces show No tags. The \
 integration-gated tags_tag_hub_live_pg_self_seeds_mounted_round_trip proof creates an isolated workspace \
-against Handshake-managed PostgreSQL/EventLedger, drives the mounted pane through empty/list/filter/open/add, verifies \
+against Handshake-managed SurrealDB/EventLedger, drives the mounted pane through empty/list/filter/open/add, verifies \
 rename and tag removal with a fresh client, checks bounded backend loss, writes an external receipt, and \
 deletes the workspace before reporting success. The exact canonical visual proof is \
 mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve with feature integration, the current \
-backend, real PostgreSQL, one test thread, and GPU capture. Use argus.inspect to copy the emitted \
+backend, the real embedded SurrealDB store, one test thread, and GPU capture. Use argus.inspect to copy the emitted \
 tags.row.* id, argus.click that exact id, require receipt status applied, then use a fresh argus.inspect \
 to bind the same receipt and tags.navigation-status semantic value to the fresh tag-hub.title.* plus \
 tag-hub.member.* state; disappearing list rows or a loading skeleton alone are not proof. Use \
@@ -1606,7 +1628,7 @@ argus.set_value on tags.search for filtering and argus.screenshot only after tha
 Failure recovery is in-pane: Retry repeats reads, while a failed add-tag write preserves the prior visible \
 membership and exposes the typed backend error. HBR-INT-009 posture: Tier 1 Flight Recorder/EventLedger = \
 NOT_APPLICABLE-with-reason for read-only tag navigation, and WIRED atomically for the durable tag-edge \
-mutation (a ledger failure rolls the PostgreSQL write back); Tier 2 internal_diagnostics = \
+mutation (a ledger failure rolls the SurrealDB write back); Tier 2 internal_diagnostics = \
 DEFERRED-with-reason because there is no tag-navigation-specific diagnostic event; Tier 3 Palmistry = \
 DEFERRED-with-reason because no tag-pane-specific external tracker is registered. Legacy list_widgets, \
 set_value, and click_widget names remain compatibility inventory only; canonical operation uses the \
@@ -1625,13 +1647,13 @@ resolved section together in one placement PATCH, so a fresh getCanvasBoard relo
 or retain a half-applied group change. Each persisted mutation (placement/card creation, move, resize, \
 section assignment, semantic/visual edge, remove placement) emits a typed canvas event that the host turns into the \
 real backend call — POST/PATCH/DELETE through the handshake_core canvas routes — followed by a \
-getCanvasBoard refresh, all on PostgreSQL/EventLedger. Creation responses carry the backend-minted \
+getCanvasBoard refresh, all on SurrealDB/EventLedger. Creation responses carry the backend-minted \
 placement id; the host registers a cross-pane MT-035 compensating undo, so Ctrl+Shift+Z removes that \
   created placement with DELETE /workspaces/{id}/loom/canvas-placements/{placement_id} and redo re-places \
   the same block geometry. Undo and redo are provisional until the backend responds; while one compensation \
   is in flight, another Ctrl+Shift+Z returns a typed already-in-flight result instead of reordering history, \
   and focused local Ctrl+Z stays scoped to the active editor pane. Each completion reloads getCanvasBoard so \
-  the mounted Canvas immediately reflects PostgreSQL truth. Redo accepts the newly minted \
+  the mounted Canvas immediately reflects SurrealDB truth. Redo accepts the newly minted \
   replacement placement id, so a later Ctrl+Shift+Z removes that replacement rather than retrying a stale id. \
   Restart recovery is session-scoped: a fresh app process starts with an empty undo history and cannot replay \
   an interrupted in-memory compensation without a new operator/model action. A failed compensation remains \
@@ -1644,7 +1666,7 @@ relation stays a visible typed blocker and never fabricates a Loom block. Inline
 is absent. If getCanvasBoard fails, the Canvas status shows the typed error and exposes canvas.retry; \
 click_widget on canvas.retry re-runs the authoritative getCanvasBoard request through the host. Retry uses \
 a bounded loading state: another failure stops loading and restores the error/Retry surface, while success \
-replaces it with the fresh PostgreSQL board. Removing canvas.placement.{placement_id}.remove deletes only the \
+replaces it with the fresh SurrealDB board. Removing canvas.placement.{placement_id}.remove deletes only the \
 placement reference; the canonical Loom source block remains available to other panes. Two durable \
 Role::Status completion observers make those two actions CAUSALLY PROVABLE instead of Indeterminate: \
 canvas.viewport-completion acknowledges canvas.pan-left/canvas.pan-right/canvas.zoom-in/canvas.zoom-out and \
@@ -1777,7 +1799,7 @@ BackendUnreachable/BackendRecovered state plus the advancing UI heartbeat. Searc
 and Apply register and tick the shared BackendCall operation watchdog, so a bounded progress gap or hard runtime \
 cap produces the shared StalledOperation diagnostic; no Find-in-Files-specific diagnostic event code is registered. \
 Shared Tier 3 Palmistry = WIRED through the diagnostic ring for freeze/crash survival; \
-no Find-in-Files-specific payload or tracker is registered. Managed verification self-seeds PostgreSQL, \
+no Find-in-Files-specific payload or tracker is registered. Managed verification self-seeds the embedded SurrealDB store, \
 drives the mounted factory UI through Search -> result click/open_requests shell target -> a fully backend-loaded \
 RichEditorPaneMount with exact id/title/content/version and stable rich-editor root/block ids -> Preview -> Apply, \
 proves 501-row pagination, positive and negative tag filters, match options, workspace rejection, stale/conflict/ \
@@ -1789,7 +1811,7 @@ PNG render, then proves cleanup with fresh GET /workspaces list absence and a fa
 (quick-switcher.dialog, input quick-switcher.search, list quick-switcher.list, Ctrl+P) jumps between open \
 documents, blocks, and code symbols; the Command Palette (command-palette.dialog / command-palette.search / \
 command-palette.list, Ctrl+Shift+P) runs any registered command including the View: * surface-open commands. \
-All results resolve through handshake_core (PostgreSQL/EventLedger); nothing is read from a local database \
+All results resolve through handshake_core (SurrealDB/EventLedger); nothing is read from a local database \
 directly."
         .to_owned()
 }
@@ -1851,7 +1873,7 @@ separately proves a missing symbol remains unresolved. Open the mounted Loom nav
 Unlinked Mentions sections load from handshake_core for the active workspace/block; each section keeps its \
 own loading/error state and Retry control, so one failed route never disables the other sections. Pin removal \
 is ONE atomic POST /workspaces/{workspace_id}/loom/blocks/{block_id}/remove-pin that clears the pin ordinal and \
-unpins the block in a single PostgreSQL transaction together with its durable EventLedger receipt, so the partial \
+unpins the block in a single SurrealDB transaction together with its durable EventLedger receipt, so the partial \
 'ordinal cleared but still pinned' state the retired two-call flow risked is impossible; favorite removal uses \
 PATCH {favorite:false}. Every removal returns ONE authoritative operation receipt \
 (hsk.wp_kernel_012.mt_024.sidebar_mutation_receipt@1) carrying workspace_id, block_id, the post-write \
@@ -1861,7 +1883,7 @@ retain an exact rollback row until that receipt confirms persistence, restore it
 typed section error ABOVE the still-listed rows (a failed removal never hides a pin that is still pinned), and \
 refetch server truth. If the runtime/backend is unavailable, the row is not removed and the affected section \
 exposes Retry. The durable mt024.sidebar-pin-removal-completion observer terminalizes a model-driven pin removal: \
-it reports applied ONLY after the authoritative refreshed PostgreSQL pin list no longer contains the block, and \
+it reports applied ONLY after the authoritative refreshed SurrealDB pin list no longer contains the block, and \
 reports a typed failure while the exact sidebar.pin.{encoded_block_id}.remove control stays mounted, so a row that \
 merely disappears can never be read as success. Each collapsible header sidebar.{section}.header publishes a \
 same-target collapse completion and the collapse state lives on the panel itself, not in per-context egui memory, \
@@ -1904,7 +1926,7 @@ and content_hash is read from the backend LoomBlock / ContentHash::from_backend 
 client. The managed proof command cargo test --manifest-path src/frontend/handshake_native/Cargo.toml \
 -p handshake-native --features integration --test test_loom_address \
 live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof -- --exact --nocapture --test-threads=1 creates A \
-and B in Handshake-managed PostgreSQL, creates/removes/restores A -> B only through normal saves, loads B \
+and B in Handshake-managed embedded SurrealDB, creates/removes/restores A -> B only through normal saves, loads B \
 through ReqwestWikilinkBackend/WikilinkRuntime, deletes A, and compares the fresh RichDocument/LoomBlock \
 identity plus backend-computed content_hash. It writes the strict live visual to \
 Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-live-B.png. When the backend omits a Loom \
@@ -1925,7 +1947,7 @@ ReqwestWikilinkBackend::list_backlinks; a bounded progress gap emits the typed S
 surfaced through the shared diagnostic status. Tier 3 Palmistry = WIRED through the shared process-global \
 diagnostic ring, which retains the last-N typed events for the external watcher across a UI freeze or crash \
 without inventing a Loom-specific tracker. All link/backlink data \
-lives in handshake_core (PostgreSQL/EventLedger) via the Loom + knowledge-documents routes. A swarm agent reads \
+lives in handshake_core (SurrealDB/EventLedger) via the Loom + knowledge-documents routes. A swarm agent reads \
 the panel with argus.inspect and follows a link with argus.click{target:'outgoing.section.resolved'} (or the \
 specific backlink-{source_document_id} row id), then requires the attributed receipt and a fresh inspection."
         .to_owned()
@@ -2002,7 +2024,7 @@ current visible top line, and inputs over 10k lines dispatch their line diff thr
 publishing blocks back to the pane. Visual proof must be real screenshot/pixel evidence; a missing GPU render is \
 not accepted as a passed screenshot proof. Resolving a conflict \
 reloads the newer revision and re-saves through PUT /knowledge/documents/:id/save on handshake_core \
-(PostgreSQL/EventLedger). This is the native equivalent of a VS Code diff/merge view; it never writes to a \
+(SurrealDB/EventLedger). This is the native equivalent of a VS Code diff/merge view; it never writes to a \
 database directly."
         .to_owned()
 }
@@ -2144,7 +2166,7 @@ also has its own inline outline toggle; the view.outline command opens the docum
 rich editor. A no-context model opens it with click_widget on menu.editors.outline (or dispatches \
 view.outline through the palette), reads the rows with list_widgets, and clicks a row to jump. Empty or \
 heading-less documents show an empty outline rather than an error. Persistence of the underlying document \
-remains handshake_core PostgreSQL/EventLedger; the outline itself is a read-only projection over the live \
+remains handshake_core SurrealDB/EventLedger; the outline itself is a read-only projection over the live \
 document model and stores nothing."
         .to_owned()
 }
@@ -2199,7 +2221,7 @@ decision, actor_id, correlation_id, event_ledger_event_id, flight_recorder_event
     of an already approved or rejected decision converge on the original immutable review receipt; an approved \
     retry also returns the original explicit commit receipt. If commit transport fails after approval, retry the \
     same fems-review-approve action for that proposal; the backend does not create a second item, pack, or \
-    receipt. A commit accepted by PostgreSQL but interrupted before FR-EVT-MEM-003 is projected is recovered \
+    receipt. A commit accepted by SurrealDB but interrupted before FR-EVT-MEM-003 is projected is recovered \
 automatically by the backend startup projector; the original commit timestamp, pack identity/hash, report \
 artifact, and EventLedger receipt are reused. FR-EVT-MEM-003 carries the canonical content-addressed \
 artifact_ref=artifact://sha256/{commit_report_hash}; resolve the report through the separate authenticated \
@@ -2256,7 +2278,7 @@ outcome for the same operation publishes a typed terminal FAILURE. Each mounted 
 only when that pane's selected tab index and the active pane both match the clicked tab. \
 A no-context model can drive panel-open -> refresh -> propose -> confirm entirely through these stable \
 AccessKit author_ids and inspect the result with list_widgets + screenshot. Durable memory authority and \
-FR-EVT-MEM-001 proposal provenance live in handshake_core PostgreSQL/EventLedger. The workspace-scoped Flight \
+FR-EVT-MEM-001 proposal provenance live in handshake_core SurrealDB/EventLedger. The workspace-scoped Flight \
 Recorder pane exposes that proposal plus exact FR-EVT-MEM-002 review, FR-EVT-MEM-003 commit, FR-EVT-MEM-004 \
 pack-build, and FR-EVT-MEM-005 status-transition rows. Diagnostic dispositions for this surface are explicit: \
 Flight Recorder/EventLedger=WIRED for the durable proposal/review/commit/pack lifecycle; \
@@ -2286,7 +2308,25 @@ independent target/observer lease sets and do not wait on each other when those 
 Diagnostic posture: Flight \
 Recorder/EventLedger is NOT_APPLICABLE because this is transport coordination rather than a business \
 event; internal_diagnostics and Palmistry integration are DEFERRED because this bounded wait introduces \
-no new diagnostic payload or process-liveness tracker."
+no new diagnostic payload or process-liveness tracker.\n\n\
+COORDINATE CONTRACT (MT-121). Every bounds value argus.inspect publishes - node.bounds = {x, y, w, h} - \
+is measured in egui POINTS, top-left origin, and is VIEWPORT-RELATIVE. The viewport those coordinates \
+belong to is published on the snapshot itself as the top-level viewport object \
+{x, y, w, h, source}, so a model never has to guess the window size. source names where the \
+measurement came from: live_window means the coordinates were laid out against the real window the \
+operator sees and are directly comparable to an argus.screenshot frame; declared_fallback means no live \
+window viewport existed at capture time (headless capture, or before the shell rendered its first \
+frame) and the shell's own declared default window size 1280x800 was used instead - the geometry is \
+internally consistent but was not measured against a live window. The capture pass NEVER falls back to \
+egui's unsized 10000x10000 default viewport; a snapshot whose viewport is absent (null) carries \
+coordinates that must not be treated as window-relative at all. A node's origin always lies inside the \
+declared viewport; a node's full rect may extend past an edge when it is a clipped child of a scroll \
+area, which is a correct measurement rather than an off-screen control. Note that sizing the viewport \
+fixes COORDINATES only: pointer-opened context menus and other egui::Memory-backed popups still live on \
+the live context and remain absent from the capture pass, which is a separate known fresh-context gap. \
+Diagnostic posture for the coordinate contract: Flight Recorder/EventLedger is NOT_APPLICABLE (reading \
+geometry is not a business event); internal_diagnostics and Palmistry are DEFERRED while those tiers are \
+unshipped, per CX-981-005."
         .to_owned()
 }
 

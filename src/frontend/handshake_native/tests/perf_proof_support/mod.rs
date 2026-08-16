@@ -17,8 +17,11 @@
 //!   `tests/screenshots/` directory exists (CX-212E artifact hygiene). The perf suites write NO image
 //!   artifacts (they emit only the external manifest record), but the guard is called so a future
 //!   regression that adds a repo-local artifact dir is caught.
-//! - [`skip_all`] — the explicit whole-suite operator skip. PostgreSQL-binding scenarios run by default
+//! - [`skip_all`] — the explicit whole-suite operator skip. Storage-binding scenarios run by default
 //!   through the shared managed product-backend fixture (no mocks and no operator-preseeded rows).
+//!   That fixture now binds the product to its Handshake-managed EMBEDDED SurrealDB store, isolated
+//!   per owned backend by `HANDSHAKE_DATA_DIR`; there is no database server, DSN, or `psql` anywhere
+//!   in the MT-045 path.
 //!
 //! This module is only ever compiled into the test binaries (it lives under `tests/`), so it never
 //! reaches the product binary.
@@ -34,6 +37,15 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use sha2::{Digest, Sha256};
+
+/// Embedded-store contract mirrored from `handshake_core::storage` and pinned by the MT-045 fixture
+/// (`pg_proof_support::spawn_backend_at`). Duplicated here rather than imported because the native
+/// crate does not depend on `handshake_core`, and because not every binary that compiles this module
+/// also compiles the fixture module.
+const EMBEDDED_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
+const EMBEDDED_STORAGE_MODE: &str = "surreal_embedded";
+const EMBEDDED_DATA_DIR_ENV: &str = "HANDSHAKE_DATA_DIR";
+const EMBEDDED_STORE_DIRECTORY: &str = "handshake-surreal";
 
 const EXPECTED_SCENARIO_IDS: [&str; 20] = [
     "LC-01", "LC-02", "LC-03", "LC-04", "LC-05", "LC-06", "LC-07", "LC-08", "LR-01", "LR-02",
@@ -625,24 +637,21 @@ fn canonical_run_provenance() -> serde_json::Value {
         backend_binary.starts_with(artifact_root.join("handshake-cargo-target")),
         "MT-045 backend binary must come from the existing canonical Cargo target"
     );
-    let postgres_dsn = std::env::var("HANDSHAKE_TEST_PG_DSN")
-        .expect("canonical MT-045 proof requires HANDSHAKE_TEST_PG_DSN");
-    let postgres_url =
-        reqwest::Url::parse(&postgres_dsn).expect("parse canonical MT-045 PostgreSQL DSN");
-    assert_eq!(
-        postgres_url.host_str(),
-        Some("127.0.0.1"),
-        "canonical MT-045 proof requires Handshake's loopback PostgreSQL"
-    );
-    assert_eq!(
-        postgres_url.port(),
-        Some(5544),
-        "canonical MT-045 proof requires Handshake's internal PostgreSQL port"
-    );
-    assert_eq!(
-        postgres_url.path().trim_start_matches('/'),
-        "handshake",
-        "canonical MT-045 proof requires the Handshake database"
+    // Storage authority. There is no DSN, no host, and no port to pin any more: the product opens a
+    // Handshake-managed EMBEDDED SurrealDB store inside its own process, and the MT-045 fixture gives
+    // every owned backend its own `HANDSHAKE_DATA_DIR` beneath the canonical backend-runtime root.
+    // What the canonical run must therefore prove is that the store roots the fixture will hand out
+    // live under the existing external `Handshake_Artifacts` root, which is an observed filesystem
+    // fact rather than an operator-supplied connection string.
+    let backend_runtime_root = external_artifact_root().join("backend-runtime");
+    std::fs::create_dir_all(&backend_runtime_root)
+        .expect("create canonical MT-045 backend runtime root");
+    let backend_runtime_root = backend_runtime_root
+        .canonicalize()
+        .expect("canonicalize canonical MT-045 backend runtime root");
+    assert!(
+        backend_runtime_root.starts_with(&artifact_root),
+        "MT-045 embedded stores must be created under the existing Handshake_Artifacts root"
     );
 
     serde_json::json!({
@@ -662,10 +671,24 @@ fn canonical_run_provenance() -> serde_json::Value {
         "diagnostics_receipt_sha256": sha256_file(&diagnostics_receipt),
         "backend_binary": backend_binary.to_string_lossy(),
         "backend_binary_sha256": sha256_file(&backend_binary),
-        "postgres_authority": {
-            "host": postgres_url.host_str(),
-            "port": postgres_url.port(),
-            "database": postgres_url.path().trim_start_matches('/'),
+        // Embedded-store authority. Every field is observed or is a contract string this proof pins
+        // and the fixture actually passes to the child; nothing is read back from a claim.
+        //
+        // GAP (typed, not fabricated): the active SurrealDB NAMESPACE and DATABASE are chosen inside
+        // the backend and are published by no route, so they are `null` here with
+        // `identity_observability` naming the missing surface. The old block could name a database
+        // because the DSN carried it; an embedded store carries it nowhere observable.
+        "embedded_store_authority": {
+            "storage_mode": EMBEDDED_STORAGE_MODE,
+            "storage_mode_env": EMBEDDED_STORAGE_MODE_ENV,
+            "data_dir_env": EMBEDDED_DATA_DIR_ENV,
+            "store_directory": EMBEDDED_STORE_DIRECTORY,
+            "backend_runtime_root": backend_runtime_root.to_string_lossy(),
+            "isolation": "per_owned_backend_data_directory",
+            "namespace": serde_json::Value::Null,
+            "database": serde_json::Value::Null,
+            "identity_observability":
+                "no_backend_route_publishes_the_active_surrealdb_namespace_or_database",
             "managed_by_test": false,
         },
     })

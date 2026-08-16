@@ -33,7 +33,7 @@
 //! `confirm_wikilink` insert (transactional `Step::InsertInlineChild` + undo receipt per the MT-020
 //! rewire — no tag-specific model step), the theme palette for chip colors (no hardcoded hex),
 //! the `accessibility/*` live AccessKit emission, and the VERIFIED `LoomTagClient` tag-hub list + loom
-//! edges API (PostgreSQL/EventLedger only — no SQLite, no backend rewrite).
+//! edges API (SurrealDB/EventLedger only — no SQLite, no backend rewrite).
 
 pub mod inline_chip;
 pub mod parser;

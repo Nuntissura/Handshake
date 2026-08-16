@@ -4,10 +4,10 @@
 //!
 //! [`BlockCollectionView`] is the native peer of the React `app/src/components/BlockCollectionView.tsx`
 //! (MT-262 parity). A saved view IS a typed `LoomBlock(content_type='view_def')` whose definition lives
-//! in PostgreSQL. The host loads the definition (`getBlockView`), executes its query against the REAL
+//! in the embedded SurrealDB store. The host loads the definition (`getBlockView`), executes its query against the REAL
 //! Loom query backend (`queryBlockViewResults`, **POST** with a `{limit,offset}` body — never client
 //! params), and renders ONE of three sub-views: [`TableSubView`], [`KanbanSubView`],
-//! [`CalendarSubView`]. Authority is PostgreSQL + EventLedger; this widget is a projection.
+//! [`CalendarSubView`]. Authority is SurrealDB + EventLedger; this widget is a projection.
 //!
 //! ## The load-bearing invariant — NO client-side sort/filter/group (impl note 71/82, RISK-1)
 //!
@@ -1032,7 +1032,8 @@ impl BlockCollectionView {
     /// Install a loaded definition + results (after `getBlockView` + `queryBlockViewResults` resolve).
     /// Clears the in-flight + status state (the re-query has landed — the move/sort is now authority).
     pub fn set_loaded(&mut self, definition: BlockViewDefinition, results: BlockViewResults) {
-        // Seed the editable date inputs from the loaded definition so the calendar window reflects PG.
+        // Seed the editable date inputs from the loaded definition so the calendar window reflects
+        // the stored SurrealDB authority.
         self.date_from_input = definition.query.date_from.clone().unwrap_or_default();
         self.date_to_input = definition.query.date_to.clone().unwrap_or_default();
         self.definition = Some(definition);

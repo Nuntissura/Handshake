@@ -706,7 +706,7 @@ impl LoomSidebarPanel {
             // MT-024 V4: the banner is ADDITIVE, not a replacement. It used to `return` before the
             // rows, which meant a FAILED pin removal (whose rollback restored the pin) rendered a
             // section with no rows at all: the operator saw the pin vanish even though it is still
-            // pinned in PostgreSQL, and Argus could not observe "terminal failure plus the original
+            // pinned in SurrealDB, and Argus could not observe "terminal failure plus the original
             // pin preserved" because the exact Remove control had left the tree. Showing the last
             // authoritative rows underneath the failure banner is both the truthful state and the
             // observable one.

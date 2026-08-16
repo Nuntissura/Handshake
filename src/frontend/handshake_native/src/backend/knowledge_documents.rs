@@ -87,7 +87,7 @@ pub const HSK_HEADER_CORRELATION_ID: &str = "x-hsk-correlation-id";
 
 /// Per-request timeout. A document call must not hang the caller's worker; on timeout the client
 /// returns a [`KnowledgeDocumentsError::Transport`] the editor layer surfaces as a transient error.
-// Document writes cross PostgreSQL persistence, versioning, search-index, and ledger boundaries.
+// Document writes cross SurrealDB persistence, versioning, search-index, and ledger boundaries.
 // The real managed-backend proof has observed a healthy version insert exceed ten seconds under
 // bounded local build/validation load, so keep the request fail-closed but leave enough headroom for
 // that legitimate path instead of surfacing a false transport failure to the mounted editor.

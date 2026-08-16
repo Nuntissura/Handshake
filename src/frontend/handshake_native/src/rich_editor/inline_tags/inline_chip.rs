@@ -101,7 +101,7 @@ pub struct TagEdge {
 
 /// The full deduped convergence payload for a document's commit: the ordered distinct tag edges. The
 /// LIVE `POST /loom/edges` round-trip is gated (NEEDS_MANAGED_RESOURCE_PROOF — it requires a live
-/// managed PostgreSQL + the per-canonical tag_hub block id; the verified backend tags an edge into a
+/// managed SurrealDB store + the per-canonical tag_hub block id; the verified backend tags an edge into a
 /// tag_hub BLOCK, not a name string, so hub resolution is a backend-managed step). This BUILDER output
 /// is provable standalone (AC-005): it asserts the union+dedupe is correct BEFORE any network call.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -114,7 +114,7 @@ pub struct TagEdgePayload {
 /// `POST /loom/edges` dispatch of a queued [`TagEdgeIntent`]. The verified backend tags an edge
 /// into a per-canonical `tag_hub` BLOCK (`target_block_id`), not a name string, and hub resolution
 /// (find-or-create the hub block id for a canonical tag) is a backend-managed step that needs a
-/// live managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF). Until that resolution surface exists,
+/// live managed SurrealDB store (NEEDS_MANAGED_RESOURCE_PROOF). Until that resolution surface exists,
 /// intents are QUEUED (never silently POSTed) with this key naming what unblocks dispatch.
 pub const TAG_EDGE_DISPATCH_BLOCKER: &str = "tag_hub_block_id_resolution";
 

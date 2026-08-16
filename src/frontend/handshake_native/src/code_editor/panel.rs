@@ -1038,7 +1038,7 @@ pub struct CodeEditorPanel {
     /// canonical `open-document` command on the shared InteractionBus.
     diagnostic_note_references: Mutex<std::collections::BTreeMap<usize, String>>,
     /// MT-052 jump-history stack (Navigate Back / Forward — Alt+Left / Alt+Right). In-memory SESSION
-    /// state only (no PostgreSQL/EventLedger persistence — the MT is pure frontend). It records the
+    /// state only (no SurrealDB/EventLedger persistence — the MT is pure frontend). It records the
     /// PRE-jump cursor location at the four navigation-jump dispatch sites (goto-def / references /
     /// outline / goto-line) so Navigate Back can restore it, including across files. Behind a `Mutex` for
     /// the same `Sync` reason as the buffer.
@@ -9077,7 +9077,7 @@ impl CodeEditorPanel {
     /// MT-048: the synchronous single-file fallback used when no tokio runtime is injected (a headless
     /// kittest harness): resolve the in-file occurrences from tree-sitter + build the single-file preview
     /// directly, with the no-LSP banner. This keeps the deterministic input->preview->apply path provable
-    /// WITHOUT a runtime / live PG (the MT proof discipline). The live path uses [`confirm_rename`] +
+    /// WITHOUT a runtime / live backend (the MT proof discipline). The live path uses [`confirm_rename`] +
     /// the off-thread LSP request.
     fn confirm_rename_sync_fallback(&self) {
         let (original, draft) = {

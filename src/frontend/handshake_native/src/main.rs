@@ -40,7 +40,8 @@ const MSG_KIND_FAULTING_THREAD_ID: u32 = 1;
 /// single-installer bundle is self-contained (HBR-STOP): it verifies every required bundled asset
 /// relative to the running exe, prints a machine-readable JSON verdict, and exits 0 (all present) or 1
 /// (a required asset is missing) WITHOUT starting the egui event loop, opening a window, or touching
-/// postgres — so it is safe in a minimal/headless CI sandbox. `--version` / `--help` are the standard
+/// the backend's embedded SurrealDB store — so it is safe in a minimal/headless CI sandbox.
+/// `--version` / `--help` are the standard
 /// headless-launch smokes the build proof uses to assert the single binary actually runs.
 ///
 /// Returns `Some(exit_code)` when a flag was handled (caller should exit with it); `None` to fall
@@ -79,7 +80,7 @@ fn handle_cli_flags() -> Option<i32> {
             // same process on a temp socket, installs the crash-handler pointed at that socket, fires a
             // simulated exception, and asserts a real minidump file was written + the callback ran. Prints
             // a machine-readable JSON verdict and exits 0 (ok) / 1 (failed). No GUI, no event loop, no
-            // postgres — safe in a headless sandbox. This is the SAME "drive the compiled binary" proof
+            // embedded SurrealDB store — safe in a headless sandbox. This is the SAME "drive the compiled binary" proof
             // shape MT-089 uses (the binary's items are not importable by tests/).
             "--crash-client-selftest" => {
                 let (json, code) = run_crash_client_selftest();

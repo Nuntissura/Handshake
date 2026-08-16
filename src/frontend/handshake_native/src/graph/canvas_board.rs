@@ -11,7 +11,7 @@
 //! ONE canvas-to-screen / screen-to-canvas transform pair used by BOTH the draw pass and the hit-test
 //! pass (RISK-1 / MC-1).
 //!
-//! Backend authority is PostgreSQL + EventLedger; this widget is a projection. Every mutating action is
+//! Backend authority is SurrealDB + EventLedger; this widget is a projection. Every mutating action is
 //! a typed [`CanvasEvent`] the host applies through [`crate::backend_client::CanvasBoardClient`]
 //! (off the UI thread), then re-fetches the board + re-resolves live titles — never a per-frame fetch.
 //!

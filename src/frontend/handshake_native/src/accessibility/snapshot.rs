@@ -130,6 +130,74 @@ pub struct UiNodeBounds {
     pub h: f32,
 }
 
+/// Where the viewport recorded on a [`UiTreeSnapshot`] came from (WP-KERNEL-012 MT-121).
+///
+/// Every [`UiNodeBounds`] value in a snapshot is measured in the egui point space of the viewport the
+/// capture pass laid out against. A model can only compare those coordinates to a rendered frame if it
+/// knows WHICH viewport they describe, so the producer names its source explicitly instead of leaving
+/// the reader to assume the window size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ViewportSource {
+    /// Measured from the live window's egui context (`Context::input(|i| i.viewport_rect())`). The
+    /// bounds describe the window the operator is actually looking at.
+    LiveWindow,
+    /// No live window viewport was available at capture time (headless capture, or the first snapshot
+    /// before the shell has rendered a frame), so the producer used its declared fallback size. The
+    /// bounds are internally consistent and describe a realistic window, but they are NOT measured
+    /// against a live window.
+    DeclaredFallback,
+}
+
+/// The viewport a [`UiTreeSnapshot`]'s bounds were laid out against, in egui points, plus the
+/// provenance of that measurement.
+///
+/// This exists because egui's `RawInput::screen_rect` defaults to `None`, which makes egui fall back
+/// to a synthetic 10000x10000 viewport (`egui-0.33.3/src/input_state/mod.rs:368`). A capture pass that
+/// never sets `screen_rect` therefore publishes geometry for a window that does not exist. Recording
+/// the viewport alongside the bounds makes that class of defect visible to a reader instead of silent.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SnapshotViewport {
+    /// Left edge of the viewport in egui points (normally `0.0`).
+    pub x: f32,
+    /// Top edge of the viewport in egui points (normally `0.0`).
+    pub y: f32,
+    /// Viewport width in egui points.
+    pub w: f32,
+    /// Viewport height in egui points.
+    pub h: f32,
+    /// Where `x`/`y`/`w`/`h` came from.
+    pub source: ViewportSource,
+}
+
+/// Sub-point slack allowed when testing containment. egui rounds widget rects to the UI grid
+/// (`Rect::round_ui`), so an edge-docked control can land a fraction of a point past the viewport edge
+/// without being off-screen.
+pub const VIEWPORT_CONTAINMENT_EPSILON: f32 = 1.0;
+
+impl SnapshotViewport {
+    /// True when the node's ORIGIN (`x`/`y`) lies inside the viewport.
+    ///
+    /// This is the containment predicate that catches an unsized capture: a control laid out for a
+    /// 10000pt-wide viewport reports an origin far beyond the real window. It deliberately does NOT
+    /// require the full rect to fit, because a legitimately clipped child of a scroll area can extend
+    /// past the visible edge while still being a correct, viewport-relative measurement.
+    pub fn contains_origin(&self, bounds: &UiNodeBounds) -> bool {
+        bounds.x >= self.x - VIEWPORT_CONTAINMENT_EPSILON
+            && bounds.y >= self.y - VIEWPORT_CONTAINMENT_EPSILON
+            && bounds.x <= self.x + self.w + VIEWPORT_CONTAINMENT_EPSILON
+            && bounds.y <= self.y + self.h + VIEWPORT_CONTAINMENT_EPSILON
+    }
+
+    /// True when the node's whole rect lies inside the viewport. Use for controls that are known to be
+    /// fully visible chrome; use [`Self::contains_origin`] for arbitrary tree nodes.
+    pub fn contains_rect(&self, bounds: &UiNodeBounds) -> bool {
+        self.contains_origin(bounds)
+            && bounds.x + bounds.w <= self.x + self.w + VIEWPORT_CONTAINMENT_EPSILON
+            && bounds.y + bounds.h <= self.y + self.h + VIEWPORT_CONTAINMENT_EPSILON
+    }
+}
+
 /// One node in the full UI-tree snapshot — everything a no-context model needs to identify, reason
 /// about, and (via MT-027) drive a single widget.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -176,6 +244,13 @@ pub struct UiTreeSnapshot {
     pub captured_at_utc: String,
     /// Total number of nodes in `root` (inclusive), so a reader can size the tree without walking it.
     pub widget_count: usize,
+    /// The viewport every [`UiNodeBounds`] in this tree was laid out against (WP-KERNEL-012 MT-121).
+    ///
+    /// `None` means the producer did not declare one — the coordinates are then uninterpretable
+    /// against a rendered frame and a consumer must not treat them as window-relative. The live MCP
+    /// capture path (`HandshakeApp::refresh_mcp_snapshot`) always declares it.
+    #[serde(default)]
+    pub viewport: Option<SnapshotViewport>,
 }
 
 impl UiTreeSnapshot {
@@ -337,6 +412,18 @@ fn now_utc_string() -> String {
 /// nodes at all — a degenerate case that does not occur on a real rendered frame but is handled
 /// without panicking so callers never have to guard the model-vision path.
 pub fn collect_ui_tree_snapshot(update: &accesskit::TreeUpdate) -> UiTreeSnapshot {
+    collect_ui_tree_snapshot_with_viewport(update, None)
+}
+
+/// [`collect_ui_tree_snapshot`], plus the viewport the caller laid the frame out against.
+///
+/// The live MCP capture path uses this so the published tree carries the coordinate space its bounds
+/// belong to. Callers that render on a context whose `screen_rect` they control should always declare
+/// it; passing `None` publishes coordinates a reader cannot compare to a window.
+pub fn collect_ui_tree_snapshot_with_viewport(
+    update: &accesskit::TreeUpdate,
+    viewport: Option<SnapshotViewport>,
+) -> UiTreeSnapshot {
     let by_id: HashMap<accesskit::NodeId, &accesskit::Node> =
         update.nodes.iter().map(|(id, node)| (*id, node)).collect();
 
@@ -367,6 +454,7 @@ pub fn collect_ui_tree_snapshot(update: &accesskit::TreeUpdate) -> UiTreeSnapsho
         root,
         captured_at_utc: now_utc_string(),
         widget_count,
+        viewport,
     }
 }
 

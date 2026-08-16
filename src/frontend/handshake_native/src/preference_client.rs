@@ -248,7 +248,7 @@ pub trait PreferenceTransport: Send + Sync {
     ) -> Result<Vec<PreferenceChangeReceipt>, PreferenceTransportError>;
 }
 
-/// Production transport: the backend's PostgreSQL-authoritative PreferenceRecord REST surface, bridged
+/// Production transport: the backend's SurrealDB-authoritative PreferenceRecord REST surface, bridged
 /// onto the app's tokio runtime handle (the [`crate::workspace_settings::SettingsClient`] pattern).
 /// reqwest is async; this holds a runtime [`Handle`] and bridges with `Handle::block_on` so the
 /// transport stays a synchronous seam, and the app calls it ONLY from a short-lived off-thread task.
@@ -662,7 +662,7 @@ pub fn changed_syntax_palette_writes(
 }
 
 /// Apply a projection (the resolved effective values) back onto the render-layer settings so the dialog
-/// and live editors show the PostgreSQL-authoritative values (SET-REC-003: unset → registry default).
+/// and live editors show the SurrealDB-authoritative values (SET-REC-003: unset → registry default).
 /// Unknown / malformed rows are skipped defensively (the loader also clamps numeric ranges so a
 /// hand-edited out-of-range row cannot smuggle an invalid value into the live editor).
 pub fn apply_projection(rows: &[PreferenceProjectionRow], settings: &mut WorkspaceSettingsState) {

@@ -12,7 +12,7 @@
 //! capability-gated authority route
 //! `POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event`. The backend records an
 //! `editor_edit` Flight Recorder event with the SERVER-DERIVED actor and workspace plus the supplied
-//! pane, action and payload, and mirrors the same event id into PostgreSQL EventLedger. Dispatch stays
+//! pane, action and payload, and mirrors the same event id into the SurrealDB EventLedger. Dispatch stays
 //! bounded and off-frame; failures remain visible in the cap-20 error ring.
 //!
 //! ## Authorization (WP-KERNEL-012 MT-109 boundary, wired here by MT-111)
