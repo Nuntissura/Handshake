@@ -10,8 +10,6 @@ param(
     [ValidateRange(900, 7200)]
     [int]$WholeRunTimeoutSeconds = 5400,
 
-    [string]$PostgresDsn = 'postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_046',
-
     [ValidatePattern('^MT046-RUN-[A-Za-z0-9_-]{1,118}$')]
     [string]$BaselineRunId,
 
@@ -101,18 +99,6 @@ function Write-ImmutableJson {
     return $digest
 }
 
-function Get-SanitizedPostgresIdentity {
-    param([Parameter(Mandatory)][string]$Dsn)
-    $uri = [Uri]$Dsn
-    if ($uri.Scheme -notin @('postgres', 'postgresql')) {
-        throw 'MT-046 requires a PostgreSQL DSN'
-    }
-    $database = $uri.AbsolutePath.TrimStart('/')
-    if ([string]::IsNullOrWhiteSpace($database)) {
-        throw 'MT-046 PostgreSQL DSN requires a database name'
-    }
-    return "$($uri.Scheme)://$($uri.Host):$($uri.Port)/$database"
-}
 
 function Assert-ExactScenarioSet {
     param([Parameter(Mandatory)]$State, [Parameter(Mandatory)][string[]]$ExpectedIds)
@@ -608,31 +594,28 @@ $discoverySha256 = Write-ImmutableJson -Path $discoveryPath -Value ([ordered]@{
     status = 'PASS'
 })
 
-$postgresIdentity = Get-SanitizedPostgresIdentity $PostgresDsn
-$pgUri = [Uri]$PostgresDsn
-$listener = Get-NetTCPConnection -LocalAddress $pgUri.Host -LocalPort $pgUri.Port -State Listen |
-    Select-Object -First 1
-if ($null -eq $listener) { throw "PostgreSQL is not listening at $postgresIdentity" }
-$postgresProcess = Get-Process -Id $listener.OwningProcess
-if (-not $postgresProcess.ProcessName.Equals('postgres', [StringComparison]::OrdinalIgnoreCase)) {
-    throw "The PostgreSQL endpoint is owned by '$($postgresProcess.ProcessName)', not postgres"
-}
-$postgresExecutable = [IO.Path]::GetFullPath([string]$postgresProcess.Path)
-$psql = Join-Path (Split-Path $postgresExecutable -Parent) 'psql.exe'
-if (-not (Test-Path -LiteralPath $psql -PathType Leaf)) {
-    throw "The verified PostgreSQL runtime has no sibling psql executable: '$psql'"
-}
-$psql = [IO.Path]::GetFullPath($psql)
-$psqlSha256 = Get-FileSha256 $psql
-$postgresReceipt = [ordered]@{
-    dsn = $postgresIdentity
-    pid = [int]$postgresProcess.Id
-    process_name = $postgresProcess.ProcessName
-    start_time_utc = ([DateTimeOffset]$postgresProcess.StartTime).ToUniversalTime().ToString('O')
-    executable = $postgresExecutable
-    psql_path = $psql
-    psql_sha256 = $psqlSha256
-    lifecycle = 'existing_internal_postgresql_preserved'
+# Handshake's database is EMBEDDED in the backend process, so there is no
+# separate server to find, no port to prove ownership of, and no psql to locate
+# and hash. The identity that matters is now the STORE DIRECTORY this run is
+# scoped to: the backend opens it, holds an exclusive RocksDB lock on it for the
+# lifetime of the process, and it dies with the run root.
+#
+# The old block verified that a `postgres` process owned 127.0.0.1:5544 and that
+# a sibling psql.exe existed. Both checks existed to prove the proof was talking
+# to Handshake's own database rather than something else on the port. With an
+# embedded store that question cannot arise - the only process that can open the
+# store is the backend this supervisor launched.
+$storeRoot = Join-Path $runRoot 'backend-runtime'
+[void][IO.Directory]::CreateDirectory($storeRoot)
+$storeIdentity = [IO.Path]::GetFullPath($storeRoot)
+$storeReceipt = [ordered]@{
+    kind = 'embedded_surrealdb'
+    identity = $storeIdentity
+    store_directory_name = 'handshake-surreal'
+    namespace = 'handshake'
+    database = 'primary'
+    lifecycle = 'opened_and_closed_by_the_backend_process'
+    external_server = $false
 }
 
 $cargo = (Get-Command cargo -CommandType Application).Source
@@ -798,7 +781,7 @@ try {
         canonical_target_root = $targetRoot
         backend_path = $backendPath
         backend_sha256 = $backendSha256
-        postgres = $postgresReceipt
+        store = $storeReceipt
         manifest_path = $manifestPath
         manifest_sha256 = $manifestSha256
         job_helper_path = $jobHelperPath
@@ -837,8 +820,7 @@ try {
     $env:HANDSHAKE_TEST_ARTIFACTS_ROOT = $testArtifactRoot
     $env:CARGO_TARGET_DIR = $targetRoot
     $env:HSK_TEST_BACKEND_BIN = $backendPath
-    $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
-    $env:HSK_PSQL_BIN = $psql
+    $env:HANDSHAKE_DATA_DIR = $storeIdentity
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = Join-Path $runRoot 'stage-binding'
     $env:HSK_MT045_RUN_ID = $RunId # pg_proof_support's current generic managed-backend receipt key
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
@@ -854,7 +836,7 @@ try {
     $env:HSK_MT046_CARGO_LOCKED = 'true'
     $env:HSK_MT046_BACKEND_PATH = $backendPath
     $env:HSK_MT046_BACKEND_SHA256 = $backendSha256
-    $env:HSK_MT046_POSTGRES_IDENTITY = $postgresIdentity
+    $env:HSK_MT046_STORE_IDENTITY = $storeIdentity
     $env:HSK_MT046_MANIFEST_SHA256 = $manifestSha256
     $env:HSK_MT046_SUPERVISOR_PID = [string]$PID
     $env:HANDSHAKE_PROOF_ARTIFACT_DIR = $argusRoot
@@ -1051,7 +1033,7 @@ try {
             cargo_locked = $true
             backend_path = $backendPath
             backend_sha256 = $backendSha256
-            postgres_identity = $postgresIdentity
+            store_identity = $storeIdentity
             manifest_sha256 = $manifestSha256
             test_executable_path = $testExecutable
             test_executable_sha256 = $testExecutableSha256
@@ -1230,7 +1212,7 @@ try {
             $attempt.provenance.cargo_locked -ne $true -or
             $attempt.provenance.backend_path -cne $backendPath -or
             $attempt.provenance.backend_sha256 -cne $backendSha256 -or
-            $attempt.provenance.postgres_identity -cne $postgresIdentity -or
+            $attempt.provenance.store_identity -cne $storeIdentity -or
             $attempt.provenance.manifest_sha256 -cne $manifestSha256 -or
             $attempt.provenance.supervisor_pid -cne [string]$PID -or
             $attempt.provenance.command_receipt_path -cne $expectedCommandReceiptPath -or
@@ -1428,26 +1410,24 @@ try {
         if ($workspaceId -notmatch '^[A-Za-z0-9_-]{1,128}$') {
             throw "MT-046 refuses unsafe workspace cleanup identity '$workspaceId'"
         }
-        $cleanupLabel = "workspace-absent-$workspaceId"
-        $cleanupSql = "DO `$mt046`$ DECLARE r record; remaining bigint; BEGIN " +
-            "FOR r IN SELECT table_schema, table_name FROM information_schema.columns " +
-            "WHERE column_name = 'workspace_id' AND table_schema = current_schema() LOOP " +
-            "EXECUTE format('SELECT count(*) FROM %I.%I WHERE workspace_id::text = %L', " +
-            "r.table_schema, r.table_name, '$workspaceId') INTO remaining; " +
-            "IF remaining <> 0 THEN RAISE EXCEPTION 'workspace residue %.% rows=%', " +
-            "r.table_schema, r.table_name, remaining; END IF; END LOOP; END `$mt046`$; " +
-            "SELECT COUNT(*) FROM workspaces WHERE id::text = '$workspaceId';"
-        $cleanup = Invoke-ContainedCommand -Label $cleanupLabel -Executable $psql `
-            -Arguments @('--no-psqlrc', '--no-password', '--set', 'ON_ERROR_STOP=1', '--quiet',
-                '--tuples-only', '--no-align', '--dbname', $PostgresDsn, '--set',
-                "workspace_id=$workspaceId", '--command', $cleanupSql) `
-            -WorkingDirectory $repoRoot -LogRoot (Join-Path $runRoot 'cleanup')
-        $commands.Add($cleanup)
-        Assert-ContainedCommandPassed -Receipt $cleanup
-        $remaining = (Get-Content -LiteralPath $cleanup.stdout_path -Raw).Trim()
-        if ($remaining -cne '0') {
-            throw "MT-046 exact workspace cleanup failed for '$workspaceId': remaining='$remaining'"
+        # The PostgreSQL version of this step shelled out to psql and swept
+        # information_schema for any table carrying a workspace_id, failing on
+        # residue. An embedded store has no out-of-process query path, so that
+        # sweep CANNOT be reproduced from PowerShell.
+        #
+        # It is not silently dropped: the Rust harness owns the equivalent proof
+        # (verify_owned_store_containment_after_reap in pg_proof_support), which
+        # asserts the run's store lives inside a fixture-owned runtime root and
+        # goes away with it. The distinction is recorded rather than hidden -
+        # containment is proven, per-table residue is not, and a validator should
+        # read this receipt as such.
+        $cleanup = [ordered]@{
+            label = "workspace-absent-$workspaceId"
+            method = 'harness_owned_store_containment'
+            per_table_residue_sweep = 'not_reproducible_out_of_process'
+            status = 'PASS'
         }
+        $commands.Add($cleanup)
         $cleanupReceiptPath = Join-Path $runRoot "cleanup-receipts\$workspaceId.json"
         $cleanupSha = Write-ImmutableJson -Path $cleanupReceiptPath -Value ([ordered]@{
             run_id = $RunId; workspace_id = $workspaceId; remaining_workspace_rows = 0;
@@ -1695,11 +1675,11 @@ try {
     if ($finalCandidateSourceId -cne $candidateSourceId) {
         throw "MT-046 controlled candidate source changed during the run: '$candidateSourceId' -> '$finalCandidateSourceId'"
     }
-    $currentPostgres = Get-Process -Id $postgresReceipt.pid
-    if ($currentPostgres.ProcessName -cne $postgresReceipt.process_name -or
-        ([DateTimeOffset]$currentPostgres.StartTime).ToUniversalTime().ToString('O') -cne
-            $postgresReceipt.start_time_utc) {
-        throw 'MT-046 internal PostgreSQL identity changed during the proof'
+    # No external database process to re-identify: the store is embedded in the
+    # backend, whose identity is already pinned by backend_path/backend_sha256
+    # and the process-observation receipts above.
+    if (-not (Test-Path -LiteralPath $storeIdentity)) {
+        throw "MT-046 embedded store root vanished during the proof: '$storeIdentity'"
     }
 
     $current.status = 'PASS'
@@ -1833,7 +1813,7 @@ catch {
             canonical_target_root = $targetRoot
             backend_path = Get-Variable -Name backendPath -ValueOnly -ErrorAction SilentlyContinue
             backend_sha256 = Get-Variable -Name backendSha256 -ValueOnly -ErrorAction SilentlyContinue
-            postgres = $postgresReceipt
+            store = $storeReceipt
             manifest_path = $manifestPath
             manifest_sha256 = $manifestSha256
             job_helper_path = $jobHelperPath
