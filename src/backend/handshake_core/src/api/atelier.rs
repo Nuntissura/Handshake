@@ -137,7 +137,7 @@ const OVERVIEW_TABLES: &[&str] = &[
 
 fn atelier_store(state: &AppState) -> AtelierStore {
     AtelierStore::with_observability(
-        state.postgres_pool.clone(),
+        state.surreal.clone(),
         state.storage.clone(),
         state.flight_recorder.clone(),
     )

@@ -1,17 +1,44 @@
 //! Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in).
 //!
-//! Storage authority is the single database + EventLedger + ArtifactStore +
-//! CRDT only. SQLite is FORBIDDEN in any form (runtime, tests, fixtures, cache,
-//! fallback); see [`assert_postgres_url`] (MT-004) and the kernel
+//! Storage authority is Handshake's single embedded SurrealDB store (RocksDB
+//! engine, in-process, namespace `handshake`, database `primary`) plus the
+//! EventLedger + ArtifactStore + CRDT. SQLite and PostgreSQL are FORBIDDEN in
+//! any form (runtime, tests, fixtures, cache, fallback); see
+//! [`assert_embedded_store_backend`] (MT-004, MT-138) and the kernel
 //! `no_sqlite_tripwire`.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-138): every module below still
-//! binds `sqlx` and a connection URL against the deleted relational backend, so
-//! the whole atelier domain does not compile and none of it runs today.
-//! Handshake's only database is the embedded SurrealDB store (RocksDB engine,
-//! in-process, namespace `handshake`, database `primary`). This module-level
-//! note covers the whole domain; the per-item docs below describe the intended
-//! contract, not a migration that has happened.
+//! SURREALDB PORT (WP-KERNEL-012 MT-138). This file owns the domain SEAM — the
+//! store handle, the schema-readiness gate, and the event-recording path that
+//! every submodule writes through. The submodules are ported behind it, one
+//! domain at a time; a submodule that has not been ported yet still names
+//! `sqlx` and does not compile. The seam is deliberately ported first because
+//! every one of those submodules reaches the database through it.
+//!
+//! Two shape changes travel with the port and are worth stating once, here,
+//! rather than re-deriving them in thirty-four files:
+//!
+//! * There is no borrowed transaction handle. PostgreSQL let a caller open
+//!   `pool.begin()` and pass `&mut Transaction` down; the embedded store
+//!   exposes a scoped context instead ([`SurrealStorage::with_data_operation`]),
+//!   and statements that must be atomic are written as one
+//!   `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` string. So
+//!   `record_event_in_tx(&mut tx, ..)` became
+//!   [`AtelierStore::record_event_in_ctx`], which takes the scoped context.
+//! * Schema is not replayed at runtime. `ensure_schema` used to execute ~150
+//!   migration files under an advisory lock; the canonical SurrealDB schema is
+//!   applied when the store opens, so the method is now a READINESS GATE that
+//!   verifies the atelier tables are present and fails closed when they are
+//!   not. The migration corpus survives as compile-time provenance
+//!   (`storage::surreal::schema`), not as a runtime code path.
+//!
+//! Dropping the replay also dropped the two backfill repairs it called at the
+//! end (`repair_contact_sheet_manifest_schema_namespace` here, and
+//! `repair_media_asset_artifact_manifests` in [`media`]). Both rewrote rows
+//! written by an OLDER build into the current shape. There is no upgrade path
+//! from the removed PostgreSQL database into the embedded store, so no row a
+//! backfill could target can exist: an atelier table is either empty or was
+//! written by this build. Porting them would have produced two statements that
+//! can only ever match zero rows.
 //!
 //! Module boundaries (MT-003): `core` (character identity + append-only sheet
 //! versions), `media` (DAM), with `intake`/`collections`/`search`/`exports`
@@ -25,9 +52,10 @@ use crate::flight_recorder::{
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
 #[cfg(feature = "runtime-full")]
 use crate::storage::Database;
+use crate::storage::surreal::{SurrealDataContext, SurrealStorage, SurrealStorageError};
+use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
-use sqlx::postgres::{PgPool, PgPoolOptions};
-use sqlx::{Postgres, Row, Transaction};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 #[cfg(feature = "runtime-full")]
 use std::sync::Arc;
 use thiserror::Error;
@@ -104,7 +132,7 @@ pub use self::sheet::{
 #[derive(Debug, Error)]
 pub enum AtelierError {
     #[error("atelier database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(#[from] SurrealStorageError),
     #[error("atelier entity not found: {0}")]
     NotFound(String),
     #[error("atelier conflict: {0}")]
@@ -315,29 +343,37 @@ pub mod event_family {
     ];
 }
 
-/// Runtime rejection of forbidden legacy source storage assumptions (MT-004).
+/// Runtime rejection of forbidden legacy source storage assumptions
+/// (MT-004, widened by MT-138).
 ///
-/// SQLite is forbidden in any form; only `postgres://` / `postgresql://`
-/// connection strings are accepted as atelier storage authority.
-pub fn assert_postgres_url(url: &str) -> AtelierResult<()> {
-    let normalized = url.trim().to_ascii_lowercase();
-    let is_postgres =
-        normalized.starts_with("postgres://") || normalized.starts_with("postgresql://");
-    if is_postgres {
-        return Ok(());
-    }
+/// Handshake has exactly one database and it is embedded: the SurrealDB store
+/// the backend opens in-process. There is no connection string to point
+/// somewhere else, so the only thing a caller can still get wrong is to hand
+/// atelier a legacy DSN inherited from configuration, a script, or an old
+/// environment. Both legacy families are rejected by name rather than lumped
+/// into one message, because the two mistakes have different fixes: a SQLite
+/// path means someone reintroduced an embedded relational file, while a
+/// PostgreSQL DSN means someone is still pointing at the removed server.
+pub fn assert_embedded_store_backend(reference: &str) -> AtelierResult<()> {
+    let normalized = reference.trim().to_ascii_lowercase();
     if normalized.starts_with("sqlite:")
         || normalized.ends_with(".sqlite")
         || normalized.ends_with(".sqlite3")
         || normalized.ends_with(".db")
     {
         return Err(AtelierError::ForbiddenStorage(
-            "SQLite is forbidden in Handshake; atelier requires PostgreSQL".to_string(),
+            "SQLite is forbidden in Handshake; atelier uses the embedded SurrealDB store"
+                .to_string(),
         ));
     }
-    Err(AtelierError::ForbiddenStorage(
-        "atelier requires a PostgreSQL DATABASE_URL (postgres:// or postgresql://)".to_string(),
-    ))
+    if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://") {
+        return Err(AtelierError::ForbiddenStorage(
+            "PostgreSQL has been removed from Handshake; atelier uses the embedded SurrealDB \
+             store and takes no connection string"
+                .to_string(),
+        ));
+    }
+    Ok(())
 }
 
 /// Reject stale local-runtime assumptions in user/product refs that cross the
@@ -570,1639 +606,362 @@ fn sanitize_atelier_event_payload(value: serde_json::Value) -> serde_json::Value
     }
 }
 
-/// Atelier data store. Wraps a shared [`PgPool`] from the deleted relational
-/// backend and is PENDING the SurrealDB port (WP-KERNEL-012 MT-138).
+/// The atelier half of one recorded domain event, carried from
+/// [`AtelierStore::prepare_event`] to [`AtelierStore::finish_event`].
+struct PreparedAtelierEvent {
+    atelier_event_id: Uuid,
+    event_family: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    safe_payload: serde_json::Value,
+    bindings: RecordEventBindings,
+}
+
+/// Named parameters for [`RECORD_EVENT_STATEMENT`].
+///
+/// Every field is a `$name` in that statement; nothing is concatenated into
+/// the query text.
+#[derive(Clone, SurrealValue)]
+struct RecordEventBindings {
+    ledger_id: RecordId,
+    kernel_event_id: String,
+    event_version: String,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    kernel_aggregate_type: String,
+    kernel_aggregate_id: String,
+    idempotency_key: String,
+    event_type: String,
+    actor_kind: String,
+    actor_id: String,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    payload_hash: String,
+    source_component: String,
+    ledger_payload: JsonValue,
+    created_at: Datetime,
+    atelier_id: RecordId,
+    atelier_event_uuid: SurrealUuid,
+    atelier_event_id: String,
+    event_family: String,
+    atelier_payload: JsonValue,
+}
+
+/// The ledger identity an atelier event was stamped with.
+#[derive(SurrealValue)]
+struct RecordedLedgerRow {
+    event_id: String,
+    event_sequence: i64,
+}
+
+#[derive(SurrealValue)]
+struct EventFamilyBinding {
+    event_family: String,
+}
+
+#[derive(SurrealValue)]
+struct AggregateCountBindings {
+    event_family: String,
+    aggregate_type: String,
+    aggregate_id: String,
+}
+
+/// Write one kernel ledger row and its atelier projection row, atomically.
+///
+/// The whole thing is a single BLOCK expression rather than a sequence of
+/// statements, for two reasons. A block executes as one statement, so it runs
+/// in one transaction without a hand-written `BEGIN`/`COMMIT` pair; and it
+/// produces exactly one result set, so the row this returns is the first
+/// result set - which is what the query helpers read.
+///
+/// The idempotency contract is the PostgreSQL one, preserved: replaying an
+/// event with the same `idempotency_key` must NOT write a second ledger row,
+/// and must still return the sequence the first write was given. `ON CONFLICT
+/// (idempotency_key) DO NOTHING ... UNION ALL SELECT` expressed that in one
+/// round trip; the guarded `IF $existing IS NONE` block plus the re-read
+/// expresses the same thing here. `event_sequence` is not set by this
+/// statement: the schema defaults it from the `kernel_event_sequence`
+/// SEQUENCE, which is what makes the ledger's ordering monotonic and
+/// gap-free across processes.
+const RECORD_EVENT_STATEMENT: &str = "RETURN {
+    LET $existing = (SELECT VALUE id FROM kernel_event_ledger
+                     WHERE idempotency_key = $idempotency_key LIMIT 1)[0];
+    IF $existing IS NONE {
+        CREATE $ledger_id CONTENT {
+            event_id: $kernel_event_id,
+            event_version: $event_version,
+            kernel_task_run_id: $kernel_task_run_id,
+            session_run_id: $session_run_id,
+            aggregate_type: $kernel_aggregate_type,
+            aggregate_id: $kernel_aggregate_id,
+            idempotency_key: $idempotency_key,
+            event_type: $event_type,
+            actor_kind: $actor_kind,
+            actor_id: $actor_id,
+            causation_id: $causation_id,
+            correlation_id: $correlation_id,
+            payload_hash: $payload_hash,
+            source_component: $source_component,
+            payload: $ledger_payload,
+            created_at: $created_at
+        };
+    };
+    LET $row = (SELECT event_id, event_sequence FROM kernel_event_ledger
+                WHERE idempotency_key = $idempotency_key LIMIT 1)[0];
+    CREATE $atelier_id CONTENT {
+        event_id: $atelier_event_uuid,
+        event_family: $event_family,
+        aggregate_type: $kernel_aggregate_type,
+        aggregate_id: $kernel_aggregate_id,
+        kernel_event_id: $row.event_id,
+        kernel_event_sequence: $row.event_sequence,
+        payload: $atelier_payload
+    };
+    RETURN $row;
+};";
+
+/// Atelier data store.
+///
+/// Holds Handshake's embedded SurrealDB store. The former `PgPool` is gone
+/// along with the server it pooled connections to; there is nothing to pool
+/// because the store runs inside this process.
 #[derive(Clone)]
 pub struct AtelierStore {
-    pool: PgPool,
+    store: SurrealStorage,
     #[cfg(feature = "runtime-full")]
     flight_recorder: Option<Arc<dyn FlightRecorder>>,
 }
 
+/// Every table the atelier domain reads or writes.
+///
+/// This list is the atelier half of the canonical SurrealDB schema and exists
+/// so [`AtelierStore::ensure_schema`] can say WHICH table is missing instead of
+/// failing somewhere deep in a submodule with a confusing empty result. It was
+/// derived from the tables created by the migration files the old
+/// `ensure_schema` replayed, so it covers the same surface that method used to
+/// guarantee.
+pub const ATELIER_TABLES: &[&str] = &[
+    "atelier_action_receipt",
+    "atelier_ai_tag_suggestion",
+    "atelier_anchor_verification_record",
+    "atelier_backup_manifest",
+    "atelier_backup_restore_preflight",
+    "atelier_bracket_link_projection",
+    "atelier_bulk_operation_receipt",
+    "atelier_caption_artifact",
+    "atelier_character",
+    "atelier_character_document",
+    "atelier_character_document_version",
+    "atelier_character_relationship",
+    "atelier_character_script",
+    "atelier_character_tag",
+    "atelier_collection",
+    "atelier_collection_item",
+    "atelier_collection_metadata_application",
+    "atelier_comfy_bridge_probe",
+    "atelier_comfy_capability_registration",
+    "atelier_comfy_capability_reject",
+    "atelier_comfy_declared_output",
+    "atelier_comfy_diagnostic_bundle",
+    "atelier_comfy_fallback_marker",
+    "atelier_comfy_intake_output",
+    "atelier_comfy_job",
+    "atelier_comfy_output_registration_failure",
+    "atelier_comfy_version_metadata",
+    "atelier_comfy_workflow_receipt",
+    "atelier_comfy_workflow_spec",
+    "atelier_command_corpus_blocked",
+    "atelier_command_corpus_entry",
+    "atelier_command_corpus_parity_report",
+    "atelier_command_log",
+    "atelier_contact_sheet",
+    "atelier_contact_sheet_raster_export_plan",
+    "atelier_contact_sheet_svg_artifact",
+    "atelier_dcc_panel_projection",
+    "atelier_dcc_workflow_panel_projection",
+    "atelier_diagnostics_error_taxonomy",
+    "atelier_diagnostics_prompt_response_matrix",
+    "atelier_diagnostics_session",
+    "atelier_diagnostics_validation_matrix",
+    "atelier_event",
+    "atelier_export_intake_link",
+    "atelier_export_manifest_entry",
+    "atelier_export_request",
+    "atelier_export_result",
+    "atelier_filesystem_health_check",
+    "atelier_filesystem_health_finding",
+    "atelier_fr_workflow_event",
+    "atelier_handler_version_matrix",
+    "atelier_identity_crop_artifact",
+    "atelier_identity_profile",
+    "atelier_image_import_request",
+    "atelier_intake_batch",
+    "atelier_intake_item",
+    "atelier_intake_item_rejection_audit",
+    "atelier_md_allowlist_policy",
+    "atelier_md_auth_context",
+    "atelier_md_checkpoint",
+    "atelier_md_download_session",
+    "atelier_md_item_state",
+    "atelier_md_output_root",
+    "atelier_md_session_receipt",
+    "atelier_media_annotation",
+    "atelier_media_asset",
+    "atelier_media_asset_tag",
+    "atelier_media_derivative",
+    "atelier_media_probe_report",
+    "atelier_media_review_metadata",
+    "atelier_media_sidecar",
+    "atelier_media_source_provenance_ref",
+    "atelier_model_apply",
+    "atelier_model_config",
+    "atelier_model_manual_drift_guard",
+    "atelier_model_manual_row_merge",
+    "atelier_moodboard",
+    "atelier_moodboard_export_request",
+    "atelier_moodboard_operation_receipt",
+    "atelier_orphan_manifest",
+    "atelier_orphan_manifest_item",
+    "atelier_pose_calibration",
+    "atelier_pose_context_state",
+    "atelier_pose_deferred_feature",
+    "atelier_pose_head_pose",
+    "atelier_pose_rig",
+    "atelier_pose_sidecar",
+    "atelier_pose_workspace_rig_state",
+    "atelier_preference",
+    "atelier_reset_operation",
+    "atelier_saved_search",
+    "atelier_screenshot_artifact_storage",
+    "atelier_sheet_parse_snapshot",
+    "atelier_sheet_version",
+    "atelier_similarity_projection",
+    "atelier_similarity_rebuild_job",
+    "atelier_source_evidence_record",
+    "atelier_sourcing_binding_decision",
+    "atelier_sourcing_ingestion_receipt",
+    "atelier_sourcing_spec",
+    "atelier_spec_drift_finding",
+    "atelier_state_probe_catalog_entry",
+    "atelier_stealth_capture",
+    "atelier_stealth_ref",
+    "atelier_stealth_window",
+    "atelier_story_beat",
+    "atelier_story_card",
+    "atelier_synthetic_input_guard",
+    "atelier_tag",
+    "atelier_tag_rule",
+    "atelier_transcript_artifact",
+    "atelier_transcript_receipt",
+    "atelier_trash_marker",
+    "atelier_version_mismatch_receipt",
+    "atelier_visual_steer_feedback",
+    "atelier_web_portfolio_export_request",
+    "atelier_web_portfolio_export_result",
+    "atelier_work_state_projection",
+];
+
 impl AtelierStore {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(store: SurrealStorage) -> Self {
         Self {
-            pool,
+            store,
             #[cfg(feature = "runtime-full")]
             flight_recorder: None,
         }
     }
 
     #[cfg(feature = "runtime-full")]
-    pub fn with_event_ledger(pool: PgPool, _event_ledger: Arc<dyn Database>) -> Self {
+    pub fn with_event_ledger(store: SurrealStorage, _event_ledger: Arc<dyn Database>) -> Self {
         Self {
-            pool,
+            store,
             flight_recorder: None,
         }
     }
 
     #[cfg(feature = "runtime-full")]
     pub fn with_observability(
-        pool: PgPool,
+        store: SurrealStorage,
         _event_ledger: Arc<dyn Database>,
         flight_recorder: Arc<dyn FlightRecorder>,
     ) -> Self {
         Self {
-            pool,
+            store,
             flight_recorder: Some(flight_recorder),
         }
     }
 
-    /// Connect to a PostgreSQL DATABASE_URL and build a store. Rejects SQLite
-    /// and any non-PostgreSQL backend (MT-004).
-    pub async fn connect(database_url: &str) -> AtelierResult<Self> {
-        assert_postgres_url(database_url)?;
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(database_url)
-            .await?;
-        Ok(Self {
-            pool,
-            #[cfg(feature = "runtime-full")]
-            flight_recorder: None,
-        })
+    /// The embedded store this domain writes through.
+    pub fn store(&self) -> &SurrealStorage {
+        &self.store
     }
 
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
+    /// Run one scoped data operation against the embedded store.
+    ///
+    /// Every atelier submodule reaches the database through here. The context
+    /// is sealed and lease-bound: it cannot outlive the call, which is what
+    /// lets the backend drain in-flight atelier work before it closes the
+    /// store on shutdown.
+    pub(crate) async fn with_data<T, F>(&self, operation: F) -> AtelierResult<T>
+    where
+        T: Send,
+        F: for<'a> FnOnce(
+            SurrealDataContext<'a>,
+        ) -> crate::storage::surreal::SurrealOperation<'a, T>,
+    {
+        Ok(self.store.with_data_operation(operation).await?)
     }
 
-    /// Idempotent, concurrency-safe bootstrap of the atelier schema from the
-    /// canonical migration files (0030 foundation + 0031 core-data). A
-    /// transaction-scoped advisory lock serializes concurrent bootstrap so
-    /// parallel governed sessions / swarm agents never race on CREATE TABLE
-    /// (the IF NOT EXISTS race). The lock auto-releases on commit. Safe to call
-    /// repeatedly and from many connections at once.
+    /// Verify the atelier schema is present, and fail closed when it is not.
+    ///
+    /// The PostgreSQL version of this method REPLAYED 88 migration files under
+    /// a transaction-scoped advisory lock on every call, because each process
+    /// had to converge a shared server it did not own. None of that applies to
+    /// an embedded store: the canonical schema is applied once when the store
+    /// opens (`storage::surreal::schema::bootstrap_schema`), inside a
+    /// transaction that already refuses a divergent lineage, and this process
+    /// is the only writer.
+    ///
+    /// So the method keeps its name and its guarantee to callers - after it
+    /// returns `Ok`, the atelier tables exist - and drops the mechanism. It
+    /// reports the first missing table by name rather than a bare boolean,
+    /// because "atelier schema not ready" with no table name was the least
+    /// actionable failure the old readiness check could produce.
     pub async fn ensure_schema(&self) -> AtelierResult<()> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("SELECT pg_advisory_xact_lock(7305441001::bigint)")
-            .execute(&mut *tx)
+        let defined: Vec<String> = self
+            .store
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values::<String, ()>(
+                        "RETURN array::sort(object::keys((INFO FOR DB).tables));",
+                        (),
+                    )
+                    .await
+                })
+            })
             .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0018_kernel_event_ledger.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-
-        let ready_after_lock: bool = sqlx::query_scalar(
-            r#"SELECT
-                  to_regclass('atelier_event') IS NOT NULL
-              AND to_regclass('atelier_intake_item') IS NOT NULL
-              AND to_regclass('atelier_preference') IS NOT NULL
-              AND to_regclass('atelier_pose_rig') IS NOT NULL
-              AND to_regclass('atelier_pose_sidecar') IS NOT NULL
-              AND to_regclass('atelier_pose_context_state') IS NOT NULL
-              AND to_regclass('atelier_pose_workspace_rig_state') IS NOT NULL
-              AND to_regclass('atelier_pose_deferred_feature') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_pose_calibration'
-                    AND column_name IN (
-                        'head_pose_ref',
-                        'marker_visibility',
-                        'marker_colors',
-                        'hand_rows',
-                        'history_refs'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 5
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_calibration'
-                    AND constraint_name = 'chk_atelier_pose_calibration_history_refs_json'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_pose_rig'
-                    AND column_name IN (
-                        'detector_model',
-                        'detector_model_version',
-                        'source_asset_version_ref',
-                        'source_asset_path_ref',
-                        'confidence_available',
-                        'error_reason'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 6
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_rig'
-                    AND constraint_name = 'chk_atelier_pose_rig_status_error'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_pose_sidecar'
-                    AND column_name IN (
-                        'source_asset_id',
-                        'source_ref',
-                        'role',
-                        'manifest_ref',
-                        'width',
-                        'height',
-                        'status',
-                        'error_message'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 8
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_sidecar'
-                    AND constraint_name = 'chk_atelier_pose_sidecar_status_error'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_sidecar'
-                    AND constraint_name = 'chk_atelier_pose_sidecar_manifest_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_sidecar'
-                    AND constraint_name = 'chk_atelier_pose_sidecar_role_kind'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_pose_context_state'
-                    AND column_name IN (
-                        'state_seq',
-                        'workspace_ref',
-                        'kind',
-                        'source_asset_id',
-                        'character_internal_id',
-                        'collection_id',
-                        'selected_rig_id',
-                        'requested_by'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 8
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_context_state'
-                    AND constraint_name = 'chk_atelier_pose_context_state_kind_links'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_pose_workspace_rig_state'
-                    AND column_name IN (
-                        'workspace_ref',
-                        'session_ref',
-                        'rig_id',
-                        'open',
-                        'sort_order',
-                        'active',
-                        'dirty_calibration',
-                        'panel_state',
-                        'requested_by',
-                        'created_at_utc',
-                        'updated_at_utc'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 11
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_workspace_rig_state'
-                    AND constraint_name = 'chk_atelier_pose_workspace_rig_state_panel_state'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_workspace_rig_state'
-                    AND constraint_name = 'chk_atelier_pose_workspace_rig_state_session_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_pose_workspace_rig_state'
-                    AND constraint_name = 'chk_atelier_pose_workspace_rig_state_open_active'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM pg_indexes
-                  WHERE schemaname = ANY(current_schemas(false))
-                    AND tablename = 'atelier_pose_workspace_rig_state'
-                    AND indexname = 'uq_atelier_pose_workspace_rig_state_active'
-                    AND indexdef ILIKE '%workspace_ref, session_ref%'
-                    AND indexdef ILIKE '%active%'
-                    AND indexdef ILIKE '%open%'
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM pg_indexes
-                  WHERE schemaname = ANY(current_schemas(false))
-                    AND tablename = 'atelier_pose_workspace_rig_state'
-                    AND indexname = 'uq_atelier_pose_workspace_rig_state_open_order'
-                    AND indexdef ILIKE '%workspace_ref, session_ref, sort_order%'
-                    AND indexdef ILIKE '%open%'
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_identity_profile'
-                    AND column_name IN (
-                        'version',
-                        'name',
-                        'description',
-                        'source_ref',
-                        'crop_ref',
-                        'artifact_ref',
-                        'updated_at_utc',
-                        'deleted_at_utc'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 8
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_identity_profile'
-                    AND constraint_name = 'chk_atelier_identity_profile_version'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND to_regclass('atelier_identity_crop_artifact') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_identity_crop_artifact'
-                    AND column_name IN (
-                        'crop_id',
-                        'profile_id',
-                        'profile_version',
-                        'character_internal_id',
-                        'source_ref',
-                        'crop_box',
-                        'landmarks',
-                        'artifact_ref',
-                        'manifest_ref',
-                        'content_hash',
-                        'byte_len',
-                        'mime',
-                        'width',
-                        'height',
-                        'manifest',
-                        'created_by',
-                        'created_at_utc'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 17
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_identity_crop_artifact'
-                    AND constraint_name = 'chk_atelier_identity_crop_artifact_size'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_comfy_intake_output'
-                    AND column_name = 'workflow_input_metadata'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_comfy_intake_output'
-                    AND constraint_name = 'chk_atelier_comfy_intake_output_workflow_input_metadata_json'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND to_regclass('atelier_comfy_workflow_receipt') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_comfy_workflow_receipt'
-                    AND column_name IN (
-                        'receipt_id',
-                        'system_id',
-                        'workflow_run_id',
-                        'character_ref',
-                        'workflow_spec_ref',
-                        'workflow_json_ref',
-                        'prompt_ref',
-                        'all_refs',
-                        'outputs',
-                        'status',
-                        'error_ref',
-                        'evidence',
-                        'receipt_json',
-                        'created_at_utc',
-                        'updated_at_utc'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 15
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_comfy_workflow_receipt'
-                    AND constraint_name = 'chk_atelier_comfy_workflow_receipt_error'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_comfy_workflow_receipt'
-                    AND constraint_name = 'chk_atelier_comfy_workflow_receipt_character_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND to_regclass('atelier_comfy_output_registration_failure') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_comfy_output_registration_failure'
-                    AND column_name IN (
-                        'failure_id',
-                        'workflow_run_id',
-                        'node_execution_id',
-                        'attempted_registration_id',
-                        'source_node_instance_id',
-                        'source_output_slot',
-                        'media_kind',
-                        'mime',
-                        'artifact_ref',
-                        'artifact_manifest_ref',
-                        'content_hash',
-                        'routing_intent',
-                        'parent_artifact_ref',
-                        'prompt_json_ref',
-                        'graph_hash',
-                        'seed',
-                        'workflow_input_metadata',
-                        'failure_stage',
-                        'failure_reason',
-                        'evidence',
-                        'status',
-                        'retry_count',
-                        'resolved_intake_output_id',
-                        'created_at_utc',
-                        'updated_at_utc'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 25
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_comfy_output_registration_failure'
-                    AND constraint_name = 'chk_atelier_comfy_output_registration_failure_resolution'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND to_regclass('atelier_comfy_workflow_spec') IS NOT NULL
-              AND to_regclass('atelier_comfy_version_metadata') IS NOT NULL
-              AND to_regclass('atelier_comfy_job') IS NOT NULL
-              AND to_regclass('atelier_comfy_diagnostic_bundle') IS NOT NULL
-              AND to_regclass('atelier_diagnostics_validation_matrix') IS NOT NULL
-              AND to_regclass('atelier_diagnostics_error_taxonomy') IS NOT NULL
-              AND to_regclass('atelier_diagnostics_prompt_response_matrix') IS NOT NULL
-              AND to_regclass('atelier_command_log') IS NOT NULL
-              AND to_regclass('atelier_diagnostics_session') IS NOT NULL
-              AND to_regclass('atelier_model_config') IS NOT NULL
-              AND to_regclass('atelier_model_apply') IS NOT NULL
-              AND to_regclass('atelier_synthetic_input_guard') IS NOT NULL
-              AND to_regclass('atelier_work_state_projection') IS NOT NULL
-              AND to_regclass('atelier_dcc_panel_projection') IS NOT NULL
-              AND to_regclass('atelier_screenshot_artifact_storage') IS NOT NULL
-              AND to_regclass('atelier_spec_drift_finding') IS NOT NULL
-              AND to_regclass('atelier_command_corpus_parity_report') IS NOT NULL
-              AND to_regclass('atelier_sheet_parse_snapshot') IS NOT NULL
-              AND to_regclass('atelier_bulk_operation_receipt') IS NOT NULL
-              AND to_regclass('atelier_trash_marker') IS NOT NULL
-              AND to_regclass('atelier_similarity_rebuild_job') IS NOT NULL
-              AND to_regclass('atelier_ai_tag_suggestion') IS NOT NULL
-              AND to_regclass('atelier_media_sidecar') IS NOT NULL
-              AND to_regclass('atelier_filesystem_health_check') IS NOT NULL
-              AND to_regclass('atelier_filesystem_health_finding') IS NOT NULL
-              AND to_regclass('atelier_image_import_request') IS NOT NULL
-              AND to_regclass('atelier_media_derivative') IS NOT NULL
-              AND to_regclass('atelier_media_review_metadata') IS NOT NULL
-              AND to_regclass('atelier_stealth_capture') IS NOT NULL
-              AND to_regclass('atelier_source_evidence_record') IS NOT NULL
-              AND to_regclass('atelier_anchor_verification_record') IS NOT NULL
-              AND to_regclass('atelier_model_manual_row_merge') IS NOT NULL
-              AND to_regclass('atelier_model_manual_drift_guard') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints tc
-                  JOIN information_schema.key_column_usage kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                   AND tc.table_schema = kcu.table_schema
-                   AND tc.table_name = kcu.table_name
-                  WHERE tc.table_schema = ANY(current_schemas(false))
-                    AND tc.table_name = 'atelier_source_evidence_record'
-                    AND tc.constraint_type = 'PRIMARY KEY'
-                  GROUP BY tc.constraint_name
-                  HAVING array_agg(kcu.column_name::text ORDER BY kcu.ordinal_position)
-                         = ARRAY['matrix_id'::text, 'source_id'::text]
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints tc
-                  JOIN information_schema.key_column_usage kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                   AND tc.table_schema = kcu.table_schema
-                   AND tc.table_name = kcu.table_name
-                  WHERE tc.table_schema = ANY(current_schemas(false))
-                    AND tc.table_name = 'atelier_anchor_verification_record'
-                    AND tc.constraint_type = 'PRIMARY KEY'
-                  GROUP BY tc.constraint_name
-                  HAVING array_agg(kcu.column_name::text ORDER BY kcu.ordinal_position)
-                         = ARRAY['matrix_id'::text, 'anchor_id'::text]
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints tc
-                  JOIN information_schema.key_column_usage kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                   AND tc.table_schema = kcu.table_schema
-                   AND tc.table_name = kcu.table_name
-                  WHERE tc.table_schema = ANY(current_schemas(false))
-                    AND tc.table_name = 'atelier_anchor_verification_record'
-                    AND tc.constraint_type = 'FOREIGN KEY'
-                  GROUP BY tc.constraint_name
-                  HAVING array_agg(kcu.column_name::text ORDER BY kcu.ordinal_position)
-                         = ARRAY['matrix_id'::text, 'source_id'::text]
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_media_asset'
-                    AND column_name = 'artifact_manifest'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_media_asset'
-                    AND column_name = 'retention_class'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_event'
-                    AND column_name = 'kernel_event_id'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_event'
-                    AND column_name = 'kernel_event_sequence'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_preference'
-                    AND column_name = 'revision'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_preference'
-                    AND column_name = 'source'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_md_download_session'
-                    AND column_name = 'protocol_id'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_md_download_session'
-                    AND column_name = 'capability_profile_id'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_md_download_session'
-                    AND column_name = 'capability_grant_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_media_source_provenance_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_media_source_provenance_ref'
-                    AND constraint_name = 'chk_atelier_media_source_provenance_ref_trimmed_nonempty'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'source_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'mode'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'resume_cursor'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'resumed_at_utc'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND constraint_name = 'chk_atelier_intake_batch_status'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_intake_item_rejection_audit'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_intake_item_rejection_audit'
-                    AND constraint_name = 'fk_atelier_intake_rejection_audit_item_batch'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_intake_item'
-                    AND constraint_name = 'chk_atelier_intake_item_lane'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'profile_mode'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'target_character_id'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'target_sheet_version_id'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND column_name = 'target_collection_id'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND constraint_name = 'chk_atelier_intake_profile_mode'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_intake_batch'
-                    AND constraint_name = 'chk_atelier_intake_profile_targets'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_export_intake_link'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_media_asset_tag'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_collection_metadata_application'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_contact_sheet_svg_artifact'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_contact_sheet_raster_export_plan'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_character_document'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_character_document_version'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_story_card'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_story_beat'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM pg_trigger
-                  WHERE tgname = 'trg_atelier_story_card_requires_story_document'
-                    AND NOT tgisinternal
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM pg_trigger
-                  WHERE tgname = 'trg_atelier_story_beat_card_matches_story_document'
-                    AND NOT tgisinternal
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_character_script'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_script'
-                    AND constraint_name = 'chk_atelier_character_script_data_only_authority'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_script'
-                    AND constraint_name = 'chk_atelier_character_script_provenance_refs_string_array'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_script'
-                    AND constraint_name = 'chk_atelier_character_script_usage_refs_string_array'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_script'
-                    AND constraint_name = 'chk_atelier_character_script_ref_whitespace_guard_v2'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_bracket_link_projection'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_bracket_link_projection'
-                    AND constraint_name = 'chk_atelier_bracket_link_target_kind'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_bracket_link_projection'
-                    AND constraint_name = 'chk_atelier_bracket_link_text_whitespace_guard_v2'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_bracket_link_projection'
-                    AND trigger_name = 'trg_atelier_bracket_link_projection_guard'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_bracket_link_projection'
-                    AND constraint_name = 'chk_atelier_bracket_link_projection_guard_v7'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_character_relationship'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND to_regclass('atelier_character_relationship_graph_projection') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_character_relationship_graph_projection'
-                    AND column_name IN (
-                        'edge_id',
-                        'source_character_id',
-                        'target_character_id',
-                        'relationship_kind',
-                        'label',
-                        'notes',
-                        'updated_at_utc'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 7
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_relationship'
-                    AND constraint_name = 'chk_atelier_character_relationship_distinct_endpoints'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_relationship'
-                    AND constraint_name = 'uq_atelier_character_relationship_edge'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_relationship'
-                    AND constraint_name = 'chk_atelier_character_relationship_kind_trimmed'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_relationship'
-                    AND constraint_name = 'chk_atelier_character_relationship_label_trimmed'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_character_relationship'
-                    AND constraint_name = 'chk_atelier_character_relationship_notes_trimmed'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_saved_search'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND to_regclass('atelier_saved_search_retrieval_projection') IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_saved_search_retrieval_projection'
-                    AND column_name = 'rating'
-                    AND data_type = 'smallint'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_name = 'atelier_saved_search_retrieval_projection'
-                    AND column_name IN (
-                        'saved_search_id',
-                        'asset_id',
-                        'content_hash',
-                        'artifact_ref',
-                        'jump_target',
-                        'tags_json',
-                        'favorite',
-                        'rating',
-                        'matched_color_hex',
-                        'view_mode',
-                        'content_tier'
-                    )
-                    AND table_schema = ANY(current_schemas(false))
-                  HAVING COUNT(DISTINCT column_name) = 11
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_saved_search'
-                    AND constraint_name = 'chk_atelier_saved_search_scope'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_saved_search'
-                    AND constraint_name = 'chk_atelier_saved_search_view_mode'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_saved_search'
-                    AND constraint_name = 'chk_atelier_saved_search_color_hex'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_web_portfolio_export_request'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_web_portfolio_export_result'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_web_portfolio_export_request'
-                    AND constraint_name = 'chk_atelier_web_portfolio_request_slug'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_web_portfolio_export_request'
-                    AND constraint_name = 'chk_atelier_web_portfolio_request_status'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_web_portfolio_export_result'
-                    AND constraint_name = 'chk_atelier_web_portfolio_result_artifact_ref'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_web_portfolio_export_result'
-                    AND constraint_name = 'chk_atelier_web_portfolio_result_manifest_contract'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_backup_manifest'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_backup_restore_preflight'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_reset_operation'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_orphan_manifest'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_orphan_manifest_item'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_state_probe_catalog_entry'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_state_probe_catalog_entry'
-                    AND constraint_name = 'chk_atelier_state_probe_read_model'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_state_probe_catalog_entry'
-                    AND constraint_name = 'chk_atelier_state_probe_required_pre_visual'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_state_probe_catalog_entry'
-                    AND constraint_name = 'chk_atelier_state_probe_fields_object'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_action_receipt'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_backup_manifest'
-                    AND constraint_name = 'chk_atelier_backup_manifest_json_contract'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_backup_restore_preflight'
-                    AND constraint_name = 'chk_atelier_backup_restore_preflight_status'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_backup_restore_preflight'
-                    AND constraint_name = 'chk_atelier_backup_restore_preflight_refusal'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_moodboard'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard'
-                    AND constraint_name = 'chk_atelier_moodboard_required_structure'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_moodboard'
-                    AND trigger_name = 'trg_atelier_moodboard_guard'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_character_document'
-                    AND trigger_name = 'trg_atelier_moodboard_document_guard'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_character_document_version'
-                    AND trigger_name = 'trg_atelier_moodboard_version_guard'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_moodboard_operation_receipt'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_moodboard_operation_receipt'
-                    AND trigger_name = 'trg_atelier_moodboard_operation_receipt_guard'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_name = 'atelier_moodboard_export_request'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_moodboard_export_request'
-                    AND trigger_name = 'trg_atelier_moodboard_export_request_guard'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard_operation_receipt'
-                    AND constraint_name = 'chk_atelier_moodboard_operation_receipt_contract_v2'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard_export_request'
-                    AND constraint_name = 'chk_atelier_moodboard_export_manifest_contract_v2'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard_export_request'
-                    AND constraint_name = 'chk_atelier_moodboard_export_receipt_contract_v2'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard_operation_receipt'
-                    AND constraint_name = 'chk_atelier_moodboard_operation_receipt_contract_v3'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard_export_request'
-                    AND constraint_name = 'chk_atelier_moodboard_export_manifest_contract_v3'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.table_constraints
-                  WHERE table_name = 'atelier_moodboard_export_request'
-                    AND constraint_name = 'chk_atelier_moodboard_export_receipt_contract_v3'
-                    AND table_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_moodboard_operation_receipt'
-                    AND trigger_name = 'trg_atelier_moodboard_operation_contract_guard_v4'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_moodboard_export_request'
-                    AND trigger_name = 'trg_atelier_moodboard_export_contract_guard_v4'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND EXISTS (
-                  SELECT 1
-                  FROM information_schema.triggers
-                  WHERE event_object_table = 'atelier_moodboard_export_request'
-                    AND trigger_name = 'trg_atelier_moodboard_export_counts_contract_guard_v5'
-                    AND trigger_schema = ANY(current_schemas(false))
-              )
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM information_schema.columns
-                  WHERE table_schema = ANY(current_schemas(false))
-                    AND column_default IS NOT NULL
-                    AND (
-                      (table_name = 'atelier_stealth_window' AND column_name = 'window_ref_id')
-                      OR (table_name = 'atelier_stealth_ref' AND column_name = 'ref_id')
-                      OR (table_name = 'atelier_stealth_capture' AND column_name = 'capture_id')
-                    )
-              )"#,
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-        if ready_after_lock {
-            tx.commit().await?;
-            self.repair_contact_sheet_manifest_schema_namespace()
-                .await?;
-            self.repair_media_asset_artifact_manifests().await?;
+        let missing: Vec<&str> = ATELIER_TABLES
+            .iter()
+            .copied()
+            .filter(|table| !defined.iter().any(|name| name == table))
+            .collect();
+        if missing.is_empty() {
             return Ok(());
         }
-
-        sqlx::raw_sql(include_str!("../../migrations/0030_atelier_foundation.sql"))
-            .execute(&mut *tx)
-            .await?;
-        sqlx::raw_sql(include_str!("../../migrations/0031_atelier_core_data.sql"))
-            .execute(&mut *tx)
-            .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0032_atelier_pose_diagnostics.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0033_atelier_event_ledger_projection.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0034_atelier_preference_metadata.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0035_atelier_stealth_uuid_v7_bound_ids.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0036_atelier_downloader_capability_grants.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0037_atelier_sheet_parser_ast.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0038_atelier_contact_sheet_schema_namespace.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0039_atelier_bulk_operation_receipts.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0040_atelier_media_artifact_manifest.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0041_atelier_source_evidence_matrix.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0042_atelier_source_evidence_matrix_scope.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0043_atelier_media_review_metadata.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0044_atelier_media_derivatives.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0045_atelier_similarity_rebuild_jobs.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0046_atelier_ai_tag_suggestions.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0047_atelier_media_sidecars.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0048_atelier_filesystem_health.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0049_atelier_image_import.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0050_atelier_media_source_provenance_refs.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0080_atelier_media_source_provenance_ref_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0051_atelier_intake_batch_resume.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0052_atelier_intake_item_lifecycle.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0081_atelier_intake_rejection_audit_item_batch_fk.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0053_atelier_intake_profile_targets.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0054_atelier_export_intake_links.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0055_atelier_collection_metadata_application.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0056_atelier_contact_sheet_svg_artifact.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0057_atelier_contact_sheet_raster_export_plan.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0058_atelier_character_documents.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0059_atelier_story_cards_beats.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0060_atelier_story_card_beat_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0061_atelier_character_scripts.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0062_atelier_character_script_ref_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0063_atelier_character_script_ref_whitespace_guard.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0064_atelier_bracket_links.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0065_atelier_bracket_link_text_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0066_atelier_bracket_link_projection_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0067_atelier_bracket_link_projection_rebuildability_guard.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0068_atelier_bracket_link_projection_v4_cleanup.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0069_atelier_bracket_link_projection_current_label_guard.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0070_atelier_bracket_link_projection_strict_current_guard.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0071_atelier_bracket_link_projection_rust_marker_parity.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0072_atelier_moodboard_schema_layer_model.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0073_atelier_moodboard_direct_sql_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0074_atelier_moodboard_operations_exports.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0075_atelier_moodboard_operation_export_contract_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0076_atelier_moodboard_contract_null_strict_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0077_atelier_moodboard_full_contract_triggers.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0078_atelier_moodboard_export_counts_guard.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0082_atelier_character_relationships.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0083_atelier_saved_searches.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0084_atelier_web_portfolio_exports.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0085_atelier_backup_manifests.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0089_atelier_reset_orphan_adoption.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0090_atelier_pose_sidecars.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0091_atelier_pose_sidecar_contract.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0092_atelier_pose_context_state.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0093_atelier_pose_workspace_rig_state.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0094_atelier_pose_workspace_rig_state_session_open.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0095_atelier_pose_rig_provenance.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0096_atelier_pose_rig_error_reason.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0097_atelier_pose_sidecar_manifest_role.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0098_atelier_pose_calibration_typed_data.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0099_atelier_identity_profile_record_fields.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0100_atelier_identity_crop_artifact.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0101_atelier_comfy_identity_workflow_metadata.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0102_atelier_comfy_workflow_receipt.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0103_atelier_comfy_output_registration_failure.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0104_atelier_comfy_workflow_history_stats.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0105_atelier_pose_deferred_feature.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0106_atelier_comfy_workflow_spec.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0107_atelier_comfy_version_metadata.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0108_atelier_comfy_job_queue.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0109_atelier_comfy_diagnostic_bundle.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0111_atelier_diagnostics_validation_matrix.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0112_atelier_diagnostics_typed_surfaces.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0113_atelier_command_log_session_heartbeat.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0114_atelier_model_config_apply.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0115_atelier_diagnostics_projections.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0116_atelier_dcc_flight_recorder.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0086_atelier_state_probe_catalog.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0088_atelier_state_probe_catalog_guards.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0087_atelier_action_receipts.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0122_atelier_model_manual_merge_drift.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        sqlx::raw_sql(include_str!(
-            "../../migrations/0129_atelier_visual_steer_retention.sql"
-        ))
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        self.repair_contact_sheet_manifest_schema_namespace()
-            .await?;
-        self.repair_media_asset_artifact_manifests().await?;
-        Ok(())
+        Err(AtelierError::ForbiddenStorage(format!(
+            "atelier schema is not present in the embedded store: {} of {} tables are missing \
+             (first missing: {}). The schema is applied when the store opens; a store that \
+             opened without it must be rebuilt, not repaired here.",
+            missing.len(),
+            ATELIER_TABLES.len(),
+            missing[0],
+        )))
     }
 
-    async fn repair_contact_sheet_manifest_schema_namespace(&self) -> AtelierResult<()> {
-        let table_exists: bool =
-            sqlx::query_scalar("SELECT to_regclass('atelier_contact_sheet') IS NOT NULL")
-                .fetch_one(&self.pool)
-                .await?;
-        if !table_exists {
-            return Ok(());
-        }
-
-        let legacy_schema = collections::legacy_contact_sheet_manifest_schema();
-        sqlx::query(
-            r#"UPDATE atelier_contact_sheet
-               SET manifest = jsonb_set(
-                   COALESCE(manifest, '{}'::jsonb),
-                   '{schema}',
-                   to_jsonb($2::text),
-                   true
-               )
-               WHERE manifest->>'schema' = $1"#,
-        )
-        .bind(legacy_schema)
-        .bind(collections::CONTACT_SHEET_MANIFEST_SCHEMA)
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Append an atelier domain event to the event ledger table (MT-005).
+    /// Append an atelier domain event to the event ledger (MT-005).
+    ///
+    /// Opens its own scoped store operation. A caller that is already inside
+    /// one calls [`Self::record_event_in_ctx`] instead, so the event lands in
+    /// the same statement as the mutation it describes.
     pub async fn record_event(
         &self,
         event_family: &str,
@@ -2210,26 +969,52 @@ impl AtelierStore {
         aggregate_id: &str,
         payload: serde_json::Value,
     ) -> AtelierResult<()> {
-        let mut tx = self.pool.begin().await?;
-        if let Err(err) = self
-            .record_event_in_tx(&mut tx, event_family, aggregate_type, aggregate_id, payload)
-            .await
-        {
-            tx.rollback().await?;
-            return Err(err);
-        }
-        tx.commit().await?;
-        Ok(())
+        let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
+        let bindings = prepared.bindings.clone();
+        let recorded: Option<RecordedLedgerRow> = self
+            .store
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(RECORD_EVENT_STATEMENT, bindings).await })
+            })
+            .await?;
+        self.finish_event(prepared, recorded).await
     }
 
-    pub(crate) async fn record_event_in_tx(
+    /// [`Self::record_event`] inside a caller's scoped store operation.
+    ///
+    /// This is the replacement for the former `record_event_in_tx`, which took
+    /// a borrowed PostgreSQL `Transaction`. The embedded store has no such
+    /// handle; atomicity comes from the statement itself, which is one
+    /// `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` round trip that writes the
+    /// kernel ledger row and the atelier projection row together or writes
+    /// neither.
+    pub(crate) async fn record_event_in_ctx(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
+        ctx: &SurrealDataContext<'_>,
         event_family: &str,
         aggregate_type: &str,
         aggregate_id: &str,
         payload: serde_json::Value,
     ) -> AtelierResult<()> {
+        let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
+        let recorded: Option<RecordedLedgerRow> = ctx
+            .query_first(RECORD_EVENT_STATEMENT, prepared.bindings.clone())
+            .await?;
+        self.finish_event(prepared, recorded).await
+    }
+
+    /// Build the kernel event and the bindings the write statement needs.
+    ///
+    /// Split out of the write so both entry points above produce identical
+    /// rows; the only thing that differs between them is who owns the store
+    /// operation.
+    fn prepare_event(
+        &self,
+        event_family: &str,
+        aggregate_type: &str,
+        aggregate_id: &str,
+        payload: serde_json::Value,
+    ) -> AtelierResult<PreparedAtelierEvent> {
         let atelier_event_id = Uuid::now_v7();
         let run_id = format!("atelier-domain-event:{atelier_event_id}");
         let safe_payload = sanitize_atelier_event_payload(payload);
@@ -2253,83 +1038,80 @@ impl AtelierStore {
         .build()
         .map_err(|err| AtelierError::EventLedger(err.to_string()))?;
         let kernel_event = KernelEvent::from_new(event.clone());
-        let payload_json = serde_json::to_string(&event.payload)
-            .map_err(|err| AtelierError::EventLedger(err.to_string()))?;
-        let row = sqlx::query(
-            r#"
-            WITH inserted AS (
-                INSERT INTO kernel_event_ledger (
-                    event_id,
-                    event_version,
-                    kernel_task_run_id,
-                    session_run_id,
-                    aggregate_type,
-                    aggregate_id,
-                    idempotency_key,
-                    event_type,
-                    actor_kind,
-                    actor_id,
-                    causation_id,
-                    correlation_id,
-                    payload_hash,
-                    source_component,
-                    payload,
-                    created_at
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
-                ON CONFLICT (idempotency_key) DO NOTHING
-                RETURNING event_id, event_sequence
+        let ledger_payload = event.payload.as_object().cloned().ok_or_else(|| {
+            AtelierError::EventLedger(
+                "kernel event payload must be a JSON object to store in kernel_event_ledger"
+                    .to_string(),
             )
-            SELECT event_id, event_sequence FROM inserted
-            UNION ALL
-            SELECT event_id, event_sequence
-            FROM kernel_event_ledger
-            WHERE idempotency_key = $7
-            LIMIT 1"#,
-        )
-        .bind(&kernel_event.event_id)
-        .bind(&event.event_version)
-        .bind(&event.kernel_task_run_id)
-        .bind(&event.session_run_id)
-        .bind(&event.aggregate_type)
-        .bind(&event.aggregate_id)
-        .bind(&event.idempotency_key)
-        .bind(event.event_type.as_str())
-        .bind(event.actor.actor_kind())
-        .bind(event.actor.actor_id())
-        .bind(event.causation_id.as_deref())
-        .bind(event.correlation_id.as_deref())
-        .bind(&event.payload_hash)
-        .bind(&event.source_component)
-        .bind(payload_json)
-        .bind(kernel_event.created_at)
-        .fetch_one(&mut **tx)
-        .await
-        .map_err(|err| AtelierError::EventLedger(err.to_string()))?;
-        let kernel_event_id: Option<String> = Some(row.get("event_id"));
-        let kernel_event_sequence: Option<i64> = Some(row.get("event_sequence"));
+        })?;
+        let atelier_payload = safe_payload.as_object().cloned().ok_or_else(|| {
+            AtelierError::EventLedger(
+                "atelier event payload must be a JSON object to store in atelier_event".to_string(),
+            )
+        })?;
+        Ok(PreparedAtelierEvent {
+            atelier_event_id,
+            event_family: event_family.to_owned(),
+            aggregate_type: aggregate_type.to_owned(),
+            aggregate_id: aggregate_id.to_owned(),
+            safe_payload,
+            bindings: RecordEventBindings {
+                ledger_id: RecordId::new(
+                    "kernel_event_ledger",
+                    kernel_event.event_id.clone(),
+                ),
+                atelier_id: RecordId::new(
+                    "atelier_event",
+                    SurrealUuid::from(atelier_event_id),
+                ),
+                atelier_event_uuid: SurrealUuid::from(atelier_event_id),
+                kernel_event_id: kernel_event.event_id.clone(),
+                event_version: event.event_version.clone(),
+                kernel_task_run_id: event.kernel_task_run_id.clone(),
+                session_run_id: event.session_run_id.clone(),
+                kernel_aggregate_type: event.aggregate_type.clone(),
+                kernel_aggregate_id: event.aggregate_id.clone(),
+                idempotency_key: event.idempotency_key.clone(),
+                event_type: event.event_type.as_str().to_owned(),
+                actor_kind: event.actor.actor_kind().to_owned(),
+                actor_id: event.actor.actor_id().to_owned(),
+                causation_id: event.causation_id.clone(),
+                correlation_id: event.correlation_id.clone(),
+                payload_hash: event.payload_hash.clone(),
+                source_component: event.source_component.clone(),
+                ledger_payload: JsonValue::Object(ledger_payload),
+                created_at: Datetime::from(kernel_event.created_at),
+                atelier_event_id: atelier_event_id.to_string(),
+                event_family: event_family.to_owned(),
+                atelier_payload: JsonValue::Object(atelier_payload),
+            },
+        })
+    }
 
-        sqlx::query(
-            r#"INSERT INTO atelier_event (
-                   event_id,
-                   event_family,
-                   aggregate_type,
-                   aggregate_id,
-                   kernel_event_id,
-                   kernel_event_sequence,
-                   payload
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
-        )
-        .bind(atelier_event_id)
-        .bind(event_family)
-        .bind(aggregate_type)
-        .bind(aggregate_id)
-        .bind(kernel_event_id.clone())
-        .bind(kernel_event_sequence)
-        .bind(safe_payload.clone())
-        .execute(&mut **tx)
-        .await?;
+    /// Mirror a recorded event onto the Flight Recorder.
+    ///
+    /// The store write is authority and has already committed by the time this
+    /// runs. A failure here is still returned rather than swallowed: a
+    /// diagnostic surface that silently drops events is worse than a loud one.
+    async fn finish_event(
+        &self,
+        prepared: PreparedAtelierEvent,
+        recorded: Option<RecordedLedgerRow>,
+    ) -> AtelierResult<()> {
+        let recorded = recorded.ok_or_else(|| {
+            AtelierError::EventLedger(
+                "kernel_event_ledger write returned no row for the atelier domain event"
+                    .to_string(),
+            )
+        })?;
+        let PreparedAtelierEvent {
+            atelier_event_id,
+            event_family,
+            aggregate_type,
+            aggregate_id,
+            safe_payload,
+            ..
+        } = prepared;
 
         #[cfg(feature = "runtime-full")]
         {
@@ -2340,14 +1122,14 @@ impl AtelierStore {
                     atelier_event_id,
                     serde_json::json!({
                         "diagnostic_id": "atelier_domain_event",
-                        "authority_source": "postgres_event_ledger",
+                        "authority_source": "surreal_event_ledger",
                         "projection_only": true,
                         "atelier_event_id": atelier_event_id,
                         "event_family": event_family,
                         "aggregate_type": aggregate_type,
                         "aggregate_id": aggregate_id,
-                        "kernel_event_id": kernel_event_id,
-                        "kernel_event_sequence": kernel_event_sequence,
+                        "kernel_event_id": recorded.event_id,
+                        "kernel_event_sequence": recorded.event_sequence,
                         "source_component": "atelier",
                         "payload": safe_payload,
                     }),
@@ -2360,40 +1142,70 @@ impl AtelierStore {
                     .map_err(|err| AtelierError::FlightRecorder(err.to_string()))?;
             }
         }
+        #[cfg(not(feature = "runtime-full"))]
+        {
+            let _ = (
+                atelier_event_id,
+                event_family,
+                aggregate_type,
+                aggregate_id,
+                safe_payload,
+                recorded,
+            );
+        }
         Ok(())
     }
 
     /// Count events of a given family (used by tests / coverage proofs).
     pub async fn count_events(&self, event_family: &str) -> AtelierResult<i64> {
-        let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM atelier_event WHERE event_family = $1")
-                .bind(event_family)
-                .fetch_one(&self.pool)
-                .await?;
-        Ok(count)
+        let bindings = EventFamilyBinding {
+            event_family: event_family.to_owned(),
+        };
+        let count: Option<i64> = self
+            .store
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "RETURN count(SELECT id FROM atelier_event \
+                         WHERE event_family = $event_family);",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(count.unwrap_or_default())
     }
 
-    /// Count events for one aggregate. Tests use this when the shared live
-    /// live database may contain rows from prior runs.
+    /// Count events for one aggregate. Tests use this when the live store may
+    /// still hold rows from a prior run in the same data directory.
     pub async fn count_events_for_aggregate(
         &self,
         event_family: &str,
         aggregate_type: &str,
         aggregate_id: &str,
     ) -> AtelierResult<i64> {
-        let count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*)
-               FROM atelier_event
-               WHERE event_family = $1
-                 AND aggregate_type = $2
-                 AND aggregate_id = $3"#,
-        )
-        .bind(event_family)
-        .bind(aggregate_type)
-        .bind(aggregate_id)
-        .fetch_one(&self.pool)
-        .await?;
-        Ok(count)
+        let bindings = AggregateCountBindings {
+            event_family: event_family.to_owned(),
+            aggregate_type: aggregate_type.to_owned(),
+            aggregate_id: aggregate_id.to_owned(),
+        };
+        let count: Option<i64> = self
+            .store
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "RETURN count(SELECT id FROM atelier_event \
+                         WHERE event_family = $event_family \
+                           AND aggregate_type = $aggregate_type \
+                           AND aggregate_id = $aggregate_id);",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(count.unwrap_or_default())
     }
 }
 
@@ -2403,15 +1215,28 @@ mod guard_tests {
 
     #[test]
     fn rejects_sqlite_urls() {
-        assert!(assert_postgres_url("sqlite://./x.db").is_err());
-        assert!(assert_postgres_url("/var/lib/handshake.sqlite").is_err());
-        assert!(assert_postgres_url("foo.db").is_err());
+        assert!(assert_embedded_store_backend("sqlite://./x.db").is_err());
+        assert!(assert_embedded_store_backend("/var/lib/handshake.sqlite").is_err());
+        assert!(assert_embedded_store_backend("foo.db").is_err());
     }
 
+    /// The inversion that came with MT-138: a PostgreSQL DSN used to be the ONLY
+    /// accepted atelier storage reference and is now rejected outright, because
+    /// the server it points at no longer exists in Handshake. Anything that
+    /// still hands atelier one is misconfigured, not merely legacy.
     #[test]
-    fn accepts_postgres_urls() {
-        assert!(assert_postgres_url("postgres://postgres@127.0.0.1:5544/handshake").is_ok());
-        assert!(assert_postgres_url("postgresql://u:p@host/db").is_ok());
+    fn rejects_postgres_urls() {
+        for dsn in [
+            "postgres://postgres@127.0.0.1:5544/handshake",
+            "postgresql://u:p@host/db",
+        ] {
+            let error = assert_embedded_store_backend(dsn)
+                .expect_err("a PostgreSQL DSN is no longer valid atelier storage");
+            assert!(
+                matches!(error, AtelierError::ForbiddenStorage(_)),
+                "a legacy DSN must be refused as forbidden storage, got {error:?}"
+            );
+        }
     }
 
     #[test]

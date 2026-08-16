@@ -19,14 +19,14 @@
 //!
 //! ## Running it
 //!
-//! This is a live proof. It requires an explicitly built product backend and a WP-scoped real
-//! PostgreSQL, exactly like the other `pg_proof_support` suites:
+//! This is a live proof. It requires an explicitly built product backend. It no longer requires a
+//! database to be running: Handshake's store is embedded in the backend, so the harness scopes the
+//! run with a data directory and the backend opens its own store inside it.
 //!
 //! ```text
 //! CARGO_TARGET_DIR=<scoped>            # per-owner scoped cargo target (CX-984)
 //! HSK_TEST_BACKEND_BIN=<scoped>/debug/handshake_core.exe
-//! HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_111
-//! HSK_PSQL_BIN=C:/Program Files/PostgreSQL/16/bin/psql.exe
+//! HANDSHAKE_DATA_DIR=<scoped>/backend-runtime   # the run's isolated embedded store root
 //! HANDSHAKE_TEST_STAGE_BINDING_ROOT=<short absolute isolated root>   # forces an OWNED backend child
 //! cargo test --test test_flight_recorder_authz -- --nocapture
 //! ```
