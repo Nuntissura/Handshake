@@ -7,8 +7,10 @@
 //!     hash distance used for near-duplicate / similarity search.
 //!   * `app/backend/palette.js` dominant-palette projection persisted per asset.
 //!
-//! Storage authority is PostgreSQL (sqlx 0.8) ONLY. SQLite is forbidden in any
-//! form. Every mutation emits an atelier event from the new families defined
+//! Storage authority is the single Handshake store ONLY. SQLite is forbidden in
+//! any form. The queries below still bind `sqlx` and are PENDING the SurrealDB
+//! port — see the `atelier` module header (MT-138).
+//! Every mutation emits an atelier event from the new families defined
 //! below so the operator surface, Locus, and replay can reconstruct history.
 //!
 //! Design notes mirrored from legacy source:
@@ -925,7 +927,7 @@ fn rule_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<TagRule> {
 
 impl AtelierStore {
     /// Search across sheet text, character documents, moodboard snapshots, and
-    /// media rows with stable jump targets. This is PostgreSQL-backed pattern
+    /// media rows with stable jump targets. This is database-backed pattern
     /// matching over Handshake tables, not SQLite FTS or an external index.
     pub async fn global_search(
         &self,
@@ -2032,7 +2034,7 @@ impl AtelierStore {
     /// Find media assets perceptually similar to `target_hash` within a Hamming
     /// `threshold` (0..=64), excluding the target asset, ordered nearest-first.
     /// Mirrors legacy source `image.similar.search`: candidate hashes are pulled from
-    /// Postgres and scored with [`hamming_distance_hex64`] in-process (the dHash
+    /// the store and scored with [`hamming_distance_hex64`] in-process (the dHash
     /// space is small and bounded by `limit` candidates fetched). A read-only
     /// query, so no event is recorded.
     pub async fn find_similar_assets(

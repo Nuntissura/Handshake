@@ -1,13 +1,18 @@
 //! Atelier read/navigation HTTP surface (WP-KERNEL-005).
 //!
-//! Exposes the WP-KERNEL-005 atelier PostgreSQL store over the existing Axum
+//! Exposes the WP-KERNEL-005 atelier store over the existing Axum
 //! server so a React panel can navigate it: a store overview, intake batches +
 //! items, the command-corpus catalog, and the stealth-window registry. The
 //! routes mirror the conventions in `api/workspaces.rs` exactly: a `routes`
 //! builder, `State(AppState)` handlers, and a private `ErrorResponse` with
 //! `internal_error` / `bad_request` helpers.
 //!
-//! Storage authority is PostgreSQL only (`AtelierStore` over the shared
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-138): `AtelierStore` and these
+//! handlers still bind `sqlx` against the deleted relational backend, so this
+//! surface does not compile and serves no request today. Handshake's only
+//! database is the embedded SurrealDB store.
+//!
+//! Storage authority is the single store only (`AtelierStore` over the shared
 //! `AppState::postgres_pool`); SQLite is never used. `ensure_schema` is called
 //! once at startup, never per-request. Read handlers build an `AtelierStore`
 //! per request from the shared pool, or run a direct `sqlx` query against the
@@ -1032,7 +1037,7 @@ async fn list_stealth_windows(
 
 /// GET /atelier/stealth/windows/:window_ref_id/refs/:ref_id — governed,
 /// redacted single-reference view. This is a read-only projection over
-/// PostgreSQL and never includes raw payload fields.
+/// durable authority and never includes raw payload fields.
 async fn resolve_stealth_ref(
     State(state): State<AppState>,
     Path((window_ref_id, ref_id)): Path<(Uuid, Uuid)>,

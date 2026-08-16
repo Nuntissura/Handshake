@@ -4,7 +4,7 @@
 //! [`VisualDebuggingLoopV1`](crate::kernel::visual_debugging_loop::VisualDebuggingLoopV1)
 //! into actionable, durable STEER feedback records -- never a silent failure
 //! and never generic prose. One record per `(loop_id, evidence_id)` breach is
-//! persisted in PostgreSQL (table `atelier_visual_steer_feedback`, migration
+//! persisted in the durable store (table `atelier_visual_steer_feedback`, migration
 //! `0129_atelier_visual_steer_retention.sql`) and mirrored through the Atelier
 //! EventLedger so downstream roles can route the STEER receipt.
 

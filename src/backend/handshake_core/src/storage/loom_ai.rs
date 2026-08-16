@@ -2,14 +2,18 @@
 //!
 //! Master Spec anchor: 02-system-architecture.md section 2.3.13.11 — AI
 //! auto-tagging/auto-captioning/auto-linking MUST leave actor, denial, or
-//! promotion receipts. This module is the PostgreSQL surface for the
+//! promotion receipts. This module is the storage surface for the
 //! `loom_ai_suggestions` table (migration 0333): every model suggestion is a
 //! PENDING proposal row that becomes authority only after operator/validator
 //! confirm-to-promote.
 //!
-//! Pattern follows `storage/knowledge_crdt.rs`: free async functions over
-//! `&sqlx::PgPool`. There is NO in-memory/SQLite fallback; without PostgreSQL
-//! every function fails closed with a typed `StorageError`.
+//! Pattern follows `storage/knowledge_crdt.rs`: free async functions over a
+//! shared handle. There is NO in-memory/SQLite fallback; without the durable
+//! store every function fails closed with a typed `StorageError`.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the functions below still
+//! take a `sqlx` pool from the deleted relational backend, so this module does
+//! not compile today. Handshake's only database is the embedded SurrealDB store.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

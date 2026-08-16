@@ -47,8 +47,9 @@
 //!     (settings.rs redaction style) and never embeds credential material or
 //!     machine-local absolute paths.
 //!
-//! Storage authority is PostgreSQL only (LAW-COMFY-INTAKE-004); SQLite is
-//! forbidden. Microtasks: MT-202 (ComfyUI intake records), MT-005 (event
+//! Storage authority is the single Handshake store only (LAW-COMFY-INTAKE-004);
+//! SQLite is forbidden. PENDING the SurrealDB port — see the `atelier` module
+//! header (MT-138). Microtasks: MT-202 (ComfyUI intake records), MT-005 (event
 //! coverage).
 
 use crate::capabilities::CapabilityRegistry;

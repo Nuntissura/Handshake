@@ -3,7 +3,11 @@
 //! machine-local `root_path` and reads back the total number of symbols the
 //! index produced (`symbol_count`).
 //!
-//! This is NOT a thin adapter. It genuinely, over PostgreSQL/EventLedger
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-137): this surface still binds
+//! `sqlx` against the deleted relational backend and does not compile today.
+//! Handshake's only database is the embedded SurrealDB store.
+//!
+//! This is NOT a thin adapter. It genuinely, over single-store/EventLedger
 //! authority (no SQLite):
 //!   1. registers `root_path` as a knowledge source root — the MT-081 root
 //!      allowlist is enforced FAIL-CLOSED (a denied path is a typed 403, never a

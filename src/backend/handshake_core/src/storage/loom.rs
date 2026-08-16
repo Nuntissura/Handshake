@@ -360,7 +360,7 @@ pub struct LoomBlockUpdate {
     #[serde(default)]
     pub pin_order: Option<i32>,
     /// Optional optimistic-concurrency token for interactive metadata edits. When present, the
-    /// PostgreSQL update succeeds only if the block still has this exact authority timestamp.
+    /// update succeeds only if the block still has this exact authority timestamp.
     #[serde(default)]
     pub expected_updated_at: Option<DateTime<Utc>>,
 }
@@ -878,12 +878,17 @@ pub struct LoomVisualDebugSnapshot {
 ///
 /// There is intentionally only one variant. §10.12 #9.1.1 forbids any SQLite /
 /// cache / offline / sidecar authority path for WP-009 Loom; the storage crate
-/// compiles no `sqlite` module (see `storage/mod.rs`), so Postgres is the only
-/// reachable backend and this enum makes that explicit and assertable in tests.
+/// compiles no `sqlite` module (see `storage/mod.rs`), so the single embedded
+/// SurrealDB store is the only reachable backend and this enum makes that
+/// explicit and assertable in tests.
+///
+/// The variant identifier and its `postgres_event_ledger` wire form are legacy
+/// names kept unchanged because they are serialized and asserted by existing
+/// tests; they no longer describe the backing engine.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LoomAuthorityBackend {
-    /// PostgreSQL + EventLedger — the sole WP-009 Loom authority.
+    /// The embedded store + EventLedger — the sole WP-009 Loom authority.
     PostgresEventLedger,
 }
 
@@ -896,7 +901,7 @@ impl LoomAuthorityBackend {
 
     /// True iff this backend is a single-source-of-truth authority path (never
     /// a cache / offline / sidecar). Always true: the only variant is the
-    /// Postgres+EventLedger authority.
+    /// embedded store + EventLedger authority.
     pub fn is_authority(&self) -> bool {
         matches!(self, LoomAuthorityBackend::PostgresEventLedger)
     }
@@ -1351,7 +1356,7 @@ pub struct LoomBreadcrumbTrail {
 /// The result of importing a markdown-like note into Loom authority (MT-187):
 /// the created authority LoomBlock + the backing RichDocument id, plus any
 /// import warnings (unsupported features). The markdown source is never stored
-/// as authority — only these PostgreSQL authority rows.
+/// as authority — only these durable authority records.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LoomMarkdownImport {
     /// The new authority LoomBlock (content_type=note), bridged to the
@@ -1499,7 +1504,7 @@ pub struct NewLoomCanvasPlacement {
     /// block placement leaves this false.
     pub is_text_card: bool,
     /// Canonical SHA-256 key for an idempotent Stage capture provenance tuple.
-    /// `None` for every ordinary Canvas placement. PostgreSQL enforces at most
+    /// `None` for every ordinary Canvas placement. The store enforces at most
     /// one non-null key per workspace and canvas.
     pub stage_provenance_key: Option<String>,
 }

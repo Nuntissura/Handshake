@@ -456,7 +456,7 @@ async fn session_spawn_runtime_evidence_from_state(
 /// This is the pure path used by `session_spawn_runtime_evidence_from_state`
 /// after it pulls the recorder events from the active state. It is exposed so
 /// tests can drive announce-back, cascade-cancel, and flight-recorder pairing
-/// behavior without standing up a Postgres-backed AppState — the test surface
+/// behavior without standing up a database-backed AppState — the test surface
 /// must fail closed if a future change reverts to hardcoded synthesis.
 pub fn derive_session_spawn_runtime_evidence(
     sessions: &[ModelSession],

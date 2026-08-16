@@ -2,7 +2,7 @@
 //!
 //! Master Spec anchor: 02-system-architecture.md section 2.3.13.11 and the
 //! WP-009 contract field `translated_memory_system_spec`. This module is the
-//! PostgreSQL surface for the MemoryGraph layer (`knowledge_memory_*`,
+//! storage surface for the MemoryGraph layer (`knowledge_memory_*`,
 //! migrations 0240-0259): the ontology of schema terms, the memory-fact
 //! records (S/P/O claims that reuse the claim lifecycle), the ontology/alias
 //! links, conflict-detection / conflict-resolution agent-job records, bridge
@@ -19,8 +19,12 @@
 //!
 //! Pattern follows `storage/knowledge_crdt.rs`: free async functions over
 //! `&sqlx::PgPool` rather than widening the legacy `Database` trait. There is
-//! NO in-memory, SQLite, or fixture fallback: without PostgreSQL every function
-//! fails closed with a typed `StorageError`.
+//! NO in-memory, SQLite, or fixture fallback: without the durable store every
+//! function fails closed with a typed `StorageError`.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the functions below still
+//! take a `sqlx` pool from the deleted relational backend, so this module does
+//! not compile today. Handshake's only database is the embedded SurrealDB store.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

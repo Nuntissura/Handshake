@@ -25,7 +25,8 @@
 //! and the hard "No handler registered for spec_version" rejection;
 //! `fileSha256Hex` -- content-hash identity; `runIngestion`/`ensureBatch` -- the
 //! idempotent ingestion batch keyed by spec + version + dataset). Storage
-//! authority here is PostgreSQL + EventLedger only (MT-004).
+//! authority here is the single Handshake store + EventLedger only (MT-004).
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //!
 //! Microtasks: MT-201 (sourcing-spec schema + handler version matrix),
 //! MT-005 (event coverage).
@@ -576,8 +577,8 @@ fn required_string_array_field(
         .collect()
 }
 
-/// SHA-256 hex of bytes, via Postgres `digest`/`encode` to avoid pulling a new
-/// crate. Computed by a tiny DB round-trip on the connection pool so the hash
+/// SHA-256 hex of bytes, computed by the database rather than pulling a new
+/// crate. A tiny DB round-trip on the shared handle keeps the hash
 /// matches whatever the rest of the system would compute server-side.
 async fn sha256_hex(store: &AtelierStore, bytes: &[u8]) -> AtelierResult<String> {
     // pgcrypto `digest` is available in the atelier database (used elsewhere via

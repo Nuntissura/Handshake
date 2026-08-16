@@ -1,9 +1,13 @@
 //! MT-027 transactional outbox for saved Block Collection View mutations.
 //!
-//! PostgreSQL view state, ProjectKnowledgeIndex/EventLedger authority, search
+//! Durable view state, ProjectKnowledgeIndex/EventLedger authority, search
 //! projection, and the exact Flight Recorder event are committed together.
 //! Publication into the recorder is an idempotent projection that can resume
 //! after a process restart.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): this module still binds
+//! `sqlx` against the deleted relational backend and does not compile today.
+//! Handshake's only database is the embedded SurrealDB store.
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::storage::{MutationMetadata, StorageError, StorageResult, WriteActorKind};

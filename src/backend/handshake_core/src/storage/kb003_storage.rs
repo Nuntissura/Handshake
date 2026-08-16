@@ -4,22 +4,23 @@
 //!
 //! KB003 storage glue.
 //!
-//! MT-011..MT-014 acceptance: provide durable Postgres rows + migration SQL
+//! MT-011..MT-014 acceptance: provide durable authority rows + schema
 //! for sandbox runs, sandbox policies, validation runs, and promotion
 //! receipts. MT-016 acceptance: replay a run from durable rows alone.
 //!
-//! Why one file instead of touching `storage/postgres.rs`:
+//! Why one file:
 //!
-//! - `postgres.rs` is the legacy single-file authority surface (~8.3k lines).
-//!   Splitting KB003 into its own file keeps the migration SQL, row types,
+//! - The deleted legacy backend kept every authority surface in one ~8.3k-line
+//!   file. Splitting KB003 into its own file keeps the schema, row types,
 //!   and storage trait reviewable as one unit per the MT contracts.
 //! - The trait is intentionally narrow: `Kb003Storage` exposes the minimum
 //!   verbs MT-011..MT-014 demand (`insert_sandbox_run`,
 //!   `update_sandbox_run_status`, `insert_sandbox_policy_version`,
 //!   `insert_validation_run`, `insert_promotion_decision`,
 //!   `insert_promotion_receipt`, `load_run_for_replay`).
-//! - Concrete Postgres binding lands in a follow-up MT (Wave E); MT-015 still
-//!   gates every write here through the no-SQLite tripwire.
+//! - The concrete storage binding is still pending the SurrealDB port
+//!   (WP-KERNEL-012 MT-136); MT-015 already gates every write here through the
+//!   no-SQLite tripwire.
 //!
 //! Idempotency (MT-014): the promotion receipt insert is keyed by
 //! `idempotency_key`. Re-inserting the same key with the same payload returns

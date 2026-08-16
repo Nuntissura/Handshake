@@ -173,7 +173,7 @@ pub async fn traces_for_bundle(
 }
 
 /// Reconstruct a persisted context bundle from a trace id, proving the durable
-/// row is replayable from PostgreSQL authority rather than only display JSON.
+/// row is replayable from durable authority rather than only display JSON.
 pub async fn replay_context_bundle_from_trace(
     db: &PostgresDatabase,
     trace_id: &str,

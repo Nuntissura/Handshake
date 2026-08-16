@@ -1335,7 +1335,7 @@ async fn reconcile_native_editor_pending_receipt(
 
 /// AC-109-1: accept a versioned native-editor event envelope, land it in the FR authority
 /// store (readable via the existing GET route), idempotent on the workspace-partitioned durable
-/// event id, and durably mirror it into the PostgreSQL kernel EventLedger.
+/// event id, and durably mirror it into the kernel EventLedger.
 ///
 /// Authorization is enforced twice over: [`authorize_flight_recorder_request`] already proved the
 /// caller holds `fr.ingest.native_editor` on a live binding, and this handler then binds actor and
@@ -2140,7 +2140,7 @@ mod tests {
     }
 
     /// AC-109-1: a native-editor event lands in the FR store (readable via GET),
-    /// idempotent on event_id, and durably mirrors into the PostgreSQL kernel EventLedger.
+    /// idempotent on event_id, and durably mirrors into the kernel EventLedger.
     #[tokio::test]
     async fn native_editor_event_round_trips_and_mirrors_to_ledger(
     ) -> Result<(), Box<dyn std::error::Error>> {

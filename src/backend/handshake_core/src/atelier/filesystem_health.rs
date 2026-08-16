@@ -1,8 +1,10 @@
 //! Filesystem health diagnostics (MT-023).
 //!
 //! This module preserves the legacy health-check intent as read-only
-//! diagnostics over governed PostgreSQL state. It records health snapshots and
+//! diagnostics over governed durable state. It records health snapshots and
 //! findings, but it never resyncs, deletes, repairs, or creates media rows.
+//!
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -312,10 +312,10 @@ impl SurrealDataContext<'_> {
     /// Creates a record only when its id is free, returning `Ok(None)` when it
     /// is already taken.
     ///
-    /// This is the fail-closed counterpart of [`Self::upsert_one`] and replaces
-    /// the PostgreSQL `INSERT ... ON CONFLICT DO NOTHING` plus unique-violation
-    /// SQLSTATE handling that idempotency keys, mailbox lease acquisition and
-    /// duplicate-outcome detection relied on. The existence test and the create
+    /// This is the fail-closed counterpart of [`Self::upsert_one`] and gives
+    /// idempotency keys, mailbox lease acquisition and duplicate-outcome
+    /// detection the insert-if-absent primitive they need without any
+    /// unique-violation error-code handling. The existence test and the create
     /// run inside ONE statement, so two callers racing for the same id cannot
     /// both observe it as free.
     pub(crate) async fn create_if_absent<R, D>(

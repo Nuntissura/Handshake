@@ -1,8 +1,17 @@
 //! Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in).
 //!
-//! Storage authority is PostgreSQL + EventLedger + ArtifactStore + CRDT only.
-//! SQLite is FORBIDDEN in any form (runtime, tests, fixtures, cache, fallback);
-//! see [`assert_postgres_url`] (MT-004) and the kernel `no_sqlite_tripwire`.
+//! Storage authority is the single database + EventLedger + ArtifactStore +
+//! CRDT only. SQLite is FORBIDDEN in any form (runtime, tests, fixtures, cache,
+//! fallback); see [`assert_postgres_url`] (MT-004) and the kernel
+//! `no_sqlite_tripwire`.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-138): every module below still
+//! binds `sqlx` and a connection URL against the deleted relational backend, so
+//! the whole atelier domain does not compile and none of it runs today.
+//! Handshake's only database is the embedded SurrealDB store (RocksDB engine,
+//! in-process, namespace `handshake`, database `primary`). This module-level
+//! note covers the whole domain; the per-item docs below describe the intended
+//! contract, not a migration that has happened.
 //!
 //! Module boundaries (MT-003): `core` (character identity + append-only sheet
 //! versions), `media` (DAM), with `intake`/`collections`/`search`/`exports`
@@ -561,7 +570,8 @@ fn sanitize_atelier_event_payload(value: serde_json::Value) -> serde_json::Value
     }
 }
 
-/// PostgreSQL-backed atelier data store. Wraps a shared [`PgPool`].
+/// Atelier data store. Wraps a shared [`PgPool`] from the deleted relational
+/// backend and is PENDING the SurrealDB port (WP-KERNEL-012 MT-138).
 #[derive(Clone)]
 pub struct AtelierStore {
     pool: PgPool,
@@ -2364,7 +2374,7 @@ impl AtelierStore {
     }
 
     /// Count events for one aggregate. Tests use this when the shared live
-    /// PostgreSQL database may contain rows from prior runs.
+    /// live database may contain rows from prior runs.
     pub async fn count_events_for_aggregate(
         &self,
         event_family: &str,

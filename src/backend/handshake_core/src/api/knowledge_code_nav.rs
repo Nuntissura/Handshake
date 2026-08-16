@@ -11,8 +11,13 @@
 //! Conventions mirror `api/knowledge_ingestion.rs`: a `routes(state)` builder,
 //! handlers over the shared `AppState`, JSON errors with typed `error` codes,
 //! reads bounded by `LIST_CAP`. All graph reads go through
-//! `storage::knowledge::KnowledgeStore` over the shared `postgres_pool` —
-//! PostgreSQL + EventLedger authority only, no SQLite, no re-parsing.
+//! `storage::knowledge::KnowledgeStore` — single-store + EventLedger authority
+//! only, no SQLite, no re-parsing.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): `KnowledgeStore` has no live
+//! implementor and this module still names the deleted relational handle, so it
+//! does not compile and serves no request today. Handshake's only database is
+//! the embedded SurrealDB store.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every nav endpoint therefore

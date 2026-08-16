@@ -6,8 +6,12 @@
 //! review open conflicts (the repair queue), trace a fact's S/P/O + backing
 //! claim, walk an entity's graph neighborhood, and pull the visual-debug
 //! payload. All reads go through `storage::knowledge` /
-//! `storage::knowledge_memory` over the shared `postgres_pool` — PostgreSQL +
+//! `storage::knowledge_memory` over the shared storage handle — single-store +
 //! EventLedger authority only, no SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): both stores still name the
+//! deleted relational backend, so this module does not compile and serves no
+//! request today. Handshake's only database is the embedded SurrealDB store.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every endpoint REQUIRES the

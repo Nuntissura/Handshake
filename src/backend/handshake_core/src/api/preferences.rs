@@ -2,9 +2,14 @@
 //!
 //! WP-KERNEL-012 MT-072: the editor settings dialog reads/writes editor preferences through this
 //! canonical typed [`PreferenceRecord`](crate::preferences::PreferenceRecord) surface backed by
-//! PostgreSQL + EventLedger, replacing the opaque workspace-settings JSON document. Every route is
+//! the durable store + EventLedger, replacing the opaque workspace-settings JSON document. Every route is
 //! workspace-scoped and confined to the registry-defined editor preferences (SET-SCOPE-001
 //! `view-defaults`). SQLite is forbidden anywhere in this domain (SET-STORE-002).
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the preference store methods
+//! on the `Database` trait have no implementor — `SurrealDatabase` does not
+//! provide them, so the default bodies fail closed with `NotImplemented` and no
+//! preference is persisted today.
 //!
 //! Routes (SET-UI-001/002/003):
 //! * `GET    /workspaces/:workspace_id/preferences`                        redacted projection (SET-PROJ)

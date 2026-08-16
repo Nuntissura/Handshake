@@ -1,8 +1,13 @@
 //! WP-KERNEL-012 MT-045 / MT-067 (Calendar): the calendar HTTP surface for the
 //! native calendar view + the Editors<->Calendar interop edge. Wires the
 //! EXISTING calendar window query (`storage::calendar` / `query_calendar_events`)
-//! plus the MT-067 calendar activity-span store over PostgreSQL/EventLedger
+//! plus the MT-067 calendar activity-span store over single-store/EventLedger
 //! authority — no SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-137): the calendar window query is
+//! served by the embedded SurrealDB store, but the activity-span half still
+//! builds a `CalendarActivityStore` on the deleted relational pool, so this
+//! module does not compile today.
 //!
 //! Routes (workspace-scoped, P1):
 //!   * `GET  /workspaces/:workspace_id/calendar/events?from_date=&to_date_exclusive=&from_utc=&to_utc=&view_tzid=`

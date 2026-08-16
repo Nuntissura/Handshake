@@ -1,18 +1,20 @@
 //! WP-KERNEL-009 CRDTAndConcurrencyCore storage (MT-065..MT-080).
 //!
 //! Master Spec anchor: 02-system-architecture.md section 2.3.13.11. This
-//! module is the PostgreSQL surface for the WP-009 CRDT support tables
+//! module is the storage surface for the WP-009 CRDT support tables
 //! (`knowledge_crdt_*`, migrations 0150-0159): denial receipts, graph
 //! mutation proposals, promoted facts, AI edit proposals, agent lane leases,
 //! swarm checkpoints and recovery receipts.
 //!
 //! Pattern follows `storage/knowledge.rs` (MT-049 precedent): free async
 //! functions over `&sqlx::PgPool` rather than widening the legacy `Database`
-//! trait. The shared pool is available everywhere it is needed (AppState,
-//! `PostgresDatabase::pool()`, and the test fixture
-//! `postgres_backend_with_pool_from_env`). There is NO in-memory, SQLite,
-//! or fixture fallback: without PostgreSQL every function fails closed with
-//! a typed `StorageError`.
+//! trait. There is NO in-memory, SQLite, or fixture fallback: without the
+//! durable store every function fails closed with a typed `StorageError`.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the functions below still
+//! take a `sqlx` pool from the deleted relational backend, so this module does
+//! not compile and none of these calls reach a database today. Handshake's only
+//! database is the embedded SurrealDB store.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -949,15 +951,14 @@ pub struct PromotedFactRow {
 }
 
 /// Column list for `knowledge_crdt_promoted_facts` selects. `pub(crate)` so
-/// the Postgres atomic-promotion helper (postgres.rs) can re-select the row
-/// inside its transaction.
+/// the atomic-promotion helper can re-select the row inside its transaction.
 pub(crate) const PROMOTED_FACT_COLUMNS: &str = r#"
     fact_id, proposal_id, workspace_id, mutation_kind, fact_payload,
     source_span_refs, confidence, proposed_by, promoted_by,
     promotion_requested_event_id, promotion_accepted_event_id, promoted_at_utc
 "#;
 
-/// `pub(crate)` row mapper for the Postgres atomic-promotion helper.
+/// `pub(crate)` row mapper for the atomic-promotion helper.
 pub(crate) fn map_promoted_fact_row(row: sqlx::postgres::PgRow) -> StorageResult<PromotedFactRow> {
     map_promoted_fact(row)
 }

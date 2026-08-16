@@ -20,8 +20,13 @@
 //!   approved proposal and atomically writes the canonical `MemoryItem`, `MemoryCommitReport`,
 //!   strict `MemoryPack`, and EventLedger commit receipt; FR-EVT-MEM-003 is projected from it.
 //!
-//! All durable writes go through PostgreSQL (`fems_memory_*` tables) plus a durable
+//! All durable writes go through the FEMS store (`fems_memory_*` tables) plus a durable
 //! kernel EventLedger receipt; review decisions are mirrored to Flight Recorder. No SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): `storage::fems_memory` still
+//! binds `sqlx` against the deleted relational backend, so these routes do not
+//! compile and serve no request today. Handshake's only database is the
+//! embedded SurrealDB store.
 
 use axum::{
     extract::Request,

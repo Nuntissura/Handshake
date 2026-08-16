@@ -2082,7 +2082,7 @@ mod tests {
     }
 
     /// MT-258 saved-search durability: the search-bookmarks route must persist to
-    /// PostgreSQL + EventLedger (NOT localStorage), survive a re-read, replace the
+    /// the durable store + EventLedger (NOT localStorage), survive a re-read, replace the
     /// blob on a second save, reject a malformed blob, and emit a kernel
     /// EventLedger receipt per save. This proves saved searches are canonical
     /// state and the UI is a projection.

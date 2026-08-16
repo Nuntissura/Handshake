@@ -8,9 +8,10 @@
 //! ~L6603, `_createSheetVersion` export_format/export_relative_path ~L5592),
 //! app/backend/backup.js (manifest intent). legacy source stores exports as files on disk
 //! under `exports/`; Handshake instead records each export as a durable
-//! request -> result -> manifest-entry graph in PostgreSQL, where rendered bytes
-//! live in the ArtifactStore (`artifact_ref`) and are never written to random
-//! filesystem paths or `.GOV`. SQLite is forbidden (MT-004).
+//! request -> result -> manifest-entry graph in the durable store, where
+//! rendered bytes live in the ArtifactStore (`artifact_ref`) and are never
+//! written to random filesystem paths or `.GOV`. SQLite is forbidden (MT-004).
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //!
 //! Data contract (MT-199):
 //!   * `atelier_export_request`  - an operator/model ask to export a character,

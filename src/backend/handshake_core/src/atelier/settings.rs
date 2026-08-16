@@ -3,7 +3,9 @@
 //! Translates the legacy source "Global Settings" surface
 //! (`src/ui/views/SettingsView.tsx`, `app/main.js` JSON config blob with
 //! `libraryRoot` and runtime settings, saved via `saveConfig`) into a typed,
-//! scoped preference store on PostgreSQL. legacy source stored an untyped JSON file on
+//! scoped preference store in the single Handshake database (PENDING the
+//! SurrealDB port — see the `atelier` module header, MT-138). legacy source
+//! stored an untyped JSON file on
 //! the local filesystem; Handshake forbids that (no SQLite, no localhost
 //! authority). Here every preference is a typed record with an explicit value
 //! type, an explicit scope (global vs per-character, mirroring the legacy source split

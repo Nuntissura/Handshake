@@ -1,7 +1,8 @@
 -- Handshake embedded SurrealDB schema.
 --
--- This transaction is the bounded Surreal-native projection of source wave
--- 0001-0029 only. The Rust bootstrap returns before this file is executed when
+-- This transaction is the bounded Surreal-native projection of the source
+-- wave enumerated by `SOURCE_WAVE_FILES` in schema.rs (migrations 0001-0059
+-- plus the selected 0130-0361 bands). The Rust bootstrap returns before this file is executed when
 -- the durable state and complete structured INFO fingerprint are exact-current.
 -- V1 is deliberately fresh-only: the guard below rejects every pre-existing
 -- database object (including implicit tables created by records) in the same
@@ -2154,6 +2155,1320 @@ DEFINE INDEX OVERWRITE idx_atelier_story_beat_card ON TABLE atelier_story_beat F
 DEFINE EVENT OVERWRITE cascade_atelier_source_evidence_record ON TABLE atelier_source_evidence_record
     WHEN $event = 'DELETE'
     THEN { DELETE atelier_anchor_verification_record WHERE matrix_id = $before.matrix_id AND source_id = $before.source_id; };
+
+-- 0130-0142 ProjectKnowledgeIndex source-forward projection (WP-KERNEL-009
+-- PostgresEventLedgerCore band). PostgreSQL-only artifacts are intentionally
+-- omitted and recorded here rather than approximated: identifier-format regex
+-- CHECKs, multi-branch cross-column shape CHECKs, and deferred CONSTRAINT
+-- TRIGGERs (edge/claim/passage "must carry >= 1 evidence row" commit guards)
+-- have no SurrealDB schema equivalent. Partial UNIQUE indexes are preserved
+-- through stored discriminator fields, exactly as `role_mailbox_claim_lease`
+-- does; partial NON-unique index predicates are dropped and the same lookup
+-- columns retained. Every table below is transcribed from the migration file
+-- named in its section comment.
+
+-- 0130_knowledge_schema_namespace.sql
+DEFINE TABLE OVERWRITE knowledge_schema_registry SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE family_key ON TABLE knowledge_schema_registry TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE table_name ON TABLE knowledge_schema_registry TYPE string;
+DEFINE FIELD OVERWRITE record_family ON TABLE knowledge_schema_registry TYPE string;
+DEFINE FIELD OVERWRITE authority_class ON TABLE knowledge_schema_registry TYPE 'authority' | 'projection' | 'support';
+DEFINE FIELD OVERWRITE migration_file ON TABLE knowledge_schema_registry TYPE string;
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_schema_registry TYPE string DEFAULT 'WP-KERNEL-009';
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_schema_registry TYPE string;
+DEFINE FIELD OVERWRITE registered_at ON TABLE knowledge_schema_registry TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_schema_registry ON TABLE knowledge_schema_registry FIELDS family_key UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_schema_registry_table ON TABLE knowledge_schema_registry FIELDS table_name UNIQUE;
+
+-- 0131_knowledge_source_roots.sql
+DEFINE TABLE OVERWRITE knowledge_source_roots SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE root_id ON TABLE knowledge_source_roots TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_source_roots TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE display_name ON TABLE knowledge_source_roots TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE root_kind ON TABLE knowledge_source_roots TYPE 'project_repo' | 'governance' | 'artifacts' | 'media_library' | 'external_import' | 'operator_folder';
+DEFINE FIELD OVERWRITE repo_relative_path ON TABLE knowledge_source_roots TYPE string;
+DEFINE FIELD OVERWRITE path_normalization ON TABLE knowledge_source_roots TYPE 'repo_relative_posix_v1' DEFAULT 'repo_relative_posix_v1';
+DEFINE FIELD OVERWRITE allowlist_policy ON TABLE knowledge_source_roots TYPE object FLEXIBLE DEFAULT { include: ['**/*'], exclude: [] };
+DEFINE FIELD OVERWRITE allowlist_policy.* ON TABLE knowledge_source_roots TYPE any;
+DEFINE FIELD OVERWRITE indexing_eligibility ON TABLE knowledge_source_roots TYPE 'eligible' | 'paused' | 'excluded' DEFAULT 'eligible';
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_source_roots TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_source_roots TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_source_roots ON TABLE knowledge_source_roots FIELDS root_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_source_roots_workspace_path ON TABLE knowledge_source_roots FIELDS workspace_id, repo_relative_path UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_source_roots_workspace ON TABLE knowledge_source_roots FIELDS workspace_id;
+DEFINE INDEX OVERWRITE idx_knowledge_source_roots_eligibility ON TABLE knowledge_source_roots FIELDS indexing_eligibility;
+
+-- 0132_knowledge_sources.sql
+DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_sources TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_sources TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE root_id ON TABLE knowledge_sources TYPE option<record<knowledge_source_roots>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_kind ON TABLE knowledge_sources TYPE 'file' | 'asset' | 'rich_document' | 'loom_block' | 'external_import' | 'operator_artifact';
+DEFINE FIELD OVERWRITE relative_path ON TABLE knowledge_sources TYPE option<string>;
+DEFINE FIELD OVERWRITE asset_id ON TABLE knowledge_sources TYPE option<record<assets>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE loom_block_id ON TABLE knowledge_sources TYPE option<record<loom_blocks>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_sources TYPE option<record<documents>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE content_hash ON TABLE knowledge_sources TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE size_bytes ON TABLE knowledge_sources TYPE option<int>;
+DEFINE FIELD OVERWRITE provenance ON TABLE knowledge_sources TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE provenance.* ON TABLE knowledge_sources TYPE any;
+DEFINE FIELD OVERWRITE permission_scope ON TABLE knowledge_sources TYPE 'workspace' | 'operator_private' | 'shared' DEFAULT 'workspace';
+DEFINE FIELD OVERWRITE redaction_state ON TABLE knowledge_sources TYPE 'none' | 'partial' | 'redacted' DEFAULT 'none';
+DEFINE FIELD OVERWRITE parser_status ON TABLE knowledge_sources TYPE 'pending' | 'parsed' | 'failed' | 'skipped' DEFAULT 'pending';
+DEFINE FIELD OVERWRITE extraction_status ON TABLE knowledge_sources TYPE 'pending' | 'extracted' | 'failed' | 'skipped' DEFAULT 'pending';
+DEFINE FIELD OVERWRITE stale ON TABLE knowledge_sources TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE last_index_receipt_event_id ON TABLE knowledge_sources TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE source_modified_at ON TABLE knowledge_sources TYPE option<datetime>;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_sources TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_sources TYPE datetime DEFAULT time::now();
+-- Stored discriminator for the source partial UNIQUE index
+-- `uq_knowledge_sources_root_path ... WHERE relative_path IS NOT NULL`.
+DEFINE FIELD OVERWRITE root_path_key ON TABLE knowledge_sources TYPE string
+    VALUE IF $this.relative_path != NONE {
+        'path:' + type::string($this.root_id) + '|' + $this.relative_path
+    } ELSE {
+        'unset:' + $this.source_id
+    };
+DEFINE INDEX OVERWRITE pk_knowledge_sources ON TABLE knowledge_sources FIELDS source_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_sources_root_path ON TABLE knowledge_sources FIELDS root_path_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_sources_workspace ON TABLE knowledge_sources FIELDS workspace_id;
+DEFINE INDEX OVERWRITE idx_knowledge_sources_root ON TABLE knowledge_sources FIELDS root_id;
+DEFINE INDEX OVERWRITE idx_knowledge_sources_stale ON TABLE knowledge_sources FIELDS stale;
+DEFINE INDEX OVERWRITE idx_knowledge_sources_content_hash ON TABLE knowledge_sources FIELDS content_hash;
+
+-- 0133_knowledge_index_runs.sql
+DEFINE TABLE OVERWRITE knowledge_index_runs SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE index_run_id ON TABLE knowledge_index_runs TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_index_runs TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE root_id ON TABLE knowledge_index_runs TYPE option<record<knowledge_source_roots>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE run_state ON TABLE knowledge_index_runs TYPE 'started' | 'completed' | 'failed' | 'cancelled' DEFAULT 'started';
+DEFINE FIELD OVERWRITE scope ON TABLE knowledge_index_runs TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE scope.* ON TABLE knowledge_index_runs TYPE any;
+DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_index_runs TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_index_runs TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE worktree_id ON TABLE knowledge_index_runs TYPE option<string>;
+DEFINE FIELD OVERWRITE restart_checkpoint ON TABLE knowledge_index_runs TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE restart_checkpoint.* ON TABLE knowledge_index_runs TYPE any;
+DEFINE FIELD OVERWRITE sources_seen ON TABLE knowledge_index_runs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE sources_indexed ON TABLE knowledge_index_runs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE spans_extracted ON TABLE knowledge_index_runs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE entities_detected ON TABLE knowledge_index_runs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE edges_written ON TABLE knowledge_index_runs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE claims_written ON TABLE knowledge_index_runs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE error_capture ON TABLE knowledge_index_runs TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE error_capture.* ON TABLE knowledge_index_runs TYPE any;
+DEFINE FIELD OVERWRITE start_receipt_event_id ON TABLE knowledge_index_runs TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE finish_receipt_event_id ON TABLE knowledge_index_runs TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE started_at ON TABLE knowledge_index_runs TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE finished_at ON TABLE knowledge_index_runs TYPE option<datetime>;
+DEFINE INDEX OVERWRITE pk_knowledge_index_runs ON TABLE knowledge_index_runs FIELDS index_run_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_index_runs_workspace ON TABLE knowledge_index_runs FIELDS workspace_id, started_at;
+DEFINE INDEX OVERWRITE idx_knowledge_index_runs_state ON TABLE knowledge_index_runs FIELDS run_state;
+DEFINE INDEX OVERWRITE idx_knowledge_index_runs_root ON TABLE knowledge_index_runs FIELDS root_id;
+
+-- 0134_knowledge_spans.sql
+DEFINE TABLE OVERWRITE knowledge_spans SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_spans TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_spans TYPE record<knowledge_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE span_kind ON TABLE knowledge_spans TYPE 'byte' | 'text' | 'ast' | 'media_time' | 'page' | 'cell' | 'rich_doc';
+DEFINE FIELD OVERWRITE range_start ON TABLE knowledge_spans TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE range_end ON TABLE knowledge_spans TYPE int ASSERT $value >= $this.range_start;
+DEFINE FIELD OVERWRITE line_start ON TABLE knowledge_spans TYPE option<int>;
+DEFINE FIELD OVERWRITE line_end ON TABLE knowledge_spans TYPE option<int>;
+DEFINE FIELD OVERWRITE section_path ON TABLE knowledge_spans TYPE option<string>;
+DEFINE FIELD OVERWRITE content_sha256 ON TABLE knowledge_spans TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE parser_version ON TABLE knowledge_spans TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE extraction_receipt_event_id ON TABLE knowledge_spans TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE index_run_id ON TABLE knowledge_spans TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE display_snippet ON TABLE knowledge_spans TYPE option<string>;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_spans TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_spans ON TABLE knowledge_spans FIELDS span_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_spans_source ON TABLE knowledge_spans FIELDS source_id, range_start;
+DEFINE INDEX OVERWRITE idx_knowledge_spans_run ON TABLE knowledge_spans FIELDS index_run_id;
+DEFINE INDEX OVERWRITE idx_knowledge_spans_content ON TABLE knowledge_spans FIELDS content_sha256;
+
+-- 0135_knowledge_entities.sql
+DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE entity_id ON TABLE knowledge_entities TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_entities TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE entity_kind ON TABLE knowledge_entities TYPE 'symbol' | 'concept' | 'file' | 'folder' | 'project' | 'person' | 'role' | 'task' | 'api' | 'schema' | 'command' | 'media' | 'manual_entry' | 'product_primitive' | 'spec_topic' | 'work_packet' | 'micro_task' | 'taskboard_row' | 'rich_document' | 'loom_block' | 'user_manual_page';
+DEFINE FIELD OVERWRITE entity_key ON TABLE knowledge_entities TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE display_name ON TABLE knowledge_entities TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE detection_provenance ON TABLE knowledge_entities TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE detection_provenance.* ON TABLE knowledge_entities TYPE any;
+DEFINE FIELD OVERWRITE lifecycle_state ON TABLE knowledge_entities TYPE 'active' | 'retired' DEFAULT 'active';
+DEFINE FIELD OVERWRITE primary_source_id ON TABLE knowledge_entities TYPE option<record<knowledge_sources>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE first_detected_in_run ON TABLE knowledge_entities TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE last_detected_in_run ON TABLE knowledge_entities TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_entities TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_entities TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_entities ON TABLE knowledge_entities FIELDS entity_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_entities_identity ON TABLE knowledge_entities FIELDS workspace_id, entity_kind, entity_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_entities_workspace_kind ON TABLE knowledge_entities FIELDS workspace_id, entity_kind;
+DEFINE INDEX OVERWRITE idx_knowledge_entities_primary_source ON TABLE knowledge_entities FIELDS primary_source_id;
+
+DEFINE TABLE OVERWRITE knowledge_entity_spans SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE entity_id ON TABLE knowledge_entity_spans TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_entity_spans TYPE record<knowledge_spans> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE detected_in_run ON TABLE knowledge_entity_spans TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_entity_spans TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_entity_spans ON TABLE knowledge_entity_spans FIELDS entity_id, span_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_entity_spans_span ON TABLE knowledge_entity_spans FIELDS span_id;
+
+-- 0136_knowledge_edges.sql
+DEFINE TABLE OVERWRITE knowledge_edges SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE edge_id ON TABLE knowledge_edges TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_edges TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE relationship_id ON TABLE knowledge_edges TYPE string;
+DEFINE FIELD OVERWRITE edge_type ON TABLE knowledge_edges TYPE 'defines' | 'references' | 'contains' | 'depends_on' | 'implements' | 'documents' | 'validates' | 'derived_from' | 'mentions' | 'links_to' | 'supersedes' | 'relates_to';
+DEFINE FIELD OVERWRITE source_entity_id ON TABLE knowledge_edges TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE target_entity_id ON TABLE knowledge_edges TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE extractor_version ON TABLE knowledge_edges TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE lifecycle_state ON TABLE knowledge_edges TYPE 'proposed' | 'active' | 'conflicted' | 'retired' DEFAULT 'active';
+DEFINE FIELD OVERWRITE confidence ON TABLE knowledge_edges TYPE float ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD OVERWRITE conflict_marker ON TABLE knowledge_edges TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE conflict_marker.* ON TABLE knowledge_edges TYPE any;
+DEFINE FIELD OVERWRITE created_in_run ON TABLE knowledge_edges TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE last_seen_in_run ON TABLE knowledge_edges TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_edges TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_edges TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_edges ON TABLE knowledge_edges FIELDS edge_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_edges_relationship ON TABLE knowledge_edges FIELDS workspace_id, relationship_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_edges_source_entity ON TABLE knowledge_edges FIELDS source_entity_id;
+DEFINE INDEX OVERWRITE idx_knowledge_edges_target_entity ON TABLE knowledge_edges FIELDS target_entity_id;
+DEFINE INDEX OVERWRITE idx_knowledge_edges_type ON TABLE knowledge_edges FIELDS workspace_id, edge_type;
+
+DEFINE TABLE OVERWRITE knowledge_edge_spans SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE edge_id ON TABLE knowledge_edge_spans TYPE record<knowledge_edges> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_edge_spans TYPE record<knowledge_spans> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE recorded_in_run ON TABLE knowledge_edge_spans TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_edge_spans TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_edge_spans ON TABLE knowledge_edge_spans FIELDS edge_id, span_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_edge_spans_span ON TABLE knowledge_edge_spans FIELDS span_id;
+
+-- 0137_knowledge_claims.sql
+DEFINE TABLE OVERWRITE knowledge_claims SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_claims TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_claims TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE claim_kind ON TABLE knowledge_claims TYPE 'source_fact' | 'product_behavior' | 'task_state' | 'operator_workflow';
+DEFINE FIELD OVERWRITE claim_text ON TABLE knowledge_claims TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE subject_entity_id ON TABLE knowledge_claims TYPE option<record<knowledge_entities>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE lifecycle_state ON TABLE knowledge_claims TYPE 'proposed' | 'accepted' | 'conflicted' | 'retired' DEFAULT 'proposed';
+DEFINE FIELD OVERWRITE temporal_qualifier ON TABLE knowledge_claims TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE temporal_qualifier.* ON TABLE knowledge_claims TYPE any;
+DEFINE FIELD OVERWRITE granularity_qualifier ON TABLE knowledge_claims TYPE option<string>;
+DEFINE FIELD OVERWRITE confidence ON TABLE knowledge_claims TYPE float DEFAULT 0.5 ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD OVERWRITE retirement_reason ON TABLE knowledge_claims TYPE option<'rejected' | 'superseded' | 'stale' | 'operator_retired'>;
+DEFINE FIELD OVERWRITE superseded_by_claim_id ON TABLE knowledge_claims TYPE option<record<knowledge_claims>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE proposed_in_run ON TABLE knowledge_claims TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE resolution_receipt_event_id ON TABLE knowledge_claims TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_claims TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_claims TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_claims ON TABLE knowledge_claims FIELDS claim_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_claims_workspace_state ON TABLE knowledge_claims FIELDS workspace_id, lifecycle_state;
+DEFINE INDEX OVERWRITE idx_knowledge_claims_subject ON TABLE knowledge_claims FIELDS subject_entity_id;
+
+DEFINE TABLE OVERWRITE knowledge_claim_spans SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_claim_spans TYPE record<knowledge_claims> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_claim_spans TYPE record<knowledge_spans> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_claim_spans TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_claim_spans ON TABLE knowledge_claim_spans FIELDS claim_id, span_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_claim_spans_span ON TABLE knowledge_claim_spans FIELDS span_id;
+
+DEFINE TABLE OVERWRITE knowledge_claim_conflicts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE conflict_id ON TABLE knowledge_claim_conflicts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_claim_conflicts TYPE record<knowledge_claims> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE conflicting_claim_id ON TABLE knowledge_claim_conflicts TYPE record<knowledge_claims> ASSERT record::exists($value) AND $value != $this.claim_id REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE detected_in_run ON TABLE knowledge_claim_conflicts TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE conflict_reason ON TABLE knowledge_claim_conflicts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE resolution_receipt_event_id ON TABLE knowledge_claim_conflicts TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE detected_at ON TABLE knowledge_claim_conflicts TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE resolved_at ON TABLE knowledge_claim_conflicts TYPE option<datetime>;
+DEFINE INDEX OVERWRITE pk_knowledge_claim_conflicts ON TABLE knowledge_claim_conflicts FIELDS conflict_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_claim_conflicts_pair ON TABLE knowledge_claim_conflicts FIELDS claim_id, conflicting_claim_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_claim_conflicts_claim ON TABLE knowledge_claim_conflicts FIELDS claim_id;
+DEFINE INDEX OVERWRITE idx_knowledge_claim_conflicts_conflicting ON TABLE knowledge_claim_conflicts FIELDS conflicting_claim_id;
+
+-- 0138_knowledge_memory_passages.sql
+DEFINE TABLE OVERWRITE knowledge_memory_passages SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE passage_id ON TABLE knowledge_memory_passages TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_passages TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE passage_text ON TABLE knowledge_memory_passages TYPE string ASSERT $value != '';
+DEFINE FIELD OVERWRITE token_count ON TABLE knowledge_memory_passages TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE ocr_transcript_metadata ON TABLE knowledge_memory_passages TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE ocr_transcript_metadata.* ON TABLE knowledge_memory_passages TYPE any;
+DEFINE FIELD OVERWRITE extraction_confidence ON TABLE knowledge_memory_passages TYPE float DEFAULT 1.0 ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD OVERWRITE ranking_features ON TABLE knowledge_memory_passages TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE ranking_features.* ON TABLE knowledge_memory_passages TYPE any;
+DEFINE FIELD OVERWRITE retrieval_mode ON TABLE knowledge_memory_passages TYPE 'none' | 'direct_load' | 'exact_lookup' | 'graph_traversal' | 'hybrid_rag' DEFAULT 'hybrid_rag';
+DEFINE FIELD OVERWRITE freshness_at ON TABLE knowledge_memory_passages TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE compaction_policy ON TABLE knowledge_memory_passages TYPE 'keep' | 'compactable' | 'expired' DEFAULT 'keep';
+DEFINE FIELD OVERWRITE failure_receipt_event_id ON TABLE knowledge_memory_passages TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE derived_in_run ON TABLE knowledge_memory_passages TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_passages TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_memory_passages TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_passages ON TABLE knowledge_memory_passages FIELDS passage_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_passages_workspace ON TABLE knowledge_memory_passages FIELDS workspace_id, compaction_policy;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_passages_freshness ON TABLE knowledge_memory_passages FIELDS freshness_at;
+
+DEFINE TABLE OVERWRITE knowledge_passage_evidence SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE passage_id ON TABLE knowledge_passage_evidence TYPE record<knowledge_memory_passages> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE ref_kind ON TABLE knowledge_passage_evidence TYPE 'source' | 'claim' | 'span';
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_passage_evidence TYPE option<record<knowledge_sources>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_passage_evidence TYPE option<record<knowledge_claims>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_passage_evidence TYPE option<record<knowledge_spans>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE ordinal ON TABLE knowledge_passage_evidence TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_passage_evidence TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_passage_evidence ON TABLE knowledge_passage_evidence FIELDS passage_id, ref_kind, ordinal UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_passage_evidence_source ON TABLE knowledge_passage_evidence FIELDS source_id;
+DEFINE INDEX OVERWRITE idx_knowledge_passage_evidence_claim ON TABLE knowledge_passage_evidence FIELDS claim_id;
+
+-- 0139_knowledge_wiki_projections.sql
+DEFINE TABLE OVERWRITE knowledge_wiki_projections SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE projection_id ON TABLE knowledge_wiki_projections TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_wiki_projections TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE projection_kind ON TABLE knowledge_wiki_projections TYPE 'wiki_page' | 'loom_view' | 'graph_view' | 'manual_page' | 'operator_summary';
+DEFINE FIELD OVERWRITE title ON TABLE knowledge_wiki_projections TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE source_records ON TABLE knowledge_wiki_projections TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE source_records.* ON TABLE knowledge_wiki_projections TYPE any;
+DEFINE FIELD OVERWRITE rendered_content ON TABLE knowledge_wiki_projections TYPE string DEFAULT '';
+DEFINE FIELD OVERWRITE rebuild_status ON TABLE knowledge_wiki_projections TYPE 'fresh' | 'stale' | 'rebuilding' | 'failed' DEFAULT 'stale';
+DEFINE FIELD OVERWRITE staleness_hash ON TABLE knowledge_wiki_projections TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE rebuild_receipt_event_id ON TABLE knowledge_wiki_projections TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE last_rebuilt_at ON TABLE knowledge_wiki_projections TYPE option<datetime>;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_wiki_projections TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_wiki_projections TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_wiki_projections ON TABLE knowledge_wiki_projections FIELDS projection_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_wiki_projections_identity ON TABLE knowledge_wiki_projections FIELDS workspace_id, projection_kind, title UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_wiki_projections_status ON TABLE knowledge_wiki_projections FIELDS workspace_id, rebuild_status;
+
+-- 0140_knowledge_rich_documents.sql
+DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_rich_documents TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_rich_documents TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_rich_documents TYPE option<record<documents>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE title ON TABLE knowledge_rich_documents TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE schema_version ON TABLE knowledge_rich_documents TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE doc_version ON TABLE knowledge_rich_documents TYPE int DEFAULT 1 ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE content_json ON TABLE knowledge_rich_documents TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE content_json.* ON TABLE knowledge_rich_documents TYPE any;
+DEFINE FIELD OVERWRITE content_sha256 ON TABLE knowledge_rich_documents TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE crdt_document_id ON TABLE knowledge_rich_documents TYPE option<string>;
+DEFINE FIELD OVERWRITE crdt_snapshot_id ON TABLE knowledge_rich_documents TYPE option<string>;
+DEFINE FIELD OVERWRITE promotion_receipt_event_id ON TABLE knowledge_rich_documents TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE projection_refs ON TABLE knowledge_rich_documents TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE projection_refs.* ON TABLE knowledge_rich_documents TYPE any;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_rich_documents TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_rich_documents TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_rich_documents ON TABLE knowledge_rich_documents FIELDS rich_document_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_rich_documents_workspace ON TABLE knowledge_rich_documents FIELDS workspace_id;
+
+DEFINE TABLE OVERWRITE knowledge_rich_document_versions SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_rich_document_versions TYPE record<knowledge_rich_documents> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE doc_version ON TABLE knowledge_rich_document_versions TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE schema_version ON TABLE knowledge_rich_document_versions TYPE string;
+DEFINE FIELD OVERWRITE content_json ON TABLE knowledge_rich_document_versions TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE content_json.* ON TABLE knowledge_rich_document_versions TYPE any;
+DEFINE FIELD OVERWRITE content_sha256 ON TABLE knowledge_rich_document_versions TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE crdt_snapshot_id ON TABLE knowledge_rich_document_versions TYPE option<string>;
+DEFINE FIELD OVERWRITE promotion_receipt_event_id ON TABLE knowledge_rich_document_versions TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_rich_document_versions TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_rich_document_versions ON TABLE knowledge_rich_document_versions FIELDS rich_document_id, doc_version UNIQUE;
+
+DEFINE TABLE OVERWRITE knowledge_editor_code_nodes SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE code_node_id ON TABLE knowledge_editor_code_nodes TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_editor_code_nodes TYPE record<knowledge_rich_documents> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE node_path ON TABLE knowledge_editor_code_nodes TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE language_id ON TABLE knowledge_editor_code_nodes TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE code_text ON TABLE knowledge_editor_code_nodes TYPE string;
+DEFINE FIELD OVERWRITE round_trip_sha256 ON TABLE knowledge_editor_code_nodes TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE worker_requirements ON TABLE knowledge_editor_code_nodes TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE worker_requirements.* ON TABLE knowledge_editor_code_nodes TYPE any;
+DEFINE FIELD OVERWRITE source_mapping ON TABLE knowledge_editor_code_nodes TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE source_mapping.* ON TABLE knowledge_editor_code_nodes TYPE any;
+DEFINE FIELD OVERWRITE lint_diagnostics ON TABLE knowledge_editor_code_nodes TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE lint_diagnostics.* ON TABLE knowledge_editor_code_nodes TYPE any;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_editor_code_nodes TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_editor_code_nodes TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_editor_code_nodes ON TABLE knowledge_editor_code_nodes FIELDS code_node_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_editor_code_nodes_path ON TABLE knowledge_editor_code_nodes FIELDS rich_document_id, node_path UNIQUE;
+
+-- 0141_knowledge_context_bundles.sql
+DEFINE TABLE OVERWRITE knowledge_context_bundles SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE bundle_id ON TABLE knowledge_context_bundles TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_context_bundles TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE kernel_task_run_id ON TABLE knowledge_context_bundles TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE session_run_id ON TABLE knowledge_context_bundles TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE allowed_context ON TABLE knowledge_context_bundles TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE allowed_context.* ON TABLE knowledge_context_bundles TYPE any;
+DEFINE FIELD OVERWRITE context_hash ON TABLE knowledge_context_bundles TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE query_text ON TABLE knowledge_context_bundles TYPE option<string>;
+DEFINE FIELD OVERWRITE token_budget ON TABLE knowledge_context_bundles TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE tokens_used ON TABLE knowledge_context_bundles TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE build_receipt_event_id ON TABLE knowledge_context_bundles TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_context_bundles TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_context_bundles ON TABLE knowledge_context_bundles FIELDS bundle_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_context_bundles_workspace ON TABLE knowledge_context_bundles FIELDS workspace_id, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_context_bundles_session ON TABLE knowledge_context_bundles FIELDS session_run_id;
+
+DEFINE TABLE OVERWRITE knowledge_context_bundle_items SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE bundle_id ON TABLE knowledge_context_bundle_items TYPE record<knowledge_context_bundles> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE item_ordinal ON TABLE knowledge_context_bundle_items TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE ref_kind ON TABLE knowledge_context_bundle_items TYPE 'source' | 'span' | 'claim' | 'passage' | 'entity';
+DEFINE FIELD OVERWRITE ref_id ON TABLE knowledge_context_bundle_items TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE retrieval_decision ON TABLE knowledge_context_bundle_items TYPE 'included' | 'excluded_budget' | 'excluded_relevance' | 'excluded_redacted';
+DEFINE FIELD OVERWRITE relevance_score ON TABLE knowledge_context_bundle_items TYPE option<float> ASSERT $value = NONE OR ($value >= 0.0 AND $value <= 1.0);
+DEFINE FIELD OVERWRITE token_count ON TABLE knowledge_context_bundle_items TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE citation ON TABLE knowledge_context_bundle_items TYPE option<string>;
+DEFINE INDEX OVERWRITE pk_knowledge_context_bundle_items ON TABLE knowledge_context_bundle_items FIELDS bundle_id, item_ordinal UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_context_bundle_items_ref ON TABLE knowledge_context_bundle_items FIELDS ref_kind, ref_id;
+
+DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE trace_id ON TABLE knowledge_retrieval_traces TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_retrieval_traces TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE retrieval_mode ON TABLE knowledge_retrieval_traces TYPE 'none' | 'direct_load' | 'exact_lookup' | 'graph_traversal' | 'hybrid_rag';
+DEFINE FIELD OVERWRITE mode_reason ON TABLE knowledge_retrieval_traces TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE query_text ON TABLE knowledge_retrieval_traces TYPE option<string>;
+DEFINE FIELD OVERWRITE bundle_id ON TABLE knowledge_retrieval_traces TYPE option<record<knowledge_context_bundles>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE decisions ON TABLE knowledge_retrieval_traces TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE decisions.* ON TABLE knowledge_retrieval_traces TYPE any;
+DEFINE FIELD OVERWRITE trace_receipt_event_id ON TABLE knowledge_retrieval_traces TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_retrieval_traces TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_retrieval_traces ON TABLE knowledge_retrieval_traces FIELDS trace_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_retrieval_traces_workspace ON TABLE knowledge_retrieval_traces FIELDS workspace_id, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_retrieval_traces_bundle ON TABLE knowledge_retrieval_traces FIELDS bundle_id;
+
+-- 0142_knowledge_idempotency_keys.sql
+DEFINE TABLE OVERWRITE knowledge_idempotency_keys SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE idempotency_key ON TABLE knowledge_idempotency_keys TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_idempotency_keys TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE operation_kind ON TABLE knowledge_idempotency_keys TYPE 'index_run_start' | 'source_upsert' | 'span_write' | 'entity_write' | 'edge_write' | 'claim_write' | 'passage_write' | 'projection_write' | 'rich_document_save' | 'bundle_build';
+DEFINE FIELD OVERWRITE request_hash ON TABLE knowledge_idempotency_keys TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE result_ref_kind ON TABLE knowledge_idempotency_keys TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE result_ref_id ON TABLE knowledge_idempotency_keys TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_idempotency_keys TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_idempotency_keys ON TABLE knowledge_idempotency_keys FIELDS idempotency_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_idempotency_keys_workspace ON TABLE knowledge_idempotency_keys FIELDS workspace_id, operation_kind;
+
+-- 0150-0155 WP-KERNEL-009 CRDTAndConcurrencyCore band. `workspace_id` is a
+-- plain token in this band (the source migrations carry no workspace foreign
+-- key), so it stays a string here.
+
+-- 0150_knowledge_crdt_denial_receipts.sql
+DEFINE TABLE OVERWRITE knowledge_crdt_denial_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE receipt_kind ON TABLE knowledge_crdt_denial_receipts TYPE 'stale_draft_save' | 'concurrent_draft_fork' | 'ahead_of_head_save' | 'update_content_mismatch' | 'sequence_slot_race' | 'lease_write_denied' | 'index_run_slot_rejected' | 'graph_promotion_denied' | 'ai_edit_promotion_denied';
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_crdt_denial_receipts TYPE option<string>;
+DEFINE FIELD OVERWRITE crdt_document_id ON TABLE knowledge_crdt_denial_receipts TYPE option<string>;
+DEFINE FIELD OVERWRITE scope_ref ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_crdt_denial_receipts TYPE 'operator' | 'local_model' | 'cloud_model' | 'validator' | 'system';
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE correlation_id ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE denial_payload ON TABLE knowledge_crdt_denial_receipts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE denial_payload.* ON TABLE knowledge_crdt_denial_receipts TYPE any;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_crdt_denial_receipts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE idempotency_key ON TABLE knowledge_crdt_denial_receipts TYPE string;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_crdt_denial_receipts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_denial_receipts ON TABLE knowledge_crdt_denial_receipts FIELDS receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_crdt_denial_receipts_idempotency ON TABLE knowledge_crdt_denial_receipts FIELDS idempotency_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_denial_receipts_document ON TABLE knowledge_crdt_denial_receipts FIELDS crdt_document_id, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_denial_receipts_scope ON TABLE knowledge_crdt_denial_receipts FIELDS scope_ref, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_denial_receipts_actor ON TABLE knowledge_crdt_denial_receipts FIELDS actor_id, created_at;
+
+-- 0151_knowledge_crdt_agent_lane_leases.sql
+DEFINE TABLE OVERWRITE knowledge_crdt_agent_lane_leases SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE lease_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_crdt_agent_lane_leases TYPE 'operator' | 'local_model' | 'cloud_model' | 'validator' | 'system';
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE correlation_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE scope_kind ON TABLE knowledge_crdt_agent_lane_leases TYPE 'workspace' | 'document' | 'source_root' | 'index_run';
+DEFINE FIELD OVERWRITE scope_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE claimed_at_utc ON TABLE knowledge_crdt_agent_lane_leases TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE expires_at_utc ON TABLE knowledge_crdt_agent_lane_leases TYPE datetime ASSERT $value > $this.claimed_at_utc;
+DEFINE FIELD OVERWRITE renewal_count ON TABLE knowledge_crdt_agent_lane_leases TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE released_at_utc ON TABLE knowledge_crdt_agent_lane_leases TYPE option<datetime>;
+DEFINE FIELD OVERWRITE expired_at_utc ON TABLE knowledge_crdt_agent_lane_leases TYPE option<datetime>;
+DEFINE FIELD OVERWRITE takeover_of ON TABLE knowledge_crdt_agent_lane_leases TYPE option<record<knowledge_crdt_agent_lane_leases>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+-- Stored discriminator for the source partial UNIQUE index
+-- `uq_knowledge_crdt_lease_active_scope ... WHERE released_at_utc IS NULL`.
+DEFINE FIELD OVERWRITE active_scope_key ON TABLE knowledge_crdt_agent_lane_leases TYPE string
+    VALUE IF $this.released_at_utc = NONE {
+        'active:' + type::string($this.scope_kind) + ':' + $this.scope_id
+    } ELSE {
+        'released:' + $this.lease_id
+    };
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_agent_lane_leases ON TABLE knowledge_crdt_agent_lane_leases FIELDS lease_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_crdt_lease_active_scope ON TABLE knowledge_crdt_agent_lane_leases FIELDS active_scope_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_lease_session ON TABLE knowledge_crdt_agent_lane_leases FIELDS session_id;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_lease_expiry ON TABLE knowledge_crdt_agent_lane_leases FIELDS expires_at_utc;
+
+-- 0152_knowledge_crdt_graph_proposals.sql
+DEFINE TABLE OVERWRITE knowledge_crdt_graph_proposals SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_graph_proposals TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_graph_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE mutation_kind ON TABLE knowledge_crdt_graph_proposals TYPE 'add_entity' | 'retire_entity' | 'add_edge' | 'retire_edge' | 'add_claim' | 'retire_claim';
+DEFINE FIELD OVERWRITE mutation_payload ON TABLE knowledge_crdt_graph_proposals TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE mutation_payload.* ON TABLE knowledge_crdt_graph_proposals TYPE any;
+DEFINE FIELD OVERWRITE source_span_refs ON TABLE knowledge_crdt_graph_proposals TYPE array<string> ASSERT array::len($value) >= 1;
+DEFINE FIELD OVERWRITE confidence ON TABLE knowledge_crdt_graph_proposals TYPE float ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_crdt_graph_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_crdt_graph_proposals TYPE 'operator' | 'local_model' | 'cloud_model' | 'validator' | 'system';
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_crdt_graph_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE correlation_id ON TABLE knowledge_crdt_graph_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE lease_id ON TABLE knowledge_crdt_graph_proposals TYPE option<record<knowledge_crdt_agent_lane_leases>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE review_state ON TABLE knowledge_crdt_graph_proposals TYPE 'proposed' | 'approved' | 'rejected' | 'promoted' DEFAULT 'proposed';
+DEFINE FIELD OVERWRITE decided_by ON TABLE knowledge_crdt_graph_proposals TYPE option<string>;
+DEFINE FIELD OVERWRITE decided_at_utc ON TABLE knowledge_crdt_graph_proposals TYPE option<datetime>;
+DEFINE FIELD OVERWRITE decision_reason ON TABLE knowledge_crdt_graph_proposals TYPE option<string>;
+DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_graph_proposals TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE decided_event_id ON TABLE knowledge_crdt_graph_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_graph_proposals TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_graph_proposals ON TABLE knowledge_crdt_graph_proposals FIELDS proposal_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_graph_proposals_workspace_state ON TABLE knowledge_crdt_graph_proposals FIELDS workspace_id, review_state, created_at_utc;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_graph_proposals_actor ON TABLE knowledge_crdt_graph_proposals FIELDS actor_id, created_at_utc;
+
+-- 0153_knowledge_crdt_promoted_facts.sql
+DEFINE TABLE OVERWRITE knowledge_crdt_promoted_facts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE fact_id ON TABLE knowledge_crdt_promoted_facts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_promoted_facts TYPE record<knowledge_crdt_graph_proposals> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_promoted_facts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE mutation_kind ON TABLE knowledge_crdt_promoted_facts TYPE 'add_entity' | 'retire_entity' | 'add_edge' | 'retire_edge' | 'add_claim' | 'retire_claim';
+DEFINE FIELD OVERWRITE fact_payload ON TABLE knowledge_crdt_promoted_facts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE fact_payload.* ON TABLE knowledge_crdt_promoted_facts TYPE any;
+DEFINE FIELD OVERWRITE source_span_refs ON TABLE knowledge_crdt_promoted_facts TYPE array<string> ASSERT array::len($value) >= 1;
+DEFINE FIELD OVERWRITE confidence ON TABLE knowledge_crdt_promoted_facts TYPE float ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD OVERWRITE proposed_by ON TABLE knowledge_crdt_promoted_facts TYPE string;
+DEFINE FIELD OVERWRITE promoted_by ON TABLE knowledge_crdt_promoted_facts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE promotion_requested_event_id ON TABLE knowledge_crdt_promoted_facts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE promotion_accepted_event_id ON TABLE knowledge_crdt_promoted_facts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE promoted_at_utc ON TABLE knowledge_crdt_promoted_facts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_promoted_facts ON TABLE knowledge_crdt_promoted_facts FIELDS fact_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_crdt_promoted_facts_proposal ON TABLE knowledge_crdt_promoted_facts FIELDS proposal_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_promoted_facts_workspace ON TABLE knowledge_crdt_promoted_facts FIELDS workspace_id, promoted_at_utc;
+
+-- 0154_knowledge_crdt_ai_edit_proposals.sql
+DEFINE TABLE OVERWRITE knowledge_crdt_ai_edit_proposals SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE crdt_document_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE base_update_seq ON TABLE knowledge_crdt_ai_edit_proposals TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE base_state_vector ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::starts_with($value, 'hsk-sv1:');
+DEFINE FIELD OVERWRITE proposed_diff ON TABLE knowledge_crdt_ai_edit_proposals TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE proposed_diff.* ON TABLE knowledge_crdt_ai_edit_proposals TYPE any;
+DEFINE FIELD OVERWRITE diff_sha256 ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE source_span_citations ON TABLE knowledge_crdt_ai_edit_proposals TYPE array;
+DEFINE FIELD OVERWRITE source_span_citations.* ON TABLE knowledge_crdt_ai_edit_proposals TYPE any;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_crdt_ai_edit_proposals TYPE 'local_model' | 'cloud_model';
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE correlation_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE lease_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<knowledge_crdt_agent_lane_leases>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE review_state ON TABLE knowledge_crdt_ai_edit_proposals TYPE 'proposed' | 'approved' | 'rejected' | 'promoted' DEFAULT 'proposed';
+DEFINE FIELD OVERWRITE decided_by ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string>;
+DEFINE FIELD OVERWRITE decided_at_utc ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<datetime>;
+DEFINE FIELD OVERWRITE decision_reason ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string>;
+DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE decided_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE promotion_requested_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE promotion_accepted_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_ai_edit_proposals TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_document ON TABLE knowledge_crdt_ai_edit_proposals FIELDS crdt_document_id, review_state, created_at_utc;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_actor ON TABLE knowledge_crdt_ai_edit_proposals FIELDS actor_id, created_at_utc;
+
+-- 0155_knowledge_crdt_swarm_checkpoints.sql
+DEFINE TABLE OVERWRITE knowledge_crdt_swarm_checkpoints SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE checkpoint_id ON TABLE knowledge_crdt_swarm_checkpoints TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_crdt_swarm_checkpoints TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_crdt_swarm_checkpoints TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_crdt_swarm_checkpoints TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE lease_id ON TABLE knowledge_crdt_swarm_checkpoints TYPE record<knowledge_crdt_agent_lane_leases> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE scope_ref ON TABLE knowledge_crdt_swarm_checkpoints TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE resume_pointer ON TABLE knowledge_crdt_swarm_checkpoints TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE resume_pointer.* ON TABLE knowledge_crdt_swarm_checkpoints TYPE any;
+DEFINE FIELD OVERWRITE checkpoint_payload ON TABLE knowledge_crdt_swarm_checkpoints TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE checkpoint_payload.* ON TABLE knowledge_crdt_swarm_checkpoints TYPE any;
+DEFINE FIELD OVERWRITE payload_sha256 ON TABLE knowledge_crdt_swarm_checkpoints TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_swarm_checkpoints TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_swarm_checkpoints TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_swarm_checkpoints ON TABLE knowledge_crdt_swarm_checkpoints FIELDS checkpoint_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_swarm_checkpoints_session ON TABLE knowledge_crdt_swarm_checkpoints FIELDS session_id, created_at_utc;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_swarm_checkpoints_lane ON TABLE knowledge_crdt_swarm_checkpoints FIELDS lane_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE knowledge_crdt_recovery_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_crdt_recovery_receipts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE checkpoint_id ON TABLE knowledge_crdt_recovery_receipts TYPE record<knowledge_crdt_swarm_checkpoints> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE prior_session_id ON TABLE knowledge_crdt_recovery_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE new_session_id ON TABLE knowledge_crdt_recovery_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE new_actor_id ON TABLE knowledge_crdt_recovery_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE new_lease_id ON TABLE knowledge_crdt_recovery_receipts TYPE record<knowledge_crdt_agent_lane_leases> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE lease_lineage ON TABLE knowledge_crdt_recovery_receipts TYPE array;
+DEFINE FIELD OVERWRITE lease_lineage.* ON TABLE knowledge_crdt_recovery_receipts TYPE any;
+DEFINE FIELD OVERWRITE resume_pointer ON TABLE knowledge_crdt_recovery_receipts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE resume_pointer.* ON TABLE knowledge_crdt_recovery_receipts TYPE any;
+DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_recovery_receipts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_recovery_receipts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_recovery_receipts ON TABLE knowledge_crdt_recovery_receipts FIELDS receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_recovery_receipts_checkpoint ON TABLE knowledge_crdt_recovery_receipts FIELDS checkpoint_id;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_recovery_receipts_new_session ON TABLE knowledge_crdt_recovery_receipts FIELDS new_session_id;
+
+-- 0160_knowledge_ingestion_policies.sql
+DEFINE TABLE OVERWRITE knowledge_ingestion_root_policies SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE policy_id ON TABLE knowledge_ingestion_root_policies TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_ingestion_root_policies TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE policy_version ON TABLE knowledge_ingestion_root_policies TYPE int DEFAULT 1 ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE allow_patterns ON TABLE knowledge_ingestion_root_policies TYPE array<string> DEFAULT ['**'];
+DEFINE FIELD OVERWRITE deny_patterns ON TABLE knowledge_ingestion_root_policies TYPE array<string> DEFAULT [];
+DEFINE FIELD OVERWRITE require_operator_approval ON TABLE knowledge_ingestion_root_policies TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE active ON TABLE knowledge_ingestion_root_policies TYPE bool DEFAULT true;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_ingestion_root_policies TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_ingestion_root_policies TYPE datetime DEFAULT time::now();
+-- Stored discriminator for the source partial UNIQUE index
+-- `uq_knowledge_ingestion_root_policies_active ... WHERE active`.
+DEFINE FIELD OVERWRITE active_workspace_key ON TABLE knowledge_ingestion_root_policies TYPE string
+    VALUE IF $this.active {
+        'active:' + type::string($this.workspace_id)
+    } ELSE {
+        'inactive:' + $this.policy_id
+    };
+DEFINE INDEX OVERWRITE pk_knowledge_ingestion_root_policies ON TABLE knowledge_ingestion_root_policies FIELDS policy_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_ingestion_root_policies_active ON TABLE knowledge_ingestion_root_policies FIELDS active_workspace_key UNIQUE;
+
+DEFINE TABLE OVERWRITE knowledge_ingestion_policy_decisions SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE decision_id ON TABLE knowledge_ingestion_policy_decisions TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_ingestion_policy_decisions TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE policy_id ON TABLE knowledge_ingestion_policy_decisions TYPE option<record<knowledge_ingestion_root_policies>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE candidate_path ON TABLE knowledge_ingestion_policy_decisions TYPE string;
+DEFINE FIELD OVERWRITE root_kind ON TABLE knowledge_ingestion_policy_decisions TYPE 'project_repo' | 'governance' | 'artifacts' | 'media_library' | 'external_import' | 'operator_folder';
+DEFINE FIELD OVERWRITE verdict ON TABLE knowledge_ingestion_policy_decisions TYPE 'allowed' | 'denied_pattern' | 'denied_not_allowlisted' | 'denied_requires_approval';
+DEFINE FIELD OVERWRITE matched_pattern ON TABLE knowledge_ingestion_policy_decisions TYPE option<string>;
+DEFINE FIELD OVERWRITE operator_approved ON TABLE knowledge_ingestion_policy_decisions TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_ingestion_policy_decisions TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_ingestion_policy_decisions TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE receipt_event_id ON TABLE knowledge_ingestion_policy_decisions TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE decided_at ON TABLE knowledge_ingestion_policy_decisions TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_ingestion_policy_decisions ON TABLE knowledge_ingestion_policy_decisions FIELDS decision_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_policy_decisions_workspace ON TABLE knowledge_ingestion_policy_decisions FIELDS workspace_id, decided_at;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_policy_decisions_verdict ON TABLE knowledge_ingestion_policy_decisions FIELDS verdict;
+
+-- 0161_knowledge_ingestion_kind_registry.sql
+DEFINE TABLE OVERWRITE knowledge_ingestion_kind_registry SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE kind_key ON TABLE knowledge_ingestion_kind_registry TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE display_name ON TABLE knowledge_ingestion_kind_registry TYPE string;
+DEFINE FIELD OVERWRITE capabilities ON TABLE knowledge_ingestion_kind_registry TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE capabilities.* ON TABLE knowledge_ingestion_kind_registry TYPE any;
+DEFINE FIELD OVERWRITE extensions ON TABLE knowledge_ingestion_kind_registry TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE extensions.* ON TABLE knowledge_ingestion_kind_registry TYPE any;
+DEFINE FIELD OVERWRITE mime_types ON TABLE knowledge_ingestion_kind_registry TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE mime_types.* ON TABLE knowledge_ingestion_kind_registry TYPE any;
+DEFINE FIELD OVERWRITE registry_version ON TABLE knowledge_ingestion_kind_registry TYPE string;
+DEFINE FIELD OVERWRITE projected_at ON TABLE knowledge_ingestion_kind_registry TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_ingestion_kind_registry ON TABLE knowledge_ingestion_kind_registry FIELDS kind_key UNIQUE;
+
+-- 0162_knowledge_ingestion_receipts.sql
+DEFINE TABLE OVERWRITE knowledge_ingestion_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_ingestion_receipts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_ingestion_receipts TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_ingestion_receipts TYPE record<knowledge_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE ingestion_run_token ON TABLE knowledge_ingestion_receipts TYPE option<string>;
+DEFINE FIELD OVERWRITE extractor_id ON TABLE knowledge_ingestion_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE extractor_version ON TABLE knowledge_ingestion_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE status ON TABLE knowledge_ingestion_receipts TYPE 'success' | 'partial' | 'failed' | 'deferred' | 'skipped' | 'blocked';
+DEFINE FIELD OVERWRITE error_class ON TABLE knowledge_ingestion_receipts TYPE option<'UNSUPPORTED_FORMAT' | 'NO_TEXT_LAYER' | 'OCR_NEEDED' | 'ENCRYPTED' | 'MALFORMED_CUE' | 'PARSE_ERROR' | 'OVERSIZE' | 'SECRET_BLOCKED' | 'IO_ERROR' | 'INTERNAL'>;
+DEFINE FIELD OVERWRITE error_detail ON TABLE knowledge_ingestion_receipts TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE error_detail.* ON TABLE knowledge_ingestion_receipts TYPE any;
+DEFINE FIELD OVERWRITE spans_produced ON TABLE knowledge_ingestion_receipts TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE spans_failed ON TABLE knowledge_ingestion_receipts TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE redaction_count ON TABLE knowledge_ingestion_receipts TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE content_hash ON TABLE knowledge_ingestion_receipts TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE duration_ms ON TABLE knowledge_ingestion_receipts TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE receipt_event_id ON TABLE knowledge_ingestion_receipts TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_ingestion_receipts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_ingestion_receipts ON TABLE knowledge_ingestion_receipts FIELDS receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_receipts_source ON TABLE knowledge_ingestion_receipts FIELDS source_id, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_receipts_workspace ON TABLE knowledge_ingestion_receipts FIELDS workspace_id, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_receipts_status ON TABLE knowledge_ingestion_receipts FIELDS status;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_receipts_run_token ON TABLE knowledge_ingestion_receipts FIELDS ingestion_run_token;
+
+-- 0163_knowledge_ingestion_spans.sql
+DEFINE TABLE OVERWRITE knowledge_ingestion_spans SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_ingestion_spans TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_ingestion_spans TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_ingestion_spans TYPE record<knowledge_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_ingestion_spans TYPE record<knowledge_ingestion_receipts> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE span_index ON TABLE knowledge_ingestion_spans TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE anchor_kind ON TABLE knowledge_ingestion_spans TYPE 'byte_range' | 'line_range' | 'pdf_page' | 'media_time' | 'json_pointer' | 'heading_path';
+DEFINE FIELD OVERWRITE anchor ON TABLE knowledge_ingestion_spans TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE anchor.* ON TABLE knowledge_ingestion_spans TYPE any;
+DEFINE FIELD OVERWRITE byte_start ON TABLE knowledge_ingestion_spans TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE byte_end ON TABLE knowledge_ingestion_spans TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE content ON TABLE knowledge_ingestion_spans TYPE string;
+DEFINE FIELD OVERWRITE content_hash ON TABLE knowledge_ingestion_spans TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE redaction_state ON TABLE knowledge_ingestion_spans TYPE 'none' | 'redacted' DEFAULT 'none';
+DEFINE FIELD OVERWRITE link_candidates ON TABLE knowledge_ingestion_spans TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE link_candidates.* ON TABLE knowledge_ingestion_spans TYPE any;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_ingestion_spans TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_ingestion_spans ON TABLE knowledge_ingestion_spans FIELDS span_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_ingestion_spans_receipt_index ON TABLE knowledge_ingestion_spans FIELDS receipt_id, span_index UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_spans_source ON TABLE knowledge_ingestion_spans FIELDS source_id, span_index;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_spans_workspace ON TABLE knowledge_ingestion_spans FIELDS workspace_id;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_spans_anchor_kind ON TABLE knowledge_ingestion_spans FIELDS anchor_kind;
+
+-- 0164_knowledge_ingestion_repair_queue.sql
+DEFINE TABLE OVERWRITE knowledge_ingestion_repair_queue SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE repair_id ON TABLE knowledge_ingestion_repair_queue TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_ingestion_repair_queue TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_ingestion_repair_queue TYPE record<knowledge_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_ingestion_repair_queue TYPE option<record<knowledge_ingestion_receipts>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE reason_class ON TABLE knowledge_ingestion_repair_queue TYPE 'UNSUPPORTED_FORMAT' | 'NO_TEXT_LAYER' | 'OCR_NEEDED' | 'ENCRYPTED' | 'MALFORMED_CUE' | 'PARSE_ERROR' | 'OVERSIZE' | 'SECRET_BLOCKED' | 'IO_ERROR' | 'INTERNAL' | 'MISSING_ASSET' | 'DENIED_PATH' | 'STALE_HASH';
+DEFINE FIELD OVERWRITE reason_detail ON TABLE knowledge_ingestion_repair_queue TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE reason_detail.* ON TABLE knowledge_ingestion_repair_queue TYPE any;
+DEFINE FIELD OVERWRITE state ON TABLE knowledge_ingestion_repair_queue TYPE 'queued' | 'retrying' | 'resolved' | 'dead_letter' DEFAULT 'queued';
+DEFINE FIELD OVERWRITE attempts ON TABLE knowledge_ingestion_repair_queue TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE max_attempts ON TABLE knowledge_ingestion_repair_queue TYPE int DEFAULT 3 ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE last_attempt_at ON TABLE knowledge_ingestion_repair_queue TYPE option<datetime>;
+DEFINE FIELD OVERWRITE resolved_receipt_id ON TABLE knowledge_ingestion_repair_queue TYPE option<record<knowledge_ingestion_receipts>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE enqueue_event_id ON TABLE knowledge_ingestion_repair_queue TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_ingestion_repair_queue TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_ingestion_repair_queue TYPE datetime DEFAULT time::now();
+-- Stored discriminator for the source partial UNIQUE index
+-- `uq_knowledge_ingestion_repair_open_source ... WHERE state IN (queued, retrying)`.
+DEFINE FIELD OVERWRITE open_source_key ON TABLE knowledge_ingestion_repair_queue TYPE string
+    VALUE IF $this.state = 'queued' OR $this.state = 'retrying' {
+        'open:' + type::string($this.source_id)
+    } ELSE {
+        'closed:' + $this.repair_id
+    };
+DEFINE INDEX OVERWRITE pk_knowledge_ingestion_repair_queue ON TABLE knowledge_ingestion_repair_queue FIELDS repair_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_ingestion_repair_open_source ON TABLE knowledge_ingestion_repair_queue FIELDS open_source_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_ingestion_repair_workspace_state ON TABLE knowledge_ingestion_repair_queue FIELDS workspace_id, state, created_at;
+
+-- 0170_knowledge_code_files.sql
+DEFINE TABLE OVERWRITE knowledge_code_files SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE code_file_id ON TABLE knowledge_code_files TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_code_files TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_code_files TYPE record<knowledge_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE file_entity_id ON TABLE knowledge_code_files TYPE option<record<knowledge_entities>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE language ON TABLE knowledge_code_files TYPE 'rust' | 'javascript' | 'typescript' | 'tsx';
+DEFINE FIELD OVERWRITE indexed_content_hash ON TABLE knowledge_code_files TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE parser_version ON TABLE knowledge_code_files TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE parse_status ON TABLE knowledge_code_files TYPE 'parsed' | 'partial' | 'failed' DEFAULT 'parsed';
+DEFINE FIELD OVERWRITE stale ON TABLE knowledge_code_files TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE symbols_indexed ON TABLE knowledge_code_files TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE edges_indexed ON TABLE knowledge_code_files TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE failure_detail ON TABLE knowledge_code_files TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE failure_detail.* ON TABLE knowledge_code_files TYPE any;
+DEFINE FIELD OVERWRITE last_indexed_in_run ON TABLE knowledge_code_files TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE last_index_receipt_event_id ON TABLE knowledge_code_files TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_code_files TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_code_files TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_code_files ON TABLE knowledge_code_files FIELDS code_file_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_code_files_source ON TABLE knowledge_code_files FIELDS source_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_code_files_workspace ON TABLE knowledge_code_files FIELDS workspace_id;
+DEFINE INDEX OVERWRITE idx_knowledge_code_files_stale ON TABLE knowledge_code_files FIELDS workspace_id, stale;
+DEFINE INDEX OVERWRITE idx_knowledge_code_files_parse_status ON TABLE knowledge_code_files FIELDS workspace_id, parse_status;
+DEFINE INDEX OVERWRITE idx_knowledge_code_files_file_entity ON TABLE knowledge_code_files FIELDS file_entity_id;
+
+-- 0171_knowledge_code_scip_imports.sql
+DEFINE TABLE OVERWRITE knowledge_code_scip_imports SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE scip_import_id ON TABLE knowledge_code_scip_imports TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_code_scip_imports TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE artifact_format ON TABLE knowledge_code_scip_imports TYPE 'scip' | 'lsif';
+DEFINE FIELD OVERWRITE tool_name ON TABLE knowledge_code_scip_imports TYPE option<string>;
+DEFINE FIELD OVERWRITE tool_version ON TABLE knowledge_code_scip_imports TYPE option<string>;
+DEFINE FIELD OVERWRITE artifact_hash ON TABLE knowledge_code_scip_imports TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE status ON TABLE knowledge_code_scip_imports TYPE 'imported' | 'partial' | 'rejected';
+DEFINE FIELD OVERWRITE reason ON TABLE knowledge_code_scip_imports TYPE option<string>;
+DEFINE FIELD OVERWRITE symbols_imported ON TABLE knowledge_code_scip_imports TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE occurrences_imported ON TABLE knowledge_code_scip_imports TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE edges_imported ON TABLE knowledge_code_scip_imports TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE import_detail ON TABLE knowledge_code_scip_imports TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE import_detail.* ON TABLE knowledge_code_scip_imports TYPE any;
+DEFINE FIELD OVERWRITE imported_in_run ON TABLE knowledge_code_scip_imports TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE import_receipt_event_id ON TABLE knowledge_code_scip_imports TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_code_scip_imports TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_code_scip_imports ON TABLE knowledge_code_scip_imports FIELDS scip_import_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_code_scip_imports_workspace ON TABLE knowledge_code_scip_imports FIELDS workspace_id, created_at;
+DEFINE INDEX OVERWRITE idx_knowledge_code_scip_imports_status ON TABLE knowledge_code_scip_imports FIELDS status;
+
+-- 0240_knowledge_memory_ontology.sql
+DEFINE TABLE OVERWRITE knowledge_memory_ontology_terms SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE term_id ON TABLE knowledge_memory_ontology_terms TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_ontology_terms TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE term_kind ON TABLE knowledge_memory_ontology_terms TYPE 'entity_class' | 'relation_class' | 'attribute' | 'extraction_pattern';
+DEFINE FIELD OVERWRITE term_key ON TABLE knowledge_memory_ontology_terms TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE normalized_label ON TABLE knowledge_memory_ontology_terms TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE maps_to_edge_type ON TABLE knowledge_memory_ontology_terms TYPE option<'defines' | 'references' | 'contains' | 'depends_on' | 'implements' | 'documents' | 'validates' | 'derived_from' | 'mentions' | 'links_to' | 'supersedes' | 'relates_to'>;
+DEFINE FIELD OVERWRITE maps_to_entity_kind ON TABLE knowledge_memory_ontology_terms TYPE option<'symbol' | 'concept' | 'file' | 'folder' | 'project' | 'person' | 'role' | 'task' | 'api' | 'schema' | 'command' | 'media' | 'manual_entry' | 'product_primitive' | 'spec_topic' | 'work_packet' | 'micro_task' | 'taskboard_row' | 'rich_document' | 'loom_block' | 'user_manual_page'> ASSERT $value = NONE OR $this.maps_to_edge_type = NONE;
+DEFINE FIELD OVERWRITE lifecycle_state ON TABLE knowledge_memory_ontology_terms TYPE 'probationary' | 'stable' | 'retired' DEFAULT 'probationary';
+DEFINE FIELD OVERWRITE retirement_reason ON TABLE knowledge_memory_ontology_terms TYPE option<'rejected' | 'superseded' | 'stale' | 'operator_retired'>;
+DEFINE FIELD OVERWRITE superseded_by_term_id ON TABLE knowledge_memory_ontology_terms TYPE option<record<knowledge_memory_ontology_terms>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE observation_count ON TABLE knowledge_memory_ontology_terms TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE promotion_threshold ON TABLE knowledge_memory_ontology_terms TYPE int DEFAULT 3 ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE operator_approved ON TABLE knowledge_memory_ontology_terms TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE promotion_receipt_event_id ON TABLE knowledge_memory_ontology_terms TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE detection_provenance ON TABLE knowledge_memory_ontology_terms TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE detection_provenance.* ON TABLE knowledge_memory_ontology_terms TYPE any;
+DEFINE FIELD OVERWRITE first_seen_in_run ON TABLE knowledge_memory_ontology_terms TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE last_seen_in_run ON TABLE knowledge_memory_ontology_terms TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_ontology_terms TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_memory_ontology_terms TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_ontology_terms ON TABLE knowledge_memory_ontology_terms FIELDS term_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_memory_ontology_terms_identity ON TABLE knowledge_memory_ontology_terms FIELDS workspace_id, term_kind, term_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_ontology_terms_ws_kind_state ON TABLE knowledge_memory_ontology_terms FIELDS workspace_id, term_kind, lifecycle_state;
+DEFINE EVENT OVERWRITE enforce_stable_promotion_receipt ON TABLE knowledge_memory_ontology_terms
+    WHEN ($event = 'CREATE' OR $event = 'UPDATE')
+      AND $after.lifecycle_state = 'stable' AND $after.promotion_receipt_event_id = NONE
+    THEN { THROW 'knowledge_memory_ontology_terms.promotion_receipt_event_id is required when lifecycle_state is stable'; };
+DEFINE EVENT OVERWRITE enforce_ontology_lifecycle_transition ON TABLE knowledge_memory_ontology_terms
+    WHEN $event = 'UPDATE'
+      AND $before.lifecycle_state != $after.lifecycle_state
+      AND !(($before.lifecycle_state = 'probationary'
+             AND ($after.lifecycle_state = 'stable' OR $after.lifecycle_state = 'retired'))
+            OR ($before.lifecycle_state = 'stable' AND $after.lifecycle_state = 'retired'))
+    THEN { THROW 'knowledge_memory_ontology_terms lifecycle transition is illegal'; };
+
+DEFINE TABLE OVERWRITE knowledge_memory_ontology_aliases SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE alias_id ON TABLE knowledge_memory_ontology_aliases TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE term_id ON TABLE knowledge_memory_ontology_aliases TYPE record<knowledge_memory_ontology_terms> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_ontology_aliases TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE alias_surface ON TABLE knowledge_memory_ontology_aliases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE alias_norm_key ON TABLE knowledge_memory_ontology_aliases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE alias_source ON TABLE knowledge_memory_ontology_aliases TYPE 'extraction' | 'operator' | 'spec' | 'import' DEFAULT 'extraction';
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_ontology_aliases TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_ontology_aliases ON TABLE knowledge_memory_ontology_aliases FIELDS alias_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_memory_ontology_aliases_norm ON TABLE knowledge_memory_ontology_aliases FIELDS workspace_id, alias_norm_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_ontology_aliases_term ON TABLE knowledge_memory_ontology_aliases FIELDS term_id;
+
+-- 0241_knowledge_memory_facts.sql
+DEFINE TABLE OVERWRITE knowledge_memory_facts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE fact_id ON TABLE knowledge_memory_facts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_facts TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_memory_facts TYPE record<knowledge_claims> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE subject_entity_id ON TABLE knowledge_memory_facts TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE predicate_key ON TABLE knowledge_memory_facts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE predicate_term_id ON TABLE knowledge_memory_facts TYPE option<record<knowledge_memory_ontology_terms>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE object_entity_id ON TABLE knowledge_memory_facts TYPE option<record<knowledge_entities>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE object_literal ON TABLE knowledge_memory_facts TYPE option<string> ASSERT ($value = NONE AND $this.object_entity_id != NONE) OR ($value != NONE AND $this.object_entity_id = NONE);
+DEFINE FIELD OVERWRITE qualifiers ON TABLE knowledge_memory_facts TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE qualifiers.* ON TABLE knowledge_memory_facts TYPE any;
+DEFINE FIELD OVERWRITE authority_label ON TABLE knowledge_memory_facts TYPE 'source' | 'derived' | 'model_suggested' | 'operator_approved' | 'deprecated' | 'superseded' | 'unsupported' DEFAULT 'model_suggested';
+DEFINE FIELD OVERWRITE extractor_version ON TABLE knowledge_memory_facts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE created_in_run ON TABLE knowledge_memory_facts TYPE option<record<knowledge_index_runs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_facts TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_memory_facts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_facts ON TABLE knowledge_memory_facts FIELDS fact_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_memory_facts_claim ON TABLE knowledge_memory_facts FIELDS claim_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_facts_workspace ON TABLE knowledge_memory_facts FIELDS workspace_id;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_facts_subject ON TABLE knowledge_memory_facts FIELDS subject_entity_id;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_facts_object ON TABLE knowledge_memory_facts FIELDS object_entity_id;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_facts_predicate ON TABLE knowledge_memory_facts FIELDS workspace_id, predicate_key;
+DEFINE INDEX OVERWRITE idx_knowledge_memory_facts_symbolic_key ON TABLE knowledge_memory_facts FIELDS workspace_id, subject_entity_id, predicate_key;
+
+-- 0242_knowledge_memory_conflict_jobs.sql
+DEFINE TABLE OVERWRITE knowledge_memory_conflict_detection_jobs SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE job_id ON TABLE knowledge_memory_conflict_detection_jobs TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_conflict_detection_jobs TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE detection_kind ON TABLE knowledge_memory_conflict_detection_jobs TYPE 'symbolic' | 'temporal' | 'alias' | 'stale_source' | 'granularity' | 'semantic';
+DEFINE FIELD OVERWRITE job_state ON TABLE knowledge_memory_conflict_detection_jobs TYPE 'queued' | 'running' | 'completed' | 'failed' DEFAULT 'completed';
+DEFINE FIELD OVERWRITE candidates_scanned ON TABLE knowledge_memory_conflict_detection_jobs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE conflicts_found ON TABLE knowledge_memory_conflict_detection_jobs TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE search_parameters ON TABLE knowledge_memory_conflict_detection_jobs TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE search_parameters.* ON TABLE knowledge_memory_conflict_detection_jobs TYPE any;
+DEFINE FIELD OVERWRITE detection_receipt_event_id ON TABLE knowledge_memory_conflict_detection_jobs TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_conflict_detection_jobs TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE completed_at ON TABLE knowledge_memory_conflict_detection_jobs TYPE option<datetime>;
+DEFINE INDEX OVERWRITE pk_knowledge_memory_conflict_detection_jobs ON TABLE knowledge_memory_conflict_detection_jobs FIELDS job_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kmcdj_workspace ON TABLE knowledge_memory_conflict_detection_jobs FIELDS workspace_id, detection_kind;
+
+DEFINE TABLE OVERWRITE knowledge_memory_conflict_detection_findings SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE job_id ON TABLE knowledge_memory_conflict_detection_findings TYPE record<knowledge_memory_conflict_detection_jobs> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE conflict_id ON TABLE knowledge_memory_conflict_detection_findings TYPE record<knowledge_claim_conflicts> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_conflict_detection_findings TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_conflict_detection_findings ON TABLE knowledge_memory_conflict_detection_findings FIELDS job_id, conflict_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kmcdf_conflict ON TABLE knowledge_memory_conflict_detection_findings FIELDS conflict_id;
+
+DEFINE TABLE OVERWRITE knowledge_memory_conflict_resolution_jobs SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE job_id ON TABLE knowledge_memory_conflict_resolution_jobs TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_conflict_resolution_jobs TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE conflict_id ON TABLE knowledge_memory_conflict_resolution_jobs TYPE record<knowledge_claim_conflicts> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE outcome ON TABLE knowledge_memory_conflict_resolution_jobs TYPE 'discard' | 'refine' | 'temporal_qualify' | 'granularity_qualify' | 'merge';
+DEFINE FIELD OVERWRITE kept_claim_id ON TABLE knowledge_memory_conflict_resolution_jobs TYPE option<record<knowledge_claims>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE discarded_claim_id ON TABLE knowledge_memory_conflict_resolution_jobs TYPE option<record<knowledge_claims>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE resolution_detail ON TABLE knowledge_memory_conflict_resolution_jobs TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE resolution_detail.* ON TABLE knowledge_memory_conflict_resolution_jobs TYPE any;
+DEFINE FIELD OVERWRITE resolution_receipt_event_id ON TABLE knowledge_memory_conflict_resolution_jobs TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_conflict_resolution_jobs TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_conflict_resolution_jobs ON TABLE knowledge_memory_conflict_resolution_jobs FIELDS job_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kmcrj_workspace ON TABLE knowledge_memory_conflict_resolution_jobs FIELDS workspace_id;
+DEFINE INDEX OVERWRITE idx_kmcrj_conflict ON TABLE knowledge_memory_conflict_resolution_jobs FIELDS conflict_id;
+
+-- 0243_knowledge_memory_bridge_edges.sql
+DEFINE TABLE OVERWRITE knowledge_memory_bridge_decisions SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE decision_id ON TABLE knowledge_memory_bridge_decisions TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_bridge_decisions TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE entity_id_a ON TABLE knowledge_memory_bridge_decisions TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE entity_id_b ON TABLE knowledge_memory_bridge_decisions TYPE record<knowledge_entities> ASSERT record::exists($value) AND $value != $this.entity_id_a REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE decision ON TABLE knowledge_memory_bridge_decisions TYPE 'bridged' | 'suppressed_hub' | 'suppressed_no_evidence' | 'suppressed_connected';
+DEFINE FIELD OVERWRITE degree_a ON TABLE knowledge_memory_bridge_decisions TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE degree_b ON TABLE knowledge_memory_bridge_decisions TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE hub_degree_threshold ON TABLE knowledge_memory_bridge_decisions TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE evidence_span_id ON TABLE knowledge_memory_bridge_decisions TYPE option<record<knowledge_spans>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE bridge_edge_id ON TABLE knowledge_memory_bridge_decisions TYPE option<record<knowledge_edges>> ASSERT ($value = NONE OR record::exists($value)) AND ($this.decision = 'bridged' OR $value = NONE) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_memory_bridge_decisions TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_memory_bridge_decisions ON TABLE knowledge_memory_bridge_decisions FIELDS decision_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kmbd_workspace ON TABLE knowledge_memory_bridge_decisions FIELDS workspace_id, decision;
+DEFINE INDEX OVERWRITE idx_kmbd_edge ON TABLE knowledge_memory_bridge_decisions FIELDS bridge_edge_id;
+
+-- 0260_knowledge_semantic_catalog.sql
+DEFINE TABLE OVERWRITE knowledge_semantic_catalog_entries SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE entry_id ON TABLE knowledge_semantic_catalog_entries TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_semantic_catalog_entries TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE entry_kind ON TABLE knowledge_semantic_catalog_entries TYPE 'entity_type' | 'index' | 'view' | 'tool';
+DEFINE FIELD OVERWRITE name ON TABLE knowledge_semantic_catalog_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE version ON TABLE knowledge_semantic_catalog_entries TYPE int DEFAULT 1 ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE description ON TABLE knowledge_semantic_catalog_entries TYPE string DEFAULT '';
+DEFINE FIELD OVERWRITE query_routes ON TABLE knowledge_semantic_catalog_entries TYPE array<string> DEFAULT [];
+DEFINE FIELD OVERWRITE supported_selectors ON TABLE knowledge_semantic_catalog_entries TYPE array<string> DEFAULT [];
+DEFINE FIELD OVERWRITE default_budgets ON TABLE knowledge_semantic_catalog_entries TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE default_budgets.* ON TABLE knowledge_semantic_catalog_entries TYPE any;
+DEFINE FIELD OVERWRITE examples ON TABLE knowledge_semantic_catalog_entries TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE examples.* ON TABLE knowledge_semantic_catalog_entries TYPE any;
+DEFINE FIELD OVERWRITE lifecycle_state ON TABLE knowledge_semantic_catalog_entries TYPE 'active' | 'retired' DEFAULT 'active';
+DEFINE FIELD OVERWRITE last_updated_at ON TABLE knowledge_semantic_catalog_entries TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_semantic_catalog_entries TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_semantic_catalog_entries ON TABLE knowledge_semantic_catalog_entries FIELDS entry_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_semantic_catalog_name_version ON TABLE knowledge_semantic_catalog_entries FIELDS workspace_id, name, version UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_semantic_catalog_kind ON TABLE knowledge_semantic_catalog_entries FIELDS workspace_id, entry_kind, lifecycle_state;
+
+-- 0310_user_manual.sql. UserManual rows are product-level, not workspace
+-- scoped: the manual documents the product itself.
+DEFINE TABLE OVERWRITE user_manual_pages SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE page_id ON TABLE user_manual_pages TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE slug ON TABLE user_manual_pages TYPE string ASSERT string::trim($value) != '' AND $value = string::lowercase($value);
+DEFINE FIELD OVERWRITE title ON TABLE user_manual_pages TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE page_kind ON TABLE user_manual_pages TYPE 'purpose' | 'workflow' | 'tool_catalog' | 'failure_recovery' | 'quickstart' | 'state_recovery' | 'surface_guide' | 'navigation' | 'legacy_bridge' | 'spec_enrichment_seed';
+DEFINE FIELD OVERWRITE audience ON TABLE user_manual_pages TYPE 'model' | 'operator' | 'model_and_operator' DEFAULT 'model_and_operator';
+DEFINE FIELD OVERWRITE body ON TABLE user_manual_pages TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE body.* ON TABLE user_manual_pages TYPE any;
+DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_pages TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_pages TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE source_kind ON TABLE user_manual_pages TYPE 'builtin_seed' | 'runtime_edit' DEFAULT 'builtin_seed';
+DEFINE FIELD OVERWRITE spec_anchors ON TABLE user_manual_pages TYPE array<string> DEFAULT [];
+DEFINE FIELD OVERWRITE status ON TABLE user_manual_pages TYPE 'current' | 'deprecated' | 'superseded' DEFAULT 'current';
+DEFINE FIELD OVERWRITE superseded_by_slug ON TABLE user_manual_pages TYPE option<string>;
+DEFINE FIELD OVERWRITE ledger_event_id ON TABLE user_manual_pages TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at ON TABLE user_manual_pages TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_pages TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_user_manual_pages ON TABLE user_manual_pages FIELDS page_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_user_manual_pages_slug ON TABLE user_manual_pages FIELDS slug UNIQUE;
+DEFINE INDEX OVERWRITE idx_user_manual_pages_kind ON TABLE user_manual_pages FIELDS page_kind, status;
+
+DEFINE TABLE OVERWRITE user_manual_sections SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE section_id ON TABLE user_manual_sections TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE page_id ON TABLE user_manual_sections TYPE record<user_manual_pages> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE position ON TABLE user_manual_sections TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE section_kind ON TABLE user_manual_sections TYPE 'purpose' | 'workflows' | 'startup' | 'run_commands' | 'inputs_outputs' | 'navigation' | 'safety' | 'failure_modes' | 'recovery' | 'hooks' | 'examples' | 'schema';
+DEFINE FIELD OVERWRITE title ON TABLE user_manual_sections TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE body_md ON TABLE user_manual_sections TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE body_json ON TABLE user_manual_sections TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE body_json.* ON TABLE user_manual_sections TYPE any;
+DEFINE INDEX OVERWRITE pk_user_manual_sections ON TABLE user_manual_sections FIELDS section_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_user_manual_sections_position ON TABLE user_manual_sections FIELDS page_id, position UNIQUE;
+DEFINE INDEX OVERWRITE idx_user_manual_sections_page ON TABLE user_manual_sections FIELDS page_id, position;
+
+DEFINE TABLE OVERWRITE user_manual_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_id ON TABLE user_manual_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE page_id ON TABLE user_manual_anchors TYPE record<user_manual_pages> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE anchor_kind ON TABLE user_manual_anchors TYPE 'http_route' | 'tauri_command' | 'ipc_channel' | 'cli_command' | 'spec_anchor' | 'test' | 'event_type' | 'primitive' | 'page_link';
+DEFINE FIELD OVERWRITE anchor_value ON TABLE user_manual_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE http_method ON TABLE user_manual_anchors TYPE '' | 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' DEFAULT '';
+DEFINE INDEX OVERWRITE pk_user_manual_anchors ON TABLE user_manual_anchors FIELDS anchor_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_user_manual_anchors_identity ON TABLE user_manual_anchors FIELDS page_id, anchor_kind, anchor_value, http_method UNIQUE;
+DEFINE INDEX OVERWRITE idx_user_manual_anchors_value ON TABLE user_manual_anchors FIELDS anchor_kind, anchor_value;
+
+DEFINE TABLE OVERWRITE user_manual_tool_entries SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE tool_id ON TABLE user_manual_tool_entries TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE page_id ON TABLE user_manual_tool_entries TYPE option<record<user_manual_pages>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE name ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE status ON TABLE user_manual_tool_entries TYPE 'wired' | 'planned' | 'deprecated';
+DEFINE FIELD OVERWRITE ipc_channel ON TABLE user_manual_tool_entries TYPE option<string>;
+DEFINE FIELD OVERWRITE tauri_command ON TABLE user_manual_tool_entries TYPE option<string>;
+DEFINE FIELD OVERWRITE cli_flag ON TABLE user_manual_tool_entries TYPE option<string>;
+DEFINE FIELD OVERWRITE http_route ON TABLE user_manual_tool_entries TYPE option<string>;
+DEFINE FIELD OVERWRITE http_method ON TABLE user_manual_tool_entries TYPE '' | 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' DEFAULT '';
+DEFINE FIELD OVERWRITE description ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE expected_input ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE expected_output ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE schema_fields ON TABLE user_manual_tool_entries TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE schema_fields.* ON TABLE user_manual_tool_entries TYPE any;
+DEFINE FIELD OVERWRITE common_errors ON TABLE user_manual_tool_entries TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE common_errors.* ON TABLE user_manual_tool_entries TYPE any;
+DEFINE FIELD OVERWRITE recovery_steps ON TABLE user_manual_tool_entries TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE recovery_steps.* ON TABLE user_manual_tool_entries TYPE any;
+DEFINE FIELD OVERWRITE origin ON TABLE user_manual_tool_entries TYPE 'legacy_model_manual' | 'wp009_surface';
+DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_tool_entries TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_tool_entries TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_user_manual_tool_entries ON TABLE user_manual_tool_entries FIELDS tool_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_user_manual_tool_entries_route ON TABLE user_manual_tool_entries FIELDS http_route, http_method;
+
+DEFINE TABLE OVERWRITE user_manual_feature_entries SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE feature_id ON TABLE user_manual_feature_entries TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE title ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE description ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE tool_ids ON TABLE user_manual_feature_entries TYPE array<string> DEFAULT [];
+DEFINE FIELD OVERWRITE origin ON TABLE user_manual_feature_entries TYPE 'legacy_model_manual' | 'wp009_surface';
+DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_feature_entries TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_feature_entries TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_user_manual_feature_entries ON TABLE user_manual_feature_entries FIELDS feature_id UNIQUE;
+
+DEFINE TABLE OVERWRITE user_manual_versions SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_versions TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE seeded_at ON TABLE user_manual_versions TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE seed_content_hash ON TABLE user_manual_versions TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE page_count ON TABLE user_manual_versions TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE tool_count ON TABLE user_manual_versions TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE feature_count ON TABLE user_manual_versions TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE ledger_event_id ON TABLE user_manual_versions TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE note ON TABLE user_manual_versions TYPE string DEFAULT '';
+DEFINE INDEX OVERWRITE pk_user_manual_versions ON TABLE user_manual_versions FIELDS manual_version UNIQUE;
+
+DEFINE TABLE OVERWRITE user_manual_legacy_aliases SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE alias ON TABLE user_manual_legacy_aliases TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE alias_kind ON TABLE user_manual_legacy_aliases TYPE 'module' | 'tauri_command' | 'ipc_channel' | 'projection' | 'test' | 'constant';
+DEFINE FIELD OVERWRITE canonical_kind ON TABLE user_manual_legacy_aliases TYPE 'page' | 'tool' | 'route';
+DEFINE FIELD OVERWRITE canonical_ref ON TABLE user_manual_legacy_aliases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE deprecation_note ON TABLE user_manual_legacy_aliases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_legacy_aliases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_legacy_aliases TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_user_manual_legacy_aliases ON TABLE user_manual_legacy_aliases FIELDS alias UNIQUE;
+
+-- 0311_parallel_swarm_state_recovery.sql
+DEFINE TABLE OVERWRITE knowledge_agent_worktree_claims SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_agent_worktree_claims TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_agent_worktree_claims TYPE option<string>;
+DEFINE FIELD OVERWRITE scope_kind ON TABLE knowledge_agent_worktree_claims TYPE 'worktree' | 'workspace' | 'index_run';
+DEFINE FIELD OVERWRITE scope_id ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE lane_kind ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE attribution_jsonb ON TABLE knowledge_agent_worktree_claims TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE attribution_jsonb.* ON TABLE knowledge_agent_worktree_claims TYPE any;
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE status ON TABLE knowledge_agent_worktree_claims TYPE 'active' | 'released' | 'reclaimed';
+DEFINE FIELD OVERWRITE reason ON TABLE knowledge_agent_worktree_claims TYPE string;
+DEFINE FIELD OVERWRITE claimed_at_utc ON TABLE knowledge_agent_worktree_claims TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE expires_at_utc ON TABLE knowledge_agent_worktree_claims TYPE datetime;
+DEFINE FIELD OVERWRITE released_at_utc ON TABLE knowledge_agent_worktree_claims TYPE option<datetime>;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_agent_worktree_claims TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE release_event_ledger_event_id ON TABLE knowledge_agent_worktree_claims TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE reclaim_event_ledger_event_id ON TABLE knowledge_agent_worktree_claims TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+-- Stored discriminator for the source partial UNIQUE index
+-- `ux_agent_worktree_claims_active_scope ... WHERE status = active AND released_at_utc IS NULL`.
+DEFINE FIELD OVERWRITE active_scope_key ON TABLE knowledge_agent_worktree_claims TYPE string
+    VALUE IF $this.status = 'active' AND $this.released_at_utc = NONE {
+        'active:' + type::string($this.scope_kind) + ':' + $this.scope_id
+    } ELSE {
+        'inactive:' + $this.claim_id
+    };
+DEFINE INDEX OVERWRITE pk_knowledge_agent_worktree_claims ON TABLE knowledge_agent_worktree_claims FIELDS claim_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_agent_worktree_claims_active_scope ON TABLE knowledge_agent_worktree_claims FIELDS active_scope_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_agent_worktree_claims_workspace_active ON TABLE knowledge_agent_worktree_claims FIELDS workspace_id, claimed_at_utc;
+
+DEFINE TABLE OVERWRITE knowledge_agent_role_mailbox_handoffs SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE handoff_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE option<record<knowledge_agent_worktree_claims>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE from_lane_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE from_actor_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE from_lane_kind ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE from_attribution_jsonb ON TABLE knowledge_agent_role_mailbox_handoffs TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE from_attribution_jsonb.* ON TABLE knowledge_agent_role_mailbox_handoffs TYPE any;
+DEFINE FIELD OVERWRITE to_role ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE mailbox_thread_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE mailbox_message_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE status ON TABLE knowledge_agent_role_mailbox_handoffs TYPE 'started' | 'progress' | 'blocked' | 'pass' | 'fail';
+DEFINE FIELD OVERWRITE summary ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string;
+DEFINE FIELD OVERWRITE body_sha256 ON TABLE knowledge_agent_role_mailbox_handoffs TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_agent_role_mailbox_handoffs TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_agent_role_mailbox_handoffs TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_agent_role_mailbox_handoffs ON TABLE knowledge_agent_role_mailbox_handoffs FIELDS handoff_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_agent_role_mailbox_handoffs_wp_mt ON TABLE knowledge_agent_role_mailbox_handoffs FIELDS wp_id, mt_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE knowledge_agent_state_recovery_checkpoints SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE checkpoint_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE lane_kind ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE attribution_jsonb ON TABLE knowledge_agent_state_recovery_checkpoints TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE attribution_jsonb.* ON TABLE knowledge_agent_state_recovery_checkpoints TYPE any;
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE option<record<knowledge_agent_worktree_claims>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE mailbox_handoff_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE option<record<knowledge_agent_role_mailbox_handoffs>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE navigation_command_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE option<string>;
+DEFINE FIELD OVERWRITE resume_pointer_jsonb ON TABLE knowledge_agent_state_recovery_checkpoints TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE resume_pointer_jsonb.* ON TABLE knowledge_agent_state_recovery_checkpoints TYPE any;
+DEFINE FIELD OVERWRITE touched_files_jsonb ON TABLE knowledge_agent_state_recovery_checkpoints TYPE array<string>;
+DEFINE FIELD OVERWRITE tests_jsonb ON TABLE knowledge_agent_state_recovery_checkpoints TYPE array<string>;
+DEFINE FIELD OVERWRITE hbr_rows_jsonb ON TABLE knowledge_agent_state_recovery_checkpoints TYPE array<string>;
+DEFINE FIELD OVERWRITE next_step_context ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE payload_jsonb ON TABLE knowledge_agent_state_recovery_checkpoints TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE payload_jsonb.* ON TABLE knowledge_agent_state_recovery_checkpoints TYPE any;
+DEFINE FIELD OVERWRITE payload_sha256 ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE compaction_reason ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE git_head ON TABLE knowledge_agent_state_recovery_checkpoints TYPE string;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_agent_state_recovery_checkpoints TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_agent_state_recovery_checkpoints TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_agent_state_recovery_checkpoints ON TABLE knowledge_agent_state_recovery_checkpoints FIELDS checkpoint_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_agent_state_recovery_checkpoints_session ON TABLE knowledge_agent_state_recovery_checkpoints FIELDS session_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE knowledge_agent_recovery_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_agent_recovery_receipts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE checkpoint_id ON TABLE knowledge_agent_recovery_receipts TYPE record<knowledge_agent_state_recovery_checkpoints> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE prior_session_id ON TABLE knowledge_agent_recovery_receipts TYPE string;
+DEFINE FIELD OVERWRITE new_session_id ON TABLE knowledge_agent_recovery_receipts TYPE string;
+DEFINE FIELD OVERWRITE new_lane_id ON TABLE knowledge_agent_recovery_receipts TYPE string;
+DEFINE FIELD OVERWRITE new_actor_id ON TABLE knowledge_agent_recovery_receipts TYPE string;
+DEFINE FIELD OVERWRITE new_lane_kind ON TABLE knowledge_agent_recovery_receipts TYPE string;
+DEFINE FIELD OVERWRITE new_attribution_jsonb ON TABLE knowledge_agent_recovery_receipts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE new_attribution_jsonb.* ON TABLE knowledge_agent_recovery_receipts TYPE any;
+DEFINE FIELD OVERWRITE resume_pointer_jsonb ON TABLE knowledge_agent_recovery_receipts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE resume_pointer_jsonb.* ON TABLE knowledge_agent_recovery_receipts TYPE any;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_agent_recovery_receipts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE recovered_at_utc ON TABLE knowledge_agent_recovery_receipts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_agent_recovery_receipts ON TABLE knowledge_agent_recovery_receipts FIELDS receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_agent_recovery_receipts_checkpoint ON TABLE knowledge_agent_recovery_receipts FIELDS checkpoint_id, recovered_at_utc;
+
+DEFINE TABLE OVERWRITE knowledge_parallel_indexing_lease_queue SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE lease_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE scope_kind ON TABLE knowledge_parallel_indexing_lease_queue TYPE 'worktree' | 'workspace' | 'index_run';
+DEFINE FIELD OVERWRITE scope_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE lane_kind ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE attribution_jsonb ON TABLE knowledge_parallel_indexing_lease_queue TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE attribution_jsonb.* ON TABLE knowledge_parallel_indexing_lease_queue TYPE any;
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE index_run_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE string;
+DEFINE FIELD OVERWRITE priority ON TABLE knowledge_parallel_indexing_lease_queue TYPE int DEFAULT 0;
+DEFINE FIELD OVERWRITE ttl_seconds ON TABLE knowledge_parallel_indexing_lease_queue TYPE int ASSERT $value > 0;
+DEFINE FIELD OVERWRITE status ON TABLE knowledge_parallel_indexing_lease_queue TYPE 'queued' | 'acquired' | 'completed' | 'cancelled' | 'reclaimed';
+DEFINE FIELD OVERWRITE blocked_by_lease_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE option<string>;
+DEFINE FIELD OVERWRITE enqueued_at_utc ON TABLE knowledge_parallel_indexing_lease_queue TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE acquired_at_utc ON TABLE knowledge_parallel_indexing_lease_queue TYPE option<datetime>;
+DEFINE FIELD OVERWRITE expires_at_utc ON TABLE knowledge_parallel_indexing_lease_queue TYPE option<datetime>;
+DEFINE FIELD OVERWRITE completed_at_utc ON TABLE knowledge_parallel_indexing_lease_queue TYPE option<datetime>;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_parallel_indexing_lease_queue TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+-- 0313_parallel_swarm_quiet_background_work.sql adds the quiet-mode policy.
+DEFINE FIELD OVERWRITE quiet_policy_jsonb ON TABLE knowledge_parallel_indexing_lease_queue TYPE object FLEXIBLE DEFAULT { work_kind: 'indexing', no_foreground_window: true, no_focus_steal: true, no_os_shell_window: true, bounded: true, observable: true };
+DEFINE FIELD OVERWRITE quiet_policy_jsonb.* ON TABLE knowledge_parallel_indexing_lease_queue TYPE any;
+-- Stored discriminator for the source partial UNIQUE index
+-- `ux_parallel_indexing_lease_queue_active_scope ... WHERE status = acquired`.
+DEFINE FIELD OVERWRITE acquired_scope_key ON TABLE knowledge_parallel_indexing_lease_queue TYPE string
+    VALUE IF $this.status = 'acquired' {
+        'acquired:' + type::string($this.scope_kind) + ':' + $this.scope_id
+    } ELSE {
+        'inactive:' + $this.lease_id
+    };
+DEFINE INDEX OVERWRITE pk_knowledge_parallel_indexing_lease_queue ON TABLE knowledge_parallel_indexing_lease_queue FIELDS lease_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_parallel_indexing_lease_queue_active_scope ON TABLE knowledge_parallel_indexing_lease_queue FIELDS acquired_scope_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_parallel_indexing_lease_queue_queued ON TABLE knowledge_parallel_indexing_lease_queue FIELDS scope_kind, scope_id, priority, enqueued_at_utc;
+
+-- 0313_parallel_swarm_quiet_background_work.sql
+DEFINE TABLE OVERWRITE knowledge_agent_quiet_background_work SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_agent_quiet_background_work TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE work_kind ON TABLE knowledge_agent_quiet_background_work TYPE 'indexing' | 'backend_navigation' | 'visual_capture' | 'test_run';
+DEFINE FIELD OVERWRITE subject_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE lane_kind ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE attribution_jsonb ON TABLE knowledge_agent_quiet_background_work TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE attribution_jsonb.* ON TABLE knowledge_agent_quiet_background_work TYPE any;
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_agent_quiet_background_work TYPE string;
+DEFINE FIELD OVERWRITE quiet_policy_jsonb ON TABLE knowledge_agent_quiet_background_work TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE quiet_policy_jsonb.* ON TABLE knowledge_agent_quiet_background_work TYPE any;
+DEFINE FIELD OVERWRITE evidence_ref ON TABLE knowledge_agent_quiet_background_work TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_agent_quiet_background_work TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_agent_quiet_background_work TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_agent_quiet_background_work ON TABLE knowledge_agent_quiet_background_work FIELDS receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_agent_quiet_background_work_workspace ON TABLE knowledge_agent_quiet_background_work FIELDS workspace_id, created_at_utc;
+DEFINE INDEX OVERWRITE idx_agent_quiet_background_work_subject ON TABLE knowledge_agent_quiet_background_work FIELDS subject_id, created_at_utc;
+
+-- 0314_parallel_swarm_cloud_assistance_receipts.sql
+DEFINE TABLE OVERWRITE knowledge_agent_cloud_assistance_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string;
+DEFINE FIELD OVERWRITE wp_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string;
+DEFINE FIELD OVERWRITE mt_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string;
+DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE record<knowledge_agent_worktree_claims> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE handoff_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE record<knowledge_agent_role_mailbox_handoffs> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE handoff_event_ledger_event_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE cloud_assistance_event_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE fallback_basis_event_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE parent_session_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE prompt_sha256 ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string;
+DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string;
+DEFINE FIELD OVERWRITE lane_kind ON TABLE knowledge_agent_cloud_assistance_receipts TYPE 'cloud';
+DEFINE FIELD OVERWRITE provider ON TABLE knowledge_agent_cloud_assistance_receipts TYPE 'open_ai' | 'anthropic' | 'official_cli' | 'other';
+DEFINE FIELD OVERWRITE model_label ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE attribution_jsonb ON TABLE knowledge_agent_cloud_assistance_receipts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE attribution_jsonb.* ON TABLE knowledge_agent_cloud_assistance_receipts TYPE any;
+DEFINE FIELD OVERWRITE session_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string;
+DEFINE FIELD OVERWRITE fallback_reason ON TABLE knowledge_agent_cloud_assistance_receipts TYPE 'local_failed' | 'local_low_confidence' | 'local_overloaded' | 'local_suppressed' | 'hard_reasoning' | 'force_cloud' | 'no_local_model';
+DEFINE FIELD OVERWRITE output_kind ON TABLE knowledge_agent_cloud_assistance_receipts TYPE 'analysis' | 'patch_suggestion' | 'validation_summary' | 'handoff_summary';
+DEFINE FIELD OVERWRITE output_sha256 ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE body_sha256 ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE output_text ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE output_body_jsonb ON TABLE knowledge_agent_cloud_assistance_receipts TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE output_body_jsonb.* ON TABLE knowledge_agent_cloud_assistance_receipts TYPE any;
+DEFINE FIELD OVERWRITE target_ref ON TABLE knowledge_agent_cloud_assistance_receipts TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE review_state ON TABLE knowledge_agent_cloud_assistance_receipts TYPE 'pending_review' | 'rejected';
+DEFINE FIELD OVERWRITE non_authoritative ON TABLE knowledge_agent_cloud_assistance_receipts TYPE bool DEFAULT true ASSERT $value = true;
+DEFINE FIELD OVERWRITE requires_promotion ON TABLE knowledge_agent_cloud_assistance_receipts TYPE bool DEFAULT true ASSERT $value = true;
+DEFINE FIELD OVERWRITE authority_mutation_allowed ON TABLE knowledge_agent_cloud_assistance_receipts TYPE bool DEFAULT false ASSERT $value = false;
+DEFINE FIELD OVERWRITE promotion_event_id ON TABLE knowledge_agent_cloud_assistance_receipts TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_agent_cloud_assistance_receipts TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_agent_cloud_assistance_receipts ON TABLE knowledge_agent_cloud_assistance_receipts FIELDS receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_agent_cloud_assistance_receipts_handoff ON TABLE knowledge_agent_cloud_assistance_receipts FIELDS handoff_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_agent_cloud_assistance_receipts_event ON TABLE knowledge_agent_cloud_assistance_receipts FIELDS cloud_assistance_event_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_agent_cloud_assistance_receipts_basis ON TABLE knowledge_agent_cloud_assistance_receipts FIELDS fallback_basis_event_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_agent_cloud_assistance_receipts_workspace ON TABLE knowledge_agent_cloud_assistance_receipts FIELDS workspace_id, created_at_utc;
+DEFINE INDEX OVERWRITE idx_agent_cloud_assistance_receipts_review ON TABLE knowledge_agent_cloud_assistance_receipts FIELDS review_state, created_at_utc;
+
+-- 0345_fems_memory_workspace_authority.sql. The historical PostgreSQL
+-- backfill DML (legacy request-id derivation) is intentionally omitted: this
+-- bootstrap targets an empty database. The workspace foreign keys the same
+-- migration installs are retained.
+DEFINE TABLE OVERWRITE fems_memory_packs SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE pack_id ON TABLE fems_memory_packs TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_packs TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE scope_key ON TABLE fems_memory_packs TYPE string DEFAULT '';
+DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE pack.* ON TABLE fems_memory_packs TYPE any;
+DEFINE FIELD OVERWRITE generated_at ON TABLE fems_memory_packs TYPE datetime;
+DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_packs TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_fems_memory_packs ON TABLE fems_memory_packs FIELDS pack_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_packs_scope ON TABLE fems_memory_packs FIELDS workspace_id, scope_key, created_at;
+
+DEFINE TABLE OVERWRITE fems_memory_proposals SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_proposals TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE request_id ON TABLE fems_memory_proposals TYPE string;
+DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_proposals TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE document_id ON TABLE fems_memory_proposals TYPE string;
+DEFINE FIELD OVERWRITE selection_start ON TABLE fems_memory_proposals TYPE int;
+DEFINE FIELD OVERWRITE selection_end ON TABLE fems_memory_proposals TYPE int;
+DEFINE FIELD OVERWRITE content_hash ON TABLE fems_memory_proposals TYPE string;
+DEFINE FIELD OVERWRITE memory_class ON TABLE fems_memory_proposals TYPE string;
+DEFINE FIELD OVERWRITE status ON TABLE fems_memory_proposals TYPE string DEFAULT 'pending_review';
+DEFINE FIELD OVERWRITE review_gated ON TABLE fems_memory_proposals TYPE bool DEFAULT true;
+DEFINE FIELD OVERWRITE proposal ON TABLE fems_memory_proposals TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE proposal.* ON TABLE fems_memory_proposals TYPE any;
+DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_proposals TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_fems_memory_proposals ON TABLE fems_memory_proposals FIELDS proposal_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_proposals_ws_request ON TABLE fems_memory_proposals FIELDS workspace_id, request_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_proposals_ws_status ON TABLE fems_memory_proposals FIELDS workspace_id, status, created_at;
+
+DEFINE TABLE OVERWRITE fems_memory_items SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE memory_id ON TABLE fems_memory_items TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_items TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE item ON TABLE fems_memory_items TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE item.* ON TABLE fems_memory_items TYPE any;
+DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_items TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE fems_memory_items TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_fems_memory_items ON TABLE fems_memory_items FIELDS memory_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_items_ws ON TABLE fems_memory_items FIELDS workspace_id;
+
+-- 0350_fems_memory_commit_authority.sql
+DEFINE TABLE OVERWRITE fems_memory_commit_reports SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE commit_id ON TABLE fems_memory_commit_reports TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_commit_reports TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_commit_reports TYPE record<fems_memory_proposals> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE memory_id ON TABLE fems_memory_commit_reports TYPE record<fems_memory_items> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE report ON TABLE fems_memory_commit_reports TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE report.* ON TABLE fems_memory_commit_reports TYPE any;
+DEFINE FIELD OVERWRITE report_hash ON TABLE fems_memory_commit_reports TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_commit_reports TYPE datetime;
+DEFINE INDEX OVERWRITE pk_fems_memory_commit_reports ON TABLE fems_memory_commit_reports FIELDS commit_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_fems_memory_commit_reports_proposal ON TABLE fems_memory_commit_reports FIELDS proposal_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_commit_reports_workspace_created ON TABLE fems_memory_commit_reports FIELDS workspace_id, created_at, commit_id;
+
+-- 0351_fems_memory_commit_recovery.sql
+DEFINE TABLE OVERWRITE fems_memory_commit_fr_outbox SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE event_id ON TABLE fems_memory_commit_fr_outbox TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_commit_fr_outbox TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_commit_fr_outbox TYPE record<fems_memory_proposals> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE commit_id ON TABLE fems_memory_commit_fr_outbox TYPE record<fems_memory_commit_reports> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE event_code ON TABLE fems_memory_commit_fr_outbox TYPE 'FR-EVT-MEM-003' | 'FR-EVT-MEM-004';
+DEFINE FIELD OVERWRITE event ON TABLE fems_memory_commit_fr_outbox TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE event.* ON TABLE fems_memory_commit_fr_outbox TYPE any;
+DEFINE FIELD OVERWRITE event_hash ON TABLE fems_memory_commit_fr_outbox TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_commit_fr_outbox TYPE datetime;
+DEFINE FIELD OVERWRITE published_at ON TABLE fems_memory_commit_fr_outbox TYPE option<datetime> ASSERT $value = NONE OR $value >= $this.created_at;
+DEFINE FIELD OVERWRITE attempt_count ON TABLE fems_memory_commit_fr_outbox TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE last_error ON TABLE fems_memory_commit_fr_outbox TYPE option<string>;
+DEFINE FIELD OVERWRITE last_error_at ON TABLE fems_memory_commit_fr_outbox TYPE option<datetime>;
+DEFINE FIELD OVERWRITE quarantined_at ON TABLE fems_memory_commit_fr_outbox TYPE option<datetime>;
+DEFINE INDEX OVERWRITE pk_fems_memory_commit_fr_outbox ON TABLE fems_memory_commit_fr_outbox FIELDS event_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_fems_memory_commit_fr_outbox_proposal_event ON TABLE fems_memory_commit_fr_outbox FIELDS proposal_id, event_code UNIQUE;
+DEFINE INDEX OVERWRITE uq_fems_memory_commit_fr_outbox_commit_event ON TABLE fems_memory_commit_fr_outbox FIELDS commit_id, event_code UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_commit_fr_outbox_pending ON TABLE fems_memory_commit_fr_outbox FIELDS workspace_id, created_at, event_code, event_id;
+
+-- 0352_fems_memory_lifecycle_outbox.sql
+DEFINE TABLE OVERWRITE fems_memory_lifecycle_fr_outbox SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE event_id ON TABLE fems_memory_lifecycle_fr_outbox TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_lifecycle_fr_outbox TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_lifecycle_fr_outbox TYPE record<fems_memory_proposals> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE event_code ON TABLE fems_memory_lifecycle_fr_outbox TYPE 'FR-EVT-MEM-001' | 'FR-EVT-MEM-002';
+DEFINE FIELD OVERWRITE event ON TABLE fems_memory_lifecycle_fr_outbox TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE event.* ON TABLE fems_memory_lifecycle_fr_outbox TYPE any;
+DEFINE FIELD OVERWRITE event_hash ON TABLE fems_memory_lifecycle_fr_outbox TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_lifecycle_fr_outbox TYPE datetime;
+DEFINE FIELD OVERWRITE published_at ON TABLE fems_memory_lifecycle_fr_outbox TYPE option<datetime> ASSERT $value = NONE OR $value >= $this.created_at;
+DEFINE FIELD OVERWRITE attempt_count ON TABLE fems_memory_lifecycle_fr_outbox TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE last_error ON TABLE fems_memory_lifecycle_fr_outbox TYPE option<string>;
+DEFINE FIELD OVERWRITE last_error_at ON TABLE fems_memory_lifecycle_fr_outbox TYPE option<datetime>;
+DEFINE FIELD OVERWRITE quarantined_at ON TABLE fems_memory_lifecycle_fr_outbox TYPE option<datetime>;
+DEFINE INDEX OVERWRITE pk_fems_memory_lifecycle_fr_outbox ON TABLE fems_memory_lifecycle_fr_outbox FIELDS event_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_fems_memory_lifecycle_fr_outbox_proposal_event ON TABLE fems_memory_lifecycle_fr_outbox FIELDS proposal_id, event_code UNIQUE;
+DEFINE INDEX OVERWRITE idx_fems_memory_lifecycle_fr_outbox_pending ON TABLE fems_memory_lifecycle_fr_outbox FIELDS workspace_id, created_at, event_id;
+
+-- 0361_loom_block_view_fr_outbox.sql
+DEFINE TABLE OVERWRITE loom_block_view_fr_outbox SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE event_id ON TABLE loom_block_view_fr_outbox TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_block_view_fr_outbox TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_view_fr_outbox TYPE record<loom_blocks> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE operation ON TABLE loom_block_view_fr_outbox TYPE 'create' | 'update';
+DEFINE FIELD OVERWRITE event ON TABLE loom_block_view_fr_outbox TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE event.* ON TABLE loom_block_view_fr_outbox TYPE any;
+DEFINE FIELD OVERWRITE event_hash ON TABLE loom_block_view_fr_outbox TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE created_at ON TABLE loom_block_view_fr_outbox TYPE datetime;
+DEFINE FIELD OVERWRITE published_at ON TABLE loom_block_view_fr_outbox TYPE option<datetime> ASSERT $value = NONE OR $value >= $this.created_at;
+DEFINE FIELD OVERWRITE attempt_count ON TABLE loom_block_view_fr_outbox TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE last_error ON TABLE loom_block_view_fr_outbox TYPE option<string>;
+DEFINE FIELD OVERWRITE last_error_at ON TABLE loom_block_view_fr_outbox TYPE option<datetime>;
+DEFINE FIELD OVERWRITE quarantined_at ON TABLE loom_block_view_fr_outbox TYPE option<datetime>;
+DEFINE INDEX OVERWRITE pk_loom_block_view_fr_outbox ON TABLE loom_block_view_fr_outbox FIELDS event_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_loom_block_view_fr_outbox_pending ON TABLE loom_block_view_fr_outbox FIELDS workspace_id, created_at, event_id;
 
 UPSERT handshake_schema_state:primary SET
     version = $schema_version,

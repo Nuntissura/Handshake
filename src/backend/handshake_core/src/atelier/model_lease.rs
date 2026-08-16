@@ -1,10 +1,12 @@
-//! PostgreSQL-backed lease/claim store for parallel model coordination
+//! Database-backed lease/claim store for parallel model coordination
 //! (WP-KERNEL-005 MT-143).
+//!
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //!
 //! The kernel claim-lease contract (`kernel::role_mailbox_claim_lease`)
 //! validates and projects lease shapes; this store is where lease reality
 //! lives. TTL, stale state, and conflict errors are enforced against the
-//! managed PostgreSQL clock:
+//! managed database clock:
 //!
 //! - `claim_model_lease` rejects a claim while an unexpired exclusive lease
 //!   or handoff reservation holds the thread (typed [`AtelierError::Conflict`]).
@@ -129,7 +131,7 @@ pub struct NewModelLeaseClaim {
 
 /// Persisted lease row plus the database-clock-derived TTL view computed at
 /// read time. `lease_age_seconds`, `lease_expired`, and `effective_state`
-/// come from PostgreSQL's `NOW()`, never from the caller.
+/// come from the database clock, never from the caller.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelLeaseRecord {
     pub claim_id: Uuid,

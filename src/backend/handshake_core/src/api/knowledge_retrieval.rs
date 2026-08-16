@@ -8,7 +8,11 @@
 //! items + which were dropped and why, get a bounded AI-ready export manifest,
 //! and read the active SemanticCatalog routing contracts. All reads go through
 //! `storage/knowledge` + `storage/knowledge_retrieval` over the shared
-//! `postgres_pool` — PostgreSQL + EventLedger authority only, no SQLite.
+//! shared storage handle — single-store + EventLedger authority only, no SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): both stores still name the
+//! deleted relational backend, so this module does not compile and serves no
+//! request today. Handshake's only database is the embedded SurrealDB store.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every endpoint REQUIRES the

@@ -27,10 +27,11 @@
 //! (`featureGroups[].commands`, `commandReference[].id` -- the code-truth rule
 //! that every advertised manual command MUST resolve to a wired command). legacy source
 //! enforced this as a JS self-consistency test over an in-process command list;
-//! Handshake promotes it to a typed, PostgreSQL-backed parity contract.
+//! Handshake promotes it to a typed, database-backed parity contract.
 //!
-//! Storage authority is PostgreSQL only (AtelierStore::pool()); SQLite is
-//! forbidden (MT-004). This module is enumeration + parity + projection only:
+//! Storage authority is the single Handshake store only (AtelierStore::pool());
+//! SQLite is forbidden (MT-004). PENDING the SurrealDB port — see the `atelier`
+//! module header (MT-138). This module is enumeration + parity + projection only:
 //! it stores and queries the governed catalog/manual/blocked records and emits
 //! events. It NEVER opens a socket, spawns a process, or calls an external
 //! endpoint. Every catalog entry whose work is external (LLM/ComfyUI/ASR/
@@ -3084,7 +3085,7 @@ pub struct BuiltinCorpusBootstrapReceipt {
 #[cfg(feature = "runtime-full")]
 impl AtelierStore {
     /// Project the FULL builtin command corpus ([`builtin_command_corpus`])
-    /// into the PostgreSQL action catalog. Idempotent: re-running re-projects
+    /// into the durable action catalog. Idempotent: re-running re-projects
     /// every descriptor in place (stable `entry_id` per `action_id`).
     ///
     /// For every command the live ModelManual cross-check decides the anchor:

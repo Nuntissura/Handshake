@@ -7,8 +7,10 @@
 //!
 //! legacy source (intent only): legacy source `app backend Media-Downloader-v2`.
 //! The SQLite/Electron/localhost/polling originals are NOT copied; only the
-//! governed DATA + RECEIPT contract is translated. Storage authority is
-//! PostgreSQL + EventLedger only (see [`super::assert_postgres_url`], MT-004).
+//! governed DATA + RECEIPT contract is translated. Storage authority is the
+//! single Handshake store + EventLedger only (see
+//! [`super::assert_postgres_url`], MT-004). PENDING the SurrealDB port — see
+//! the `atelier` module header (MT-138).
 //!
 //! IMPORTANT BOUNDARY (Section 6.10.1 LAW-MDV2-EXEC-001..003): this module is a
 //! pure governed records/receipt repository. It NEVER opens a socket, spawns a

@@ -14,7 +14,9 @@
 //!
 //! Spec authority: master-spec-v02.189 module 10 (Photo Studio, 10.10; the
 //! Calibration Panel 10.10.4.1.9 is recorded but kept BLOCKED/unresolved here,
-//! never faked). Storage authority is PostgreSQL + EventLedger only (MT-004).
+//! never faked). Storage authority is the single Handshake store + EventLedger
+//! only (MT-004). PENDING the SurrealDB port — see the `atelier` module header
+//! (MT-138).
 //!
 //! legacy source source (intent only; SQLite/Electron/localhost/polling never copied):
 //!   * `src/posekit/core.mjs` -- BODY_18 / HAND_21 / face-70 taxonomy,
@@ -788,7 +790,7 @@ pub struct IdentityCropArtifact {
 }
 
 /// Input to record an identity crop artifact. The current profile version is
-/// read from PostgreSQL and stored on the crop record.
+/// read from the store and stored on the crop record.
 #[derive(Clone, Debug)]
 pub struct NewIdentityCropArtifact {
     pub profile_id: Uuid,

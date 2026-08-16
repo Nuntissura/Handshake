@@ -4,7 +4,10 @@
 //! * `GET  /debug/adapters` — the listable adapters (Node only; honesty gate),
 //! * `GET  /debug/documents/:rich_document_id/breakpoints` — durable breakpoints,
 //! * `PUT  /debug/documents/:rich_document_id/breakpoints` — replace the set
-//!   (PostgreSQL + EventLedger authority, receipt per write),
+//!   (durable store + EventLedger authority, receipt per write; the durable
+//!   breakpoint half is still pending the SurrealDB port, WP-KERNEL-012
+//!   MT-136 — the `Database` trait has no implementor for it today and the
+//!   default body fails closed with `NotImplemented`),
 //! * `POST   /debug/sessions` — launch a REAL debuggee (Node today),
 //! * `POST   /debug/sessions/:id/breakpoints` — bind breakpoints on the live session,
 //! * `GET    /debug/sessions/:id/stack` — the paused call stack,

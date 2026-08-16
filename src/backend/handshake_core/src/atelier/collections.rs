@@ -7,7 +7,9 @@
 //! `addImagesToCollection`, `removeImagesFromCollection`, `listCollectionImages`,
 //! `createContactSheet`, `listContactSheets`) and `app/backend/db.js`
 //! (`Collection`, `CollectionItem`, `ContactSheet` tables). Schema/behavior
-//! intent only -- storage is PostgreSQL via sqlx, never the legacy source SQLite layer.
+//! intent only -- storage is the single Handshake store, never the legacy source
+//! SQLite layer. The bodies still bind `sqlx` and are PENDING the SurrealDB
+//! port -- see the `atelier` module header (MT-138).
 //! MT ids: MT-003 (module boundary), MT-005 (event coverage), MT-018 (this fold-in).
 
 use chrono::{DateTime, Utc};

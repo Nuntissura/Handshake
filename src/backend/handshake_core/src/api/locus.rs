@@ -4,10 +4,14 @@
 //! minimal `{"title":"…"}` still decodes).
 //!
 //! Data source: the canonical Locus tables `work_packets` / `micro_tasks`
-//! (migration 0016), read directly over the shared PostgreSQL pool. These rows
+//! (migration 0016), read directly over the shared storage handle. These rows
 //! are keyed globally by `wp_id` / `mt_id` (not workspace-scoped), so the
 //! `:workspace_id` segment is validated for path consistency but the lookup is
-//! by id. Read-only, PostgreSQL authority, no new store.
+//! by id. Read-only, single-store authority, no new store.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-137): this module still binds
+//! `sqlx` against the deleted relational backend and does not compile today.
+//! Handshake's only database is the embedded SurrealDB store.
 //!
 //! Reverse lookup (record -> referencing blocks) already works through
 //! `loom/search-v2`; it is intentionally NOT duplicated here.

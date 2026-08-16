@@ -2189,10 +2189,15 @@ pub trait Database: Send + Sync {
         ))
     }
 
-    /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid Postgres-native search fusing
-    /// FTS (ts_rank) + pg_trgm similarity + pgvector kNN, with ts_headline
-    /// highlight, content_type facets, and loom_edges graph-blend ranking, in a
-    /// single SQL query joined against the canonical loom_blocks table.
+    /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid search fusing full-text rank,
+    /// trigram similarity, and vector kNN, with snippet highlight, content_type
+    /// facets, and loom_edges graph-blend ranking, resolved against the
+    /// canonical loom block rows in one round trip.
+    ///
+    /// No implementor exists yet: the embedded SurrealDB store is the only
+    /// database, and this surface is still pending the SurrealDB port
+    /// (WP-KERNEL-012 MT-136). The default body fails closed with
+    /// `NotImplemented`.
     async fn loom_search_v2(
         &self,
         _workspace_id: &str,
@@ -2303,7 +2308,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("preference store"))
     }
     /// MT-258 durable workspace search bookmarks (saved searches). Replaces the
-    /// localStorage-only authority with PostgreSQL + EventLedger persistence.
+    /// localStorage-only authority with durable store + EventLedger persistence.
     async fn get_workspace_search_bookmark_state(
         &self,
         _workspace_id: &str,
@@ -2347,7 +2352,7 @@ pub trait Database: Send + Sync {
     }
 
     /// Persist a new viewport (pan/zoom) for a board, leaving an EventLedger
-    /// receipt. Authority is PostgreSQL, never localStorage.
+    /// receipt. Authority is the embedded SurrealDB store, never localStorage.
     async fn update_canvas_board_state(
         &self,
         _ctx: &WriteContext,
@@ -2445,8 +2450,8 @@ pub trait Database: Send + Sync {
     /// persisted in the dedicated `view_definition_json` column (NOT a
     /// derived_json overload). The block must already exist (created via
     /// `create_loom_block` + bridge); this sets its content_type + definition.
-    /// Authority is PostgreSQL + EventLedger; there is NO parallel/localStorage
-    /// store for view definitions.
+    /// Authority is the embedded SurrealDB store + EventLedger; there is NO
+    /// parallel/localStorage store for view definitions.
     async fn create_block_view(
         &self,
         _ctx: &WriteContext,
@@ -2475,7 +2480,7 @@ pub trait Database: Send + Sync {
 
     /// Replace a saved view's definition (e.g. a table header click re-sorting
     /// the view persists the new sort), leaving an updated_at bump. Authority is
-    /// PostgreSQL; never localStorage.
+    /// the embedded SurrealDB store; never localStorage.
     async fn update_block_view_definition(
         &self,
         _ctx: &WriteContext,
@@ -2539,7 +2544,7 @@ pub trait Database: Send + Sync {
     // -- MT-177 LoomBlockKnowledgeBridge ---------------------------------------
     /// The single authority backend for the Loom surface. WP-KERNEL-009
     /// §10.12 #9.1.1 forbids any SQLite/cache/offline/sidecar authority path;
-    /// the only durable Loom authority is PostgreSQL + EventLedger.
+    /// the only durable Loom authority is the embedded store + EventLedger.
     fn loom_authority_backend(&self) -> LoomAuthorityBackend {
         LoomAuthorityBackend::PostgresEventLedger
     }
@@ -2879,7 +2884,7 @@ pub trait Database: Send + Sync {
     /// tree, create a RichDocument (authority) + a LoomBlock (note) bridged to
     /// the ProjectKnowledgeIndex, and return the new LoomBlock plus any import
     /// warnings. The markdown SOURCE is NEVER recorded as authority — only the
-    /// parsed authority rows in PostgreSQL (MT-187). A vault/file layout cannot
+    /// parsed authority records in the durable store (MT-187). A vault/file layout cannot
     /// become the source of truth.
     async fn import_markdown_to_loom(
         &self,
@@ -3573,8 +3578,13 @@ pub async fn init_control_plane_storage_with_config(
     }
 }
 
-/// Configured PostgreSQL pool size used by bounded bulk routes. One connection
-/// is reserved for control-plane health/finalization work.
+/// Configured concurrency budget used by bounded bulk routes. One unit is
+/// reserved for control-plane health/finalization work.
+///
+/// The connection pool this originally sized is gone — the embedded SurrealDB
+/// store is opened in-process, not pooled. The function name and the
+/// `HANDSHAKE_POSTGRES_MAX_CONNECTIONS` env var are kept unchanged because live
+/// call sites and documented operator commands still use them.
 pub fn configured_postgres_max_connections() -> u32 {
     std::env::var("HANDSHAKE_POSTGRES_MAX_CONNECTIONS")
         .ok()

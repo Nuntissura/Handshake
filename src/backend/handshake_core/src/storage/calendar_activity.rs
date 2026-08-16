@@ -6,7 +6,11 @@
 //! linkage): this store is calendar-specific — every span carries a
 //! `calendar_event_id` and the set of documents edited during that event window
 //! (`edited_doc_ids`). Backed by `calendar_activity_spans` (migration 0340)
-//! over the shared PostgreSQL pool — PostgreSQL authority only, no SQLite.
+//! over the shared storage handle — single-store authority only, no SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): this module still binds
+//! `sqlx` against the deleted relational backend and does not compile today.
+//! Handshake's only database is the embedded SurrealDB store.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

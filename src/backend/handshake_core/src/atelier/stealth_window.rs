@@ -26,10 +26,11 @@
 //! (background-stealth contract -- no visible window, no focus steal, no taskbar,
 //! quiet by default, skipped attention surfaces logged). legacy source stored this as an
 //! Electron/localhost runtime flag with no durable governed state; Handshake
-//! forbids that and instead persists a typed registry on PostgreSQL
-//! (TECH-POSTGRESQL). SQLite is forbidden in every path (MT-004).
+//! forbids that and instead persists a typed registry in the single Handshake
+//! database. SQLite is forbidden in every path (MT-004).
 //!
-//! Storage authority: PostgreSQL via [`super::AtelierStore::pool`] (sqlx 0.8).
+//! Storage authority: the shared store via [`super::AtelierStore::pool`].
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //! Microtasks: MT-205 (stealth reference window state + projection), MT-005
 //! (event coverage).
 

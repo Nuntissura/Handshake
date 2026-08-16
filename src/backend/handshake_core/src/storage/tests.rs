@@ -169,12 +169,15 @@ pub struct PostgresTestBackend {
     pub postgres_pool: sqlx::postgres::PgPool,
 }
 
-/// Build a PostgreSQL backend for test validation.
+/// Build a relational test backend from the environment.
 ///
-/// Resolution order is `POSTGRES_TEST_URL` > `DATABASE_URL` > the same
-/// Handshake-managed PostgreSQL lifecycle the app uses at startup. Tests must
-/// prove behavior against real PostgreSQL; missing `POSTGRES_TEST_URL` is not
-/// a skip condition.
+/// PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): this helper still binds a
+/// `sqlx` pool against a backend that no longer ships, so it does not compile
+/// and no caller can obtain a live handle from it. The resolution order it
+/// documents (`POSTGRES_TEST_URL` > `DATABASE_URL` > the managed lifecycle) and
+/// the helper/env-var names are left untouched so the ported version keeps the
+/// same call sites and documented commands. Tests must prove behavior against
+/// the real embedded store; there is no skip condition.
 #[allow(dead_code)]
 pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTestBackend> {
     let url = postgres_test_base_url().await?;
@@ -225,24 +228,31 @@ pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTest
     })
 }
 
-/// Build a PostgreSQL backend for test validation.
+/// Build a relational test backend from the environment.
+///
+/// PENDING SURREALDB PORT (WP-KERNEL-012 MT-136) — see
+/// [`postgres_backend_with_pool_from_env`].
 #[allow(dead_code)]
 pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
     Ok(postgres_backend_with_pool_from_env().await?.database)
 }
 
-/// Build a PostgreSQL backend and pool for legacy optional call sites.
+/// Build a relational test backend and pool for legacy optional call sites.
 ///
 /// The helper is no longer optional for a missing env var: it auto-starts the
-/// managed PostgreSQL default and returns `Err` only when real PostgreSQL cannot
-/// be reached or initialized.
+/// managed default and returns `Err` only when the backend cannot be reached or
+/// initialized. PENDING SURREALDB PORT (WP-KERNEL-012 MT-136) — see
+/// [`postgres_backend_with_pool_from_env`].
 #[allow(dead_code)]
 pub async fn optional_postgres_backend_with_pool_from_env(
 ) -> StorageResult<Option<PostgresTestBackend>> {
     postgres_backend_with_pool_from_env().await.map(Some)
 }
 
-/// Build a PostgreSQL backend for legacy optional call sites.
+/// Build a relational test backend for legacy optional call sites.
+///
+/// PENDING SURREALDB PORT (WP-KERNEL-012 MT-136) — see
+/// [`postgres_backend_with_pool_from_env`].
 #[allow(dead_code)]
 pub async fn optional_postgres_backend_from_env() -> StorageResult<Option<Arc<dyn super::Database>>>
 {

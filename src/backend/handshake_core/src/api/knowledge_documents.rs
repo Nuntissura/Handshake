@@ -1,6 +1,11 @@
 //! WP-KERNEL-009 RichDocumentCore (MT-145..MT-160): the backend HTTP surface
-//! for the RichDocument authority model, wiring the editor to PostgreSQL +
+//! for the RichDocument authority model, wiring the editor to single-store +
 //! EventLedger authority (NO mocks, no SQLite).
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): `KnowledgeStore` has no live
+//! implementor and this module still names the deleted relational handle, so it
+//! does not compile and serves no request today. Handshake's only database is
+//! the embedded SurrealDB store.
 //!
 //! This is the keystone API for the group:
 //!   * MT-145 identity + MT-149 save/load: create / load / save a RichDocument
@@ -576,7 +581,7 @@ fn block_tree_view(
 struct CreateDocumentBody {
     workspace_id: String,
     title: String,
-    /// Wikilink create-note semantic: serialize concurrent callers at PostgreSQL authority and return
+    /// Wikilink create-note semantic: serialize concurrent callers at store authority and return
     /// the single existing title match instead of creating another document.
     #[serde(default)]
     create_if_title_absent: bool,
@@ -1236,7 +1241,7 @@ async fn load_document_draft(
 }
 
 /// PUT /knowledge/documents/:document_id/draft — persist unsaved editor
-/// content to PostgreSQL so a crash/reopen can offer restore/discard (MT-255).
+/// content to the durable store so a crash/reopen can offer restore/discard (MT-255).
 async fn upsert_document_draft(
     State(state): State<AppState>,
     Path(document_id): Path<String>,

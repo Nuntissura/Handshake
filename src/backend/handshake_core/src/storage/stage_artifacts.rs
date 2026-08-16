@@ -2,7 +2,7 @@
 //!
 //! The privileged API stores the exact bounded byte sequence, computes SHA-256
 //! over those bytes, creates a portable manifest, a completed Job History row,
-//! and an EventLedger receipt in one PostgreSQL transaction. Idempotent retries
+//! and an EventLedger receipt in one transaction. Idempotent retries
 //! return the original artifact; reuse of a key with different input conflicts.
 //!
 //! The descriptor GET never substitutes for content retrieval: the dedicated

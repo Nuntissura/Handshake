@@ -1,6 +1,6 @@
 //! WP-KERNEL-012 MT-109 FEMS memory-pack + review-gated proposal storage.
 //!
-//! Durable PostgreSQL authority for the Front End Memory System (FEMS) surfaces the
+//! Durable authority for the Front End Memory System (FEMS) surfaces the
 //! native editors read/write:
 //!
 //! * `fems_memory_packs`   — a seeded/generated [`crate::ace::MemoryPack`] the
@@ -16,9 +16,14 @@
 //!   memory. Proposal intake NEVER writes here; the explicit commit path requires a
 //!   durable approval and writes item/report/pack/EventLedger atomically.
 //!
-//! PostgreSQL/EventLedger authority only — NO SQLite. JSONB columns are written as
-//! canonical text with an explicit `::jsonb` cast and read back via `::text`, mirroring
-//! the kernel event-ledger append/read pattern so no sqlx jsonb-codec feature is assumed.
+//! Single-store/EventLedger authority only — NO SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the bodies below still bind
+//! `sqlx` against the deleted relational backend, so this module does not
+//! compile and none of the described writes execute today. Handshake's only
+//! database is the embedded SurrealDB store; the JSON columns documented here
+//! are still written as canonical text so the ported version keeps byte-identical
+//! payloads and the kernel event-ledger append/read pattern.
 
 use chrono::{DateTime, Utc};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
@@ -2482,7 +2487,7 @@ async fn store_memory_pack_immutable_with_executor(
 
 /// Commit exactly one approved proposal. The canonical item, immutable commit report,
 /// strict MemoryPack projection, proposal terminal state, and EventLedger receipt are
-/// written in one PostgreSQL transaction. Exact retries return the original result.
+/// written in one transaction. Exact retries return the original result.
 pub async fn commit_memory_proposal_with_receipt(
     pool: &PgPool,
     workspace_id: &str,

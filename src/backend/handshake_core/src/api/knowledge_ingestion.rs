@@ -10,7 +10,12 @@
 //! over the shared `AppState`, JSON errors with typed `error` codes. The
 //! ingestion engine writes through `storage::knowledge::KnowledgeStore` and
 //! `knowledge_ingestion::store::KnowledgeIngestionStore` over the shared
-//! `postgres_pool` — PostgreSQL + EventLedger authority only, no SQLite.
+//! shared storage handle — single-store + EventLedger authority only, no SQLite.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the ingestion store and
+//! `KnowledgeStore` still name the deleted relational backend, so this module
+//! does not compile and serves no request today. Handshake's only database is
+//! the embedded SurrealDB store.
 //!
 //! Backend-navigation law (spec 2.3.13.11): every MUTATION must carry actor,
 //! session, and correlation identity into its EventLedger receipts. Mutating

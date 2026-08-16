@@ -578,7 +578,7 @@ async fn get_loom_block(
 
 /// MT-177: read the LoomBlock <-> ProjectKnowledgeIndex/EventLedger authority
 /// bridge. Returns the knowledge entity id + EventLedger receipt id that prove
-/// the block resolves to Postgres/EventLedger authority. 404 if the block does
+/// the block resolves to store/EventLedger authority. 404 if the block does
 /// not exist; a 200 with a bridge body proves the authority binding.
 async fn get_loom_block_knowledge_bridge(
     State(state): State<AppState>,
@@ -3006,8 +3006,8 @@ struct LoomSearchV2Body {
 
 /// MT-264 LoomSearchV2 handler: embeds the query through the configured model
 /// runtime (typed decline -> keyword/trigram fallback) and runs the hybrid
-/// Postgres-native search. The response carries per-modality scores, content
-/// facets, ts_headline highlights, and a `semantic_available` flag.
+/// store-native search. The response carries per-modality scores, content
+/// facets, snippet highlights, and a `semantic_available` flag.
 async fn loom_search_v2(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -4108,7 +4108,7 @@ struct CreateCanvasCardRequest {
     z_index: Option<i32>,
     /// Present only for a Stage embed-back card. The backend validates this
     /// against the persisted body and serializes all independent clients on a
-    /// PostgreSQL transaction advisory lock before importing any content.
+    /// transactional advisory lock before importing any content.
     #[serde(default)]
     stage_provenance: Option<LoomCanvasStageProvenance>,
 }
@@ -4251,7 +4251,7 @@ struct CompensateCanvasStageCardResponse {
 
 /// Compensate only a Stage-created card whose complete ownership receipt still
 /// matches. The storage operation shares the create advisory-lock domain and
-/// removes all owned authority/projection rows in one PostgreSQL transaction.
+/// removes all owned authority/projection rows in one transaction.
 async fn compensate_stage_canvas_card(
     State(state): State<AppState>,
     Path((workspace_id, block_id, placement_id)): Path<(String, String, String)>,
@@ -4406,7 +4406,7 @@ struct CreateBlockViewRequest {
     definition: BlockViewDefinition,
 }
 
-/// Create a saved view in one PostgreSQL transaction: final `view_def` block,
+/// Create a saved view in one transaction: final `view_def` block,
 /// search projection, ProjectKnowledgeIndex/EventLedger bridge, mutation
 /// receipt, and recoverable Flight Recorder outbox. NO parallel store.
 async fn create_block_view(
@@ -4457,7 +4457,7 @@ struct UpdateBlockViewRequest {
 }
 
 /// Persist a new definition for a saved view (e.g. a table header click that
-/// re-sorts the view stores the new sort in PostgreSQL, not localStorage).
+/// re-sorts the view stores the new sort in the durable store, not localStorage).
 async fn update_block_view(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
@@ -4659,7 +4659,7 @@ mod tests {
     /// API handler (with a configured embedding model) gets its embedding
     /// populated on the authority write path — not only when a test manually
     /// calls `reindex_block`. Editing the title through `patch_loom_block`
-    /// re-embeds the new text. Both are proven against real PostgreSQL.
+    /// re-embeds the new text. Both are proven against the real durable store.
     #[tokio::test]
     async fn mt264_api_create_and_update_refresh_embedding(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -4745,7 +4745,7 @@ mod tests {
     /// `open_daily_journal` (which calls `get_or_create_daily_journal_block`)
     /// gets a `loom_block_search_index` row on creation and is immediately
     /// findable by LoomSearchV2 — no stale/missing-projection drift. Proven
-    /// against real PostgreSQL.
+    /// against the real durable store.
     #[tokio::test]
     async fn mt264_journal_block_indexed_on_create() -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
@@ -5353,7 +5353,7 @@ mod tests {
     }
 
     /// MT-258 properties-panel TAG editing, proven end-to-end through the real
-    /// `patch_loom_block` route against PostgreSQL: add_tags creates `tag`
+    /// `patch_loom_block` route against the real store: add_tags creates `tag`
     /// loom_edges to a TagHub target, recompute makes `derived.tag_count`
     /// authoritative, remove_tags deletes the edge, add is idempotent, and a
     /// non-TagHub target is rejected with HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB.
@@ -5884,7 +5884,7 @@ mod tests {
     }
 
     /// MT-027 V3: prove the transactional outbox recovery matrix against real
-    /// PostgreSQL and a real DuckDB recorder. No mock recorder participates.
+    /// storage and a real DuckDB recorder. No mock recorder participates.
     #[tokio::test]
     async fn mt027_block_view_publication_survives_outage_restart_races_and_retention(
     ) -> Result<(), Box<dyn std::error::Error>> {

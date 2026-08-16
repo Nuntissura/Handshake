@@ -1,10 +1,11 @@
 //! WP-KERNEL-005 MT-190..MT-194: DCC workflow panels + Flight Recorder
 //! workflow events + reset/orphan diagnostic validation rows.
 //!
-//! These are TYPED RUNTIME surfaces (PostgreSQL rows + EventLedger events),
+//! These are TYPED RUNTIME surfaces (durable rows + EventLedger events),
 //! never governance markdown. Tables are created by migration
-//! `0116_atelier_dcc_flight_recorder.sql`. Storage authority is PostgreSQL
-//! only (AtelierStore::pool()); SQLite is forbidden (MT-004).
+//! `0116_atelier_dcc_flight_recorder.sql`. Storage authority is the single
+//! Handshake store only (AtelierStore::pool()); SQLite is forbidden (MT-004).
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //!
 //!   * MT-190 -- DCC Approvals + Visual-Capture panel projections: DCC
 //!     visibility for approvals and visual captures only (projection, GUI

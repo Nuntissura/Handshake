@@ -10,7 +10,8 @@
 //! (`{x, y, text}` normalized 0..1) per image. This Handshake fold-in promotes
 //! that blob into a normalized, append-and-query relational model so each typed
 //! region is individually addressable, typed, and survives export. SQLite is
-//! NOT carried over; storage authority is PostgreSQL only.
+//! NOT carried over; storage authority is the single Handshake store only.
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //!
 //! Microtasks: MT-198 (annotation overlays), extends MT-005 (event coverage).
 

@@ -13,9 +13,14 @@
 //!   * GET  /knowledge/crdt/conflict_state — typed conflict UI payload
 //!     (MT-075), computed from CRDT metadata + durable denial receipts.
 //!
-//! Authority: every durable effect lands in PostgreSQL/EventLedger through
+//! Authority: every durable effect lands in the store/EventLedger through
 //! the kernel CRDT stores; these handlers never hold draft authority in
 //! process memory.
+//!
+//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the `knowledge_crdt_*` reads
+//! and writes still bind `sqlx` against the deleted relational backend, so this
+//! module does not compile today. Handshake's only database is the embedded
+//! SurrealDB store.
 
 use std::sync::Arc;
 
@@ -41,9 +46,10 @@ use crate::storage::Database;
 use crate::AppState;
 
 /// Narrow state for the knowledge CRDT routes: the Database trait object for
-/// EventLedger + kernel CRDT stores, plus the shared PostgreSQL pool for the
-/// WP-009 `knowledge_crdt_*` tables. Tests construct this directly from the
-/// postgres fixture; the app constructs it from [`AppState`].
+/// EventLedger + kernel CRDT stores, plus the shared relational pool for the
+/// WP-009 `knowledge_crdt_*` tables (pending the SurrealDB port). Tests
+/// construct this directly from the storage test fixture; the app constructs it
+/// from [`AppState`].
 #[derive(Clone)]
 pub struct KnowledgeCrdtApiState {
     pub db: Arc<dyn Database>,

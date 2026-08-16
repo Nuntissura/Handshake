@@ -13,12 +13,12 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 59;
-pub const SOURCE_FORWARD_MIGRATION_COUNT: usize = 59;
+pub const SCHEMA_REVISION: i64 = 99;
+pub const SOURCE_FORWARD_MIGRATION_COUNT: usize = 99;
 pub const SOURCE_FORWARD_WAVE_MANIFEST_SHA256: &str =
-    "dd6b7d624670b0c3d4d1caddff3034cb5eb194afa9217fa6f1e57123749423b6";
+    "277ae5c9982f8a3763acdfb120fd1dd6592ca03abc599ec20186627f800aa177";
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "f6e0d9914f20f35303f241e922e32ce4a8d40f5819f15b583b0707c1b5dc8529";
+    "2a5dfb87c32aca44f8a23e3b33ff720f1d31f0552255ae3f77a1ffd2996607f7";
 /// Two-stage proof pin. The all-zero sentinel intentionally blocks finalization until a
 /// reviewed fresh-engine STRUCTURE receipt is captured and this constant is replaced.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
@@ -44,27 +44,27 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "tables",
     "users",
 ];
-const TABLE_DEFINITION_COUNT: usize = 121;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 1316;
-const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 98;
-const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 66;
+const TABLE_DEFINITION_COUNT: usize = 187;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 2119;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 166;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 121;
 const AUTHORED_FIELD_DEFINITION_COUNT: usize =
     SOURCE_FIELD_DEFINITION_COUNT + FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT;
 // SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
 // level. Structured INFO reads the full persisted field catalog, so these engine-generated
 // definitions are part of the exact live schema even though they are not authored DEFINE lines.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 29;
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 40;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 347;
-const SOURCE_TABLE_COUNT: usize = 119;
+const INDEX_DEFINITION_COUNT: usize = 545;
+const SOURCE_TABLE_COUNT: usize = 185;
 const SOURCE_VIEW_COUNT: usize = 1;
-const SOURCE_NAMED_INDEX_COUNT: usize = 244;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 102;
+const SOURCE_NAMED_INDEX_COUNT: usize = 376;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 168;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 122;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 84;
+const REFERENCE_FIELD_COUNT: usize = 289;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 143;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -305,6 +305,166 @@ const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
         "0059_atelier_story_cards_beats.sql",
         include_bytes!("../../../migrations/0059_atelier_story_cards_beats.sql"),
     ),
+    (
+        "0130_knowledge_schema_namespace.sql",
+        include_bytes!("../../../migrations/0130_knowledge_schema_namespace.sql"),
+    ),
+    (
+        "0131_knowledge_source_roots.sql",
+        include_bytes!("../../../migrations/0131_knowledge_source_roots.sql"),
+    ),
+    (
+        "0132_knowledge_sources.sql",
+        include_bytes!("../../../migrations/0132_knowledge_sources.sql"),
+    ),
+    (
+        "0133_knowledge_index_runs.sql",
+        include_bytes!("../../../migrations/0133_knowledge_index_runs.sql"),
+    ),
+    (
+        "0134_knowledge_spans.sql",
+        include_bytes!("../../../migrations/0134_knowledge_spans.sql"),
+    ),
+    (
+        "0135_knowledge_entities.sql",
+        include_bytes!("../../../migrations/0135_knowledge_entities.sql"),
+    ),
+    (
+        "0136_knowledge_edges.sql",
+        include_bytes!("../../../migrations/0136_knowledge_edges.sql"),
+    ),
+    (
+        "0137_knowledge_claims.sql",
+        include_bytes!("../../../migrations/0137_knowledge_claims.sql"),
+    ),
+    (
+        "0138_knowledge_memory_passages.sql",
+        include_bytes!("../../../migrations/0138_knowledge_memory_passages.sql"),
+    ),
+    (
+        "0139_knowledge_wiki_projections.sql",
+        include_bytes!("../../../migrations/0139_knowledge_wiki_projections.sql"),
+    ),
+    (
+        "0140_knowledge_rich_documents.sql",
+        include_bytes!("../../../migrations/0140_knowledge_rich_documents.sql"),
+    ),
+    (
+        "0141_knowledge_context_bundles.sql",
+        include_bytes!("../../../migrations/0141_knowledge_context_bundles.sql"),
+    ),
+    (
+        "0142_knowledge_idempotency_keys.sql",
+        include_bytes!("../../../migrations/0142_knowledge_idempotency_keys.sql"),
+    ),
+    (
+        "0150_knowledge_crdt_denial_receipts.sql",
+        include_bytes!("../../../migrations/0150_knowledge_crdt_denial_receipts.sql"),
+    ),
+    (
+        "0151_knowledge_crdt_agent_lane_leases.sql",
+        include_bytes!("../../../migrations/0151_knowledge_crdt_agent_lane_leases.sql"),
+    ),
+    (
+        "0152_knowledge_crdt_graph_proposals.sql",
+        include_bytes!("../../../migrations/0152_knowledge_crdt_graph_proposals.sql"),
+    ),
+    (
+        "0153_knowledge_crdt_promoted_facts.sql",
+        include_bytes!("../../../migrations/0153_knowledge_crdt_promoted_facts.sql"),
+    ),
+    (
+        "0154_knowledge_crdt_ai_edit_proposals.sql",
+        include_bytes!("../../../migrations/0154_knowledge_crdt_ai_edit_proposals.sql"),
+    ),
+    (
+        "0155_knowledge_crdt_swarm_checkpoints.sql",
+        include_bytes!("../../../migrations/0155_knowledge_crdt_swarm_checkpoints.sql"),
+    ),
+    (
+        "0160_knowledge_ingestion_policies.sql",
+        include_bytes!("../../../migrations/0160_knowledge_ingestion_policies.sql"),
+    ),
+    (
+        "0161_knowledge_ingestion_kind_registry.sql",
+        include_bytes!("../../../migrations/0161_knowledge_ingestion_kind_registry.sql"),
+    ),
+    (
+        "0162_knowledge_ingestion_receipts.sql",
+        include_bytes!("../../../migrations/0162_knowledge_ingestion_receipts.sql"),
+    ),
+    (
+        "0163_knowledge_ingestion_spans.sql",
+        include_bytes!("../../../migrations/0163_knowledge_ingestion_spans.sql"),
+    ),
+    (
+        "0164_knowledge_ingestion_repair_queue.sql",
+        include_bytes!("../../../migrations/0164_knowledge_ingestion_repair_queue.sql"),
+    ),
+    (
+        "0170_knowledge_code_files.sql",
+        include_bytes!("../../../migrations/0170_knowledge_code_files.sql"),
+    ),
+    (
+        "0171_knowledge_code_scip_imports.sql",
+        include_bytes!("../../../migrations/0171_knowledge_code_scip_imports.sql"),
+    ),
+    (
+        "0240_knowledge_memory_ontology.sql",
+        include_bytes!("../../../migrations/0240_knowledge_memory_ontology.sql"),
+    ),
+    (
+        "0241_knowledge_memory_facts.sql",
+        include_bytes!("../../../migrations/0241_knowledge_memory_facts.sql"),
+    ),
+    (
+        "0242_knowledge_memory_conflict_jobs.sql",
+        include_bytes!("../../../migrations/0242_knowledge_memory_conflict_jobs.sql"),
+    ),
+    (
+        "0243_knowledge_memory_bridge_edges.sql",
+        include_bytes!("../../../migrations/0243_knowledge_memory_bridge_edges.sql"),
+    ),
+    (
+        "0260_knowledge_semantic_catalog.sql",
+        include_bytes!("../../../migrations/0260_knowledge_semantic_catalog.sql"),
+    ),
+    (
+        "0310_user_manual.sql",
+        include_bytes!("../../../migrations/0310_user_manual.sql"),
+    ),
+    (
+        "0311_parallel_swarm_state_recovery.sql",
+        include_bytes!("../../../migrations/0311_parallel_swarm_state_recovery.sql"),
+    ),
+    (
+        "0313_parallel_swarm_quiet_background_work.sql",
+        include_bytes!("../../../migrations/0313_parallel_swarm_quiet_background_work.sql"),
+    ),
+    (
+        "0314_parallel_swarm_cloud_assistance_receipts.sql",
+        include_bytes!("../../../migrations/0314_parallel_swarm_cloud_assistance_receipts.sql"),
+    ),
+    (
+        "0345_fems_memory_workspace_authority.sql",
+        include_bytes!("../../../migrations/0345_fems_memory_workspace_authority.sql"),
+    ),
+    (
+        "0350_fems_memory_commit_authority.sql",
+        include_bytes!("../../../migrations/0350_fems_memory_commit_authority.sql"),
+    ),
+    (
+        "0351_fems_memory_commit_recovery.sql",
+        include_bytes!("../../../migrations/0351_fems_memory_commit_recovery.sql"),
+    ),
+    (
+        "0352_fems_memory_lifecycle_outbox.sql",
+        include_bytes!("../../../migrations/0352_fems_memory_lifecycle_outbox.sql"),
+    ),
+    (
+        "0361_loom_block_view_fr_outbox.sql",
+        include_bytes!("../../../migrations/0361_loom_block_view_fr_outbox.sql"),
+    ),
 ];
 
 const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
@@ -429,6 +589,72 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_character_document_version",
     "atelier_story_card",
     "atelier_story_beat",
+    "knowledge_schema_registry",
+    "knowledge_source_roots",
+    "knowledge_sources",
+    "knowledge_index_runs",
+    "knowledge_spans",
+    "knowledge_entities",
+    "knowledge_entity_spans",
+    "knowledge_edges",
+    "knowledge_edge_spans",
+    "knowledge_claims",
+    "knowledge_claim_spans",
+    "knowledge_claim_conflicts",
+    "knowledge_memory_passages",
+    "knowledge_passage_evidence",
+    "knowledge_wiki_projections",
+    "knowledge_rich_documents",
+    "knowledge_rich_document_versions",
+    "knowledge_editor_code_nodes",
+    "knowledge_context_bundles",
+    "knowledge_context_bundle_items",
+    "knowledge_retrieval_traces",
+    "knowledge_idempotency_keys",
+    "knowledge_crdt_denial_receipts",
+    "knowledge_crdt_agent_lane_leases",
+    "knowledge_crdt_graph_proposals",
+    "knowledge_crdt_promoted_facts",
+    "knowledge_crdt_ai_edit_proposals",
+    "knowledge_crdt_swarm_checkpoints",
+    "knowledge_crdt_recovery_receipts",
+    "knowledge_ingestion_root_policies",
+    "knowledge_ingestion_policy_decisions",
+    "knowledge_ingestion_kind_registry",
+    "knowledge_ingestion_receipts",
+    "knowledge_ingestion_spans",
+    "knowledge_ingestion_repair_queue",
+    "knowledge_code_files",
+    "knowledge_code_scip_imports",
+    "knowledge_memory_ontology_terms",
+    "knowledge_memory_ontology_aliases",
+    "knowledge_memory_facts",
+    "knowledge_memory_conflict_detection_jobs",
+    "knowledge_memory_conflict_detection_findings",
+    "knowledge_memory_conflict_resolution_jobs",
+    "knowledge_memory_bridge_decisions",
+    "knowledge_semantic_catalog_entries",
+    "user_manual_pages",
+    "user_manual_sections",
+    "user_manual_anchors",
+    "user_manual_tool_entries",
+    "user_manual_feature_entries",
+    "user_manual_versions",
+    "user_manual_legacy_aliases",
+    "knowledge_agent_worktree_claims",
+    "knowledge_agent_role_mailbox_handoffs",
+    "knowledge_agent_state_recovery_checkpoints",
+    "knowledge_agent_recovery_receipts",
+    "knowledge_parallel_indexing_lease_queue",
+    "knowledge_agent_quiet_background_work",
+    "knowledge_agent_cloud_assistance_receipts",
+    "fems_memory_packs",
+    "fems_memory_proposals",
+    "fems_memory_items",
+    "fems_memory_commit_reports",
+    "fems_memory_commit_fr_outbox",
+    "fems_memory_lifecycle_fr_outbox",
+    "loom_block_view_fr_outbox",
 ];
 
 /// Tables whose source `id` column is represented only by the Surreal record ID.
@@ -1345,7 +1571,15 @@ mod tests {
         assert!(SCHEMA.contains("generated_surql_sha256"));
         assert!(SCHEMA.contains("BEGIN TRANSACTION;"));
         assert!(SCHEMA.contains("COMMIT TRANSACTION;"));
-        assert!(!SCHEMA.to_ascii_lowercase().contains("jsonb"));
+        // No PostgreSQL `jsonb` type token may survive the projection. Checked as a
+        // whole identifier token, not a substring: source column NAMES such as
+        // `attribution_jsonb` (migration 0311) are transcribed verbatim and are not
+        // PostgreSQL type syntax.
+        let lowered = SCHEMA.to_ascii_lowercase();
+        assert!(!lowered.contains("::jsonb"));
+        assert!(!lowered
+            .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+            .any(|token| token == "jsonb"));
     }
 
     #[tokio::test]

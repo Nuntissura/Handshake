@@ -1,25 +1,25 @@
-//! WP-KERNEL-009 ProjectKnowledgeIndex storage (PostgresEventLedgerCore group,
+//! WP-KERNEL-009 ProjectKnowledgeIndex storage (EventLedgerCore group,
 //! MT-049..MT-064).
 //!
 //! Master Spec anchor: 02-system-architecture.md section 2.3.13.11 "Project
 //! Knowledge Index and Rich Document Authority" [ADD v02.192]. This module is
-//! the durable PostgreSQL authority surface for the canonical record families
+//! the durable authority surface for the canonical record families
 //! (KnowledgeSource, KnowledgeSpan, KnowledgeEntity, KnowledgeEdge,
 //! KnowledgeClaim, MemoryPassage, RetrievalTrace, RichDocument,
 //! EditorCodeNode) plus the WP-009 support surfaces (schema registry, index
 //! runs, idempotency keys, wiki projections, context bundles).
 //!
-//! Why one file instead of touching `storage/postgres.rs` (kb003 precedent):
-//! `postgres.rs` is the legacy single-file authority surface (~8.7k lines).
-//! Keeping the WP-009 row types, SQL, and store trait in one reviewable unit
+//! Why one file (kb003 precedent): the deleted legacy backend kept every
+//! authority surface in one ~8.7k-line file.
+//! Keeping the WP-009 row types, queries, and store trait in one reviewable unit
 //! matches `storage/kb003_storage.rs` and keeps the MT contracts auditable.
 //!
 //! Trait purity (Master Spec 2.3.12.3): every method returns
 //! `StorageResult<T>`; backend errors are converted to the opaque
 //! `StorageError::Database` by the existing `From` impl, so no
 //! provider-specific error type leaks. There is NO in-memory, SQLite, or
-//! fixture fallback anywhere in this module: when PostgreSQL is unavailable
-//! every method fails closed with a typed `StorageError` (MT-064).
+//! fixture fallback anywhere in this module: when the durable store is
+//! unavailable every method fails closed with a typed `StorageError` (MT-064).
 //!
 //! Namespace decision (MT-049): all tables use the `knowledge_` prefix in the
 //! active schema; see migrations/0130_knowledge_schema_namespace.sql for the
@@ -34,7 +34,7 @@ use uuid::Uuid;
 
 use super::{StorageError, StorageResult};
 
-/// Table prefix that defines the WP-009 PostgreSQL namespace boundary.
+/// Table prefix that defines the WP-009 storage namespace boundary.
 pub const KNOWLEDGE_TABLE_PREFIX: &str = "knowledge_";
 
 // ---------------------------------------------------------------------------
@@ -2810,7 +2810,7 @@ pub trait KnowledgeStore: Send + Sync {
     }
 
     /// Wikilink create-if-absent authority path. Concurrent callers for the same workspace and
-    /// normalized title serialize inside PostgreSQL; one creates and every loser receives that same
+    /// normalized title serialize inside the durable store; one creates and every loser receives that same
     /// document. Pre-existing ambiguous duplicate titles fail closed instead of picking one silently.
     async fn create_knowledge_rich_document_if_title_absent(
         &self,
@@ -3519,7 +3519,7 @@ const KNOWLEDGE_CODE_REPAIR_COLUMNS: &str = r#"
     enqueue_event_id, resolved_receipt_event_id, created_at, updated_at
 "#;
 
-/// Escape PostgreSQL `LIKE` metacharacters (`%`, `_`, `\`) in an operator-
+/// Escape SQL `LIKE` metacharacters (`%`, `_`, `\`) in an operator-
 /// supplied literal so a symbol name/path containing them matches literally and
 /// cannot widen the scan. The default escape char `\` is escaped first.
 fn escape_like(value: &str) -> String {

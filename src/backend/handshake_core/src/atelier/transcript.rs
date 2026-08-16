@@ -15,8 +15,10 @@
 //! legacy source source (intent only): legacy source `app backend ASR/ffmpeg` flow.
 //! Handshake forbids the legacy source SQLite/Electron/localhost realization; only the
 //! intent (probe -> extract -> transcribe -> caption, hash-bound lineage,
-//! recoverable receipts) is carried across. Storage authority is PostgreSQL +
-//! EventLedger + ArtifactStore (6.11.2 LAW: storage authority).
+//! recoverable receipts) is carried across. Storage authority is the single
+//! Handshake store + EventLedger + ArtifactStore (6.11.2 LAW: storage
+//! authority). PENDING the SurrealDB port — see the `atelier` module header
+//! (MT-138).
 //!
 //! HARD boundary: ffmpeg / ffprobe / Whisper run as governed Workflow-Engine
 //! jobs ELSEWHERE (6.11.1 LAW: governed-job-only execution). This module NEVER
@@ -27,7 +29,7 @@
 //! credentials never appear in a stored record or an event payload.
 //!
 //! Microtasks: MT-203 (transcript + caption governed records), MT-005 (event
-//! coverage), MT-004 (PostgreSQL-only authority).
+//! coverage), MT-004 (single-store-only authority).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

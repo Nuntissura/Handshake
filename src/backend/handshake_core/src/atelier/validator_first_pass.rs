@@ -16,9 +16,11 @@
 //!   and persists every first-pass execution to
 //!   `atelier_validator_first_pass_run` linked to the sandbox run.
 //!
-//! Both traits are synchronous, so PG access goes through the shared Tokio
-//! bridge (`memory::persistence_postgres::block_on`); callers inside a
+//! Both traits are synchronous, so database access goes through the shared
+//! Tokio bridge (`memory::persistence_postgres::block_on`); callers inside a
 //! runtime must use a multi-thread runtime.
+//!
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -367,7 +369,7 @@ pub type SharedSandboxRunSlot = Arc<Mutex<Option<Uuid>>>;
 
 /// Production [`LoopSandbox`]: provisions a real per-run sandbox workspace
 /// directory carrying the candidate snapshot value, persists the run to
-/// PostgreSQL, and mirrors it through the EventLedger.
+/// the durable store, and mirrors it through the EventLedger.
 pub struct PgSelfImproveSandbox {
     store: AtelierStore,
     sandbox_root: PathBuf,
@@ -527,7 +529,7 @@ fn parse_transition(token: &str) -> Result<HandoffTransition, EvalError> {
 }
 
 /// EventLedger handle the handoff gate appends through. Wraps the shared
-/// `Arc<dyn Database>` so the gate event lands in the same PostgreSQL
+/// `Arc<dyn Database>` so the gate event lands in the same durable
 /// kernel EventLedger every other Atelier proof reads.
 struct ArcDatabaseLedger(Arc<dyn Database>);
 

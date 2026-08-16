@@ -2,8 +2,10 @@
 //!
 //! This is runtime product state, not governance paperwork. The catalog gives
 //! no-context models a structured list of state probes that must be checked
-//! before visual inspection, then persists that list in PostgreSQL and mirrors
-//! the snapshot through the Atelier EventLedger family.
+//! before visual inspection, then persists that list in the durable store and
+//! mirrors the snapshot through the Atelier EventLedger family.
+//!
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

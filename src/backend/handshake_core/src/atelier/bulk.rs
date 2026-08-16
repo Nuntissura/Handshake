@@ -2,7 +2,9 @@
 //!
 //! Bulk mutations validate the complete target set before writing, then commit
 //! all target changes, one durable receipt, and one EventLedger event in the
-//! same PostgreSQL transaction.
+//! same transaction.
+//!
+//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -6,7 +6,9 @@
 //! `listIntakeBatches`, `getIntakeBatch`, `updateIntakeBatchItem`,
 //! `classifyIntakeBatch`, `_normalizeIntakeStatus`) and `app/backend/db.js`
 //! (`IntakeBatch` / `IntakeBatchItem` tables). Schema/behavior INTENT only;
-//! the SQLite originals are not copied. Storage authority is PostgreSQL.
+//! the SQLite originals are not copied. Storage authority is the single
+//! Handshake store. PENDING the SurrealDB port — see the `atelier` module
+//! header (MT-138).
 //!
 //! Translated contract (the load-bearing invariants from legacy source):
 //!   * Persistent batches: a scan produces a durable `atelier_intake_batch`
