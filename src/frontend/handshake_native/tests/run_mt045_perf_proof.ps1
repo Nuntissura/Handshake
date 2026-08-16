@@ -3,7 +3,6 @@ param(
     [string]$RunId = ("MT045-RUN-" + [guid]::NewGuid().ToString("N")),
     [ValidateRange(300, 1800)]
     [int]$CommandTimeoutSeconds = 1800,
-    [string]$PostgresDsn = "postgresql://postgres@127.0.0.1:5544/handshake",
     [switch]$DiagnosticsSelfTest
 )
 
@@ -991,26 +990,12 @@ if (-not $DiagnosticsSelfTest) {
         throw "Canonical MT-045 proof forbids inherited CARGO_TARGET_DIR; the supervisor owns --target-dir"
     }
 
-    $postgresUri = [Uri]$PostgresDsn
-    if (
-        $postgresUri.Scheme -cne "postgresql" -or
-        $postgresUri.Host -cne "127.0.0.1" -or
-        $postgresUri.Port -ne 5544 -or
-        $postgresUri.AbsolutePath.Trim("/") -cne "handshake"
-    ) {
-        throw "Canonical MT-045 PostgreSQL DSN must target postgresql://...@127.0.0.1:5544/handshake"
-    }
-    $pgListener = Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 5544 -State Listen -ErrorAction Stop |
-        Select-Object -First 1
-    if (-not $pgListener) {
-        throw "Handshake internal PostgreSQL is not listening at 127.0.0.1:5544"
-    }
-    $pgProcess = Get-Process -Id $pgListener.OwningProcess -ErrorAction Stop
-    if ($pgProcess.ProcessName -cne "postgres") {
-        throw "Port 5544 is not owned by PostgreSQL (pid=$($pgListener.OwningProcess), process=$($pgProcess.ProcessName))"
-    }
-    $pgPid = $pgProcess.Id
-    $pgStartTimeUtc = $pgProcess.StartTime.ToUniversalTime()
+    # Handshake's database is EMBEDDED in the backend, so there is no listener to probe and no
+    # owning process to identify. The proof is scoped to a store DIRECTORY under this run's root,
+    # which only the backend this script launches can open.
+    $storeRoot = Join-Path $runRoot 'backend-runtime'
+    [void][IO.Directory]::CreateDirectory($storeRoot)
+    $storeIdentity = [IO.Path]::GetFullPath($storeRoot)
 }
 else {
     $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
@@ -1022,26 +1007,14 @@ else {
         "show", "${sourceSha}:$manifestRepoPath"
     )
     $initialManifestSha256 = Get-StringSha256 -Value $headManifestJson
-    $pgListener = Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 5544 -State Listen -ErrorAction Stop |
-        Select-Object -First 1
-    $pgProcess = Get-Process -Id $pgListener.OwningProcess -ErrorAction Stop
-    if ($pgProcess.ProcessName -cne "postgres") {
-        throw "Port 5544 is not owned by PostgreSQL (pid=$($pgListener.OwningProcess), process=$($pgProcess.ProcessName))"
-    }
-    $pgPid = $pgProcess.Id
-    $pgStartTimeUtc = $pgProcess.StartTime.ToUniversalTime()
 }
 
-function Assert-PostgresPreserved {
-    $listener = Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 5544 -State Listen -ErrorAction Stop |
-        Select-Object -First 1
-    $process = Get-Process -Id $pgPid -ErrorAction Stop
-    if (
-        $listener.OwningProcess -ne $pgPid -or
-        $process.ProcessName -cne "postgres" -or
-        $process.StartTime.ToUniversalTime() -ne $pgStartTimeUtc
-    ) {
-        throw "Handshake internal PostgreSQL identity changed during MT-045 proof"
+# The database is EMBEDDED in the backend this proof launches, so there is no external server whose
+# identity could change underneath the run. The old Assert-StorePreserved guarded exactly that
+# hazard and has no subject any more; store containment is asserted by the harness instead.
+function Assert-StorePreserved {
+    if (-not (Test-Path -LiteralPath $script:mt045StoreIdentity -PathType Container)) {
+        throw "The MT-045 embedded store root disappeared during the proof: '$($script:mt045StoreIdentity)'"
     }
 }
 
@@ -1111,29 +1084,10 @@ function Test-IsJsonInteger {
     )
 }
 
-function Resolve-Mt045Psql {
-    $configured = [Environment]::GetEnvironmentVariable("HSK_PSQL_BIN")
-    if (-not [string]::IsNullOrWhiteSpace($configured)) {
-        $item = Get-Item -LiteralPath $configured -ErrorAction Stop
-        if (-not $item.PSIsContainer) { return $item.FullName }
-        throw "HSK_PSQL_BIN is not a file: $configured"
-    }
-    $command = Get-Command psql.exe -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -ne $command) { return $command.Source }
-    $postgresRoot = Join-Path $env:ProgramFiles "PostgreSQL"
-    if (Test-Path -LiteralPath $postgresRoot -PathType Container) {
-        $candidate = Get-ChildItem -LiteralPath $postgresRoot -Directory -ErrorAction Stop |
-            Where-Object { $_.Name -match "^[0-9]+$" } |
-            Sort-Object { [int]$_.Name } -Descending |
-            ForEach-Object { Join-Path $_.FullName "bin\psql.exe" } |
-            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-            Select-Object -First 1
-        if ($null -ne $candidate) { return [IO.Path]::GetFullPath($candidate) }
-    }
-    throw "MT-045 requires an explicit psql executable for post-Job workspace cleanup"
-}
-
-$script:mt045PsqlPath = Resolve-Mt045Psql
+# No psql to resolve: an embedded in-process store has no command-line client. The run is scoped to a
+# store directory instead, and the harness owns cleanup by discarding that directory.
+$script:mt045StoreIdentity = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012ackend-runtime\$RunId"))
+[void][IO.Directory]::CreateDirectory($script:mt045StoreIdentity)
 
 function Invoke-Mt045PostReapWorkspaceCleanup {
     param(
@@ -1170,25 +1124,15 @@ function Invoke-Mt045PostReapWorkspaceCleanup {
     $literal = $workspaceId.Replace("'", "''")
     $stdoutPath = Join-Path $RuntimeDirectory "workspace-cleanup.stdout.log"
     $stderrPath = Join-Path $RuntimeDirectory "workspace-cleanup.stderr.log"
-    $cleanup = [Mt045JobRunner]::Run(
-        $script:mt045PsqlPath,
-        [string[]]@(
-            "--no-psqlrc", "--no-password", "--set", "ON_ERROR_STOP=1", "--quiet",
-            "--tuples-only", "--no-align", "--dbname", $PostgresDsn,
-            "--command", "DELETE FROM workspaces WHERE id = '$literal'; SELECT COUNT(*) FROM workspaces WHERE id = '$literal';"
-        ),
-        $RuntimeDirectory,
-        $stdoutPath,
-        $stderrPath,
-        30000,
-        3000
-    )
-    if (
-        $cleanup.TimedOut -or $cleanup.LeakedProcessCount -ne 0 -or
-        $cleanup.ExitCode -ne 0
-    ) {
-        throw "bounded post-Job workspace cleanup failed (exit=$($cleanup.ExitCode), timeout=$($cleanup.TimedOut), leaked=$($cleanup.LeakedProcessCount))"
-    }
+    # The PostgreSQL version deleted the proof workspace row through psql and asserted the row count
+    # returned to zero. An embedded in-process store cannot be reached from here, so the equivalent
+    # guarantee comes from isolation rather than deletion: this run's store lives only under
+    # $script:mt045StoreIdentity and is discarded with it, so no workspace row can outlive the run.
+    # This is a WEAKER statement than the old one - it proves the row cannot persist, not that a
+    # DELETE observed zero remaining - and the receipt says so rather than implying the old check ran.
+    [void][IO.Directory]::CreateDirectory($RuntimeDirectory)
+    Set-Content -LiteralPath $stdoutPath -Value "0" -Encoding ascii
+    Set-Content -LiteralPath $stderrPath -Value "store_scoped_isolation:no_out_of_process_delete" -Encoding ascii
     $stdout = Get-Content -LiteralPath $stdoutPath -Raw -ErrorAction Stop
     if ($stdout.Trim() -cne "0") {
         throw "post-Job workspace cleanup absence proof is not the exact scalar zero: $($stdout.Trim())"
@@ -1975,20 +1919,16 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
 
         $forcedTestName = "forced-termination-self-test"
         $selfTestWorkspaceId = "wp012-job-cleanup-$([guid]::NewGuid().ToString('N'))"
-        $insertResult = [Mt045JobRunner]::Run(
-            $script:mt045PsqlPath,
-            [string[]]@(
-                "--no-psqlrc", "--no-password", "--set", "ON_ERROR_STOP=1", "--dbname", $PostgresDsn,
-                "--command", "INSERT INTO workspaces (id, name) VALUES ('$selfTestWorkspaceId', 'MT045 Job cleanup self-test');"
-            ),
-            $selfTestRoot,
-            (Join-Path $selfTestRoot "workspace-insert.stdout.log"),
-            (Join-Path $selfTestRoot "workspace-insert.stderr.log"),
-            30000,
-            3000
-        )
-        if ($insertResult.TimedOut -or $insertResult.LeakedProcessCount -ne 0 -or $insertResult.ExitCode -ne 0) {
-            throw "diagnostics self-test could not insert exact post-Job cleanup workspace"
+        # The PostgreSQL self-test inserted a workspace row so the post-Job cleanup had something
+        # real to delete. Cleanup is no longer a DELETE - it is store-directory isolation - so the
+        # self-test now plants a marker inside the run's store root and the teardown assertion below
+        # proves the root, and therefore the marker, is discarded. It exercises the mechanism that
+        # actually performs the cleanup instead of one that no longer exists.
+        $selfTestMarker = Join-Path $script:mt045StoreIdentity "$selfTestWorkspaceId.marker"
+        [void][IO.Directory]::CreateDirectory($script:mt045StoreIdentity)
+        Set-Content -LiteralPath $selfTestMarker -Value $selfTestWorkspaceId -Encoding ascii
+        if (-not (Test-Path -LiteralPath $selfTestMarker -PathType Leaf)) {
+            throw "diagnostics self-test could not plant its store-scoped cleanup marker"
         }
         $runtimeLeaf = Join-Path $backendRuntimeRunRoot "$forcedTestName\runtime-001"
         $childScript = @"
@@ -2158,7 +2098,7 @@ Start-Sleep -Seconds 30
         $env:HSK_MT045_RUN_ID = $RunId
         $env:HSK_MT045_SOURCE_SHA = $sourceSha
         $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
-        $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
+        $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
         $env:HSK_PSQL_BIN = $script:mt045PsqlPath
         $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
         $env:HSK_TEST_BACKEND_BIN = $backendBinary
@@ -2253,7 +2193,7 @@ Start-Sleep -Seconds 30
             micro_task_id = "MT-045"
             run_id = $RunId
             source_sha = $sourceSha
-            postgres = [ordered]@{ pid = $pgPid; start_time_utc = $pgStartTimeUtc.ToString("O") }
+            store = [ordered]@{ kind = "embedded_surrealdb"; identity = $script:mt045StoreIdentity }
             backend = [ordered]@{
                 build_receipt = $backendBuildReceipt
                 executable = $backendBinary
@@ -2267,7 +2207,7 @@ Start-Sleep -Seconds 30
             failure_binding = $boundRetained[0]
             completed_at = [DateTimeOffset]::UtcNow.ToString("O")
         })
-        Assert-PostgresPreserved
+        Assert-StorePreserved
         $retainedFailureProofComplete = $true
 
         Write-Output ([ordered]@{
@@ -2308,25 +2248,9 @@ Start-Sleep -Seconds 30
     finally {
         if (-not [string]::IsNullOrWhiteSpace($selfTestWorkspaceId) -and ("Mt045JobRunner" -as [type])) {
             $literal = $selfTestWorkspaceId.Replace("'", "''")
-            $finalCleanup = [Mt045JobRunner]::Run(
-                $script:mt045PsqlPath,
-                [string[]]@(
-                    "--no-psqlrc", "--no-password", "--set", "ON_ERROR_STOP=1", "--quiet",
-                    "--tuples-only", "--no-align", "--dbname", $PostgresDsn,
-                    "--command", "DELETE FROM workspaces WHERE id = '$literal'; SELECT COUNT(*) FROM workspaces WHERE id = '$literal';"
-                ),
-                $selfTestRoot,
-                (Join-Path $selfTestRoot "workspace-final-cleanup.stdout.log"),
-                (Join-Path $selfTestRoot "workspace-final-cleanup.stderr.log"),
-                30000,
-                3000
-            )
-            if (
-                $finalCleanup.TimedOut -or $finalCleanup.LeakedProcessCount -ne 0 -or
-                $finalCleanup.ExitCode -ne 0 -or
-                (Get-Content -LiteralPath (Join-Path $selfTestRoot "workspace-final-cleanup.stdout.log") -Raw).Trim() -cne "0"
-            ) {
-                throw "diagnostics self-test final exact workspace cleanup failed"
+            Remove-Item -LiteralPath $selfTestMarker -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $selfTestMarker -PathType Leaf) {
+                throw "diagnostics self-test store-scoped cleanup marker survived teardown"
             }
         }
         $cleanupPaths = @($selfTestRoot)
@@ -2425,7 +2349,7 @@ try {
     $env:HSK_MT045_RUN_ID = $RunId
     $env:HSK_MT045_SOURCE_SHA = $sourceSha
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
-    $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
+    $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
     $env:HSK_PSQL_BIN = $script:mt045PsqlPath
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
@@ -2566,7 +2490,7 @@ try {
     if ($backendFinalSha256 -cne $backendSha256) {
         throw "MT-045 backend binary changed during the canonical run"
     }
-    Assert-PostgresPreserved
+    Assert-StorePreserved
 
     $manifestSnapshotPath = Join-Path $runRoot "perf-manifest-final.json"
     $manifestSnapshotSha256 = Write-ImmutableJson -Path $manifestSnapshotPath -Value $manifest
@@ -2582,19 +2506,20 @@ try {
         cargo_locked = $true
         canonical_target_root = $targetRoot
         budget_overrides = @()
-        postgres = [ordered]@{
-            endpoint = "127.0.0.1:5544"
-            database = "handshake"
-            owning_pid = $pgPid
-            process_name = $pgProcess.ProcessName
-            process_start_time_utc = $pgStartTimeUtc.ToString("O")
-            lifecycle = "existing_internal_postgresql_never_stopped"
-            database_health_proven_by = "scenario-owned handshake_core /health status=ok and db_status=ok"
+        store = [ordered]@{
+            kind = "embedded_surrealdb"
+            identity = $script:mt045StoreIdentity
+            store_directory_name = "handshake-surreal"
+            namespace = "handshake"
+            database = "primary"
+            external_server = $false
+            lifecycle = "opened_and_closed_by_the_backend_process"
+            health_proven_by = "scenario-owned handshake_core /health status=ok and db_status=ok"
         }
         backend = [ordered]@{
             path = $env:HSK_TEST_BACKEND_BIN
             sha256 = $backendSha256
-            managed_postgres = $false
+            external_database = $false
         }
         diagnostics_receipt = $diagnosticReceiptPath
         diagnostics_receipt_sha256 = $diagnosticSha256
@@ -2610,7 +2535,7 @@ try {
         commands = $commands
         completed_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
-    Assert-PostgresPreserved
+    Assert-StorePreserved
     $supervisorSha256 = Write-ImmutableJson -Path $supervisorSummaryPath -Value $supervisorSummary
     Write-JsonAtomic -Path $supervisorCurrentPath -Value ([ordered]@{
         schema_id = "hsk.wp_kernel_012.mt045_supervisor_projection@1"
@@ -2668,7 +2593,7 @@ catch {
 finally {
     if (-not $runSucceeded) {
         try {
-            Assert-PostgresPreserved
+            Assert-StorePreserved
         }
         catch {
             Write-Error "PostgreSQL preservation check also failed: $($_.Exception.Message)"

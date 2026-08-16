@@ -147,11 +147,11 @@ $cargoTarget = [IO.Path]::GetFullPath(
 $proofRoot = [IO.Path]::GetFullPath(
     (Join-Path $artifactSibling 'handshake-test\wp-kernel-012-mt-027\integrated'))
 $backendBinary = [IO.Path]::GetFullPath((Join-Path $cargoTarget 'debug\handshake_core.exe'))
-# HBR-SWARM-005 / CX-984: a proof run needs a WP-SCOPED database. The shared `handshake` database
-# carries another worktree's applied migration set, so a divergent migration in this worktree fails
-# sqlx checksum validation there. The database identity is bound into the receipt below.
-$postgresDatabase = 'handshake_wp_kernel_012_mt_027'
-$postgresDsn = "postgresql://postgres@127.0.0.1:5544/$postgresDatabase"
+# HBR-SWARM-005 / CX-984: a proof run needs a WP-SCOPED store, and with an embedded database that
+# scoping is a DIRECTORY rather than a database name. The old hazard - a shared `handshake` database
+# carrying another worktree's migration set - cannot occur when each run opens its own store under
+# its own run root. The store identity is still bound into the receipt below.
+$storeScopeName = 'handshake_wp_kernel_012_mt_027'
 $expectedArtifactRoot = [IO.Path]::GetFullPath(
     (Join-Path ([IO.Directory]::GetParent($repoRoot).FullName) 'Handshake_Artifacts'))
 if (-not $artifactSibling.Equals($expectedArtifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
@@ -160,15 +160,11 @@ if (-not $artifactSibling.Equals($expectedArtifactRoot, [StringComparison]::Ordi
 if (-not (Test-Path -LiteralPath $artifactSibling -PathType Container)) {
     throw "The existing sibling Handshake_Artifacts root is unavailable: '$artifactSibling'"
 }
-$postgresListener = Get-NetTCPConnection -LocalAddress '127.0.0.1' -LocalPort 5544 `
-    -State Listen -ErrorAction Stop | Select-Object -First 1
-$postgresProcess = Get-Process -Id $postgresListener.OwningProcess -ErrorAction Stop
-if (-not $postgresProcess.ProcessName.Equals(
-        'postgres', [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Port 5544 is not owned by PostgreSQL: pid=$($postgresListener.OwningProcess), process=$($postgresProcess.ProcessName)"
-}
-$initialPostgresPid = [int]$postgresProcess.Id
-$initialPostgresStartTime = [DateTimeOffset]$postgresProcess.StartTime
+# No listener to probe and no owning process to identify: the store is embedded in the backend this
+# script launches, so nothing else can hold it. The store root is scoped to this run.
+$storeRoot = Join-Path $runRoot 'backend-runtime'
+[void][IO.Directory]::CreateDirectory($storeRoot)
+$storeIdentity = [IO.Path]::GetFullPath($storeRoot)
 
 function Assert-NoReparsePointEscape {
     param(
@@ -419,7 +415,6 @@ $backendBuildArguments = @(
 $environmentNames = @(
     'CARGO_TARGET_DIR',
     'HSK_TEST_BACKEND_BIN',
-    'HANDSHAKE_TEST_PG_DSN',
     'HANDSHAKE_TEST_STAGE_BINDING_ROOT',
     'HANDSHAKE_ARTIFACTS_ROOT',
     'HANDSHAKE_ARGUS_BINDING_ROOT',
@@ -448,7 +443,7 @@ $managedReceiptDestination = Join-Path $runDir 'managed-pg-receipt.json'
 try {
     $env:CARGO_TARGET_DIR = $cargoTarget
     $env:HSK_TEST_BACKEND_BIN = $backendBinary
-    $env:HANDSHAKE_TEST_PG_DSN = $postgresDsn
+    $env:HANDSHAKE_DATA_DIR = $storeIdentity
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = $stageBindingRoot
     $env:HANDSHAKE_ARTIFACTS_ROOT = $runtimeArtifactsRoot
     $env:HANDSHAKE_ARGUS_BINDING_ROOT = $argusBindingRoot
@@ -1181,9 +1176,7 @@ if ($managedReceipt.schema_id -ne 'hsk.mt027_managed_pg_proof@1' -or
         $expectedBackendBinary, [StringComparison]::OrdinalIgnoreCase) -or
     -not $receiptBackendBinary.Equals(
         $expectedBackendBinary, [StringComparison]::OrdinalIgnoreCase) -or
-    $managedReceipt.backend_binding.database_host -ne '127.0.0.1' -or
-    [int]$managedReceipt.backend_binding.database_port -ne 5544 -or
-    $managedReceipt.backend_binding.database_name -ne $postgresDatabase) {
+    $managedReceipt.backend_binding.store_scope -ne $storeScopeName) {
     throw "Managed proof receipt binding mismatch: schema='$($managedReceipt.schema_id)'; owned='$($managedReceipt.backend_binding.owned)'; receipt_pid='$($managedReceipt.backend_binding.backend_pid)'; observed_pid='$($backendIdentity.pid)'; receipt_binary='$receiptBackendBinary'; observed_executable='$observedBackendExecutable'; expected_binary='$expectedBackendBinary'; database_host='$($managedReceipt.backend_binding.database_host)'; database_port='$($managedReceipt.backend_binding.database_port)'; database_name='$($managedReceipt.backend_binding.database_name)'"
 }
 $backendSha256 = (Get-FileHash -LiteralPath $backendBinary -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -1215,28 +1208,19 @@ if ($LASTEXITCODE -ne 0 -or $postSourceSha -ne $sourceSha) {
 # reviewer can still see exactly what was excluded and confirm none of it was a compiled input.
 $postExcludedDirtyRows = Assert-Mt027Cleanliness -Phase 'post-run'
 
-$receiptPgPort = [int]$managedReceipt.backend_binding.database_port
-$currentPostgresListener = Get-NetTCPConnection -LocalAddress '127.0.0.1' `
-    -LocalPort $receiptPgPort -State Listen -ErrorAction Stop | Select-Object -First 1
-$currentPostgresProcess = Get-Process `
-    -Id ([int]$currentPostgresListener.OwningProcess) -ErrorAction Stop
-$initialPostgresStartUtc = Format-CanonicalUtc $initialPostgresStartTime
-$currentPostgresStartUtc = Format-CanonicalUtc (
-    [DateTimeOffset]$currentPostgresProcess.StartTime)
-if ([int]$currentPostgresProcess.Id -ne $initialPostgresPid -or
-    $currentPostgresStartUtc -ne $initialPostgresStartUtc -or
-    -not $currentPostgresProcess.ProcessName.Equals(
-        'postgres', [StringComparison]::OrdinalIgnoreCase)) {
-    throw "The exact PostgreSQL listener identity changed before receipt acceptance: initial_pid='$initialPostgresPid'; current_pid='$($currentPostgresProcess.Id)'; initial_start='$initialPostgresStartUtc'; current_start='$currentPostgresStartUtc'; current_process='$($currentPostgresProcess.ProcessName)'"
+# The store is embedded in the backend, so there is no separate database process whose identity could
+# drift between the run and receipt acceptance. What must not drift is the STORE ROOT this run was
+# scoped to, and that it is still the directory the backend was told to open.
+if (-not (Test-Path -LiteralPath $storeIdentity -PathType Container)) {
+    throw "The MT-027 embedded store root disappeared before receipt acceptance: '$storeIdentity'"
 }
-$currentPostgresIdentity = [pscustomobject]@{
-    pid = [int]$currentPostgresProcess.Id
-    start_time_utc = $currentPostgresStartUtc
-    executable = if ([string]::IsNullOrWhiteSpace([string]$currentPostgresProcess.Path)) {
-        "$($currentPostgresProcess.ProcessName).exe"
-    } else {
-        [string]$currentPostgresProcess.Path
-    }
+if ($managedReceipt.backend_binding.store_scope -ne $storeScopeName) {
+    throw "The managed receipt store scope changed before acceptance: receipt='$($managedReceipt.backend_binding.store_scope)'; expected='$storeScopeName'"
+}
+$currentStoreIdentity = [pscustomobject]@{
+    kind = 'embedded_surrealdb'
+    identity = $storeIdentity
+    scope = $storeScopeName
 }
 
 Move-Item -LiteralPath $fixedManagedPgReceipt `
@@ -1293,11 +1277,10 @@ $receipt = [ordered]@{
     backend_process_start_time_utc = $backendIdentity.start_time_utc
     backend_process_executable = $backendIdentity.executable
     backend_binary_sha256 = $backendSha256
-    postgres_pid = [int]$currentPostgresIdentity.pid
-    postgres_start_time_utc = $currentPostgresIdentity.start_time_utc
-    postgres_database = $postgresDatabase
-    postgres_host = '127.0.0.1'
-    postgres_port = 5544
+    store_kind = 'embedded_surrealdb'
+    store_identity = $currentStoreIdentity.identity
+    store_scope = $storeScopeName
+    store_external_server = $false
     owned_process_tree = $owned
     wrapper_executable = 'powershell.exe'
     cargo_executable = $cargo.Source
