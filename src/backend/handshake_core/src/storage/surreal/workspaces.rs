@@ -76,10 +76,13 @@ impl SurrealDataContext<'_> {
 
     async fn list_workspace_records(&self) -> Result<Vec<Workspace>, SurrealStorageError> {
         let records: Vec<WorkspaceRecord> = self.client.select(WORKSPACES_TABLE).await?;
+        // Named explicitly: with only `Vec<_>` the element type is not pinned
+        // until the `Ok(workspaces)` at the end, so the `sort_by` closure below
+        // has nothing to resolve `left`/`right` against and inference fails.
         let mut workspaces = records
             .into_iter()
             .map(TryInto::try_into)
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<Workspace>, SurrealStorageError>>()?;
         workspaces.sort_by(|left, right| {
             left.created_at
                 .cmp(&right.created_at)

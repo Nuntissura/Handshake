@@ -13,7 +13,6 @@ use handshake_core::{
     },
     logging,
     models::HealthResponse,
-    process_ledger::restart_resume::PostgresRestartResumeRunner,
     storage::{
         self,
         retention::{Janitor, JanitorConfig},
@@ -49,22 +48,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Managed PostgreSQL lifecycle (task #9): start (or adopt) Handshake's own
-    // hidden cluster BEFORE storage init, so no operator has to launch Postgres
-    // manually and no console window pops. Idempotent — an already-running
-    // cluster on the configured port is adopted, never double-started.
-    let managed_pg = handshake_core::managed_postgres::ManagedPostgres::ensure_running(
-        handshake_core::managed_postgres::ManagedPostgresConfig::from_env(),
-    )
-    .await?;
-    if managed_pg.is_enabled() && std::env::var(storage::DATABASE_URL_ENV).is_err() {
-        std::env::set_var(storage::DATABASE_URL_ENV, managed_pg.database_url());
-        tracing::info!(
-            target: "handshake_core::managed_postgres",
-            "DATABASE_URL resolved from the managed cluster"
-        );
-    }
-
+    // The database is EMBEDDED. `init_control_plane_storage_with_config` below
+    // opens Handshake's own in-process SurrealDB store, so there is no cluster
+    // to start or adopt, no console window to suppress, no connection string to
+    // resolve, and no operator step at all. The store is closed again at the end
+    // of this function, so its lifetime is exactly this process's lifetime
+    // [CX-503R/CX-503S].
     let storage_config = storage::ControlPlaneStorageConfig::from_env()?;
     tracing::info!(
         target: "handshake_core",
@@ -72,21 +61,31 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         "control-plane storage mode resolved"
     );
     let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
-    let restart_report = PostgresRestartResumeRunner::new(control_plane.postgres_pool.clone())
-        .run()
-        .await?;
-    tracing::info!(
-        target: "handshake_core::restart_resume",
-        report_id = %restart_report.report_id,
-        sessions_examined = restart_report.sessions_examined,
-        sessions_resumed = restart_report.sessions_resumed.len(),
-        sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
-        "startup restart-resume pass completed"
-    );
+    // The startup restart-resume pass is NOT running. Its runner reads session
+    // state through the deleted PostgreSQL pool and has not been ported to the
+    // embedded store yet (WP-KERNEL-012 MT-137).
+    //
+    // This FAILS CLOSED rather than degrading quietly. Recovery-only mode exists
+    // so an operator or a supervising session can ask "what was interrupted, and
+    // what did you resume?" - running the boot path with the pass skipped and
+    // then writing a report saying zero sessions were examined would answer that
+    // question with a falsehood, and the caller would read "nothing to recover"
+    // when the truth is "nothing was looked at". An explicit error is the only
+    // honest response until the runner is ported.
     if startup_recovery_only_requested() {
-        write_startup_recovery_report(&restart_report)?;
-        return Ok(());
+        return Err(
+            "HANDSHAKE_STARTUP_RECOVERY_ONLY is set, but the restart-resume pass has not been \
+             ported to the embedded SurrealDB store yet (WP-KERNEL-012 MT-137). Refusing to write \
+             a recovery report that would claim zero interrupted sessions without having examined \
+             any."
+                .into(),
+        );
     }
+    tracing::warn!(
+        target: "handshake_core::restart_resume",
+        "startup restart-resume pass SKIPPED: not yet ported to the embedded store (MT-137). \
+         Interrupted sessions from a previous run are not being resumed."
+    );
     let storage = control_plane.database.clone();
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
@@ -122,41 +121,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
-    // on the shared pool so the atelier HTTP surface is queryable from startup.
-    {
-        let atelier = handshake_core::atelier::AtelierStore::with_observability(
-            control_plane.postgres_pool.clone(),
-            storage.clone(),
-            flight_recorder.clone(),
-        );
-        if let Err(err) = atelier.ensure_schema().await {
-            tracing::error!(target: "handshake_core::atelier", error = %err, "atelier ensure_schema failed at startup");
-            return Err(Box::new(err));
-        }
-        tracing::info!(target: "handshake_core::atelier", "atelier schema ensured");
-
-        // MT-206: project the FULL builtin CKC command corpus into the action
-        // catalog (cross-checked live against the ModelManual) so the Dev
-        // Command Center `/atelier/command-corpus` projection serves the full
-        // enumeration from boot. Idempotent; the catalog is a rebuildable
-        // projection, so a bootstrap failure is logged loudly but does not
-        // abort startup.
-        match atelier.bootstrap_builtin_command_corpus().await {
-            Ok(receipt) => tracing::info!(
-                target: "handshake_core::atelier",
-                total_commands = receipt.total_commands,
-                covered_count = receipt.covered_count,
-                blocked_count = receipt.blocked_count,
-                "builtin command corpus bootstrapped"
-            ),
-            Err(err) => tracing::error!(
-                target: "handshake_core::atelier",
-                error = %err,
-                "builtin command corpus bootstrap failed at startup"
-            ),
-        }
-    }
+    // The atelier schema bootstrap and the builtin CKC command-corpus projection
+    // are NOT running. AtelierStore is built on the deleted PostgreSQL pool and
+    // the whole atelier subsystem is unported (WP-KERNEL-012 MT-138), so there
+    // is nothing for it to bootstrap against.
+    //
+    // This is a WARN, not a hard failure, and the difference is deliberate: this
+    // block previously aborted startup when ensure_schema failed, because a
+    // half-provisioned atelier schema would have served wrong data. A subsystem
+    // that is entirely absent cannot serve wrong data, so refusing to boot the
+    // rest of Handshake over it would be the worse outcome. The atelier HTTP
+    // routes are unavailable for the same reason and fail on their own paths.
+    tracing::warn!(
+        target: "handshake_core::atelier",
+        "atelier schema bootstrap and command-corpus projection SKIPPED: the atelier subsystem \
+         is not ported to the embedded store (MT-138). Atelier routes are unavailable."
+    );
 
     // WP-KERNEL-009 MT-195/MT-196: seed (or hash-resync) the built-in
     // UserManual corpus so the no-context manual surface is queryable from
@@ -164,26 +144,20 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // rows). A seed failure is logged loudly but does not abort startup — the
     // freshness route reports `unseeded_version` and the gated
     // POST /usermanual/resync recovers.
-    {
-        let manual_db = handshake_core::storage::postgres::PostgresDatabase::new(
-            control_plane.postgres_pool.clone(),
-        );
-        match handshake_core::user_manual::seed::ensure_seeded(&manual_db).await {
-            Ok(report) => tracing::info!(
-                target: "handshake_core::user_manual",
-                manual_version = %report.manual_version,
-                pages_total = report.pages_total,
-                pages_changed = report.pages_changed,
-                tools_total = report.tools_total,
-                "UserManual corpus ensured"
-            ),
-            Err(err) => tracing::error!(
-                target: "handshake_core::user_manual",
-                error = %err,
-                "UserManual seed failed at startup (POST /usermanual/resync to recover)"
-            ),
-        }
-    }
+    // The UserManual seed is NOT running: its store still reads through the
+    // deleted PostgreSQL database type and the user_manual_* tables do not exist
+    // in the embedded schema yet (WP-KERNEL-012 MT-137).
+    //
+    // The existing recovery contract still describes the situation correctly:
+    // the freshness route reports `unseeded_version` and the gated
+    // POST /usermanual/resync is the documented way back. That is exactly the
+    // state a no-context model or operator will observe, so no separate signal
+    // is invented here.
+    tracing::warn!(
+        target: "handshake_core::user_manual",
+        "UserManual corpus seed SKIPPED: the manual store is not ported to the embedded store \
+         and its tables are not in the schema yet (MT-137). The manual reads as unseeded_version."
+    );
 
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
@@ -233,10 +207,27 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(target: "handshake_core", listen_addr = %actual_addr, "handshake_core started");
     let serve_result = axum::serve(listener, app).await;
 
-    // Best-effort teardown when the serve loop ends: stop the cluster only if
-    // Handshake started it (adopted/external clusters are left untouched).
-    if let Err(err) = managed_pg.stop().await {
-        tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
+    // Close the embedded store when the serve loop ends, so the database shuts
+    // down with Handshake rather than being left to process teardown. The close
+    // stops accepting new work, drains operations already in flight, and only
+    // then drops the sole engine handle; on Windows it additionally waits for
+    // RocksDB's LOCK file to be re-acquirable, which proves the prior handle is
+    // released and a restart can reopen the same directory.
+    //
+    // A shutdown failure is logged rather than propagated: the serve result is
+    // the outcome the operator actually asked about, and masking it with a
+    // teardown error would hide why the server stopped.
+    if let Err(err) = control_plane.surreal.shutdown().await {
+        tracing::warn!(
+            target: "handshake_core::storage",
+            error = %err,
+            "embedded SurrealDB store did not close cleanly at shutdown"
+        );
+    } else {
+        tracing::info!(
+            target: "handshake_core::storage",
+            "embedded SurrealDB store closed"
+        );
     }
     serve_result?;
     Ok(())

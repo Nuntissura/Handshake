@@ -229,12 +229,12 @@ pub struct StorageCapabilitySnapshot {
 impl StorageCapabilitySnapshot {
     pub fn loom_search_observability_tier(&self) -> u8 {
         match self.backend {
-            StorageBackendKind::Postgres => 2,
+            StorageBackendKind::Surreal => 2,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, sqlx::FromRow)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructuredCollabWorkPacketRow {
     pub wp_id: String,
     pub version: i64,
@@ -285,19 +285,14 @@ pub enum StorageError {
     Migration(String),
 }
 
-// [§2.3.12.3] Manual From impl to convert sqlx::Error -> StorageError::Database
-// This preserves the error message while hiding the sqlx type from public API.
-impl From<sqlx::Error> for StorageError {
-    fn from(err: sqlx::Error) -> Self {
+// The former `From<sqlx::Error>` and `From<sqlx::migrate::MigrateError>` impls
+// are gone with PostgreSQL. The embedded store converts through
+// `From<surreal::SurrealStorageError>` below, which serves the same purpose:
+// it keeps the driver's message while keeping the driver type out of the
+// public API.
+impl From<surreal::SurrealStorageError> for StorageError {
+    fn from(err: surreal::SurrealStorageError) -> Self {
         StorageError::Database(err.to_string())
-    }
-}
-
-// [§2.3.12.3] Manual From impl to convert MigrateError -> StorageError::Migration
-// This preserves the error message while hiding the sqlx::migrate type from public API.
-impl From<sqlx::migrate::MigrateError> for StorageError {
-    fn from(err: sqlx::migrate::MigrateError) -> Self {
-        StorageError::Migration(err.to_string())
     }
 }
 
@@ -1844,7 +1839,7 @@ impl From<GuardError> for StorageError {
     }
 }
 
-#[derive(Clone, Debug, sqlx::FromRow)]
+#[derive(Clone, Debug)]
 pub struct MutationTraceabilityRow {
     pub last_actor_kind: String,
     pub last_actor_id: Option<String>,
@@ -3428,14 +3423,13 @@ where
     T: Database + ?Sized,
 {
     fn storage_capabilities(&self) -> StorageCapabilitySnapshot {
-        let backend = match (
-            self.loom_search_observability_tier(),
-            self.supports_loom_graph_filtering(),
-        ) {
-            (2, _) => StorageBackendKind::Postgres,
-            (_, true) => StorageBackendKind::Postgres,
-            _ => StorageBackendKind::Postgres,
-        };
+        // SurrealDB is the only backend kind, so this is not a choice. The
+        // match this replaced branched on the observability tier and the
+        // graph-filtering flag but returned the SAME value from all three arms,
+        // which made it read like a capability decision while being a constant.
+        // Reporting the constant directly keeps the snapshot honest; the two
+        // capability flags below are the fields that actually vary.
+        let backend = StorageBackendKind::Surreal;
 
         StorageCapabilitySnapshot {
             backend,
@@ -3545,6 +3539,11 @@ pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
 #[derive(Clone)]
 pub struct ControlPlaneStorage {
     pub database: Arc<dyn Database>,
+    /// The embedded store itself, kept so the process that opened it can also
+    /// close it. SurrealDB runs in-process, so its lifetime is Handshake's
+    /// lifetime: there is no external service that outlives the binary and no
+    /// operator step to stop one [CX-503R/CX-503S].
+    pub surreal: surreal::SurrealStorage,
 }
 
 pub async fn init_control_plane_storage() -> Result<ControlPlaneStorage, StorageError> {
@@ -3564,10 +3563,11 @@ pub async fn init_control_plane_storage_with_config(
             let storage = surreal::SurrealStorage::open(surreal_config)
                 .await
                 .map_err(|err| StorageError::Database(err.to_string()))?;
-            let db = surreal::SurrealDatabase::new(storage);
+            let db = surreal::SurrealDatabase::new(storage.clone());
             db.run_migrations().await?;
             Ok(ControlPlaneStorage {
                 database: Arc::new(db),
+                surreal: storage,
             })
         }
     }

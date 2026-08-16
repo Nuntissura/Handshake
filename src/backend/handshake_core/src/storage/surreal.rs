@@ -329,14 +329,17 @@ impl SurrealDataContext<'_> {
         D: surrealdb::types::SurrealValue + Send,
     {
         // The derive expands to unqualified `SurrealValue` references, so the
-        // trait has to be in scope here rather than named by full path.
-        use surrealdb::types::SurrealValue;
+        // trait has to be in scope here rather than named by full path. The
+        // content is converted to a `Value` before binding so this struct stays
+        // non-generic: a generic field would need its own `SurrealValue` bound
+        // threaded through the derive.
+        use surrealdb::types::{SurrealValue, Value};
 
         #[derive(SurrealValue)]
-        struct CreateIfAbsentBindings<D> {
+        struct CreateIfAbsentBindings {
             tb: String,
             id: String,
-            content: D,
+            content: Value,
         }
 
         let rows = self
@@ -348,7 +351,7 @@ impl SurrealDataContext<'_> {
                 CreateIfAbsentBindings {
                     tb: table.to_owned(),
                     id: id.to_owned(),
-                    content,
+                    content: content.into_value(),
                 },
             )
             .await?;
