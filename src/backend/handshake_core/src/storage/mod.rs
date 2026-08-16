@@ -20,6 +20,10 @@ use crate::ai_ready_data::records::{
 };
 
 pub(crate) mod block_view_outbox;
+/// Embedded-SurrealDB persistence for the block-view outbox, and the reference
+/// pattern for porting the remaining outer modules onto the widened
+/// `SurrealDataContext` seam.
+pub(crate) mod block_view_outbox_surreal;
 pub mod calendar;
 pub mod calendar_activity;
 pub mod fems_memory;

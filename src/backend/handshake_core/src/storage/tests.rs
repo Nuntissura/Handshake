@@ -1,73 +1,113 @@
+//! Shared storage conformance suites and the embedded-store test harness.
+//!
+//! The conformance suites below take `Arc<dyn Database>` and are deliberately
+//! BACKEND-AGNOSTIC: they describe what Handshake storage must do, not how any
+//! one engine does it. That is why the PostgreSQL removal did not touch them -
+//! only the harness that produces a backend changed.
+//!
+//! Test isolation is now a DIRECTORY, not a schema. Each harness call opens a
+//! fresh embedded SurrealDB store under its own data dir inside the external
+//! artifacts root, so two suites running at once cannot see each other's rows
+//! and neither needs a server, a connection string, or a cleanup DROP SCHEMA.
+
 #[allow(unused_imports)]
 use super::{
-    postgres::PostgresDatabase, AccessMode, BlockUpdate, CalendarEventExportMode,
-    CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery,
-    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, ControlPlaneStorageConfig, ControlPlaneStorageMode, Database,
-    DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
-    LoomBlock, LoomBlockContentType, LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType,
-    LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob,
-    NewAsset, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
-    NewLoomEdge, NewNodeExecution, NewWorkspace, OperationType, PlannedOperation, SafetyMode,
-    StorageBackendKind, StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
-    StructuredCollaborationStore, WriteContext,
+    AccessMode, BlockUpdate, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
+    CalendarEventVisibility, CalendarEventWindowQuery, CalendarSourceProviderType,
+    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
+    ControlPlaneStorageConfig, ControlPlaneStorageMode, Database, DefaultStorageGuard, EntityRef,
+    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType,
+    LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor,
+    LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
+    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
+    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageBackendKind,
+    StorageCapabilityStore, StorageError, StorageGuard, StorageResult, StructuredCollaborationStore,
+    WriteContext,
 };
-use crate::managed_postgres::{ManagedPostgres, ManagedPostgresConfig};
+use super::surreal::{SurrealDatabase, SurrealStorage, SurrealStorageConfig};
 use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use serde_json::json;
-use sqlx::Connection;
-#[cfg(test)]
-use sqlx::Row;
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{Mutex, OnceCell};
 use uuid::Uuid;
 
 #[cfg(test)]
 const NIL_EDIT_EVENT_ID: &str = "00000000-0000-0000-0000-000000000000";
-const POSTGRES_TEST_URL_ENV: &str = "POSTGRES_TEST_URL";
-const POSTGRES_TEST_MAX_CONNECTIONS: u32 = 10;
 const LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS: usize = 10_000;
 
-static MANAGED_POSTGRES_TEST_CLUSTER: OnceCell<ManagedPostgres> = OnceCell::const_new();
-static POSTGRES_SCHEMA_SETUP_LOCK: Mutex<()> = Mutex::const_new(());
-
-pub async fn postgres_test_base_url() -> StorageResult<String> {
-    resolve_postgres_test_base_url(
-        std::env::var(POSTGRES_TEST_URL_ENV).ok(),
-        std::env::var(super::DATABASE_URL_ENV).ok(),
-    )
-    .await
+/// Root for per-test store directories.
+///
+/// Resolved from `HANDSHAKE_ARTIFACTS_ROOT` when set, otherwise the repo-relative
+/// external artifacts root. No machine-local absolute path is baked in [CX-109B],
+/// and test output stays outside the repository working tree [CX-984].
+fn test_store_root() -> PathBuf {
+    std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("../Handshake_Artifacts"))
+        .join("handshake-test")
+        .join("storage-conformance")
 }
 
-async fn resolve_postgres_test_base_url(
-    postgres_test_url: Option<String>,
-    database_url: Option<String>,
-) -> StorageResult<String> {
-    for value in [postgres_test_url, database_url].into_iter().flatten() {
-        let value = value.trim();
-        if value.is_empty() {
-            continue;
-        }
-        if !super::is_postgres_url(value) {
-            return Err(StorageError::Validation(
-                "postgres test database URL must be PostgreSQL",
-            ));
-        }
-        return Ok(value.to_string());
-    }
+/// A live embedded store plus the `Database` handle over it.
+///
+/// `storage` is exposed so a test can close the store deterministically and
+/// prove restart behaviour by reopening the same directory.
+#[derive(Clone)]
+pub struct EmbeddedTestBackend {
+    pub database: Arc<dyn super::Database>,
+    pub storage: SurrealStorage,
+    pub data_dir: PathBuf,
+}
 
-    let managed = MANAGED_POSTGRES_TEST_CLUSTER
-        .get_or_try_init(|| async {
-            ManagedPostgres::ensure_running(ManagedPostgresConfig::from_env())
-                .await
-                .map_err(|err| {
-                    StorageError::Database(format!("managed postgres startup failed: {err}"))
-                })
-        })
-        .await?;
-    Ok(managed.database_url())
+impl EmbeddedTestBackend {
+    /// Close the store and remove its directory.
+    ///
+    /// Best-effort by design: a test that has already failed should surface its
+    /// own assertion, not a teardown error on top of it. Stores that survive an
+    /// aborted process are reclaimed separately (MT-123).
+    pub async fn close_and_remove(self) {
+        let dir = self.data_dir.clone();
+        let _ = self.storage.shutdown().await;
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+/// Open an isolated embedded store for one test.
+///
+/// There is no environment variable to point this at a server and no skip
+/// condition: the store is created here, so a test either proves behaviour
+/// against a real engine or fails. That is the whole reason the PostgreSQL
+/// `POSTGRES_TEST_URL` / `DATABASE_URL` resolution chain is gone rather than
+/// ported - there is nothing left to resolve.
+pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
+    let data_dir = test_store_root().join(format!("store-{}", Uuid::now_v7().simple()));
+    std::fs::create_dir_all(&data_dir).map_err(|error| {
+        StorageError::Database(format!(
+            "could not create embedded test store dir {}: {error}",
+            data_dir.display()
+        ))
+    })?;
+
+    let config = SurrealStorageConfig::for_data_dir(&data_dir)
+        .map_err(|error| StorageError::Database(error.to_string()))?;
+    let storage = SurrealStorage::open(config)
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()))?;
+    let database = SurrealDatabase::new(storage.clone());
+    database.run_migrations().await?;
+
+    Ok(EmbeddedTestBackend {
+        database: Arc::new(database),
+        storage,
+        data_dir,
+    })
+}
+
+/// Open an isolated embedded store and return only the `Database` handle.
+pub async fn embedded_test_database() -> StorageResult<Arc<dyn super::Database>> {
+    Ok(embedded_test_backend().await?.database)
 }
 
 #[cfg(test)]
@@ -92,171 +132,6 @@ fn assert_metadata_matches_ctx(
         unreachable!("edit_event_id must be valid UUID");
     };
     assert_ne!(parsed, Uuid::nil());
-}
-
-#[cfg(test)]
-async fn postgres_schema_fingerprint(conn: &mut sqlx::PgConnection) -> StorageResult<Vec<String>> {
-    let mut fingerprint = Vec::new();
-
-    let column_rows = sqlx::query(
-        r#"
-        SELECT table_name, column_name, data_type, is_nullable, COALESCE(column_default, '') as column_default
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name <> '_sqlx_migrations'
-        ORDER BY table_name, ordinal_position
-        "#,
-    )
-    .fetch_all(&mut *conn)
-    .await?;
-
-    for row in column_rows {
-        let table_name = row.get::<String, _>("table_name");
-        let column_name = row.get::<String, _>("column_name");
-        let data_type = row.get::<String, _>("data_type");
-        let is_nullable = row.get::<String, _>("is_nullable");
-        let column_default = row.get::<String, _>("column_default");
-        fingerprint.push(format!(
-            "COL|{table_name}|{column_name}|{data_type}|{is_nullable}|{column_default}"
-        ));
-    }
-
-    let index_rows = sqlx::query(
-        r#"
-        SELECT indexname, indexdef
-        FROM pg_indexes
-        WHERE schemaname = current_schema()
-          AND tablename <> '_sqlx_migrations'
-        ORDER BY indexname
-        "#,
-    )
-    .fetch_all(&mut *conn)
-    .await?;
-
-    for row in index_rows {
-        let indexname = row.get::<String, _>("indexname");
-        let indexdef = row.get::<String, _>("indexdef");
-        fingerprint.push(format!("IDX|{indexname}|{indexdef}"));
-    }
-
-    Ok(fingerprint)
-}
-
-#[cfg(test)]
-async fn postgres_user_table_names(conn: &mut sqlx::PgConnection) -> StorageResult<Vec<String>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = current_schema()
-          AND table_type = 'BASE TABLE'
-          AND table_name <> '_sqlx_migrations'
-        ORDER BY table_name
-        "#,
-    )
-    .fetch_all(&mut *conn)
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|row| row.get::<String, _>("table_name"))
-        .collect())
-}
-
-#[derive(Clone)]
-pub struct PostgresTestBackend {
-    pub database: Arc<dyn super::Database>,
-    pub postgres_pool: sqlx::postgres::PgPool,
-}
-
-/// Build a relational test backend from the environment.
-///
-/// PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): this helper still binds a
-/// `sqlx` pool against a backend that no longer ships, so it does not compile
-/// and no caller can obtain a live handle from it. The resolution order it
-/// documents (`POSTGRES_TEST_URL` > `DATABASE_URL` > the managed lifecycle) and
-/// the helper/env-var names are left untouched so the ported version keeps the
-/// same call sites and documented commands. Tests must prove behavior against
-/// the real embedded store; there is no skip condition.
-#[allow(dead_code)]
-pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTestBackend> {
-    let url = postgres_test_base_url().await?;
-    let _setup_guard = POSTGRES_SCHEMA_SETUP_LOCK.lock().await;
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("storage_test_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    sqlx::query("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public")
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!(
-        r#"
-        CREATE OR REPLACE FUNCTION {schema}.digest(input text, algorithm text)
-        RETURNS bytea
-        LANGUAGE SQL
-        IMMUTABLE
-        PARALLEL SAFE
-        AS $$ SELECT public.digest(input::bytea, algorithm) $$
-        "#
-    ))
-    .execute(&mut conn)
-    .await?;
-    sqlx::query(&format!(
-        r#"
-        CREATE OR REPLACE FUNCTION {schema}.digest(input bytea, algorithm text)
-        RETURNS bytea
-        LANGUAGE SQL
-        IMMUTABLE
-        PARALLEL SAFE
-        AS $$ SELECT public.digest(input, algorithm) $$
-        "#
-    ))
-    .execute(&mut conn)
-    .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-
-    let db = PostgresDatabase::connect(&schema_url, POSTGRES_TEST_MAX_CONNECTIONS).await?;
-    db.run_migrations().await?;
-    let postgres_pool = db.pool().clone();
-    Ok(PostgresTestBackend {
-        database: db.into_arc(),
-        postgres_pool,
-    })
-}
-
-/// Build a relational test backend from the environment.
-///
-/// PENDING SURREALDB PORT (WP-KERNEL-012 MT-136) — see
-/// [`postgres_backend_with_pool_from_env`].
-#[allow(dead_code)]
-pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
-    Ok(postgres_backend_with_pool_from_env().await?.database)
-}
-
-/// Build a relational test backend and pool for legacy optional call sites.
-///
-/// The helper is no longer optional for a missing env var: it auto-starts the
-/// managed default and returns `Err` only when the backend cannot be reached or
-/// initialized. PENDING SURREALDB PORT (WP-KERNEL-012 MT-136) — see
-/// [`postgres_backend_with_pool_from_env`].
-#[allow(dead_code)]
-pub async fn optional_postgres_backend_with_pool_from_env(
-) -> StorageResult<Option<PostgresTestBackend>> {
-    postgres_backend_with_pool_from_env().await.map(Some)
-}
-
-/// Build a relational test backend for legacy optional call sites.
-///
-/// PENDING SURREALDB PORT (WP-KERNEL-012 MT-136) — see
-/// [`postgres_backend_with_pool_from_env`].
-#[allow(dead_code)]
-pub async fn optional_postgres_backend_from_env() -> StorageResult<Option<Arc<dyn super::Database>>>
-{
-    postgres_backend_from_env().await.map(Some)
 }
 
 /// Runs the shared storage conformance suite against the provided backend.
@@ -2674,25 +2549,6 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     Ok(())
 }
 
-#[tokio::test]
-async fn postgres_test_base_url_bootstraps_default_postgres_when_url_candidates_missing(
-) -> StorageResult<()> {
-    let url = resolve_postgres_test_base_url(None, None).await?;
-    assert!(
-        super::is_postgres_url(&url),
-        "managed test fallback must still be a PostgreSQL URL"
-    );
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let one: i64 = sqlx::query_scalar("SELECT 1::bigint")
-        .fetch_one(&mut conn)
-        .await?;
-    assert_eq!(
-        one, 1,
-        "managed PostgreSQL fallback must accept real SQL connections"
-    );
-    Ok(())
-}
 
 #[tokio::test]
 async fn guard_blocks_ai_without_context() {
@@ -2702,239 +2558,10 @@ async fn guard_blocks_ai_without_context() {
     assert!(matches!(result, Err(GuardError::SilentEdit)));
 }
 
-#[tokio::test]
-async fn postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -> StorageResult<()>
-{
-    let url = postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_trace_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
-    let db = db.into_arc();
-
-    let ctx = WriteContext::ai(Some("ai-writer".into()), None, None);
-    let res = db
-        .create_workspace(
-            &ctx,
-            NewWorkspace {
-                name: format!("ws-{}", Uuid::now_v7()),
-            },
-        )
-        .await;
-    assert!(matches!(
-        res,
-        Err(StorageError::Guard("HSK-403-SILENT-EDIT"))
-    ));
-
-    drop(db);
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        .execute(&mut conn)
-        .await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn postgres_persists_mutation_traceability_metadata_on_writes() -> StorageResult<()> {
-    let url = postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_trace_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
-    let db = db.into_arc();
-
-    let contexts = vec![
-        WriteContext::human(Some("human-1".into())),
-        WriteContext::system(Some("system-1".into())),
-        WriteContext::ai(
-            Some("ai-1".into()),
-            Some(Uuid::now_v7()),
-            Some(Uuid::now_v7()),
-        ),
-    ];
-
-    for ctx in contexts {
-        let workspace = db
-            .create_workspace(
-                &ctx,
-                NewWorkspace {
-                    name: format!("ws-{}", Uuid::now_v7()),
-                },
-            )
-            .await?;
-
-        let workspace_row = db
-            .test_fetch_mutation_traceability_row("workspaces", &workspace.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &workspace_row.last_actor_kind,
-            workspace_row.last_actor_id,
-            workspace_row.last_job_id,
-            workspace_row.last_workflow_id,
-            &workspace_row.edit_event_id,
-            &ctx,
-        );
-
-        let document = db
-            .create_document(
-                &ctx,
-                NewDocument {
-                    workspace_id: workspace.id.clone(),
-                    title: format!("doc-{}", Uuid::now_v7()),
-                },
-            )
-            .await?;
-
-        let document_row = db
-            .test_fetch_mutation_traceability_row("documents", &document.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &document_row.last_actor_kind,
-            document_row.last_actor_id,
-            document_row.last_job_id,
-            document_row.last_workflow_id,
-            &document_row.edit_event_id,
-            &ctx,
-        );
-
-        let block = db
-            .create_block(
-                &ctx,
-                NewBlock {
-                    id: None,
-                    document_id: document.id.clone(),
-                    kind: "paragraph".into(),
-                    sequence: 1,
-                    raw_content: "hello".into(),
-                    display_content: None,
-                    derived_content: None,
-                    sensitivity: None,
-                    exportable: None,
-                },
-            )
-            .await?;
-
-        let block_row = db
-            .test_fetch_mutation_traceability_row("blocks", &block.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &block_row.last_actor_kind,
-            block_row.last_actor_id,
-            block_row.last_job_id,
-            block_row.last_workflow_id,
-            &block_row.edit_event_id,
-            &ctx,
-        );
-
-        let canvas = db
-            .create_canvas(
-                &ctx,
-                NewCanvas {
-                    workspace_id: workspace.id.clone(),
-                    title: format!("canvas-{}", Uuid::now_v7()),
-                },
-            )
-            .await?;
-
-        let node_a_id = Uuid::now_v7().to_string();
-        let node_b_id = Uuid::now_v7().to_string();
-        let edge_id = Uuid::now_v7().to_string();
-        db.update_canvas_graph(
-            &ctx,
-            &canvas.id,
-            vec![
-                NewCanvasNode {
-                    id: Some(node_a_id.clone()),
-                    kind: "text".into(),
-                    position_x: 0.0,
-                    position_y: 0.0,
-                    data: None,
-                },
-                NewCanvasNode {
-                    id: Some(node_b_id.clone()),
-                    kind: "text".into(),
-                    position_x: 1.0,
-                    position_y: 1.0,
-                    data: None,
-                },
-            ],
-            vec![NewCanvasEdge {
-                id: Some(edge_id.clone()),
-                from_node_id: node_a_id.clone(),
-                to_node_id: node_b_id.clone(),
-                kind: "direct".into(),
-            }],
-        )
-        .await?;
-
-        let canvas_row = db
-            .test_fetch_mutation_traceability_row("canvases", &canvas.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &canvas_row.last_actor_kind,
-            canvas_row.last_actor_id,
-            canvas_row.last_job_id,
-            canvas_row.last_workflow_id,
-            &canvas_row.edit_event_id,
-            &ctx,
-        );
-
-        let node_row = db
-            .test_fetch_mutation_traceability_row("canvas_nodes", &node_a_id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &node_row.last_actor_kind,
-            node_row.last_actor_id,
-            node_row.last_job_id,
-            node_row.last_workflow_id,
-            &node_row.edit_event_id,
-            &ctx,
-        );
-
-        let edge_row = db
-            .test_fetch_mutation_traceability_row("canvas_edges", &edge_id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &edge_row.last_actor_kind,
-            edge_row.last_actor_id,
-            edge_row.last_job_id,
-            edge_row.last_workflow_id,
-            &edge_row.edit_event_id,
-            &ctx,
-        );
-    }
-
-    drop(db);
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        .execute(&mut conn)
-        .await?;
-    Ok(())
-}
 
 #[tokio::test]
 async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<()> {
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let db = embedded_test_database().await?;
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::now_v7(),
@@ -2995,9 +2622,7 @@ async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<
 
 #[tokio::test]
 async fn workflow_node_execution_sets_finished_at_for_terminal_statuses() -> StorageResult<()> {
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let db = embedded_test_database().await?;
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::now_v7(),
@@ -3053,9 +2678,7 @@ async fn workflow_node_execution_sets_finished_at_for_terminal_statuses() -> Sto
 
 #[tokio::test]
 async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let db = embedded_test_database().await?;
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::now_v7(),
@@ -3092,61 +2715,17 @@ async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
-    let url = postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_mig_{}", Uuid::now_v7().simple());
-
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!("SET search_path TO {schema}"))
-        .execute(&mut conn)
-        .await?;
-
-    let migrator = sqlx::migrate!("./migrations");
-
-    migrator.run(&mut conn).await?;
-    let before = postgres_schema_fingerprint(&mut conn).await?;
-
-    sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-        .execute(&mut conn)
-        .await?;
-
-    migrator.run(&mut conn).await?;
-    let after = postgres_schema_fingerprint(&mut conn).await?;
-
-    assert_eq!(before, after);
-
-    sqlx::query("SET search_path TO public")
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        .execute(&mut conn)
-        .await?;
-
-    Ok(())
-}
 
 #[cfg(test)]
-async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResult<()> {
-    let url = postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_structured_collab_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
-    let db = db.into_arc();
+async fn assert_structured_collab_artifacts_supported() -> StorageResult<()> {
+    // The PostgreSQL version of this helper hand-built an isolated SCHEMA with
+    // raw SQL and dropped it afterwards. The embedded store isolates by data
+    // DIRECTORY instead, so the setup and the teardown both disappear - what is
+    // being asserted (the capability flag and the empty-state reads) is
+    // unchanged, and it now runs against a real engine with no external
+    // database and no skip path.
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
 
     assert!(db.supports_structured_collab_artifacts());
     assert!(db
@@ -3170,35 +2749,29 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
     assert!(!db.locus_work_packet_exists("WP-TEST").await?);
 
     drop(db);
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        .execute(&mut conn)
-        .await?;
-
+    backend.close_and_remove().await;
     Ok(())
 }
 
 #[tokio::test]
 async fn database_trait_purity() -> StorageResult<()> {
-    assert_postgres_structured_collab_artifacts_supported().await?;
+    assert_structured_collab_artifacts_supported().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn locus_backend_capability() -> StorageResult<()> {
-    assert_postgres_structured_collab_artifacts_supported().await
+    assert_structured_collab_artifacts_supported().await
 }
 
 #[tokio::test]
-async fn postgres_structured_collab_artifacts_are_supported() -> StorageResult<()> {
-    assert_postgres_structured_collab_artifacts_supported().await
+async fn structured_collab_artifacts_are_supported() -> StorageResult<()> {
+    assert_structured_collab_artifacts_supported().await
 }
 
 #[tokio::test]
 async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let db = embedded_test_database().await?;
 
     let ctx = WriteContext::human(Some("loom-search-proof".into()));
     let workspace = db
@@ -3223,79 +2796,6 @@ async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
     loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await
 }
 
-#[tokio::test]
-async fn loom_migration_schema_is_portable_postgres() -> StorageResult<()> {
-    let url = postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_loom_mig_{}", Uuid::now_v7().simple());
-
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!("SET search_path TO {schema}"))
-        .execute(&mut conn)
-        .await?;
-
-    let migrator = sqlx::migrate!("./migrations");
-    migrator.run(&mut conn).await?;
-
-    let tables = postgres_user_table_names(&mut conn).await?;
-    assert!(tables.iter().any(|name| name == "assets"));
-    assert!(tables.iter().any(|name| name == "loom_blocks"));
-    assert!(tables.iter().any(|name| name == "loom_edges"));
-    assert!(
-        !tables.iter().any(|name| name == "loom_blocks_fts"),
-        "provider-local search structures must not be part of portable PostgreSQL migration DDL"
-    );
-
-    sqlx::query("SET search_path TO public")
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        .execute(&mut conn)
-        .await?;
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
-    let url = postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_mig_{}", Uuid::now_v7().simple());
-
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!("SET search_path TO {schema}"))
-        .execute(&mut conn)
-        .await?;
-
-    let migrator = sqlx::migrate!("./migrations");
-
-    migrator.run(&mut conn).await?;
-    migrator.undo(&mut conn, 0).await?;
-
-    let tables = postgres_user_table_names(&mut conn).await?;
-    assert!(tables.is_empty());
-
-    let applied_count_row = sqlx::query("SELECT COUNT(*) as count FROM _sqlx_migrations")
-        .fetch_one(&mut conn)
-        .await?;
-    let applied_count = applied_count_row.get::<i64, _>("count");
-    assert_eq!(applied_count, 0);
-
-    sqlx::query("SET search_path TO public")
-        .execute(&mut conn)
-        .await?;
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        .execute(&mut conn)
-        .await?;
-
-    Ok(())
-}
 
 #[test]
 fn database_trait_purity_source_regressions() {
@@ -3309,7 +2809,7 @@ fn database_trait_purity_source_regressions() {
         .next()
         .unwrap_or_default();
     let retention_prod = include_str!("retention.rs");
-    let postgres_storage = include_str!("postgres.rs");
+    let surreal_storage = include_str!("surreal/database.rs");
     let database_trait_start = storage_mod
         .find("pub trait Database: Send + Sync {")
         .expect("Database trait should exist in storage/mod.rs");
@@ -3369,7 +2869,7 @@ fn database_trait_purity_source_regressions() {
     assert!(!loom_api_prod.contains("state.storage.loom_search_observability_tier()"));
     assert!(!retention_prod.contains(".as_any()"));
     assert!(retention_prod.contains(".test_update_ai_job_metadata("));
-    for backend_src in [postgres_storage] {
+    for backend_src in [surreal_storage] {
         assert!(backend_src.contains("fn supports_locus_runtime(&self) -> bool {"));
         assert!(backend_src.contains("fn supports_structured_collab_artifacts(&self) -> bool {"));
         assert!(backend_src.contains("fn loom_search_observability_tier(&self) -> u8 {"));
@@ -3382,27 +2882,38 @@ fn database_trait_purity_source_regressions() {
 }
 
 #[test]
-fn storage_mode_defaults_to_postgres_primary_when_required() -> StorageResult<()> {
-    let database_url = "postgres://handshake:handshake@localhost:5432/handshake";
-    let config = ControlPlaneStorageConfig::resolve(None, Some("true"), Some(database_url))?;
+fn storage_mode_defaults_to_surreal_embedded_when_unset() -> StorageResult<()> {
+    // SurrealDB is the only accepted authority, so an ABSENT mode resolves to it
+    // rather than failing. There is no DATABASE_URL to supply any more: the
+    // store location comes from HANDSHAKE_DATA_DIR, and leaving that unset is
+    // also valid because the platform-local application data directory is the
+    // documented fallback.
+    let config = ControlPlaneStorageConfig::resolve(None, None)?;
+    assert_eq!(config.mode, ControlPlaneStorageMode::SurrealEmbedded);
+    assert_eq!(config.mode.as_str(), "surreal_embedded");
+    assert_eq!(config.data_dir, None);
 
-    assert_eq!(config.mode, ControlPlaneStorageMode::PostgresPrimary);
-    assert_eq!(config.mode.as_str(), "postgres_primary");
-    assert_eq!(config.database_url, database_url);
+    let scoped = ControlPlaneStorageConfig::resolve(Some("surreal_embedded"), Some("/tmp/hsk"))?;
+    assert_eq!(scoped.mode, ControlPlaneStorageMode::SurrealEmbedded);
+    assert!(scoped.data_dir.is_some());
 
     Ok(())
 }
 
 #[test]
-fn storage_mode_fails_closed_when_postgres_required_without_url() {
-    for requires_postgres in [Some("true"), None] {
-        let err = ControlPlaneStorageConfig::resolve(None, requires_postgres, None).unwrap_err();
-
+fn storage_mode_fails_closed_on_a_stale_postgres_mode() {
+    // A leftover HANDSHAKE_STORAGE_MODE=postgres_primary in someone's
+    // environment must FAIL rather than be silently ignored. Ignoring it would
+    // start Handshake on the embedded store while the operator believed they had
+    // selected PostgreSQL - the config would be lying about which database holds
+    // their data, which is worse than refusing to start.
+    for stale in ["postgres_primary", "postgres", "sqlite"] {
+        let err = ControlPlaneStorageConfig::resolve(Some(stale), None).unwrap_err();
         match err {
             StorageError::Validation(message) => {
-                assert_eq!(message, "postgres_primary requires DATABASE_URL");
+                assert_eq!(message, "unsupported storage mode");
             }
-            other => panic!("expected validation error, got {other:?}"),
+            other => panic!("expected validation error for {stale}, got {other:?}"),
         }
     }
 }
@@ -3417,21 +2928,21 @@ fn unsupported_storage_modes_fail_closed() {
 }
 
 #[tokio::test]
-async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
-    assert!(ControlPlaneStorageMode::PostgresPrimary.is_control_plane_authority());
+async fn database_trait_purity_capability_snapshot_reports_surreal() -> StorageResult<()> {
+    assert!(ControlPlaneStorageMode::SurrealEmbedded.is_control_plane_authority());
     assert_eq!(
-        ControlPlaneStorageMode::PostgresPrimary.authority_label(),
+        ControlPlaneStorageMode::SurrealEmbedded.authority_label(),
         "primary_authority"
     );
     assert_eq!(
-        ControlPlaneStorageMode::PostgresPrimary.freshness_label(),
+        ControlPlaneStorageMode::SurrealEmbedded.freshness_label(),
         "current_source_of_truth"
     );
 
-    let db = postgres_backend_from_env().await?;
+    let db = embedded_test_database().await?;
     let caps = db.storage_capabilities();
 
-    assert_eq!(caps.backend, StorageBackendKind::Postgres);
+    assert_eq!(caps.backend, StorageBackendKind::Surreal);
     assert!(caps.supports_structured_collab_artifacts);
     assert!(caps.supports_loom_graph_filtering);
     assert_eq!(caps.loom_search_observability_tier(), 2);
