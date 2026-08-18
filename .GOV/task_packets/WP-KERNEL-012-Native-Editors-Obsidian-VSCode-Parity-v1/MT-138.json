@@ -31,15 +31,17 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-136"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260818-130753",
+    "claimed_at_utc": "2026-08-18T13:45:00Z",
+    "claim_note_2026_08_18": "Claimed in parallel with MT-136/MT-137 under Operator directive 2026-08-18 (SurrealDB only; PostgreSQL/SQLite dependency and language forbidden). The atelier seam commit 660a5bf8 is the implementation base; remaining work is the ~660 sqlx call sites across atelier/.",
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "operator_scope_decision_2026_08_16": {
       "decision": "IN_SCOPE_FOR_WP_KERNEL_012",

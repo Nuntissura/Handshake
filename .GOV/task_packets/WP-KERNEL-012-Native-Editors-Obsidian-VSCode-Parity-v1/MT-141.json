@@ -1,0 +1,115 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-141",
+  "title": "B14-MT-141-Port-The-Backend-Test-Suite-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
+  "group": "B14",
+  "created_at_utc": "2026-08-18T15:20:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": ["MT-136", "MT-137", "MT-138"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks."
+  },
+  "scope": {
+    "summary": "Port src/backend/handshake_core/tests/ off sqlx/PostgreSQL onto the embedded SurrealDB store. These tests compile against the handshake_core lib, so this MT is implementable only after MT-136/137/138 make the lib compile cleanly. Patterns to follow: unit-adjacent storage tests use SurrealStorage opened at a temporary HANDSHAKE_DATA_DIR (see tests/surreal_test_store_support/ and storage/surreal/test_inspector.rs behind the surreal-test-support feature); API-level tests exercise the product HTTP surface; migration-corpus assertions (apply_migration, DDL-constant asserts) are retired with the corpus per MT-139's recorded SEVER decision and replaced by the schema.surql coverage proof. Test-only isolation comes from per-run data directories, never from schemas or shared clusters. No assertion may be weakened or deleted to make a file compile; each file's proof intent is preserved at equivalent strength or the file's owning behavior is recorded as no-longer-existing with the superseding proof named.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/**",
+      "src/frontend/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-141-1",
+        "text": "No file under src/backend/handshake_core/tests/ references sqlx, PostgreSQL, psql, PG DSN env vars, SQLite, or PL/pgSQL language, except deliberate forbidden-technology tripwires whose purpose is detection."
+      },
+      {
+        "id": "AC-141-2",
+        "text": "Every retained test compiles and its proof intent is preserved at equivalent strength against the embedded store; every retired test names the superseding proof or the removed behavior it covered."
+      },
+      {
+        "id": "AC-141-3",
+        "text": "Durability-class tests (process ledger, session checkpoint, CRDT persistence, EventLedger) prove behavior across a real store close-and-reopen, not against mocks."
+      },
+      {
+        "id": "AC-141-4",
+        "text": "The backend test suite runs green on the pinned toolchain with per-run HANDSHAKE_DATA_DIR isolation and no shared-store contention between binaries."
+      }
+    ],
+    "proof_targets": [
+      "PT-141-1: repo-wide scan proving zero PG/SQLite language under the backend test tree (tripwire exceptions enumerated).",
+      "PT-141-2: full backend test-suite run results on the pinned toolchain, per-binary, with zero failures and a nonzero executed count per binary.",
+      "PT-141-3: a disposition table mapping every retired test to its superseding proof."
+    ],
+    "risk_if_missed": "The backend test tree stays permanently red, no backend behavior change can be proven, and forbidden PostgreSQL language survives across ~190 proof files."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": ["trace_projection_or_runtime_evidence"],
+    "not_applicable_reason": "Backend test-harness port with no operator-visible surface."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure test-harness change: no product behavior, tool, command, IPC channel, config key, or navigation path changes."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STORAGE_PORT_V1",
+    "risks": [
+      "Deleting failing tests instead of porting them silently removes proof coverage across the whole backend (AC-141-2's disposition table exists to catch this).",
+      "In-memory or mock stores would make durability tests tautological; AC-141-3 requires real close-and-reopen.",
+      "A bulk mechanical port can invert assertion polarity or drop negative-path checks unnoticed."
+    ],
+    "minimum_controls": [
+      "Every ported durability proof touches a real embedded SurrealDB store, never a mock.",
+      "Every retirement names its superseding proof in PT-141-3.",
+      "Suite results must show a nonzero executed count per binary so 0-test greens are never counted as coverage."
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (test-harness port); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005.",
+    "STOP": "The suite may not be made green by narrowing, ignoring, or deleting assertions; closures are ports, equivalently-strong replacements, or typed retirements with named successors."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

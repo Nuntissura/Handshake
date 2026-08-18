@@ -31,14 +31,16 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-116"
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260818-130753",
+    "claimed_at_utc": "2026-08-18T15:40:00Z",
+    "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. The rate-limited prior session had already implemented the recorded correct-fix direction (per-row chip_row_spans in inline_view.rs + per-row pill/label painting in rich_editor_widget.rs, union rect preserved for pointer/AccessKit activation) and hardened the measurement harness; that work was preserved in checkpoint commit b1c9ae72. GREEN GPU proof run 2026-08-18: all 3 scenarios WRAPPED_LABEL_MATCHES_PILL_INSIDE_COLUMN (log Handshake_Artifacts/handshake-test/wp012-mt124-green-run.log), frames opened and described. RED-with-fix-disabled guard proof and pinned-toolchain rerun pending before READY_FOR_VALIDATION_V4.",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Found and MEASURED while proving MT-116 PT-116-1 on 2026-08-12. It is a DIFFERENT defect from the one MT-116 fixed (spec-size vs paint-size mismatch), it is not covered by the MT-116 pixel guard, and fixing it would have been an unscoped product change. Deferred here per the Operator standing rule rather than absorbed or lost.",

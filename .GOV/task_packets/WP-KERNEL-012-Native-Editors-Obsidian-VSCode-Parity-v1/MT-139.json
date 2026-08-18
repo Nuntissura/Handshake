@@ -46,6 +46,13 @@
       "reading": "The directive removes all PostgreSQL DEPENDENCY - runtime, driver, connection, and code paths. The migrations/ corpus is none of those: it is compile-time DDL text that storage/surreal/schema.rs hash-verifies to prove the generated SurrealQL covers every source table. Nothing in it is executed, connected to, or read at runtime.",
       "sequencing": "This microtask CANNOT run first. The corpus is currently the SOURCE the schema is being transcribed FROM - coverage went 121 -> 187 tables by embedding 40 more of those files, and 84 tables remain to transcribe. Severing the source while still transcribing from it would destroy both the remaining work and the completeness proof. So the corpus stays until the port is complete, and this microtask then decides its end state: either keep the hash chain and document why .sql files legitimately remain after PostgreSQL is gone, or sever it and replace the source-forward proof with an equivalent that does not depend on PostgreSQL DDL.",
       "status_effect": "Remains READY_FOR_DEV, gated behind schema completion rather than behind a decision."
+    },
+    "operator_decision_2026_08_18_sever": {
+      "decision": "SEVER",
+      "basis": "OPERATOR DECISION 2026-08-18, verbatim instruction: \"we also moved to surrealdb and are transfering all code and langua to surrealdb, sqlite and postgresql dependency and language is forbidden\" and \"remove any postgresql or sql lite mentions inside the user manual or inside the codebase and make SurrealDB the handshake native integrated DB\". PostgreSQL DDL text under src/ is PostgreSQL LANGUAGE and is therefore forbidden; the retain option is closed. AC-139-1 is SATISFIED: the recorded decision is to sever the migrations provenance corpus once the port lanes complete, replacing the source-forward hash chain with an equivalent self-contained coverage proof that is not weaker (AC-139-3), per the sequencing note in this contract (the corpus stays only until transcription is complete).",
+      "recorded_by": "KERNEL_BUILDER-20260818-130753",
+      "at_utc": "2026-08-18T14:05:00Z",
+      "effect": "Implementation may begin after MT-136/MT-137/MT-138 reach zero-sqlx compile-clean state, because the corpus is the transcription source and completeness reference until then."
     }
   },
   "scope": {

@@ -31,15 +31,17 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-136"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260818-130753",
+    "claimed_at_utc": "2026-08-18T13:45:00Z",
+    "claim_note_2026_08_18": "Claimed in parallel with MT-136/MT-138 under Operator directive 2026-08-18. The MT-136 dependency is satisfied at the seam level: SurrealDataContext now exposes bound queries, delete, create_if_absent, execute_returning and single-statement transactions, and schema.surql covers 270 tables including the user_manual_*/knowledge_ingestion_*/knowledge_agent_* tables this MT was blocked on. Scope extension recorded: the remaining sqlx consumers in dependency_policy/, diagnostics/, distillation/, loom_ai/, knowledge_code_index/, knowledge_memory/ (module), knowledge_retrieval/ (module), knowledge_wiki/, and workflows.rs are ported under this MT as directly-related backend-infrastructure work so no sqlx consumer is left unowned.",
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "progress_2026_08_16": {
       "by": "KERNEL_BUILDER-20260815-173127",

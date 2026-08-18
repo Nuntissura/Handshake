@@ -1,0 +1,114 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-140",
+  "title": "B13-MT-140-Purge-PostgreSQL-Language-And-Dead-Fixture-Calls-From-The-Frontend-Test-Suite",
+  "group": "B13",
+  "created_at_utc": "2026-08-18T15:20:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-140.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": ["MT-108"],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator directive that no PostgreSQL or SQLite dependency OR LANGUAGE may remain in tests and checks. Measured during MT-128 implementation: the pg_proof_support fixture conversion REMOVED run_fixture_sql, leaving hard-broken call sites in test_stage_interop.rs (6), test_calendar_interop.rs (6), and test_flight_recorder_authz.rs (1) — those binaries cannot compile. Beyond the compile breaks, ~80 frontend test files still carry PostgreSQL/psql/PG-DSN language in comments, helper names, env-var lists, and gated-row wording, and the shared fixture directory itself is named pg_proof_support. test_e7_swarm_edit_proof.rs was already fully ported under MT-128 (its own scope) and is the reference conversion."
+  },
+  "scope": {
+    "summary": "Port the remaining frontend test-suite PostgreSQL verification to embedded-SurrealDB-era patterns and purge PostgreSQL/SQLite language from the frontend test tree. CROSS-FILE NOTE: renaming the MT-074 test mt074-op01-save-persists-exact-embed-provenance-in-postgresql must also update the comment referencing it at src/frontend/handshake_native/src/app.rs:755 (that one comment edit is authorized same-change scope). The reference conversion is test_e7_swarm_edit_proof.rs as ported under MT-128: live-phase row verification goes through product HTTP APIs (documents load, /workspaces list, /workspaces/{id}/loom/blocks/{block}/backlinks, /kernel/events/aggregates/{type}/{id}, credentialed /events); crash-path verification becomes containment observation (the per-run embedded store under a fixture-owned runtime root cannot leak into other runs); shared-cluster sweeps are retired as out-of-band ledger mutation. The pg_proof_support directory is renamed to a database-neutral name (e.g. proof_support or backend_proof_support) with all module references updated across every consuming binary in one change.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/src/**",
+      "src/backend/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-140-1",
+        "text": "Every former run_fixture_sql call site is ported to a product-API or containment-observation proof of EQUIVALENT strength (no assertion is weakened or deleted to make a binary compile), and every affected binary compiles."
+      },
+      {
+        "id": "AC-140-2",
+        "text": "No file under src/frontend/handshake_native/tests/ contains PostgreSQL, psql, SQLite, PG-DSN, or PL/pgSQL language — identifiers, env-var names, comments, log strings, or module names — except where a string is a deliberate forbidden-technology tripwire whose purpose is detection."
+      },
+      {
+        "id": "AC-140-3",
+        "text": "The pg_proof_support module is renamed database-neutrally and every consuming binary's imports are updated in the same change; git history preserves the rename."
+      },
+      {
+        "id": "AC-140-4",
+        "text": "The ported binaries' previously-passing tests still pass on the pinned toolchain (run per binary with --test-threads=1 and the sweep run-configuration lessons from MT-108/MT-127: HANDSHAKE_GPU_SCREENSHOT=1 where pixel rows exist, per-binary scoped HANDSHAKE_DATA_DIR isolation)."
+      }
+    ],
+    "proof_targets": [
+      "PT-140-1: repo-wide scan output proving zero PostgreSQL/SQLite language matches under the frontend test tree (tripwire exceptions enumerated).",
+      "PT-140-2: per-binary test results for test_stage_interop, test_calendar_interop, test_flight_recorder_authz and every other touched binary, green on the pinned toolchain.",
+      "PT-140-3: a diff summary mapping each former run_fixture_sql site to its replacement proof and stating why the replacement is not weaker."
+    ],
+    "risk_if_missed": "Broken binaries silently hold AC-108-3 red; forbidden PostgreSQL language survives in the proof surface the Operator ordered purged; and the next implementer re-diagnoses the removed fixture method from scratch."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": ["trace_projection_or_runtime_evidence"],
+    "not_applicable_reason": "Test-harness port; the UI surfaces these tests exercise are owned and proven by their own microtasks."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure test-harness change: no product behavior, tool, command, IPC channel, config key, or navigation path changes."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STORAGE_PORT_V1",
+    "risks": [
+      "A port that replaces an exact-row SQL assertion with a weaker HTTP existence check silently reduces proof strength (AC-140-1 exists to catch this).",
+      "A blanket find/replace of the module name could corrupt string literals that are deliberate tripwires.",
+      "Deleting a broken call site instead of porting it converts a canonical-row proof into no proof."
+    ],
+    "minimum_controls": [
+      "Each replacement proof maps 1:1 to the SQL predicate it replaces and is recorded in PT-140-3.",
+      "Tripwire strings that hunt forbidden technology are preserved and enumerated.",
+      "No assertion may be deleted without a recorded equivalent."
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (test-harness port, no product business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

@@ -31,13 +31,15 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260818-130753",
+    "claimed_at_utc": "2026-08-18T13:30:00Z",
+    "claim_note_2026_08_18": "Claimed under Operator directive 2026-08-18: complete every READY_FOR_DEV MT and MT-108, SurrealDB is the only database, PostgreSQL/SQLite dependency AND language forbidden. Prior session's in-flight port work was preserved as WIP checkpoint commit b1c9ae72 on feat/WP-KERNEL-012 and pushed to the GitHub backup branch before implementation resumed.",
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "progress_2026_08_16": {
       "by": "KERNEL_BUILDER-20260815-173127",
