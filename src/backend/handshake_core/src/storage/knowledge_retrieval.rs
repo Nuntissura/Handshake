@@ -18,6 +18,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
+
+use super::surreal::{SurrealStorage, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_retrieval::plan::{QueryPlan, RetrievalTrace};
 use crate::storage::knowledge::{
@@ -25,8 +28,34 @@ use crate::storage::knowledge::{
     KnowledgeContextBundleItem, KnowledgePassageEvidenceRef, KnowledgeRetrievalMode,
     KnowledgeRetrievalTrace, KnowledgeStore, NewKnowledgeRetrievalTrace,
 };
-use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError, StorageResult};
+
+const KERNEL_EVENT_LEDGER_TABLE: &str = "kernel_event_ledger";
+const WORKSPACES_TABLE: &str = "workspaces";
+
+fn map_err(error: SurrealStorageError) -> StorageError {
+    StorageError::Database(error.to_string())
+}
+
+/// The plain id behind a record link.
+///
+/// Foreign keys in the embedded store are `record<table>` links, not opaque
+/// strings, so the string form every public struct here exposes has to be
+/// recovered from the key rather than from `Display` (which renders SurrealQL
+/// and would quote the value).
+fn record_key(record_id: RecordId, reason: &'static str) -> StorageResult<String> {
+    let RecordIdKey::String(key) = record_id.key else {
+        return Err(StorageError::Conflict(reason));
+    };
+    Ok(key)
+}
+
+fn optional_record_key(
+    record_id: Option<RecordId>,
+    reason: &'static str,
+) -> StorageResult<Option<String>> {
+    record_id.map(|id| record_key(id, reason)).transpose()
+}
 
 /// Reconstructed bundle replay: the persisted bundle and item rows, the
 /// original typed QueryPlan/RetrievalTrace from decisions JSONB, resolved
@@ -91,7 +120,9 @@ pub fn storage_mode_of(plan: &QueryPlan) -> StorageResult<KnowledgeRetrievalMode
 ///   (the FK is `ON DELETE SET NULL`).
 /// * `trace_receipt_event_id` — the EventLedger receipt for this retrieval.
 pub async fn record_retrieval_trace(
-    db: &PostgresDatabase,
+    store: &dyn KnowledgeStore,
+    ledger: &dyn Database,
+    storage: &SurrealStorage,
     workspace_id: &str,
     plan: &QueryPlan,
     trace: &RetrievalTrace,
@@ -111,7 +142,7 @@ pub async fn record_retrieval_trace(
         decisions: trace.to_decisions_json(plan),
         trace_receipt_event_id,
     };
-    let stored_trace = db.record_knowledge_retrieval_trace(new).await?;
+    let stored_trace = store.record_knowledge_retrieval_trace(new).await?;
     if stored_trace.trace_receipt_event_id.is_some() {
         return Ok(stored_trace);
     }
@@ -119,7 +150,7 @@ pub async fn record_retrieval_trace(
     let Some(bundle_id) = stored_trace.bundle_id.as_deref() else {
         return Ok(stored_trace);
     };
-    let (bundle, _) = db
+    let (bundle, _) = store
         .get_knowledge_context_bundle(bundle_id)
         .await?
         .ok_or(StorageError::NotFound("knowledge context bundle"))?;
@@ -142,18 +173,31 @@ pub async fn record_retrieval_trace(
     }))
     .build()
     .map_err(|_| StorageError::Validation("knowledge retrieval trace receipt event is invalid"))?;
-    let receipt = db.append_kernel_event(event).await?;
-    sqlx::query(
-        r#"
-        UPDATE knowledge_retrieval_traces
-        SET trace_receipt_event_id = $1
-        WHERE trace_id = $2
-        "#,
-    )
-    .bind(&receipt.event_id)
-    .bind(&stored_trace.trace_id)
-    .execute(db.pool())
-    .await?;
+    let receipt = ledger.append_kernel_event(event).await?;
+    // `RETURN AFTER` is how the embedded store reports affected rows: a trace id
+    // that no longer resolves yields zero returned rows instead of silently
+    // succeeding, which is the same lost-row signal the relational UPDATE gave.
+    let bindings = BindTraceReceipt {
+        receipt: RecordId::new(KERNEL_EVENT_LEDGER_TABLE, receipt.event_id.as_str()),
+        trace_id: stored_trace.trace_id.clone(),
+    };
+    let affected = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .execute_returning(
+                        "UPDATE knowledge_retrieval_traces SET trace_receipt_event_id = $receipt \
+                         WHERE trace_id = $trace_id RETURN AFTER;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    if affected != 1 {
+        return Err(StorageError::NotFound("knowledge retrieval trace"));
+    }
 
     Ok(KnowledgeRetrievalTrace {
         trace_receipt_event_id: Some(receipt.event_id),
@@ -161,21 +205,84 @@ pub async fn record_retrieval_trace(
     })
 }
 
+#[derive(SurrealValue)]
+struct BindTraceReceipt {
+    receipt: RecordId,
+    trace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct BindTraceId {
+    trace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct BindEventId {
+    event_id: String,
+}
+
+/// The stored `knowledge_retrieval_traces` projection.
+///
+/// `workspace_id`, `bundle_id` and `trace_receipt_event_id` are record links in
+/// the embedded store (`ASSERT record::exists`), so the foreign-key guarantee
+/// PostgreSQL enforced is still enforced here; the public
+/// [`KnowledgeRetrievalTrace`] keeps its string shape and is rebuilt from the
+/// link keys.
+#[derive(SurrealValue)]
+struct RetrievalTraceRecord {
+    trace_id: String,
+    workspace_id: RecordId,
+    retrieval_mode: String,
+    mode_reason: String,
+    query_text: Option<String>,
+    bundle_id: Option<RecordId>,
+    decisions: Value,
+    trace_receipt_event_id: Option<RecordId>,
+    created_at: Datetime,
+}
+
+impl RetrievalTraceRecord {
+    fn into_trace(self) -> StorageResult<KnowledgeRetrievalTrace> {
+        Ok(KnowledgeRetrievalTrace {
+            trace_id: self.trace_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "knowledge retrieval trace workspace link is not a string key",
+            )?,
+            retrieval_mode: self.retrieval_mode.parse()?,
+            mode_reason: self.mode_reason,
+            query_text: self.query_text,
+            bundle_id: optional_record_key(
+                self.bundle_id,
+                "knowledge retrieval trace bundle link is not a string key",
+            )?,
+            decisions: self.decisions,
+            trace_receipt_event_id: optional_record_key(
+                self.trace_receipt_event_id,
+                "knowledge retrieval trace receipt link is not a string key",
+            )?,
+            created_at: self.created_at.into_inner(),
+        })
+    }
+}
+
 /// Load every trace bound to a bundle (replay entry point for the debug API).
 /// Thin pass-through to the committed store so the retrieval group has one
 /// import surface for its reads.
 pub async fn traces_for_bundle(
-    db: &PostgresDatabase,
+    store: &dyn KnowledgeStore,
     bundle_id: &str,
 ) -> StorageResult<Vec<KnowledgeRetrievalTrace>> {
-    db.list_knowledge_retrieval_traces_for_bundle(bundle_id)
+    store
+        .list_knowledge_retrieval_traces_for_bundle(bundle_id)
         .await
 }
 
 /// Reconstruct a persisted context bundle from a trace id, proving the durable
 /// row is replayable from durable authority rather than only display JSON.
 pub async fn replay_context_bundle_from_trace(
-    db: &PostgresDatabase,
+    store: &dyn KnowledgeStore,
+    storage: &SurrealStorage,
     trace_id: &str,
 ) -> StorageResult<ReplayedContextBundle> {
     if trace_id.trim() != trace_id || trace_id.is_empty() {
@@ -184,11 +291,11 @@ pub async fn replay_context_bundle_from_trace(
         ));
     }
 
-    let trace = get_trace_by_id(db, trace_id).await?;
+    let trace = get_trace_by_id(storage, trace_id).await?;
     let bundle_id = trace.bundle_id.as_deref().ok_or(StorageError::Validation(
         "knowledge retrieval trace is not bound to a context bundle",
     ))?;
-    let (bundle, items) = db
+    let (bundle, items) = store
         .get_knowledge_context_bundle(bundle_id)
         .await?
         .ok_or(StorageError::NotFound("knowledge context bundle"))?;
@@ -273,7 +380,7 @@ pub async fn replay_context_bundle_from_trace(
         ));
     }
 
-    let evidence = replay_evidence_for_items(db, &bundle.workspace_id, &items).await?;
+    let evidence = replay_evidence_for_items(store, &bundle.workspace_id, &items).await?;
     let mut receipt_events = Vec::new();
     let build_receipt_event_id =
         bundle
@@ -284,7 +391,7 @@ pub async fn replay_context_bundle_from_trace(
             ))?;
     receipt_events.push(
         get_receipt_event(
-            db,
+            storage,
             build_receipt_event_id,
             KernelEventType::ContextBundleRecorded,
             "context_bundle",
@@ -303,7 +410,7 @@ pub async fn replay_context_bundle_from_trace(
             ))?;
     receipt_events.push(
         get_receipt_event(
-            db,
+            storage,
             trace_receipt_event_id,
             KernelEventType::KnowledgeRetrievalTraceRecorded,
             "knowledge_retrieval_trace",
@@ -325,37 +432,34 @@ pub async fn replay_context_bundle_from_trace(
 }
 
 async fn get_trace_by_id(
-    db: &PostgresDatabase,
+    storage: &SurrealStorage,
     trace_id: &str,
 ) -> StorageResult<KnowledgeRetrievalTrace> {
-    let row = sqlx::query(
-        r#"
-        SELECT trace_id, workspace_id, retrieval_mode, mode_reason, query_text,
-               bundle_id, decisions, trace_receipt_event_id, created_at
-        FROM knowledge_retrieval_traces
-        WHERE trace_id = $1
-        "#,
-    )
-    .bind(trace_id)
-    .fetch_optional(db.pool())
-    .await?
-    .ok_or(StorageError::NotFound("knowledge retrieval trace"))?;
-
-    Ok(KnowledgeRetrievalTrace {
-        trace_id: row.get("trace_id"),
-        workspace_id: row.get("workspace_id"),
-        retrieval_mode: row.get::<String, _>("retrieval_mode").parse()?,
-        mode_reason: row.get("mode_reason"),
-        query_text: row.get("query_text"),
-        bundle_id: row.get("bundle_id"),
-        decisions: row.get("decisions"),
-        trace_receipt_event_id: row.get("trace_receipt_event_id"),
-        created_at: row.get("created_at"),
-    })
+    let bindings = BindTraceId {
+        trace_id: trace_id.to_owned(),
+    };
+    let record: Option<RetrievalTraceRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT trace_id, workspace_id, retrieval_mode, mode_reason, query_text, \
+                         bundle_id, decisions, trace_receipt_event_id, created_at \
+                         FROM knowledge_retrieval_traces WHERE trace_id = $trace_id;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    record
+        .ok_or(StorageError::NotFound("knowledge retrieval trace"))?
+        .into_trace()
 }
 
 async fn replay_evidence_for_items(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     items: &[KnowledgeContextBundleItem],
 ) -> StorageResult<Vec<ReplayedBundleEvidence>> {
@@ -399,7 +503,7 @@ async fn replay_evidence_for_items(
 }
 
 async fn replay_span_evidence(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     item: &KnowledgeContextBundleItem,
     span_id: &str,
@@ -432,7 +536,7 @@ async fn replay_span_evidence(
 }
 
 async fn replay_source_evidence(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     item: &KnowledgeContextBundleItem,
     source_id: &str,
@@ -461,7 +565,7 @@ async fn replay_source_evidence(
 }
 
 async fn replay_passage_evidence(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     item: &KnowledgeContextBundleItem,
 ) -> StorageResult<ReplayedBundleEvidence> {
@@ -479,7 +583,7 @@ async fn replay_passage_evidence(
 }
 
 async fn replay_entity_evidence(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     item: &KnowledgeContextBundleItem,
 ) -> StorageResult<ReplayedBundleEvidence> {
@@ -518,7 +622,7 @@ async fn replay_entity_evidence(
 }
 
 async fn replay_claim_evidence(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     item: &KnowledgeContextBundleItem,
 ) -> StorageResult<ReplayedBundleEvidence> {
@@ -541,7 +645,7 @@ async fn replay_claim_evidence(
 }
 
 async fn replay_first_lineage_ref(
-    db: &PostgresDatabase,
+    db: &dyn KnowledgeStore,
     bundle_workspace_id: &str,
     item: &KnowledgeContextBundleItem,
     evidence_refs: Vec<KnowledgePassageEvidenceRef>,
@@ -584,8 +688,19 @@ fn bundle_ref_kind_from_candidate_kind(kind: &str) -> Option<KnowledgeBundleItem
     }
 }
 
+#[derive(SurrealValue)]
+struct ReceiptEventRecord {
+    event_id: String,
+    event_type: String,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    payload_hash: String,
+}
+
 async fn get_receipt_event(
-    db: &PostgresDatabase,
+    storage: &SurrealStorage,
     event_id: &str,
     expected_event_type: KernelEventType,
     expected_aggregate_type: &str,
@@ -593,24 +708,31 @@ async fn get_receipt_event(
     expected_kernel_task_run_id: &str,
     expected_session_run_id: &str,
 ) -> StorageResult<ReplayReceiptEvent> {
-    let row = sqlx::query(
-        r#"
-        SELECT event_id, event_type, kernel_task_run_id, session_run_id,
-               aggregate_type, aggregate_id, payload_hash
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-        "#,
-    )
-    .bind(event_id)
-    .fetch_optional(db.pool())
-    .await?
-    .ok_or(StorageError::NotFound("kernel event receipt"))?;
+    let bindings = BindEventId {
+        event_id: event_id.to_owned(),
+    };
+    let row: Option<ReceiptEventRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT event_id, event_type, kernel_task_run_id, session_run_id, \
+                         aggregate_type, aggregate_id, payload_hash FROM kernel_event_ledger \
+                         WHERE event_id = $event_id;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    let row = row.ok_or(StorageError::NotFound("kernel event receipt"))?;
 
-    let event_type: String = row.get("event_type");
-    let kernel_task_run_id: String = row.get("kernel_task_run_id");
-    let session_run_id: String = row.get("session_run_id");
-    let aggregate_type: String = row.get("aggregate_type");
-    let aggregate_id: String = row.get("aggregate_id");
+    let event_type: String = row.event_type;
+    let kernel_task_run_id: String = row.kernel_task_run_id;
+    let session_run_id: String = row.session_run_id;
+    let aggregate_type: String = row.aggregate_type;
+    let aggregate_id: String = row.aggregate_id;
     if event_type != expected_event_type.as_str() {
         return Err(StorageError::Validation(
             "kernel event receipt event_type does not match replay expectation",
@@ -635,13 +757,13 @@ async fn get_receipt_event(
     }
 
     Ok(ReplayReceiptEvent {
-        event_id: row.get("event_id"),
+        event_id: row.event_id,
         event_type,
         kernel_task_run_id,
         session_run_id,
         aggregate_type,
         aggregate_id,
-        payload_hash: row.get("payload_hash"),
+        payload_hash: row.payload_hash,
     })
 }
 
@@ -653,7 +775,6 @@ async fn get_receipt_event(
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 /// The kind of catalog entry (spec SemanticCatalogEntry.kind).
@@ -719,28 +840,85 @@ pub struct NewSemanticCatalogEntry {
     pub examples: Value,
 }
 
-fn catalog_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<SemanticCatalogEntry> {
-    Ok(SemanticCatalogEntry {
-        entry_id: row.get("entry_id"),
-        workspace_id: row.get("workspace_id"),
-        entry_kind: SemanticCatalogKind::from_db(row.get::<String, _>("entry_kind").as_str())?,
-        name: row.get("name"),
-        version: row.get("version"),
-        description: row.get("description"),
-        query_routes: serde_json::from_value(row.get("query_routes"))
-            .map_err(|_| StorageError::Validation("invalid query_routes json"))?,
-        supported_selectors: serde_json::from_value(row.get("supported_selectors"))
-            .map_err(|_| StorageError::Validation("invalid supported_selectors json"))?,
-        default_budgets: row.get("default_budgets"),
-        examples: row.get("examples"),
-        lifecycle_state: row.get("lifecycle_state"),
-    })
+/// The stored `knowledge_semantic_catalog_entries` projection.
+///
+/// `query_routes` / `supported_selectors` are `array<string>` in the embedded
+/// schema, so they no longer travel as JSON text that has to be re-parsed on
+/// every read; the store now types them.
+#[derive(SurrealValue)]
+struct SemanticCatalogRecord {
+    entry_id: String,
+    workspace_id: RecordId,
+    entry_kind: String,
+    name: String,
+    version: i64,
+    description: String,
+    query_routes: Vec<String>,
+    supported_selectors: Vec<String>,
+    default_budgets: Option<Value>,
+    examples: Value,
+    lifecycle_state: String,
+}
+
+impl SemanticCatalogRecord {
+    fn into_entry(self) -> StorageResult<SemanticCatalogEntry> {
+        Ok(SemanticCatalogEntry {
+            entry_id: self.entry_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "semantic catalog workspace link is not a string key",
+            )?,
+            entry_kind: SemanticCatalogKind::from_db(self.entry_kind.as_str())?,
+            name: self.name,
+            version: i32::try_from(self.version)
+                .map_err(|_| StorageError::Validation("semantic catalog version is out of range"))?,
+            description: self.description,
+            query_routes: self.query_routes,
+            supported_selectors: self.supported_selectors,
+            default_budgets: self.default_budgets,
+            examples: self.examples,
+            lifecycle_state: self.lifecycle_state,
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct CatalogUpsertBindings {
+    entry_id: String,
+    workspace: RecordId,
+    entry_kind: String,
+    name: String,
+    version: i64,
+    description: String,
+    query_routes: Vec<String>,
+    supported_selectors: Vec<String>,
+    default_budgets: Option<Value>,
+    examples: Value,
+}
+
+#[derive(SurrealValue)]
+struct CatalogLookupBindings {
+    workspace: RecordId,
+    name: String,
+}
+
+#[derive(SurrealValue)]
+struct CatalogListBindings {
+    workspace: RecordId,
+    limit: i64,
 }
 
 /// Upsert a catalog entry (by workspace+name+version). Routing contracts are
 /// authoritative and must be queryable, not prompt-only (folded stub intent).
+///
+/// The `ON CONFLICT (workspace_id, name, version) DO UPDATE` of the relational
+/// original becomes ONE statement whose existence test and write cannot be
+/// interleaved, so two callers racing on the same natural key still converge on
+/// a single row rather than both minting an `entry_id`. The natural key is
+/// backed by `idx_knowledge_semantic_catalog_name_version UNIQUE`, which is the
+/// server-side backstop exactly as the relational unique index was.
 pub async fn upsert_semantic_catalog_entry(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     new: NewSemanticCatalogEntry,
 ) -> StorageResult<SemanticCatalogEntry> {
     if new.name.trim() != new.name || new.name.is_empty() {
@@ -749,91 +927,119 @@ pub async fn upsert_semantic_catalog_entry(
         ));
     }
     let entry_id = format!("KSC-{}", Uuid::now_v7().simple());
-    let routes = serde_json::to_value(&new.query_routes)
-        .map_err(|_| StorageError::Validation("query_routes not serializable"))?;
-    let selectors = serde_json::to_value(&new.supported_selectors)
-        .map_err(|_| StorageError::Validation("supported_selectors not serializable"))?;
-    let row = sqlx::query(
-        r#"
-        INSERT INTO knowledge_semantic_catalog_entries
-            (entry_id, workspace_id, entry_kind, name, version, description,
-             query_routes, supported_selectors, default_budgets, examples)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (workspace_id, name, version) DO UPDATE SET
-            entry_kind = EXCLUDED.entry_kind,
-            description = EXCLUDED.description,
-            query_routes = EXCLUDED.query_routes,
-            supported_selectors = EXCLUDED.supported_selectors,
-            default_budgets = EXCLUDED.default_budgets,
-            examples = EXCLUDED.examples,
-            lifecycle_state = 'active',
-            last_updated_at = NOW()
-        RETURNING entry_id, workspace_id, entry_kind, name, version, description,
-                  query_routes, supported_selectors, default_budgets, examples,
-                  lifecycle_state
-        "#,
-    )
-    .bind(&entry_id)
-    .bind(&new.workspace_id)
-    .bind(new.entry_kind.as_str())
-    .bind(&new.name)
-    .bind(new.version)
-    .bind(&new.description)
-    .bind(&routes)
-    .bind(&selectors)
-    .bind(&new.default_budgets)
-    .bind(&new.examples)
-    .fetch_one(pool)
-    .await?;
-    catalog_from_row(&row)
+    let bindings = CatalogUpsertBindings {
+        entry_id,
+        workspace: RecordId::new(WORKSPACES_TABLE, new.workspace_id.as_str()),
+        entry_kind: new.entry_kind.as_str().to_owned(),
+        name: new.name.clone(),
+        version: i64::from(new.version),
+        description: new.description.clone(),
+        query_routes: new.query_routes.clone(),
+        supported_selectors: new.supported_selectors.clone(),
+        default_budgets: new.default_budgets.clone(),
+        examples: new.examples.clone(),
+    };
+    let rows: Vec<SemanticCatalogRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "IF array::len((SELECT VALUE entry_id FROM \
+                         knowledge_semantic_catalog_entries WHERE workspace_id = $workspace \
+                         AND name = $name AND version = $version)) = 0 { \
+                           CREATE type::thing('knowledge_semantic_catalog_entries', $entry_id) \
+                           CONTENT { entry_id: $entry_id, workspace_id: $workspace, \
+                             entry_kind: $entry_kind, name: $name, version: $version, \
+                             description: $description, query_routes: $query_routes, \
+                             supported_selectors: $supported_selectors, \
+                             default_budgets: $default_budgets, examples: $examples, \
+                             lifecycle_state: 'active' } \
+                         } ELSE { \
+                           UPDATE knowledge_semantic_catalog_entries SET \
+                             entry_kind = $entry_kind, description = $description, \
+                             query_routes = $query_routes, \
+                             supported_selectors = $supported_selectors, \
+                             default_budgets = $default_budgets, examples = $examples, \
+                             lifecycle_state = 'active', last_updated_at = time::now() \
+                           WHERE workspace_id = $workspace AND name = $name \
+                             AND version = $version RETURN AFTER \
+                         };",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "semantic catalog upsert produced no row".to_owned(),
+        ))?
+        .into_entry()
 }
 
 /// Resolve a catalog entry by name (highest active version). Returns the backend
 /// routing contract the planner uses to choose a route deterministically.
 pub async fn resolve_semantic_catalog_entry(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     name: &str,
 ) -> StorageResult<Option<SemanticCatalogEntry>> {
-    let row = sqlx::query(
-        r#"
-        SELECT entry_id, workspace_id, entry_kind, name, version, description,
-               query_routes, supported_selectors, default_budgets, examples,
-               lifecycle_state
-        FROM knowledge_semantic_catalog_entries
-        WHERE workspace_id = $1 AND name = $2 AND lifecycle_state = 'active'
-        ORDER BY version DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(name)
-    .fetch_optional(pool)
-    .await?;
-    row.as_ref().map(catalog_from_row).transpose()
+    let bindings = CatalogLookupBindings {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        name: name.to_owned(),
+    };
+    let record: Option<SemanticCatalogRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT entry_id, workspace_id, entry_kind, name, version, description, \
+                         query_routes, supported_selectors, default_budgets, examples, \
+                         lifecycle_state FROM knowledge_semantic_catalog_entries \
+                         WHERE workspace_id = $workspace AND name = $name \
+                         AND lifecycle_state = 'active' ORDER BY version DESC LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    record.map(SemanticCatalogRecord::into_entry).transpose()
 }
 
 /// List active catalog entries for a workspace (bounded), for the debug API and
 /// the planner's route resolution.
 pub async fn list_semantic_catalog_entries(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<Vec<SemanticCatalogEntry>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT entry_id, workspace_id, entry_kind, name, version, description,
-               query_routes, supported_selectors, default_budgets, examples,
-               lifecycle_state
-        FROM knowledge_semantic_catalog_entries
-        WHERE workspace_id = $1 AND lifecycle_state = 'active'
-        ORDER BY name ASC, version DESC
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit)
-    .fetch_all(pool)
-    .await?;
-    rows.iter().map(catalog_from_row).collect()
+    let bindings = CatalogListBindings {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        limit,
+    };
+    let records: Vec<SemanticCatalogRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT entry_id, workspace_id, entry_kind, name, version, description, \
+                         query_routes, supported_selectors, default_budgets, examples, \
+                         lifecycle_state FROM knowledge_semantic_catalog_entries \
+                         WHERE workspace_id = $workspace AND lifecycle_state = 'active' \
+                         ORDER BY name ASC, version DESC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .map(SemanticCatalogRecord::into_entry)
+        .collect()
 }

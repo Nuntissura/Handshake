@@ -17,27 +17,77 @@
 //! evidence-span requirement, transition guard (0200), and conflict machinery
 //! all hold for every memory fact for free.
 //!
-//! Pattern follows `storage/knowledge_crdt.rs`: free async functions over
-//! `&sqlx::PgPool` rather than widening the legacy `Database` trait. There is
-//! NO in-memory, SQLite, or fixture fallback: without the durable store every
-//! function fails closed with a typed `StorageError`.
+//! Pattern follows `storage/knowledge_crdt.rs`: free async functions over the
+//! embedded SurrealDB store (`&SurrealStorage`) rather than widening the legacy
+//! `Database` trait. There is NO in-memory, SQLite, or fixture fallback:
+//! without the durable store every function fails closed with a typed
+//! `StorageError`.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the functions below still
-//! take a `sqlx` pool from the deleted relational backend, so this module does
-//! not compile today. Handshake's only database is the embedded SurrealDB store.
+//! WP-KERNEL-012 MT-136 note on foreign keys: every id that PostgreSQL held as
+//! an FK column is a RECORD LINK here (`record<table>` with
+//! `ASSERT record::exists($value)`), so a fact that cites a missing claim,
+//! entity or ontology term is rejected by the store exactly as the relational
+//! FK rejected it. The public structs keep their `String` shape; the link keys
+//! are unwrapped on read and rebuilt on write.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{PgPool, Row};
+use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 use uuid::Uuid;
 
+use super::surreal::{SurrealStorage, SurrealStorageError};
 use super::{StorageError, StorageResult};
+
+const WORKSPACES_TABLE: &str = "workspaces";
+const ONTOLOGY_TERMS_TABLE: &str = "knowledge_memory_ontology_terms";
+const CLAIMS_TABLE: &str = "knowledge_claims";
+const ENTITIES_TABLE: &str = "knowledge_entities";
+const INDEX_RUNS_TABLE: &str = "knowledge_index_runs";
+const KERNEL_EVENT_LEDGER_TABLE: &str = "kernel_event_ledger";
+const CLAIM_CONFLICTS_TABLE: &str = "knowledge_claim_conflicts";
+const DETECTION_JOBS_TABLE: &str = "knowledge_memory_conflict_detection_jobs";
+const SPANS_TABLE: &str = "knowledge_spans";
+const EDGES_TABLE: &str = "knowledge_edges";
 
 /// Mint a `<PREFIX>-<32 hex>` id matching the `knowledge_memory_*` CHECKs.
 /// Uuidv7 is time-ordered; `.simple()` is exactly 32 lowercase hex chars.
 fn new_memory_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::now_v7().simple())
+}
+
+fn map_err(error: SurrealStorageError) -> StorageError {
+    StorageError::Database(error.to_string())
+}
+
+/// The plain id behind a record link.
+///
+/// `RecordIdKey` has no `Display` that yields a bare id (its SurrealQL
+/// rendering would quote the value), so the key is destructured instead.
+fn record_key(record_id: RecordId, reason: &'static str) -> StorageResult<String> {
+    let RecordIdKey::String(key) = record_id.key else {
+        return Err(StorageError::Conflict(reason));
+    };
+    Ok(key)
+}
+
+fn optional_record_key(
+    record_id: Option<RecordId>,
+    reason: &'static str,
+) -> StorageResult<Option<String>> {
+    record_id.map(|id| record_key(id, reason)).transpose()
+}
+
+fn link(table: &'static str, id: &str) -> RecordId {
+    RecordId::new(table, id)
+}
+
+fn optional_link(table: &'static str, id: Option<&str>) -> Option<RecordId> {
+    id.map(|value| RecordId::new(table, value))
+}
+
+fn narrow_i32(value: i64, reason: &'static str) -> StorageResult<i32> {
+    i32::try_from(value).map_err(|_| StorageError::Validation(reason))
 }
 
 // ===========================================================================
@@ -200,41 +250,119 @@ pub struct NewMemoryOntologyTerm {
     pub seen_in_run: Option<String>,
 }
 
-const ONTOLOGY_TERM_COLUMNS: &str = r#"
-    term_id, workspace_id, term_kind, term_key, normalized_label,
-    maps_to_edge_type, maps_to_entity_kind, lifecycle_state, retirement_reason,
-    superseded_by_term_id, observation_count, promotion_threshold,
-    operator_approved, promotion_receipt_event_id, detection_provenance,
-    first_seen_in_run, last_seen_in_run, created_at, updated_at
-"#;
+/// Stored `knowledge_memory_ontology_terms` projection.
+#[derive(SurrealValue)]
+struct OntologyTermRecord {
+    term_id: String,
+    workspace_id: RecordId,
+    term_kind: String,
+    term_key: String,
+    normalized_label: String,
+    maps_to_edge_type: Option<String>,
+    maps_to_entity_kind: Option<String>,
+    lifecycle_state: String,
+    retirement_reason: Option<String>,
+    superseded_by_term_id: Option<RecordId>,
+    observation_count: i64,
+    promotion_threshold: i64,
+    operator_approved: bool,
+    promotion_receipt_event_id: Option<RecordId>,
+    detection_provenance: Value,
+    first_seen_in_run: Option<RecordId>,
+    last_seen_in_run: Option<RecordId>,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
 
-fn ontology_term_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<MemoryOntologyTerm> {
-    Ok(MemoryOntologyTerm {
-        term_id: row.get("term_id"),
-        workspace_id: row.get("workspace_id"),
-        term_kind: MemoryOntologyTermKind::from_db(row.get::<String, _>("term_kind").as_str())?,
-        term_key: row.get("term_key"),
-        normalized_label: row.get("normalized_label"),
-        maps_to_edge_type: row.get("maps_to_edge_type"),
-        maps_to_entity_kind: row.get("maps_to_entity_kind"),
-        lifecycle_state: MemoryOntologyLifecycle::from_db(
-            row.get::<String, _>("lifecycle_state").as_str(),
-        )?,
-        retirement_reason: row
-            .get::<Option<String>, _>("retirement_reason")
-            .map(|value| MemoryOntologyRetirementReason::from_db(&value))
-            .transpose()?,
-        superseded_by_term_id: row.get("superseded_by_term_id"),
-        observation_count: row.get("observation_count"),
-        promotion_threshold: row.get("promotion_threshold"),
-        operator_approved: row.get("operator_approved"),
-        promotion_receipt_event_id: row.get("promotion_receipt_event_id"),
-        detection_provenance: row.get("detection_provenance"),
-        first_seen_in_run: row.get("first_seen_in_run"),
-        last_seen_in_run: row.get("last_seen_in_run"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    })
+impl OntologyTermRecord {
+    fn into_term(self) -> StorageResult<MemoryOntologyTerm> {
+        Ok(MemoryOntologyTerm {
+            term_id: self.term_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "ontology term workspace link is not a string key",
+            )?,
+            term_kind: MemoryOntologyTermKind::from_db(self.term_kind.as_str())?,
+            term_key: self.term_key,
+            normalized_label: self.normalized_label,
+            maps_to_edge_type: self.maps_to_edge_type,
+            maps_to_entity_kind: self.maps_to_entity_kind,
+            lifecycle_state: MemoryOntologyLifecycle::from_db(self.lifecycle_state.as_str())?,
+            retirement_reason: self
+                .retirement_reason
+                .map(|value| MemoryOntologyRetirementReason::from_db(&value))
+                .transpose()?,
+            superseded_by_term_id: optional_record_key(
+                self.superseded_by_term_id,
+                "ontology term supersession link is not a string key",
+            )?,
+            observation_count: narrow_i32(
+                self.observation_count,
+                "ontology term observation_count is out of range",
+            )?,
+            promotion_threshold: narrow_i32(
+                self.promotion_threshold,
+                "ontology term promotion_threshold is out of range",
+            )?,
+            operator_approved: self.operator_approved,
+            promotion_receipt_event_id: optional_record_key(
+                self.promotion_receipt_event_id,
+                "ontology term promotion receipt link is not a string key",
+            )?,
+            detection_provenance: self.detection_provenance,
+            first_seen_in_run: optional_record_key(
+                self.first_seen_in_run,
+                "ontology term first_seen_in_run link is not a string key",
+            )?,
+            last_seen_in_run: optional_record_key(
+                self.last_seen_in_run,
+                "ontology term last_seen_in_run link is not a string key",
+            )?,
+            created_at: self.created_at.into_inner(),
+            updated_at: self.updated_at.into_inner(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct OntologyTermUpsertBindings {
+    term_id: String,
+    workspace: RecordId,
+    term_kind: String,
+    term_key: String,
+    normalized_label: String,
+    maps_to_edge_type: Option<String>,
+    maps_to_entity_kind: Option<String>,
+    promotion_threshold: i64,
+    operator_approved: bool,
+    detection_provenance: Value,
+    seen_in_run: Option<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct TermIdBindings {
+    term_id: String,
+}
+
+#[derive(SurrealValue)]
+struct TermListBindings {
+    workspace: RecordId,
+    term_kind: Option<String>,
+    lifecycle_state: Option<String>,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct TermPromoteBindings {
+    term_id: String,
+    receipt: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct TermRetireBindings {
+    term_id: String,
+    reason: String,
+    superseded_by: Option<RecordId>,
 }
 
 /// Upsert a probationary ontology term on its stable identity
@@ -242,7 +370,7 @@ fn ontology_term_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<MemoryOn
 /// observation count and refreshes provenance/last_seen, WITHOUT moving the
 /// lifecycle state (promotion is a separate receipt-backed step).
 pub async fn upsert_memory_ontology_term(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     new: NewMemoryOntologyTerm,
 ) -> StorageResult<MemoryOntologyTerm> {
     if new.maps_to_edge_type.is_some() && new.maps_to_entity_kind.is_some() {
@@ -251,83 +379,132 @@ pub async fn upsert_memory_ontology_term(
         ));
     }
     let term_id = new_memory_id("KMO");
-    let sql = format!(
-        r#"
-        INSERT INTO knowledge_memory_ontology_terms (
-            term_id, workspace_id, term_kind, term_key, normalized_label,
-            maps_to_edge_type, maps_to_entity_kind, observation_count,
-            promotion_threshold, operator_approved, detection_provenance,
-            first_seen_in_run, last_seen_in_run
-        ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, 1, $8, $9, $10, $11, $11
-        )
-        ON CONFLICT (workspace_id, term_kind, term_key) DO UPDATE SET
-            normalized_label = EXCLUDED.normalized_label,
-            observation_count = knowledge_memory_ontology_terms.observation_count + 1,
-            operator_approved =
-                knowledge_memory_ontology_terms.operator_approved OR EXCLUDED.operator_approved,
-            detection_provenance = EXCLUDED.detection_provenance,
-            last_seen_in_run = EXCLUDED.last_seen_in_run,
-            updated_at = NOW()
-        RETURNING {ONTOLOGY_TERM_COLUMNS}
-        "#
-    );
-    let row = sqlx::query(&sql)
-        .bind(&term_id)
-        .bind(&new.workspace_id)
-        .bind(new.term_kind.as_str())
-        .bind(&new.term_key)
-        .bind(&new.normalized_label)
-        .bind(&new.maps_to_edge_type)
-        .bind(&new.maps_to_entity_kind)
-        .bind(new.promotion_threshold)
-        .bind(new.operator_approved)
-        .bind(&new.detection_provenance)
-        .bind(&new.seen_in_run)
-        .fetch_one(pool)
-        .await?;
-    ontology_term_from_row(&row)
+    let bindings = OntologyTermUpsertBindings {
+        term_id,
+        workspace: link(WORKSPACES_TABLE, &new.workspace_id),
+        term_kind: new.term_kind.as_str().to_owned(),
+        term_key: new.term_key.clone(),
+        normalized_label: new.normalized_label.clone(),
+        maps_to_edge_type: new.maps_to_edge_type.clone(),
+        maps_to_entity_kind: new.maps_to_entity_kind.clone(),
+        promotion_threshold: i64::from(new.promotion_threshold),
+        operator_approved: new.operator_approved,
+        detection_provenance: new.detection_provenance.clone(),
+        seen_in_run: optional_link(INDEX_RUNS_TABLE, new.seen_in_run.as_deref()),
+    };
+    // ONE statement, so the existence test and the write cannot interleave:
+    // two runs re-deriving the same (workspace, kind, key) still converge on a
+    // single row with a single increment, which is what
+    // `ON CONFLICT ... observation_count + 1` guaranteed. Promotion state is
+    // still untouched here - only the counter, provenance and last_seen move.
+    let rows: Vec<OntologyTermRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "IF array::len((SELECT VALUE term_id FROM \
+                         knowledge_memory_ontology_terms WHERE workspace_id = $workspace \
+                         AND term_kind = $term_kind AND term_key = $term_key)) = 0 { \
+                           CREATE type::thing('knowledge_memory_ontology_terms', $term_id) \
+                           CONTENT { term_id: $term_id, workspace_id: $workspace, \
+                             term_kind: $term_kind, term_key: $term_key, \
+                             normalized_label: $normalized_label, \
+                             maps_to_edge_type: $maps_to_edge_type, \
+                             maps_to_entity_kind: $maps_to_entity_kind, \
+                             observation_count: 1, \
+                             promotion_threshold: $promotion_threshold, \
+                             operator_approved: $operator_approved, \
+                             detection_provenance: $detection_provenance, \
+                             first_seen_in_run: $seen_in_run, \
+                             last_seen_in_run: $seen_in_run } \
+                         } ELSE { \
+                           UPDATE knowledge_memory_ontology_terms SET \
+                             normalized_label = $normalized_label, \
+                             observation_count = observation_count + 1, \
+                             operator_approved = operator_approved OR $operator_approved, \
+                             detection_provenance = $detection_provenance, \
+                             last_seen_in_run = $seen_in_run, \
+                             updated_at = time::now() \
+                           WHERE workspace_id = $workspace AND term_kind = $term_kind \
+                             AND term_key = $term_key RETURN AFTER \
+                         };",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "ontology term upsert produced no row".to_owned(),
+        ))?
+        .into_term()
 }
 
 /// Fetch one ontology term by id.
 pub async fn get_memory_ontology_term(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     term_id: &str,
 ) -> StorageResult<Option<MemoryOntologyTerm>> {
-    let sql = format!(
-        "SELECT {ONTOLOGY_TERM_COLUMNS} FROM knowledge_memory_ontology_terms WHERE term_id = $1"
-    );
-    let row = sqlx::query(&sql).bind(term_id).fetch_optional(pool).await?;
-    row.as_ref().map(ontology_term_from_row).transpose()
+    let bindings = TermIdBindings {
+        term_id: term_id.to_owned(),
+    };
+    let record: Option<OntologyTermRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT * FROM knowledge_memory_ontology_terms WHERE term_id = $term_id;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    record.map(OntologyTermRecord::into_term).transpose()
 }
 
 /// List ontology terms for a workspace, optionally filtered to one kind and/or
 /// lifecycle state, newest first, bounded by `limit`.
 pub async fn list_memory_ontology_terms(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     term_kind: Option<MemoryOntologyTermKind>,
     lifecycle_state: Option<MemoryOntologyLifecycle>,
     limit: i64,
 ) -> StorageResult<Vec<MemoryOntologyTerm>> {
-    let sql = format!(
-        r#"
-        SELECT {ONTOLOGY_TERM_COLUMNS} FROM knowledge_memory_ontology_terms
-        WHERE workspace_id = $1
-          AND ($2::text IS NULL OR term_kind = $2)
-          AND ($3::text IS NULL OR lifecycle_state = $3)
-        ORDER BY created_at DESC, term_id DESC
-        LIMIT $4
-        "#
-    );
-    let rows = sqlx::query(&sql)
-        .bind(workspace_id)
-        .bind(term_kind.map(|kind| kind.as_str()))
-        .bind(lifecycle_state.map(|state| state.as_str()))
-        .bind(limit)
-        .fetch_all(pool)
-        .await?;
-    rows.iter().map(ontology_term_from_row).collect()
+    // `NONE` is the embedded store's "no filter" value, reproducing the
+    // `$2::text IS NULL OR column = $2` predicate without string assembly.
+    let bindings = TermListBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+        term_kind: term_kind.map(|kind| kind.as_str().to_owned()),
+        lifecycle_state: lifecycle_state.map(|state| state.as_str().to_owned()),
+        limit,
+    };
+    let records: Vec<OntologyTermRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT * FROM knowledge_memory_ontology_terms \
+                         WHERE workspace_id = $workspace \
+                         AND ($term_kind = NONE OR term_kind = $term_kind) \
+                         AND ($lifecycle_state = NONE OR lifecycle_state = $lifecycle_state) \
+                         ORDER BY created_at DESC, term_id DESC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .map(OntologyTermRecord::into_term)
+        .collect()
 }
 
 /// MT-119/MT-120: promote a probationary term to stable, backed by an
@@ -335,11 +512,11 @@ pub async fn list_memory_ontology_terms(
 /// its promotion gate, (`Conflict`) if it is not probationary, and the DB
 /// trigger independently refuses a stable row without a receipt.
 pub async fn promote_memory_ontology_term(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     term_id: &str,
     promotion_receipt_event_id: &str,
 ) -> StorageResult<MemoryOntologyTerm> {
-    let current = get_memory_ontology_term(pool, term_id)
+    let current = get_memory_ontology_term(storage, term_id)
         .await?
         .ok_or(StorageError::NotFound("memory ontology term"))?;
     if current.lifecycle_state != MemoryOntologyLifecycle::Probationary {
@@ -352,27 +529,40 @@ pub async fn promote_memory_ontology_term(
             "ontology term has not met its promotion threshold or operator approval",
         ));
     }
-    let sql = format!(
-        r#"
-        UPDATE knowledge_memory_ontology_terms
-           SET lifecycle_state = 'stable',
-               promotion_receipt_event_id = $2,
-               updated_at = NOW()
-         WHERE term_id = $1
-        RETURNING {ONTOLOGY_TERM_COLUMNS}
-        "#
-    );
-    let row = sqlx::query(&sql)
-        .bind(term_id)
-        .bind(promotion_receipt_event_id)
-        .fetch_one(pool)
-        .await?;
-    ontology_term_from_row(&row)
+    // The `probationary` guard is carried into the WHERE clause so a concurrent
+    // promotion cannot be applied twice; the pre-read above stays only to keep
+    // the typed Conflict/Validation errors the callers already distinguish.
+    let bindings = TermPromoteBindings {
+        term_id: term_id.to_owned(),
+        receipt: link(KERNEL_EVENT_LEDGER_TABLE, promotion_receipt_event_id),
+    };
+    let rows: Vec<OntologyTermRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "UPDATE knowledge_memory_ontology_terms SET lifecycle_state = 'stable', \
+                         promotion_receipt_event_id = $receipt, updated_at = time::now() \
+                         WHERE term_id = $term_id AND lifecycle_state = 'probationary' \
+                         RETURN AFTER;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Conflict(
+            "only probationary ontology terms can be promoted",
+        ))?
+        .into_term()
 }
 
 /// Retire an ontology term with a reason (and optional supersessor).
 pub async fn retire_memory_ontology_term(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     term_id: &str,
     reason: MemoryOntologyRetirementReason,
     superseded_by_term_id: Option<&str>,
@@ -382,30 +572,37 @@ pub async fn retire_memory_ontology_term(
             "superseded_by_term_id requires the 'superseded' retirement reason",
         ));
     }
-    let current = get_memory_ontology_term(pool, term_id)
+    let current = get_memory_ontology_term(storage, term_id)
         .await?
         .ok_or(StorageError::NotFound("memory ontology term"))?;
     if current.lifecycle_state == MemoryOntologyLifecycle::Retired {
         return Err(StorageError::Conflict("ontology term is already retired"));
     }
-    let sql = format!(
-        r#"
-        UPDATE knowledge_memory_ontology_terms
-           SET lifecycle_state = 'retired',
-               retirement_reason = $2,
-               superseded_by_term_id = $3,
-               updated_at = NOW()
-         WHERE term_id = $1
-        RETURNING {ONTOLOGY_TERM_COLUMNS}
-        "#
-    );
-    let row = sqlx::query(&sql)
-        .bind(term_id)
-        .bind(reason.as_str())
-        .bind(superseded_by_term_id)
-        .fetch_one(pool)
-        .await?;
-    ontology_term_from_row(&row)
+    let bindings = TermRetireBindings {
+        term_id: term_id.to_owned(),
+        reason: reason.as_str().to_owned(),
+        superseded_by: optional_link(ONTOLOGY_TERMS_TABLE, superseded_by_term_id),
+    };
+    let rows: Vec<OntologyTermRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "UPDATE knowledge_memory_ontology_terms SET lifecycle_state = 'retired', \
+                         retirement_reason = $reason, superseded_by_term_id = $superseded_by, \
+                         updated_at = time::now() \
+                         WHERE term_id = $term_id AND lifecycle_state != 'retired' RETURN AFTER;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Conflict("ontology term is already retired"))?
+        .into_term()
 }
 
 /// Source of an ontology alias.
@@ -451,24 +648,63 @@ pub struct MemoryOntologyAlias {
     pub created_at: DateTime<Utc>,
 }
 
-fn ontology_alias_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<MemoryOntologyAlias> {
-    Ok(MemoryOntologyAlias {
-        alias_id: row.get("alias_id"),
-        term_id: row.get("term_id"),
-        workspace_id: row.get("workspace_id"),
-        alias_surface: row.get("alias_surface"),
-        alias_norm_key: row.get("alias_norm_key"),
-        alias_source: MemoryOntologyAliasSource::from_db(
-            row.get::<String, _>("alias_source").as_str(),
-        )?,
-        created_at: row.get("created_at"),
-    })
+/// Stored `knowledge_memory_ontology_aliases` projection.
+#[derive(SurrealValue)]
+struct OntologyAliasRecord {
+    alias_id: String,
+    term_id: RecordId,
+    workspace_id: RecordId,
+    alias_surface: String,
+    alias_norm_key: String,
+    alias_source: String,
+    created_at: Datetime,
+}
+
+impl OntologyAliasRecord {
+    fn into_alias(self) -> StorageResult<MemoryOntologyAlias> {
+        Ok(MemoryOntologyAlias {
+            alias_id: self.alias_id,
+            term_id: record_key(self.term_id, "ontology alias term link is not a string key")?,
+            workspace_id: record_key(
+                self.workspace_id,
+                "ontology alias workspace link is not a string key",
+            )?,
+            alias_surface: self.alias_surface,
+            alias_norm_key: self.alias_norm_key,
+            alias_source: MemoryOntologyAliasSource::from_db(self.alias_source.as_str())?,
+            created_at: self.created_at.into_inner(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct AliasCreate {
+    alias_id: String,
+    term_id: RecordId,
+    workspace_id: RecordId,
+    alias_surface: String,
+    alias_norm_key: String,
+    alias_source: String,
+}
+
+#[derive(SurrealValue)]
+struct AliasResolveBindings {
+    workspace: RecordId,
+    alias_norm_key: String,
+}
+
+#[derive(SurrealValue)]
+struct AliasTermBindings {
+    term: RecordId,
 }
 
 /// Add an alias for a term. The (workspace, alias_norm_key) uniqueness means a
 /// normalized spelling resolves to exactly one canonical term.
+///
+/// `term_id` is a record link with `ASSERT record::exists`, so an alias for a
+/// term that does not exist is refused by the store, not by a client check.
 pub async fn add_memory_ontology_alias(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     term_id: &str,
     workspace_id: &str,
     alias_surface: &str,
@@ -476,66 +712,98 @@ pub async fn add_memory_ontology_alias(
     alias_source: MemoryOntologyAliasSource,
 ) -> StorageResult<MemoryOntologyAlias> {
     let alias_id = new_memory_id("KMA");
-    let row = sqlx::query(
-        r#"
-        INSERT INTO knowledge_memory_ontology_aliases (
-            alias_id, term_id, workspace_id, alias_surface, alias_norm_key, alias_source
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING alias_id, term_id, workspace_id, alias_surface, alias_norm_key,
-                  alias_source, created_at
-        "#,
-    )
-    .bind(&alias_id)
-    .bind(term_id)
-    .bind(workspace_id)
-    .bind(alias_surface)
-    .bind(alias_norm_key)
-    .bind(alias_source.as_str())
-    .fetch_one(pool)
-    .await?;
-    ontology_alias_from_row(&row)
+    let content = AliasCreate {
+        alias_id: alias_id.clone(),
+        term_id: link(ONTOLOGY_TERMS_TABLE, term_id),
+        workspace_id: link(WORKSPACES_TABLE, workspace_id),
+        alias_surface: alias_surface.to_owned(),
+        alias_norm_key: alias_norm_key.to_owned(),
+        alias_source: alias_source.as_str().to_owned(),
+    };
+    // A plain CREATE, exactly like the relational INSERT: the
+    // `(workspace_id, alias_norm_key)` UNIQUE index is the server-side guard
+    // that a normalized spelling maps to one canonical term, and a violation
+    // surfaces as a database error rather than being swallowed here.
+    let rows: Vec<OntologyAliasRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "CREATE type::thing('knowledge_memory_ontology_aliases', $alias_id) \
+                         CONTENT { alias_id: $alias_id, term_id: $term_id, \
+                           workspace_id: $workspace_id, alias_surface: $alias_surface, \
+                           alias_norm_key: $alias_norm_key, alias_source: $alias_source };",
+                        content,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "memory ontology alias insert produced no row".to_owned(),
+        ))?
+        .into_alias()
 }
 
 /// Resolve an alias surface (by its normalized key) to its canonical term.
 pub async fn resolve_memory_ontology_alias(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     alias_norm_key: &str,
 ) -> StorageResult<Option<MemoryOntologyTerm>> {
-    // `t.*` projects exactly the term columns (unambiguous after the JOIN);
-    // `ontology_term_from_row` reads them by name.
-    let row = sqlx::query(
-        r#"
-        SELECT t.* FROM knowledge_memory_ontology_terms t
-        JOIN knowledge_memory_ontology_aliases a ON a.term_id = t.term_id
-        WHERE a.workspace_id = $1 AND a.alias_norm_key = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(alias_norm_key)
-    .fetch_optional(pool)
-    .await?;
-    row.as_ref().map(ontology_term_from_row).transpose()
+    // The relational JOIN becomes a link traversal: `term_id` IS the term
+    // record, so `term_id.*` returns the whole term row without a join key.
+    let bindings = AliasResolveBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+        alias_norm_key: alias_norm_key.to_owned(),
+    };
+    let record: Option<OntologyTermRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT VALUE term_id.* FROM knowledge_memory_ontology_aliases \
+                         WHERE workspace_id = $workspace AND alias_norm_key = $alias_norm_key;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    record.map(OntologyTermRecord::into_term).transpose()
 }
 
 /// List all aliases for a term.
 pub async fn list_memory_ontology_aliases(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     term_id: &str,
 ) -> StorageResult<Vec<MemoryOntologyAlias>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT alias_id, term_id, workspace_id, alias_surface, alias_norm_key,
-               alias_source, created_at
-        FROM knowledge_memory_ontology_aliases
-        WHERE term_id = $1
-        ORDER BY created_at ASC, alias_id ASC
-        "#,
-    )
-    .bind(term_id)
-    .fetch_all(pool)
-    .await?;
-    rows.iter().map(ontology_alias_from_row).collect()
+    let bindings = AliasTermBindings {
+        term: link(ONTOLOGY_TERMS_TABLE, term_id),
+    };
+    let records: Vec<OntologyAliasRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT alias_id, term_id, workspace_id, alias_surface, alias_norm_key, \
+                         alias_source, created_at FROM knowledge_memory_ontology_aliases \
+                         WHERE term_id = $term ORDER BY created_at ASC, alias_id ASC;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .map(OntologyAliasRecord::into_alias)
+        .collect()
 }
 
 // ===========================================================================
@@ -666,108 +934,235 @@ pub struct NewMemoryFact {
     pub created_in_run: Option<String>,
 }
 
-const FACT_COLUMNS: &str = r#"
-    fact_id, workspace_id, claim_id, subject_entity_id, predicate_key,
-    predicate_term_id, object_entity_id, object_literal, qualifiers,
-    authority_label, extractor_version, created_in_run, created_at, updated_at
-"#;
+/// Stored `knowledge_memory_facts` projection.
+///
+/// `claim_id`, `subject_entity_id`, `object_entity_id` and `predicate_term_id`
+/// are record links, so the store itself refuses a fact whose backing claim,
+/// subject or object no longer exists - the guarantee the relational FKs gave.
+#[derive(SurrealValue)]
+struct MemoryFactRecord {
+    fact_id: String,
+    workspace_id: RecordId,
+    claim_id: RecordId,
+    subject_entity_id: RecordId,
+    predicate_key: String,
+    predicate_term_id: Option<RecordId>,
+    object_entity_id: Option<RecordId>,
+    object_literal: Option<String>,
+    qualifiers: Value,
+    authority_label: String,
+    extractor_version: String,
+    created_in_run: Option<RecordId>,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
 
-fn fact_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<MemoryFact> {
-    Ok(MemoryFact {
-        fact_id: row.get("fact_id"),
-        workspace_id: row.get("workspace_id"),
-        claim_id: row.get("claim_id"),
-        subject_entity_id: row.get("subject_entity_id"),
-        predicate_key: row.get("predicate_key"),
-        predicate_term_id: row.get("predicate_term_id"),
-        object_entity_id: row.get("object_entity_id"),
-        object_literal: row.get("object_literal"),
-        qualifiers: row.get("qualifiers"),
-        authority_label: MemoryClaimAuthorityLabel::from_db(
-            row.get::<String, _>("authority_label").as_str(),
-        )?,
-        extractor_version: row.get("extractor_version"),
-        created_in_run: row.get("created_in_run"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    })
+impl MemoryFactRecord {
+    fn into_fact(self) -> StorageResult<MemoryFact> {
+        Ok(MemoryFact {
+            fact_id: self.fact_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "memory fact workspace link is not a string key",
+            )?,
+            claim_id: record_key(self.claim_id, "memory fact claim link is not a string key")?,
+            subject_entity_id: record_key(
+                self.subject_entity_id,
+                "memory fact subject link is not a string key",
+            )?,
+            predicate_key: self.predicate_key,
+            predicate_term_id: optional_record_key(
+                self.predicate_term_id,
+                "memory fact predicate term link is not a string key",
+            )?,
+            object_entity_id: optional_record_key(
+                self.object_entity_id,
+                "memory fact object link is not a string key",
+            )?,
+            object_literal: self.object_literal,
+            qualifiers: self.qualifiers,
+            authority_label: MemoryClaimAuthorityLabel::from_db(self.authority_label.as_str())?,
+            extractor_version: self.extractor_version,
+            created_in_run: optional_record_key(
+                self.created_in_run,
+                "memory fact created_in_run link is not a string key",
+            )?,
+            created_at: self.created_at.into_inner(),
+            updated_at: self.updated_at.into_inner(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct MemoryFactCreate {
+    fact_id: String,
+    workspace_id: RecordId,
+    claim_id: RecordId,
+    subject_entity_id: RecordId,
+    predicate_key: String,
+    predicate_term_id: Option<RecordId>,
+    object_entity_id: Option<RecordId>,
+    object_literal: Option<String>,
+    qualifiers: Value,
+    authority_label: String,
+    extractor_version: String,
+    created_in_run: Option<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct FactIdBindings {
+    fact_id: String,
+}
+
+#[derive(SurrealValue)]
+struct FactClaimBindings {
+    claim: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct FactListBindings {
+    workspace: RecordId,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct FactScopeBindings {
+    workspace: RecordId,
+    scope_terms: Vec<RecordId>,
+    scope_entities: Vec<RecordId>,
+    limit: i64,
 }
 
 /// Create a memory fact attached to an existing backing claim.
-pub async fn create_memory_fact(pool: &PgPool, new: NewMemoryFact) -> StorageResult<MemoryFact> {
+pub async fn create_memory_fact(
+    storage: &SurrealStorage,
+    new: NewMemoryFact,
+) -> StorageResult<MemoryFact> {
     let fact_id = new_memory_id("KMF");
     let (object_entity_id, object_literal) = match &new.object {
         MemoryFactObject::Entity { entity_id } => (Some(entity_id.clone()), None),
         MemoryFactObject::Literal { value } => (None, Some(value.clone())),
     };
-    let sql = format!(
-        r#"
-        INSERT INTO knowledge_memory_facts (
-            fact_id, workspace_id, claim_id, subject_entity_id, predicate_key,
-            predicate_term_id, object_entity_id, object_literal, qualifiers,
-            authority_label, extractor_version, created_in_run
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        RETURNING {FACT_COLUMNS}
-        "#
-    );
-    let row = sqlx::query(&sql)
-        .bind(&fact_id)
-        .bind(&new.workspace_id)
-        .bind(&new.claim_id)
-        .bind(&new.subject_entity_id)
-        .bind(&new.predicate_key)
-        .bind(&new.predicate_term_id)
-        .bind(&object_entity_id)
-        .bind(&object_literal)
-        .bind(&new.qualifiers)
-        .bind(new.authority_label.as_str())
-        .bind(&new.extractor_version)
-        .bind(&new.created_in_run)
-        .fetch_one(pool)
-        .await?;
-    fact_from_row(&row)
+    let content = MemoryFactCreate {
+        fact_id: fact_id.clone(),
+        workspace_id: link(WORKSPACES_TABLE, &new.workspace_id),
+        claim_id: link(CLAIMS_TABLE, &new.claim_id),
+        subject_entity_id: link(ENTITIES_TABLE, &new.subject_entity_id),
+        predicate_key: new.predicate_key.clone(),
+        predicate_term_id: optional_link(ONTOLOGY_TERMS_TABLE, new.predicate_term_id.as_deref()),
+        object_entity_id: optional_link(ENTITIES_TABLE, object_entity_id.as_deref()),
+        object_literal,
+        qualifiers: new.qualifiers.clone(),
+        authority_label: new.authority_label.as_str().to_owned(),
+        extractor_version: new.extractor_version.clone(),
+        created_in_run: optional_link(INDEX_RUNS_TABLE, new.created_in_run.as_deref()),
+    };
+    let rows: Vec<MemoryFactRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "CREATE type::thing('knowledge_memory_facts', $fact_id) CONTENT { \
+                           fact_id: $fact_id, workspace_id: $workspace_id, claim_id: $claim_id, \
+                           subject_entity_id: $subject_entity_id, \
+                           predicate_key: $predicate_key, \
+                           predicate_term_id: $predicate_term_id, \
+                           object_entity_id: $object_entity_id, \
+                           object_literal: $object_literal, qualifiers: $qualifiers, \
+                           authority_label: $authority_label, \
+                           extractor_version: $extractor_version, \
+                           created_in_run: $created_in_run };",
+                        content,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "memory fact insert produced no row".to_owned(),
+        ))?
+        .into_fact()
 }
 
 /// Fetch one fact by id.
-pub async fn get_memory_fact(pool: &PgPool, fact_id: &str) -> StorageResult<Option<MemoryFact>> {
-    let sql = format!("SELECT {FACT_COLUMNS} FROM knowledge_memory_facts WHERE fact_id = $1");
-    let row = sqlx::query(&sql).bind(fact_id).fetch_optional(pool).await?;
-    row.as_ref().map(fact_from_row).transpose()
+pub async fn get_memory_fact(
+    storage: &SurrealStorage,
+    fact_id: &str,
+) -> StorageResult<Option<MemoryFact>> {
+    let bindings = FactIdBindings {
+        fact_id: fact_id.to_owned(),
+    };
+    let record: Option<MemoryFactRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT * FROM knowledge_memory_facts WHERE fact_id = $fact_id;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    record.map(MemoryFactRecord::into_fact).transpose()
 }
 
 /// Fetch the fact backed by a given claim, if any.
 pub async fn get_memory_fact_by_claim(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     claim_id: &str,
 ) -> StorageResult<Option<MemoryFact>> {
-    let sql = format!("SELECT {FACT_COLUMNS} FROM knowledge_memory_facts WHERE claim_id = $1");
-    let row = sqlx::query(&sql)
-        .bind(claim_id)
-        .fetch_optional(pool)
-        .await?;
-    row.as_ref().map(fact_from_row).transpose()
+    let bindings = FactClaimBindings {
+        claim: link(CLAIMS_TABLE, claim_id),
+    };
+    let record: Option<MemoryFactRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT * FROM knowledge_memory_facts WHERE claim_id = $claim;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    record.map(MemoryFactRecord::into_fact).transpose()
 }
 
 /// List facts for a workspace, newest first, bounded by `limit`.
 pub async fn list_memory_facts(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<Vec<MemoryFact>> {
-    let sql = format!(
-        r#"
-        SELECT {FACT_COLUMNS} FROM knowledge_memory_facts
-        WHERE workspace_id = $1
-        ORDER BY created_at DESC, fact_id DESC
-        LIMIT $2
-        "#
-    );
-    let rows = sqlx::query(&sql)
-        .bind(workspace_id)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?;
-    rows.iter().map(fact_from_row).collect()
+    let bindings = FactListBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+        limit,
+    };
+    let records: Vec<MemoryFactRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT * FROM knowledge_memory_facts WHERE workspace_id = $workspace \
+                         ORDER BY created_at DESC, fact_id DESC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .map(MemoryFactRecord::into_fact)
+        .collect()
 }
 
 /// List ONLY the facts whose schema matches an in-scope id set
@@ -776,38 +1171,58 @@ pub async fn list_memory_facts(
 /// applies to IN-SCOPE facts. The previous capped unordered load filtered in
 /// memory had a recall gap: in-scope facts beyond the cap were invisible.
 pub async fn list_memory_facts_in_schema_scope(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     in_scope_ids: &[String],
     limit: i64,
 ) -> StorageResult<Vec<MemoryFact>> {
-    let sql = format!(
-        r#"
-        SELECT {FACT_COLUMNS} FROM knowledge_memory_facts
-        WHERE workspace_id = $1
-          AND (predicate_term_id = ANY($2) OR object_entity_id = ANY($2))
-        ORDER BY created_at DESC, fact_id DESC
-        LIMIT $3
-        "#
-    );
-    let rows = sqlx::query(&sql)
-        .bind(workspace_id)
-        .bind(in_scope_ids)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?;
-    rows.iter().map(fact_from_row).collect()
+    // The scope stays IN the query so the row cap applies to in-scope facts, as
+    // the `= ANY($2)` predicate did. The two columns are links into different
+    // tables, so the one id list has to be projected onto both link tables; a
+    // caller-supplied id that names neither simply matches nothing.
+    let bindings = FactScopeBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+        scope_terms: in_scope_ids
+            .iter()
+            .map(|id| link(ONTOLOGY_TERMS_TABLE, id))
+            .collect(),
+        scope_entities: in_scope_ids
+            .iter()
+            .map(|id| link(ENTITIES_TABLE, id))
+            .collect(),
+        limit,
+    };
+    let records: Vec<MemoryFactRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT * FROM knowledge_memory_facts WHERE workspace_id = $workspace \
+                         AND (predicate_term_id IN $scope_terms \
+                              OR object_entity_id IN $scope_entities) \
+                         ORDER BY created_at DESC, fact_id DESC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .map(MemoryFactRecord::into_fact)
+        .collect()
 }
 
 /// MT-125: re-label a fact's authority, enforcing the legal label-transition
 /// table. An illegal transition is a typed `Conflict` (e.g. silently demoting
 /// an operator-approved fact to model_suggested).
 pub async fn set_memory_fact_authority_label(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     fact_id: &str,
     to: MemoryClaimAuthorityLabel,
 ) -> StorageResult<MemoryFact> {
-    let current = get_memory_fact(pool, fact_id)
+    let current = get_memory_fact(storage, fact_id)
         .await?
         .ok_or(StorageError::NotFound("memory fact"))?;
     if !current.authority_label.can_transition_to(to) {
@@ -815,20 +1230,42 @@ pub async fn set_memory_fact_authority_label(
             "illegal memory fact authority label transition",
         ));
     }
-    let sql = format!(
-        r#"
-        UPDATE knowledge_memory_facts
-           SET authority_label = $2, updated_at = NOW()
-         WHERE fact_id = $1
-        RETURNING {FACT_COLUMNS}
-        "#
-    );
-    let row = sqlx::query(&sql)
-        .bind(fact_id)
-        .bind(to.as_str())
-        .fetch_one(pool)
-        .await?;
-    fact_from_row(&row)
+    // The observed label is carried into the WHERE clause so a concurrent
+    // re-label that changed it under us fails closed instead of overwriting a
+    // transition this call never validated.
+    let bindings = FactRelabelBindings {
+        fact_id: fact_id.to_owned(),
+        authority_label: to.as_str().to_owned(),
+        expected_label: current.authority_label.as_str().to_owned(),
+    };
+    let rows: Vec<MemoryFactRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "UPDATE knowledge_memory_facts SET authority_label = $authority_label, \
+                         updated_at = time::now() WHERE fact_id = $fact_id \
+                         AND authority_label = $expected_label RETURN AFTER;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Conflict(
+            "memory fact authority label changed concurrently",
+        ))?
+        .into_fact()
+}
+
+#[derive(SurrealValue)]
+struct FactRelabelBindings {
+    fact_id: String,
+    authority_label: String,
+    expected_label: String,
 }
 
 // ===========================================================================
@@ -861,53 +1298,132 @@ pub struct FactConflictCandidate {
 /// where available"). The self-join is ordered (a.fact_id < b.fact_id) so each
 /// unordered pair appears once.
 pub async fn find_fact_conflict_candidates(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<Vec<FactConflictCandidate>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT
-            a.subject_entity_id AS subject_entity_id,
-            a.predicate_key     AS predicate_key,
-            a.fact_id           AS fact_id_a,
-            a.claim_id          AS claim_id_a,
-            COALESCE(a.object_entity_id, a.object_literal) AS object_a,
-            b.fact_id           AS fact_id_b,
-            b.claim_id          AS claim_id_b,
-            COALESCE(b.object_entity_id, b.object_literal) AS object_b
-        FROM knowledge_memory_facts a
-        JOIN knowledge_memory_facts b
-          ON a.workspace_id = b.workspace_id
-         AND a.subject_entity_id = b.subject_entity_id
-         AND a.predicate_key = b.predicate_key
-         AND a.fact_id < b.fact_id
-        WHERE a.workspace_id = $1
-          AND COALESCE(a.object_entity_id, a.object_literal)
-              IS DISTINCT FROM COALESCE(b.object_entity_id, b.object_literal)
-        ORDER BY a.subject_entity_id, a.predicate_key, a.fact_id, b.fact_id
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit)
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows
-        .iter()
-        .map(|row| FactConflictCandidate {
-            subject_entity_id: row.get("subject_entity_id"),
-            predicate_key: row.get("predicate_key"),
-            fact_id_a: row.get("fact_id_a"),
-            claim_id_a: row.get("claim_id_a"),
-            object_a: row.get("object_a"),
-            fact_id_b: row.get("fact_id_b"),
-            claim_id_b: row.get("claim_id_b"),
-            object_b: row.get("object_b"),
-            candidate_reason: "symbolic_subject_predicate_object_mismatch".to_string(),
+    // The embedded store has no self-join, so the ordered nested loop the
+    // relational self-join performed is done here instead. The store still
+    // supplies the ORDER, which is what makes the pairing deterministic: rows
+    // arrive sorted by (subject, predicate, fact_id), so walking i < j inside
+    // each (subject, predicate) run emits exactly the same unordered pairs, in
+    // exactly the same sequence, and the same `limit` cut. Only the row cap
+    // moves client-side; the candidate set and its order are unchanged.
+    let bindings = ConflictCandidateBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+    };
+    let rows: Vec<ConflictCandidateRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT subject_entity_id, predicate_key, fact_id, claim_id, \
+                         object_entity_id, object_literal FROM knowledge_memory_facts \
+                         WHERE workspace_id = $workspace \
+                         ORDER BY subject_entity_id ASC, predicate_key ASC, fact_id ASC;",
+                        bindings,
+                    )
+                    .await
+            })
         })
-        .collect())
+        .await
+        .map_err(map_err)?;
+
+    let mut facts = Vec::with_capacity(rows.len());
+    for row in rows {
+        facts.push(row.into_candidate_fact()?);
+    }
+
+    let limit = limit.max(0) as usize;
+    let mut candidates = Vec::new();
+    let mut group_start = 0usize;
+    while group_start < facts.len() {
+        let mut group_end = group_start + 1;
+        while group_end < facts.len()
+            && facts[group_end].subject_entity_id == facts[group_start].subject_entity_id
+            && facts[group_end].predicate_key == facts[group_start].predicate_key
+        {
+            group_end += 1;
+        }
+        for left in group_start..group_end {
+            for right in (left + 1)..group_end {
+                if facts[left].object == facts[right].object {
+                    continue;
+                }
+                if candidates.len() >= limit {
+                    return Ok(candidates);
+                }
+                candidates.push(FactConflictCandidate {
+                    subject_entity_id: facts[left].subject_entity_id.clone(),
+                    predicate_key: facts[left].predicate_key.clone(),
+                    fact_id_a: facts[left].fact_id.clone(),
+                    claim_id_a: facts[left].claim_id.clone(),
+                    object_a: facts[left].object.clone(),
+                    fact_id_b: facts[right].fact_id.clone(),
+                    claim_id_b: facts[right].claim_id.clone(),
+                    object_b: facts[right].object.clone(),
+                    candidate_reason: "symbolic_subject_predicate_object_mismatch".to_string(),
+                });
+            }
+        }
+        group_start = group_end;
+    }
+    Ok(candidates)
+}
+
+#[derive(SurrealValue)]
+struct ConflictCandidateBindings {
+    workspace: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ConflictCandidateRow {
+    subject_entity_id: RecordId,
+    predicate_key: String,
+    fact_id: String,
+    claim_id: RecordId,
+    object_entity_id: Option<RecordId>,
+    object_literal: Option<String>,
+}
+
+/// One side of a candidate pair, with the object already collapsed the way
+/// `COALESCE(object_entity_id, object_literal)` collapsed it.
+struct CandidateFact {
+    subject_entity_id: String,
+    predicate_key: String,
+    fact_id: String,
+    claim_id: String,
+    object: String,
+}
+
+impl ConflictCandidateRow {
+    fn into_candidate_fact(self) -> StorageResult<CandidateFact> {
+        let object = match (
+            optional_record_key(
+                self.object_entity_id,
+                "memory fact object link is not a string key",
+            )?,
+            self.object_literal,
+        ) {
+            (Some(entity_id), _) => entity_id,
+            (None, Some(literal)) => literal,
+            (None, None) => {
+                return Err(StorageError::Conflict(
+                    "memory fact has neither an object entity nor an object literal",
+                ))
+            }
+        };
+        Ok(CandidateFact {
+            subject_entity_id: record_key(
+                self.subject_entity_id,
+                "memory fact subject link is not a string key",
+            )?,
+            predicate_key: self.predicate_key,
+            fact_id: self.fact_id,
+            claim_id: record_key(self.claim_id, "memory fact claim link is not a string key")?,
+            object,
+        })
+    }
 }
 
 // ===========================================================================
@@ -966,28 +1482,85 @@ pub struct ConflictDetectionJob {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-fn detection_job_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<ConflictDetectionJob> {
-    Ok(ConflictDetectionJob {
-        job_id: row.get("job_id"),
-        workspace_id: row.get("workspace_id"),
-        detection_kind: ConflictDetectionKind::from_db(
-            row.get::<String, _>("detection_kind").as_str(),
-        )?,
-        job_state: row.get("job_state"),
-        candidates_scanned: row.get("candidates_scanned"),
-        conflicts_found: row.get("conflicts_found"),
-        search_parameters: row.get("search_parameters"),
-        detection_receipt_event_id: row.get("detection_receipt_event_id"),
-        created_at: row.get("created_at"),
-        completed_at: row.get("completed_at"),
-    })
+/// Stored `knowledge_memory_conflict_detection_jobs` projection.
+#[derive(SurrealValue)]
+struct DetectionJobRecord {
+    job_id: String,
+    workspace_id: RecordId,
+    detection_kind: String,
+    job_state: String,
+    candidates_scanned: i64,
+    conflicts_found: i64,
+    search_parameters: Value,
+    detection_receipt_event_id: Option<RecordId>,
+    created_at: Datetime,
+    completed_at: Option<Datetime>,
+}
+
+impl DetectionJobRecord {
+    fn into_job(self) -> StorageResult<ConflictDetectionJob> {
+        Ok(ConflictDetectionJob {
+            job_id: self.job_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "conflict detection job workspace link is not a string key",
+            )?,
+            detection_kind: ConflictDetectionKind::from_db(self.detection_kind.as_str())?,
+            job_state: self.job_state,
+            candidates_scanned: narrow_i32(
+                self.candidates_scanned,
+                "conflict detection candidates_scanned is out of range",
+            )?,
+            conflicts_found: narrow_i32(
+                self.conflicts_found,
+                "conflict detection conflicts_found is out of range",
+            )?,
+            search_parameters: self.search_parameters,
+            detection_receipt_event_id: optional_record_key(
+                self.detection_receipt_event_id,
+                "conflict detection receipt link is not a string key",
+            )?,
+            created_at: self.created_at.into_inner(),
+            completed_at: self.completed_at.map(Datetime::into_inner),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct DetectionJobBindings {
+    job_id: String,
+    workspace: RecordId,
+    detection_kind: String,
+    candidates_scanned: i64,
+    conflicts_found: i64,
+    search_parameters: Value,
+    receipt: Option<RecordId>,
+    conflicts: Vec<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct DetectionFindingsBindings {
+    job: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct DetectionFindingRow {
+    conflict_id: RecordId,
 }
 
 /// Record a completed conflict-detection job and link the conflict ids it
 /// found, in one transaction. `conflict_ids` are existing
 /// knowledge_claim_conflicts rows (produced by the detection pass).
+///
+/// Job row and finding rows still land atomically: both writes live inside ONE
+/// top-level block statement, which the embedded store executes in a single
+/// implicit transaction, so a job can never be observed without the findings it
+/// claims to have produced. The findings loop became a `FOR` over the bound id
+/// list rather than N round trips. A block (not `BEGIN ... COMMIT`) is used
+/// deliberately: the seam reads result set 0, and an explicit `BEGIN` occupies
+/// that slot with its own empty result.
 pub async fn record_conflict_detection_job(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     detection_kind: ConflictDetectionKind,
     candidates_scanned: i32,
@@ -996,64 +1569,88 @@ pub async fn record_conflict_detection_job(
     detection_receipt_event_id: Option<&str>,
 ) -> StorageResult<ConflictDetectionJob> {
     let job_id = new_memory_id("KCDJ");
-    let mut tx = pool.begin().await?;
-    let row = sqlx::query(
-        r#"
-        INSERT INTO knowledge_memory_conflict_detection_jobs (
-            job_id, workspace_id, detection_kind, job_state, candidates_scanned,
-            conflicts_found, search_parameters, detection_receipt_event_id,
-            completed_at
-        ) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, NOW())
-        RETURNING job_id, workspace_id, detection_kind, job_state,
-                  candidates_scanned, conflicts_found, search_parameters,
-                  detection_receipt_event_id, created_at, completed_at
-        "#,
-    )
-    .bind(&job_id)
-    .bind(workspace_id)
-    .bind(detection_kind.as_str())
-    .bind(candidates_scanned)
-    .bind(conflict_ids.len() as i32)
-    .bind(&search_parameters)
-    .bind(detection_receipt_event_id)
-    .fetch_one(&mut *tx)
-    .await?;
-
-    for conflict_id in conflict_ids {
-        sqlx::query(
-            r#"
-            INSERT INTO knowledge_memory_conflict_detection_findings (job_id, conflict_id)
-            VALUES ($1, $2)
-            "#,
-        )
-        .bind(&job_id)
-        .bind(conflict_id)
-        .execute(&mut *tx)
-        .await?;
-    }
-
-    tx.commit().await?;
-    detection_job_from_row(&row)
+    let bindings = DetectionJobBindings {
+        job_id,
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+        detection_kind: detection_kind.as_str().to_owned(),
+        candidates_scanned: i64::from(candidates_scanned),
+        conflicts_found: conflict_ids.len() as i64,
+        search_parameters,
+        receipt: optional_link(KERNEL_EVENT_LEDGER_TABLE, detection_receipt_event_id),
+        conflicts: conflict_ids
+            .iter()
+            .map(|id| link(CLAIM_CONFLICTS_TABLE, id))
+            .collect(),
+    };
+    let records: Vec<DetectionJobRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "{ \
+                           LET $job = (CREATE \
+                             type::thing('knowledge_memory_conflict_detection_jobs', $job_id) \
+                             CONTENT { job_id: $job_id, workspace_id: $workspace, \
+                               detection_kind: $detection_kind, job_state: 'completed', \
+                               candidates_scanned: $candidates_scanned, \
+                               conflicts_found: $conflicts_found, \
+                               search_parameters: $search_parameters, \
+                               detection_receipt_event_id: $receipt, \
+                               completed_at: time::now() }); \
+                           FOR $conflict IN $conflicts { \
+                             CREATE knowledge_memory_conflict_detection_findings CONTENT { \
+                               job_id: type::thing('knowledge_memory_conflict_detection_jobs', \
+                                                   $job_id), \
+                               conflict_id: $conflict }; \
+                           }; \
+                           RETURN $job; \
+                         };",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "conflict detection job insert produced no row".to_owned(),
+        ))?
+        .into_job()
 }
 
 /// List the conflict ids a detection job found.
 pub async fn list_conflict_detection_findings(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     job_id: &str,
 ) -> StorageResult<Vec<String>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT conflict_id FROM knowledge_memory_conflict_detection_findings
-        WHERE job_id = $1 ORDER BY conflict_id ASC
-        "#,
-    )
-    .bind(job_id)
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .iter()
-        .map(|row| row.get::<String, _>("conflict_id"))
-        .collect())
+    let bindings = DetectionFindingsBindings {
+        job: link(DETECTION_JOBS_TABLE, job_id),
+    };
+    let rows: Vec<DetectionFindingRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT conflict_id FROM knowledge_memory_conflict_detection_findings \
+                         WHERE job_id = $job ORDER BY conflict_id ASC;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .map(|row| {
+            record_key(
+                row.conflict_id,
+                "conflict detection finding link is not a string key",
+            )
+        })
+        .collect()
 }
 
 // ===========================================================================
@@ -1118,25 +1715,73 @@ pub struct ConflictResolutionJob {
     pub created_at: DateTime<Utc>,
 }
 
-fn resolution_job_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<ConflictResolutionJob> {
-    Ok(ConflictResolutionJob {
-        job_id: row.get("job_id"),
-        workspace_id: row.get("workspace_id"),
-        conflict_id: row.get("conflict_id"),
-        outcome: ConflictResolutionOutcome::from_db(row.get::<String, _>("outcome").as_str())?,
-        kept_claim_id: row.get("kept_claim_id"),
-        discarded_claim_id: row.get("discarded_claim_id"),
-        resolution_detail: row.get("resolution_detail"),
-        resolution_receipt_event_id: row.get("resolution_receipt_event_id"),
-        created_at: row.get("created_at"),
-    })
+/// Stored `knowledge_memory_conflict_resolution_jobs` projection.
+#[derive(SurrealValue)]
+struct ResolutionJobRecord {
+    job_id: String,
+    workspace_id: RecordId,
+    conflict_id: RecordId,
+    outcome: String,
+    kept_claim_id: Option<RecordId>,
+    discarded_claim_id: Option<RecordId>,
+    resolution_detail: Value,
+    resolution_receipt_event_id: RecordId,
+    created_at: Datetime,
+}
+
+impl ResolutionJobRecord {
+    fn into_job(self) -> StorageResult<ConflictResolutionJob> {
+        Ok(ConflictResolutionJob {
+            job_id: self.job_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "conflict resolution workspace link is not a string key",
+            )?,
+            conflict_id: record_key(
+                self.conflict_id,
+                "conflict resolution conflict link is not a string key",
+            )?,
+            outcome: ConflictResolutionOutcome::from_db(self.outcome.as_str())?,
+            kept_claim_id: optional_record_key(
+                self.kept_claim_id,
+                "conflict resolution kept-claim link is not a string key",
+            )?,
+            discarded_claim_id: optional_record_key(
+                self.discarded_claim_id,
+                "conflict resolution discarded-claim link is not a string key",
+            )?,
+            resolution_detail: self.resolution_detail,
+            resolution_receipt_event_id: record_key(
+                self.resolution_receipt_event_id,
+                "conflict resolution receipt link is not a string key",
+            )?,
+            created_at: self.created_at.into_inner(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct ResolutionJobCreate {
+    job_id: String,
+    workspace_id: RecordId,
+    conflict_id: RecordId,
+    outcome: String,
+    kept_claim_id: Option<RecordId>,
+    discarded_claim_id: Option<RecordId>,
+    resolution_detail: Value,
+    resolution_receipt_event_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ConflictIdBindings {
+    conflict: RecordId,
 }
 
 /// Record a conflict-resolution job. Validates the kept/discarded claim shape
 /// against the chosen outcome before insert (the DB CHECK is the backstop).
 #[allow(clippy::too_many_arguments)]
 pub async fn record_conflict_resolution_job(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     conflict_id: &str,
     outcome: ConflictResolutionOutcome,
@@ -1156,49 +1801,74 @@ pub async fn record_conflict_resolution_job(
         ));
     }
     let job_id = new_memory_id("KCRJ");
-    let row = sqlx::query(
-        r#"
-        INSERT INTO knowledge_memory_conflict_resolution_jobs (
-            job_id, workspace_id, conflict_id, outcome, kept_claim_id,
-            discarded_claim_id, resolution_detail, resolution_receipt_event_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING job_id, workspace_id, conflict_id, outcome, kept_claim_id,
-                  discarded_claim_id, resolution_detail,
-                  resolution_receipt_event_id, created_at
-        "#,
-    )
-    .bind(&job_id)
-    .bind(workspace_id)
-    .bind(conflict_id)
-    .bind(outcome.as_str())
-    .bind(kept_claim_id)
-    .bind(discarded_claim_id)
-    .bind(&resolution_detail)
-    .bind(resolution_receipt_event_id)
-    .fetch_one(pool)
-    .await?;
-    resolution_job_from_row(&row)
+    let content = ResolutionJobCreate {
+        job_id: job_id.clone(),
+        workspace_id: link(WORKSPACES_TABLE, workspace_id),
+        conflict_id: link(CLAIM_CONFLICTS_TABLE, conflict_id),
+        outcome: outcome.as_str().to_owned(),
+        kept_claim_id: optional_link(CLAIMS_TABLE, kept_claim_id),
+        discarded_claim_id: optional_link(CLAIMS_TABLE, discarded_claim_id),
+        resolution_detail,
+        resolution_receipt_event_id: link(
+            KERNEL_EVENT_LEDGER_TABLE,
+            resolution_receipt_event_id,
+        ),
+    };
+    let rows: Vec<ResolutionJobRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "CREATE type::thing('knowledge_memory_conflict_resolution_jobs', $job_id) \
+                         CONTENT { job_id: $job_id, workspace_id: $workspace_id, \
+                           conflict_id: $conflict_id, outcome: $outcome, \
+                           kept_claim_id: $kept_claim_id, \
+                           discarded_claim_id: $discarded_claim_id, \
+                           resolution_detail: $resolution_detail, \
+                           resolution_receipt_event_id: $resolution_receipt_event_id };",
+                        content,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "conflict resolution job insert produced no row".to_owned(),
+        ))?
+        .into_job()
 }
 
 /// List resolution jobs for a conflict (newest first).
 pub async fn list_conflict_resolution_jobs(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     conflict_id: &str,
 ) -> StorageResult<Vec<ConflictResolutionJob>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT job_id, workspace_id, conflict_id, outcome, kept_claim_id,
-               discarded_claim_id, resolution_detail, resolution_receipt_event_id,
-               created_at
-        FROM knowledge_memory_conflict_resolution_jobs
-        WHERE conflict_id = $1
-        ORDER BY created_at DESC, job_id DESC
-        "#,
-    )
-    .bind(conflict_id)
-    .fetch_all(pool)
-    .await?;
-    rows.iter().map(resolution_job_from_row).collect()
+    let bindings = ConflictIdBindings {
+        conflict: link(CLAIM_CONFLICTS_TABLE, conflict_id),
+    };
+    let records: Vec<ResolutionJobRecord> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT job_id, workspace_id, conflict_id, outcome, kept_claim_id, \
+                         discarded_claim_id, resolution_detail, resolution_receipt_event_id, \
+                         created_at FROM knowledge_memory_conflict_resolution_jobs \
+                         WHERE conflict_id = $conflict ORDER BY created_at DESC, job_id DESC;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    records
+        .into_iter()
+        .map(ResolutionJobRecord::into_job)
+        .collect()
 }
 
 // ===========================================================================
@@ -1221,83 +1891,162 @@ pub struct EntityCooccurrence {
 /// ordered self-join over `knowledge_entity_spans` yields one row per
 /// (entity_a < entity_b, span).
 pub async fn find_entity_cooccurrences(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<Vec<EntityCooccurrence>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT esa.entity_id AS entity_id_a,
-               esb.entity_id AS entity_id_b,
-               esa.span_id   AS shared_span_id
-        FROM knowledge_entity_spans esa
-        JOIN knowledge_entity_spans esb
-          ON esa.span_id = esb.span_id
-         AND esa.entity_id < esb.entity_id
-        JOIN knowledge_entities ea ON ea.entity_id = esa.entity_id
-        JOIN knowledge_entities eb ON eb.entity_id = esb.entity_id
-        WHERE ea.workspace_id = $1 AND eb.workspace_id = $1
-        ORDER BY esa.entity_id, esb.entity_id, esa.span_id
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit)
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .iter()
-        .map(|row| EntityCooccurrence {
-            entity_id_a: row.get("entity_id_a"),
-            entity_id_b: row.get("entity_id_b"),
-            shared_span_id: row.get("shared_span_id"),
+    // Same self-join situation as `find_fact_conflict_candidates`: the store
+    // has no self-join, so the ordered nested loop is done here. The workspace
+    // filter is a link traversal (`entity_id.workspace_id`) rather than a join
+    // onto `knowledge_entities`, and the store still supplies the ordering that
+    // makes the pairing deterministic, so the emitted set, its order and the
+    // `limit` cut are unchanged. Only the row cap moves client-side.
+    let bindings = CooccurrenceBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+    };
+    let rows: Vec<EntitySpanRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT entity_id, span_id FROM knowledge_entity_spans \
+                         WHERE entity_id.workspace_id = $workspace \
+                         ORDER BY span_id ASC, entity_id ASC;",
+                        bindings,
+                    )
+                    .await
+            })
         })
-        .collect())
+        .await
+        .map_err(map_err)?;
+
+    let mut spans: Vec<(String, String)> = Vec::with_capacity(rows.len());
+    for row in rows {
+        spans.push((
+            record_key(row.span_id, "entity span link is not a string key")?,
+            record_key(row.entity_id, "entity span entity link is not a string key")?,
+        ));
+    }
+
+    let mut pairs = Vec::new();
+    let mut group_start = 0usize;
+    while group_start < spans.len() {
+        let mut group_end = group_start + 1;
+        while group_end < spans.len() && spans[group_end].0 == spans[group_start].0 {
+            group_end += 1;
+        }
+        for left in group_start..group_end {
+            for right in (left + 1)..group_end {
+                let (span_id, entity_a) = &spans[left];
+                let (_, entity_b) = &spans[right];
+                if entity_a >= entity_b {
+                    continue;
+                }
+                pairs.push(EntityCooccurrence {
+                    entity_id_a: entity_a.clone(),
+                    entity_id_b: entity_b.clone(),
+                    shared_span_id: span_id.clone(),
+                });
+            }
+        }
+        group_start = group_end;
+    }
+    // The relational statement ordered by (entity_a, entity_b, span) before
+    // applying LIMIT, so the ordering has to be restored before the cut.
+    pairs.sort_by(|left, right| {
+        left.entity_id_a
+            .cmp(&right.entity_id_a)
+            .then_with(|| left.entity_id_b.cmp(&right.entity_id_b))
+            .then_with(|| left.shared_span_id.cmp(&right.shared_span_id))
+    });
+    pairs.truncate(limit.max(0) as usize);
+    Ok(pairs)
+}
+
+#[derive(SurrealValue)]
+struct CooccurrenceBindings {
+    workspace: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct EntitySpanRow {
+    entity_id: RecordId,
+    span_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct EdgeEndpointRow {
+    source_entity_id: RecordId,
+    target_entity_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct EdgeDegreeBindings {
+    entity: RecordId,
 }
 
 /// A directed-or-undirected edge endpoint pair from `knowledge_edges`, used to
 /// build connected components (only non-retired edges count toward
 /// connectivity). Returned as (source, target) pairs.
 pub async fn list_active_edge_endpoints(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
 ) -> StorageResult<Vec<(String, String)>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT source_entity_id, target_entity_id
-        FROM knowledge_edges
-        WHERE workspace_id = $1 AND lifecycle_state <> 'retired'
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .iter()
-        .map(|row| {
-            (
-                row.get::<String, _>("source_entity_id"),
-                row.get::<String, _>("target_entity_id"),
-            )
+    let bindings = CooccurrenceBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+    };
+    let rows: Vec<EdgeEndpointRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT source_entity_id, target_entity_id FROM knowledge_edges \
+                         WHERE workspace_id = $workspace AND lifecycle_state != 'retired';",
+                        bindings,
+                    )
+                    .await
+            })
         })
-        .collect())
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                record_key(row.source_entity_id, "edge source link is not a string key")?,
+                record_key(row.target_entity_id, "edge target link is not a string key")?,
+            ))
+        })
+        .collect()
 }
 
 /// Undirected degree of an entity in the non-retired edge graph (number of
 /// edges touching it as source or target). The hub-suppression input.
-pub async fn entity_edge_degree(pool: &PgPool, entity_id: &str) -> StorageResult<i64> {
-    let row = sqlx::query(
-        r#"
-        SELECT COUNT(*) AS degree
-        FROM knowledge_edges
-        WHERE lifecycle_state <> 'retired'
-          AND (source_entity_id = $1 OR target_entity_id = $1)
-        "#,
-    )
-    .bind(entity_id)
-    .fetch_one(pool)
-    .await?;
-    Ok(row.get::<i64, _>("degree"))
+pub async fn entity_edge_degree(
+    storage: &SurrealStorage,
+    entity_id: &str,
+) -> StorageResult<i64> {
+    let bindings = EdgeDegreeBindings {
+        entity: link(ENTITIES_TABLE, entity_id),
+    };
+    // `count()` is aggregated by the store, so the degree is still computed
+    // server-side rather than by loading every incident edge.
+    let degree: Option<i64> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT VALUE count() FROM knowledge_edges \
+                         WHERE lifecycle_state != 'retired' \
+                         AND (source_entity_id = $entity OR target_entity_id = $entity) \
+                         GROUP ALL;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    Ok(degree.unwrap_or(0))
 }
 
 /// The outcome of a bridge evaluation for one candidate pair.
@@ -1348,26 +2097,76 @@ pub struct BridgeDecisionRecord {
     pub created_at: DateTime<Utc>,
 }
 
-fn bridge_decision_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<BridgeDecisionRecord> {
-    Ok(BridgeDecisionRecord {
-        decision_id: row.get("decision_id"),
-        workspace_id: row.get("workspace_id"),
-        entity_id_a: row.get("entity_id_a"),
-        entity_id_b: row.get("entity_id_b"),
-        decision: BridgeDecision::from_db(row.get::<String, _>("decision").as_str())?,
-        degree_a: row.get("degree_a"),
-        degree_b: row.get("degree_b"),
-        hub_degree_threshold: row.get("hub_degree_threshold"),
-        evidence_span_id: row.get("evidence_span_id"),
-        bridge_edge_id: row.get("bridge_edge_id"),
-        created_at: row.get("created_at"),
-    })
+/// Stored `knowledge_memory_bridge_decisions` projection.
+#[derive(SurrealValue)]
+struct BridgeDecisionRow {
+    decision_id: String,
+    workspace_id: RecordId,
+    entity_id_a: RecordId,
+    entity_id_b: RecordId,
+    decision: String,
+    degree_a: i64,
+    degree_b: i64,
+    hub_degree_threshold: i64,
+    evidence_span_id: Option<RecordId>,
+    bridge_edge_id: Option<RecordId>,
+    created_at: Datetime,
+}
+
+impl BridgeDecisionRow {
+    fn into_record(self) -> StorageResult<BridgeDecisionRecord> {
+        Ok(BridgeDecisionRecord {
+            decision_id: self.decision_id,
+            workspace_id: record_key(
+                self.workspace_id,
+                "bridge decision workspace link is not a string key",
+            )?,
+            entity_id_a: record_key(
+                self.entity_id_a,
+                "bridge decision entity_a link is not a string key",
+            )?,
+            entity_id_b: record_key(
+                self.entity_id_b,
+                "bridge decision entity_b link is not a string key",
+            )?,
+            decision: BridgeDecision::from_db(self.decision.as_str())?,
+            degree_a: narrow_i32(self.degree_a, "bridge decision degree_a is out of range")?,
+            degree_b: narrow_i32(self.degree_b, "bridge decision degree_b is out of range")?,
+            hub_degree_threshold: narrow_i32(
+                self.hub_degree_threshold,
+                "bridge decision hub_degree_threshold is out of range",
+            )?,
+            evidence_span_id: optional_record_key(
+                self.evidence_span_id,
+                "bridge decision evidence span link is not a string key",
+            )?,
+            bridge_edge_id: optional_record_key(
+                self.bridge_edge_id,
+                "bridge decision edge link is not a string key",
+            )?,
+            created_at: self.created_at.into_inner(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct BridgeDecisionCreate {
+    decision_id: String,
+    workspace_id: RecordId,
+    entity_id_a: RecordId,
+    entity_id_b: RecordId,
+    decision: String,
+    degree_a: i64,
+    degree_b: i64,
+    hub_degree_threshold: i64,
+    evidence_span_id: Option<RecordId>,
+    bridge_edge_id: Option<RecordId>,
 }
 
 /// Record one bridge-evaluation decision.
 #[allow(clippy::too_many_arguments)]
 pub async fn record_bridge_decision(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     entity_id_a: &str,
     entity_id_b: &str,
@@ -1379,53 +2178,71 @@ pub async fn record_bridge_decision(
     bridge_edge_id: Option<&str>,
 ) -> StorageResult<BridgeDecisionRecord> {
     let decision_id = new_memory_id("KBR");
-    let row = sqlx::query(
-        r#"
-        INSERT INTO knowledge_memory_bridge_decisions (
-            decision_id, workspace_id, entity_id_a, entity_id_b, decision,
-            degree_a, degree_b, hub_degree_threshold, evidence_span_id,
-            bridge_edge_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING decision_id, workspace_id, entity_id_a, entity_id_b, decision,
-                  degree_a, degree_b, hub_degree_threshold, evidence_span_id,
-                  bridge_edge_id, created_at
-        "#,
-    )
-    .bind(&decision_id)
-    .bind(workspace_id)
-    .bind(entity_id_a)
-    .bind(entity_id_b)
-    .bind(decision.as_str())
-    .bind(degree_a)
-    .bind(degree_b)
-    .bind(hub_degree_threshold)
-    .bind(evidence_span_id)
-    .bind(bridge_edge_id)
-    .fetch_one(pool)
-    .await?;
-    bridge_decision_from_row(&row)
+    let content = BridgeDecisionCreate {
+        decision_id: decision_id.clone(),
+        workspace_id: link(WORKSPACES_TABLE, workspace_id),
+        entity_id_a: link(ENTITIES_TABLE, entity_id_a),
+        entity_id_b: link(ENTITIES_TABLE, entity_id_b),
+        decision: decision.as_str().to_owned(),
+        degree_a: i64::from(degree_a),
+        degree_b: i64::from(degree_b),
+        hub_degree_threshold: i64::from(hub_degree_threshold),
+        evidence_span_id: optional_link(SPANS_TABLE, evidence_span_id),
+        bridge_edge_id: optional_link(EDGES_TABLE, bridge_edge_id),
+    };
+    let rows: Vec<BridgeDecisionRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "CREATE type::thing('knowledge_memory_bridge_decisions', $decision_id) \
+                         CONTENT { decision_id: $decision_id, workspace_id: $workspace_id, \
+                           entity_id_a: $entity_id_a, entity_id_b: $entity_id_b, \
+                           decision: $decision, degree_a: $degree_a, degree_b: $degree_b, \
+                           hub_degree_threshold: $hub_degree_threshold, \
+                           evidence_span_id: $evidence_span_id, \
+                           bridge_edge_id: $bridge_edge_id };",
+                        content,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter()
+        .next()
+        .ok_or(StorageError::Database(
+            "bridge decision insert produced no row".to_owned(),
+        ))?
+        .into_record()
 }
 
 /// List bridge decisions for a workspace, newest first.
 pub async fn list_bridge_decisions(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<Vec<BridgeDecisionRecord>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT decision_id, workspace_id, entity_id_a, entity_id_b, decision,
-               degree_a, degree_b, hub_degree_threshold, evidence_span_id,
-               bridge_edge_id, created_at
-        FROM knowledge_memory_bridge_decisions
-        WHERE workspace_id = $1
-        ORDER BY created_at DESC, decision_id DESC
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit)
-    .fetch_all(pool)
-    .await?;
-    rows.iter().map(bridge_decision_from_row).collect()
+    let bindings = FactListBindings {
+        workspace: link(WORKSPACES_TABLE, workspace_id),
+        limit,
+    };
+    let rows: Vec<BridgeDecisionRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT decision_id, workspace_id, entity_id_a, entity_id_b, decision, \
+                         degree_a, degree_b, hub_degree_threshold, evidence_span_id, \
+                         bridge_edge_id, created_at FROM knowledge_memory_bridge_decisions \
+                         WHERE workspace_id = $workspace \
+                         ORDER BY created_at DESC, decision_id DESC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    rows.into_iter().map(BridgeDecisionRow::into_record).collect()
 }

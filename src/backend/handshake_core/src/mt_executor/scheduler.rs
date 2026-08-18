@@ -45,23 +45,116 @@
 //!      rows in the last 60s, not from an in-memory counter — survives
 //!      restart and is correct under multiple parallel scheduler instances.
 
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use surrealdb::types::SurrealValue;
 use thiserror::Error;
 use uuid::Uuid;
 
 use super::job::{MicroTaskJob, MicroTaskJobId};
+use super::queue::{EmptyBindings, MicroTaskQueue};
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 #[derive(Debug, Error)]
 pub enum SchedulerError {
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("storage error: {0}")]
+    Storage(#[from] SurrealStorageError),
     #[error("serde error: {0}")]
     Serde(#[from] serde_json::Error),
 }
+
+/// Upper bound on queued rows considered for one priority claim.
+///
+/// The PostgreSQL CTE ranked every queued row server-side. SurrealDB has no
+/// CTE and no LEFT JOIN, so the fairness aggregate and the candidate set are
+/// read separately and ranked by [`FairScheduler::priority`] — the same pure
+/// function the SQL was documented to mirror. This bound keeps the candidate
+/// read from growing without limit; candidates are read oldest-first so the
+/// longest-waiting rows are always inside the window, which is the property
+/// starvation avoidance depends on.
+const PRIORITY_CANDIDATE_LIMIT: i64 = 500;
+
+// ── row shapes ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, SurrealValue)]
+struct QueuedCandidateRow {
+    job_id: Uuid,
+    wp_id: String,
+    escalation_tier: String,
+    created_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, SurrealValue)]
+struct WpClaimRow {
+    wp_id: String,
+    claims: i64,
+}
+
+#[derive(Debug, Clone, SurrealValue)]
+struct WatermarkRow {
+    job_id: Uuid,
+    wp_id: String,
+    created_at_utc: DateTime<Utc>,
+}
+
+#[derive(SurrealValue)]
+struct SinceBinding {
+    since: DateTime<Utc>,
+}
+
+#[derive(SurrealValue)]
+struct CandidateLimitBinding {
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct ClaimBindings {
+    job_id: Uuid,
+    session_id: Uuid,
+    now: DateTime<Utc>,
+}
+
+#[derive(SurrealValue)]
+struct WatermarkBindings {
+    job_id: Uuid,
+    now: DateTime<Utc>,
+    cutoff: DateTime<Utc>,
+}
+
+// ── statements ──────────────────────────────────────────────────────────────
+
+/// Fairness window aggregate: the `wp_claims` CTE, verbatim in behaviour.
+const WP_CLAIMS_QUERY: &str = "SELECT wp_id, count() AS claims FROM kernel_micro_task_job \
+     WHERE claimed_at_utc != NONE AND claimed_at_utc > $since GROUP BY wp_id;";
+
+/// Queued candidates, oldest first — the `base` CTE minus the arithmetic, which
+/// [`FairScheduler::priority`] applies.
+const QUEUED_CANDIDATES_QUERY: &str = "SELECT job_id, wp_id, escalation_tier, created_at_utc \
+     FROM kernel_micro_task_job WHERE state = 'queued' \
+     ORDER BY created_at_utc ASC LIMIT $limit;";
+
+/// The claim itself. `AND state = 'queued'` inside the write is what makes two
+/// parallel claimers unable to take the same row; it is the direct replacement
+/// for `FOR UPDATE SKIP LOCKED` and it is why ranking outside the statement
+/// cannot cause a double claim.
+const PRIORITY_CLAIM_QUERY: &str = "UPDATE kernel_micro_task_job SET \
+     state = 'claimed', claimed_by_session = $session_id, claimed_at_utc = $now, \
+     updated_at_utc = $now \
+     WHERE job_id = $job_id AND state = 'queued' RETURN AFTER;";
+
+/// Monotonic starvation watermark.
+///
+/// The threshold test and the watermark write are ONE statement, so two
+/// processes cannot both decide they are the first to cross. This is stronger
+/// than the read-then-write it replaces needed to be, and it removes the
+/// transaction the PostgreSQL version required.
+const WATERMARK_CLAIM_QUERY: &str = "UPDATE kernel_micro_task_job SET \
+     starvation_watermark_at_utc = $now, updated_at_utc = $now \
+     WHERE job_id = $job_id AND starvation_watermark_at_utc = NONE \
+     AND created_at_utc <= $cutoff RETURN AFTER;";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StarvationConfig {
@@ -99,17 +192,9 @@ impl FairScheduler {
         &self.cfg
     }
 
-    /// Apply the MT-187 schema additions (starvation watermark column and
-    /// the per-wp claim-window index). Idempotent; safe to call after
-    /// `MicroTaskQueue::ensure_schema`.
-    pub async fn ensure_schema(&self, pool: &PgPool) -> Result<(), SchedulerError> {
-        sqlx::raw_sql(SCHEDULER_SCHEMA_SQL).execute(pool).await?;
-        Ok(())
-    }
-
-    /// Pure-function priority computation. Mirrors the SQL CTE used by
-    /// `claim_next_priority` so test assertions on `priority(...)` reflect
-    /// the same ordering the DB will produce.
+    /// Priority computation. This is now the ONLY place priority is computed —
+    /// the PostgreSQL CTE that duplicated this arithmetic is gone, so the
+    /// "SQL and Rust must agree" drift risk it carried is gone with it.
     pub fn priority(
         &self,
         job: &MicroTaskJob,
@@ -126,6 +211,28 @@ impl FairScheduler {
             .min(self.cfg.fairness_penalty_cap);
         p -= penalty;
         p
+    }
+
+    /// Same arithmetic as [`Self::priority`] over the projection the candidate
+    /// query returns, so a full `MicroTaskJob` need not be loaded to rank.
+    fn candidate_priority(
+        &self,
+        row: &QueuedCandidateRow,
+        now: DateTime<Utc>,
+        recent_claims_per_wp: &HashMap<String, u32>,
+    ) -> Result<i32, SchedulerError> {
+        let tier: super::job::EscalationTier =
+            serde_json::from_value(serde_json::Value::String(row.escalation_tier.clone()))?;
+        let mut p = tier.base_weight();
+        let age_secs = (now - row.created_at_utc).num_seconds().max(0) as i32;
+        let age_minutes = age_secs / 60;
+        let age_boost = (age_minutes * self.cfg.age_boost_per_minute).min(self.cfg.age_boost_cap);
+        p += age_boost;
+        let recent_claims = *recent_claims_per_wp.get(&row.wp_id).unwrap_or(&0) as i32;
+        let penalty = (recent_claims * self.cfg.fairness_penalty_per_claim)
+            .min(self.cfg.fairness_penalty_cap);
+        p -= penalty;
+        Ok(p)
     }
 
     /// Pick the highest-priority job from a candidate list. Tie-break: earliest
@@ -151,118 +258,90 @@ impl FairScheduler {
             .map(|(_, j)| j)
     }
 
-    /// Render the priority CTE + atomic-claim SQL used by
-    /// `claim_next_priority`. Exposed so the test surface can assert
-    /// red_team #1 (server-side priority, no client-side re-rank race)
-    /// without needing a live Postgres.
-    pub fn claim_next_priority_sql(&self) -> String {
-        // The CTE materialises the priority for every queued row, the
-        // candidate SELECT locks the base job row, and the outer UPDATE
-        // performs the state transition in the same statement.
-        //
-        // Notes on shape:
-        //  - `base_weight` mirrors `EscalationTier::base_weight()` exactly so
-        //    the wire form (`t7b`, `t7b_alt`, ...) maps to the same numeric
-        //    weight Rust uses.
-        //  - `age_boost` = LEAST(EXTRACT(EPOCH FROM now() - created_at_utc) /
-        //    60, age_boost_cap) * age_boost_per_minute.
-        //  - `fairness_penalty` = LEAST(claims_per_wp_in_window *
-        //    penalty_per_claim, penalty_cap), where `claims_per_wp_in_window`
-        //    is computed from `kernel_micro_task_job.claimed_at_utc` rows in
-        //    the last `fairness_window_secs` seconds (red_team #3).
-        format!(
-            r#"WITH base AS (
-    SELECT
-        job_id,
-        wp_id,
-        escalation_tier,
-        created_at_utc,
-        CASE escalation_tier
-            WHEN 'hard_gate' THEN 1000
-            WHEN 't32b'      THEN 100
-            WHEN 't13b_alt'  THEN 80
-            WHEN 't13b'      THEN 60
-            WHEN 't7b_alt'   THEN 40
-            WHEN 't7b'       THEN 20
-            ELSE 0
-        END AS base_weight,
-        LEAST(
-            FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at_utc)) / 60)::int * {age_boost_per_minute},
-            {age_boost_cap}
-        ) AS age_boost
-    FROM kernel_micro_task_job
-    WHERE state = 'queued'
-),
-wp_claims AS (
-    SELECT wp_id, COUNT(*)::int AS claims
-    FROM kernel_micro_task_job
-    WHERE claimed_at_utc IS NOT NULL
-      AND claimed_at_utc > NOW() - INTERVAL '{fairness_window_secs} seconds'
-    GROUP BY wp_id
-),
-scored AS (
-    SELECT
-        base.job_id,
-        base.wp_id,
-        base.created_at_utc,
-        base.base_weight
-        + base.age_boost
-        - LEAST(
-            COALESCE(wp_claims.claims, 0) * {fairness_penalty_per_claim},
-            {fairness_penalty_cap}
-          ) AS priority
-    FROM base
-    LEFT JOIN wp_claims USING (wp_id)
-),
-candidate AS (
-    SELECT j.job_id
-    FROM kernel_micro_task_job j
-    JOIN scored ON scored.job_id = j.job_id
-    WHERE j.state = 'queued'
-    ORDER BY scored.priority DESC, scored.created_at_utc ASC
-    FOR UPDATE SKIP LOCKED
-    LIMIT 1
-)
-UPDATE kernel_micro_task_job j
-SET state = 'claimed',
-    claimed_by_session = $1,
-    claimed_at_utc = $2,
-    updated_at_utc = $2
-FROM candidate
-WHERE j.job_id = candidate.job_id
-  AND j.state = 'queued'
-RETURNING j.job_id"#,
-            age_boost_per_minute = self.cfg.age_boost_per_minute,
-            age_boost_cap = self.cfg.age_boost_cap,
-            fairness_window_secs = self.cfg.fairness_window_secs,
-            fairness_penalty_per_claim = self.cfg.fairness_penalty_per_claim,
-            fairness_penalty_cap = self.cfg.fairness_penalty_cap,
-        )
+    /// The SurrealQL the priority claim executes, exposed so the test surface
+    /// can assert the claim shape without a live store.
+    ///
+    /// Replaces `claim_next_priority_sql`. The priority arithmetic is no longer
+    /// part of the statement text (see [`Self::priority`]), so what is asserted
+    /// here is the part that carries the concurrency guarantee: the claim's
+    /// `state = 'queued'` predicate and the `RETURN AFTER` that reports whether
+    /// this caller won.
+    pub fn claim_next_priority_surql(&self) -> &'static str {
+        PRIORITY_CLAIM_QUERY
     }
 
-    /// Atomically claim the highest-priority queued job. Priority is
-    /// computed server-side by a single CTE (no out-of-band re-ranking
-    /// race); the claim uses `FOR UPDATE SKIP LOCKED LIMIT 1` so parallel
-    /// claimers do not race on the same row.
+    /// The fairness-window aggregate the scheduler reads before ranking.
+    pub fn wp_claims_surql(&self) -> &'static str {
+        WP_CLAIMS_QUERY
+    }
+
+    /// Atomically claim the highest-priority queued job.
+    ///
+    /// DISCLOSED NARROWING: the PostgreSQL version ranked inside the claiming
+    /// statement, so ranking and claiming shared one snapshot. Here ranking runs
+    /// over one consistent read and the claim is a separate guarded statement.
+    /// Exclusivity is unchanged — the claim's `state = 'queued'` predicate still
+    /// admits exactly one winner per row — but two schedulers ranking against
+    /// slightly different fairness snapshots can pick a different order. The
+    /// consequence is ordering fairness, never a double claim. When a claim is
+    /// lost, the next candidate is tried, which is the `SKIP LOCKED` behaviour.
     pub async fn claim_next_priority(
         &self,
-        pool: &PgPool,
+        queue: &MicroTaskQueue,
         session_id: Uuid,
     ) -> Result<Option<MicroTaskJobId>, SchedulerError> {
-        let mut tx: Transaction<'_, Postgres> = pool.begin().await?;
         let now = Utc::now();
-        let sql = self.claim_next_priority_sql();
-        let row: Option<(Uuid,)> = sqlx::query_as(&sql)
-            .bind(session_id)
-            .bind(now)
-            .fetch_optional(&mut *tx)
+        let since = now
+            - chrono::Duration::seconds(self.cfg.fairness_window_secs.min(i64::MAX as u64) as i64);
+        let claim_rows: Vec<WpClaimRow> = queue.query(WP_CLAIMS_QUERY, SinceBinding { since }).await?;
+        let recent_claims_per_wp: HashMap<String, u32> = claim_rows
+            .into_iter()
+            .map(|row| (row.wp_id, row.claims.max(0) as u32))
+            .collect();
+
+        let mut candidates: Vec<QueuedCandidateRow> = queue
+            .query(
+                QUEUED_CANDIDATES_QUERY,
+                CandidateLimitBinding {
+                    limit: PRIORITY_CANDIDATE_LIMIT,
+                },
+            )
             .await?;
-        let Some((id,)) = row else {
-            tx.commit().await?;
+        if candidates.is_empty() {
             return Ok(None);
-        };
-        tx.commit().await?;
-        Ok(Some(MicroTaskJobId(id)))
+        }
+        let mut scored = Vec::with_capacity(candidates.len());
+        for row in candidates.drain(..) {
+            let priority = self.candidate_priority(&row, now, &recent_claims_per_wp)?;
+            scored.push((priority, row));
+        }
+        // Highest priority first; FIFO on ties. Mirrors
+        // `ORDER BY priority DESC, created_at_utc ASC`.
+        scored.sort_by(|left, right| {
+            right
+                .0
+                .cmp(&left.0)
+                .then_with(|| left.1.created_at_utc.cmp(&right.1.created_at_utc))
+                .then_with(|| left.1.job_id.cmp(&right.1.job_id))
+        });
+
+        for (_, row) in scored {
+            let claimed: Vec<WatermarkRow> = queue
+                .query(
+                    PRIORITY_CLAIM_QUERY,
+                    ClaimBindings {
+                        job_id: row.job_id,
+                        session_id,
+                        now,
+                    },
+                )
+                .await?;
+            if !claimed.is_empty() {
+                return Ok(Some(MicroTaskJobId(row.job_id)));
+            }
+            // Lost the race for this row; move to the next candidate.
+        }
+        Ok(None)
     }
 }
 
@@ -313,66 +392,43 @@ impl StarvationGuard {
         })
     }
 
-    /// Postgres-backed monotonic check. Sets the
-    /// `starvation_watermark_at_utc` column on the
-    /// `kernel_micro_task_job` row on first crossing; subsequent calls
-    /// observe the watermark and return None.
+    /// Store-backed monotonic check. Sets `starvation_watermark_at_utc` on the
+    /// `kernel_micro_task_job` row on first crossing; subsequent calls observe
+    /// the watermark and return None.
     ///
-    /// This satisfies red_team minimum_control #2: the metric is monotonic
-    /// (no flapping) via `last_emitted_at_utc` watermark per job — and
-    /// survives process restart because the watermark is durable in the
-    /// DB row, not an in-memory map.
+    /// red_team minimum_control #2 is strengthened rather than preserved: the
+    /// age test, the watermark test and the watermark write are now a single
+    /// statement, so the emit decision is atomic without a transaction and two
+    /// processes crossing simultaneously cannot both emit. The watermark stays
+    /// durable in the row, so it still survives restart.
     pub async fn check_with_watermark(
         &self,
-        pool: &PgPool,
+        queue: &MicroTaskQueue,
         job_id: MicroTaskJobId,
         now: DateTime<Utc>,
     ) -> Result<Option<StarvationSignal>, SchedulerError> {
-        let mut tx: Transaction<'_, Postgres> = pool.begin().await?;
-        let row: Option<(Uuid, String, DateTime<Utc>, Option<DateTime<Utc>>)> = sqlx::query_as(
-            r#"SELECT job_id, wp_id, created_at_utc, starvation_watermark_at_utc
-               FROM kernel_micro_task_job
-               WHERE job_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some((id, wp_id, created_at, watermark)) = row else {
-            tx.commit().await?;
+        let cutoff = now - chrono::Duration::seconds(self.cfg.starvation_threshold_secs as i64);
+        let rows: Vec<WatermarkRow> = queue
+            .query(
+                WATERMARK_CLAIM_QUERY,
+                WatermarkBindings {
+                    job_id: job_id.as_uuid(),
+                    now,
+                    cutoff,
+                },
+            )
+            .await?;
+        let Some(row) = rows.into_iter().next() else {
             return Ok(None);
         };
-        let age = (now - created_at).num_seconds().max(0) as u64;
-        if age < self.cfg.starvation_threshold_secs {
-            tx.commit().await?;
-            return Ok(None);
-        }
-        if watermark.is_some() {
-            // Already emitted; honour the persisted watermark.
-            tx.commit().await?;
-            return Ok(None);
-        }
-        sqlx::query(
-            r#"UPDATE kernel_micro_task_job
-               SET starvation_watermark_at_utc = $1, updated_at_utc = $1
-               WHERE job_id = $2"#,
-        )
-        .bind(now)
-        .bind(id)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
+        let age = (now - row.created_at_utc).num_seconds().max(0) as u64;
         Ok(Some(StarvationSignal {
-            job_id: id,
-            wp_id,
+            job_id: row.job_id,
+            wp_id: row.wp_id,
             age_secs: age,
         }))
     }
 }
-
-pub const SCHEDULER_SCHEMA_SQL: &str =
-    include_str!("../../migrations/0026_mt_scheduler_starvation_watermark.sql");
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -4566,29 +4566,71 @@ impl RichEditorWidget {
         accessibility_namespace: Option<&str>,
     ) -> ChipPaintOutcome {
         use crate::rich_editor::wikilinks::inline_view::{
-            chip_occurrence_author_id, chip_rect_for_span, code_ref_chip_author_id,
-            create_affordance_author_id, is_code_ref, is_locus_ref,
+            chip_occurrence_author_id, chip_rect_for_row_spans, chip_rect_for_span,
+            code_ref_chip_author_id, create_affordance_author_id, is_code_ref, is_locus_ref,
             locus_ref_chip_occurrence_author_id, EditorEvent, CHIP_ROLE,
         };
 
-        let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
+        // WP-KERNEL-012 MT-124: the chip is painted PER GALLEY ROW. `spec.row_spans` carries one rect
+        // + one label slice for every row the atom occupies, derived from the galley's own row
+        // geometry, so the pill behind the label and the label itself are measured by the SAME rule.
+        // The historical single collapsed rect (first cursor .. last cursor) is only correct for an
+        // atom that fits on one row: for a WRAPPED atom it is the narrow x-band between the two cursor
+        // positions, so the pill came out narrow while the single non-wrapping `Painter::text` call ran
+        // the label on in one line past the 720pt reading column and onto the page.
+        let row_rects: Vec<egui::Rect> = spec
+            .row_spans
+            .iter()
+            .map(|span| span.local_rect.translate(origin.to_vec2()))
+            .collect();
+        // The interaction / AccessKit activation rect still encloses the WHOLE atom — the union of
+        // every row it occupies. That is a SUPERSET of the old collapsed rect, so pointer activation,
+        // swarm targeting, and the MT-068 hit-test contract widen with the atom and can never narrow.
+        // An empty span list (an empty galley — defensive) falls back to the collapsed rect.
+        let rect = chip_rect_for_row_spans(&spec.row_spans, origin)
+            .unwrap_or_else(|| chip_rect_for_span(spec.local_start, spec.local_end, origin));
         // Paint the chip background (rounded) then the label text in the chip text color. MT-068:
         // the underlying galley run for this atom is laid out as EXACTLY this label and painted
         // TRANSPARENT (AtomPaint::ChipCovered), so the pill + this text are the ONLY visible glyphs
         // — the chip consumes the atom's layout space and no doubled glyph runs can stick out
         // around it. Colors are theme tokens (CONTROL-4).
         let painter = ui.painter();
-        painter.rect_filled(rect, 4.0, spec.bg);
-        painter.text(
-            egui::pos2(rect.min.x + 1.0, rect.center().y),
-            egui::Align2::LEFT_CENTER,
-            &spec.label,
-            // MT-116: the galley's OWN size for this atom, not the BASE_FONT_SIZE constant. The pill
-            // rect above is derived from that galley, so using the constant here made pill and label
-            // disagree at every editor font size except the default (and in every heading block).
-            egui::FontId::proportional(spec.font_size),
-            spec.fg,
-        );
+        // MT-116: the galley's OWN size for this atom, not the BASE_FONT_SIZE constant. The pill rects
+        // are derived from that galley, so using the constant here made pill and label disagree at
+        // every editor font size except the default (and in every heading block).
+        let label_font = egui::FontId::proportional(spec.font_size);
+        if row_rects.is_empty() {
+            painter.rect_filled(rect, 4.0, spec.bg);
+            painter.text(
+                egui::pos2(rect.min.x + 1.0, rect.center().y),
+                egui::Align2::LEFT_CENTER,
+                &spec.label,
+                label_font.clone(),
+                spec.fg,
+            );
+        } else {
+            let label_chars: Vec<char> = spec.label.chars().collect();
+            for (span, row_rect) in spec.row_spans.iter().zip(row_rects.iter()) {
+                // Rounded on the atom's outer corners only, so consecutive row segments of one wrapped
+                // chip read as a single continuous pill instead of a column of scalloped pills.
+                painter.rect_filled(*row_rect, chip_row_corner_radius(span), spec.bg);
+                let lo = span.label_chars.start.min(label_chars.len());
+                let hi = span.label_chars.end.clamp(lo, label_chars.len());
+                if lo == hi {
+                    continue;
+                }
+                // Each label char is painted EXACTLY ONCE, on the row the galley placed it on — this is
+                // the label slice, not a re-wrap of the whole label into a narrow pill (which cascades
+                // the text down the page and was proven wrong on the GPU frame).
+                painter.text(
+                    egui::pos2(row_rect.min.x + 1.0, row_rect.center().y),
+                    egui::Align2::LEFT_CENTER,
+                    label_chars[lo..hi].iter().collect::<String>(),
+                    label_font.clone(),
+                    spec.fg,
+                );
+            }
+        }
 
         // An interactive (clickable) node over the chip rect, addressable by the stable chip author_id.
         // MT-034: a code ref gets the contract `code-ref-chip-{symbol_entity_id}` id (the symbol the
@@ -6139,12 +6181,35 @@ struct WikilinkChipSpec {
     /// Number of normalized-title-or-alias matches when resolution is ambiguous. Ambiguous chips are
     /// visible AccessKit Alert surfaces, not navigation/create/swarm-edit controls.
     ambiguity_matches: Option<usize>,
+    /// WP-KERNEL-012 MT-124: ONE galley-local rect + label slice per galley row this atom occupies (a
+    /// single entry for the common unwrapped atom, reproducing the historical collapsed rect exactly).
+    /// The chip painter draws one pill segment and one label slice per entry, so a WRAPPED chip's pill
+    /// and label are measured by the same rule and neither can escape the reading column.
+    row_spans: Vec<crate::rich_editor::wikilinks::inline_view::ChipRowSpan>,
     /// WP-KERNEL-012 MT-110: the atom's child index within its block (the leaf index). Combined with the
     /// block index at the call site it gives the doc path `[block_idx, leaf_index]` the swarm
     /// wikilink-target consume ([`RichEditorWidget::set_hs_link_ref_value`]) mutates. The chip's swarm
     /// SetValue dispatch is resolved to THIS atom by that path (never by matching ref_value, which two
     /// atoms could share).
     leaf_index: usize,
+}
+
+/// WP-KERNEL-012 MT-124: the corner rounding for ONE row segment of a chip pill. An atom that fits on
+/// one galley row is both the first and the last row, so it rounds all four corners exactly as the
+/// single-rect pill always did. A wrapped atom rounds only its OUTER corners — the left corners on its
+/// first row and the right corners on its last — so the row segments (which touch vertically) read as
+/// one continuous pill rather than a stack of separate lozenges.
+fn chip_row_corner_radius(
+    span: &crate::rich_editor::wikilinks::inline_view::ChipRowSpan,
+) -> egui::CornerRadius {
+    /// The pill radius the single-rect chip has always used.
+    const CHIP_CORNER_RADIUS: u8 = 4;
+    egui::CornerRadius {
+        nw: if span.first_row { CHIP_CORNER_RADIUS } else { 0 },
+        sw: if span.first_row { CHIP_CORNER_RADIUS } else { 0 },
+        ne: if span.last_row { CHIP_CORNER_RADIUS } else { 0 },
+        se: if span.last_row { CHIP_CORNER_RADIUS } else { 0 },
+    }
 }
 
 /// Compute the [`WikilinkChipSpec`]s for every hsLink atom in an inline-content block by re-laying it
@@ -6219,6 +6284,14 @@ fn wikilink_chip_specs(
                     link: link.clone(),
                     local_start,
                     local_end,
+                    // MT-124: the atom's per-row geometry from the SAME galley the rects above come
+                    // from. A one-row atom yields one span identical to the collapsed rect; a wrapped
+                    // atom yields one span per row, which is what the chip actually covers.
+                    row_spans: crate::rich_editor::wikilinks::inline_view::chip_row_spans(
+                        &galley,
+                        start,
+                        end.max(start),
+                    ),
                     bg,
                     fg,
                     label,

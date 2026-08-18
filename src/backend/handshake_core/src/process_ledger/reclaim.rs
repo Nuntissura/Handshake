@@ -3,7 +3,8 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use serde_json::Value;
+use surrealdb::types::SurrealValue;
 use thiserror::Error;
 use tokio::{
     task::JoinHandle,
@@ -12,63 +13,64 @@ use tokio::{
 use uuid::Uuid;
 
 use super::{
-    LedgerEventKind, SurrealProcessLedgerStore, ProcessEngineKind, ProcessLedgerError,
-    ProcessLedgerWriter, ProcessStop,
+    LedgerEventKind, ProcessEngineKind, ProcessLedgerError, ProcessLedgerWriter, ProcessStop,
+    SurrealProcessLedgerStore,
 };
+
+/// Sentinel written into `stop_reason` when the claim finds the column empty.
+///
+/// It is also the marker the follow-up STOP upsert overwrites, and — together
+/// with the bound claim timestamp — the precise guard the compensating
+/// un-claim uses.
+const RECLAIM_CLAIM_STOP_REASON: &str = "reclaim_claimed";
 
 /// MT-008: atomically claim the active (un-stopped) rows for a session.
 ///
-/// The previous form was `SELECT ... FOR UPDATE` executed in a transaction that
-/// was committed immediately, releasing the row locks *before* the reclaim
-/// decision (sandbox kill + stop-event write) ran. Two concurrent reclaims could
-/// therefore both read the same active rows and both act on them, double-killing
-/// a process and writing duplicate STOP rows (or, under interleaving, missing a
-/// row).
+/// The original PostgreSQL form was `SELECT ... FOR UPDATE` executed in a
+/// transaction that was committed immediately, releasing the row locks *before*
+/// the reclaim decision (sandbox kill + stop-event write) ran. Two concurrent
+/// reclaims could therefore both read the same active rows and both act on
+/// them, double-killing a process and writing duplicate STOP rows (or, under
+/// interleaving, missing a row).
 ///
-/// The FOR UPDATE row lock must cover the rows being reclaimed for the *whole*
-/// reclaim decision. We collapse the read-modify-write into a single atomic
-/// statement: an `UPDATE ... WHERE stopped_at IS NULL ... RETURNING` takes the
-/// row locks (equivalent to FOR UPDATE) and, in the same statement, marks each
-/// claimed row's `stopped_at`/`stop_reason` so the row is no longer NULL. A
-/// concurrent reclaim's identical UPDATE then matches zero of those rows
-/// (`stopped_at IS NULL` is now false), so it cannot double-claim. The claim is
-/// durable the instant the statement commits; the kill outcome / exit_code is
-/// refined afterward by the normal STOP upsert (which overwrites the sentinel
-/// `stopped_at` with the real stop time). `FOR UPDATE` is retained explicitly in
-/// the text to document the locking intent and to satisfy the row-lock contract.
-pub const POSTGRES_ACTIVE_RECLAIM_QUERY_SQL: &str = r#"
-WITH locked AS (
-    SELECT process_uuid
-    FROM kernel_process_lifecycle
-    WHERE parent_session_id = $1
-      AND stopped_at IS NULL
-    FOR UPDATE
-)
-UPDATE kernel_process_lifecycle AS k
-SET stopped_at = now(),
-    stop_reason = COALESCE(k.stop_reason, 'reclaim_claimed')
-FROM locked
-WHERE k.process_uuid = locked.process_uuid
-  AND k.stopped_at IS NULL
-RETURNING
-    k.process_uuid::text AS process_uuid,
-    k.os_pid,
-    k.parent_session_id,
-    k.parent_process_id::text AS parent_process_id,
-    k.sandbox_adapter_id,
-    k.sandbox_internal_id,
-    k.engine_kind,
-    k.started_at,
-    k.model_artifact_sha256,
-    k.work_profile_id,
-    k.owner_role,
-    k.owner_wp,
-    k.role_id,
-    k.wp_id,
-    k.mt_id,
-    k.sandbox_capabilities_snapshot::text AS sandbox_capabilities_snapshot,
-    k.metadata_jsonb::text AS metadata_jsonb
-"#;
+/// The exclusion must cover the rows being reclaimed for the *whole* reclaim
+/// decision, so the read-modify-write is collapsed into ONE statement. SurrealDB
+/// runs a single statement in its own transaction, so this `UPDATE ... WHERE
+/// stopped_at = NONE ... RETURN BEFORE` is the direct equivalent of the
+/// `UPDATE ... WHERE stopped_at IS NULL ... RETURNING` it replaces: it claims
+/// each matching row by stamping `stopped_at`, and a concurrent reclaim's
+/// identical statement then matches zero of those rows because `stopped_at` is
+/// no longer `NONE`. Claiming and excluding happen in the same commit, so two
+/// racing reclaims cannot both observe a row as active.
+///
+/// Two details are load-bearing:
+///
+/// * The claim timestamp is BOUND from the caller rather than produced by
+///   `time::now()` server-side. Knowing the exact stamp we wrote is what lets
+///   the compensating un-claim below target only rows this claim actually took:
+///   if a real STOP landed in between it overwrote `stopped_at`, the guard no
+///   longer matches, and the row is correctly left alone.
+/// * `RETURN BEFORE` yields the pre-claim row. Every field the caller needs is
+///   an identity field the UPDATE does not touch, so BEFORE and AFTER are
+///   identical for them — but BEFORE additionally carries the original
+///   `stop_reason`, which the compensation restores verbatim.
+///
+/// The claim is durable the instant the statement commits; the kill outcome /
+/// exit_code is refined afterward by the normal STOP upsert, which overwrites
+/// the sentinel `stopped_at` with the real stop time.
+pub const SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY: &str = "UPDATE kernel_process_lifecycle SET \
+     stopped_at = $claimed_at, \
+     stop_reason = IF stop_reason = NONE { $claim_reason } ELSE { stop_reason } \
+     WHERE parent_session_id = $session_id AND stopped_at = NONE RETURN BEFORE;";
+
+/// Releases one row claimed by [`SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY`].
+///
+/// `stopped_at = $claimed_at` is the whole safety of this statement: it matches
+/// only a row still carrying the exact sentinel this claim wrote. A row whose
+/// STOP has since landed has a different `stopped_at` and is skipped.
+const SURREAL_ACTIVE_RECLAIM_RELEASE_QUERY: &str = "UPDATE kernel_process_lifecycle SET \
+     stopped_at = NONE, stop_reason = $stop_reason \
+     WHERE process_uuid = $process_uuid AND stopped_at = $claimed_at RETURN AFTER;";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -267,101 +269,160 @@ impl ReclaimStopWriter for ProcessLedgerWriter {
     }
 }
 
+/// The projection the claim statement returns.
+///
+/// Field types mirror the `SCHEMAFULL` `kernel_process_lifecycle` definition, so
+/// the conversions the PostgreSQL version had to perform by hand no longer
+/// exist: `process_uuid`/`parent_process_id` arrive as native `uuid`, and the
+/// two JSON columns arrive as `object FLEXIBLE` rather than text that had to be
+/// re-parsed. Only `engine_kind` and `os_pid` still need a checked conversion,
+/// and both are constrained by the schema (`engine_kind` is a literal union
+/// matching [`ProcessEngineKind`] exactly; `os_pid` asserts `>= 0`).
+#[derive(Debug, Clone, SurrealValue)]
+struct ClaimedRow {
+    process_uuid: Uuid,
+    os_pid: Option<i64>,
+    parent_session_id: Option<String>,
+    parent_process_id: Option<Uuid>,
+    sandbox_adapter_id: Option<String>,
+    sandbox_internal_id: Option<String>,
+    engine_kind: String,
+    started_at: DateTime<Utc>,
+    stop_reason: Option<String>,
+    model_artifact_sha256: Option<String>,
+    work_profile_id: Option<String>,
+    owner_role: String,
+    owner_wp: Option<String>,
+    role_id: Option<String>,
+    wp_id: Option<String>,
+    mt_id: Option<String>,
+    sandbox_capabilities_snapshot: Value,
+    metadata: Value,
+}
+
+impl ClaimedRow {
+    fn into_reclaimable(self, session_id: &str) -> Result<ReclaimableProcess, ProcessLedgerError> {
+        Ok(ReclaimableProcess {
+            process_uuid: self.process_uuid,
+            os_pid: self.os_pid.map(os_pid_to_u32).transpose()?,
+            // The claim's `WHERE parent_session_id = $session_id` makes this
+            // provably equal to `session_id`; the fallback only covers the
+            // schema's `option<string>` typing, it is not a guess.
+            parent_session_id: self
+                .parent_session_id
+                .unwrap_or_else(|| session_id.to_owned()),
+            parent_process_id: self.parent_process_id,
+            sandbox_adapter_id: self.sandbox_adapter_id,
+            sandbox_internal_id: self.sandbox_internal_id,
+            engine_kind: ProcessEngineKind::try_from(self.engine_kind.as_str())
+                .map_err(ProcessLedgerError::Store)?,
+            started_at: self.started_at,
+            model_artifact_sha256: self.model_artifact_sha256,
+            work_profile_id: self.work_profile_id,
+            owner_role: self.owner_role,
+            owner_wp: self.owner_wp,
+            role_id: self.role_id,
+            wp_id: self.wp_id,
+            mt_id: self.mt_id,
+            sandbox_capabilities_snapshot: self.sandbox_capabilities_snapshot,
+            metadata_jsonb: self.metadata,
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct ClaimBindings {
+    session_id: String,
+    claimed_at: DateTime<Utc>,
+    claim_reason: String,
+}
+
+#[derive(SurrealValue)]
+struct ReleaseBindings {
+    process_uuid: Uuid,
+    claimed_at: DateTime<Utc>,
+    stop_reason: Option<String>,
+}
+
 #[async_trait]
 impl ReclaimProcessStore for SurrealProcessLedgerStore {
     async fn active_processes_for_session(
         &self,
         session_id: &str,
     ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
-        // MT-008: the claim (lock + stopped_at mutation) is atomic in the
-        // UPDATE...RETURNING. We map the returned rows BEFORE committing so that a
-        // row-decode failure rolls the claim back rather than leaving rows marked
-        // claimed but never returned to the caller (which would orphan them:
-        // claimed yet never killed). Commit only after every row decodes cleanly.
-        let mut tx = self.pool().begin().await?;
-        let rows = sqlx::query(POSTGRES_ACTIVE_RECLAIM_QUERY_SQL)
-            .bind(session_id)
-            .fetch_all(&mut *tx)
-            .await?;
-
-        let claimed: Result<Vec<ReclaimableProcess>, ProcessLedgerError> = rows
-            .into_iter()
-            .map(|row| {
-                let process_uuid_raw: String = row.get("process_uuid");
-                let engine_kind_raw: String = row.get("engine_kind");
-                Ok(ReclaimableProcess {
-                    process_uuid: Uuid::parse_str(&process_uuid_raw).map_err(|error| {
-                        ProcessLedgerError::Store(format!(
-                            "invalid process_uuid in reclaim query: {error}"
-                        ))
-                    })?,
-                    os_pid: row
-                        .try_get::<Option<i64>, _>("os_pid")
-                        .map_err(ProcessLedgerError::from)?
-                        .map(pg_pid_to_u32)
-                        .transpose()?,
-                    parent_session_id: row.get("parent_session_id"),
-                    parent_process_id: row
-                        .try_get::<Option<String>, _>("parent_process_id")
-                        .map_err(ProcessLedgerError::from)?
-                        .map(|raw| {
-                            Uuid::parse_str(&raw).map_err(|error| {
-                                ProcessLedgerError::Store(format!(
-                                    "invalid parent_process_id in reclaim query: {error}"
-                                ))
-                            })
-                        })
-                        .transpose()?,
-                    sandbox_adapter_id: row.get("sandbox_adapter_id"),
-                    sandbox_internal_id: row.get("sandbox_internal_id"),
-                    engine_kind: ProcessEngineKind::try_from(engine_kind_raw.as_str())
-                        .map_err(ProcessLedgerError::Store)?,
-                    started_at: row.get("started_at"),
-                    model_artifact_sha256: row.get("model_artifact_sha256"),
-                    work_profile_id: row.get("work_profile_id"),
-                    owner_role: row.get("owner_role"),
-                    owner_wp: row.get("owner_wp"),
-                    role_id: row.get("role_id"),
-                    wp_id: row.get("wp_id"),
-                    mt_id: row.get("mt_id"),
-                    sandbox_capabilities_snapshot: json_text_column(
-                        &row,
-                        "sandbox_capabilities_snapshot",
-                    )?,
-                    metadata_jsonb: json_text_column(&row, "metadata_jsonb")?,
+        // MT-008: the claim (exclusion + stopped_at mutation) is atomic inside
+        // the single UPDATE ... RETURN BEFORE statement.
+        let claimed_at = Utc::now();
+        let bindings = ClaimBindings {
+            session_id: session_id.to_owned(),
+            claimed_at,
+            claim_reason: RECLAIM_CLAIM_STOP_REASON.to_owned(),
+        };
+        let rows: Vec<ClaimedRow> = self
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY, bindings)
+                        .await
                 })
             })
-            .collect();
+            .await
+            .map_err(ProcessLedgerError::from)?;
 
-        match claimed {
-            Ok(processes) => {
-                tx.commit().await?;
-                Ok(processes)
+        // The PostgreSQL version mapped rows inside the claiming transaction so
+        // that a mapping failure rolled the claim back and left the rows
+        // reclaimable. The seam commits the claim before Rust sees the rows, so
+        // that intent is preserved by an explicit compensating release rather
+        // than by a rollback. DISCLOSED NARROWING: a crash between the claim
+        // commit and the release leaves the affected rows claimed-but-not-killed
+        // instead of reclaimable. The release is precise (see the guard on
+        // `SURREAL_ACTIVE_RECLAIM_RELEASE_QUERY`) and the two remaining fallible
+        // conversions are both schema-constrained, so this path is not expected
+        // to run at all.
+        let mut reclaimable = Vec::with_capacity(rows.len());
+        for (index, row) in rows.iter().enumerate() {
+            match row.clone().into_reclaimable(session_id) {
+                Ok(process) => reclaimable.push(process),
+                Err(error) => {
+                    self.release_claim(&rows[index..], claimed_at).await;
+                    return Err(error);
+                }
             }
-            Err(error) => {
-                // Roll the claim back so the rows stay reclaimable; surface the
-                // decode error to the caller.
-                let _ = tx.rollback().await;
-                Err(error)
-            }
+        }
+        Ok(reclaimable)
+    }
+}
+
+impl SurrealProcessLedgerStore {
+    /// Puts rows this claim took back into the reclaimable pool.
+    ///
+    /// Failures are swallowed deliberately: the caller is already returning the
+    /// mapping error that triggered the release, and a release failure must not
+    /// mask it. A row that fails to release stays claimed and is reported by the
+    /// next staleness scan rather than being silently lost.
+    async fn release_claim(&self, rows: &[ClaimedRow], claimed_at: DateTime<Utc>) {
+        for row in rows {
+            let bindings = ReleaseBindings {
+                process_uuid: row.process_uuid,
+                claimed_at,
+                stop_reason: row.stop_reason.clone(),
+            };
+            let _ = self
+                .storage()
+                .with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .execute_returning(SURREAL_ACTIVE_RECLAIM_RELEASE_QUERY, bindings)
+                            .await
+                    })
+                })
+                .await;
         }
     }
 }
 
-fn json_text_column(
-    row: &sqlx::postgres::PgRow,
-    column: &str,
-) -> Result<serde_json::Value, ProcessLedgerError> {
-    let raw = row
-        .try_get::<Option<String>, _>(column)
-        .map_err(ProcessLedgerError::from)?
-        .unwrap_or_else(|| "{}".to_string());
-    serde_json::from_str(&raw).map_err(|error| {
-        ProcessLedgerError::Store(format!("invalid JSONB column {column}: {error}"))
-    })
-}
-
-fn pg_pid_to_u32(value: i64) -> Result<u32, ProcessLedgerError> {
+fn os_pid_to_u32(value: i64) -> Result<u32, ProcessLedgerError> {
     u32::try_from(value)
         .map_err(|_| ProcessLedgerError::Store(format!("invalid os_pid in reclaim query: {value}")))
 }

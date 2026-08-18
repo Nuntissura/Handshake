@@ -407,6 +407,107 @@ pub fn chip_rect_for_span(local_start: Rect, local_end: Rect, origin: egui::Pos2
     )
 }
 
+/// WP-KERNEL-012 MT-124: ONE wrapped-row slice of a chip atom, in GALLEY-LOCAL coordinates.
+///
+/// [`chip_rect_for_span`] collapses an atom into a SINGLE bounding rect built from its first and last
+/// cursor. For an atom that fits on one galley row that is exact. For an atom that WRAPS across rows it
+/// is geometrically wrong: the region the atom actually occupies is the UNION of one rect PER ROW (each
+/// spanning that row from the atom's first char on it to its last), not the narrow x-band between the
+/// two cursor positions. Painting a pill from the collapsed rect while painting the label in one
+/// unwrapped `Painter::text` run made the pill and the label obey two different rules — the pill stayed
+/// narrow while the label ran on past the reading column onto the page.
+///
+/// A one-row atom yields exactly ONE span whose `local_rect` reproduces [`chip_rect_for_span`]'s rect
+/// bit for bit (same `Row::x_offset` x, same row y band, same 1px pill padding), so unwrapped chip
+/// rendering — and the MT-116 pill/label containment guard over it — is unchanged.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChipRowSpan {
+    /// Galley-local rect of the atom's slice on this row, carrying the pill's 1px horizontal padding.
+    pub local_rect: Rect,
+    /// The chars of the chip label painted on this row, as a range into the label's `char` sequence.
+    /// Slicing the label by these ranges paints each glyph exactly once (MT-068: no doubled runs).
+    pub label_chars: std::ops::Range<usize>,
+    /// True for the atom's FIRST row — the pill rounds its LEFT corners there.
+    pub first_row: bool,
+    /// True for the atom's LAST row — the pill rounds its RIGHT corners there.
+    pub last_row: bool,
+}
+
+/// Derive one [`ChipRowSpan`] per galley row the atom's `[start_char, end_char)` span occupies.
+///
+/// The geometry mirrors [`egui::Galley::pos_from_cursor`] exactly (x from `Row::x_offset`, y from the
+/// row's own band) so this is the SAME measuring rule the chip rect has always used — it is applied per
+/// row instead of once across the whole atom. Returns an empty vec for an empty galley, which the
+/// caller treats as "fall back to the collapsed rect".
+pub fn chip_row_spans(galley: &egui::Galley, start_char: usize, end_char: usize) -> Vec<ChipRowSpan> {
+    use egui::epaint::text::cursor::CCursor;
+
+    if galley.rows.is_empty() {
+        return Vec::new();
+    }
+    let end_char = end_char.max(start_char);
+    // The START cursor prefers the NEXT row (an atom beginning exactly at a wrap point paints on the
+    // row it occupies, not at the end of the row before it); the END cursor prefers the PREVIOUS row
+    // for the mirrored reason. Together they bound the atom's real row range.
+    let start_lc = galley.layout_from_cursor(CCursor {
+        index: start_char,
+        prefer_next_row: true,
+    });
+    let end_lc = galley.layout_from_cursor(CCursor {
+        index: end_char,
+        prefer_next_row: false,
+    });
+
+    let mut spans = Vec::new();
+    // Char index at the start of the row being visited — advanced by `char_count_including_newline`,
+    // exactly as `Galley::layout_from_cursor` advances its own cursor, so the columns resolved above
+    // line up with these bases.
+    let mut row_base = 0usize;
+    for (row_index, row) in galley.rows.iter().enumerate() {
+        let row_chars = row.char_count_excluding_newline();
+        if row_index >= start_lc.row && row_index <= end_lc.row {
+            let col_lo = if row_index == start_lc.row {
+                start_lc.column.min(row_chars)
+            } else {
+                0
+            };
+            let col_hi = if row_index == end_lc.row {
+                end_lc.column.min(row_chars)
+            } else {
+                row_chars
+            }
+            .max(col_lo);
+            let local_rect = Rect::from_min_max(
+                egui::pos2(row.x_offset(col_lo) - 1.0, row.min_y()),
+                egui::pos2(row.x_offset(col_hi) + 1.0, row.max_y()),
+            );
+            spans.push(ChipRowSpan {
+                local_rect,
+                label_chars: (row_base + col_lo).saturating_sub(start_char)
+                    ..(row_base + col_hi).saturating_sub(start_char),
+                first_row: row_index == start_lc.row,
+                last_row: row_index == end_lc.row,
+            });
+        }
+        row_base += row.char_count_including_newline();
+    }
+    spans
+}
+
+/// The chip's whole-atom SCREEN rect: the union of every row slice offset by the block's painted
+/// (already scroll-adjusted) origin.
+///
+/// This is what the chip's pointer/AccessKit activation rect is built from. It ENCLOSES every row the
+/// atom occupies, so it is a superset of the historical collapsed rect and pointer activation, swarm
+/// targeting, and the MT-068 hit-test contract can only widen, never narrow. Returns `None` for an
+/// empty span list so the caller can fall back to [`chip_rect_for_span`].
+pub fn chip_rect_for_row_spans(spans: &[ChipRowSpan], origin: egui::Pos2) -> Option<Rect> {
+    spans
+        .iter()
+        .map(|span| span.local_rect.translate(origin.to_vec2()))
+        .reduce(Rect::union)
+}
+
 /// The AccessKit role for a wikilink chip — the field-correct nearest variant in accesskit 0.21.1
 /// (the MT names `Role::Link`).
 pub const CHIP_ROLE: accesskit::Role = accesskit::Role::Link;

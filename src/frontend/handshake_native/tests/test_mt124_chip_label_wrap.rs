@@ -41,6 +41,17 @@
 //!   GLYPH scanline when its ink forms at least [`MIN_INK_RUNS`] separate runs (letters), which a
 //!   solid rule never does.
 //!
+//! A THIRD false-measurement trap, found on this MT's own first GPU run and fixed here: the captured
+//! frame carries an 8-pixel UNPAINTED margin on all four sides — RGBA `(0, 0, 0, 0)`, verified by
+//! sampling the saved PNG. Classified by NEAREST RGB token, transparent black is nearest to the
+//! saturated accent text token, so every single scanline reported label ink at the frame's very last
+//! column (`ink_max_x = 2399` on all three scenarios, fixed and unfixed alike) and every scanline
+//! gained two phantom ink runs. That is a defect in the MEASUREMENT, not in the paint: an unpainted
+//! pixel cannot carry label ink. [`is_painted`] gates the classification on full opacity, which
+//! removes only false positives — it makes the guard STRICTER (fewer scanlines reach [`MIN_INK_RUNS`])
+//! and it does not soften the RED verdict, whose escaping label glyphs are painted opaque pixels well
+//! inside the frame.
+//!
 //! ## AC-124-5 (headings at the DEFAULT editor size)
 //!
 //! `HEADING_SCALE` means an H1 is already 27.0 at the DEFAULT editor size 15.0, so heading chips are
@@ -115,12 +126,38 @@ const PILL_EDGE_GUARD: u32 = 3;
 /// LEFT), so this never produces a false RED.
 const COLUMN_SLACK_PX: u32 = 12;
 
-/// Columns at the far right of the frame sampled as the empty-background reference.
-const BG_REFERENCE_COLS: u32 = 40;
+/// Rows of empty page BELOW the chip band sampled as the empty-background reference.
+///
+/// Deliberately NOT the far-right columns of the chip's own rows. In the UNFIXED build the escaping
+/// label runs all the way to the frame edge, so no right-hand strip on those rows is empty and the
+/// measurement aborted on scenario 1 with a harness message instead of measuring the defect. The page
+/// below the chip is empty in BOTH builds, so the same reference is available either way and all three
+/// scenarios are measured in RED as well as in GREEN.
+const BG_REFERENCE_ROWS: u32 = 24;
+
+/// Gap between the bottom of the chip band and the background reference band.
+const BG_REFERENCE_GAP: u32 = 12;
+
+/// The frame's unpainted margin (see [`is_painted`]); the reference band stays inside it.
+const FRAME_MARGIN: u32 = 8;
 
 /// The label ink on a wrapped row must span at least this fraction of the pill fill on the same
 /// scanline. Catches a pill measured by a different rule than the label in the UNDER-fill direction.
 const MIN_FILL_RATIO: f32 = 0.80;
+
+/// The FILL ratio is only evidence on scanlines carrying SUBSTANTIAL glyph ink — at least this
+/// fraction of the ink-densest scanline in the band.
+///
+/// The first and last antialias scanline of a text row grazes the apex/foot of a handful of glyphs.
+/// Measured on this MT's own frame (`mt124-h1-editor-20-contract-case-after-wrapping.png`): scanline
+/// y=16 carries 6 runs totalling ~21 ink pixels at the extreme top of the row, against 29 runs / ~230
+/// ink pixels on the row's body scanlines two pixels lower. Where those glyph tips happen to fall
+/// horizontally is a property of the TEXT, not evidence about how wide the pill behind it is, so
+/// holding them to the fill ratio reports a pill/label mismatch the frame does not contain.
+///
+/// This narrows only the FILL check. The ROW MISMATCH and COLUMN ESCAPE assertions — the ones that
+/// actually catch the MT-124 defect — still run on EVERY glyph scanline, tips included.
+const MIN_FILL_SCANLINE_INK_FRACTION: f32 = 0.25;
 
 // ── artifact placement (CX-212E: external root only, never repo-local) ───────────────────────────
 
@@ -292,10 +329,23 @@ fn rgb_dist2(a: [u8; 4], b: [u8; 4]) -> i64 {
         .sum()
 }
 
-/// A pixel counts as painted LABEL INK when it is closer to the chip's text token than to EITHER the
-/// pill fill or the page background. See the module header: this is what keeps the pill's own
-/// antialiased corner ring out of the ink measurement.
+/// True when the renderer actually PAINTED this pixel. The captured frame has an 8px unpainted
+/// `(0, 0, 0, 0)` margin on all four sides (see the module header); an unpainted pixel is not ink and
+/// is not background, it is nothing, and every measurement below must skip it.
+fn is_painted(px: [u8; 4]) -> bool {
+    px[3] == u8::MAX
+}
+
+/// A pixel counts as painted LABEL INK when it was painted at all AND is closer to the chip's text
+/// token than to EITHER the pill fill or the page background. See the module header: the nearest-token
+/// rule is what keeps the pill's own antialiased corner ring out of the ink measurement, and the
+/// painted gate is what keeps the frame's transparent margin out of it (transparent black is nearest
+/// to the saturated accent text token, so without this gate every scanline reported ink at the frame's
+/// last column).
 fn is_label_ink(px: [u8; 4], fg: [u8; 4], pill: [u8; 4], bg: [u8; 4]) -> bool {
+    if !is_painted(px) {
+        return false;
+    }
     let d_fg = rgb_dist2(px, fg);
     d_fg < rgb_dist2(px, pill) && d_fg < rgb_dist2(px, bg)
 }
@@ -314,7 +364,8 @@ fn token_extent(image: &image::RgbaImage, target: [u8; 4]) -> Option<(Box2, usiz
     let mut count = 0usize;
     for y in 0..h {
         for x in 0..w {
-            if !near(image.get_pixel(x, y).0, target, COLOR_TOL) {
+            let px = image.get_pixel(x, y).0;
+            if !is_painted(px) || !near(px, target, COLOR_TOL) {
                 continue;
             }
             count += 1;
@@ -341,7 +392,12 @@ fn modal_color(image: &image::RgbaImage, region: Box2) -> [u8; 4] {
     let mut counts: HashMap<[u8; 4], usize> = HashMap::new();
     for y in region.min_y..=region.max_y {
         for x in region.min_x..=region.max_x {
-            *counts.entry(image.get_pixel(x, y).0).or_insert(0) += 1;
+            // The reference strip overlaps the frame's unpainted right margin; an unpainted pixel is
+            // not a background sample.
+            let px = image.get_pixel(x, y).0;
+            if is_painted(px) {
+                *counts.entry(px).or_insert(0) += 1;
+            }
         }
     }
     counts
@@ -397,22 +453,37 @@ fn measure_wrapped_chip(
             "the located pill band is implausibly small: {pill_band:?} ({pill_px} px)"
         ));
     }
-    if pill_band.max_x + BG_REFERENCE_COLS + 2 >= w {
+    // The empty-page reference band, taken BELOW the chip (see BG_REFERENCE_ROWS).
+    let ref_min_y = pill_band.max_y + BG_REFERENCE_GAP;
+    let ref_max_y = ref_min_y + BG_REFERENCE_ROWS;
+    if ref_max_y + FRAME_MARGIN >= image.height() {
         return Err(format!(
-            "the pill band reaches the frame edge ({pill_band:?}, frame width {w}); widen \
-             HARNESS_SIZE so an empty background reference strip exists"
+            "the chip band {pill_band:?} leaves no empty page below it for the background reference \
+             (frame height {}); raise HARNESS_SIZE.y",
+            image.height()
         ));
     }
-
-    let background = modal_color(
-        image,
-        Box2 {
-            min_x: w - BG_REFERENCE_COLS,
-            min_y: pill_band.min_y,
-            max_x: w - 1,
-            max_y: pill_band.max_y,
-        },
-    );
+    let reference = Box2 {
+        min_x: FRAME_MARGIN,
+        min_y: ref_min_y,
+        max_x: w - 1 - FRAME_MARGIN,
+        max_y: ref_max_y,
+    };
+    // The reference band must be genuinely EMPTY page: no chip pill may reach into it. This replaces
+    // the old "the pill band reaches the frame edge" bail-out with a direct assertion about the strip
+    // actually sampled, and it holds in the unfixed build too.
+    for y in reference.min_y..=reference.max_y {
+        for x in reference.min_x..=reference.max_x {
+            let px = image.get_pixel(x, y).0;
+            if is_painted(px) && near(px, target, COLOR_TOL) {
+                return Err(format!(
+                    "the background reference band {reference:?} contains a pill-token pixel at \
+                     ({x}, {y}); it is not empty page and cannot supply the background reference"
+                ));
+            }
+        }
+    }
+    let background = modal_color(image, reference);
     if near(background, target, COLOR_TOL) {
         return Err(
             "the background reference strip matches the pill token; pixel classification would be \
@@ -733,21 +804,38 @@ fn mt124_wrapped_chip_label_stays_inside_the_reading_column_and_matches_its_pill
             scenario.id,
             m.pill_band.height()
         );
-        assert!(
-            m.ink_bands.len() >= 2,
-            "scenario {}: only {} painted label row(s) were found ({:?}); a wrapping scenario must \
-             paint at least two",
-            scenario.id,
-            m.ink_bands.len(),
-            m.ink_bands
-        );
-
         let mut failures: Vec<String> = Vec::new();
+
+        // The pill band above PROVED the atom wraps across galley rows. If the label nevertheless
+        // paints a SINGLE row band, the label is not wrapping with its galley — that IS the MT-124
+        // defect, so it is recorded as a violation of THIS scenario rather than aborting the whole
+        // proof. (It used to be a hard assert, which stopped the unfixed build on scenario 1 and left
+        // the other two unmeasured.) The wrap non-vacuity guarantee stays in the pill-height assert.
+        if m.ink_bands.len() < 2 {
+            failures.push(format!(
+                "SINGLE PAINTED ROW: the pill band is {}px tall — more than one galley row at style \
+                 size {style_size} — but the label paints {} row band(s) {:?}. The galley wrapped the \
+                 atom and the label did not wrap with it.",
+                m.pill_band.height(),
+                m.ink_bands.len(),
+                m.ink_bands
+            ));
+        }
 
         // ── AC-124-1: per-SCANLINE agreement between the label and the pill behind it ────────────
         let mut escaping = 0usize;
         let mut worst: Option<(u32, u32, u32)> = None; // (y, ink_max_x, pill_max_x)
         let mut underfilled: Vec<String> = Vec::new();
+        // The ink-densest glyph scanline in the band, used to keep the FILL check off the row-edge
+        // glyph-tip scanlines (see MIN_FILL_SCANLINE_INK_FRACTION).
+        let peak_ink_px = m
+            .scanlines
+            .iter()
+            .filter(|l| l.is_glyph_scanline())
+            .map(|l| l.ink_px)
+            .max()
+            .unwrap_or(0);
+        let fill_ink_floor = (peak_ink_px as f32 * MIN_FILL_SCANLINE_INK_FRACTION).ceil() as usize;
         for line in m.scanlines.iter().filter(|l| l.is_glyph_scanline()) {
             let Some((ink_lo, ink_hi)) = line.ink else {
                 continue;
@@ -769,8 +857,22 @@ fn mt124_wrapped_chip_label_stays_inside_the_reading_column_and_matches_its_pill
                         }
                     }
                     let pill_w = (pill_hi - pill_lo + 1) as f32;
-                    let ink_w = (ink_hi.min(pill_hi) - ink_lo.max(pill_lo) + 1) as f32;
-                    if ink_w / pill_w < MIN_FILL_RATIO && underfilled.len() < 4 {
+                    // The OVERLAP of the ink with the pill on this scanline. In the unfixed build a
+                    // scanline's ink can sit entirely to the RIGHT of the pill, so the two ranges do
+                    // not intersect at all — computing this as a bare subtraction underflowed and
+                    // panicked the proof before it could report the scenario. No overlap is a fill of
+                    // zero, which is the strongest possible violation, not a crash.
+                    let overlap_lo = ink_lo.max(pill_lo);
+                    let overlap_hi = ink_hi.min(pill_hi);
+                    let ink_w = if overlap_hi >= overlap_lo {
+                        (overlap_hi - overlap_lo + 1) as f32
+                    } else {
+                        0.0
+                    };
+                    if line.ink_px >= fill_ink_floor
+                        && ink_w / pill_w < MIN_FILL_RATIO
+                        && underfilled.len() < 4
+                    {
                         underfilled.push(format!(
                             "y={} ink[{ink_lo}..{ink_hi}] pill[{pill_lo}..{pill_hi}] fill={:.3}",
                             line.y,
@@ -789,9 +891,11 @@ fn mt124_wrapped_chip_label_stays_inside_the_reading_column_and_matches_its_pill
         }
         if !underfilled.is_empty() {
             failures.push(format!(
-                "FILL: label ink spans < {:.0}% of the pill fill on {} scanline(s): {}",
+                "FILL: label ink spans < {:.0}% of the pill fill on {} scanline(s) carrying at least \
+                 {fill_ink_floor} ink px ({:.0}% of the band peak {peak_ink_px}): {}",
                 MIN_FILL_RATIO * 100.0,
                 underfilled.len(),
+                MIN_FILL_SCANLINE_INK_FRACTION * 100.0,
                 underfilled.join("; ")
             ));
         }

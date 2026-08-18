@@ -13,12 +13,12 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 99;
-pub const SOURCE_FORWARD_MIGRATION_COUNT: usize = 99;
+pub const SCHEMA_REVISION: i64 = 157;
+pub const SOURCE_FORWARD_MIGRATION_COUNT: usize = 157;
 pub const SOURCE_FORWARD_WAVE_MANIFEST_SHA256: &str =
-    "277ae5c9982f8a3763acdfb120fd1dd6592ca03abc599ec20186627f800aa177";
+    "225ed19c0259ef121867ca5da1995813db0c48ee0cbfaded2d871e47b50f7fc1";
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "2a5dfb87c32aca44f8a23e3b33ff720f1d31f0552255ae3f77a1ffd2996607f7";
+    "0a89bd4623128556ffd96bae43598795a68add4049b28a143458ce0111c89e76";
 /// Two-stage proof pin. The all-zero sentinel intentionally blocks finalization until a
 /// reviewed fresh-engine STRUCTURE receipt is captured and this constant is replaced.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
@@ -44,27 +44,27 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "tables",
     "users",
 ];
-const TABLE_DEFINITION_COUNT: usize = 187;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 2119;
-const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 166;
-const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 121;
+const TABLE_DEFINITION_COUNT: usize = 270;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 2899;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 229;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 168;
 const AUTHORED_FIELD_DEFINITION_COUNT: usize =
     SOURCE_FIELD_DEFINITION_COUNT + FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT;
 // SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
 // level. Structured INFO reads the full persisted field catalog, so these engine-generated
 // definitions are part of the exact live schema even though they are not authored DEFINE lines.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 40;
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 42;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 545;
-const SOURCE_TABLE_COUNT: usize = 185;
-const SOURCE_VIEW_COUNT: usize = 1;
-const SOURCE_NAMED_INDEX_COUNT: usize = 376;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 168;
+const INDEX_DEFINITION_COUNT: usize = 758;
+const SOURCE_TABLE_COUNT: usize = 267;
+const SOURCE_VIEW_COUNT: usize = 2;
+const SOURCE_NAMED_INDEX_COUNT: usize = 508;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 249;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 289;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 143;
+const REFERENCE_FIELD_COUNT: usize = 388;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 217;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -306,6 +306,146 @@ const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
         include_bytes!("../../../migrations/0059_atelier_story_cards_beats.sql"),
     ),
     (
+        "0061_atelier_character_scripts.sql",
+        include_bytes!("../../../migrations/0061_atelier_character_scripts.sql"),
+    ),
+    (
+        "0064_atelier_bracket_links.sql",
+        include_bytes!("../../../migrations/0064_atelier_bracket_links.sql"),
+    ),
+    (
+        "0072_atelier_moodboard_schema_layer_model.sql",
+        include_bytes!("../../../migrations/0072_atelier_moodboard_schema_layer_model.sql"),
+    ),
+    (
+        "0074_atelier_moodboard_operations_exports.sql",
+        include_bytes!("../../../migrations/0074_atelier_moodboard_operations_exports.sql"),
+    ),
+    (
+        "0082_atelier_character_relationships.sql",
+        include_bytes!("../../../migrations/0082_atelier_character_relationships.sql"),
+    ),
+    (
+        "0083_atelier_saved_searches.sql",
+        include_bytes!("../../../migrations/0083_atelier_saved_searches.sql"),
+    ),
+    (
+        "0084_atelier_web_portfolio_exports.sql",
+        include_bytes!("../../../migrations/0084_atelier_web_portfolio_exports.sql"),
+    ),
+    (
+        "0085_atelier_backup_manifests.sql",
+        include_bytes!("../../../migrations/0085_atelier_backup_manifests.sql"),
+    ),
+    (
+        "0086_atelier_state_probe_catalog.sql",
+        include_bytes!("../../../migrations/0086_atelier_state_probe_catalog.sql"),
+    ),
+    (
+        "0087_atelier_action_receipts.sql",
+        include_bytes!("../../../migrations/0087_atelier_action_receipts.sql"),
+    ),
+    (
+        "0089_atelier_reset_orphan_adoption.sql",
+        include_bytes!("../../../migrations/0089_atelier_reset_orphan_adoption.sql"),
+    ),
+    (
+        "0090_atelier_pose_sidecars.sql",
+        include_bytes!("../../../migrations/0090_atelier_pose_sidecars.sql"),
+    ),
+    (
+        "0092_atelier_pose_context_state.sql",
+        include_bytes!("../../../migrations/0092_atelier_pose_context_state.sql"),
+    ),
+    (
+        "0093_atelier_pose_workspace_rig_state.sql",
+        include_bytes!("../../../migrations/0093_atelier_pose_workspace_rig_state.sql"),
+    ),
+    (
+        "0100_atelier_identity_crop_artifact.sql",
+        include_bytes!("../../../migrations/0100_atelier_identity_crop_artifact.sql"),
+    ),
+    (
+        "0102_atelier_comfy_workflow_receipt.sql",
+        include_bytes!("../../../migrations/0102_atelier_comfy_workflow_receipt.sql"),
+    ),
+    (
+        "0103_atelier_comfy_output_registration_failure.sql",
+        include_bytes!("../../../migrations/0103_atelier_comfy_output_registration_failure.sql"),
+    ),
+    (
+        "0105_atelier_pose_deferred_feature.sql",
+        include_bytes!("../../../migrations/0105_atelier_pose_deferred_feature.sql"),
+    ),
+    (
+        "0106_atelier_comfy_workflow_spec.sql",
+        include_bytes!("../../../migrations/0106_atelier_comfy_workflow_spec.sql"),
+    ),
+    (
+        "0107_atelier_comfy_version_metadata.sql",
+        include_bytes!("../../../migrations/0107_atelier_comfy_version_metadata.sql"),
+    ),
+    (
+        "0108_atelier_comfy_job_queue.sql",
+        include_bytes!("../../../migrations/0108_atelier_comfy_job_queue.sql"),
+    ),
+    (
+        "0109_atelier_comfy_diagnostic_bundle.sql",
+        include_bytes!("../../../migrations/0109_atelier_comfy_diagnostic_bundle.sql"),
+    ),
+    (
+        "0111_atelier_diagnostics_validation_matrix.sql",
+        include_bytes!("../../../migrations/0111_atelier_diagnostics_validation_matrix.sql"),
+    ),
+    (
+        "0112_atelier_diagnostics_typed_surfaces.sql",
+        include_bytes!("../../../migrations/0112_atelier_diagnostics_typed_surfaces.sql"),
+    ),
+    (
+        "0113_atelier_command_log_session_heartbeat.sql",
+        include_bytes!("../../../migrations/0113_atelier_command_log_session_heartbeat.sql"),
+    ),
+    (
+        "0114_atelier_model_config_apply.sql",
+        include_bytes!("../../../migrations/0114_atelier_model_config_apply.sql"),
+    ),
+    (
+        "0115_atelier_diagnostics_projections.sql",
+        include_bytes!("../../../migrations/0115_atelier_diagnostics_projections.sql"),
+    ),
+    (
+        "0116_atelier_dcc_flight_recorder.sql",
+        include_bytes!("../../../migrations/0116_atelier_dcc_flight_recorder.sql"),
+    ),
+    (
+        "0117_atelier_editable_surface_authority.sql",
+        include_bytes!("../../../migrations/0117_atelier_editable_surface_authority.sql"),
+    ),
+    (
+        "0118_atelier_self_improve_runs.sql",
+        include_bytes!("../../../migrations/0118_atelier_self_improve_runs.sql"),
+    ),
+    (
+        "0119_atelier_model_coordination_lease.sql",
+        include_bytes!("../../../migrations/0119_atelier_model_coordination_lease.sql"),
+    ),
+    (
+        "0120_kernel_diagnostic_bundle_manifest.sql",
+        include_bytes!("../../../migrations/0120_kernel_diagnostic_bundle_manifest.sql"),
+    ),
+    (
+        "0122_atelier_model_manual_merge_drift.sql",
+        include_bytes!("../../../migrations/0122_atelier_model_manual_merge_drift.sql"),
+    ),
+    (
+        "0124_kernel_visual_diff_baseline.sql",
+        include_bytes!("../../../migrations/0124_kernel_visual_diff_baseline.sql"),
+    ),
+    (
+        "0129_atelier_visual_steer_retention.sql",
+        include_bytes!("../../../migrations/0129_atelier_visual_steer_retention.sql"),
+    ),
+    (
         "0130_knowledge_schema_namespace.sql",
         include_bytes!("../../../migrations/0130_knowledge_schema_namespace.sql"),
     ),
@@ -410,6 +550,10 @@ const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
         include_bytes!("../../../migrations/0171_knowledge_code_scip_imports.sql"),
     ),
     (
+        "0230_knowledge_code_repair_queue.sql",
+        include_bytes!("../../../migrations/0230_knowledge_code_repair_queue.sql"),
+    ),
+    (
         "0240_knowledge_memory_ontology.sql",
         include_bytes!("../../../migrations/0240_knowledge_memory_ontology.sql"),
     ),
@@ -430,6 +574,26 @@ const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
         include_bytes!("../../../migrations/0260_knowledge_semantic_catalog.sql"),
     ),
     (
+        "0281_knowledge_document_embeds.sql",
+        include_bytes!("../../../migrations/0281_knowledge_document_embeds.sql"),
+    ),
+    (
+        "0282_knowledge_document_backlinks.sql",
+        include_bytes!("../../../migrations/0282_knowledge_document_backlinks.sql"),
+    ),
+    (
+        "0292_loom_block_knowledge_bridge.sql",
+        include_bytes!("../../../migrations/0292_loom_block_knowledge_bridge.sql"),
+    ),
+    (
+        "0294_loom_folders.sql",
+        include_bytes!("../../../migrations/0294_loom_folders.sql"),
+    ),
+    (
+        "0295_loom_wiki_overlays.sql",
+        include_bytes!("../../../migrations/0295_loom_wiki_overlays.sql"),
+    ),
+    (
         "0310_user_manual.sql",
         include_bytes!("../../../migrations/0310_user_manual.sql"),
     ),
@@ -444,6 +608,62 @@ const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
     (
         "0314_parallel_swarm_cloud_assistance_receipts.sql",
         include_bytes!("../../../migrations/0314_parallel_swarm_cloud_assistance_receipts.sql"),
+    ),
+    (
+        "0322_quick_switcher_recents.sql",
+        include_bytes!("../../../migrations/0322_quick_switcher_recents.sql"),
+    ),
+    (
+        "0323_workbench_layout_state.sql",
+        include_bytes!("../../../migrations/0323_workbench_layout_state.sql"),
+    ),
+    (
+        "0327_workspace_settings_state.sql",
+        include_bytes!("../../../migrations/0327_workspace_settings_state.sql"),
+    ),
+    (
+        "0328_rich_document_draft_recovery.sql",
+        include_bytes!("../../../migrations/0328_rich_document_draft_recovery.sql"),
+    ),
+    (
+        "0330_workspace_search_bookmark_state.sql",
+        include_bytes!("../../../migrations/0330_workspace_search_bookmark_state.sql"),
+    ),
+    (
+        "0331_debug_breakpoints.sql",
+        include_bytes!("../../../migrations/0331_debug_breakpoints.sql"),
+    ),
+    (
+        "0332_media_asset_tiers.sql",
+        include_bytes!("../../../migrations/0332_media_asset_tiers.sql"),
+    ),
+    (
+        "0333_loom_ai_suggestions.sql",
+        include_bytes!("../../../migrations/0333_loom_ai_suggestions.sql"),
+    ),
+    (
+        "0334_loom_canvas_boards.sql",
+        include_bytes!("../../../migrations/0334_loom_canvas_boards.sql"),
+    ),
+    (
+        "0336_loom_search_v2.sql",
+        include_bytes!("../../../migrations/0336_loom_search_v2.sql"),
+    ),
+    (
+        "0340_calendar_activity_spans.sql",
+        include_bytes!("../../../migrations/0340_calendar_activity_spans.sql"),
+    ),
+    (
+        "0341_stage_capture_artifacts.sql",
+        include_bytes!("../../../migrations/0341_stage_capture_artifacts.sql"),
+    ),
+    (
+        "0343_knowledge_rich_document_loom_projection.sql",
+        include_bytes!("../../../migrations/0343_knowledge_rich_document_loom_projection.sql"),
+    ),
+    (
+        "0344_atelier_intake_item_loom_projection.sql",
+        include_bytes!("../../../migrations/0344_atelier_intake_item_loom_projection.sql"),
     ),
     (
         "0345_fems_memory_workspace_authority.sql",
@@ -462,8 +682,20 @@ const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
         include_bytes!("../../../migrations/0352_fems_memory_lifecycle_outbox.sql"),
     ),
     (
+        "0353_calendar_lossless_temporal_contract.sql",
+        include_bytes!("../../../migrations/0353_calendar_lossless_temporal_contract.sql"),
+    ),
+    (
+        "0360_preference_records.sql",
+        include_bytes!("../../../migrations/0360_preference_records.sql"),
+    ),
+    (
         "0361_loom_block_view_fr_outbox.sql",
         include_bytes!("../../../migrations/0361_loom_block_view_fr_outbox.sql"),
+    ),
+    (
+        "0365_fems_proposal_request_id_canonical_identity.sql",
+        include_bytes!("../../../migrations/0365_fems_proposal_request_id_canonical_identity.sql"),
     ),
 ];
 
@@ -589,6 +821,60 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_character_document_version",
     "atelier_story_card",
     "atelier_story_beat",
+    "atelier_character_script",
+    "atelier_bracket_link_projection",
+    "atelier_moodboard",
+    "atelier_moodboard_operation_receipt",
+    "atelier_moodboard_export_request",
+    "atelier_character_relationship",
+    "atelier_character_relationship_graph_projection",
+    "atelier_saved_search",
+    "atelier_web_portfolio_export_request",
+    "atelier_web_portfolio_export_result",
+    "atelier_backup_manifest",
+    "atelier_backup_restore_preflight",
+    "atelier_state_probe_catalog_entry",
+    "atelier_action_receipt",
+    "atelier_reset_operation",
+    "atelier_orphan_manifest",
+    "atelier_orphan_manifest_item",
+    "atelier_pose_sidecar",
+    "atelier_pose_context_state",
+    "atelier_pose_workspace_rig_state",
+    "atelier_identity_crop_artifact",
+    "atelier_comfy_workflow_receipt",
+    "atelier_comfy_output_registration_failure",
+    "atelier_pose_deferred_feature",
+    "atelier_comfy_workflow_spec",
+    "atelier_comfy_version_metadata",
+    "atelier_comfy_job",
+    "atelier_comfy_diagnostic_bundle",
+    "atelier_diagnostics_validation_matrix",
+    "atelier_diagnostics_error_taxonomy",
+    "atelier_diagnostics_prompt_response_matrix",
+    "atelier_command_log",
+    "atelier_diagnostics_session",
+    "atelier_model_config",
+    "atelier_model_apply",
+    "atelier_synthetic_input_guard",
+    "atelier_work_state_projection",
+    "atelier_dcc_panel_projection",
+    "atelier_screenshot_artifact_storage",
+    "atelier_spec_drift_finding",
+    "atelier_dcc_workflow_panel_projection",
+    "atelier_fr_workflow_event",
+    "atelier_model_manual_section",
+    "atelier_retrieval_policy",
+    "atelier_self_improve_sandbox_run",
+    "atelier_validator_first_pass_run",
+    "atelier_model_coordination_lease",
+    "kernel_diagnostic_bundle_manifest",
+    "atelier_model_manual_row_merge",
+    "atelier_model_manual_drift_guard",
+    "kernel_visual_diff_baseline",
+    "kernel_visual_diff_request",
+    "kernel_visual_diff_result",
+    "atelier_visual_steer_feedback",
     "knowledge_schema_registry",
     "knowledge_source_roots",
     "knowledge_sources",
@@ -626,6 +912,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "knowledge_ingestion_repair_queue",
     "knowledge_code_files",
     "knowledge_code_scip_imports",
+    "knowledge_code_repair_queue",
     "knowledge_memory_ontology_terms",
     "knowledge_memory_ontology_aliases",
     "knowledge_memory_facts",
@@ -634,6 +921,12 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "knowledge_memory_conflict_resolution_jobs",
     "knowledge_memory_bridge_decisions",
     "knowledge_semantic_catalog_entries",
+    "knowledge_document_embeds",
+    "knowledge_document_backlinks",
+    "loom_block_knowledge_bridge",
+    "loom_folders",
+    "loom_folder_members",
+    "loom_wiki_overlays",
     "user_manual_pages",
     "user_manual_sections",
     "user_manual_anchors",
@@ -648,17 +941,39 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "knowledge_parallel_indexing_lease_queue",
     "knowledge_agent_quiet_background_work",
     "knowledge_agent_cloud_assistance_receipts",
+    "knowledge_quick_switcher_recents",
+    "knowledge_workbench_layout_states",
+    "knowledge_workspace_settings_states",
+    "knowledge_rich_document_drafts",
+    "knowledge_workspace_search_bookmark_states",
+    "knowledge_debug_breakpoints",
+    "media_asset_tiers",
+    "loom_collections",
+    "loom_collection_members",
+    "loom_ai_suggestions",
+    "loom_canvas_boards",
+    "loom_canvas_placements",
+    "loom_canvas_visual_edges",
+    "loom_block_search_index",
+    "calendar_activity_spans",
+    "stage_capture_artifacts",
+    "knowledge_rich_document_loom_projection_0343_state",
+    "atelier_intake_item_loom_projection",
     "fems_memory_packs",
     "fems_memory_proposals",
     "fems_memory_items",
     "fems_memory_commit_reports",
     "fems_memory_commit_fr_outbox",
     "fems_memory_lifecycle_fr_outbox",
+    "calendar_mutation_outbox",
+    "preference_records",
+    "preference_change_receipts",
     "loom_block_view_fr_outbox",
+    "fems_memory_proposal_request_id_rekey",
 ];
 
 /// Tables whose source `id` column is represented only by the Surreal record ID.
-const RECORD_ID_ONLY_TABLES: [&str; 17] = [
+const RECORD_ID_ONLY_TABLES: [&str; 18] = [
     "workspaces",
     "documents",
     "blocks",
@@ -676,6 +991,7 @@ const RECORD_ID_ONLY_TABLES: [&str; 17] = [
     "distill_job",
     "adapter_checkpoint",
     "eval_run",
+    "preference_change_receipts",
 ];
 
 /// Referenced targets that retain a domain-facing single-column key alias.
@@ -1517,7 +1833,7 @@ mod tests {
             SCHEMA.matches("record::exists($value)").count(),
             REFERENCE_FIELD_COUNT
         );
-        assert_eq!(RECORD_ID_ONLY_TABLES.len(), 17);
+        assert_eq!(RECORD_ID_ONLY_TABLES.len(), 18);
 
         for (table, field) in REFERENCED_BUSINESS_KEY_ALIASES {
             let definition = SCHEMA

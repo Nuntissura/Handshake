@@ -143,6 +143,16 @@ pub enum AtelierError {
     Validation(String),
     #[error("atelier event ledger error: {0}")]
     EventLedger(String),
+    /// An invariant the store was supposed to uphold did not hold.
+    ///
+    /// This is for "cannot happen" outcomes that the type system does not rule
+    /// out — a CREATE that returns no row, a required field missing from a row
+    /// the schema declares as mandatory. It is deliberately distinct from
+    /// [`Self::Database`] (the store reported a failure) and from
+    /// [`Self::Validation`] (the caller sent something wrong): those are
+    /// expected outcomes, and this one means the code and the schema disagree.
+    #[error("atelier internal invariant violated: {0}")]
+    Internal(String),
     #[error("atelier flight recorder error: {0}")]
     #[cfg(feature = "runtime-full")]
     FlightRecorder(String),
@@ -617,12 +627,16 @@ struct PreparedAtelierEvent {
     bindings: RecordEventBindings,
 }
 
-/// Named parameters for [`RECORD_EVENT_STATEMENT`].
+/// Named parameters for [`atelier_event_sql!`].
 ///
-/// Every field is a `$name` in that statement; nothing is concatenated into
-/// the query text.
+/// Every field is a `$name` in that fragment; nothing is concatenated into the
+/// query text.
+///
+/// A submodule that composes the fragment into its own statement calls
+/// [`Self::with_domain`] to attach its own values under `$domain`, keeping the
+/// two parameter namespaces separate.
 #[derive(Clone, SurrealValue)]
-struct RecordEventBindings {
+pub(crate) struct RecordEventBindings {
     ledger_id: RecordId,
     kernel_event_id: String,
     event_version: String,
@@ -647,6 +661,47 @@ struct RecordEventBindings {
     atelier_payload: JsonValue,
 }
 
+impl RecordEventBindings {
+    /// Attach a submodule's own bindings under `$domain`.
+    pub(crate) fn with_domain<D>(self, domain: D) -> AtelierEventBindings<D>
+    where
+        D: SurrealValue,
+    {
+        AtelierEventBindings {
+            domain,
+            event: self,
+        }
+    }
+}
+
+/// A submodule's bindings plus the event bindings, for a statement that
+/// composes [`atelier_event_sql!`].
+///
+/// The event fields are FLATTENED to the top level so the fragment can name
+/// them directly (`$idempotency_key`, `$ledger_id`, ...), while the caller's
+/// own values stay namespaced under `$domain`. Keeping the two namespaces
+/// separate is what lets a submodule name a binding whatever suits it without
+/// having to know which names the event fragment already occupies.
+#[derive(Clone, SurrealValue)]
+pub(crate) struct AtelierEventBindings<D>
+where
+    D: SurrealValue,
+{
+    domain: D,
+    #[surreal(flatten)]
+    event: RecordEventBindings,
+}
+
+/// The empty `$domain` used by [`AtelierStore::record_event`], which binds no
+/// values of its own.
+#[derive(Clone, SurrealValue)]
+pub(crate) struct NoDomain {}
+
+#[derive(SurrealValue)]
+struct IdempotencyKeyBinding {
+    idempotency_key: String,
+}
+
 /// The ledger identity an atelier event was stamped with.
 #[derive(SurrealValue)]
 struct RecordedLedgerRow {
@@ -666,59 +721,76 @@ struct AggregateCountBindings {
     aggregate_id: String,
 }
 
-/// Write one kernel ledger row and its atelier projection row, atomically.
+/// The SurrealQL that appends one atelier domain event.
 ///
-/// The whole thing is a single BLOCK expression rather than a sequence of
-/// statements, for two reasons. A block executes as one statement, so it runs
-/// in one transaction without a hand-written `BEGIN`/`COMMIT` pair; and it
-/// produces exactly one result set, so the row this returns is the first
-/// result set - which is what the query helpers read.
+/// This is a macro rather than a `const` so a caller can `concat!` it into the
+/// middle of its OWN statement. That is what preserves the guarantee the
+/// PostgreSQL code got from `pool.begin()`: the domain row and the event that
+/// describes it are written by ONE statement, so they commit together or not
+/// at all. A submodule that wrote the row in one round trip and the event in
+/// another would have reintroduced the window where a crash leaves a mutation
+/// with no event, which is exactly what the shared transaction existed to
+/// prevent.
 ///
-/// The idempotency contract is the PostgreSQL one, preserved: replaying an
-/// event with the same `idempotency_key` must NOT write a second ledger row,
-/// and must still return the sequence the first write was given. `ON CONFLICT
-/// (idempotency_key) DO NOTHING ... UNION ALL SELECT` expressed that in one
-/// round trip; the guarded `IF $existing IS NONE` block plus the re-read
-/// expresses the same thing here. `event_sequence` is not set by this
-/// statement: the schema defaults it from the `kernel_event_sequence`
-/// SEQUENCE, which is what makes the ledger's ordering monotonic and
-/// gap-free across processes.
-const RECORD_EVENT_STATEMENT: &str = "RETURN {
-    LET $existing = (SELECT VALUE id FROM kernel_event_ledger
-                     WHERE idempotency_key = $idempotency_key LIMIT 1)[0];
-    IF $existing IS NONE {
-        CREATE $ledger_id CONTENT {
-            event_id: $kernel_event_id,
-            event_version: $event_version,
-            kernel_task_run_id: $kernel_task_run_id,
-            session_run_id: $session_run_id,
-            aggregate_type: $kernel_aggregate_type,
-            aggregate_id: $kernel_aggregate_id,
-            idempotency_key: $idempotency_key,
-            event_type: $event_type,
-            actor_kind: $actor_kind,
-            actor_id: $actor_id,
-            causation_id: $causation_id,
-            correlation_id: $correlation_id,
-            payload_hash: $payload_hash,
-            source_component: $source_component,
-            payload: $ledger_payload,
-            created_at: $created_at
-        };
+/// The fragment reads `$idempotency_key`, `$ledger_id`, `$atelier_id` and the
+/// rest of [`RecordEventBindings`] from the top-level parameters, and defines
+/// `$ledger_row` (the ledger identity: `event_id` + `event_sequence`) for the
+/// caller to return or ignore. Caller-owned bindings live under `$domain`, so
+/// the two namespaces cannot collide.
+///
+/// Idempotency is the PostgreSQL contract, preserved: replaying an event with
+/// the same `idempotency_key` writes no second ledger row and still resolves
+/// to the sequence the first write was given. `ON CONFLICT DO NOTHING` plus a
+/// `UNION ALL` re-read expressed that; the guarded `IF $existing IS NONE` plus
+/// the re-read expresses it here. `event_sequence` is deliberately not set by
+/// this fragment - the schema defaults it from the `kernel_event_sequence`
+/// SEQUENCE, which is what keeps ledger ordering monotonic and gap-free.
+macro_rules! atelier_event_sql {
+    () => {
+        "LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
+           WHERE idempotency_key = $idempotency_key LIMIT 1)[0]; \
+         IF $existing IS NONE { \
+           CREATE $ledger_id CONTENT { \
+             event_id: $kernel_event_id, \
+             event_version: $event_version, \
+             kernel_task_run_id: $kernel_task_run_id, \
+             session_run_id: $session_run_id, \
+             aggregate_type: $kernel_aggregate_type, \
+             aggregate_id: $kernel_aggregate_id, \
+             idempotency_key: $idempotency_key, \
+             event_type: $event_type, \
+             actor_kind: $actor_kind, \
+             actor_id: $actor_id, \
+             causation_id: $causation_id, \
+             correlation_id: $correlation_id, \
+             payload_hash: $payload_hash, \
+             source_component: $source_component, \
+             payload: $ledger_payload, \
+             created_at: $created_at \
+           }; \
+         }; \
+         LET $ledger_row = (SELECT event_id, event_sequence FROM kernel_event_ledger \
+           WHERE idempotency_key = $idempotency_key LIMIT 1)[0]; \
+         CREATE $atelier_id CONTENT { \
+           event_id: $atelier_event_uuid, \
+           event_family: $event_family, \
+           aggregate_type: $kernel_aggregate_type, \
+           aggregate_id: $kernel_aggregate_id, \
+           kernel_event_id: $ledger_row.event_id, \
+           kernel_event_sequence: $ledger_row.event_sequence, \
+           payload: $atelier_payload \
+         };"
     };
-    LET $row = (SELECT event_id, event_sequence FROM kernel_event_ledger
-                WHERE idempotency_key = $idempotency_key LIMIT 1)[0];
-    CREATE $atelier_id CONTENT {
-        event_id: $atelier_event_uuid,
-        event_family: $event_family,
-        aggregate_type: $kernel_aggregate_type,
-        aggregate_id: $kernel_aggregate_id,
-        kernel_event_id: $row.event_id,
-        kernel_event_sequence: $row.event_sequence,
-        payload: $atelier_payload
-    };
-    RETURN $row;
-};";
+}
+
+pub(crate) use atelier_event_sql;
+
+/// Record an atelier event and nothing else.
+const RECORD_EVENT_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " RETURN $ledger_row; };"
+);
 
 /// Atelier data store.
 ///
@@ -970,7 +1042,7 @@ impl AtelierStore {
         payload: serde_json::Value,
     ) -> AtelierResult<()> {
         let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
-        let bindings = prepared.bindings.clone();
+        let bindings = prepared.bindings.clone().with_domain(NoDomain {});
         let recorded: Option<RecordedLedgerRow> = self
             .store
             .with_data_operation(move |ctx| {
@@ -998,9 +1070,74 @@ impl AtelierStore {
     ) -> AtelierResult<()> {
         let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
         let recorded: Option<RecordedLedgerRow> = ctx
-            .query_first(RECORD_EVENT_STATEMENT, prepared.bindings.clone())
+            .query_first(
+                RECORD_EVENT_STATEMENT,
+                prepared.bindings.clone().with_domain(NoDomain {}),
+            )
             .await?;
         self.finish_event(prepared, recorded).await
+    }
+
+    /// Run one domain mutation and its event as a single atomic statement.
+    ///
+    /// This is the shape almost every atelier mutation wants, and the reason
+    /// [`atelier_event_sql!`] is a macro. `statement` is the caller's own
+    /// SurrealQL with the event fragment `concat!`-ed into it, so the domain
+    /// row and its event are written by one statement and commit together -
+    /// the guarantee `pool.begin()` used to provide.
+    ///
+    /// `domain` carries the caller's bindings; they land under `$domain` and
+    /// cannot collide with the fragment's own parameter names. The statement
+    /// is expected to `RETURN` whatever the caller needs back, typically the
+    /// row it just wrote.
+    ///
+    /// Returns `None` only if the statement returned nothing, which for a
+    /// `CREATE`-shaped statement means the write did not happen; callers that
+    /// require a row map that to [`AtelierError::Internal`].
+    pub(crate) async fn write_with_event<R, D>(
+        &self,
+        statement: &'static str,
+        domain: D,
+        event_family: &str,
+        aggregate_type: &str,
+        aggregate_id: &str,
+        payload: serde_json::Value,
+    ) -> AtelierResult<Option<R>>
+    where
+        R: surrealdb::types::SurrealValue + Send,
+        D: SurrealValue + Send + 'static,
+    {
+        let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
+        let bindings = prepared.bindings.clone().with_domain(domain);
+        let written: Option<R> = self
+            .store
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(statement, bindings).await })
+            })
+            .await?;
+        // The event committed with the row above; this only mirrors it onto the
+        // Flight Recorder, so the ledger identity is re-read rather than
+        // threaded back through the caller's return type.
+        let recorded: Option<RecordedLedgerRow> = self
+            .store
+            .with_data_operation({
+                let key = prepared.bindings.idempotency_key.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT event_id, event_sequence FROM kernel_event_ledger \
+                             WHERE idempotency_key = $idempotency_key LIMIT 1;",
+                            IdempotencyKeyBinding {
+                                idempotency_key: key,
+                            },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        self.finish_event(prepared, recorded).await?;
+        Ok(written)
     }
 
     /// Build the kernel event and the bindings the write statement needs.

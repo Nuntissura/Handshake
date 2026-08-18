@@ -26,7 +26,7 @@ pub use reclaim::{
     reclaim_handle, spawn_staleness_reclaim_task, KillError, KillOutcome, Reclaim,
     ReclaimProcessStore, ReclaimReport, ReclaimStopWriter, ReclaimTrigger, ReclaimableProcess,
     ReclaimedProcess, SandboxKill, StaleSessionSource, StalenessReclaimConfig,
-    POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
+    SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY,
 };
 pub use restart_resume::{
     OperatorDecisionRequest, OrphanReclaimInfo, RestartResumeOrchestrator, ResumableSession,
