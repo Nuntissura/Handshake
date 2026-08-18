@@ -826,6 +826,16 @@ name = "cloud_model_lane_policy_pg_tests"
 path = "tests/cloud_model_lane_policy_pg_tests.rs"
 required-features = ["test-utils"]
 
+# WP-1 MT-006 HBR-PRIV proof imports test-only account-scope construction
+# seams and gates the entire crate with `cfg(feature = "test-utils")`.
+# Declare the feature requirement at Cargo's target boundary so default-feature
+# checks skip the target intentionally and direct invocations cannot run an
+# empty, vacuously green test binary when `test-utils` is absent.
+[[test]]
+name = "model_lane_cloud_consent_scope_pg_tests"
+path = "tests/model_lane_cloud_consent_scope_pg_tests.rs"
+required-features = ["test-utils"]
+
 [[test]]
 name = "model_lane_recovery_pg_tests"
 path = "tests/model_lane_recovery_pg_tests.rs"

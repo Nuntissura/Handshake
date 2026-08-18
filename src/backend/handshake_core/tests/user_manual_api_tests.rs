@@ -1647,6 +1647,25 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "cloud_projection_and_consent_receipts_persist_and_replay",
         "cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent",
         "cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence",
+        "model_lane_cloud_consent_scope_pg_tests",
+        "unscoped_cloud_grant_fails_before_postgres_or_provider_authority",
+        "http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store",
+        "two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority",
+        "revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned",
+        "cloud_projection_records_audience_scope_and_authorization_provenance",
+        "a_self_issued_role_label_approver_is_refused_at_write_time",
+        "an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch",
+        "cloud_provider_start_receipt_preserves_exact_server_owned_scope",
+        "cloud_provider_requires_exact_scope_before_builder_side_effects",
+        "generic `/operator-chat/launch` cloud handlers require the scoped product router",
+        "record_prepared_launch",
+        "record_lane",
+        "reject every cloud write without complete exact scope",
+        "cannot create a runtime lane or launch EventLedger side effect",
+        "denial payload and its idempotency basis carry",
+        "Missing or mismatched exact-scope boundary requests",
+        "Consent-policy denials after successful exact-scope authorization",
+        "five-dimension-attributed",
         "cloud_model_lane_policy_user_manual_entry_is_current",
         "SQLite",
         "prompt-only",
@@ -1682,6 +1701,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     assert!(tool_ids.contains("model_lane_promotion_pg_tests"));
     assert!(tool_ids.contains("model_lane_context_bundle_pg_tests"));
     assert!(tool_ids.contains("cloud_model_lane_policy_pg_tests"));
+    assert!(tool_ids.contains("model_lane_cloud_consent_scope_pg_tests"));
 
     let cloud_tool = tools["tools"]
         .as_array()
@@ -1716,6 +1736,39 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
                 .unwrap()
                 .contains(required),
             "cloud policy tool expected_output must mention {required}"
+        );
+    }
+
+    let scope_tool = tools["tools"]
+        .as_array()
+        .expect("tools array")
+        .iter()
+        .find(|tool| tool["tool_id"] == "model_lane_cloud_consent_scope_pg_tests")
+        .expect("cloud consent exact-scope tool entry");
+    assert_eq!(scope_tool["status"], "wired");
+    assert!(scope_tool["cli_flag"]
+        .as_str()
+        .expect("scope proof cli flag")
+        .contains("--test model_lane_cloud_consent_scope_pg_tests"));
+    for required in [
+        "unscoped_cloud_grant_fails_before_postgres_or_provider_authority",
+        "http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store",
+        "two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority",
+        "revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned",
+        "cloud_projection_records_audience_scope_and_authorization_provenance",
+        "a_self_issued_role_label_approver_is_refused_at_write_time",
+        "an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch",
+        "cloud_provider_start_receipt_preserves_exact_server_owned_scope",
+        "cloud_provider_requires_exact_scope_before_builder_side_effects",
+        "before new ProjectionPlan, ConsentReceipt, EventLedger, lane, or provider side effects",
+        "returns no restricted authority metadata",
+    ] {
+        assert!(
+            scope_tool["expected_output"]
+                .as_str()
+                .expect("scope proof expected output")
+                .contains(required),
+            "cloud consent exact-scope tool expected_output must mention {required}"
         );
     }
     let schema_fields: std::collections::BTreeSet<_> = cloud_tool["schema_fields"]

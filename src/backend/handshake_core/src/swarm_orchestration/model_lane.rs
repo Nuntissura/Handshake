@@ -367,6 +367,9 @@ impl ModelLaneStore {
         validate_prepared_launch_pair(&records.0, &records.1)?;
         let cloud_check = is_cloud_lane(&records.1)
             .then(|| cloud_launch_check_from_records(&records.0, &records.1));
+        if cloud_check.is_some() {
+            require_exact_cloud_launch_scope(&self.access)?;
+        }
         let mut tx = self.pool.begin().await?;
         if let Some(check) = cloud_check {
             let consent_receipt_id = require_optional_token(
@@ -407,6 +410,7 @@ impl ModelLaneStore {
         validate_run(&records.0)?;
         validate_lane(&records.1)?;
         validate_prepared_launch_pair(&records.0, &records.1)?;
+        require_exact_cloud_launch_scope(&self.access)?;
         let check = cloud_launch_check_from_records(&records.0, &records.1);
         let consent_receipt_id =
             require_optional_token("consent_receipt_ref", check.consent_receipt_ref.as_deref())?;
@@ -444,6 +448,9 @@ impl ModelLaneStore {
     pub async fn record_lane(&self, input: NewModelLane) -> ModelLaneResult<ModelLaneRecord> {
         validate_lane(&input)?;
         let cloud_check = is_cloud_lane(&input).then(|| cloud_launch_check_from_lane(&input));
+        if cloud_check.is_some() {
+            require_exact_cloud_launch_scope(&self.access)?;
+        }
         let mut tx = self.pool.begin().await?;
         if let Some(check) = cloud_check {
             let consent_receipt_id = require_optional_token(
@@ -5445,6 +5452,7 @@ impl ModelLaneStore {
         &self,
         check: CloudLaunchAuthorityCheck,
     ) -> ModelLaneResult<()> {
+        require_exact_cloud_launch_scope(&self.access)?;
         let mut tx = self.pool.begin().await?;
         let result = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await;
         match result {
@@ -5464,8 +5472,10 @@ impl ModelLaneStore {
         check: CloudLaunchAuthorityCheck,
         reason: &str,
     ) -> ModelLaneResult<T> {
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
         record_cloud_consent_denial(
             &self.pool,
+            &exact_scope,
             &check,
             reason,
             "CX-MM-007 cloud lane launch denied before provider call",
@@ -10098,6 +10108,7 @@ where
 
 async fn record_cloud_consent_denial(
     pool: &PgPool,
+    exact_scope: &ExactResourceScopeAttribution,
     check: &CloudLaunchAuthorityCheck,
     failure_kind: &str,
     detail: &str,
@@ -10105,6 +10116,7 @@ async fn record_cloud_consent_denial(
     let mut tx = pool.begin().await?;
     let failure_kind_hash = dexterity_sha256_hex(failure_kind.as_bytes());
     let stable_basis = json!({
+        "resource_scope": exact_scope,
         "run_id": &check.run_id,
         "lane_id": &check.lane_id,
         "model_session_id": &check.model_session_id,
@@ -10120,7 +10132,7 @@ async fn record_cloud_consent_denial(
         check.lane_id,
         dexterity_sha256_hex(canonical_json_bytes(&stable_basis))
     );
-    let payload = json!({
+    let mut payload = json!({
         "schema_id": "hsk.model_lane_cloud_consent_denial@1",
         "dexterity_kernel": "Dexterity",
         "reason_code": "CX-MM-007",
@@ -10144,6 +10156,13 @@ async fn record_cloud_consent_denial(
         "micro_task_id": &check.micro_task_id,
         "owner_session": &check.owner_session,
     });
+    exact_scope
+        .stamp_json_object(&mut payload)
+        .map_err(|error| {
+            ModelLaneError::AuthorityDenied(format!(
+                "cloud denial audit requires exact resource-scope attribution: {error}"
+            ))
+        })?;
     let event = model_lane_event(
         KernelEventType::ValidationRecorded,
         "model_lane_cloud_consent_denial",
@@ -10228,6 +10247,27 @@ fn require_exact_recovery_account_scope(access: &ResourceAccessContext) -> Model
         ));
     }
     Ok(())
+}
+
+/// Cloud runtime rows are externally delegated execution authority, so even an
+/// explicitly named system store may not create them without immutable
+/// account, Principal, authenticated-session, AccessSpace, and workspace
+/// attribution. Legacy unscoped stores remain available for migration reads
+/// and non-cloud compatibility paths only.
+fn require_exact_cloud_launch_scope(
+    access: &ResourceAccessContext,
+) -> ModelLaneResult<ExactResourceScopeAttribution> {
+    let write_scope = access.write_scope().ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(
+            "cloud launch requires exact writable owner, Principal, authenticated session, AccessSpace, and workspace authority"
+                .into(),
+        )
+    })?;
+    ExactResourceScopeAttribution::try_from_resource_scope(write_scope).map_err(|error| {
+        ModelLaneError::AuthorityDenied(format!(
+            "cloud launch requires exact writable owner, Principal, authenticated session, AccessSpace, and workspace authority: {error}"
+        ))
+    })
 }
 
 async fn recovery_record_by_idempotency_key_tx<T>(

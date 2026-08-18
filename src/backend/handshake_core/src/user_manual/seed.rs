@@ -3498,13 +3498,10 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  wrote `operator://{owner_session}/cloud-selection`, where `owner_session` is a \
                  governance ROLE LABEL, so subject and issuer were the same string. That exact \
                  self-issuance shape is now REJECTED at write time; the column survives so real \
-                 lineage is not rewritten, but no gate consults it. When no authenticated \
-                 account exists the operator-chat path records \
-                 `OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REF` next to an \
-                 `AccountBoundAuthority::Unattributed` approver stamped with \
-                 `OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REASON`, and the diagnostic payload \
-                 carries `approver_kind` so the receipt's approval CLASS is visible without \
-                 disclosing the account id.\n\n\
+                 lineage is not rewritten, but no gate consults it. Without complete exact \
+                 product scope the operator-chat cloud path fails before writing either record. \
+                 Legacy unattributed authority may remain readable for migration analysis, but \
+                 it cannot create a cloud runtime lane.\n\n\
                  EVERY ProjectionPlan CARRIES AN EXPORT DELEGATION (HBR-PRIV-007). \
                  `NewModelLaneCloudProjectionPlan.export_delegation` is a required \
                  `CloudExportDelegation` with `audience_refs` (the exact third-party endpoints \
@@ -3608,7 +3605,9 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  cloud output without PromotionGate approval all fail closed. Denials append \
                  `model_lane_cloud_consent_denial` EventLedger rows with `CX-MM-007`, \
                  `consent_status`, `provider_call_attempted = false`, and \
-                 `user_manual_behavior_ref`. Use \
+                 `user_manual_behavior_ref`; every denial payload and its idempotency basis carry \
+                 exact owner, Principal, authenticated session, AccessSpace, and workspace \
+                 attribution. Use \
                  `SwarmCoordinator::revoke_cloud_consent_receipt` to revoke a receipt; it cancels \
                  covered non-terminal lanes as `ModelLaneStatus::Cancelled`, sets \
                  `failstate_code = CX-MM-007`, writes a `model_lane_terminal` EventLedger row, \
@@ -3637,12 +3636,18 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `AccountBoundAuthority::Account` are both refused with `CX-MM-007` plus the \
                  stable scope reason code (`RESOURCE_SCOPE_UNATTRIBUTED`, \
                  `RESOURCE_SCOPE_OWNER_MISMATCH`, or `RESOURCE_SCOPE_WORKSPACE_MISMATCH`) and \
-                 never the restricted row's identifiers. The HTTP grant-launch and revocation \
-                 handlers require the scoped product router, compare its immutable exact scope \
+                 never the restricted row's identifiers. The HTTP grant-launch, revocation, and \
+                 generic `/operator-chat/launch` cloud handlers require the scoped product router, \
+                 compare its immutable exact scope \
                  with the durable `ModelLaneStore`, and refuse a missing, incomplete, or mismatched \
                  scope before recording a ProjectionPlan, ConsentReceipt, lane, denial, or provider \
-                 side effect. A system or legacy-unscoped store cannot mint or consume cloud \
-                 authority. The delegation is checked too: empty `audience_refs`, an audience \
+                 side effect. Production HTTP launch consumption is therefore fail-closed: a \
+                 system or legacy-unscoped store cannot grant, revoke, or consume cloud authority \
+                 through these routes. The lower `ModelLaneStore::record_prepared_launch` and \
+                 `record_lane` boundaries independently reject every cloud write without complete \
+                 exact scope, so even retained NULL-owner ProjectionPlan/ConsentReceipt rows from \
+                 migration analysis cannot create a runtime lane or launch EventLedger side \
+                 effect. The delegation is checked too: empty `audience_refs`, an audience \
                  entry that is not in `fan_out_targets` (a widening export), a \
                  `source_scope` owned by a different account than the receipt's `approver`, and \
                  an `authorization_receipt_ref` naming a different receipt each fail closed \
@@ -3666,6 +3671,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_cloud_consent_scope_pg_tests -- --test-threads=1`; this target proves `unscoped_cloud_grant_fails_before_postgres_or_provider_authority`, `http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store`, `two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority`, `revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned`, `cloud_projection_records_audience_scope_and_authorization_provenance`, `a_self_issued_role_label_approver_is_refused_at_write_time`, `an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch`, `cloud_provider_start_receipt_preserves_exact_server_owned_scope`, and `cloud_provider_requires_exact_scope_before_builder_side_effects`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact`. \
                  Use `-j 1` locally if Windows linker fan-out leaves stale cargo/rustc/link \
                  workers during test development. Passing tests must use real PostgreSQL plus \
@@ -3682,6 +3688,11 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "test",
                 anchor_value: "cloud_model_lane_policy_pg_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_cloud_consent_scope_pg_tests".into(),
                 http_method: "",
             },
         ],
@@ -6348,6 +6359,75 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         origin: "wp1_model_lane".into(),
         content_hash: cloud_model_lane_policy_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let cloud_consent_scope_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_cloud_consent_scope_pg_tests",
+            "name": "Cloud consent exact ResourceScope privacy proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_cloud_consent_scope_pg_tests -- --test-threads=1",
+            "test_names": [
+                "unscoped_cloud_grant_fails_before_postgres_or_provider_authority",
+                "http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store",
+                "two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority",
+                "revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned",
+                "cloud_projection_records_audience_scope_and_authorization_provenance",
+                "a_self_issued_role_label_approver_is_refused_at_write_time",
+                "an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch",
+                "cloud_provider_start_receipt_preserves_exact_server_owned_scope",
+                "cloud_provider_requires_exact_scope_before_builder_side_effects"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("cloud consent exact-scope tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_cloud_consent_scope_pg_tests".into(),
+        page_id: None,
+        name: "Cloud consent exact ResourceScope privacy proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_cloud_consent_scope_pg_tests -- --test-threads=1".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Real-PostgreSQL privacy proof for exact account/Principal/session/AccessSpace/workspace binding across cloud grant, launch, revocation, replay, EventLedger, and provider-dispatch boundaries."
+                .into(),
+        expected_input:
+            "Handshake-managed PostgreSQL; test-utils feature; a complete server-derived ResourceScope; cross-owner plus same-owner one-dimension mismatch fixtures; account-bound and legacy-unattributed cloud authority fixtures."
+                .into(),
+        expected_output:
+            "unscoped_cloud_grant_fails_before_postgres_or_provider_authority; http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store; two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority; revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned; cloud_projection_records_audience_scope_and_authorization_provenance; a_self_issued_role_label_approver_is_refused_at_write_time; an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch; cloud_provider_start_receipt_preserves_exact_server_owned_scope; cloud_provider_requires_exact_scope_before_builder_side_effects. Missing or mismatched exact-scope boundary requests fail before new ProjectionPlan, ConsentReceipt, EventLedger, lane, or provider side effects and return no restricted authority metadata. Consent-policy denials after successful exact-scope authorization append a five-dimension-attributed model_lane_cloud_consent_denial EventLedger row."
+                .into(),
+        schema_fields: vec![
+            "owner_account_id".into(),
+            "actor_principal_id".into(),
+            "authenticated_session_id".into(),
+            "access_space_id".into(),
+            "workspace_id".into(),
+            "AccountBoundAuthority".into(),
+            "RESOURCE_SCOPE_MISMATCH".into(),
+            "CX-MM-007".into(),
+        ],
+        common_errors: vec![
+            "RESOURCE_SCOPE_REQUIRED".into(),
+            "RESOURCE_SCOPE_MISMATCH".into(),
+            "RESOURCE_SCOPE_UNATTRIBUTED".into(),
+            "RESOURCE_SCOPE_OWNER_MISMATCH".into(),
+            "CX-MM-007".into(),
+        ],
+        recovery_steps: vec![
+            "Re-enter through the scoped product router with the original server-derived account, Principal, authenticated session, AccessSpace, and workspace; never copy scope fields from a client payload or foreign row.".into(),
+            "For legacy NULL-owner rows, mint a fresh ProjectionPlan and ConsentReceipt through the account-scoped production path; legacy-unattributed authority cannot be promoted into account launch authority.".into(),
+            "Missing or mismatched exact-scope boundary requests intentionally create no denial row because scope validation precedes resource existence disclosure; after exact-scope authorization, inspect the five-dimension-attributed model_lane_cloud_consent_denial row for consent-policy failures.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: cloud_consent_scope_tool_hash,
         manual_version: USER_MANUAL_VERSION.into(),
     });
 

@@ -33,7 +33,10 @@ use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneStore, ModelLaneTarget, NewModelLane, NewModelLaneCloudConsentReceipt,
     NewModelLaneCloudProjectionPlan, NewModelLaneMessage, NewModelLaneRun, RuntimeBinding,
 };
-use handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority;
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, AccountBoundAuthority, ActorPrincipalId, AuthenticatedSessionRef,
+    OwnerAccountId, ResourceScope, WorkspaceScopeRef,
+};
 use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink,
     RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
@@ -49,8 +52,8 @@ const USERMANUAL_BEHAVIOR: &str = "usermanual://model-lane-cloud-projection-cons
 
 #[tokio::test]
 async fn cloud_projection_and_consent_receipts_persist_and_replay() {
-    let (pool, store) = model_lane_store().await;
-    let plan = sample_projection_plan("run-cloud-ok", "lane-cloud-ok", "openai");
+    let (pool, store, scope) = model_lane_scoped_store("persist-replay").await;
+    let plan = sample_projection_plan_scoped("run-cloud-ok", "lane-cloud-ok", "openai", &scope);
     let stored_plan = store
         .record_cloud_projection_plan(plan.clone())
         .await
@@ -62,7 +65,7 @@ async fn cloud_projection_and_consent_receipts_persist_and_replay() {
     );
     assert_eq!(stored_plan.scope_hash, sample_scope_hash());
 
-    let receipt = sample_consent_receipt(
+    let receipt = sample_consent_receipt_scoped(
         "run-cloud-ok",
         "lane-cloud-ok",
         "openai",
@@ -71,6 +74,7 @@ async fn cloud_projection_and_consent_receipts_persist_and_replay() {
         ModelLaneCloudConsentReceiptStatus::Approved,
         "2026-06-29T00:00:00Z",
         "2027-06-29T00:00:00Z",
+        &scope,
     );
     let stored_receipt = store
         .record_cloud_consent_receipt(receipt)
@@ -242,7 +246,7 @@ async fn cloud_projection_and_consent_receipts_persist_and_replay() {
 
 #[tokio::test]
 async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
-    let (pool, store) = model_lane_store().await;
+    let (pool, store, scope) = model_lane_scoped_store("reject-invalid-consent").await;
 
     let (missing_run, missing_lane) = sample_cloud_run_lane(
         "run-cloud-missing",
@@ -267,8 +271,9 @@ async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
     assert_cx_mm_007(&missing_retry_err);
     assert_denial_event_count(&pool, "lane-cloud-missing", 1).await;
 
-    seed_cloud_authority(
+    seed_cloud_authority_scoped(
         &store,
+        &scope,
         "run-cloud-expired",
         "lane-cloud-expired",
         "openai",
@@ -289,14 +294,15 @@ async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
     assert_no_lane_row(&pool, "lane-cloud-expired").await;
 
     let plan = store
-        .record_cloud_projection_plan(sample_projection_plan(
+        .record_cloud_projection_plan(sample_projection_plan_scoped(
             "run-cloud-mismatch",
             "lane-cloud-mismatch",
             "openai",
+            &scope,
         ))
         .await
         .expect("record mismatch projection");
-    let mismatched = sample_consent_receipt(
+    let mismatched = sample_consent_receipt_scoped(
         "run-cloud-mismatch",
         "lane-cloud-mismatch",
         "anthropic",
@@ -305,6 +311,7 @@ async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
         ModelLaneCloudConsentReceiptStatus::Approved,
         "2026-06-29T00:00:00Z",
         "2027-06-29T00:00:00Z",
+        &scope,
     );
     store
         .record_cloud_consent_receipt(mismatched)
@@ -321,8 +328,9 @@ async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
     assert_cx_mm_007(&mismatch_err);
     assert_no_lane_row(&pool, "lane-cloud-mismatch").await;
 
-    seed_cloud_authority(
+    seed_cloud_authority_scoped(
         &store,
+        &scope,
         "run-cloud-revoked",
         "lane-cloud-revoked",
         "openai",
@@ -404,10 +412,11 @@ async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
     .await;
 
     store
-        .record_cloud_projection_plan(sample_projection_plan(
+        .record_cloud_projection_plan(sample_projection_plan_scoped(
             "run-cloud-missing-consent-ref",
             "lane-cloud-missing-consent-ref",
             "openai",
+            &scope,
         ))
         .await
         .expect("record projection so missing consent is the failing condition");
@@ -454,9 +463,10 @@ async fn cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent() {
 
 #[tokio::test]
 async fn cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence() {
-    let (pool, store) = model_lane_store().await;
-    seed_cloud_authority(
+    let (pool, store, scope) = model_lane_scoped_store("revoke-pending-lane").await;
+    seed_cloud_authority_scoped(
         &store,
+        &scope,
         "run-cloud-cancel",
         "lane-cloud-cancel",
         "openai",
@@ -1786,6 +1796,26 @@ async fn model_lane_store() -> (sqlx::PgPool, ModelLaneStore) {
     (pool, store)
 }
 
+async fn model_lane_scoped_store(slug: &str) -> (sqlx::PgPool, ModelLaneStore, ResourceScope) {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL/EventLedger is required for MT-006 proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated scoped Dexterity cloud policy schema");
+    let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new(format!("workspace-mt006-{slug}"))
+                .expect("nonblank workspace scope"),
+        );
+    let store = ModelLaneStore::new_scoped(pool.clone(), scope.clone());
+    (pool, store, scope)
+}
+
 async fn seed_cloud_authority(
     store: &ModelLaneStore,
     run_id: &str,
@@ -1812,6 +1842,41 @@ async fn seed_cloud_authority(
         ))
         .await
         .expect("record ConsentReceipt authority");
+}
+
+async fn seed_cloud_authority_scoped(
+    store: &ModelLaneStore,
+    scope: &ResourceScope,
+    run_id: &str,
+    lane_id: &str,
+    provider_kind: &str,
+    status: ModelLaneCloudConsentReceiptStatus,
+    valid_from_utc: &str,
+    valid_until_utc: &str,
+) {
+    let plan = store
+        .record_cloud_projection_plan(sample_projection_plan_scoped(
+            run_id,
+            lane_id,
+            provider_kind,
+            scope,
+        ))
+        .await
+        .expect("record scoped ProjectionPlan authority");
+    store
+        .record_cloud_consent_receipt(sample_consent_receipt_scoped(
+            run_id,
+            lane_id,
+            provider_kind,
+            &plan.projection_plan_id,
+            &plan.projection_plan_hash,
+            status,
+            valid_from_utc,
+            valid_until_utc,
+            scope,
+        ))
+        .await
+        .expect("record scoped ConsentReceipt authority");
 }
 
 fn sample_projection_plan(
@@ -1869,6 +1934,17 @@ fn sample_projection_plan(
     }
 }
 
+fn sample_projection_plan_scoped(
+    run_id: &str,
+    lane_id: &str,
+    provider_kind: &str,
+    scope: &ResourceScope,
+) -> NewModelLaneCloudProjectionPlan {
+    let mut plan = sample_projection_plan(run_id, lane_id, provider_kind);
+    plan.export_delegation.source_scope = AccountBoundAuthority::from_scope(scope);
+    plan
+}
+
 fn sample_consent_receipt(
     run_id: &str,
     lane_id: &str,
@@ -1921,6 +1997,32 @@ fn sample_consent_receipt(
             "locus": format!("locus://wp1/mt006/{run_id}/{lane_id}")
         }),
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_consent_receipt_scoped(
+    run_id: &str,
+    lane_id: &str,
+    provider_kind: &str,
+    projection_plan_id: &str,
+    projection_plan_hash: &str,
+    status: ModelLaneCloudConsentReceiptStatus,
+    valid_from_utc: &str,
+    valid_until_utc: &str,
+    scope: &ResourceScope,
+) -> NewModelLaneCloudConsentReceipt {
+    let mut receipt = sample_consent_receipt(
+        run_id,
+        lane_id,
+        provider_kind,
+        projection_plan_id,
+        projection_plan_hash,
+        status,
+        valid_from_utc,
+        valid_until_utc,
+    );
+    receipt.approver = AccountBoundAuthority::from_scope(scope);
+    receipt
 }
 
 fn broadcast_target(

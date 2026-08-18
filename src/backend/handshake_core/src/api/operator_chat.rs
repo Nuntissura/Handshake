@@ -345,10 +345,10 @@ impl FlightRecorder for ExactSelectionRecorder<'_> {
 
 async fn scoped_launch_session(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    launch_session(state, request).await
+    launch_session_for_scope(state, request, Some(scope.exact())).await
 }
 
 async fn scoped_launch_single_run_cloud_consent(
@@ -739,6 +739,14 @@ async fn launch_session(
     State(state): State<OperatorChatState>,
     Json(request): Json<OperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    launch_session_for_scope(State(state), Json(request), None).await
+}
+
+async fn launch_session_for_scope(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatLaunchRequest>,
+    request_scope: Option<&ExactResourceScopeAttribution>,
+) -> Result<Json<Value>, ApiError> {
     let Some(service) = state.launch_service.clone() else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
@@ -758,7 +766,11 @@ async fn launch_session(
         })?;
     let selection =
         request.into_governed_selection(lineage.owner_session_id, lineage.parent_session_id);
-    let launched = service.launch(&selection).await.map_err(launch_api_error)?;
+    let launched = match request_scope {
+        Some(scope) => service.launch_scoped(&selection, scope).await,
+        None => service.launch(&selection).await,
+    }
+    .map_err(launch_api_error)?;
     Ok(Json(
         serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
     ))

@@ -1882,10 +1882,18 @@ impl OperatorChatLaunchService {
         &self,
         selection: &OperatorChatSelection,
         request: &mut SpawnRequest,
+        request_scope: Option<&ExactResourceScopeAttribution>,
     ) -> Result<(), OperatorChatError> {
         if request.provider != Some(ProviderKind::ByokCloud) {
             return Ok(());
         }
+        let request_scope = request_scope.ok_or_else(|| {
+            OperatorChatError::Invalid(
+                "RESOURCE_SCOPE_REQUIRED: operator-chat cloud launch requires the scoped product router"
+                    .into(),
+            )
+        })?;
+        self.require_exact_cloud_scope(Some(request_scope))?;
         let store = self.coordinator.model_lane_store().ok_or_else(|| {
             OperatorChatError::Invalid(
                 "operator-chat cloud launch requires a ModelLaneStore for ProjectionPlan/ConsentReceipt authority"
@@ -1930,21 +1938,10 @@ impl OperatorChatLaunchService {
         let scope_hash = sha256_hex(&canonical_json_bytes(&scope_basis));
         let fan_out_targets = vec![format!("provider://{provider_kind}/byok")];
 
-        // HBR-PRIV-005/007. The approver is derived from the store's account
-        // context — the request seam (`api/account_scope.rs` today, an
-        // authenticated session after WP-KERNEL-006) — and NEVER from
-        // `selection.owner_session`, which is a governance role label shared by
-        // every operator on every machine.
-        //
-        // When there is no account context the launch is still allowed to
-        // proceed, because this is the documented pre-WP-KERNEL-006 posture for
-        // every WP-1 table and refusing here would take away the only cloud
-        // launch path on a build that has no authentication at all. What it may
-        // NOT do is lie about who approved: the receipt is recorded as explicitly
-        // unattributed, the row is stamped with a NULL owning account (so no
-        // account-scoped reader can see or reuse it), and
-        // `ensure_cloud_launch_authority_tx` will refuse it the moment a launch
-        // carries an account context.
+        // HBR-PRIV-005/007. The approver is derived from the exact durable store
+        // scope, after that scope has been matched to the HTTP extractor. It is
+        // never accepted from `selection.owner_session`, which is a governance
+        // role label rather than authenticated account authority.
         let approver = AccountBoundAuthority::from_access(store.access());
         let approved_by_ref = match &approver {
             AccountBoundAuthority::Account {
@@ -2187,11 +2184,30 @@ impl OperatorChatLaunchService {
         &self,
         selection: &OperatorChatSelection,
     ) -> Result<OperatorChatLaunched, OperatorChatError> {
+        self.launch_for_scope(selection, None).await
+    }
+
+    /// Launch through an HTTP boundary whose exact resource attribution has
+    /// already been extracted. Cloud selections require this path; local, CLI,
+    /// human, and subagent selections remain usable through [`Self::launch`].
+    pub async fn launch_scoped(
+        &self,
+        selection: &OperatorChatSelection,
+        request_scope: &ExactResourceScopeAttribution,
+    ) -> Result<OperatorChatLaunched, OperatorChatError> {
+        self.launch_for_scope(selection, Some(request_scope)).await
+    }
+
+    async fn launch_for_scope(
+        &self,
+        selection: &OperatorChatSelection,
+        request_scope: Option<&ExactResourceScopeAttribution>,
+    ) -> Result<OperatorChatLaunched, OperatorChatError> {
         if selection.lane_kind == OperatorChatLaneKind::Subagent {
             return self.launch_subagent(selection).await;
         }
         let mut request = self.build_spawn_request(selection)?;
-        self.attach_cloud_launch_authority(selection, &mut request)
+        self.attach_cloud_launch_authority(selection, &mut request, request_scope)
             .await?;
         let cloud_artifact_binding_plan =
             build_cloud_projection_artifact_binding_plan(selection, &request)?;

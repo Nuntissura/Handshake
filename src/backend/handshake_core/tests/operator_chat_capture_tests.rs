@@ -50,6 +50,10 @@ use handshake_core::swarm_orchestration::operator_chat::{
     build_spawn_request, ModelLaneCaptureRecorder, OperatorChatLaneKind, OperatorChatLaunchService,
     OperatorChatLaunched, OperatorChatSelection, OPERATOR_CHAT_CLI_ADAPTER,
 };
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, ResourceScope, WorkspaceScopeRef,
+};
 use handshake_core::swarm_orchestration::{
     CloudLaneFactoryConfig, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
     ProductionModelSessionFactory, RecordingSwarmSink, RunBudget, SessionTeardown, SpawnRequest,
@@ -322,6 +326,28 @@ async fn pg_store() -> (sqlx::PgPool, ModelLaneStore) {
         .expect("connect isolated operator-chat schema");
     let store = ModelLaneStore::new(pool.clone());
     (pool, store)
+}
+
+async fn pg_scoped_store() -> (sqlx::PgPool, ModelLaneStore, ExactResourceScopeAttribution) {
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL/EventLedger is required for scoped operator-chat proof");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated scoped operator-chat schema");
+    let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new("workspace-operator-chat-cloud-proof")
+                .expect("nonblank workspace scope"),
+        );
+    let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+        .expect("scoped fixture supplies all five dimensions");
+    let store = ModelLaneStore::new_scoped(pool.clone(), scope);
+    (pool, store, exact)
 }
 
 fn store_backed_coordinator(
@@ -1595,7 +1621,7 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
 /// START/STOP row.
 #[tokio::test]
 async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_ledger() {
-    let (pool, store) = pg_store().await;
+    let (pool, store, exact_scope) = pg_scoped_store().await;
     let (catalog, local_model_id) = registered_local_catalog();
     let (coordinator, loads, drain) = store_backed_coordinator(store.clone());
     let recorder = Arc::new(CapturingRecorder::default());
@@ -1627,11 +1653,14 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
     .await;
 
     let cloud = service
-        .launch(&cloud_selection(
-            existing_working_dir(),
-            "run the cloud model",
-            "operator-cloud",
-        ))
+        .launch_scoped(
+            &cloud_selection(
+                existing_working_dir(),
+                "run the cloud model",
+                "operator-cloud",
+            ),
+            &exact_scope,
+        )
         .await
         .expect("BYOK cloud operator-chat lane launches + captures");
     assert_cloud_projection_artifact_bindings(&pool, &cloud).await;
