@@ -939,15 +939,25 @@ if (-not $artifactRoot.Equals($requiredArtifactRoot, [StringComparison]::Ordinal
 if ((Split-Path $artifactRoot -Leaf) -cne "Handshake_Artifacts") {
     throw "Resolved artifact root is not the canonical Handshake_Artifacts directory: $artifactRoot"
 }
-$targetParentRootPath = Join-Path $artifactRoot "handshake-cargo-target"
-if (-not (Test-Path -LiteralPath $targetParentRootPath -PathType Container)) {
-    throw "The configured canonical Cargo target parent must already exist: $targetParentRootPath"
+$targetOwnerHasher = [Security.Cryptography.SHA256]::Create()
+try {
+    $targetOwnerHashBytes = $targetOwnerHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($RunId))
 }
-$targetParentRoot = (Resolve-Path -LiteralPath $targetParentRootPath).Path
-$targetRoot = [IO.Path]::GetFullPath((Join-Path $targetParentRoot $RunId))
+finally {
+    $targetOwnerHasher.Dispose()
+}
+$targetOwnerHash = -join ($targetOwnerHashBytes | ForEach-Object { $_.ToString("x2") })
+$targetOwnerKey = "cargo-" + $targetOwnerHash.Substring(0, 16)
+$targetParentRoot = $artifactRoot
+$targetRoot = [IO.Path]::GetFullPath((Join-Path $targetParentRoot $targetOwnerKey))
 $targetPrefix = $targetParentRoot.TrimEnd("\") + "\"
 if (-not $targetRoot.StartsWith($targetPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Resolved owner-scoped Cargo target escaped the canonical target parent: $targetRoot"
+}
+# Pinned libduckdb-sys 1.4.3 adds up to 141 characters below the target root;
+# this cap keeps its longest bundled header path at 251 characters or fewer.
+if ($targetRoot.Length -gt 110) {
+    throw "Owner-scoped Cargo target is too long for bundled native dependencies on Windows ($($targetRoot.Length) characters; maximum 110): $targetRoot"
 }
 $supervisorRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\supervisor"))
 $runRoot = [IO.Path]::GetFullPath((Join-Path $supervisorRoot $RunId))
@@ -1046,6 +1056,8 @@ catch {
         completed_commands = @()
         failed_command = $null
         failure_diagnostics = @()
+        cargo_target_owner_key = $targetOwnerKey
+        canonical_target_root = $targetRoot
         target_cleanup = [ordered]@{ status = "not_created"; path = $targetRoot }
         started_at = $preflightStartedAt.ToString("O")
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
@@ -1133,7 +1145,7 @@ function Remove-Mt045OwnerTarget {
     $resolvedPrefix = $resolvedParent + "\"
     if (
         -not $resolvedTarget.StartsWith($resolvedPrefix, [StringComparison]::OrdinalIgnoreCase) -or
-        (Split-Path $resolvedTarget -Leaf) -cne $RunId
+        (Split-Path $resolvedTarget -Leaf) -cne $targetOwnerKey
     ) {
         throw "refusing to clean owner target outside its exact run-scoped boundary: $resolvedTarget"
     }
@@ -2180,6 +2192,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         $env:HSK_MT045_CANONICAL_RUN = "1"
         $env:HSK_MT045_RUN_ID = $RunId
         $env:HSK_MT045_SOURCE_SHA = $sourceSha
+        $env:HSK_MT045_CARGO_TARGET_OWNER_KEY = $targetOwnerKey
         $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
         $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
         $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
@@ -2376,6 +2389,8 @@ function New-SupervisorProjection {
         completed_commands = @($commands)
         failed_command = $script:lastFailedCommandReceipt
         failure_diagnostics = @($FailureDiagnostics)
+        cargo_target_owner_key = $targetOwnerKey
+        canonical_target_root = $targetRoot
         target_cleanup = $TargetCleanup
         started_at = $supervisorStartedAt.ToString("O")
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
@@ -2438,6 +2453,7 @@ try {
     $env:HSK_MT045_CANONICAL_RUN = "1"
     $env:HSK_MT045_RUN_ID = $RunId
     $env:HSK_MT045_SOURCE_SHA = $sourceSha
+    $env:HSK_MT045_CARGO_TARGET_OWNER_KEY = $targetOwnerKey
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
     $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
@@ -2597,6 +2613,7 @@ try {
         source_sha = $sourceSha
         cargo_profile = "release"
         cargo_locked = $true
+        cargo_target_owner_key = $targetOwnerKey
         canonical_target_root = $targetRoot
         target_cleanup = $targetCleanup
         budget_overrides = @()
