@@ -10,6 +10,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $script:mt045DescendantExitGraceMilliseconds = 15000
+$script:mt045SelfTestFixtureTimeoutMilliseconds = 15000
 $mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260802-v7"
 $mt045JobRunnerSource = @'
 using System;
@@ -1997,12 +1998,14 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         }
         $childScript = @"
 `$leaf = '$($runtimeLeaf.Replace("'", "''"))'
-[void][IO.Directory]::CreateDirectory(`$leaf)
-@{ schema_id = 'handshake.backend-listen-report.v1'; pid = `$PID; listen_addr = '127.0.0.1:1' } | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path `$leaf 'listen-report.json') -Encoding utf8
-@{ schema_id = 'hsk.wp_kernel_012.mt045_workspace_identity@1'; run_id = '$RunId'; scenario_identity = '$forcedTestName'; workspace_id = '$selfTestWorkspaceId'; owned_backend_pid = `$PID } | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path `$leaf 'workspace-identity.json') -Encoding utf8
-[IO.File]::WriteAllText((Join-Path `$leaf 'backend.stdout.log'), "before-reap``nlast-line-before-reap``n")
-[IO.File]::WriteAllText((Join-Path `$leaf 'backend.stderr.log'), "stderr-last-line-before-reap``n")
-Start-Sleep -Seconds 30
+`$utf8 = [Text.UTF8Encoding]::new(`$false)
+`$listenReport = '{"schema_id":"handshake.backend-listen-report.v1","pid":' + `$PID + ',"listen_addr":"127.0.0.1:1"}'
+`$workspaceIdentity = '{"schema_id":"hsk.wp_kernel_012.mt045_workspace_identity@1","run_id":"$RunId","scenario_identity":"$forcedTestName","workspace_id":"$selfTestWorkspaceId","owned_backend_pid":' + `$PID + '}'
+[IO.File]::WriteAllText([IO.Path]::Combine(`$leaf, 'listen-report.json'), `$listenReport, `$utf8)
+[IO.File]::WriteAllText([IO.Path]::Combine(`$leaf, 'workspace-identity.json'), `$workspaceIdentity, `$utf8)
+[IO.File]::WriteAllText([IO.Path]::Combine(`$leaf, 'backend.stdout.log'), "before-reap``nlast-line-before-reap``n", `$utf8)
+[IO.File]::WriteAllText([IO.Path]::Combine(`$leaf, 'backend.stderr.log'), "stderr-last-line-before-reap``n", `$utf8)
+[Threading.Thread]::Sleep(60000)
 "@
         $encodedChild = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childScript))
         $childStdout = Join-Path $selfTestRoot "job.stdout.log"
@@ -2013,7 +2016,7 @@ Start-Sleep -Seconds 30
             $repoRoot,
             $childStdout,
             $childStderr,
-            1000,
+            $script:mt045SelfTestFixtureTimeoutMilliseconds,
             1000
         )
         if (-not $jobResult.TimedOut -or $jobResult.LeakedProcessCount -ne 0) {
