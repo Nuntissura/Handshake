@@ -939,15 +939,23 @@ if (-not $artifactRoot.Equals($requiredArtifactRoot, [StringComparison]::Ordinal
 if ((Split-Path $artifactRoot -Leaf) -cne "Handshake_Artifacts") {
     throw "Resolved artifact root is not the canonical Handshake_Artifacts directory: $artifactRoot"
 }
-$targetOwnerHasher = [Security.Cryptography.SHA256]::Create()
-try {
-    $targetOwnerHashBytes = $targetOwnerHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($RunId))
+function Get-Mt045CompactRuntimeComponent {
+    param(
+        [Parameter(Mandatory)][ValidateSet("cargo", "r", "s")][string]$Prefix,
+        [Parameter(Mandatory)][string]$Value
+    )
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($Value))
+    }
+    finally {
+        $hasher.Dispose()
+    }
+    $hash = -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+    return "$Prefix-$($hash.Substring(0, 16))"
 }
-finally {
-    $targetOwnerHasher.Dispose()
-}
-$targetOwnerHash = -join ($targetOwnerHashBytes | ForEach-Object { $_.ToString("x2") })
-$targetOwnerKey = "cargo-" + $targetOwnerHash.Substring(0, 16)
+
+$targetOwnerKey = Get-Mt045CompactRuntimeComponent -Prefix "cargo" -Value $RunId
 $targetParentRoot = $artifactRoot
 $targetRoot = [IO.Path]::GetFullPath((Join-Path $targetParentRoot $targetOwnerKey))
 $targetPrefix = $targetParentRoot.TrimEnd("\") + "\"
@@ -1004,7 +1012,13 @@ $supervisorCurrentPath = Join-Path $measurementRoot "supervisor-current.json"
 $currentRunPath = Join-Path $measurementRoot "current-run.json"
 $latestRunPath = Join-Path $measurementRoot "latest-run-summary.json"
 $failureDiagnosticsRoot = Join-Path $artifactRoot "wp-kernel-012\mt-045\failure-diagnostics\$RunId"
-$backendRuntimeRunRoot = Join-Path $artifactRoot "wp-kernel-012\backend-runtime\$RunId"
+$backendRuntimeRunKey = Get-Mt045CompactRuntimeComponent -Prefix "r" -Value $RunId
+$backendRuntimeRunRoot = Join-Path $artifactRoot "wp-kernel-012\backend-runtime\$backendRuntimeRunKey"
+
+function Get-Mt045RuntimeScenarioRoot {
+    param([Parameter(Mandatory)][string]$ScenarioName)
+    return Join-Path $backendRuntimeRunRoot (Get-Mt045CompactRuntimeComponent -Prefix "s" -Value $ScenarioName)
+}
 $expectedScenarioIds = @(
     "LC-01", "LC-02", "LC-03", "LC-04", "LC-05", "LC-06", "LC-07", "LC-08",
     "LR-01", "LR-02", "LR-03", "LR-04", "LR-05", "LR-06", "LR-07",
@@ -1078,15 +1092,6 @@ catch {
         Write-JsonAtomic -Path $manifestPath -Value $preflightManifest
     }
     throw $preflightFailure
-}
-
-# The database is EMBEDDED in the backend this proof launches, so there is no external server whose
-# identity could change underneath the run. The old Assert-StorePreserved guarded exactly that
-# hazard and has no subject any more; store containment is asserted by the harness instead.
-function Assert-StorePreserved {
-    if (-not (Test-Path -LiteralPath $script:mt045StoreIdentity -PathType Container)) {
-        throw "The MT-045 embedded store root disappeared during the proof: '$($script:mt045StoreIdentity)'"
-    }
 }
 
 function Get-Mt045ComparablePath {
@@ -1169,11 +1174,6 @@ function Test-IsJsonInteger {
         $Value -is [int64] -or $Value -is [uint64]
     )
 }
-
-# The embedded in-process store has no command-line client. The run is scoped to a
-# store directory instead, and the harness owns cleanup by discarding that directory.
-$script:mt045StoreIdentity = [IO.Path]::GetFullPath($backendRuntimeRunRoot)
-[void][IO.Directory]::CreateDirectory($script:mt045StoreIdentity)
 
 function Invoke-Mt045PostReapWorkspaceCleanup {
     param(
@@ -1340,7 +1340,7 @@ function Get-PostReapRuntimeBinding {
             throw "post-reap backend runtime run root is not a directory: $backendRuntimeRunRoot"
         }
         Assert-NoReparsePath -Path $backendRuntimeRunRoot -Boundary (Join-Path $artifactRoot "wp-kernel-012")
-        $scenarioRoot = Join-Path $backendRuntimeRunRoot ([string]$ExpectedCommand.test_name)
+        $scenarioRoot = Get-Mt045RuntimeScenarioRoot -ScenarioName ([string]$ExpectedCommand.test_name)
         $scenarioItem = Get-Item -LiteralPath $scenarioRoot -Force -ErrorAction Stop
         if (-not $scenarioItem.PSIsContainer) {
             throw "post-reap backend runtime scenario root is not a directory: $scenarioRoot"
@@ -1658,6 +1658,7 @@ function Get-FailureDiagnosticBindings {
                         process = $receipt.process
                         immediate_health = $receipt.immediate_health
                         reqwest_error = $receipt.reqwest_error
+                        workspace_cleanup = $workspaceCleanup
                         backend_identity = [ordered]@{
                             pid = [uint64]$listenReport.pid
                             listen_addr = [string]$listenReport.listen_addr
@@ -1737,7 +1738,7 @@ if ($DiagnosticsSelfTest) {
             "$(Get-FileSha256 -Path $malformedPath)  failure-diagnostics.json`n",
             [Text.UTF8Encoding]::new($false)
         )
-        $malformedRuntime = Join-Path $backendRuntimeRunRoot "malformed-test\runtime-001"
+        $malformedRuntime = Join-Path (Get-Mt045RuntimeScenarioRoot -ScenarioName "malformed-test") "runtime-001"
         [void][IO.Directory]::CreateDirectory($malformedRuntime)
         [IO.File]::WriteAllText((Join-Path $malformedRuntime "listen-report.json"), '{"schema_id":"handshake.backend-listen-report.v1","pid":4242,"listen_addr":"127.0.0.1:1"}')
         [IO.File]::WriteAllText((Join-Path $malformedRuntime "backend.stdout.log"), "complete-but-invalid-receipt`n")
@@ -1998,7 +1999,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         # The legacy server-backed self-test inserted a workspace row for a direct-store DELETE. The
         # embedded replacement plants evidence inside the exact per-backend handshake-surreal path so
         # recovery must prove that path is contained by the fixture-owned UUID runtime root.
-        $runtimeLeaf = Join-Path $backendRuntimeRunRoot "$forcedTestName\runtime-001"
+        $runtimeLeaf = Join-Path (Get-Mt045RuntimeScenarioRoot -ScenarioName $forcedTestName) "runtime-001"
         $selfTestDataDirectory = Join-Path $runtimeLeaf "data"
         $selfTestStorePath = Join-Path $selfTestDataDirectory "handshake-surreal"
         [void][IO.Directory]::CreateDirectory($selfTestStorePath)
@@ -2112,7 +2113,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         if ((Get-PostReapRuntimeBinding -ExpectedCommand $leakedContainment).binding_status -cne "INVALID") {
             throw "leaked Job descendants were incorrectly accepted for post-reap recovery"
         }
-        $ambiguousRuntime = Join-Path $backendRuntimeRunRoot "$forcedTestName\runtime-002"
+        $ambiguousRuntime = Join-Path (Get-Mt045RuntimeScenarioRoot -ScenarioName $forcedTestName) "runtime-002"
         [void][IO.Directory]::CreateDirectory($ambiguousRuntime)
         foreach ($name in @("listen-report.json", "backend.stdout.log", "backend.stderr.log")) {
             [IO.File]::Copy((Join-Path $runtimeLeaf $name), (Join-Path $ambiguousRuntime $name))
@@ -2193,7 +2194,6 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         $env:HSK_MT045_SOURCE_SHA = $sourceSha
         $env:HSK_MT045_CARGO_TARGET_OWNER_KEY = $targetOwnerKey
         $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
-        $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
         $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
         $env:HSK_TEST_BACKEND_BIN = $backendBinary
         $probeDiagnosticResults = [Collections.Generic.List[object]]::new()
@@ -2287,7 +2287,16 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             micro_task_id = "MT-045"
             run_id = $RunId
             source_sha = $sourceSha
-            store = [ordered]@{ kind = "embedded_surrealdb"; identity = $script:mt045StoreIdentity }
+            store = [ordered]@{
+                kind = "embedded_surrealdb"
+                identity = "rust_failure_receipt.workspace_cleanup"
+                identity_source = "rust_failure_receipt.workspace_cleanup"
+                observed_runtime_root = $boundRetained[0].workspace_cleanup.runtime_root
+                observed_data_dir = $boundRetained[0].workspace_cleanup.data_dir
+                observed_store_path = $boundRetained[0].workspace_cleanup.store_path_bound_to_owned_runtime_root
+                containment_verified = $boundRetained[0].workspace_cleanup.containment_verified
+                source_runtime_lifecycle = "removed_after_complete_receipt_publication"
+            }
             backend = [ordered]@{
                 build_receipt = $backendBuildReceipt
                 executable = $backendBinary
@@ -2301,7 +2310,6 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             failure_binding = $boundRetained[0]
             completed_at = [DateTimeOffset]::UtcNow.ToString("O")
         })
-        Assert-StorePreserved
         $retainedFailureProofComplete = $true
 
         Write-Output ([ordered]@{
@@ -2444,7 +2452,6 @@ function Set-ManifestTerminalState {
 
 $commands = [Collections.Generic.List[object]]::new()
 $script:lastFailedCommandReceipt = $null
-$runSucceeded = $false
 $targetCleanup = $null
 $supervisorStartedAt = [DateTimeOffset]::UtcNow
 try {
@@ -2474,7 +2481,6 @@ try {
     $env:HSK_MT045_SOURCE_SHA = $sourceSha
     $env:HSK_MT045_CARGO_TARGET_OWNER_KEY = $targetOwnerKey
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
-    $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
 
@@ -2614,7 +2620,6 @@ try {
     if ($backendFinalSha256 -cne $backendSha256) {
         throw "MT-045 backend binary changed during the canonical run"
     }
-    Assert-StorePreserved
     $targetCleanup = Remove-Mt045OwnerTarget
     if ($targetCleanup.status -cne "deleted_and_verified_absent") {
         throw "successful MT-045 run did not delete its owner-scoped Cargo target"
@@ -2638,7 +2643,8 @@ try {
         budget_overrides = @()
         store = [ordered]@{
             kind = "embedded_surrealdb"
-            identity = $script:mt045StoreIdentity
+            identity = "receipt_bound_per_scenario_embedded_store"
+            identity_source = "per_scenario_runtime_diagnostics"
             store_directory_name = "handshake-surreal"
             namespace = "handshake"
             database = "primary"
@@ -2665,7 +2671,6 @@ try {
         commands = $commands
         completed_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
-    Assert-StorePreserved
     $supervisorSha256 = Write-ImmutableJson -Path $supervisorSummaryPath -Value $supervisorSummary
     Write-JsonAtomic -Path $supervisorCurrentPath -Value ([ordered]@{
         schema_id = "hsk.wp_kernel_012.mt045_supervisor_projection@1"
@@ -2679,7 +2684,6 @@ try {
         target_cleanup = $targetCleanup
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
     })
-    $runSucceeded = $true
     Write-Output ([ordered]@{
         run_id = $RunId
         status = "PASS"
@@ -2731,14 +2735,4 @@ catch {
         Write-Warning "MT-045 terminal FAIL was published, but diagnostic enrichment publication failed: $($_.Exception.Message)"
     }
     throw $failureRecord
-}
-finally {
-    if (-not $runSucceeded) {
-        try {
-            Assert-StorePreserved
-        }
-        catch {
-            Write-Error "SurrealDB store-preservation check also failed: $($_.Exception.Message)"
-        }
-    }
 }
