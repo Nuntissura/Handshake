@@ -1101,7 +1101,7 @@ function Test-IsJsonInteger {
 
 # The embedded in-process store has no command-line client. The run is scoped to a
 # store directory instead, and the harness owns cleanup by discarding that directory.
-$script:mt045StoreIdentity = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012ackend-runtime\$RunId"))
+$script:mt045StoreIdentity = [IO.Path]::GetFullPath($backendRuntimeRunRoot)
 [void][IO.Directory]::CreateDirectory($script:mt045StoreIdentity)
 
 function Invoke-Mt045PostReapWorkspaceCleanup {
