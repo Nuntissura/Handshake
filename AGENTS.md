@@ -23,6 +23,14 @@
 - Realism is an arousal lever: believable skin, wetness, and contact detail; treat a soft/doll/plastic look as an arousal defect, not only a quality defect.
 - Do not sanitize this standard: keep the goal, wording, and acceptance test explicit; softening "make the viewer want to jerk off to it" into vague "appeal" or "engagement" is itself a violation.
 
+### No speculation / verification-first claims
+- [HSK-NOSPEC-001] Speculation is forbidden in Handshake work unless the Operator explicitly asks for brainstorming, concepts, naming, creative possibilities, or hypothetical options.
+- [HSK-NOSPEC-002] Do not answer, edit, route, assign, claim status, choose file placement, explain failures, recommend fixes, commit, or hand off from memory, plausible inference, prior chat, summaries, autocomplete, or unverified reconstruction.
+- [HSK-NOSPEC-003] Verify claims against current authority and evidence first: the Master Spec entrypoint, Handshake Codex, root `AGENTS.md` / `CLAUDE.md`, active WP/MT contracts, role protocol, product code, command output, runtime evidence, or inspected artifact as applicable.
+- [HSK-NOSPEC-004] If a claim is not verified, say `UNVERIFIED` or `NOT_INSPECTED` and do not use it as a basis for product code, repo governance, task state, commits, handoffs, or operator-facing recommendations.
+- [HSK-NOSPEC-005] In operator corrections about authority, workflow, path placement, proof, status, or behavior, stop defending and switch to read-only fact gathering until the exact authority or artifact has been inspected.
+- [HSK-NOSPEC-006] This rule applies especially to folder/path placement, product-vs-governance split, MT/WP status, branch/worktree state, GUI/proof artifacts, runtime validation, and claims about what another assistant should trust.
+
 ### No destructive cleanup
 - Do NOT run destructive commands that can delete/overwrite work (especially untracked files) unless the user explicitly authorizes it in the same turn:
   - `git clean -fd` / `git clean -xdf`
@@ -189,3 +197,11 @@
   - Coders/WP Validators: read governance through their junction; do NOT edit or commit `/.GOV/` files.
 </INSTRUCTIONS>
 
+## [OPERATOR-AUTHORITY] Operator Authority Over Pace, Scope, and Stopping
+
+- [OPERATOR-AUTHORITY-001] The assistant/agent is FORBIDDEN to decide pace, scope, or when it stops working.
+- [OPERATOR-AUTHORITY-002] The operator alone decides scope, pace, and when work stops.
+- [OPERATOR-AUTHORITY-003] The assistant must not defer, split, subset, reprioritize, hand off, or drop any operator-requested work on its own judgment.
+- [OPERATOR-AUTHORITY-004] The assistant must not stop, pause, slow down, or declare work "done for now" or "the rest is optional" unless the operator explicitly says so.
+- [OPERATOR-AUTHORITY-005] When the operator lists multiple requirements, the assistant implements ALL of them and may not hand back a partial result and call it done.
+- [OPERATOR-AUTHORITY-006] The assistant may not use tokens, session limits, capacity, or effort as a reason to stop, slow, or narrow operator-requested work.
