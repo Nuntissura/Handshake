@@ -1069,7 +1069,7 @@ mod hardening_applied_binding {
             update_seq,
             update_bytes: &bytes,
             update_bytes_ref: &format!(
-                "postgres://kernel_crdt_updates/{crdt_doc}/{update_id}/update_bytes"
+                "surreal://kernel_crdt_updates/{crdt_doc}/{update_id}/update_bytes"
             ),
             session_id: &format!("SR-APPLIED-{suffix}"),
             trace_id: &format!("trace-applied-{suffix}"),

@@ -7,7 +7,7 @@
 //! ontology terms (or their aliases) should only expand the graph from entities
 //! whose facts touch those terms.
 //!
-//! This is a backend, PostgreSQL-backed filter over the committed MemoryGraph:
+//! This is a backend filter over the SurrealDB-backed committed MemoryGraph:
 //! it resolves query tokens to ontology terms (and aliases) via
 //! `storage/knowledge_memory.rs`, then keeps only the memory facts whose
 //! predicate term or entity object schema matches an in-scope term. The output
@@ -19,12 +19,11 @@
 
 use std::collections::BTreeSet;
 
-use sqlx::PgPool;
-
 use crate::storage::knowledge_memory::{
     get_memory_ontology_term, list_memory_facts, list_memory_facts_in_schema_scope,
     resolve_memory_ontology_alias, MemoryFact,
 };
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::StorageResult;
 
 /// The result of schema-first filtering: the in-scope ontology term ids the
@@ -91,7 +90,7 @@ pub fn query_term_candidates(query_text: &str) -> Vec<String> {
 /// `resolve_memory_ontology_alias`; the resolved term's `term_id` becomes an
 /// in-scope id.
 pub async fn resolve_query_schema(
-    pool: &PgPool,
+    pool: &SurrealStorage,
     workspace_id: &str,
     query_text: &str,
 ) -> StorageResult<BTreeSet<String>> {
@@ -108,7 +107,7 @@ pub async fn resolve_query_schema(
 /// into graph traversal so a query that names one relation class cannot widen
 /// into unrelated bridge edges from the same seed entity.
 pub async fn resolve_schema_edge_type_allowlist(
-    pool: &PgPool,
+    pool: &SurrealStorage,
     term_ids: &BTreeSet<String>,
 ) -> StorageResult<BTreeSet<String>> {
     let mut edge_types = BTreeSet::new();
@@ -166,7 +165,7 @@ pub fn filter_facts_by_schema(
 /// caller MUST widen (graph/hybrid); the capped recent-facts load is then
 /// only advisory context.
 pub async fn schema_first_filter(
-    pool: &PgPool,
+    pool: &SurrealStorage,
     workspace_id: &str,
     query_text: &str,
     fact_limit: i64,

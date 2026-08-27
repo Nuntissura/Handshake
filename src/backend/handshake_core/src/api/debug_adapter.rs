@@ -39,7 +39,10 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::{broadcast, Mutex};
+use tokio::{
+    sync::{broadcast, Mutex},
+    task::JoinSet,
+};
 
 use crate::debug_adapter::node_inspector::NodeInspectorSession;
 use crate::debug_adapter::registry::listable_adapters;
@@ -47,7 +50,7 @@ use crate::debug_adapter::{
     launch, AdapterKind, DebugAdapter, DebugAdapterError, DebugEvent, LaunchRequest,
     SourceBreakpoint, StepKind,
 };
-use crate::storage::{DebugBreakpointInput, Database, StorageError};
+use crate::storage::{Database, DebugBreakpointInput, StorageError};
 use crate::AppState;
 
 type ApiError = (StatusCode, Json<Value>);
@@ -59,7 +62,42 @@ type ApiError = (StatusCode, Json<Value>);
 struct LiveSession {
     session: Arc<NodeInspectorSession>,
     events: Arc<Mutex<Vec<DebugEvent>>>,
-    _forwarder: tokio::task::JoinHandle<()>,
+    forwarder: Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+const FORWARDER_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+
+impl LiveSession {
+    async fn terminate_and_drain(&self) -> Result<Option<i32>, DebugAdapterError> {
+        let termination_result = self.session.terminate().await;
+        let forwarder_result = match self.forwarder.lock().await.take() {
+            Some(forwarder) => {
+                forwarder.abort();
+                match tokio::time::timeout(FORWARDER_DRAIN_TIMEOUT, forwarder).await {
+                    Ok(Ok(())) => Ok(()),
+                    Ok(Err(error)) if error.is_cancelled() => Ok(()),
+                    Ok(Err(error)) => Err(DebugAdapterError::Transport(format!(
+                        "debug-session event forwarder failed while draining: {error}"
+                    ))),
+                    Err(_) => Err(DebugAdapterError::Timeout(format!(
+                        "debug-session event forwarder did not drain within {}ms",
+                        FORWARDER_DRAIN_TIMEOUT.as_millis()
+                    ))),
+                }
+            }
+            None => Ok(()),
+        };
+
+        match (termination_result, forwarder_result) {
+            (Ok(exit_code), Ok(())) => Ok(exit_code),
+            (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+            (Err(termination_error), Err(forwarder_error)) => {
+                Err(DebugAdapterError::Transport(format!(
+                    "debug-session termination failed: {termination_error}; forwarder drain also failed: {forwarder_error}"
+                )))
+            }
+        }
+    }
 }
 
 /// Process-global registry of live debug sessions. Sessions are stateful and do
@@ -72,6 +110,50 @@ fn session_registry() -> &'static SessionMap {
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// Remove every registered live debug session, terminate its real child, and
+/// drain its event forwarder. The registry is emptied before termination starts
+/// so no shutdown caller can rediscover a session that is already being closed.
+pub async fn terminate_all_sessions() -> Result<usize, DebugAdapterError> {
+    let sessions: Vec<(String, Arc<LiveSession>)> = {
+        let mut registry = session_registry().lock().await;
+        registry.drain().collect()
+    };
+    let session_count = sessions.len();
+    let mut tasks = JoinSet::new();
+    for (session_id, live) in sessions {
+        tasks.spawn(async move {
+            live.terminate_and_drain().await.map_err(|error| {
+                DebugAdapterError::Transport(format!(
+                    "failed to drain debug session {session_id}: {error}"
+                ))
+            })
+        });
+    }
+
+    let mut first_error = None;
+    while let Some(result) = tasks.join_next().await {
+        match result {
+            Ok(Ok(_)) => {}
+            Ok(Err(error)) => {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            }
+            Err(error) => {
+                if first_error.is_none() {
+                    first_error = Some(DebugAdapterError::Transport(format!(
+                        "debug-session drain task failed: {error}"
+                    )));
+                }
+            }
+        }
+    }
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(session_count),
+    }
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/debug/adapters", get(list_adapters))
@@ -80,7 +162,10 @@ pub fn routes(state: AppState) -> Router {
             get(get_breakpoints).put(put_breakpoints),
         )
         .route("/debug/sessions", post(launch_session))
-        .route("/debug/sessions/:id", axum::routing::delete(terminate_session))
+        .route(
+            "/debug/sessions/:id",
+            axum::routing::delete(terminate_session),
+        )
         .route(
             "/debug/sessions/:id/breakpoints",
             post(session_set_breakpoints),
@@ -249,7 +334,11 @@ struct LaunchSessionBody {
 async fn launch_session(Json(body): Json<LaunchSessionBody>) -> Result<Json<Value>, ApiError> {
     let adapter = match body.adapter.as_str() {
         "node" => AdapterKind::Node,
-        other => return Err(bad_request(format!("unknown or non-runnable adapter '{other}'"))),
+        other => {
+            return Err(bad_request(format!(
+                "unknown or non-runnable adapter '{other}'"
+            )))
+        }
     };
     let mut req = match adapter {
         AdapterKind::Node => LaunchRequest::node(body.program.clone()),
@@ -280,7 +369,7 @@ async fn launch_session(Json(body): Json<LaunchSessionBody>) -> Result<Json<Valu
     let live = Arc::new(LiveSession {
         session: session.clone(),
         events,
-        _forwarder: forwarder,
+        forwarder: Mutex::new(Some(forwarder)),
     });
     session_registry().lock().await.insert(id.clone(), live);
 
@@ -329,9 +418,15 @@ async fn session_stack(Path(id): Path<String>) -> Result<Json<Value>, ApiError> 
 }
 
 /// `GET /debug/sessions/:id/frames/:frame_id/scopes` — a paused frame's scopes.
-async fn session_scopes(Path((id, frame_id)): Path<(String, String)>) -> Result<Json<Value>, ApiError> {
+async fn session_scopes(
+    Path((id, frame_id)): Path<(String, String)>,
+) -> Result<Json<Value>, ApiError> {
     let live = lookup_session(&id).await?;
-    let scopes = live.session.scopes(&frame_id).await.map_err(adapter_error)?;
+    let scopes = live
+        .session
+        .scopes(&frame_id)
+        .await
+        .map_err(adapter_error)?;
     Ok(Json(json!({ "scopes": scopes })))
 }
 
@@ -418,11 +513,125 @@ async fn session_events(Path(id): Path<String>) -> Result<Json<Value>, ApiError>
 
 /// `DELETE /debug/sessions/:id` — terminate the session; returns the real exit code.
 async fn terminate_session(Path(id): Path<String>) -> Result<Json<Value>, ApiError> {
-    let live = session_registry()
-        .lock()
-        .await
-        .remove(&id)
-        .ok_or_else(|| session_not_found(&id))?;
-    let exit_code = live.session.terminate().await.map_err(adapter_error)?;
+    let live = lookup_session(&id).await?;
+    let exit_code = live.terminate_and_drain().await.map_err(adapter_error)?;
+    session_registry().lock().await.remove(&id);
     Ok(Json(json!({ "terminated": true, "exit_code": exit_code })))
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    use std::{path::PathBuf, sync::Mutex as StdMutex, time::Duration};
+
+    static SESSION_TEST_LOCK: StdMutex<()> = StdMutex::new(());
+
+    struct TempNodeScript(PathBuf);
+
+    impl TempNodeScript {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "mt254-debug-lifecycle-{}.js",
+                uuid::Uuid::now_v7().simple()
+            ));
+            std::fs::write(&path, "process.exitCode = 0;\n").unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for TempNodeScript {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    fn node_available() -> bool {
+        std::process::Command::new("node")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+
+    fn api_test_error(error: ApiError) -> String {
+        error.1 .0.to_string()
+    }
+
+    async fn launch_registered(script: &TempNodeScript) -> String {
+        let Json(payload) = launch_session(Json(LaunchSessionBody {
+            adapter: "node".to_owned(),
+            program: script.0.to_string_lossy().to_string(),
+            cwd: None,
+            runtime_path: None,
+        }))
+        .await
+        .map_err(api_test_error)
+        .unwrap();
+        payload["session_id"].as_str().unwrap().to_owned()
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn delete_reaps_session_after_natural_exit_within_fixture_sla() {
+        let _guard = SESSION_TEST_LOCK.lock().unwrap();
+        if !node_available() {
+            return;
+        }
+        let script = TempNodeScript::new();
+        let session_id = launch_registered(&script).await;
+        session_continue(Path(session_id.clone()))
+            .await
+            .map_err(api_test_error)
+            .unwrap();
+
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let Json(payload) = session_events(Path(session_id.clone()))
+                .await
+                .map_err(api_test_error)
+                .unwrap();
+            let naturally_exited = payload["events"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|event| event["kind"] == "terminated" && event["exit_code"] == 0);
+            if naturally_exited {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "natural-exit event was not observed"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+
+        let Json(receipt) = tokio::time::timeout(
+            Duration::from_secs(7),
+            terminate_session(Path(session_id.clone())),
+        )
+        .await
+        .expect("DELETE exceeded the seven-second fixture cleanup SLA")
+        .map_err(api_test_error)
+        .unwrap();
+        assert_eq!(receipt["terminated"], true);
+        assert_eq!(receipt["exit_code"], 0);
+        assert!(!session_registry().lock().await.contains_key(&session_id));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn fixture_shutdown_drains_live_un_deleted_session_within_sla() {
+        let _guard = SESSION_TEST_LOCK.lock().unwrap();
+        if !node_available() {
+            return;
+        }
+        let script = TempNodeScript::new();
+        let session_id = launch_registered(&script).await;
+        assert!(session_registry().lock().await.contains_key(&session_id));
+
+        let drained = tokio::time::timeout(Duration::from_secs(7), terminate_all_sessions())
+            .await
+            .expect("fixture-wide drain exceeded the seven-second cleanup SLA")
+            .unwrap();
+        assert_eq!(drained, 1);
+        assert!(session_registry().lock().await.is_empty());
+    }
 }

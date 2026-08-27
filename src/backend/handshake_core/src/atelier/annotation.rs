@@ -8,19 +8,19 @@
 //! `setImageAnnotations` and `db.js` `ImageAnnotation` (MediaPane annotation
 //! layers). legacy source stored a single `annotations_json` blob of point-pins
 //! (`{x, y, text}` normalized 0..1) per image. This Handshake fold-in promotes
-//! that blob into a normalized, append-and-query relational model so each typed
-//! region is individually addressable, typed, and survives export. SQLite is
-//! NOT carried over; storage authority is the single Handshake store only.
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
+//! that blob into a normalized, append-and-query model in the embedded
+//! SurrealDB store so each typed region is individually addressable, typed,
+//! and survives export. SQLite is NOT carried over; storage authority is the
+//! single Handshake store only.
 //!
 //! Microtasks: MT-198 (annotation overlays), extends MT-005 (event coverage).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{uuid_from_record_link, AtelierError, AtelierResult, AtelierStore};
 
 /// Annotation region geometry kind. Decoupled from pose keypoints: these are
 /// operator/model overlays on the 2D media surface, not rig joints.
@@ -58,9 +58,10 @@ impl AnnotationKind {
 
 /// A single typed annotation region layered over a media asset.
 ///
-/// Coordinates are stored inside `geometry` (JSONB) and are expected to be
-/// normalized to the 0..1 image space so they survive resolution changes and
-/// export. The repo validates the shape per [`AnnotationKind`].
+/// Coordinates are stored inside `geometry` (a flexible object field) and are
+/// expected to be normalized to the 0..1 image space so they survive
+/// resolution changes and export. The store validates the shape per
+/// [`AnnotationKind`].
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MediaAnnotation {
     pub annotation_id: Uuid,
@@ -171,21 +172,136 @@ fn canonical_geometry(
     }
 }
 
-fn annotation_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<MediaAnnotation> {
-    let kind_raw: String = row.get("kind");
-    Ok(MediaAnnotation {
-        annotation_id: row.get("annotation_id"),
-        asset_id: row.get("asset_id"),
-        kind: AnnotationKind::parse(&kind_raw)?,
-        label: row.get("label"),
-        note: row.get("note"),
-        geometry: row.get("geometry"),
-        seq: row.get("seq"),
-        author: row.get("author"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
-    })
+/// One `atelier_media_annotation` row as the store returns it.
+#[derive(SurrealValue)]
+struct MediaAnnotationRow {
+    annotation_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    kind: String,
+    label: Option<String>,
+    note: String,
+    geometry: serde_json::Value,
+    seq: i64,
+    author: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
 }
+
+impl TryFrom<MediaAnnotationRow> for MediaAnnotation {
+    type Error = AtelierError;
+
+    fn try_from(row: MediaAnnotationRow) -> AtelierResult<Self> {
+        Ok(MediaAnnotation {
+            annotation_id: row.annotation_id.into(),
+            asset_id: row.asset_id.into(),
+            kind: AnnotationKind::parse(&row.kind)?,
+            label: row.label,
+            note: row.note,
+            geometry: row.geometry,
+            seq: row.seq,
+            author: row.author,
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+/// The annotation select list, with the asset link projected back to its uuid.
+const MEDIA_ANNOTATION_FIELDS: &str =
+    "annotation_id, record::id(asset_id) AS asset_id, kind, label, note, geometry, seq, \
+     author, created_at_utc, updated_at_utc";
+
+#[derive(SurrealValue)]
+struct AddAnnotationBindings {
+    record_id: RecordId,
+    annotation_id: SurrealUuid,
+    asset_ref: RecordId,
+    kind: String,
+    label: Option<String>,
+    note: String,
+    geometry: serde_json::Value,
+    author: String,
+}
+
+#[derive(SurrealValue)]
+struct AssetRefBinding {
+    asset_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct AnnotationIdBinding {
+    annotation_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct UpdateAnnotationNoteBindings {
+    annotation_id: SurrealUuid,
+    note: String,
+    label: Option<String>,
+}
+
+/// Assign the next per-asset sequence and create the annotation atomically, so
+/// two concurrent adds cannot both observe the same maximum. The unique
+/// `(asset_id, seq)` index remains the last line of defence.
+const ADD_MEDIA_ANNOTATION_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $next = (array::max((SELECT VALUE seq FROM atelier_media_annotation \
+                                WHERE asset_id = $asset_ref)) ?? 0) + 1; \
+       CREATE $record_id CONTENT { \
+         annotation_id: $annotation_id, \
+         asset_id: $asset_ref, \
+         kind: $kind, \
+         label: $label, \
+         note: $note, \
+         geometry: $geometry, \
+         seq: $next, \
+         author: $author \
+       }; \
+       RETURN (SELECT ",
+    "annotation_id, record::id(asset_id) AS asset_id, kind, label, note, geometry, seq, \
+     author, created_at_utc, updated_at_utc",
+    " FROM ONLY $record_id); };"
+);
+
+const LIST_MEDIA_ANNOTATIONS_STATEMENT: &str = concat!(
+    "SELECT ",
+    "annotation_id, record::id(asset_id) AS asset_id, kind, label, note, geometry, seq, \
+     author, created_at_utc, updated_at_utc",
+    " FROM atelier_media_annotation WHERE asset_id = $asset_ref ORDER BY seq ASC;"
+);
+
+const GET_MEDIA_ANNOTATION_STATEMENT: &str = concat!(
+    "SELECT ",
+    "annotation_id, record::id(asset_id) AS asset_id, kind, label, note, geometry, seq, \
+     author, created_at_utc, updated_at_utc",
+    " FROM atelier_media_annotation WHERE annotation_id = $annotation_id LIMIT 1;"
+);
+
+const UPDATE_MEDIA_ANNOTATION_NOTE_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = type::record('atelier_media_annotation', $annotation_id); \
+       UPDATE $rid SET \
+         note = $note, \
+         label = $label ?? label, \
+         updated_at_utc = time::now(); \
+       RETURN (SELECT ",
+    "annotation_id, record::id(asset_id) AS asset_id, kind, label, note, geometry, seq, \
+     author, created_at_utc, updated_at_utc",
+    " FROM $rid); };"
+);
+
+const REMOVE_MEDIA_ANNOTATION_STATEMENT: &str =
+    "RETURN (DELETE type::record('atelier_media_annotation', $annotation_id) RETURN BEFORE);";
+
+/// The record shape [`REMOVE_MEDIA_ANNOTATION_STATEMENT`] returns: the raw
+/// asset link of the deleted row.
+#[derive(SurrealValue)]
+struct RemovedAnnotationRow {
+    asset_id: RecordId,
+}
+
+const COUNT_MEDIA_ANNOTATIONS_STATEMENT: &str =
+    "RETURN count(SELECT id FROM atelier_media_annotation WHERE asset_id = $asset_ref);";
 
 impl AtelierStore {
     /// Add a typed annotation region to a media asset. Validates and clamps the
@@ -201,48 +317,54 @@ impl AtelierStore {
         }
         let geometry = canonical_geometry(new.kind, &new.geometry)?;
 
-        let mut tx = self.pool().begin().await?;
-
-        // Asset must exist; FK also guards this but we want a clean domain error.
-        let asset_exists: Option<Uuid> =
-            sqlx::query_scalar("SELECT asset_id FROM atelier_media_asset WHERE asset_id = $1")
-                .bind(new.asset_id)
-                .fetch_optional(&mut *tx)
-                .await?;
-        if asset_exists.is_none() {
+        // Asset must exist; the schema link assertion also guards this but we
+        // want a clean domain error.
+        let asset_ref = RecordId::new("atelier_media_asset", SurrealUuid::from(new.asset_id));
+        let exists_bindings = AssetRefBinding {
+            asset_ref: asset_ref.clone(),
+        };
+        let asset_exists: Option<bool> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first("RETURN record::exists($asset_ref);", exists_bindings)
+                        .await
+                })
+            })
+            .await?;
+        if !asset_exists.unwrap_or(false) {
             return Err(AtelierError::NotFound(format!(
                 "media asset asset_id={}",
                 new.asset_id
             )));
         }
 
-        let next_seq: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_media_annotation WHERE asset_id = $1",
-        )
-        .bind(new.asset_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let annotation_id = Uuid::now_v7();
+        let bindings = AddAnnotationBindings {
+            record_id: RecordId::new("atelier_media_annotation", SurrealUuid::from(annotation_id)),
+            annotation_id: SurrealUuid::from(annotation_id),
+            asset_ref,
+            kind: new.kind.as_str().to_owned(),
+            label: new.label.clone(),
+            note: new.note.clone(),
+            geometry,
+            author: new.author.clone(),
+        };
+        let row: Option<MediaAnnotationRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(ADD_MEDIA_ANNOTATION_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        let annotation: MediaAnnotation = row
+            .ok_or_else(|| {
+                AtelierError::Internal("adding a media annotation returned no row".to_owned())
+            })?
+            .try_into()?;
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_media_annotation
-                 (asset_id, kind, label, note, geometry, seq, author)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING annotation_id, asset_id, kind, label, note, geometry, seq,
-                         author, created_at_utc, updated_at_utc"#,
-        )
-        .bind(new.asset_id)
-        .bind(new.kind.as_str())
-        .bind(&new.label)
-        .bind(&new.note)
-        .bind(&geometry)
-        .bind(next_seq)
-        .bind(&new.author)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        let annotation = annotation_from_row(&row)?;
         self.record_event(
             annotation_event_family::ANNOTATION_ADDED,
             "atelier_media_annotation",
@@ -264,17 +386,19 @@ impl AtelierStore {
         &self,
         asset_id: Uuid,
     ) -> AtelierResult<Vec<MediaAnnotation>> {
-        let rows = sqlx::query(
-            r#"SELECT annotation_id, asset_id, kind, label, note, geometry, seq,
-                      author, created_at_utc, updated_at_utc
-               FROM atelier_media_annotation
-               WHERE asset_id = $1
-               ORDER BY seq ASC"#,
-        )
-        .bind(asset_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(annotation_from_row).collect()
+        let bindings = AssetRefBinding {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+        };
+        let rows: Vec<MediaAnnotationRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_MEDIA_ANNOTATIONS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(MediaAnnotation::try_from).collect()
     }
 
     /// Fetch a single annotation by id.
@@ -282,19 +406,22 @@ impl AtelierStore {
         &self,
         annotation_id: Uuid,
     ) -> AtelierResult<MediaAnnotation> {
-        let row = sqlx::query(
-            r#"SELECT annotation_id, asset_id, kind, label, note, geometry, seq,
-                      author, created_at_utc, updated_at_utc
-               FROM atelier_media_annotation
-               WHERE annotation_id = $1"#,
-        )
-        .bind(annotation_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| {
+        let bindings = AnnotationIdBinding {
+            annotation_id: SurrealUuid::from(annotation_id),
+        };
+        let row: Option<MediaAnnotationRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_MEDIA_ANNOTATION_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        row.ok_or_else(|| {
             AtelierError::NotFound(format!("media annotation annotation_id={annotation_id}"))
-        })?;
-        annotation_from_row(&row)
+        })?
+        .try_into()
     }
 
     /// Update the free-text note (and optional label) on an existing annotation,
@@ -306,25 +433,26 @@ impl AtelierStore {
         note: &str,
         label: Option<&str>,
     ) -> AtelierResult<MediaAnnotation> {
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_annotation
-               SET note = $2,
-                   label = COALESCE($3, label),
-                   updated_at_utc = NOW()
-               WHERE annotation_id = $1
-               RETURNING annotation_id, asset_id, kind, label, note, geometry, seq,
-                         author, created_at_utc, updated_at_utc"#,
-        )
-        .bind(annotation_id)
-        .bind(note)
-        .bind(label)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| {
-            AtelierError::NotFound(format!("media annotation annotation_id={annotation_id}"))
-        })?;
+        let bindings = UpdateAnnotationNoteBindings {
+            annotation_id: SurrealUuid::from(annotation_id),
+            note: note.to_owned(),
+            label: label.map(ToOwned::to_owned),
+        };
+        let row: Option<MediaAnnotationRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(UPDATE_MEDIA_ANNOTATION_NOTE_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        let annotation: MediaAnnotation = row
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("media annotation annotation_id={annotation_id}"))
+            })?
+            .try_into()?;
 
-        let annotation = annotation_from_row(&row)?;
         self.record_event(
             annotation_event_family::ANNOTATION_NOTE_UPDATED,
             "atelier_media_annotation",
@@ -342,15 +470,22 @@ impl AtelierStore {
     /// [`annotation_event_family::ANNOTATION_REMOVED`] for replay/audit. Returns
     /// the removed asset id so callers can refresh the overlay set.
     pub async fn remove_media_annotation(&self, annotation_id: Uuid) -> AtelierResult<Uuid> {
-        let asset_id: Option<Uuid> = sqlx::query_scalar(
-            "DELETE FROM atelier_media_annotation WHERE annotation_id = $1 RETURNING asset_id",
-        )
-        .bind(annotation_id)
-        .fetch_optional(self.pool())
-        .await?;
-        let asset_id = asset_id.ok_or_else(|| {
+        let bindings = AnnotationIdBinding {
+            annotation_id: SurrealUuid::from(annotation_id),
+        };
+        let removed: Option<RemovedAnnotationRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(REMOVE_MEDIA_ANNOTATION_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        let removed = removed.ok_or_else(|| {
             AtelierError::NotFound(format!("media annotation annotation_id={annotation_id}"))
         })?;
+        let asset_id = uuid_from_record_link("asset_id", &removed.asset_id)?;
 
         self.record_event(
             annotation_event_family::ANNOTATION_REMOVED,
@@ -364,11 +499,18 @@ impl AtelierStore {
 
     /// Count annotation overlays on a media asset (used by export + tests).
     pub async fn count_media_annotations(&self, asset_id: Uuid) -> AtelierResult<i64> {
-        let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM atelier_media_annotation WHERE asset_id = $1")
-                .bind(asset_id)
-                .fetch_one(self.pool())
-                .await?;
-        Ok(count)
+        let bindings = AssetRefBinding {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+        };
+        let count: Option<i64> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(COUNT_MEDIA_ANNOTATIONS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(count.unwrap_or_default())
     }
 }

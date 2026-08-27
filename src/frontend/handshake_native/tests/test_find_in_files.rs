@@ -3020,7 +3020,12 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         Some(saved_receipts[0].as_str()),
         "audit row carries the same nonblank producer receipt id"
     );
-    let saved_event = interconnect_support::event_ledger_payload(&saved_receipts[0]);
+    let saved_event = interconnect_support::event_ledger_payload(
+        &live,
+        "knowledge_rich_document",
+        &plans[0].document_id,
+        &saved_receipts[0],
+    );
     assert_eq!(saved_event["_event_id"], saved_receipts[0]);
     assert_eq!(
         saved_event["_event_type"], "KNOWLEDGE_RICH_DOCUMENT_SAVED",
@@ -3328,7 +3333,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         .to_string()
         .contains(&full_replacement));
 
-    // Cancellation after Apply actually begins: use 100 real plans, observe the first PostgreSQL
+    // Cancellation after Apply actually begins: use 100 real plans, observe the first SurrealDB
     // commit, then set the cooperative token. The terminal delivery must preserve committed receipts
     // and prove at least one unsent plan stayed unchanged.
     let cancel_document_ids = document_ids[2..102].to_vec();
@@ -3399,7 +3404,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     assert_eq!(
         cancel_last_after["document"]["content_json"],
         cancel_last_before["document"]["content_json"],
-        "a skipped tail plan never mutates PostgreSQL"
+        "a skipped tail plan never mutates SurrealDB"
     );
 
     // Bounded backend-loss + recovery through the mounted production action path. Rebinding replaces

@@ -20,14 +20,12 @@
 //! logic. LLM-driven semantic detection is a future runtime concern; the
 //! contract notes "embedding/vector-like evidence where available".
 
-use sqlx::PgPool;
-
 use crate::storage::knowledge::KnowledgeStore;
 use crate::storage::knowledge_memory::{
     find_fact_conflict_candidates, record_conflict_detection_job, ConflictDetectionJob,
     ConflictDetectionKind, FactConflictCandidate,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::{SurrealDatabase, SurrealStorage};
 use crate::storage::StorageResult;
 use serde_json::json;
 
@@ -57,8 +55,8 @@ pub struct SymbolicDetectionResult {
 /// (the 0137 `uq_knowledge_claim_conflicts_pair`) is skipped, not duplicated,
 /// so re-running the pass does not error or double-count.
 pub async fn run_symbolic_conflict_detection(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     workspace_id: &str,
     limit: i64,
     detection_receipt_event_id: Option<&str>,
@@ -108,7 +106,7 @@ pub async fn run_symbolic_conflict_detection(
 /// Whether two claims already have a recorded conflict in either direction
 /// (the committed conflict store enforces a unique unordered pair).
 async fn claims_already_conflicting(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     claim_a: &str,
     claim_b: &str,
 ) -> StorageResult<bool> {

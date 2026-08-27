@@ -9,14 +9,14 @@ use crate::storage::artifacts::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    event_family, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
-    BulkOperationReceipt,
+    atelier_event_sql, event_family, reject_legacy_runtime_ref, AtelierError, AtelierResult,
+    AtelierStore, BulkOperationReceipt,
 };
 
 pub const MEDIA_ARTIFACT_MANIFEST_SCHEMA: &str = "hsk.atelier.media_artifact_manifest@1";
@@ -276,88 +276,506 @@ struct NormalizedMediaReviewMetadataUpdate {
     review_status: String,
 }
 
-fn asset_from_row(row: &sqlx::postgres::PgRow) -> MediaAsset {
-    MediaAsset {
-        asset_id: row.get("asset_id"),
-        content_hash: row.get("content_hash"),
-        mime: row.get("mime"),
-        byte_len: row.get("byte_len"),
-        source_provenance: row.get("source_provenance"),
-        artifact_ref: row.get("artifact_ref"),
-        retention_class: row.get("retention_class"),
-        artifact_manifest: row.get("artifact_manifest"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct MediaAssetRow {
+    asset_id: SurrealUuid,
+    content_hash: String,
+    mime: String,
+    byte_len: i64,
+    source_provenance: Option<String>,
+    artifact_ref: String,
+    retention_class: String,
+    artifact_manifest: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+impl From<MediaAssetRow> for MediaAsset {
+    fn from(row: MediaAssetRow) -> Self {
+        Self {
+            asset_id: row.asset_id.into(),
+            content_hash: row.content_hash,
+            mime: row.mime,
+            byte_len: row.byte_len,
+            source_provenance: row.source_provenance,
+            artifact_ref: row.artifact_ref,
+            retention_class: row.retention_class,
+            artifact_manifest: row.artifact_manifest,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn media_source_provenance_refs_from_row(row: &sqlx::postgres::PgRow) -> MediaSourceProvenanceRefs {
-    MediaSourceProvenanceRefs {
-        asset_id: row.get("asset_id"),
-        source_url_ref: row.get("source_url_ref"),
-        source_path_ref: row.get("source_path_ref"),
-        source_note_ref: row.get("source_note_ref"),
-        contact_sheet_ref: row.get("contact_sheet_ref"),
-        task_ref: row.get("task_ref"),
-        run_ref: row.get("run_ref"),
-        updated_by: row.get("updated_by"),
-        updated_at_utc: row.get("updated_at_utc"),
+#[derive(SurrealValue)]
+struct MediaSourceProvenanceRefsRow {
+    asset_id: SurrealUuid,
+    source_url_ref: Option<String>,
+    source_path_ref: Option<String>,
+    source_note_ref: Option<String>,
+    contact_sheet_ref: Option<String>,
+    task_ref: Option<String>,
+    run_ref: Option<String>,
+    updated_by: String,
+    updated_at_utc: Datetime,
+}
+
+impl From<MediaSourceProvenanceRefsRow> for MediaSourceProvenanceRefs {
+    fn from(row: MediaSourceProvenanceRefsRow) -> Self {
+        Self {
+            asset_id: row.asset_id.into(),
+            source_url_ref: row.source_url_ref,
+            source_path_ref: row.source_path_ref,
+            source_note_ref: row.source_note_ref,
+            contact_sheet_ref: row.contact_sheet_ref,
+            task_ref: row.task_ref,
+            run_ref: row.run_ref,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+        }
     }
 }
 
-fn media_sidecar_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<MediaSidecar> {
-    let relation_kind: String = row.get("relation_kind");
-    Ok(MediaSidecar {
-        sidecar_id: row.get("sidecar_id"),
-        parent_asset_id: row.get("parent_asset_id"),
-        sidecar_asset_id: row.get("sidecar_asset_id"),
-        relation_kind: MediaSidecarRelationKind::from_token(&relation_kind)?,
-        hidden_from_gallery: row.get("hidden_from_gallery"),
-        searchable_by_relation: row.get("searchable_by_relation"),
-        created_by: row.get("created_by"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct MediaSidecarRow {
+    sidecar_id: SurrealUuid,
+    parent_asset_id: SurrealUuid,
+    sidecar_asset_id: SurrealUuid,
+    relation_kind: String,
+    hidden_from_gallery: bool,
+    searchable_by_relation: bool,
+    created_by: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
 }
 
-fn review_metadata_from_row(row: &sqlx::postgres::PgRow) -> MediaReviewMetadata {
-    MediaReviewMetadata {
-        asset_id: row.get("asset_id"),
-        favorite: row.get("favorite"),
-        rating: row.get("rating"),
-        frontpage: row.get("frontpage"),
-        carousel: row.get("carousel"),
-        notes: row.get("notes"),
-        review_status: row.get("review_status"),
-        updated_by: row.get("updated_by"),
-        updated_at_utc: row.get("updated_at_utc"),
+impl TryFrom<MediaSidecarRow> for MediaSidecar {
+    type Error = AtelierError;
+
+    fn try_from(row: MediaSidecarRow) -> AtelierResult<Self> {
+        let relation_kind = row.relation_kind;
+        Ok(MediaSidecar {
+            sidecar_id: row.sidecar_id.into(),
+            parent_asset_id: row.parent_asset_id.into(),
+            sidecar_asset_id: row.sidecar_asset_id.into(),
+            relation_kind: MediaSidecarRelationKind::from_token(&relation_kind)?,
+            hidden_from_gallery: row.hidden_from_gallery,
+            searchable_by_relation: row.searchable_by_relation,
+            created_by: row.created_by,
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        })
     }
 }
 
-fn media_derivative_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<MediaDerivative> {
-    let kind: String = row.get("derivative_kind");
-    let status: String = row.get("status");
-    Ok(MediaDerivative {
-        derivative_id: row.get("derivative_id"),
-        asset_id: row.get("asset_id"),
-        derivative_kind: MediaDerivativeKind::from_token(&kind)?,
-        target_width: row.get("target_width"),
-        target_height: row.get("target_height"),
-        format: row.get("format"),
-        status: MediaDerivativeStatus::from_token(&status)?,
-        artifact_ref: row.get("artifact_ref"),
-        artifact_manifest_ref: row.get("artifact_manifest_ref"),
-        mime: row.get("mime"),
-        byte_len: row.get("byte_len"),
-        requested_by: row.get("requested_by"),
-        updated_by: row.get("updated_by"),
-        attempt_count: row.get("attempt_count"),
-        retry_count: row.get("retry_count"),
-        last_error_code: row.get("last_error_code"),
-        last_error_ref: row.get("last_error_ref"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct MediaReviewMetadataRow {
+    asset_id: SurrealUuid,
+    favorite: bool,
+    rating: i64,
+    frontpage: bool,
+    carousel: bool,
+    notes: Option<String>,
+    review_status: String,
+    updated_by: String,
+    updated_at_utc: Datetime,
 }
+
+impl TryFrom<MediaReviewMetadataRow> for MediaReviewMetadata {
+    type Error = AtelierError;
+
+    fn try_from(row: MediaReviewMetadataRow) -> AtelierResult<Self> {
+        Ok(Self {
+            asset_id: row.asset_id.into(),
+            favorite: row.favorite,
+            rating: i16::try_from(row.rating).map_err(|_| {
+                AtelierError::Internal(format!("persisted media rating {} exceeds i16", row.rating))
+            })?,
+            frontpage: row.frontpage,
+            carousel: row.carousel,
+            notes: row.notes,
+            review_status: row.review_status,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct MediaDerivativeRow {
+    derivative_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    derivative_kind: String,
+    target_width: i64,
+    target_height: i64,
+    format: String,
+    status: String,
+    artifact_ref: Option<String>,
+    artifact_manifest_ref: Option<String>,
+    mime: Option<String>,
+    byte_len: Option<i64>,
+    requested_by: String,
+    updated_by: String,
+    attempt_count: i64,
+    retry_count: i64,
+    last_error_code: Option<String>,
+    last_error_ref: Option<String>,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+impl TryFrom<MediaDerivativeRow> for MediaDerivative {
+    type Error = AtelierError;
+
+    fn try_from(row: MediaDerivativeRow) -> AtelierResult<Self> {
+        let kind = row.derivative_kind;
+        let status = row.status;
+        Ok(MediaDerivative {
+            derivative_id: row.derivative_id.into(),
+            asset_id: row.asset_id.into(),
+            derivative_kind: MediaDerivativeKind::from_token(&kind)?,
+            target_width: i32::try_from(row.target_width).map_err(|_| {
+                AtelierError::Internal("persisted derivative width exceeds i32".into())
+            })?,
+            target_height: i32::try_from(row.target_height).map_err(|_| {
+                AtelierError::Internal("persisted derivative height exceeds i32".into())
+            })?,
+            format: row.format,
+            status: MediaDerivativeStatus::from_token(&status)?,
+            artifact_ref: row.artifact_ref,
+            artifact_manifest_ref: row.artifact_manifest_ref,
+            mime: row.mime,
+            byte_len: row.byte_len,
+            requested_by: row.requested_by,
+            updated_by: row.updated_by,
+            attempt_count: row.attempt_count,
+            retry_count: row.retry_count,
+            last_error_code: row.last_error_code,
+            last_error_ref: row.last_error_ref,
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+macro_rules! media_asset_select {
+    () => {
+        "asset_id, content_hash, mime, byte_len, source_provenance, artifact_ref, \
+         retention_class, artifact_manifest, created_at_utc"
+    };
+}
+
+macro_rules! provenance_select {
+    () => {
+        "record::id(asset_id) AS asset_id, source_url_ref, source_path_ref, source_note_ref, \
+         contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc"
+    };
+}
+
+macro_rules! sidecar_select {
+    () => {
+        "sidecar_id, record::id(parent_asset_id) AS parent_asset_id, \
+         record::id(sidecar_asset_id) AS sidecar_asset_id, relation_kind, hidden_from_gallery, \
+         searchable_by_relation, created_by, created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! derivative_select {
+    () => {
+        "derivative_id, record::id(asset_id) AS asset_id, derivative_kind, target_width, \
+         target_height, format, status, artifact_ref, artifact_manifest_ref, mime, byte_len, \
+         requested_by, updated_by, attempt_count, retry_count, last_error_code, last_error_ref, \
+         created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! review_metadata_select {
+    () => {
+        "record::id(asset_id) AS asset_id, favorite, rating, frontpage, carousel, notes, \
+         review_status, updated_by, updated_at_utc"
+    };
+}
+
+#[derive(SurrealValue)]
+struct AssetIdBinding {
+    asset_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct AssetRefBinding {
+    asset_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ContentHashBinding {
+    content_hash: String,
+}
+
+#[derive(SurrealValue)]
+struct LimitBinding {
+    limit: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct MaterializeMediaAssetBindings {
+    asset_rid: RecordId,
+    asset_id: SurrealUuid,
+    content_hash: String,
+    mime: String,
+    byte_len: i64,
+    source_provenance: Option<String>,
+    artifact_ref: String,
+    retention_class: String,
+    artifact_manifest: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SetProvenanceBindings {
+    provenance_rid: RecordId,
+    asset_ref: RecordId,
+    source_url_ref: Option<String>,
+    source_path_ref: Option<String>,
+    source_note_ref: Option<String>,
+    contact_sheet_ref: Option<String>,
+    task_ref: Option<String>,
+    run_ref: Option<String>,
+    updated_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpgradeMediaAssetBindings {
+    asset_rid: RecordId,
+    expected_artifact_ref: String,
+    mime: String,
+    byte_len: i64,
+    source_provenance: Option<String>,
+    artifact_ref: String,
+    retention_class: String,
+    artifact_manifest: serde_json::Value,
+}
+
+#[derive(SurrealValue)]
+struct RepairManifestBindings {
+    asset_rid: RecordId,
+    retention_class: String,
+    artifact_manifest: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct CreateSidecarBindings {
+    sidecar_rid: RecordId,
+    sidecar_id: SurrealUuid,
+    parent_ref: RecordId,
+    sidecar_ref: RecordId,
+    relation_kind: String,
+    created_by: String,
+}
+
+#[derive(SurrealValue)]
+struct ListSidecarBindings {
+    parent_ref: RecordId,
+    relation_kind: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct ExactSidecarBindings {
+    parent_ref: RecordId,
+    sidecar_ref: RecordId,
+    relation_kind: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RequestDerivativeBindings {
+    derivative_rid: RecordId,
+    derivative_id: SurrealUuid,
+    asset_ref: RecordId,
+    derivative_kind: String,
+    target_width: i64,
+    target_height: i64,
+    format: String,
+    requested_by: String,
+}
+
+#[derive(SurrealValue)]
+struct FindDerivativeBindings {
+    asset_ref: RecordId,
+    derivative_kind: String,
+    target_width: i64,
+    target_height: i64,
+    format: String,
+}
+
+#[derive(SurrealValue)]
+struct DerivativeAssetBinding {
+    asset_ref: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct DerivativeTransitionBindings {
+    derivative_rid: RecordId,
+    expected_statuses: Vec<String>,
+    status: String,
+    requested_by: Option<String>,
+    updated_by: String,
+    artifact_ref: Option<String>,
+    artifact_manifest_ref: Option<String>,
+    mime: Option<String>,
+    byte_len: Option<i64>,
+    last_error_code: Option<String>,
+    last_error_ref: Option<String>,
+    increment_attempt: bool,
+    increment_retry: bool,
+}
+
+#[derive(SurrealValue)]
+struct DerivativeIdBinding {
+    derivative_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct DerivativeStateRow {
+    status: String,
+    format: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ReviewUpdateInput {
+    metadata_rid: RecordId,
+    asset_ref: RecordId,
+    favorite: bool,
+    rating: i64,
+    frontpage: bool,
+    carousel: bool,
+    notes: Option<String>,
+    review_status: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BulkReviewBindings {
+    asset_refs: Vec<RecordId>,
+    updates: Vec<ReviewUpdateInput>,
+    requested_by: String,
+}
+
+const MATERIALIZE_MEDIA_ASSET_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.asset_rid CONTENT { asset_id: $domain.asset_id, \
+       content_hash: $domain.content_hash, mime: $domain.mime, byte_len: $domain.byte_len, \
+       source_provenance: $domain.source_provenance, artifact_ref: $domain.artifact_ref, \
+       retention_class: $domain.retention_class, artifact_manifest: $domain.artifact_manifest }; \
+     RETURN (SELECT ",
+    media_asset_select!(),
+    " FROM atelier_media_asset WHERE content_hash = $domain.content_hash LIMIT 1); };"
+);
+
+const SET_PROVENANCE_STATEMENT: &str = concat!(
+    "RETURN { IF !record::exists($domain.asset_ref) { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPSERT $domain.provenance_rid SET asset_id = $domain.asset_ref, \
+       source_url_ref = $domain.source_url_ref, source_path_ref = $domain.source_path_ref, \
+       source_note_ref = $domain.source_note_ref, contact_sheet_ref = $domain.contact_sheet_ref, \
+       task_ref = $domain.task_ref, run_ref = $domain.run_ref, updated_by = $domain.updated_by, \
+       updated_at_utc = time::now(); RETURN (SELECT ",
+    provenance_select!(),
+    " FROM $domain.provenance_rid); };"
+);
+
+const UPGRADE_MEDIA_ASSET_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT VALUE artifact_ref FROM $domain.asset_rid)[0]; \
+     IF $current != $domain.expected_artifact_ref { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.asset_rid SET mime = $domain.mime, byte_len = $domain.byte_len, \
+       source_provenance = $domain.source_provenance, artifact_ref = $domain.artifact_ref, \
+       retention_class = $domain.retention_class, artifact_manifest = $domain.artifact_manifest; \
+     RETURN (SELECT ",
+    media_asset_select!(),
+    " FROM $domain.asset_rid); };"
+);
+
+const CREATE_SIDECAR_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.sidecar_rid CONTENT { sidecar_id: $domain.sidecar_id, \
+       parent_asset_id: $domain.parent_ref, sidecar_asset_id: $domain.sidecar_ref, \
+       relation_kind: $domain.relation_kind, hidden_from_gallery: true, \
+       searchable_by_relation: true, created_by: $domain.created_by }; \
+     RETURN (SELECT ",
+    sidecar_select!(),
+    " FROM $domain.sidecar_rid); };"
+);
+
+const REQUEST_DERIVATIVE_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.derivative_rid CONTENT { derivative_id: $domain.derivative_id, \
+       asset_id: $domain.asset_ref, derivative_kind: $domain.derivative_kind, \
+       target_width: $domain.target_width, target_height: $domain.target_height, \
+       format: $domain.format, status: 'pending', requested_by: $domain.requested_by, \
+       updated_by: $domain.requested_by }; \
+     RETURN (SELECT ",
+    derivative_select!(),
+    " FROM $domain.derivative_rid); };"
+);
+
+const MARK_DERIVATIVE_GENERATING_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT VALUE status FROM $domain.derivative_rid)[0]; \
+     IF $current NOT IN $domain.expected_statuses { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.derivative_rid SET status = 'generating', updated_by = $domain.updated_by, \
+       updated_at_utc = time::now(); RETURN (SELECT ",
+    derivative_select!(),
+    " FROM $domain.derivative_rid); };"
+);
+
+const MARK_DERIVATIVE_GENERATED_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT status, format FROM $domain.derivative_rid)[0]; \
+     IF $current.status != 'generating' { RETURN NONE; }; \
+     IF !(( $current.format = 'png' AND $domain.mime = 'image/png') OR \
+          ( $current.format = 'jpeg' AND $domain.mime = 'image/jpeg')) { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.derivative_rid SET status = 'generated', updated_by = $domain.updated_by, \
+       artifact_ref = $domain.artifact_ref, artifact_manifest_ref = $domain.artifact_manifest_ref, \
+       mime = $domain.mime, byte_len = $domain.byte_len, last_error_code = NONE, \
+       last_error_ref = NONE, updated_at_utc = time::now(); RETURN (SELECT ",
+    derivative_select!(),
+    " FROM $domain.derivative_rid); };"
+);
+
+const MARK_DERIVATIVE_FAILED_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT VALUE status FROM $domain.derivative_rid)[0]; \
+     IF $current NOT IN ['pending', 'generating'] { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.derivative_rid SET status = $domain.status, updated_by = $domain.updated_by, \
+       attempt_count += 1, last_error_code = $domain.last_error_code, \
+       last_error_ref = $domain.last_error_ref, artifact_ref = NONE, \
+       artifact_manifest_ref = NONE, mime = NONE, byte_len = NONE, \
+       updated_at_utc = time::now(); RETURN (SELECT ",
+    derivative_select!(),
+    " FROM $domain.derivative_rid); };"
+);
+
+const RETRY_DERIVATIVE_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT VALUE status FROM $domain.derivative_rid)[0]; \
+     IF $current != 'retryable_error' { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.derivative_rid SET status = 'pending', requested_by = $domain.requested_by, \
+       updated_by = $domain.updated_by, retry_count += 1, artifact_ref = NONE, \
+       artifact_manifest_ref = NONE, mime = NONE, byte_len = NONE, \
+       updated_at_utc = time::now(); RETURN (SELECT ",
+    derivative_select!(),
+    " FROM $domain.derivative_rid); };"
+);
+
+const BULK_REVIEW_UPDATE_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_media_asset \
+       WHERE id IN $domain.asset_refs); IF array::len($existing) != array::len($domain.asset_refs) \
+       { RETURN []; }; FOR $item IN $domain.updates { UPSERT $item.metadata_rid SET \
+       asset_id = $item.asset_ref, favorite = $item.favorite, rating = $item.rating, \
+       frontpage = $item.frontpage, carousel = $item.carousel, notes = $item.notes, \
+       review_status = $item.review_status, updated_by = $domain.requested_by, \
+       updated_at_utc = time::now(); }; RETURN (SELECT ",
+    review_metadata_select!(),
+    " FROM atelier_media_review_metadata WHERE asset_id IN $domain.asset_refs ORDER BY asset_id); };"
+);
 
 fn validate_artifact_ref(artifact_ref: &str) -> AtelierResult<()> {
     let trimmed = artifact_ref.trim();
@@ -962,62 +1380,40 @@ impl AtelierStore {
         let asset_id = Uuid::now_v7();
         let artifact_manifest =
             build_media_artifact_manifest(asset_id, new, &content_hash, source_provenance);
-        let mut tx = self.pool().begin().await?;
-        let inserted = sqlx::query(
-            r#"INSERT INTO atelier_media_asset
-                 (asset_id, content_hash, mime, byte_len, source_provenance,
-                  artifact_ref, retention_class, artifact_manifest)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (content_hash) DO NOTHING
-               RETURNING asset_id, content_hash, mime, byte_len, source_provenance,
-                         artifact_ref, retention_class, artifact_manifest, created_at_utc"#,
-        )
-        .bind(asset_id)
-        .bind(&content_hash)
-        .bind(&new.mime)
-        .bind(new.byte_len)
-        .bind(&new.source_provenance)
-        .bind(&new.artifact_ref)
-        .bind(MEDIA_ORIGINAL_RETENTION_CLASS)
-        .bind(artifact_manifest)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let Some(row) = inserted else {
-            tx.commit().await?;
-            let existing = self
-                .get_media_asset_by_hash(&content_hash)
-                .await?
-                .ok_or_else(|| {
-                    AtelierError::NotFound(format!(
-                        "media content_hash={} after conflict",
-                        content_hash
-                    ))
-                })?;
-            return self.repair_media_asset_manifest_if_needed(existing).await;
+        let bindings = MaterializeMediaAssetBindings {
+            asset_rid: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+            asset_id: SurrealUuid::from(asset_id),
+            content_hash: content_hash.clone(),
+            mime: new.mime.clone(),
+            byte_len: new.byte_len,
+            source_provenance: new.source_provenance.clone(),
+            artifact_ref: new.artifact_ref.clone(),
+            retention_class: MEDIA_ORIGINAL_RETENTION_CLASS.to_owned(),
+            artifact_manifest,
         };
-
-        let asset = asset_from_row(&row);
-        self.record_event_in_tx(
-            &mut tx,
+        let row: Option<MediaAssetRow> = self
+            .write_with_event(
+            MATERIALIZE_MEDIA_ASSET_STATEMENT,
+            bindings,
             event_family::MEDIA_ASSET_MATERIALIZED,
             "atelier_media_asset",
-            &asset.content_hash,
+            &content_hash,
             serde_json::json!({
-                "asset_id": asset.asset_id,
-                "mime": asset.mime,
-                "byte_len": asset.byte_len,
-                "artifact_ref": asset.artifact_ref,
-                "retention_class": asset.retention_class,
+                "asset_id": asset_id,
+                "mime": new.mime,
+                "byte_len": new.byte_len,
+                "artifact_ref": new.artifact_ref,
+                "retention_class": MEDIA_ORIGINAL_RETENTION_CLASS,
                 "artifact_manifest": event_safe_media_artifact_manifest(
-                    &asset.artifact_manifest,
+                    &build_media_artifact_manifest(asset_id, new, &content_hash, source_provenance),
                     source_provenance,
                 ),
             }),
         )
         .await?;
-        tx.commit().await?;
-        Ok(asset)
+        row.map(MediaAsset::from).ok_or_else(|| {
+            AtelierError::Internal("materializing a media asset returned no row".to_owned())
+        })
     }
 
     pub async fn set_media_source_provenance_refs(
@@ -1026,85 +1422,60 @@ impl AtelierStore {
     ) -> AtelierResult<MediaSourceProvenanceRefs> {
         let [source_url_ref, source_path_ref, source_note_ref, contact_sheet_ref, task_ref, run_ref] =
             validate_media_source_provenance_refs(update)?;
-        let mut tx = self.pool().begin().await?;
-        let asset_exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM atelier_media_asset WHERE asset_id = $1)",
-        )
-        .bind(update.asset_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        if !asset_exists {
-            return Err(AtelierError::NotFound(format!(
-                "media asset_id={}",
-                update.asset_id
-            )));
-        }
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_media_source_provenance_ref
-                 (asset_id, source_url_ref, source_path_ref, source_note_ref,
-                  contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-               ON CONFLICT (asset_id)
-               DO UPDATE SET
-                   source_url_ref = EXCLUDED.source_url_ref,
-                   source_path_ref = EXCLUDED.source_path_ref,
-                   source_note_ref = EXCLUDED.source_note_ref,
-                   contact_sheet_ref = EXCLUDED.contact_sheet_ref,
-                   task_ref = EXCLUDED.task_ref,
-                   run_ref = EXCLUDED.run_ref,
-                   updated_by = EXCLUDED.updated_by,
-                   updated_at_utc = NOW()
-               RETURNING asset_id, source_url_ref, source_path_ref, source_note_ref,
-                         contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc"#,
-        )
-        .bind(update.asset_id)
-        .bind(&source_url_ref)
-        .bind(&source_path_ref)
-        .bind(&source_note_ref)
-        .bind(&contact_sheet_ref)
-        .bind(&task_ref)
-        .bind(&run_ref)
-        .bind(&update.updated_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let refs = media_source_provenance_refs_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET,
-            "atelier_media_asset",
-            &refs.asset_id.to_string(),
-            serde_json::json!({
-                "asset_id": refs.asset_id,
-                "source_url_ref": refs.source_url_ref,
-                "source_path_ref": refs.source_path_ref,
-                "source_note_ref": refs.source_note_ref,
-                "contact_sheet_ref": refs.contact_sheet_ref,
-                "task_ref": refs.task_ref,
-                "run_ref": refs.run_ref,
-                "updated_by": refs.updated_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(refs)
+        let asset_ref = RecordId::new("atelier_media_asset", SurrealUuid::from(update.asset_id));
+        let bindings = SetProvenanceBindings {
+            provenance_rid: RecordId::new(
+                "atelier_media_source_provenance_ref",
+                SurrealUuid::from(update.asset_id),
+            ),
+            asset_ref,
+            source_url_ref: source_url_ref.clone(),
+            source_path_ref: source_path_ref.clone(),
+            source_note_ref: source_note_ref.clone(),
+            contact_sheet_ref: contact_sheet_ref.clone(),
+            task_ref: task_ref.clone(),
+            run_ref: run_ref.clone(),
+            updated_by: update.updated_by.clone(),
+        };
+        let row: Option<MediaSourceProvenanceRefsRow> = self
+            .write_with_event(
+                SET_PROVENANCE_STATEMENT,
+                bindings,
+                event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET,
+                "atelier_media_asset",
+                &update.asset_id.to_string(),
+                serde_json::json!({
+                    "asset_id": update.asset_id,
+                    "source_url_ref": source_url_ref,
+                    "source_path_ref": source_path_ref,
+                    "source_note_ref": source_note_ref,
+                    "contact_sheet_ref": contact_sheet_ref,
+                    "task_ref": task_ref,
+                    "run_ref": run_ref,
+                    "updated_by": update.updated_by,
+                }),
+            )
+            .await?;
+        row.map(Into::into)
+            .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={}", update.asset_id)))
     }
 
     pub async fn get_media_source_provenance_refs(
         &self,
         asset_id: Uuid,
     ) -> AtelierResult<Option<MediaSourceProvenanceRefs>> {
-        let row = sqlx::query(
-            r#"SELECT asset_id, source_url_ref, source_path_ref, source_note_ref,
-                      contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc
-               FROM atelier_media_source_provenance_ref
-               WHERE asset_id = $1"#,
-        )
-        .bind(asset_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(media_source_provenance_refs_from_row))
+        let bindings = AssetRefBinding {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+        };
+        let row: Option<MediaSourceProvenanceRefsRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(
+                    concat!("SELECT ", provenance_select!(), " FROM atelier_media_source_provenance_ref WHERE asset_id = $asset_ref LIMIT 1;"),
+                    bindings,
+                ).await
+            })
+        }).await?;
+        Ok(row.map(Into::into))
     }
 
     async fn upgrade_media_asset_to_native_manifest(
@@ -1123,40 +1494,35 @@ impl AtelierStore {
             source_provenance,
             MEDIA_ORIGINAL_RETENTION_CLASS,
         );
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_asset
-               SET mime = $2,
-                   byte_len = $3,
-                   source_provenance = $4,
-                   artifact_ref = $5,
-                   retention_class = $6,
-                   artifact_manifest = $7
-               WHERE asset_id = $1
-                 AND artifact_ref = $8
-                 AND (
-                       artifact_ref IS DISTINCT FROM $5
-                    OR mime IS DISTINCT FROM $2
-                    OR byte_len IS DISTINCT FROM $3
-                    OR source_provenance IS DISTINCT FROM $4
-                    OR retention_class IS DISTINCT FROM $6
-                    OR artifact_manifest IS DISTINCT FROM $7
-                 )
-               RETURNING asset_id, content_hash, mime, byte_len, source_provenance,
-                         artifact_ref, retention_class, artifact_manifest, created_at_utc"#,
-        )
-        .bind(existing.asset_id)
-        .bind(&new.mime)
-        .bind(new.byte_len)
-        .bind(&new.source_provenance)
-        .bind(&new.artifact_ref)
-        .bind(MEDIA_ORIGINAL_RETENTION_CLASS)
-        .bind(manifest)
-        .bind(&existing.artifact_ref)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let bindings = UpgradeMediaAssetBindings {
+            asset_rid: RecordId::new("atelier_media_asset", SurrealUuid::from(existing.asset_id)),
+            expected_artifact_ref: existing.artifact_ref.clone(),
+            mime: new.mime.clone(),
+            byte_len: new.byte_len,
+            source_provenance: new.source_provenance.clone(),
+            artifact_ref: new.artifact_ref.clone(),
+            retention_class: MEDIA_ORIGINAL_RETENTION_CLASS.to_owned(),
+            artifact_manifest: manifest,
+        };
+        let row: Option<MediaAssetRow> = self.write_with_event(
+            UPGRADE_MEDIA_ASSET_STATEMENT,
+            bindings,
+            event_family::MEDIA_ASSET_MATERIALIZED,
+            "atelier_media_asset",
+            content_hash,
+            serde_json::json!({
+                "asset_id": existing.asset_id,
+                "mime": new.mime,
+                "byte_len": new.byte_len,
+                "artifact_ref": new.artifact_ref,
+                "retention_class": MEDIA_ORIGINAL_RETENTION_CLASS,
+                "artifact_manifest": event_safe_media_artifact_manifest(
+                    &build_media_artifact_manifest_from_parts(existing.asset_id, &new.artifact_ref, content_hash, &new.mime, new.byte_len, source_provenance, MEDIA_ORIGINAL_RETENTION_CLASS),
+                    source_provenance,
+                ),
+            }),
+        ).await?;
         let Some(row) = row else {
-            tx.commit().await?;
             let existing = self
                 .get_media_asset_by_hash(content_hash)
                 .await?
@@ -1168,27 +1534,7 @@ impl AtelierStore {
                 })?;
             return self.repair_media_asset_manifest_if_needed(existing).await;
         };
-        let asset = asset_from_row(&row);
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_ASSET_MATERIALIZED,
-            "atelier_media_asset",
-            &asset.content_hash,
-            serde_json::json!({
-                "asset_id": asset.asset_id,
-                "mime": asset.mime,
-                "byte_len": asset.byte_len,
-                "artifact_ref": asset.artifact_ref,
-                "retention_class": asset.retention_class,
-                "artifact_manifest": event_safe_media_artifact_manifest(
-                    &asset.artifact_manifest,
-                    source_provenance,
-                ),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(asset)
+        Ok(row.into())
     }
 
     async fn repair_media_asset_manifest_if_needed(
@@ -1222,85 +1568,26 @@ impl AtelierStore {
         if asset.artifact_manifest == manifest && asset.retention_class == retention_class {
             return Ok(asset);
         }
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_asset
-               SET retention_class = $2,
-                   artifact_manifest = $3
-               WHERE asset_id = $1
-               RETURNING asset_id, content_hash, mime, byte_len, source_provenance,
-                         artifact_ref, retention_class, artifact_manifest, created_at_utc"#,
-        )
-        .bind(asset.asset_id)
-        .bind(retention_class)
-        .bind(manifest)
-        .fetch_one(self.pool())
-        .await?;
-        Ok(asset_from_row(&row))
+        let bindings = RepairManifestBindings {
+            asset_rid: RecordId::new("atelier_media_asset", SurrealUuid::from(asset.asset_id)),
+            retention_class: retention_class.to_owned(),
+            artifact_manifest: manifest,
+        };
+        let row: Option<MediaAssetRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(
+                    concat!("RETURN { UPDATE $asset_rid SET retention_class = $retention_class, artifact_manifest = $artifact_manifest; RETURN (SELECT ", media_asset_select!(), " FROM $asset_rid); };"),
+                    bindings,
+                ).await
+            })
+        }).await?;
+        row.map(Into::into)
+            .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={}", asset.asset_id)))
     }
 
     pub(crate) async fn repair_media_asset_artifact_manifests(&self) -> AtelierResult<()> {
-        let table_exists: bool =
-            sqlx::query_scalar("SELECT to_regclass('atelier_media_asset') IS NOT NULL")
-                .fetch_one(self.pool())
-                .await?;
-        if !table_exists {
-            return Ok(());
-        }
-
-        let columns_ready: bool = sqlx::query_scalar(
-            r#"SELECT EXISTS (
-                   SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'atelier_media_asset'
-                     AND column_name = 'artifact_manifest'
-                     AND table_schema = ANY(current_schemas(false))
-               )
-               AND EXISTS (
-                   SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'atelier_media_asset'
-                     AND column_name = 'retention_class'
-                     AND table_schema = ANY(current_schemas(false))
-               )"#,
-        )
-        .fetch_one(self.pool())
-        .await?;
-        if !columns_ready {
-            return Ok(());
-        }
-
-        sqlx::query(
-            r#"UPDATE atelier_media_asset
-               SET retention_class = 'atelier.media.original.retained'
-               WHERE retention_class IS NULL
-                  OR btrim(retention_class) = ''"#,
-        )
-        .execute(self.pool())
-        .await?;
-
-        let rows = sqlx::query(
-            r#"SELECT asset_id, content_hash, mime, byte_len, source_provenance,
-                      artifact_ref, retention_class, artifact_manifest, created_at_utc
-               FROM atelier_media_asset
-               WHERE artifact_ref ~ '^artifact://\.handshake/artifacts/L[1-4]/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/payload$'
-                  OR artifact_manifest = '{}'::jsonb
-                  OR artifact_manifest->>'schema' IS DISTINCT FROM $1
-                  OR artifact_manifest->>'asset_id' IS DISTINCT FROM asset_id::text
-                  OR artifact_manifest->>'content_hash' IS DISTINCT FROM content_hash
-                  OR artifact_manifest->>'mime' IS DISTINCT FROM mime
-                  OR artifact_manifest->>'byte_len' IS DISTINCT FROM byte_len::text
-                  OR artifact_manifest->>'size_bytes' IS DISTINCT FROM byte_len::text
-                  OR artifact_manifest ? 'source_provenance'
-                  OR artifact_manifest ? 'source'
-                  OR artifact_manifest->>'source_provenance_ref' IS DISTINCT FROM
-                     ('sha256:' || encode(sha256(convert_to(COALESCE(NULLIF(btrim(source_provenance), ''), 'legacy:unknown'), 'UTF8')), 'hex'))
-                  OR artifact_manifest->>'retention_class' IS DISTINCT FROM retention_class"#,
-        )
-        .bind(MEDIA_ARTIFACT_MANIFEST_SCHEMA)
-        .fetch_all(self.pool())
-        .await?;
-        for row in rows {
-            self.repair_media_asset_manifest_if_needed(asset_from_row(&row))
-                .await?;
-        }
+        // Embedded SurrealDB is bootstrapped at the current schema and has no
+        // PostgreSQL upgrade lineage to repair.
         Ok(())
     }
 
@@ -1308,28 +1595,42 @@ impl AtelierStore {
         &self,
         content_hash: &str,
     ) -> AtelierResult<Option<MediaAsset>> {
-        let row = sqlx::query(
-            r#"SELECT asset_id, content_hash, mime, byte_len, source_provenance,
-                      artifact_ref, retention_class, artifact_manifest, created_at_utc
-               FROM atelier_media_asset WHERE content_hash = $1"#,
-        )
-        .bind(content_hash)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(asset_from_row))
+        let bindings = ContentHashBinding {
+            content_hash: content_hash.to_owned(),
+        };
+        let row: Option<MediaAssetRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            media_asset_select!(),
+                            " FROM atelier_media_asset WHERE content_hash = $content_hash LIMIT 1;"
+                        ),
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(Into::into))
     }
 
     pub async fn get_media_artifact_manifest(
         &self,
         asset_id: Uuid,
     ) -> AtelierResult<serde_json::Value> {
-        let manifest = sqlx::query_scalar(
-            "SELECT artifact_manifest FROM atelier_media_asset WHERE asset_id = $1",
-        )
-        .bind(asset_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
+        let bindings = AssetIdBinding {
+            asset_id: asset_id.into(),
+        };
+        let manifest: Option<serde_json::Value> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first("SELECT VALUE artifact_manifest FROM atelier_media_asset WHERE asset_id = $asset_id LIMIT 1;", bindings).await
+            })
+        }).await?;
+        let manifest =
+            manifest.ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
         Ok(manifest)
     }
 
@@ -1343,15 +1644,19 @@ impl AtelierStore {
             ));
         }
         let created_by = require_sidecar_actor(&new.created_by)?;
-        let mut tx = self.pool().begin().await?;
         let asset_ids = vec![new.parent_asset_id, new.sidecar_asset_id];
-        let existing: Vec<Uuid> =
-            sqlx::query_scalar("SELECT asset_id FROM atelier_media_asset WHERE asset_id = ANY($1)")
-                .bind(&asset_ids)
-                .fetch_all(&mut *tx)
-                .await?;
+        #[derive(SurrealValue)]
+        struct AssetIdsBinding {
+            asset_ids: Vec<SurrealUuid>,
+        }
+        let existing: Vec<SurrealUuid> = self.store().with_data_operation({
+            let bindings = AssetIdsBinding { asset_ids: asset_ids.iter().copied().map(Into::into).collect() };
+            move |ctx| Box::pin(async move {
+                ctx.query_values("SELECT VALUE asset_id FROM atelier_media_asset WHERE asset_id IN $asset_ids;", bindings).await
+            })
+        }).await?;
         if existing.len() != asset_ids.len() {
-            let existing: HashSet<Uuid> = existing.into_iter().collect();
+            let existing: HashSet<Uuid> = existing.into_iter().map(Into::into).collect();
             let missing: Vec<String> = asset_ids
                 .iter()
                 .filter(|asset_id| !existing.contains(asset_id))
@@ -1363,50 +1668,76 @@ impl AtelierStore {
             )));
         }
 
+        let existing_relation: Option<MediaSidecarRow> = self
+            .store()
+            .with_data_operation({
+                let bindings = ExactSidecarBindings {
+                    parent_ref: RecordId::new(
+                        "atelier_media_asset",
+                        SurrealUuid::from(new.parent_asset_id),
+                    ),
+                    sidecar_ref: RecordId::new(
+                        "atelier_media_asset",
+                        SurrealUuid::from(new.sidecar_asset_id),
+                    ),
+                    relation_kind: new.relation_kind.as_token().to_owned(),
+                };
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            concat!(
+                                "SELECT ",
+                                sidecar_select!(),
+                                " FROM atelier_media_sidecar WHERE parent_asset_id = $parent_ref \
+                                 AND sidecar_asset_id = $sidecar_ref \
+                                 AND relation_kind = $relation_kind LIMIT 1;"
+                            ),
+                            bindings,
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        if let Some(existing_relation) = existing_relation {
+            return existing_relation.try_into();
+        }
+
         let sidecar_id = Uuid::now_v7();
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_media_sidecar (
-                   sidecar_id, parent_asset_id, sidecar_asset_id, relation_kind,
-                   hidden_from_gallery, searchable_by_relation, created_by,
-                   updated_at_utc
-               )
-               VALUES ($1, $2, $3, $4, TRUE, TRUE, $5, NOW())
-               ON CONFLICT (parent_asset_id, sidecar_asset_id, relation_kind)
-               DO UPDATE SET
-                   hidden_from_gallery = TRUE,
-                   searchable_by_relation = TRUE,
-                   created_by = EXCLUDED.created_by,
-                   updated_at_utc = NOW()
-               RETURNING sidecar_id, parent_asset_id, sidecar_asset_id, relation_kind,
-                         hidden_from_gallery, searchable_by_relation, created_by,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(sidecar_id)
-        .bind(new.parent_asset_id)
-        .bind(new.sidecar_asset_id)
-        .bind(new.relation_kind.as_token())
-        .bind(created_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let sidecar = media_sidecar_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_SIDECAR_RECORDED,
-            "atelier_media_sidecar",
-            &sidecar.sidecar_id.to_string(),
-            serde_json::json!({
-                "sidecar_id": sidecar.sidecar_id,
-                "parent_asset_id": sidecar.parent_asset_id,
-                "sidecar_asset_id": sidecar.sidecar_asset_id,
-                "relation_kind": sidecar.relation_kind.as_token(),
-                "hidden_from_gallery": sidecar.hidden_from_gallery,
-                "searchable_by_relation": sidecar.searchable_by_relation,
-                "created_by": created_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(sidecar)
+        let bindings = CreateSidecarBindings {
+            sidecar_rid: RecordId::new("atelier_media_sidecar", SurrealUuid::from(sidecar_id)),
+            sidecar_id: sidecar_id.into(),
+            parent_ref: RecordId::new(
+                "atelier_media_asset",
+                SurrealUuid::from(new.parent_asset_id),
+            ),
+            sidecar_ref: RecordId::new(
+                "atelier_media_asset",
+                SurrealUuid::from(new.sidecar_asset_id),
+            ),
+            relation_kind: new.relation_kind.as_token().to_owned(),
+            created_by: created_by.to_owned(),
+        };
+        let row: Option<MediaSidecarRow> = self
+            .write_with_event(
+                CREATE_SIDECAR_STATEMENT,
+                bindings,
+                event_family::MEDIA_SIDECAR_RECORDED,
+                "atelier_media_sidecar",
+                &sidecar_id.to_string(),
+                serde_json::json!({
+                    "sidecar_id": sidecar_id,
+                    "parent_asset_id": new.parent_asset_id,
+                    "sidecar_asset_id": new.sidecar_asset_id,
+                    "relation_kind": new.relation_kind.as_token(),
+                    "hidden_from_gallery": true,
+                    "searchable_by_relation": true,
+                    "created_by": created_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| AtelierError::Internal("recording media sidecar returned no row".into()))?
+            .try_into()
     }
 
     pub async fn list_media_sidecars_for_asset(
@@ -1414,22 +1745,16 @@ impl AtelierStore {
         parent_asset_id: Uuid,
         relation_kind: Option<MediaSidecarRelationKind>,
     ) -> AtelierResult<Vec<MediaSidecar>> {
-        let relation_kind = relation_kind.map(MediaSidecarRelationKind::as_token);
-        let rows = sqlx::query(
-            r#"SELECT sidecar_id, parent_asset_id, sidecar_asset_id, relation_kind,
-                      hidden_from_gallery, searchable_by_relation, created_by,
-                      created_at_utc, updated_at_utc
-               FROM atelier_media_sidecar
-               WHERE parent_asset_id = $1
-                 AND searchable_by_relation
-                 AND ($2::text IS NULL OR relation_kind = $2)
-               ORDER BY relation_kind, updated_at_utc DESC, sidecar_id"#,
-        )
-        .bind(parent_asset_id)
-        .bind(relation_kind)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(media_sidecar_from_row).collect()
+        let bindings = ListSidecarBindings {
+            parent_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(parent_asset_id)),
+            relation_kind: relation_kind.map(|kind| kind.as_token().to_owned()),
+        };
+        let rows: Vec<MediaSidecarRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(concat!("SELECT ", sidecar_select!(), " FROM atelier_media_sidecar WHERE parent_asset_id = $parent_ref AND searchable_by_relation = true AND ($relation_kind = NONE OR relation_kind = $relation_kind) ORDER BY relation_kind, updated_at_utc DESC, sidecar_id;"), bindings).await
+            })
+        }).await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 
     pub async fn list_media_gallery_assets(&self, limit: i64) -> AtelierResult<Vec<MediaAsset>> {
@@ -1438,29 +1763,12 @@ impl AtelierStore {
                 "media gallery limit must be between 1 and 500".into(),
             ));
         }
-        let rows = sqlx::query(
-            r#"SELECT a.asset_id, a.content_hash, a.mime, a.byte_len, a.source_provenance,
-                      a.artifact_ref, a.retention_class, a.artifact_manifest, a.created_at_utc
-               FROM atelier_media_asset a
-               WHERE NOT EXISTS (
-                   SELECT 1
-                   FROM atelier_media_sidecar s
-                   WHERE s.sidecar_asset_id = a.asset_id
-                     AND s.hidden_from_gallery
-               )
-                 AND NOT EXISTS (
-                   SELECT 1
-                   FROM atelier_trash_marker t
-                   WHERE t.target_type = 'media_asset'
-                     AND t.target_id = a.asset_id
-               )
-               ORDER BY a.created_at_utc DESC, a.asset_id DESC
-               LIMIT $1"#,
-        )
-        .bind(limit)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(asset_from_row).collect())
+        let rows: Vec<MediaAssetRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(concat!("SELECT ", media_asset_select!(), " FROM atelier_media_asset WHERE id NOT IN (SELECT VALUE sidecar_asset_id FROM atelier_media_sidecar WHERE hidden_from_gallery = true) AND asset_id NOT IN (SELECT VALUE target_id FROM atelier_trash_marker WHERE target_type = 'media_asset') ORDER BY created_at_utc DESC, asset_id DESC LIMIT $limit;"), LimitBinding { limit }).await
+            })
+        }).await?;
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 
     pub async fn request_media_derivative(
@@ -1470,13 +1778,22 @@ impl AtelierStore {
         validate_derivative_dimensions(request.target_width, request.target_height)?;
         let format = normalize_derivative_format(&request.format)?;
         let requested_by = require_derivative_actor("requested_by", &request.requested_by)?;
-        let mut tx = self.pool().begin().await?;
-        let asset_exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM atelier_media_asset WHERE asset_id = $1)",
-        )
-        .bind(request.asset_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let asset_ref = RecordId::new("atelier_media_asset", SurrealUuid::from(request.asset_id));
+        let asset_exists: Option<bool> = self
+            .store()
+            .with_data_operation({
+                let bindings = AssetRefBinding {
+                    asset_ref: asset_ref.clone(),
+                };
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first("RETURN record::exists($asset_ref);", bindings)
+                            .await
+                    })
+                }
+            })
+            .await?;
+        let asset_exists = asset_exists.unwrap_or(false);
         if !asset_exists {
             return Err(AtelierError::NotFound(format!(
                 "media asset_id={}",
@@ -1484,95 +1801,94 @@ impl AtelierStore {
             )));
         }
 
-        let derivative_id = Uuid::now_v7();
-        let inserted_row = sqlx::query(
-            r#"INSERT INTO atelier_media_derivative (
-                   derivative_id, asset_id, derivative_kind, target_width,
-                   target_height, format, status, requested_by, updated_by
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $7)
-               ON CONFLICT (asset_id, derivative_kind, target_width, target_height, format)
-               DO NOTHING
-               RETURNING derivative_id, asset_id, derivative_kind, target_width,
-                         target_height, format, status, artifact_ref,
-                         artifact_manifest_ref, mime, byte_len, requested_by,
-                         updated_by, attempt_count, retry_count, last_error_code,
-                         last_error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(derivative_id)
-        .bind(request.asset_id)
-        .bind(request.derivative_kind.as_token())
-        .bind(request.target_width)
-        .bind(request.target_height)
-        .bind(&format)
-        .bind(requested_by)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = inserted_row else {
-            let row = sqlx::query(
-                r#"SELECT derivative_id, asset_id, derivative_kind, target_width,
-                          target_height, format, status, artifact_ref,
-                          artifact_manifest_ref, mime, byte_len, requested_by,
-                          updated_by, attempt_count, retry_count, last_error_code,
-                          last_error_ref, created_at_utc, updated_at_utc
-                   FROM atelier_media_derivative
-                   WHERE asset_id = $1
-                     AND derivative_kind = $2
-                     AND target_width = $3
-                     AND target_height = $4
-                     AND format = $5"#,
-            )
-            .bind(request.asset_id)
-            .bind(request.derivative_kind.as_token())
-            .bind(request.target_width)
-            .bind(request.target_height)
-            .bind(&format)
-            .fetch_one(&mut *tx)
-            .await?;
-            let derivative = media_derivative_from_row(&row)?;
-            tx.commit().await?;
-            return Ok(derivative);
+        let find_bindings = FindDerivativeBindings {
+            asset_ref: asset_ref.clone(),
+            derivative_kind: request.derivative_kind.as_token().to_owned(),
+            target_width: i64::from(request.target_width),
+            target_height: i64::from(request.target_height),
+            format: format.clone(),
         };
-        let derivative = media_derivative_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_DERIVATIVE_REQUESTED,
-            "atelier_media_derivative",
-            &derivative.derivative_id.to_string(),
-            serde_json::json!({
-                "derivative_id": derivative.derivative_id,
-                "asset_id": derivative.asset_id,
-                "derivative_kind": derivative.derivative_kind.as_token(),
-                "target_width": derivative.target_width,
-                "target_height": derivative.target_height,
-                "format": derivative.format,
-                "status": derivative.status.as_token(),
-                "requested_by": requested_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(derivative)
+        let existing: Option<MediaDerivativeRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(concat!("SELECT ", derivative_select!(), " FROM atelier_media_derivative WHERE asset_id = $asset_ref AND derivative_kind = $derivative_kind AND target_width = $target_width AND target_height = $target_height AND format = $format LIMIT 1;"), find_bindings).await
+            })
+        }).await?;
+        if let Some(existing) = existing {
+            return existing.try_into();
+        }
+
+        let derivative_id = Uuid::now_v7();
+        let bindings = RequestDerivativeBindings {
+            derivative_rid: RecordId::new(
+                "atelier_media_derivative",
+                SurrealUuid::from(derivative_id),
+            ),
+            derivative_id: derivative_id.into(),
+            asset_ref,
+            derivative_kind: request.derivative_kind.as_token().to_owned(),
+            target_width: i64::from(request.target_width),
+            target_height: i64::from(request.target_height),
+            format: format.clone(),
+            requested_by: requested_by.to_owned(),
+        };
+        let row: Option<MediaDerivativeRow> = self
+            .write_with_event(
+                REQUEST_DERIVATIVE_STATEMENT,
+                bindings,
+                event_family::MEDIA_DERIVATIVE_REQUESTED,
+                "atelier_media_derivative",
+                &derivative_id.to_string(),
+                serde_json::json!({
+                    "derivative_id": derivative_id,
+                    "asset_id": request.asset_id,
+                    "derivative_kind": request.derivative_kind.as_token(),
+                    "target_width": request.target_width,
+                    "target_height": request.target_height,
+                    "format": format,
+                    "status": "pending",
+                    "requested_by": requested_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("requesting media derivative returned no row".into())
+        })?
+        .try_into()
     }
 
     pub async fn list_media_derivatives(
         &self,
         asset_id: Uuid,
     ) -> AtelierResult<Vec<MediaDerivative>> {
-        let rows = sqlx::query(
-            r#"SELECT derivative_id, asset_id, derivative_kind, target_width,
-                      target_height, format, status, artifact_ref,
-                      artifact_manifest_ref, mime, byte_len, requested_by,
-                      updated_by, attempt_count, retry_count, last_error_code,
-                      last_error_ref, created_at_utc, updated_at_utc
-               FROM atelier_media_derivative
-               WHERE asset_id = $1
-               ORDER BY derivative_kind, target_width, target_height, format"#,
-        )
-        .bind(asset_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(media_derivative_from_row).collect()
+        let bindings = DerivativeAssetBinding {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+        };
+        let rows: Vec<MediaDerivativeRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_values(concat!("SELECT ", derivative_select!(), " FROM atelier_media_derivative WHERE asset_id = $asset_ref ORDER BY derivative_kind, target_width, target_height, format;"), bindings).await })
+        }).await?;
+        rows.into_iter().map(TryInto::try_into).collect()
+    }
+
+    async fn get_media_derivative_record(
+        &self,
+        derivative_id: Uuid,
+    ) -> AtelierResult<Option<MediaDerivative>> {
+        let bindings = DerivativeIdBinding {
+            derivative_id: derivative_id.into(),
+        };
+        let row: Option<MediaDerivativeRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!("SELECT ", derivative_select!(), " FROM atelier_media_derivative WHERE derivative_id = $derivative_id LIMIT 1;"),
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(TryInto::try_into).transpose()
     }
 
     pub async fn mark_media_derivative_generating(
@@ -1581,46 +1897,52 @@ impl AtelierStore {
         updated_by: &str,
     ) -> AtelierResult<MediaDerivative> {
         let updated_by = require_derivative_actor("updated_by", updated_by)?;
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_derivative
-               SET status = 'generating',
-                   updated_by = $2,
-                   updated_at_utc = NOW()
-               WHERE derivative_id = $1
-                 AND status = 'pending'
-               RETURNING derivative_id, asset_id, derivative_kind, target_width,
-                         target_height, format, status, artifact_ref,
-                         artifact_manifest_ref, mime, byte_len, requested_by,
-                         updated_by, attempt_count, retry_count, last_error_code,
-                         last_error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(derivative_id)
-        .bind(updated_by)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| {
-            AtelierError::Validation(format!(
+        let current = self
+            .get_media_derivative_record(derivative_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("media derivative_id={derivative_id}"))
+            })?;
+        if current.status != MediaDerivativeStatus::Pending {
+            return Err(AtelierError::Validation(format!(
                 "media derivative {derivative_id} is not pending; retryable derivatives must be retried first"
-            ))
-        })?;
-        let derivative = media_derivative_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_DERIVATIVE_GENERATING,
-            "atelier_media_derivative",
-            &derivative.derivative_id.to_string(),
-            serde_json::json!({
-                "derivative_id": derivative.derivative_id,
-                "asset_id": derivative.asset_id,
-                "derivative_kind": derivative.derivative_kind.as_token(),
-                "status": derivative.status.as_token(),
-                "updated_by": updated_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(derivative)
+            )));
+        }
+        let bindings = DerivativeTransitionBindings {
+            derivative_rid: RecordId::new(
+                "atelier_media_derivative",
+                SurrealUuid::from(derivative_id),
+            ),
+            expected_statuses: vec!["pending".to_owned()],
+            status: "generating".to_owned(),
+            requested_by: None,
+            updated_by: updated_by.to_owned(),
+            artifact_ref: None,
+            artifact_manifest_ref: None,
+            mime: None,
+            byte_len: None,
+            last_error_code: None,
+            last_error_ref: None,
+            increment_attempt: false,
+            increment_retry: false,
+        };
+        let row: Option<MediaDerivativeRow> = self
+            .write_with_event(
+                MARK_DERIVATIVE_GENERATING_STATEMENT,
+                bindings,
+                event_family::MEDIA_DERIVATIVE_GENERATING,
+                "atelier_media_derivative",
+                &derivative_id.to_string(),
+                serde_json::json!({
+                    "derivative_id": derivative_id,
+                    "asset_id": current.asset_id,
+                    "derivative_kind": current.derivative_kind.as_token(),
+                    "status": "generating",
+                    "updated_by": updated_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| AtelierError::Validation(format!("media derivative {derivative_id} is not pending; retryable derivatives must be retried first")))?.try_into()
     }
 
     pub async fn record_media_derivative_generated(
@@ -1662,53 +1984,80 @@ impl AtelierStore {
         }
         verify_derivative_artifact_binding(generated, &mime)?;
         let updated_by = require_derivative_actor("updated_by", &generated.updated_by)?;
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_derivative
-               SET status = 'generated',
-                   artifact_ref = $2,
-                   artifact_manifest_ref = $3,
-                   mime = $4,
-                   byte_len = $5,
-                   updated_by = $6,
-                   last_error_code = NULL,
-                   last_error_ref = NULL,
-                   updated_at_utc = NOW()
-               WHERE derivative_id = $1
-                 AND status = 'generating'
-                 AND (
-                   (format = 'png' AND $4 = 'image/png')
-                   OR (format = 'jpeg' AND $4 = 'image/jpeg')
-                 )
-               RETURNING derivative_id, asset_id, derivative_kind, target_width,
-                         target_height, format, status, artifact_ref,
-                         artifact_manifest_ref, mime, byte_len, requested_by,
-                         updated_by, attempt_count, retry_count, last_error_code,
-                         last_error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(generated.derivative_id)
-        .bind(&generated.artifact_ref)
-        .bind(&generated.artifact_manifest_ref)
-        .bind(mime)
-        .bind(generated.byte_len)
-        .bind(updated_by)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            let current = sqlx::query(
-                "SELECT status, format FROM atelier_media_derivative WHERE derivative_id = $1",
+        let current = self
+            .get_media_derivative_record(generated.derivative_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("media derivative_id={}", generated.derivative_id))
+            })?;
+        if current.status != MediaDerivativeStatus::Generating {
+            return Err(AtelierError::Validation(format!(
+                "media derivative {} is not active for generated transition (status={})",
+                generated.derivative_id,
+                current.status.as_token()
+            )));
+        }
+        let expected_mime = expected_mime_for_derivative_format(&current.format)?;
+        if expected_mime != mime {
+            return Err(AtelierError::Validation(format!(
+                "media derivative format {} requires mime {expected_mime}, got {mime}",
+                current.format
+            )));
+        }
+        let bindings = DerivativeTransitionBindings {
+            derivative_rid: RecordId::new(
+                "atelier_media_derivative",
+                SurrealUuid::from(generated.derivative_id),
+            ),
+            expected_statuses: vec!["generating".to_owned()],
+            status: "generated".to_owned(),
+            requested_by: None,
+            updated_by: updated_by.to_owned(),
+            artifact_ref: Some(generated.artifact_ref.clone()),
+            artifact_manifest_ref: Some(generated.artifact_manifest_ref.clone()),
+            mime: Some(mime.to_owned()),
+            byte_len: Some(generated.byte_len),
+            last_error_code: None,
+            last_error_ref: None,
+            increment_attempt: false,
+            increment_retry: false,
+        };
+        let row: Option<MediaDerivativeRow> = self
+            .write_with_event(
+                MARK_DERIVATIVE_GENERATED_STATEMENT,
+                bindings,
+                event_family::MEDIA_DERIVATIVE_GENERATED,
+                "atelier_media_derivative",
+                &generated.derivative_id.to_string(),
+                serde_json::json!({
+                    "derivative_id": generated.derivative_id,
+                    "asset_id": current.asset_id,
+                    "derivative_kind": current.derivative_kind.as_token(),
+                    "target_width": current.target_width,
+                    "target_height": current.target_height,
+                    "format": current.format,
+                    "status": "generated",
+                    "artifact_ref": generated.artifact_ref,
+                    "artifact_manifest_ref": generated.artifact_manifest_ref,
+                    "mime": mime,
+                    "byte_len": generated.byte_len,
+                    "updated_by": updated_by,
+                }),
             )
-            .bind(generated.derivative_id)
-            .fetch_optional(&mut *tx)
             .await?;
+        let Some(row) = row else {
+            let current: Option<DerivativeStateRow> = self.store().with_data_operation({
+                let bindings = DerivativeIdBinding { derivative_id: generated.derivative_id.into() };
+                move |ctx| Box::pin(async move { ctx.query_first("SELECT status, format FROM atelier_media_derivative WHERE derivative_id = $derivative_id LIMIT 1;", bindings).await })
+            }).await?;
             return match current {
                 None => Err(AtelierError::NotFound(format!(
                     "media derivative_id={}",
                     generated.derivative_id
                 ))),
                 Some(row) => {
-                    let status: String = row.get("status");
-                    let format: String = row.get("format");
+                    let status = row.status;
+                    let format = row.format;
                     if status == "generating" {
                         let expected_mime = expected_mime_for_derivative_format(&format)?;
                         if expected_mime != mime {
@@ -1724,30 +2073,7 @@ impl AtelierStore {
                 }
             };
         };
-        let derivative = media_derivative_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_DERIVATIVE_GENERATED,
-            "atelier_media_derivative",
-            &derivative.derivative_id.to_string(),
-            serde_json::json!({
-                "derivative_id": derivative.derivative_id,
-                "asset_id": derivative.asset_id,
-                "derivative_kind": derivative.derivative_kind.as_token(),
-                "target_width": derivative.target_width,
-                "target_height": derivative.target_height,
-                "format": derivative.format,
-                "status": derivative.status.as_token(),
-                "artifact_ref": generated.artifact_ref,
-                "artifact_manifest_ref": generated.artifact_manifest_ref,
-                "mime": mime,
-                "byte_len": generated.byte_len,
-                "updated_by": updated_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(derivative)
+        row.try_into()
     }
 
     pub async fn record_media_derivative_failure(
@@ -1769,71 +2095,65 @@ impl AtelierStore {
         } else {
             MediaDerivativeStatus::Failed
         };
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_derivative
-               SET status = $2,
-                   updated_by = $3,
-                   attempt_count = attempt_count + 1,
-                   last_error_code = $4,
-                   last_error_ref = $5,
-                   artifact_ref = NULL,
-                   artifact_manifest_ref = NULL,
-                   mime = NULL,
-                   byte_len = NULL,
-                   updated_at_utc = NOW()
-               WHERE derivative_id = $1
-                 AND status IN ('pending', 'generating')
-               RETURNING derivative_id, asset_id, derivative_kind, target_width,
-                         target_height, format, status, artifact_ref,
-                         artifact_manifest_ref, mime, byte_len, requested_by,
-                         updated_by, attempt_count, retry_count, last_error_code,
-                         last_error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(derivative_id)
-        .bind(status.as_token())
-        .bind(updated_by)
-        .bind(&error_code)
-        .bind(&error_ref)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            let current_status: Option<String> = sqlx::query_scalar(
-                "SELECT status FROM atelier_media_derivative WHERE derivative_id = $1",
-            )
-            .bind(derivative_id)
-            .fetch_optional(&mut *tx)
-            .await?;
-            return match current_status {
-                None => Err(AtelierError::NotFound(format!(
-                    "media derivative_id={derivative_id}"
-                ))),
-                Some(status) => Err(AtelierError::Validation(format!(
-                    "media derivative {derivative_id} is not active for failure transition (status={status})"
-                ))),
-            };
+        let current = self
+            .get_media_derivative_record(derivative_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("media derivative_id={derivative_id}"))
+            })?;
+        if !matches!(
+            current.status,
+            MediaDerivativeStatus::Pending | MediaDerivativeStatus::Generating
+        ) {
+            return Err(AtelierError::Validation(format!(
+                "media derivative {derivative_id} is not active for failure transition (status={})",
+                current.status.as_token()
+            )));
+        }
+        let bindings = DerivativeTransitionBindings {
+            derivative_rid: RecordId::new(
+                "atelier_media_derivative",
+                SurrealUuid::from(derivative_id),
+            ),
+            expected_statuses: vec!["pending".to_owned(), "generating".to_owned()],
+            status: status.as_token().to_owned(),
+            requested_by: None,
+            updated_by: updated_by.to_owned(),
+            artifact_ref: None,
+            artifact_manifest_ref: None,
+            mime: None,
+            byte_len: None,
+            last_error_code: Some(error_code.clone()),
+            last_error_ref: Some(error_ref.clone()),
+            increment_attempt: true,
+            increment_retry: false,
         };
-        let derivative = media_derivative_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_DERIVATIVE_FAILED,
-            "atelier_media_derivative",
-            &derivative.derivative_id.to_string(),
-            serde_json::json!({
-                "derivative_id": derivative.derivative_id,
-                "asset_id": derivative.asset_id,
-                "derivative_kind": derivative.derivative_kind.as_token(),
-                "status": derivative.status.as_token(),
-                "retryable": failure.retryable,
-                "attempt_count": derivative.attempt_count,
-                "error_code": error_code,
-                "error_ref": error_ref,
-                "updated_by": updated_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(derivative)
+        let row: Option<MediaDerivativeRow> = self
+            .write_with_event(
+                MARK_DERIVATIVE_FAILED_STATEMENT,
+                bindings,
+                event_family::MEDIA_DERIVATIVE_FAILED,
+                "atelier_media_derivative",
+                &derivative_id.to_string(),
+                serde_json::json!({
+                    "derivative_id": derivative_id,
+                    "asset_id": current.asset_id,
+                    "derivative_kind": current.derivative_kind.as_token(),
+                    "status": status.as_token(),
+                    "retryable": failure.retryable,
+                    "attempt_count": current.attempt_count + 1,
+                    "error_code": error_code,
+                    "error_ref": error_ref,
+                    "updated_by": updated_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Validation(format!(
+                "media derivative {derivative_id} changed state during failure transition"
+            ))
+        })?
+        .try_into()
     }
 
     pub async fn retry_media_derivative(
@@ -1842,80 +2162,74 @@ impl AtelierStore {
         requested_by: &str,
     ) -> AtelierResult<MediaDerivative> {
         let requested_by = require_derivative_actor("requested_by", requested_by)?;
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_media_derivative
-               SET status = 'pending',
-                   requested_by = $2,
-                   updated_by = $2,
-                   retry_count = retry_count + 1,
-                   artifact_ref = NULL,
-                   artifact_manifest_ref = NULL,
-                   mime = NULL,
-                   byte_len = NULL,
-                   updated_at_utc = NOW()
-               WHERE derivative_id = $1
-                 AND status = 'retryable_error'
-               RETURNING derivative_id, asset_id, derivative_kind, target_width,
-                         target_height, format, status, artifact_ref,
-                         artifact_manifest_ref, mime, byte_len, requested_by,
-                         updated_by, attempt_count, retry_count, last_error_code,
-                         last_error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(derivative_id)
-        .bind(requested_by)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            let current_status: Option<String> = sqlx::query_scalar(
-                "SELECT status FROM atelier_media_derivative WHERE derivative_id = $1",
-            )
-            .bind(derivative_id)
-            .fetch_optional(&mut *tx)
-            .await?;
-            return match current_status {
-                None => Err(AtelierError::NotFound(format!(
-                    "media derivative_id={derivative_id}"
-                ))),
-                Some(status) => Err(AtelierError::Validation(format!(
-                    "media derivative {derivative_id} is not retryable (status={status})"
-                ))),
-            };
+        let current = self
+            .get_media_derivative_record(derivative_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("media derivative_id={derivative_id}"))
+            })?;
+        if current.status != MediaDerivativeStatus::RetryableError {
+            return Err(AtelierError::Validation(format!(
+                "media derivative {derivative_id} is not retryable (status={})",
+                current.status.as_token()
+            )));
+        }
+        let bindings = DerivativeTransitionBindings {
+            derivative_rid: RecordId::new(
+                "atelier_media_derivative",
+                SurrealUuid::from(derivative_id),
+            ),
+            expected_statuses: vec!["retryable_error".to_owned()],
+            status: "pending".to_owned(),
+            requested_by: Some(requested_by.to_owned()),
+            updated_by: requested_by.to_owned(),
+            artifact_ref: None,
+            artifact_manifest_ref: None,
+            mime: None,
+            byte_len: None,
+            last_error_code: current.last_error_code.clone(),
+            last_error_ref: current.last_error_ref.clone(),
+            increment_attempt: false,
+            increment_retry: true,
         };
-        let derivative = media_derivative_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::MEDIA_DERIVATIVE_RETRIED,
-            "atelier_media_derivative",
-            &derivative.derivative_id.to_string(),
-            serde_json::json!({
-                "derivative_id": derivative.derivative_id,
-                "asset_id": derivative.asset_id,
-                "derivative_kind": derivative.derivative_kind.as_token(),
-                "status": derivative.status.as_token(),
-                "retry_count": derivative.retry_count,
-                "requested_by": requested_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(derivative)
+        let row: Option<MediaDerivativeRow> = self
+            .write_with_event(
+                RETRY_DERIVATIVE_STATEMENT,
+                bindings,
+                event_family::MEDIA_DERIVATIVE_RETRIED,
+                "atelier_media_derivative",
+                &derivative_id.to_string(),
+                serde_json::json!({
+                    "derivative_id": derivative_id,
+                    "asset_id": current.asset_id,
+                    "derivative_kind": current.derivative_kind.as_token(),
+                    "status": "pending",
+                    "retry_count": current.retry_count + 1,
+                    "requested_by": requested_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Validation(format!(
+                "media derivative {derivative_id} changed state during retry"
+            ))
+        })?
+        .try_into()
     }
 
     pub async fn get_media_review_metadata(
         &self,
         asset_id: Uuid,
     ) -> AtelierResult<Option<MediaReviewMetadata>> {
-        let row = sqlx::query(
-            r#"SELECT asset_id, favorite, rating, frontpage, carousel, notes,
-                      review_status, updated_by, updated_at_utc
-               FROM atelier_media_review_metadata
-               WHERE asset_id = $1"#,
-        )
-        .bind(asset_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(review_metadata_from_row))
+        let bindings = AssetRefBinding {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+        };
+        let row: Option<MediaReviewMetadataRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(concat!("SELECT ", review_metadata_select!(), " FROM atelier_media_review_metadata WHERE asset_id = $asset_ref LIMIT 1;"), bindings).await
+            })
+        }).await?;
+        row.map(TryInto::try_into).transpose()
     }
 
     pub async fn bulk_update_media_review_metadata(
@@ -1946,14 +2260,21 @@ impl AtelierStore {
             .iter()
             .map(|update| update.asset_id)
             .collect();
-        let mut tx = self.pool().begin().await?;
-        let existing: Vec<Uuid> =
-            sqlx::query_scalar("SELECT asset_id FROM atelier_media_asset WHERE asset_id = ANY($1)")
-                .bind(&asset_ids)
-                .fetch_all(&mut *tx)
-                .await?;
+        #[derive(SurrealValue)]
+        struct AssetRefsBinding {
+            asset_refs: Vec<RecordId>,
+        }
+        let asset_refs: Vec<RecordId> = asset_ids
+            .iter()
+            .copied()
+            .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(id)))
+            .collect();
+        let existing: Vec<SurrealUuid> = self.store().with_data_operation({
+            let bindings = AssetRefsBinding { asset_refs: asset_refs.clone() };
+            move |ctx| Box::pin(async move { ctx.query_values("SELECT VALUE asset_id FROM atelier_media_asset WHERE id IN $asset_refs;", bindings).await })
+        }).await?;
         if existing.len() != asset_ids.len() {
-            let existing: HashSet<Uuid> = existing.into_iter().collect();
+            let existing: HashSet<Uuid> = existing.into_iter().map(Into::into).collect();
             let missing: Vec<String> = asset_ids
                 .iter()
                 .filter(|asset_id| !existing.contains(asset_id))
@@ -1965,39 +2286,54 @@ impl AtelierStore {
             )));
         }
 
-        let mut metadata = Vec::with_capacity(normalized_updates.len());
-        for update in &normalized_updates {
-            let row = sqlx::query(
-                r#"INSERT INTO atelier_media_review_metadata (
-                       asset_id, favorite, rating, frontpage, carousel, notes,
-                       review_status, updated_by, updated_at_utc
-                   )
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-                   ON CONFLICT (asset_id) DO UPDATE SET
-                       favorite = EXCLUDED.favorite,
-                       rating = EXCLUDED.rating,
-                       frontpage = EXCLUDED.frontpage,
-                       carousel = EXCLUDED.carousel,
-                       notes = EXCLUDED.notes,
-                       review_status = EXCLUDED.review_status,
-                       updated_by = EXCLUDED.updated_by,
-                       updated_at_utc = NOW()
-                   RETURNING asset_id, favorite, rating, frontpage, carousel, notes,
-                             review_status, updated_by, updated_at_utc"#,
-            )
-            .bind(update.asset_id)
-            .bind(update.favorite)
-            .bind(update.rating)
-            .bind(update.frontpage)
-            .bind(update.carousel)
-            .bind(&update.notes)
-            .bind(&update.review_status)
-            .bind(requested_by)
-            .fetch_one(&mut *tx)
+        let inputs = normalized_updates
+            .iter()
+            .map(|update| {
+                let asset_ref =
+                    RecordId::new("atelier_media_asset", SurrealUuid::from(update.asset_id));
+                ReviewUpdateInput {
+                    metadata_rid: RecordId::new(
+                        "atelier_media_review_metadata",
+                        SurrealUuid::from(update.asset_id),
+                    ),
+                    asset_ref,
+                    favorite: update.favorite,
+                    rating: i64::from(update.rating),
+                    frontpage: update.frontpage,
+                    carousel: update.carousel,
+                    notes: update.notes.clone(),
+                    review_status: update.review_status.clone(),
+                }
+            })
+            .collect();
+        let bindings = BulkReviewBindings {
+            asset_refs,
+            updates: inputs,
+            requested_by: requested_by.to_owned(),
+        };
+        let rows: Vec<MediaReviewMetadataRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(BULK_REVIEW_UPDATE_STATEMENT, bindings)
+                        .await
+                })
+            })
             .await?;
-            let persisted = review_metadata_from_row(&row);
-            self.record_event_in_tx(
-                &mut tx,
+        let metadata: Vec<MediaReviewMetadata> = rows
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<AtelierResult<_>>()?;
+        for persisted in &metadata {
+            let update = normalized_updates
+                .iter()
+                .find(|update| update.asset_id == persisted.asset_id)
+                .ok_or_else(|| {
+                    AtelierError::Internal(
+                        "bulk review result contained an unexpected asset".into(),
+                    )
+                })?;
+            self.record_event(
                 event_family::MEDIA_REVIEW_METADATA_UPDATED,
                 "atelier_media_review_metadata",
                 &persisted.asset_id.to_string(),
@@ -2014,12 +2350,10 @@ impl AtelierStore {
                 }),
             )
             .await?;
-            metadata.push(persisted);
         }
 
         let receipt = self
-            .record_bulk_operation_receipt_in_tx(
-                &mut tx,
+            .record_bulk_operation_receipt(
                 "bulk_update_media_review_metadata",
                 requested_by,
                 normalized_updates.len() as i64,
@@ -2034,7 +2368,6 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        tx.commit().await?;
         Ok(BulkMediaReviewMetadataResult { receipt, metadata })
     }
 }

@@ -5,16 +5,12 @@
 //!     local in-memory candidate lists (cheap, testable).
 //!   - `FairScheduler::pick_next(...)` — in-memory tie-broken picker
 //!     (FIFO on `created_at_utc` when priorities tie).
-//!   - `FairScheduler::claim_next_priority(...)` — async Postgres-backed
-//!     server-side priority claim using a single CTE that computes
-//!     `base_tier_weight + age_boost - fairness_penalty` and atomically
-//!     claims via an atomic `UPDATE ... FROM candidate ... RETURNING job_id`
-//!     where the candidate row is selected with `FOR UPDATE SKIP LOCKED
-//!     LIMIT 1`. This is the production claim path: no client-side re-rank
-//!     race (red_team #1).
+//!   - `FairScheduler::claim_next_priority(...)` — async embedded-SurrealDB
+//!     priority claim. Candidate ranking uses the same pure priority function,
+//!     then a guarded single-statement update makes the claim atomic.
 //!   - `StarvationGuard::check(...)` — in-memory monotonic guard (one signal
 //!     per (job_id, crossing) per process).
-//!   - `StarvationGuard::check_with_watermark(...)` — Postgres-backed
+//!   - `StarvationGuard::check_with_watermark(...)` — embedded-store-backed
 //!     monotonic guard using the `starvation_watermark_at_utc` column on
 //!     `kernel_micro_task_job`. Survives process restart so a job is not
 //!     re-emitted as starved after restart (red_team #2).
@@ -33,10 +29,8 @@
 //! Tie-break: FIFO on `created_at_utc`.
 //!
 //! Red-team minimum_controls satisfied:
-//!   #1 Server-side priority CTE in `claim_next_priority` — no in-memory
-//!      re-rank between query and claim; the CTE computes priority and the
-//!      outer SELECT picks the top row in the same transaction with
-//!      FOR UPDATE SKIP LOCKED.
+//!   #1 A guarded `state = 'queued'` update in `claim_next_priority` prevents
+//!      competing schedulers from claiming the same ranked candidate.
 //!   #2 Starvation watermark `starvation_watermark_at_utc` on the
 //!      `kernel_micro_task_job` row makes the metric monotonic across
 //!      process restarts; `check_with_watermark` sets the column on first
@@ -44,7 +38,6 @@
 //!   #3 Fairness key is computed from `kernel_micro_task_job.claimed_at_utc`
 //!      rows in the last 60s, not from an in-memory counter — survives
 //!      restart and is correct under multiple parallel scheduler instances.
-
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -55,8 +48,8 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::job::{MicroTaskJob, MicroTaskJobId};
-use super::queue::{EmptyBindings, MicroTaskQueue};
-use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
+use super::queue::MicroTaskQueue;
+use crate::storage::surreal::SurrealStorageError;
 
 #[derive(Debug, Error)]
 pub enum SchedulerError {
@@ -65,17 +58,6 @@ pub enum SchedulerError {
     #[error("serde error: {0}")]
     Serde(#[from] serde_json::Error),
 }
-
-/// Upper bound on queued rows considered for one priority claim.
-///
-/// The PostgreSQL CTE ranked every queued row server-side. SurrealDB has no
-/// CTE and no LEFT JOIN, so the fairness aggregate and the candidate set are
-/// read separately and ranked by [`FairScheduler::priority`] — the same pure
-/// function the SQL was documented to mirror. This bound keeps the candidate
-/// read from growing without limit; candidates are read oldest-first so the
-/// longest-waiting rows are always inside the window, which is the property
-/// starvation avoidance depends on.
-const PRIORITY_CANDIDATE_LIMIT: i64 = 500;
 
 // ── row shapes ──────────────────────────────────────────────────────────────
 
@@ -106,9 +88,7 @@ struct SinceBinding {
 }
 
 #[derive(SurrealValue)]
-struct CandidateLimitBinding {
-    limit: i64,
-}
+struct EmptyBindings {}
 
 #[derive(SurrealValue)]
 struct ClaimBindings {
@@ -134,7 +114,7 @@ const WP_CLAIMS_QUERY: &str = "SELECT wp_id, count() AS claims FROM kernel_micro
 /// [`FairScheduler::priority`] applies.
 const QUEUED_CANDIDATES_QUERY: &str = "SELECT job_id, wp_id, escalation_tier, created_at_utc \
      FROM kernel_micro_task_job WHERE state = 'queued' \
-     ORDER BY created_at_utc ASC LIMIT $limit;";
+     ORDER BY created_at_utc ASC;";
 
 /// The claim itself. `AND state = 'queued'` inside the write is what makes two
 /// parallel claimers unable to take the same row; it is the direct replacement
@@ -293,19 +273,15 @@ impl FairScheduler {
         let now = Utc::now();
         let since = now
             - chrono::Duration::seconds(self.cfg.fairness_window_secs.min(i64::MAX as u64) as i64);
-        let claim_rows: Vec<WpClaimRow> = queue.query(WP_CLAIMS_QUERY, SinceBinding { since }).await?;
+        let claim_rows: Vec<WpClaimRow> =
+            queue.query(WP_CLAIMS_QUERY, SinceBinding { since }).await?;
         let recent_claims_per_wp: HashMap<String, u32> = claim_rows
             .into_iter()
             .map(|row| (row.wp_id, row.claims.max(0) as u32))
             .collect();
 
         let mut candidates: Vec<QueuedCandidateRow> = queue
-            .query(
-                QUEUED_CANDIDATES_QUERY,
-                CandidateLimitBinding {
-                    limit: PRIORITY_CANDIDATE_LIMIT,
-                },
-            )
+            .query(QUEUED_CANDIDATES_QUERY, EmptyBindings {})
             .await?;
         if candidates.is_empty() {
             return Ok(None);
@@ -433,6 +409,7 @@ impl StarvationGuard {
 mod tests {
     use super::*;
     use crate::mt_executor::job::EscalationTier;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
     use std::path::PathBuf;
 
     fn make_job(wp: &str, tier: EscalationTier, age_minutes: i64) -> MicroTaskJob {
@@ -482,28 +459,81 @@ mod tests {
     }
 
     #[test]
-    fn claim_next_priority_sql_uses_for_update_skip_locked_limit_1() {
+    fn claim_next_priority_surql_guards_the_queued_row_and_returns_the_winner() {
         let s = FairScheduler::new(StarvationConfig::default());
-        let sql = s.claim_next_priority_sql();
+        let surql = s.claim_next_priority_surql();
         assert!(
-            sql.contains("FOR UPDATE SKIP LOCKED"),
-            "claim SQL must use SKIP LOCKED (red_team #1)"
+            surql.contains("WHERE job_id = $job_id AND state = 'queued'"),
+            "claim SurrealQL must guard the exact queued row (red_team #1)"
         );
-        assert!(sql.contains("LIMIT 1"), "claim SQL must LIMIT 1");
+        assert!(
+            surql.contains("RETURN AFTER"),
+            "claim SurrealQL must return a row only to the winning caller"
+        );
     }
 
     #[test]
-    fn claim_next_priority_sql_renders_all_six_tiers() {
+    fn claim_next_priority_scores_all_six_tiers() {
         let s = FairScheduler::new(StarvationConfig::default());
-        let sql = s.claim_next_priority_sql();
-        // Every tier wire form must appear in the CASE so priority is
-        // computed for every row regardless of tier.
-        for tier in ["hard_gate", "t32b", "t13b_alt", "t13b", "t7b_alt", "t7b"] {
-            assert!(
-                sql.contains(&format!("'{}'", tier)),
-                "tier {} missing from CASE",
-                tier
+        let now = Utc::now();
+        for (tier, expected) in [
+            (EscalationTier::HardGate, 1_000),
+            (EscalationTier::T32B, 100),
+            (EscalationTier::T13BAlt, 80),
+            (EscalationTier::T13B, 60),
+            (EscalationTier::T7BAlt, 40),
+            (EscalationTier::T7B, 20),
+        ] {
+            let mut job = make_job("W-tier", tier, 0);
+            job.created_at_utc = now;
+            assert_eq!(
+                s.priority(&job, now, &HashMap::new()),
+                expected,
+                "tier {tier:?} must retain its canonical base priority"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn mt137_priority_claim_ranks_beyond_the_oldest_five_hundred_rows() {
+        let directory = tempfile::tempdir().expect("temporary priority scheduler root");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(&directory.path().join("store"))
+                .expect("valid priority scheduler path"),
+        )
+        .await
+        .expect("open priority scheduler store");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap priority scheduler schema");
+        let queue = MicroTaskQueue::new(storage.clone());
+
+        for index in 0..500 {
+            let mut low = make_job(&format!("WP-MT137-LOW-{index:03}"), EscalationTier::T7B, 0);
+            // Strictly older than the hard gate inserted after this fleet.
+            low.created_at_utc = Utc::now() - chrono::Duration::minutes(1);
+            low.updated_at_utc = low.created_at_utc;
+            queue.enqueue(&low).await.expect("enqueue low-tier job");
+        }
+
+        let hard_gate = make_job("WP-MT137-HARD-GATE", EscalationTier::HardGate, 0);
+        let hard_gate_id = hard_gate.job_id;
+        queue
+            .enqueue(&hard_gate)
+            .await
+            .expect("enqueue newer hard-gate job");
+
+        let claimed = FairScheduler::new(StarvationConfig::default())
+            .claim_next_priority(&queue, Uuid::now_v7())
+            .await
+            .expect("claim globally highest-priority job");
+        assert_eq!(
+            claimed,
+            Some(hard_gate_id),
+            "priority ranking must include queued rows beyond the former 500-row window"
+        );
+
+        drop(queue);
+        storage.shutdown().await.expect("close scheduler store");
     }
 }

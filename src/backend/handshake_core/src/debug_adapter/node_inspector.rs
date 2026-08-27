@@ -49,6 +49,12 @@ const WS_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(15);
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
 /// How long to wait for the first `Debugger.paused` after launch/continue/step.
 const STOP_TIMEOUT: Duration = Duration::from_secs(20);
+/// How long to let a resumed debuggee exit before forced termination.
+const TERMINATE_CHILD_LOCK_TIMEOUT: Duration = Duration::from_millis(500);
+const TERMINATE_RESUME_TIMEOUT: Duration = Duration::from_millis(500);
+const TERMINATE_GRACE_TIMEOUT: Duration = Duration::from_secs(2);
+/// How long to wait for the reader task or killed child to finish draining.
+const TERMINATE_DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 
 type PendingMap = Arc<Mutex<HashMap<u64, oneshot::Sender<Value>>>>;
 
@@ -76,6 +82,7 @@ pub struct NodeInspectorSession {
     scripts: Arc<Mutex<HashMap<String, String>>>,
     script_path: String,
     reader_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    writer_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl NodeInspectorSession {
@@ -221,9 +228,13 @@ pub async fn launch_node_session(
 
     let (ws_tx, mut ws_rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
     // Writer task: drains ws_rx to the socket.
-    tokio::spawn(async move {
+    let writer_handle = tokio::spawn(async move {
         while let Some(msg) = ws_rx.recv().await {
+            let is_close = matches!(msg, Message::Close(_));
             if write.send(msg).await.is_err() {
+                break;
+            }
+            if is_close {
                 break;
             }
         }
@@ -290,14 +301,11 @@ pub async fn launch_node_session(
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
                     if is_default && default_context_id.is_none() {
-                        default_context_id =
-                            ctx.and_then(|c| c.get("id")).and_then(Value::as_u64);
+                        default_context_id = ctx.and_then(|c| c.get("id")).and_then(Value::as_u64);
                     }
                 }
                 "Runtime.executionContextDestroyed" => {
-                    let destroyed = params
-                        .get("executionContextId")
-                        .and_then(Value::as_u64);
+                    let destroyed = params.get("executionContextId").and_then(Value::as_u64);
                     if destroyed.is_some() && destroyed == default_context_id {
                         if trace {
                             eprintln!("[dap] main context destroyed; closing ws to let node exit");
@@ -329,8 +337,10 @@ pub async fn launch_node_session(
                         Some("exception") | Some("promiseRejection") => StoppedReason::Exception,
                         _ => StoppedReason::Breakpoint,
                     };
-                    let (line, source) =
-                        call_frames.first().map(top_frame_line_source).unwrap_or((None, None));
+                    let (line, source) = call_frames
+                        .first()
+                        .map(top_frame_line_source)
+                        .unwrap_or((None, None));
                     {
                         let mut state = reader_paused.lock().await;
                         state.call_frames = call_frames;
@@ -362,13 +372,11 @@ pub async fn launch_node_session(
                         .map(|args| {
                             args.iter()
                                 .filter_map(|a| {
-                                    a.get("value")
-                                        .map(value_to_display)
-                                        .or_else(|| {
-                                            a.get("description")
-                                                .and_then(Value::as_str)
-                                                .map(str::to_string)
-                                        })
+                                    a.get("value").map(value_to_display).or_else(|| {
+                                        a.get("description")
+                                            .and_then(Value::as_str)
+                                            .map(str::to_string)
+                                    })
                                 })
                                 .collect::<Vec<_>>()
                                 .join(" ")
@@ -382,6 +390,10 @@ pub async fn launch_node_session(
                 _ => {}
             }
         }
+        // Close transport ownership and fail every in-flight command instead
+        // of leaving its oneshot receiver parked until COMMAND_TIMEOUT.
+        let _ = reader_ws_tx.send(Message::Close(None));
+        reader_pending.lock().await.clear();
         // The inspector websocket closed: the debuggee process is exiting (it
         // ran to completion or was killed). Reap the real exit code and emit a
         // single Terminated event so consumers see the genuine process status.
@@ -392,7 +404,7 @@ pub async fn launch_node_session(
         }
         let code = {
             let mut child = reader_child.lock().await;
-            match tokio::time::timeout(Duration::from_secs(5), child.wait()).await {
+            match tokio::time::timeout(TERMINATE_DRAIN_TIMEOUT, child.wait()).await {
                 Ok(Ok(status)) => status.code(),
                 _ => None,
             }
@@ -411,6 +423,7 @@ pub async fn launch_node_session(
         scripts,
         script_path: program,
         reader_handle: Mutex::new(Some(reader_handle)),
+        writer_handle: Mutex::new(Some(writer_handle)),
     };
 
     // Enable the inspector domains. The child is paused at entry due to
@@ -553,7 +566,9 @@ impl DebugAdapter for NodeInspectorSession {
             if let Some(cond) = &bp.condition {
                 params["condition"] = json!(cond);
             }
-            let result = self.send_command("Debugger.setBreakpointByUrl", params).await?;
+            let result = self
+                .send_command("Debugger.setBreakpointByUrl", params)
+                .await?;
             let id = result
                 .get("breakpointId")
                 .and_then(Value::as_str)
@@ -714,7 +729,11 @@ impl DebugAdapter for NodeInspectorSession {
                     let value = v
                         .get("value")
                         .map(value_to_display)
-                        .or_else(|| v.get("description").and_then(Value::as_str).map(str::to_string))
+                        .or_else(|| {
+                            v.get("description")
+                                .and_then(Value::as_str)
+                                .map(str::to_string)
+                        })
                         .or_else(|| {
                             v.get("unserializableValue")
                                 .and_then(Value::as_str)
@@ -723,7 +742,11 @@ impl DebugAdapter for NodeInspectorSession {
                         .unwrap_or_default();
                     (value, type_name, child_ref)
                 }
-                None => ("undefined".to_string(), Some("undefined".to_string()), String::new()),
+                None => (
+                    "undefined".to_string(),
+                    Some("undefined".to_string()),
+                    String::new(),
+                ),
             };
             out.push(Variable {
                 name,
@@ -753,7 +776,10 @@ impl DebugAdapter for NodeInspectorSession {
         if let Some(details) = result.get("exceptionDetails") {
             return Err(DebugAdapterError::Protocol(format!(
                 "evaluate threw: {}",
-                details.get("text").and_then(Value::as_str).unwrap_or("error")
+                details
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .unwrap_or("error")
             )));
         }
         let v = result.get("result");
@@ -803,23 +829,131 @@ impl DebugAdapter for NodeInspectorSession {
     }
 
     async fn terminate(&self) -> Result<Option<i32>, DebugAdapterError> {
-        // Best-effort graceful resume so the process can exit, then kill.
-        let _ = self.send_command("Debugger.resume", json!({})).await;
-        let mut child = self.child.lock().await;
-        // Give the process a moment to exit on its own after resume.
-        let exit = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
-        let code = match exit {
-            Ok(Ok(status)) => status.code(),
-            _ => {
-                let _ = child.kill().await;
-                child.wait().await.ok().and_then(|s| s.code())
+        let mut termination_errors = Vec::new();
+        let mut exit_code = None;
+        let mut child_reaped = false;
+
+        // Natural exit is the cheapest path: reap it before issuing a CDP
+        // command whose ordinary timeout is intentionally much longer than the
+        // fixture cleanup SLA.
+        match tokio::time::timeout(TERMINATE_CHILD_LOCK_TIMEOUT, self.child.lock()).await {
+            Ok(mut child) => match child.try_wait() {
+                Ok(Some(status)) => {
+                    exit_code = status.code();
+                    child_reaped = true;
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    termination_errors.push(format!("initial debuggee exit check failed: {error}"))
+                }
+            },
+            Err(_) => {
+                // The reader may be finishing its own bounded reap. Transport
+                // draining below releases that ownership before the final wait.
             }
-        };
-        if let Some(handle) = self.reader_handle.lock().await.take() {
+        }
+
+        if !child_reaped {
+            // Resume is best-effort and independently bounded to 500ms. Its
+            // internal 15s command timeout can never extend DELETE cleanup.
+            let _ = tokio::time::timeout(
+                TERMINATE_RESUME_TIMEOUT,
+                self.send_command("Debugger.resume", json!({})),
+            )
+            .await;
+        }
+
+        // Close both websocket halves, fail every pending command immediately,
+        // and own the task handles through a bounded drain.
+        let _ = self.ws_tx.send(Message::Close(None));
+        self.pending.lock().await.clear();
+        let reader = self.reader_handle.lock().await.take();
+        let writer = self.writer_handle.lock().await.take();
+        if let Some(handle) = reader.as_ref() {
             handle.abort();
         }
-        let _ = self.events_tx.send(DebugEvent::Terminated { exit_code: code });
-        Ok(code)
+        if let Some(handle) = writer.as_ref() {
+            handle.abort();
+        }
+        let transport_drain = async move {
+            let mut errors = Vec::new();
+            if let Some(handle) = reader {
+                match handle.await {
+                    Ok(()) => {}
+                    Err(error) if error.is_cancelled() => {}
+                    Err(error) => errors.push(format!("debug-session reader failed: {error}")),
+                }
+            }
+            if let Some(handle) = writer {
+                match handle.await {
+                    Ok(()) => {}
+                    Err(error) if error.is_cancelled() => {}
+                    Err(error) => errors.push(format!("debug-session writer failed: {error}")),
+                }
+            }
+            errors
+        };
+        match tokio::time::timeout(TERMINATE_DRAIN_TIMEOUT, transport_drain).await {
+            Ok(errors) => termination_errors.extend(errors),
+            Err(_) => termination_errors.push(format!(
+                "debug-session transport tasks did not drain within {} second",
+                TERMINATE_DRAIN_TIMEOUT.as_secs()
+            )),
+        }
+
+        if !child_reaped {
+            match tokio::time::timeout(TERMINATE_CHILD_LOCK_TIMEOUT, self.child.lock()).await {
+                Ok(mut child) => {
+                    let graceful = match child.try_wait() {
+                        Ok(Some(status)) => Some(Ok(status)),
+                        Ok(None) => tokio::time::timeout(TERMINATE_GRACE_TIMEOUT, child.wait())
+                            .await
+                            .ok(),
+                        Err(error) => {
+                            termination_errors
+                                .push(format!("final debuggee exit check failed: {error}"));
+                            None
+                        }
+                    };
+                    match graceful {
+                        Some(Ok(status)) => {
+                            exit_code = status.code();
+                            child_reaped = true;
+                        }
+                        Some(Err(error)) => termination_errors
+                            .push(format!("graceful debuggee wait failed: {error}")),
+                        None => {}
+                    }
+                    if !child_reaped {
+                        let kill_result = child.kill().await;
+                        match tokio::time::timeout(TERMINATE_DRAIN_TIMEOUT, child.wait()).await {
+                            Ok(Ok(status)) => {
+                                exit_code = status.code();
+                                child_reaped = true;
+                            }
+                            Ok(Err(error)) => termination_errors.push(format!(
+                                "wait for killed debuggee failed: {error}; kill result: {kill_result:?}"
+                            )),
+                            Err(_) => termination_errors.push(format!(
+                                "killed debuggee did not drain within {} second; kill result: {kill_result:?}",
+                                TERMINATE_DRAIN_TIMEOUT.as_secs()
+                            )),
+                        }
+                    }
+                }
+                Err(_) => termination_errors.push(format!(
+                    "debuggee process lock remained held for {}ms after transport drain",
+                    TERMINATE_CHILD_LOCK_TIMEOUT.as_millis()
+                )),
+            }
+        }
+
+        let _ = self.events_tx.send(DebugEvent::Terminated { exit_code });
+        if termination_errors.is_empty() {
+            Ok(exit_code)
+        } else {
+            Err(DebugAdapterError::Transport(termination_errors.join("; ")))
+        }
     }
 }
 

@@ -4,7 +4,7 @@
 //! InteractionBus; IC-01..04 run by default through the managed product-backend fixture and self-seed
 //! assets, typed CKC blocks, native RichDocuments, canvas placements, and backlinks. For IC-01/02/04 the
 //! in-process half ALSO proves the embed atom's
-//! `content_json` SHAPE round-trips structurally (the hsLink atom the backend persists), so the PG half is
+//! `content_json` SHAPE round-trips structurally (the hsLink atom the backend persists), so the backend half is
 //! the durable save/reload, not the whole proof.
 //!
 //! The backend authority has dedicated `ckc_moodboard` and `ckc_character` content types. IC-03/04 assert
@@ -92,7 +92,7 @@ fn created_doc_id(created: &serde_json::Value) -> String {
         .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
         .or_else(|| created.get("id").and_then(|v| v.as_str()))
         .expect(
-            "requires_pg: created document returns a rich_document_id (document.rich_document_id)",
+            "requires_surrealdb: created document returns a rich_document_id (document.rich_document_id)",
         )
         .to_owned()
 }
@@ -146,7 +146,7 @@ fn first_hs_link(content_json: &serde_json::Value) -> Option<(String, String)> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-05 — SUBSTRATE PROOF (PASS, no PG): select text in the mounted rich editor, drive the production
+// IC-05 — SUBSTRATE PROOF (PASS, no SurrealDB): select text in the mounted rich editor, drive the production
 // EDITORS > Route selection to Stage MenuItem by raw AccessKit action, and observe the mounted Stage pane's
 // canonical `stage-routed-content` node. The app owns the bus, command dispatch, pane opening, route drain,
 // and Stage state; this proof does not install an alias or manually drain pending bus content.
@@ -323,11 +323,11 @@ fn interconnect_ic05_route_selection_to_stage() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-01 / IC-02 / IC-04 — content_json SHAPE half (PASS, no PG): the CKC embed atom is an inline `hsLink`
+// IC-01 / IC-02 / IC-04 — content_json SHAPE half (PASS, no SurrealDB): the CKC embed atom is an inline `hsLink`
 // node (refKind=HS_images / video / character) that ROUND-TRIPS the backend content_json. This is the
-// structural half the default managed-PG save/reload proofs below builds on — it proves
+// structural half the default managed-SurrealDB save/reload proofs below builds on — it proves
 // the editor authors the SAME hsLink the backend persists, not an invented node that would be dropped on
-// save. (These do not flip the manifest status, which stays REQUIRES_PG until the durable round-trip runs.)
+// save. (These do not flip the manifest status, which stays REQUIRES_SURREALDB until the durable round-trip runs.)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -369,7 +369,7 @@ fn ic01_ic02_ic04_ckc_embed_atom_shape_round_trips() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-01..IC-04 — default managed-PostgreSQL persistence proofs. NEVER mocked, NEVER faked.
+// IC-01..IC-04 — default managed-SurrealDB persistence proofs. NEVER mocked, NEVER faked.
 // VERIFIED REAL ROUTES (the route-shape drift the review flagged is corrected here):
 //   - asset-create = POST /workspaces/{ws}/loom/import (loom.rs:217 import_loom_asset -> create_asset);
 //     there is NO bare POST /workspaces/{ws}/assets route (only GET /assets/{id}[/content|/thumbnail|/tiers]).
@@ -396,7 +396,7 @@ fn interconnect_ic01_ckc_image_into_note() {
     );
     let asset_id = asset["asset_id"]
         .as_str()
-        .expect("requires_pg: POST /loom/import returns an asset_id (LoomImportResult.asset_id)")
+        .expect("requires_surrealdb: POST /loom/import returns an asset_id (LoomImportResult.asset_id)")
         .to_owned();
     // (2) create a note carrying the CKC image embed hsLink (refKind=HS_images, refValue=asset_id).
     let doc = doc_with_ckc_embed("HS_images", &asset_id, "sunset.png");
@@ -445,7 +445,7 @@ fn interconnect_ic01_ckc_image_into_note() {
         "event_ledger_event_id": save_event_id,
         "negative_missing_asset_status": negative_status,
     }));
-    println!("IC-01 LIVE-PG PASS: CKC image embedded + reloaded with asset {asset_id}; GET /assets == 200");
+    println!("IC-01 LIVE-SURREALDB PASS: CKC image embedded + reloaded with asset {asset_id}; GET /assets == 200");
 }
 
 #[test]
@@ -464,7 +464,7 @@ fn interconnect_ic02_ckc_video_into_note() {
     );
     let asset_id = asset["asset_id"]
         .as_str()
-        .expect("requires_pg: POST /loom/import returns an asset_id")
+        .expect("requires_surrealdb: POST /loom/import returns an asset_id")
         .to_owned();
     let doc = doc_with_ckc_embed("video", &asset_id, "clip.mp4");
     let created = be.post_json(
@@ -504,7 +504,7 @@ fn interconnect_ic02_ckc_video_into_note() {
         "event_ledger_event_id": save_event_id,
         "negative_missing_asset_status": negative_status,
     }));
-    println!("IC-02 LIVE-PG PASS: CKC video embedded as an hsLink(video) and reloaded");
+    println!("IC-02 LIVE-SURREALDB PASS: CKC video embedded as an hsLink(video) and reloaded");
 }
 
 #[test]
@@ -519,7 +519,7 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
     let block_id = block["block_id"]
         .as_str()
         .or_else(|| block["id"].as_str())
-        .expect("requires_pg: block id")
+        .expect("requires_surrealdb: block id")
         .to_owned();
     assert_eq!(block["content_type"], "ckc_moodboard");
     // Create a canvas board and place the block on it.
@@ -530,7 +530,7 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
     let board_id = board["block_id"]
         .as_str()
         .or_else(|| board["id"].as_str())
-        .expect("requires_pg: board id")
+        .expect("requires_surrealdb: board id")
         .to_owned();
     let drag_payload = DragPayload::AtelierRef(AtelierRef::with_loom_block(
         block_id.clone(),
@@ -607,7 +607,7 @@ fn interconnect_ic03_ckc_moodboard_on_canvas() {
         "event_ledger_event_id": board_event_id,
         "negative_missing_board_status": negative_status,
     }));
-    println!("IC-03 LIVE-PG PASS: typed CKC moodboard persisted and placed on a canvas");
+    println!("IC-03 LIVE-SURREALDB PASS: typed CKC moodboard persisted and placed on a canvas");
 }
 
 #[test]
@@ -622,7 +622,7 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
     let character_block_id = character["block_id"]
         .as_str()
         .or_else(|| character["id"].as_str())
-        .expect("requires_pg: character block id")
+        .expect("requires_surrealdb: character block id")
         .to_owned();
     assert_eq!(character["content_type"], "ckc_character");
     // A Loom-block wikilink uses the canonical `note` hsLink ref kind and the
@@ -703,7 +703,7 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
         "event_ledger_event_id": save_event_id,
         "negative_missing_character_status": negative_status,
     }));
-    println!("IC-04 LIVE-PG PASS: typed CKC character backlink persisted and reloaded");
+    println!("IC-04 LIVE-SURREALDB PASS: typed CKC character backlink persisted and reloaded");
 }
 
 /// Mounted CKC navigation producer for the MT-046 canonical Argus matrix. This stays outside the

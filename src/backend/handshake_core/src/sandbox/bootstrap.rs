@@ -27,6 +27,51 @@ pub fn build_default_registry() -> Result<SandboxAdapterRegistry, SandboxAdapter
 }
 
 pub async fn build_default_registry_async() -> Result<SandboxAdapterRegistry, SandboxAdapterError> {
+    let adapters = probe_available_adapters().await;
+
+    let settings = SandboxSettings {
+        docker_explicit_opt_in: docker_explicit_opt_in_from_env(),
+        ..SandboxSettings::default()
+    };
+
+    build_registry_from_adapters(
+        settings.default_adapter.adapter_id(),
+        adapters,
+        settings.docker_explicit_opt_in,
+    )
+}
+
+/// Builds the adapter lookup used only by restart recovery.
+///
+/// Recovery resolves the adapter recorded on each durable process row. It does
+/// not select an execution default, so a host whose only available adapter is
+/// explicit-only must still be able to recover its matching prior processes.
+/// Normal execution continues to use [`build_default_registry_async`] and its
+/// default-selection restrictions.
+pub async fn build_startup_recovery_registry_async() -> SandboxAdapterRegistry {
+    build_startup_recovery_registry_from_adapters(
+        probe_available_adapters().await,
+        docker_explicit_opt_in_from_env(),
+    )
+}
+
+pub fn build_startup_recovery_registry_from_adapters(
+    adapters: Vec<Arc<dyn SandboxAdapter>>,
+    docker_explicit_opt_in: bool,
+) -> SandboxAdapterRegistry {
+    // The registry type requires a default ID, but restart recovery never uses
+    // it: RegistryStartupProcessCleanup performs exact durable adapter lookup.
+    // Keep the ordinary configured default identity as an inert sentinel so no
+    // explicit-only adapter is accidentally promoted to an execution default.
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new(WSL2_PODMAN_ADAPTER_ID));
+    registry.set_docker_explicit_opt_in(docker_explicit_opt_in);
+    for adapter in adapters {
+        registry.register(adapter);
+    }
+    registry
+}
+
+async fn probe_available_adapters() -> Vec<Arc<dyn SandboxAdapter>> {
     let mut adapters: Vec<Arc<dyn SandboxAdapter>> = Vec::new();
 
     match Wsl2PodmanAdapter::try_new(Wsl2PodmanConfig::default()).await {
@@ -85,16 +130,7 @@ pub async fn build_default_registry_async() -> Result<SandboxAdapterRegistry, Sa
         ),
     }
 
-    let settings = SandboxSettings {
-        docker_explicit_opt_in: docker_explicit_opt_in_from_env(),
-        ..SandboxSettings::default()
-    };
-
-    build_registry_from_adapters(
-        settings.default_adapter.adapter_id(),
-        adapters,
-        settings.docker_explicit_opt_in,
-    )
+    adapters
 }
 
 pub fn build_registry_from_adapters(

@@ -10,10 +10,10 @@
 //! event, hashing it, and verifying a stored envelope still matches its
 //! identity and hash on the way back out.
 
-use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
-use crate::storage::{MutationMetadata, StorageError, StorageResult, WriteActorKind};
 use super::block_view_outbox_surreal::{self as surreal_outbox, OutboxRow};
 use super::surreal::SurrealStorage;
+use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
+use crate::storage::{MutationMetadata, StorageError, StorageResult, WriteActorKind};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -96,7 +96,7 @@ pub(crate) fn build_event(
     )
     .ok_or_else(|| StorageError::Serialization("invalid block-view event time".to_owned()))?;
     // DuckDB normalizes these fields before persistence. Normalize the
-    // PostgreSQL authority copy before hashing so a crash after recorder
+    // SurrealDB authority copy before hashing so a crash after recorder
     // insertion but before publish acknowledgement remains idempotent.
     event.normalize_payload();
     event

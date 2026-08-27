@@ -383,13 +383,13 @@ fn microvm_stub_is_unsupported_on_windows_forced_host() {
 }
 
 // ------------------------------------------------------------------
-// no_sqlite_tripwire: any non-PostgresPrimary authority refuses the write
+// no_sqlite_tripwire: any non-SurrealPrimary authority refuses the write
 // ------------------------------------------------------------------
 
 #[test]
 fn no_sqlite_tripwire_refuses_every_non_postgres_authority_mode() {
-    // PostgresPrimary is the only allowed mode.
-    assert!(guard_authority_write(AuthorityMode::PostgresPrimary).is_ok());
+    // SurrealPrimary is the only allowed mode.
+    assert!(guard_authority_write(AuthorityMode::SurrealPrimary).is_ok());
 
     for mode in [
         AuthorityMode::SqliteCache,
@@ -399,7 +399,7 @@ fn no_sqlite_tripwire_refuses_every_non_postgres_authority_mode() {
         let err = guard_authority_write(mode)
             .expect_err("KB003 must refuse non-Postgres authority writes (no-sqlite tripwire)");
         match err {
-            NoSqliteTripwireError::NonPostgresAuthority {
+            NoSqliteTripwireError::NonSurrealAuthority {
                 mode: actual_mode,
                 policy,
             } => {

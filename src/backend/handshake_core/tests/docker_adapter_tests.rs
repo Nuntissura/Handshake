@@ -57,6 +57,11 @@ fn docker_run_args_map_process_spec_to_compat_isolation_controls() {
         "detached containers must remain inspectable for status()/exit_code() until kill/cleanup"
     );
     assert!(contains_pair(&args, "--name", container_name));
+    assert!(contains_pair(
+        &args,
+        "--label",
+        &format!("io.handshake.process-id={container_name}")
+    ));
     assert!(args.contains(&"-d".to_string()));
     assert!(args.contains(&"--read-only".to_string()));
     assert!(contains_pair(

@@ -47,7 +47,7 @@ fn kernel002_reset_invariants_cover_all_legacy_topics() {
 }
 
 #[test]
-fn sqlite_obligations_reset_to_postgres_eventledger_crdt_authority() {
+fn sqlite_obligations_reset_to_surreal_eventledger_crdt_authority() {
     let matrix = kernel002_reset_invariant_matrix();
     let sqlite_entries = matrix.entries_for_topic(LegacyResetTopic::LegacyLocalAuthority);
     let sqlite_source_ids: Vec<&str> = sqlite_entries
@@ -69,10 +69,12 @@ fn sqlite_obligations_reset_to_postgres_eventledger_crdt_authority() {
     for entry in sqlite_entries {
         assert_eq!(
             entry.reset_disposition,
-            ResetDisposition::PostgresEventLedgerCrdtAuthority
+            ResetDisposition::SurrealEventLedgerCrdtAuthority
         );
         assert!(
-            entry.kernel_semantics.contains("Postgres/EventLedger/CRDT"),
+            entry
+                .kernel_semantics
+                .contains("SurrealDB/EventLedger/CRDT"),
             "SQLite reset must name the replacement authority stack for {}",
             entry.source_stub_id
         );

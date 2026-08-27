@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use surrealdb::types::SurrealValue;
+use surrealdb::types::{RecordId, SurrealValue};
 use thiserror::Error;
 use tokio::{
     sync::{
@@ -598,76 +598,116 @@ impl ProcessLifecycleRow {
             metadata: stop.metadata_jsonb.clone(),
         }
     }
-
-    /// START conflict merge.
-    ///
-    /// Field-for-field equivalent of the previous
-    /// `ON CONFLICT (process_uuid) DO UPDATE` clause: incoming values win for
-    /// `engine_kind`, `owner_role` and both JSON columns, `COALESCE(new, old)`
-    /// applies everywhere the incoming value is optional, `started_at` keeps the
-    /// earliest of the two, and `stopped_at` / `exit_code` / `stop_reason` are
-    /// NOT in the update list, so a replayed START can never erase a STOP that
-    /// already landed.
-    fn merge_start_onto(self, previous: Self) -> Self {
-        Self {
-            process_uuid: previous.process_uuid,
-            os_pid: self.os_pid.or(previous.os_pid),
-            parent_session_id: self.parent_session_id.or(previous.parent_session_id),
-            parent_process_id: self.parent_process_id.or(previous.parent_process_id),
-            sandbox_adapter_id: self.sandbox_adapter_id.or(previous.sandbox_adapter_id),
-            sandbox_internal_id: self.sandbox_internal_id.or(previous.sandbox_internal_id),
-            engine_kind: self.engine_kind,
-            started_at: self.started_at.min(previous.started_at),
-            stopped_at: previous.stopped_at,
-            exit_code: previous.exit_code,
-            stop_reason: previous.stop_reason,
-            model_artifact_sha256: self
-                .model_artifact_sha256
-                .or(previous.model_artifact_sha256),
-            work_profile_id: self.work_profile_id.or(previous.work_profile_id),
-            owner_role: self.owner_role,
-            owner_wp: self.owner_wp.or(previous.owner_wp),
-            role_id: self.role_id.or(previous.role_id),
-            wp_id: self.wp_id.or(previous.wp_id),
-            mt_id: self.mt_id.or(previous.mt_id),
-            sandbox_capabilities_snapshot: self.sandbox_capabilities_snapshot,
-            metadata: self.metadata,
-        }
-    }
-
-    /// STOP conflict merge.
-    ///
-    /// Mirrors the previous STOP `ON CONFLICT` update list: the stop triple is
-    /// overwritten unconditionally, optional identity columns coalesce, and
-    /// `parent_session_id`, `sandbox_adapter_id`, `engine_kind` and `started_at`
-    /// are absent from the update list so the START row keeps ownership of them.
-    fn merge_stop_onto(self, previous: Self) -> Self {
-        Self {
-            process_uuid: previous.process_uuid,
-            os_pid: self.os_pid.or(previous.os_pid),
-            parent_session_id: previous.parent_session_id,
-            parent_process_id: self.parent_process_id.or(previous.parent_process_id),
-            sandbox_adapter_id: previous.sandbox_adapter_id,
-            sandbox_internal_id: self.sandbox_internal_id.or(previous.sandbox_internal_id),
-            engine_kind: previous.engine_kind,
-            started_at: previous.started_at,
-            stopped_at: self.stopped_at,
-            exit_code: self.exit_code,
-            stop_reason: self.stop_reason,
-            model_artifact_sha256: self
-                .model_artifact_sha256
-                .or(previous.model_artifact_sha256),
-            work_profile_id: self.work_profile_id.or(previous.work_profile_id),
-            owner_role: self.owner_role,
-            owner_wp: self.owner_wp.or(previous.owner_wp),
-            role_id: self.role_id.or(previous.role_id),
-            wp_id: self.wp_id.or(previous.wp_id),
-            mt_id: self.mt_id.or(previous.mt_id),
-            sandbox_capabilities_snapshot: self.sandbox_capabilities_snapshot,
-            metadata: self.metadata,
-        }
-    }
 }
+
+#[derive(SurrealValue)]
+struct ProcessApplyBindings {
+    record: RecordId,
+    incoming: ProcessLifecycleRow,
+    is_start: bool,
+    reclaim_claimed_at: Option<DateTime<Utc>>,
+    reclaim_expected_reason: Option<String>,
+    reclaim_expected_killed_reason: Option<String>,
+}
+
+// One statement means the read, merge decision, and write share the same
+// SurrealDB transaction snapshot. The update lists intentionally reproduce the
+// former PostgreSQL ON CONFLICT clauses field-for-field. START coalesces every
+// optional identity column, takes the earliest started_at, replaces the
+// incoming-owned fields, and never touches the terminal triple. STOP
+// unconditionally replaces the terminal triple, coalesces its optional fields,
+// and preserves the START-owned fields. The only additional guard protects an
+// in-flight reclaim sentinel from an ordinary or stale STOP.
+const APPLY_PROCESS_EVENT_ATOMIC: &str = r#"
+RETURN {
+    LET $exact_reclaim_stop = $reclaim_claimed_at != NONE;
+    LET $existing = SELECT process_uuid, os_pid, parent_session_id,
+        parent_process_id, sandbox_adapter_id, sandbox_internal_id,
+        engine_kind, started_at, stopped_at, exit_code, stop_reason,
+        model_artifact_sha256, work_profile_id, owner_role, owner_wp,
+        role_id, wp_id, mt_id, sandbox_capabilities_snapshot, metadata
+        FROM ONLY $record;
+    IF $existing = NONE {
+        IF $exact_reclaim_stop {
+            RETURN 'ignored_conflict';
+        };
+        CREATE $record CONTENT $incoming RETURN NONE;
+        RETURN 'inserted';
+    };
+    IF $is_start {
+        UPDATE $record SET
+            os_pid = $incoming.os_pid ?? $existing.os_pid,
+            parent_session_id = $incoming.parent_session_id ?? $existing.parent_session_id,
+            parent_process_id = $incoming.parent_process_id ?? $existing.parent_process_id,
+            sandbox_adapter_id = $incoming.sandbox_adapter_id ?? $existing.sandbox_adapter_id,
+            sandbox_internal_id = $incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
+            engine_kind = $incoming.engine_kind,
+            started_at = IF $incoming.started_at < $existing.started_at {
+                $incoming.started_at
+            } ELSE {
+                $existing.started_at
+            },
+            model_artifact_sha256 = $incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
+            work_profile_id = $incoming.work_profile_id ?? $existing.work_profile_id,
+            owner_role = $incoming.owner_role,
+            owner_wp = $incoming.owner_wp ?? $existing.owner_wp,
+            role_id = $incoming.role_id ?? $existing.role_id,
+            wp_id = $incoming.wp_id ?? $existing.wp_id,
+            mt_id = $incoming.mt_id ?? $existing.mt_id,
+            sandbox_capabilities_snapshot = $incoming.sandbox_capabilities_snapshot,
+            metadata = $incoming.metadata
+            RETURN NONE;
+        RETURN 'started';
+    };
+    LET $reclaim_sentinel =
+        $existing.stopped_at != NONE
+        AND $existing.exit_code = NONE
+        AND $existing.stop_reason != NONE
+        AND (
+            string::starts_with($existing.stop_reason, 'reclaim_claimed:')
+            OR string::starts_with($existing.stop_reason, 'reclaim_killed:')
+        );
+    IF $exact_reclaim_stop AND $reclaim_sentinel = false {
+        IF $existing.stopped_at != NONE
+            AND $existing.exit_code = $incoming.exit_code
+            AND $existing.stop_reason = $incoming.stop_reason
+        {
+            RETURN 'stopped_idempotent';
+        };
+        RETURN 'ignored_conflict';
+    };
+    IF $reclaim_sentinel AND (
+        $exact_reclaim_stop = false
+        OR $existing.stopped_at != $reclaim_claimed_at
+        OR $reclaim_expected_reason = NONE
+        OR $reclaim_expected_killed_reason = NONE
+        OR (
+            $existing.stop_reason != $reclaim_expected_reason
+            AND $existing.stop_reason != $reclaim_expected_killed_reason
+        )
+    ) {
+        RETURN 'ignored_conflict';
+    };
+    UPDATE $record SET
+        os_pid = $incoming.os_pid ?? $existing.os_pid,
+        parent_process_id = $incoming.parent_process_id ?? $existing.parent_process_id,
+        sandbox_internal_id = $incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
+        stopped_at = $incoming.stopped_at,
+        exit_code = $incoming.exit_code,
+        stop_reason = $incoming.stop_reason,
+        model_artifact_sha256 = $incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
+        work_profile_id = $incoming.work_profile_id ?? $existing.work_profile_id,
+        owner_role = $incoming.owner_role,
+        owner_wp = $incoming.owner_wp ?? $existing.owner_wp,
+        role_id = $incoming.role_id ?? $existing.role_id,
+        wp_id = $incoming.wp_id ?? $existing.wp_id,
+        mt_id = $incoming.mt_id ?? $existing.mt_id,
+        sandbox_capabilities_snapshot = $incoming.sandbox_capabilities_snapshot,
+        metadata = $incoming.metadata
+        RETURN NONE;
+    RETURN 'stopped';
+};
+"#;
 
 /// `ProcessLedgerStore` backed by the Handshake-managed embedded SurrealDB
 /// store.
@@ -677,10 +717,9 @@ impl ProcessLifecycleRow {
 /// retry loop in [`flush_batch`] safe: on a store error the batch is retained
 /// and re-sent whole, and re-sending an already-applied event is a no-op.
 ///
-/// The embedded store is opened in-process and RocksDB holds an exclusive lock
-/// on its directory, so the read-merge-write pair below has no cross-process
-/// competitor; within the process, ledger rows are drained and written by the
-/// single writer task in [`run_writer`].
+/// The complete merge is one SurrealDB `UPSERT` statement. This matters because
+/// reclaim and direct store callers can update the same row concurrently even
+/// though the RocksDB directory itself has only one owning process.
 pub struct SurrealProcessLedgerStore {
     storage: SurrealStorage,
 }
@@ -699,28 +738,40 @@ impl SurrealProcessLedgerStore {
         record_id: String,
         incoming: ProcessLifecycleRow,
         kind: LedgerEventKind,
+        reclaim_claimed_at: Option<DateTime<Utc>>,
+        reclaim_expected_reason: Option<String>,
+        reclaim_expected_killed_reason: Option<String>,
     ) -> Result<(), ProcessLedgerError> {
-        self.storage
+        let exact_reclaim_stop = kind == LedgerEventKind::Stop && reclaim_claimed_at.is_some();
+        let bindings = ProcessApplyBindings {
+            record: RecordId::new(PROCESS_LEDGER_TABLE_NAME, record_id),
+            incoming,
+            is_start: kind == LedgerEventKind::Start,
+            reclaim_claimed_at,
+            reclaim_expected_reason,
+            reclaim_expected_killed_reason,
+        };
+        let outcome: Option<String> = self
+            .storage
             .with_data_operation(move |database| {
                 Box::pin(async move {
-                    let previous: Option<ProcessLifecycleRow> = database
-                        .select_one(PROCESS_LEDGER_TABLE_NAME, &record_id)
-                        .await?;
-                    let merged = match previous {
-                        Some(previous) => match kind {
-                            LedgerEventKind::Start => incoming.merge_start_onto(previous),
-                            LedgerEventKind::Stop => incoming.merge_stop_onto(previous),
-                        },
-                        None => incoming,
-                    };
-                    let _: Option<ProcessLifecycleRow> = database
-                        .upsert_one(PROCESS_LEDGER_TABLE_NAME, &record_id, merged)
-                        .await?;
-                    Ok(())
+                    database
+                        .query_first(APPLY_PROCESS_EVENT_ATOMIC, bindings)
+                        .await
                 })
             })
             .await
-            .map_err(ProcessLedgerError::from)
+            .map_err(ProcessLedgerError::from)?;
+        match outcome.as_deref() {
+            Some("inserted" | "started" | "stopped" | "stopped_idempotent") => Ok(()),
+            Some("ignored_conflict") if !exact_reclaim_stop => Ok(()),
+            Some("ignored_conflict") => Err(ProcessLedgerError::Event(
+                "exact reclaim STOP did not own the current durable sentinel".to_owned(),
+            )),
+            _ => Err(ProcessLedgerError::Event(format!(
+                "process lifecycle apply returned an invalid outcome: {outcome:?}"
+            ))),
+        }
     }
 }
 
@@ -737,19 +788,797 @@ impl ProcessLedgerStore for SurrealProcessLedgerStore {
                         start.process_uuid.to_string(),
                         ProcessLifecycleRow::from_start(&start),
                         LedgerEventKind::Start,
+                        None,
+                        None,
+                        None,
                     )
                     .await?
                 }
                 LedgerEvent::Stop(stop) => {
+                    let reclaim_claimed_at = stop.reclaim_claimed_at;
+                    let reclaim_expected_reason = stop.reclaim_expected_reason.clone();
+                    let reclaim_expected_killed_reason =
+                        stop.reclaim_expected_killed_reason.clone();
                     self.apply(
                         stop.process_uuid.to_string(),
                         ProcessLifecycleRow::from_stop(&stop),
                         LedgerEventKind::Stop,
+                        reclaim_claimed_at,
+                        reclaim_expected_reason,
+                        reclaim_expected_killed_reason,
                     )
                     .await?
                 }
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod surreal_restart_tests {
+    use super::*;
+    use crate::process_ledger::{ProcessEngineKind, ReclaimProcessStore};
+    #[cfg(feature = "surreal-test-support")]
+    use crate::storage::surreal::bootstrap_mt137_process_ledger_test_schema;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorageConfig};
+    #[cfg(feature = "surreal-test-support")]
+    use surrealdb::types::Value as SurrealDataValue;
+
+    async fn open(path: &std::path::Path) -> SurrealStorage {
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(path).expect("valid process-ledger test path"),
+        )
+        .await
+        .expect("open embedded process-ledger store");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap process-ledger schema");
+        storage
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    async fn open_mt137_process_ledger_slice(path: &std::path::Path) -> SurrealStorage {
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(path).expect("valid focused process-ledger test path"),
+        )
+        .await
+        .expect("open focused embedded process-ledger store");
+        bootstrap_mt137_process_ledger_test_schema(&storage)
+            .await
+            .expect("bootstrap focused process-ledger schema");
+        storage
+    }
+
+    async fn read_process_row(storage: &SurrealStorage, process_uuid: Uuid) -> ProcessLifecycleRow {
+        let record_id = process_uuid.to_string();
+        storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .select_one(PROCESS_LEDGER_TABLE_NAME, &record_id)
+                        .await
+                })
+            })
+            .await
+            .expect("query process lifecycle")
+            .expect("process lifecycle exists")
+    }
+
+    #[tokio::test]
+    async fn mt137_process_start_and_stop_survive_store_reopen() {
+        let directory = tempfile::tempdir().expect("temporary process-ledger root");
+        let path = directory.path().join("store");
+        let storage = open(&path).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let start = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id("mt137-session")
+        .with_os_pid(137)
+        .with_mt_id("MT-137");
+        let process_uuid = start.process_uuid;
+        let stop = ProcessStop::from_start(&start, Some(0)).with_stop_reason("proof-complete");
+
+        store
+            .write_batch(vec![LedgerEvent::Start(start), LedgerEvent::Stop(stop)])
+            .await
+            .expect("persist process lifecycle");
+        storage
+            .shutdown()
+            .await
+            .expect("close process-ledger store");
+        drop(store);
+        drop(storage);
+
+        let reopened = open(&path).await;
+        let record_id = process_uuid.to_string();
+        let row: ProcessLifecycleRow = reopened
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .select_one(PROCESS_LEDGER_TABLE_NAME, &record_id)
+                        .await
+                })
+            })
+            .await
+            .expect("query reopened process lifecycle")
+            .expect("read reopened process lifecycle");
+        assert_eq!(row.process_uuid, process_uuid);
+        assert_eq!(row.parent_session_id.as_deref(), Some("mt137-session"));
+        assert_eq!(row.exit_code, Some(0));
+        assert_eq!(row.stop_reason.as_deref(), Some("proof-complete"));
+        assert!(row.stopped_at.is_some());
+        reopened.shutdown().await.expect("close reopened store");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[tokio::test]
+    async fn mt137_replayed_start_cannot_erase_concurrent_reclaim() {
+        use crate::process_ledger::ReclaimProcessStore;
+
+        let directory = tempfile::tempdir().expect("temporary process-reclaim root");
+        let path = directory.path().join("store");
+        let storage = open_mt137_process_ledger_slice(&path).await;
+        let store = Arc::new(SurrealProcessLedgerStore::new(storage.clone()));
+        let start = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id("mt137-reclaim-session")
+        .with_os_pid(138)
+        .with_mt_id("MT-137");
+        let process_uuid = start.process_uuid;
+        store
+            .write_batch(vec![LedgerEvent::Start(start.clone())])
+            .await
+            .expect("persist initial process start");
+
+        let replay_store = Arc::clone(&store);
+        let reclaim_store = Arc::clone(&store);
+        let (replay, reclaim) = tokio::join!(
+            replay_store.write_batch(vec![LedgerEvent::Start(start.clone())]),
+            reclaim_store.active_processes_for_session("mt137-reclaim-session"),
+        );
+        replay.expect("replay process start");
+        let mut reclaimed = reclaim.expect("claim active process");
+        assert_eq!(reclaimed.len(), 1);
+        let claimed_process = reclaimed.pop().expect("one claimed process");
+        let contention = store
+            .active_processes_for_session("mt137-reclaim-session")
+            .await
+            .expect_err("an outstanding same-boot claim must not look like zero work");
+        assert!(contention
+            .to_string()
+            .contains("same-boot reclaim claims have not converged"));
+
+        let ordinary_stop = ProcessStop::from_start(&start, Some(0)).with_stop_reason("ordinary");
+        store
+            .write_batch(vec![LedgerEvent::Stop(ordinary_stop)])
+            .await
+            .expect("ordinary STOP conflict is handled");
+        let still_claimed = read_process_row(&storage, process_uuid).await;
+        assert_eq!(still_claimed.exit_code, None);
+        assert!(
+            still_claimed
+                .stop_reason
+                .as_deref()
+                .is_some_and(|reason| reason.starts_with("reclaim_claimed:")),
+            "a STOP without the exact claim timestamp must not consume the sentinel"
+        );
+
+        store
+            .write_batch(vec![LedgerEvent::Stop(claimed_process.reclaim_stop(-1))])
+            .await
+            .expect("exact reclaim STOP finalizes sentinel");
+
+        drop(replay_store);
+        drop(reclaim_store);
+        drop(store);
+        storage.shutdown().await.expect("close process store");
+        drop(storage);
+
+        let reopened = open_mt137_process_ledger_slice(&path).await;
+        let record_id = process_uuid.to_string();
+        let row: ProcessLifecycleRow = reopened
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .select_one(PROCESS_LEDGER_TABLE_NAME, &record_id)
+                        .await
+                })
+            })
+            .await
+            .expect("query reclaimed process")
+            .expect("reclaimed process exists");
+        assert!(row.stopped_at.is_some());
+        assert_eq!(row.exit_code, Some(-1));
+        assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
+        reopened.shutdown().await.expect("close reopened store");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[tokio::test]
+    async fn mt137_abandoned_reclaim_claim_is_reacquired_after_reopen() {
+        let directory = tempfile::tempdir().expect("temporary stale-reclaim root");
+        let path = directory.path().join("store");
+        let storage = open_mt137_process_ledger_slice(&path).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let session_id = "mt137-stale-reclaim-session";
+        let first = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(139)
+        .with_mt_id("MT-137");
+        let second = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(140)
+        .with_mt_id("MT-137");
+        store
+            .write_batch(vec![LedgerEvent::Start(first), LedgerEvent::Start(second)])
+            .await
+            .expect("persist stale-reclaim fixtures");
+
+        let initial_claim_at = Utc::now();
+        let first_boot_owner = Uuid::nil();
+        let mut claimed = store
+            .active_processes_for_session_at_with_owner(
+                session_id,
+                initial_claim_at,
+                first_boot_owner,
+            )
+            .await
+            .expect("claim two active processes");
+        claimed.sort_by_key(|process| process.process_uuid);
+        assert_eq!(claimed.len(), 2);
+        let completed = claimed.remove(0);
+        let abandoned = claimed.remove(0);
+        store
+            .write_batch(vec![LedgerEvent::Stop(completed.reclaim_stop(-1))])
+            .await
+            .expect("finalize one process before simulated crash");
+
+        drop(store);
+        storage
+            .shutdown()
+            .await
+            .expect("close after partial reclaim");
+        drop(storage);
+
+        let reopened = open_mt137_process_ledger_slice(&path).await;
+        let reopened_store = SurrealProcessLedgerStore::new(reopened.clone());
+        let same_live_owner_error = reopened_store
+            .active_processes_for_session_at_with_owner(
+                session_id,
+                initial_claim_at + chrono::Duration::hours(1),
+                first_boot_owner,
+            )
+            .await
+            .expect_err("same live boot owner must surface its outstanding claim");
+        assert!(
+            same_live_owner_error
+                .to_string()
+                .contains("same-boot reclaim claims have not converged"),
+            "same-owner claim ownership must not expire or look like zero work"
+        );
+
+        let restarted_boot_owner = Uuid::now_v7();
+        let mut recovered = reopened_store
+            .active_processes_for_session_at_with_owner(
+                session_id,
+                initial_claim_at + chrono::Duration::hours(1),
+                restarted_boot_owner,
+            )
+            .await
+            .expect("a different process boot re-acquires the abandoned sentinel");
+        assert_eq!(recovered.len(), 1);
+        let recovered = recovered.pop().expect("one abandoned process");
+        assert_eq!(recovered.process_uuid, abandoned.process_uuid);
+        reopened_store
+            .write_batch(vec![LedgerEvent::Stop(recovered.reclaim_stop(-1))])
+            .await
+            .expect("finalize re-acquired process");
+
+        let completed_row = read_process_row(&reopened, completed.process_uuid).await;
+        let recovered_row = read_process_row(&reopened, abandoned.process_uuid).await;
+        for row in [completed_row, recovered_row] {
+            assert_eq!(row.exit_code, Some(-1));
+            assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
+        }
+        drop(reopened_store);
+        reopened.shutdown().await.expect("close recovered store");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[derive(SurrealValue)]
+    struct OwnerRoleOverrideBindings {
+        record: RecordId,
+        owner_role: SurrealDataValue,
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    async fn override_owner_role(
+        storage: &SurrealStorage,
+        process_uuid: Uuid,
+        owner_role: SurrealDataValue,
+    ) {
+        let bindings = OwnerRoleOverrideBindings {
+            record: RecordId::new(PROCESS_LEDGER_TABLE_NAME, process_uuid.to_string()),
+            owner_role,
+        };
+        let updated: Vec<SurrealDataValue> = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at(
+                            "DEFINE FIELD OVERWRITE owner_role ON TABLE kernel_process_lifecycle TYPE any; \
+                             UPDATE $record SET owner_role = $owner_role RETURN AFTER;",
+                            bindings,
+                            1,
+                        )
+                        .await
+                })
+            })
+            .await
+            .expect("override process owner_role fixture");
+        assert_eq!(updated.len(), 1, "owner_role fixture must target one row");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[tokio::test]
+    async fn mt137_reclaim_structural_decode_failure_releases_every_raw_claim_receipt() {
+        let directory = tempfile::tempdir().expect("temporary reclaim compensation root");
+        let storage = open_mt137_process_ledger_slice(&directory.path().join("store")).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let session_id = "mt137-reclaim-decode-compensation";
+        let valid = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(137)
+        .with_mt_id("MT-137");
+        let malformed = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(138)
+        .with_mt_id("MT-137");
+        let valid_uuid = valid.process_uuid;
+        let malformed_uuid = malformed.process_uuid;
+        store
+            .write_batch(vec![
+                LedgerEvent::Start(valid),
+                LedgerEvent::Start(malformed),
+            ])
+            .await
+            .expect("persist reclaim decode fixtures");
+        override_owner_role(&storage, malformed_uuid, 137_i64.into_value()).await;
+
+        let owner_id = Uuid::now_v7();
+        let first_claimed_at = Utc::now();
+        let error = store
+            .active_processes_for_session_at_with_owner(session_id, first_claimed_at, owner_id)
+            .await
+            .expect_err("wrong durable owner_role type must fail structural decode");
+        assert!(error.to_string().contains("failed typed decode"));
+
+        override_owner_role(
+            &storage,
+            malformed_uuid,
+            "mt137-proof".to_string().into_value(),
+        )
+        .await;
+
+        for process_uuid in [valid_uuid, malformed_uuid] {
+            let row = read_process_row(&storage, process_uuid).await;
+            assert_eq!(
+                row.stopped_at, None,
+                "every row claimed by the failed statement must be released"
+            );
+            assert_eq!(row.stop_reason, None);
+        }
+
+        let recovered = store
+            .active_processes_for_session_at_with_owner(
+                session_id,
+                first_claimed_at + chrono::Duration::seconds(1),
+                owner_id,
+            )
+            .await
+            .expect("same boot can immediately reclaim all compensated rows");
+        assert_eq!(recovered.len(), 2);
+        for process in recovered {
+            store
+                .write_batch(vec![LedgerEvent::Stop(process.reclaim_stop(-1))])
+                .await
+                .expect("finalize successful proof claim");
+        }
+        storage.shutdown().await.expect("close compensation store");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[tokio::test]
+    async fn mt137_same_boot_cleanup_marker_is_preserved_for_retry_finalization() {
+        let directory = tempfile::tempdir().expect("temporary same-boot marker root");
+        let storage = open_mt137_process_ledger_slice(&directory.path().join("store")).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let session_id = "mt137-same-boot-killed-retry";
+        let start = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(13_710)
+        .with_mt_id("MT-137");
+        let process_uuid = start.process_uuid;
+        store
+            .write_batch(vec![LedgerEvent::Start(start)])
+            .await
+            .expect("persist same-boot marker fixture");
+
+        let first = store
+            .active_processes_for_session(session_id)
+            .await
+            .expect("claim same-boot marker fixture")
+            .pop()
+            .expect("one same-boot marker fixture");
+        let marker_timestamp = first.reclaim_claimed_at;
+        store
+            .mark_reclaim_cleanup_completed(&first)
+            .await
+            .expect("persist cleanup-completed marker");
+        let marked = read_process_row(&storage, process_uuid).await;
+        let marker_reason = marked
+            .stop_reason
+            .clone()
+            .expect("cleanup marker has a reason");
+        assert_eq!(marked.stopped_at, Some(marker_timestamp));
+        assert!(marker_reason.starts_with("reclaim_killed:"));
+
+        let retry = store
+            .active_processes_for_session(session_id)
+            .await
+            .expect("same boot re-acquires cleanup-completed work")
+            .pop()
+            .expect("one cleanup-completed retry");
+        assert!(retry.reclaim_cleanup_completed);
+        assert_eq!(retry.reclaim_claimed_at, marker_timestamp);
+        let preserved = read_process_row(&storage, process_uuid).await;
+        assert_eq!(preserved.stopped_at, Some(marker_timestamp));
+        assert_eq!(
+            preserved.stop_reason.as_deref(),
+            Some(marker_reason.as_str())
+        );
+
+        store
+            .write_batch(vec![LedgerEvent::Stop(retry.reclaim_stop(-1))])
+            .await
+            .expect("retry finalizes the preserved cleanup marker");
+        let terminal_before_stale_finalizer = read_process_row(&storage, process_uuid).await;
+        store
+            .write_batch(vec![LedgerEvent::Stop(first.reclaim_stop(-1))])
+            .await
+            .expect("concurrent original finalizer is an idempotent no-op");
+        assert!(store
+            .active_processes_for_session(session_id)
+            .await
+            .expect("terminal row has no remaining reclaim work")
+            .is_empty());
+        let terminal = read_process_row(&storage, process_uuid).await;
+        assert_eq!(terminal.exit_code, Some(-1));
+        assert_eq!(terminal.stop_reason.as_deref(), Some("reclaim"));
+        assert_eq!(
+            terminal.stopped_at, terminal_before_stale_finalizer.stopped_at,
+            "a stale exact finalizer must not rewrite terminal chronology"
+        );
+        assert_eq!(
+            terminal.metadata, terminal_before_stale_finalizer.metadata,
+            "a stale exact finalizer must not rewrite terminal metadata"
+        );
+
+        drop(store);
+        storage
+            .shutdown()
+            .await
+            .expect("close same-boot marker store");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[tokio::test]
+    async fn mt137_stale_exact_reclaim_stop_surfaces_claim_conflict() {
+        let directory = tempfile::tempdir().expect("temporary stale exact STOP root");
+        let storage = open_mt137_process_ledger_slice(&directory.path().join("store")).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let session_id = "mt137-stale-exact-stop";
+        let start = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(13_711)
+        .with_mt_id("MT-137");
+        let process_uuid = start.process_uuid;
+        store
+            .write_batch(vec![LedgerEvent::Start(start)])
+            .await
+            .expect("persist stale exact STOP fixture");
+
+        let owner_a = Uuid::now_v7();
+        let owner_b = Uuid::now_v7();
+        let claimed_at_a = Utc::now();
+        let claimed_at_b = claimed_at_a;
+        let claim_a = store
+            .active_processes_for_session_at_with_owner(session_id, claimed_at_a, owner_a)
+            .await
+            .expect("first owner claims fixture")
+            .pop()
+            .expect("first owner receives fixture");
+        let claim_b = store
+            .active_processes_for_session_at_with_owner(session_id, claimed_at_b, owner_b)
+            .await
+            .expect("replacement boot owner reclaims fixture")
+            .pop()
+            .expect("replacement owner receives fixture");
+        assert_eq!(claim_a.reclaim_claimed_at, claim_b.reclaim_claimed_at);
+        assert_ne!(
+            claim_a.reclaim_expected_reason, claim_b.reclaim_expected_reason,
+            "owner-qualified sentinel reason, not timestamp, separates equal-time claims"
+        );
+
+        let stale_error = store
+            .write_batch(vec![LedgerEvent::Stop(claim_a.reclaim_stop(-1))])
+            .await
+            .expect_err("stale exact STOP must not report durable success");
+        assert!(stale_error
+            .to_string()
+            .contains("exact reclaim STOP did not own the current durable sentinel"));
+        let still_owned_by_b = read_process_row(&storage, process_uuid).await;
+        assert_eq!(still_owned_by_b.stopped_at, Some(claimed_at_b));
+        let owner_b_reason = format!("reclaim_claimed:{owner_b}");
+        assert_eq!(
+            still_owned_by_b.stop_reason.as_deref(),
+            Some(owner_b_reason.as_str())
+        );
+
+        store
+            .write_batch(vec![LedgerEvent::Stop(claim_b.reclaim_stop(-1))])
+            .await
+            .expect("current exact owner finalizes fixture");
+        drop(store);
+        storage
+            .shutdown()
+            .await
+            .expect("close stale exact STOP store");
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    #[tokio::test]
+    async fn mt137_raw_receipt_failure_restores_prior_cleanup_state_without_second_cleanup() {
+        use crate::process_ledger::restart_resume::{
+            RestartOrphanReclaimer, StartupProcessCleanup, SurrealRestartOrphanReclaimer,
+        };
+        use crate::process_ledger::ReclaimableProcess;
+
+        struct RecordingCleanup {
+            cleaned: Mutex<Vec<Uuid>>,
+        }
+
+        #[async_trait]
+        impl StartupProcessCleanup for RecordingCleanup {
+            async fn cleanup(&self, process: &ReclaimableProcess) -> Result<(), String> {
+                self.cleaned.lock().await.push(process.process_uuid);
+                Ok(())
+            }
+        }
+
+        let directory = tempfile::tempdir().expect("temporary raw receipt failure root");
+        let storage = open_mt137_process_ledger_slice(&directory.path().join("store")).await;
+        let store = Arc::new(SurrealProcessLedgerStore::new(storage.clone()));
+        let session_id = "mt137-raw-receipt-exact-compensation";
+        let active = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(13_708)
+        .with_mt_id("MT-137");
+        let marked = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-proof",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id(session_id)
+        .with_os_pid(13_709)
+        .with_mt_id("MT-137");
+        let active_uuid = active.process_uuid;
+        let marked_uuid = marked.process_uuid;
+        store
+            .write_batch(vec![
+                LedgerEvent::Start(active),
+                LedgerEvent::Start(marked.clone()),
+            ])
+            .await
+            .expect("persist mixed raw-receipt fixtures");
+
+        let prior_owner = Uuid::now_v7();
+        let prior_marker = format!("reclaim_killed:{prior_owner}");
+        let prior_stopped_at = Utc::now() - chrono::Duration::seconds(7);
+        let mut prior_cleanup =
+            ProcessStop::from_start(&marked, None).with_stop_reason(prior_marker.clone());
+        prior_cleanup.stopped_at = prior_stopped_at;
+        store
+            .write_batch(vec![LedgerEvent::Stop(prior_cleanup)])
+            .await
+            .expect("persist prior cleanup marker");
+
+        let error = store
+            .active_processes_for_session_with_raw_receipt_failure(
+                session_id,
+                Utc::now(),
+                Uuid::now_v7(),
+                active_uuid,
+            )
+            .await
+            .expect_err("injected non-object claim result must fail closed after compensation");
+        assert!(error.to_string().contains("non-object row"));
+
+        let active_after = read_process_row(&storage, active_uuid).await;
+        assert_eq!(active_after.stopped_at, None);
+        assert_eq!(active_after.stop_reason, None);
+        let marked_after = read_process_row(&storage, marked_uuid).await;
+        assert_eq!(marked_after.stopped_at, Some(prior_stopped_at));
+        assert_eq!(
+            marked_after.stop_reason.as_deref(),
+            Some(prior_marker.as_str())
+        );
+        assert!(
+            !marked_after
+                .metadata
+                .as_object()
+                .is_some_and(|metadata| metadata
+                    .contains_key("__handshake_internal_reclaim_durable_receipt_v1")),
+            "successful exact compensation must not leak its durable receipt"
+        );
+
+        let cleanup = Arc::new(RecordingCleanup {
+            cleaned: Mutex::new(Vec::new()),
+        });
+        let reclaimer = SurrealRestartOrphanReclaimer::new(
+            Arc::clone(&store),
+            Arc::clone(&cleanup) as Arc<dyn StartupProcessCleanup>,
+        );
+        assert_eq!(
+            reclaimer
+                .reclaim_session(session_id)
+                .await
+                .expect("reclaim compensated mixed rows"),
+            2
+        );
+        assert_eq!(
+            cleanup.cleaned.lock().await.as_slice(),
+            &[active_uuid],
+            "the restored reclaim_killed row must bypass external cleanup"
+        );
+
+        drop(reclaimer);
+        drop(cleanup);
+        drop(store);
+        storage
+            .shutdown()
+            .await
+            .expect("close raw receipt compensation store");
+    }
+
+    #[tokio::test]
+    async fn mt137_events_reproduce_process_ledger_conflict_merge_lists() {
+        let directory = tempfile::tempdir().expect("temporary process guard root");
+        let storage = open(&directory.path().join("store")).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let original = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-owner",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_parent_session_id("mt137-guard-session")
+        .with_os_pid(9137)
+        .with_sandbox_adapter_id("windows_native_jail")
+        .with_mt_id("MT-137")
+        .with_metadata_jsonb(serde_json::json!({"owner":"original"}));
+        let process_uuid = original.process_uuid;
+        store
+            .write_batch(vec![LedgerEvent::Start(original.clone())])
+            .await
+            .expect("persist guarded process start");
+
+        let mut enriched = original.clone();
+        enriched.os_pid = None;
+        enriched.parent_session_id = None;
+        enriched.sandbox_adapter_id = None;
+        enriched.parent_process_id = Some(Uuid::now_v7());
+        enriched.sandbox_internal_id = Some("hsk-mt137-enriched".to_owned());
+        enriched.started_at = original.started_at - chrono::Duration::seconds(5);
+        enriched.owner_role = "mt137-enriched-owner".to_owned();
+        enriched.metadata_jsonb = serde_json::json!({"owner":"enriched"});
+        store
+            .write_batch(vec![LedgerEvent::Start(enriched.clone())])
+            .await
+            .expect("START enrichment merges onto existing process");
+        let after_start = read_process_row(&storage, process_uuid).await;
+        assert_eq!(after_start.os_pid, Some(9137));
+        assert_eq!(
+            after_start.parent_session_id.as_deref(),
+            Some("mt137-guard-session")
+        );
+        assert_eq!(
+            after_start.sandbox_adapter_id.as_deref(),
+            Some("windows_native_jail")
+        );
+        assert_eq!(after_start.parent_process_id, enriched.parent_process_id);
+        assert_eq!(
+            after_start.sandbox_internal_id.as_deref(),
+            Some("hsk-mt137-enriched")
+        );
+        assert_eq!(after_start.started_at, enriched.started_at);
+        assert_eq!(after_start.owner_role, "mt137-enriched-owner");
+        assert_eq!(
+            after_start.metadata,
+            serde_json::json!({"owner":"enriched"})
+        );
+        assert!(after_start.stopped_at.is_none());
+
+        let mut stop = ProcessStop::from_start(&enriched, Some(77)).with_stop_reason("merged-stop");
+        stop.owner_role = "mt137-stop-owner".to_owned();
+        stop.metadata_jsonb = serde_json::json!({"owner":"stop"});
+        store
+            .write_batch(vec![LedgerEvent::Stop(stop)])
+            .await
+            .expect("STOP applies its conflict update list");
+        let stopped = read_process_row(&storage, process_uuid).await;
+        assert_eq!(stopped.os_pid, Some(9137));
+        assert_eq!(
+            stopped.parent_session_id.as_deref(),
+            Some("mt137-guard-session")
+        );
+        assert_eq!(
+            stopped.sandbox_adapter_id.as_deref(),
+            Some("windows_native_jail")
+        );
+        assert_eq!(stopped.started_at, enriched.started_at);
+        assert_eq!(stopped.owner_role, "mt137-stop-owner");
+        assert_eq!(stopped.metadata, serde_json::json!({"owner":"stop"}));
+        assert_eq!(stopped.exit_code, Some(77));
+        assert_eq!(stopped.stop_reason.as_deref(), Some("merged-stop"));
+        assert!(stopped.stopped_at.is_some());
+
+        enriched.owner_role = "mt137-post-stop-start".to_owned();
+        store
+            .write_batch(vec![LedgerEvent::Start(enriched)])
+            .await
+            .expect("post-STOP START merges without erasing terminal fields");
+        let final_row = read_process_row(&storage, process_uuid).await;
+        assert_eq!(final_row.os_pid, Some(9137));
+        assert_eq!(final_row.owner_role, "mt137-post-stop-start");
+        assert_eq!(final_row.exit_code, Some(77));
+        assert_eq!(final_row.stop_reason.as_deref(), Some("merged-stop"));
+        assert!(final_row.stopped_at.is_some());
+
+        storage.shutdown().await.expect("close process guard store");
     }
 }

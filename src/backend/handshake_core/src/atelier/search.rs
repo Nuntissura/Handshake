@@ -7,9 +7,8 @@
 //!     hash distance used for near-duplicate / similarity search.
 //!   * `app/backend/palette.js` dominant-palette projection persisted per asset.
 //!
-//! Storage authority is the single Handshake store ONLY. SQLite is forbidden in
-//! any form. The queries below still bind `sqlx` and are PENDING the SurrealDB
-//! port — see the `atelier` module header (MT-138).
+//! Storage authority is the single embedded Handshake SurrealDB store. SQLite
+//! and PostgreSQL are forbidden in this runtime path.
 //! Every mutation emits an atelier event from the new families defined
 //! below so the operator surface, Locus, and replay can reconstruct history.
 //!
@@ -25,13 +24,13 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use std::collections::HashMap;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
-    BulkTagRequest,
+    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
+    AtelierStore, BulkTagRequest,
 };
 
 /// Event families emitted by the search/tags/similarity submodule (MT-005).
@@ -655,22 +654,37 @@ fn compute_palette_json(image: &image::DynamicImage) -> serde_json::Value {
     })
 }
 
+#[derive(SurrealValue)]
+struct SimilarityRebuildJobRow {
+    job_id: SurrealUuid,
+    asset_internal_id: SurrealUuid,
+    status: String,
+    requested_by: String,
+    processed_count: i64,
+    failed_count: i64,
+    dhash_hex: Option<String>,
+    palette_json: Option<serde_json::Value>,
+    error_ref: Option<String>,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
 fn similarity_rebuild_job_from_row(
-    row: &sqlx::postgres::PgRow,
+    row: SimilarityRebuildJobRow,
 ) -> AtelierResult<SimilarityRebuildJob> {
-    let status: String = row.get("status");
+    let status = row.status;
     Ok(SimilarityRebuildJob {
-        job_id: row.get("job_id"),
-        asset_internal_id: row.get("asset_internal_id"),
+        job_id: row.job_id.into(),
+        asset_internal_id: row.asset_internal_id.into(),
         status: SimilarityRebuildJobStatus::parse(&status)?,
-        requested_by: row.get("requested_by"),
-        processed_count: row.get("processed_count"),
-        failed_count: row.get("failed_count"),
-        dhash_hex: row.get("dhash_hex"),
-        palette_json: row.get("palette_json"),
-        error_ref: row.get("error_ref"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        requested_by: row.requested_by,
+        processed_count: row.processed_count,
+        failed_count: row.failed_count,
+        dhash_hex: row.dhash_hex,
+        palette_json: row.palette_json,
+        error_ref: row.error_ref,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
@@ -726,36 +740,76 @@ fn bounded_search_snippet(value: &str, query: &str) -> String {
     }
 }
 
+#[derive(SurrealValue)]
+struct GlobalSearchCandidateRow {
+    target_kind: String,
+    target_id: String,
+    jump_target: String,
+    title: String,
+    search_text: String,
+    rank: i64,
+    sort_at: Datetime,
+}
+
 fn global_search_hit_from_row(
-    row: &sqlx::postgres::PgRow,
+    row: GlobalSearchCandidateRow,
     query: &str,
     view_mode: LensViewMode,
 ) -> AtelierResult<GlobalSearchHit> {
-    let search_text: String = row.get("search_text");
-    let extraction_tier_raw: String = row.get("extraction_tier");
-    let content_tier_raw: Option<String> = row.get("content_tier");
+    let search_text = row.search_text;
+    let normalized = search_text.to_ascii_lowercase().replace(['_', '-'], " ");
+    let extraction_tier_raw = if normalized.contains("extraction tier tier3")
+        || normalized.contains("extraction tier 3")
+    {
+        "tier3"
+    } else if normalized.contains("extraction tier tier2")
+        || normalized.contains("extraction tier 2")
+    {
+        "tier2"
+    } else {
+        "tier1"
+    };
+    let content_tier_raw = if normalized.contains("content tier adult explicit") {
+        Some("adult_explicit")
+    } else if normalized.contains("content tier adult soft") {
+        Some("adult_soft")
+    } else if normalized.contains("content tier sfw") {
+        Some("sfw")
+    } else {
+        None
+    };
     Ok(GlobalSearchHit {
-        target_kind: row.get("target_kind"),
-        target_id: row.get("target_id"),
-        jump_target: row.get("jump_target"),
-        title: row.get("title"),
+        target_kind: row.target_kind,
+        target_id: row.target_id,
+        jump_target: row.jump_target,
+        title: row.title,
         snippet: bounded_search_snippet(&search_text, query),
-        rank: row.get("rank"),
-        extraction_tier: LensExtractionTier::parse(&extraction_tier_raw)?,
-        content_tier: content_tier_raw
-            .as_deref()
-            .map(LensContentTier::parse)
-            .transpose()?,
+        rank: row.rank,
+        extraction_tier: LensExtractionTier::parse(extraction_tier_raw)?,
+        content_tier: content_tier_raw.map(LensContentTier::parse).transpose()?,
         view_mode,
     })
 }
 
-fn saved_search_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<SavedSearch> {
-    let include_tags_json: serde_json::Value = row.get("include_tags_json");
-    let exclude_tags_json: serde_json::Value = row.get("exclude_tags_json");
-    let scope_kind: String = row.get("scope_kind");
-    let scope_id: Option<Uuid> = row.get("scope_id");
-    let view_mode: String = row.get("view_mode");
+#[derive(SurrealValue)]
+struct SavedSearchRow {
+    saved_search_id: SurrealUuid,
+    name: String,
+    include_tags_json: serde_json::Value,
+    exclude_tags_json: serde_json::Value,
+    min_rating: Option<i64>,
+    favorite: Option<bool>,
+    color_hex: Option<String>,
+    scope_kind: String,
+    scope_id: Option<SurrealUuid>,
+    view_mode: String,
+    created_by: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+fn saved_search_from_row(row: SavedSearchRow) -> AtelierResult<SavedSearch> {
+    let view_mode = row.view_mode;
     let view_mode = match view_mode.as_str() {
         "NSFW" => LensViewMode::Nsfw,
         "SFW" => LensViewMode::Sfw,
@@ -766,29 +820,44 @@ fn saved_search_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<SavedSear
         }
     };
     Ok(SavedSearch {
-        saved_search_id: row.get("saved_search_id"),
-        name: row.get("name"),
+        saved_search_id: row.saved_search_id.into(),
+        name: row.name,
         filters: SavedSearchFilters {
-            include_tags: saved_search_tags_from_json(include_tags_json),
-            exclude_tags: saved_search_tags_from_json(exclude_tags_json),
-            min_rating: row.get("min_rating"),
-            favorite: row.get("favorite"),
-            color_hex: row.get("color_hex"),
-            scope: SavedSearchScope::from_parts(&scope_kind, scope_id)?,
+            include_tags: saved_search_tags_from_json(row.include_tags_json),
+            exclude_tags: saved_search_tags_from_json(row.exclude_tags_json),
+            min_rating: row.min_rating.map(i16::try_from).transpose().map_err(|_| {
+                AtelierError::Internal("saved search min_rating exceeds i16".into())
+            })?,
+            favorite: row.favorite,
+            color_hex: row.color_hex,
+            scope: SavedSearchScope::from_parts(&row.scope_kind, row.scope_id.map(Into::into))?,
             view_mode,
         },
-        created_by: row.get("created_by"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        created_by: row.created_by,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
+#[derive(SurrealValue)]
+struct SavedSearchProjectionRow {
+    saved_search_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    content_hash: String,
+    artifact_ref: String,
+    jump_target: String,
+    tags_json: serde_json::Value,
+    favorite: bool,
+    rating: i64,
+    matched_color_hex: Option<String>,
+    content_tier: Option<String>,
+    view_mode: String,
+}
+
 fn saved_search_projection_hit_from_row(
-    row: &sqlx::postgres::PgRow,
+    row: SavedSearchProjectionRow,
 ) -> AtelierResult<SavedSearchProjectionHit> {
-    let tags_json: serde_json::Value = row.get("tags_json");
-    let content_tier: Option<String> = row.get("content_tier");
-    let view_mode: String = row.get("view_mode");
+    let view_mode = row.view_mode;
     let view_mode = match view_mode.as_str() {
         "NSFW" => LensViewMode::Nsfw,
         "SFW" => LensViewMode::Sfw,
@@ -799,16 +868,18 @@ fn saved_search_projection_hit_from_row(
         }
     };
     Ok(SavedSearchProjectionHit {
-        saved_search_id: row.get("saved_search_id"),
-        asset_id: row.get("asset_id"),
-        content_hash: row.get("content_hash"),
-        artifact_ref: row.get("artifact_ref"),
-        jump_target: row.get("jump_target"),
-        tags: saved_search_tags_from_json(tags_json),
-        favorite: row.get("favorite"),
-        rating: row.get("rating"),
-        matched_color_hex: row.get("matched_color_hex"),
-        content_tier: content_tier
+        saved_search_id: row.saved_search_id.into(),
+        asset_id: row.asset_id.into(),
+        content_hash: row.content_hash,
+        artifact_ref: row.artifact_ref,
+        jump_target: row.jump_target,
+        tags: saved_search_tags_from_json(row.tags_json),
+        favorite: row.favorite,
+        rating: i16::try_from(row.rating)
+            .map_err(|_| AtelierError::Internal("saved search rating exceeds i16".into()))?,
+        matched_color_hex: row.matched_color_hex,
+        content_tier: row
+            .content_tier
             .as_deref()
             .map(LensContentTier::parse)
             .transpose()?,
@@ -816,23 +887,41 @@ fn saved_search_projection_hit_from_row(
     })
 }
 
-fn ai_tag_suggestion_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<AiTagSuggestion> {
-    let status: String = row.get("status");
+#[derive(SurrealValue)]
+struct AiTagSuggestionRow {
+    suggestion_id: SurrealUuid,
+    character_internal_id: SurrealUuid,
+    asset_id: Option<SurrealUuid>,
+    tag_text: String,
+    confidence: Option<f64>,
+    model_receipt_ref: String,
+    tool_receipt_ref: String,
+    suggested_by: String,
+    status: String,
+    decided_by: Option<String>,
+    decision_reason: Option<String>,
+    applied_tag_id: Option<SurrealUuid>,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+fn ai_tag_suggestion_from_row(row: AiTagSuggestionRow) -> AtelierResult<AiTagSuggestion> {
+    let status = row.status;
     Ok(AiTagSuggestion {
-        suggestion_id: row.get("suggestion_id"),
-        character_internal_id: row.get("character_internal_id"),
-        asset_id: row.get("asset_id"),
-        tag_text: row.get("tag_text"),
-        confidence: row.get("confidence"),
-        model_receipt_ref: row.get("model_receipt_ref"),
-        tool_receipt_ref: row.get("tool_receipt_ref"),
-        suggested_by: row.get("suggested_by"),
+        suggestion_id: row.suggestion_id.into(),
+        character_internal_id: row.character_internal_id.into(),
+        asset_id: row.asset_id.map(Into::into),
+        tag_text: row.tag_text,
+        confidence: row.confidence,
+        model_receipt_ref: row.model_receipt_ref,
+        tool_receipt_ref: row.tool_receipt_ref,
+        suggested_by: row.suggested_by,
         status: AiTagSuggestionStatus::parse(&status)?,
-        decided_by: row.get("decided_by"),
-        decision_reason: row.get("decision_reason"),
-        applied_tag_id: row.get("applied_tag_id"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        decided_by: row.decided_by,
+        decision_reason: row.decision_reason,
+        applied_tag_id: row.applied_tag_id.map(Into::into),
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
@@ -903,27 +992,252 @@ fn validate_ai_tag_receipt_ref(field: &str, value: &str) -> AtelierResult<()> {
     Ok(())
 }
 
-fn tag_from_row(row: &sqlx::postgres::PgRow) -> Tag {
+#[derive(SurrealValue)]
+struct TagRow {
+    tag_id: SurrealUuid,
+    text: String,
+    created_at_utc: Datetime,
+}
+
+fn tag_from_row(row: TagRow) -> Tag {
     Tag {
-        tag_id: row.get("tag_id"),
-        text: row.get("text"),
-        created_at_utc: row.get("created_at_utc"),
+        tag_id: row.tag_id.into(),
+        text: row.text,
+        created_at_utc: row.created_at_utc.into(),
     }
 }
 
-fn rule_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<TagRule> {
-    let match_type_raw: String = row.get("match_type");
+#[derive(SurrealValue)]
+struct TagRuleRow {
+    rule_id: SurrealUuid,
+    source_field_id: String,
+    match_type: String,
+    pattern: String,
+    emit_tag: String,
+    enabled: bool,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+fn rule_from_row(row: TagRuleRow) -> AtelierResult<TagRule> {
+    let match_type_raw = row.match_type;
     Ok(TagRule {
-        rule_id: row.get("rule_id"),
-        source_field_id: row.get("source_field_id"),
+        rule_id: row.rule_id.into(),
+        source_field_id: row.source_field_id,
         match_type: MatchType::parse(&match_type_raw)?,
-        pattern: row.get("pattern"),
-        emit_tag: row.get("emit_tag"),
-        enabled: row.get("enabled"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        pattern: row.pattern,
+        emit_tag: row.emit_tag,
+        enabled: row.enabled,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
+
+#[derive(SurrealValue)]
+struct EmptyBindings {}
+
+#[derive(SurrealValue)]
+struct UuidBinding {
+    value: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct RecordBinding {
+    value: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct OptionalRecordBinding {
+    value: Option<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct QueryLimitBindings {
+    query: String,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct IdLimitBindings {
+    id: SurrealUuid,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct TextBinding {
+    text: String,
+}
+
+#[derive(SurrealValue)]
+struct OptionalStringBinding {
+    value: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct CharacterTagRow {
+    character_internal_id: SurrealUuid,
+    tag_id: SurrealUuid,
+    text: String,
+    tag_type: String,
+}
+
+fn character_tag_from_row(row: CharacterTagRow) -> AtelierResult<CharacterTag> {
+    let tag_type = match row.tag_type.as_str() {
+        "manual" => TagType::Manual,
+        "derived" => TagType::Derived,
+        other => {
+            return Err(AtelierError::Validation(format!(
+                "unknown tag_type: {other}"
+            )))
+        }
+    };
+    Ok(CharacterTag {
+        character_internal_id: row.character_internal_id.into(),
+        tag_id: row.tag_id.into(),
+        text: row.text,
+        tag_type,
+    })
+}
+
+#[derive(SurrealValue)]
+struct SimilarityProjectionRow {
+    asset_internal_id: SurrealUuid,
+    dhash_hex: Option<String>,
+    palette_json: serde_json::Value,
+    updated_at_utc: Datetime,
+}
+
+impl From<SimilarityProjectionRow> for SimilarityProjection {
+    fn from(row: SimilarityProjectionRow) -> Self {
+        Self {
+            asset_internal_id: row.asset_internal_id.into(),
+            dhash_hex: row.dhash_hex,
+            palette_json: row.palette_json,
+            updated_at_utc: row.updated_at_utc.into(),
+        }
+    }
+}
+
+#[derive(SurrealValue)]
+struct SimilarityCandidateRow {
+    asset_internal_id: SurrealUuid,
+    dhash_hex: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SavedSearchBindings {
+    rid: RecordId,
+    saved_search_id: SurrealUuid,
+    name: String,
+    include_tags_json: serde_json::Value,
+    exclude_tags_json: serde_json::Value,
+    min_rating: Option<i64>,
+    favorite: Option<bool>,
+    color_hex: Option<String>,
+    scope_kind: String,
+    scope_id: Option<SurrealUuid>,
+    view_mode: String,
+    created_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct TagCharacterBindings {
+    rid: RecordId,
+    character_ref: RecordId,
+    tag_ref: RecordId,
+    tag_type: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AiSuggestionBindings {
+    rid: RecordId,
+    suggestion_id: SurrealUuid,
+    character_ref: RecordId,
+    asset_ref: Option<RecordId>,
+    tag_text: String,
+    confidence: Option<f64>,
+    model_receipt_ref: String,
+    tool_receipt_ref: String,
+    suggested_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AiDecisionBindings {
+    rid: RecordId,
+    status: String,
+    decided_by: String,
+    decision_reason: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct ApplyAiBindings {
+    rid: RecordId,
+    link_rid: RecordId,
+    character_ref: RecordId,
+    tag_ref: RecordId,
+    applied_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct TagRuleBindings {
+    rid: RecordId,
+    rule_id: SurrealUuid,
+    source_field_id: String,
+    match_type: String,
+    pattern: String,
+    emit_tag: String,
+    enabled: bool,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ProjectionBindings {
+    rid: RecordId,
+    asset_ref: RecordId,
+    dhash_hex: Option<String>,
+    palette_json: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RebuildJobBindings {
+    rid: RecordId,
+    job_id: SurrealUuid,
+    asset_ref: RecordId,
+    requested_by: String,
+}
+
+#[derive(SurrealValue)]
+struct UpdateRebuildBindings {
+    rid: RecordId,
+    status: String,
+    processed_count: i64,
+    failed_count: i64,
+    dhash_hex: Option<String>,
+    palette_json: Option<serde_json::Value>,
+    error_ref: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct DerivedTagInput {
+    rid: RecordId,
+    tag_ref: RecordId,
+}
+#[derive(SurrealValue)]
+struct DerivedTagsBindings {
+    character_ref: RecordId,
+    items: Vec<DerivedTagInput>,
+}
+
+macro_rules! saved_search_select { () => { "saved_search_id, name, include_tags_json, exclude_tags_json, min_rating, favorite, color_hex, scope_kind, scope_id, view_mode, created_by, created_at_utc, updated_at_utc" }; }
+macro_rules! ai_suggestion_select { () => { "suggestion_id, record::id(character_internal_id) AS character_internal_id, record::id(asset_id) AS asset_id, tag_text, confidence, model_receipt_ref, tool_receipt_ref, suggested_by, status, decided_by, decision_reason, record::id(applied_tag_id) AS applied_tag_id, created_at_utc, updated_at_utc" }; }
+macro_rules! rule_select { () => { "rule_id, source_field_id, match_type, pattern, emit_tag, enabled, created_at_utc, updated_at_utc" }; }
+macro_rules! projection_select { () => { "record::id(asset_internal_id) AS asset_internal_id, dhash_hex, palette_json, updated_at_utc" }; }
+macro_rules! rebuild_select { () => { "job_id, record::id(asset_internal_id) AS asset_internal_id, status, requested_by, processed_count, failed_count, dhash_hex, palette_json, error_ref, created_at_utc, updated_at_utc" }; }
+
+const UPSERT_SAVED_SEARCH: &str = concat!("RETURN { ", atelier_event_sql!(), " UPSERT $domain.rid SET saved_search_id=$domain.saved_search_id, name=$domain.name, include_tags_json=$domain.include_tags_json, exclude_tags_json=$domain.exclude_tags_json, min_rating=$domain.min_rating, favorite=$domain.favorite, color_hex=$domain.color_hex, scope_kind=$domain.scope_kind, scope_id=$domain.scope_id, view_mode=$domain.view_mode, created_by=$domain.created_by, updated_at_utc=time::now(); RETURN (SELECT ", saved_search_select!(), " FROM $domain.rid); };");
+const UPSERT_TAG_RULE: &str = concat!("RETURN { ", atelier_event_sql!(), " UPSERT $domain.rid SET rule_id=$domain.rule_id, source_field_id=$domain.source_field_id, match_type=$domain.match_type, pattern=$domain.pattern, emit_tag=$domain.emit_tag, enabled=$domain.enabled, updated_at_utc=time::now(); RETURN (SELECT ", rule_select!(), " FROM $domain.rid); };");
+const UPSERT_PROJECTION: &str = concat!("RETURN { ", atelier_event_sql!(), " UPSERT $domain.rid SET asset_internal_id=$domain.asset_ref, dhash_hex=$domain.dhash_hex, palette_json=$domain.palette_json, updated_at_utc=time::now(); RETURN (SELECT ", projection_select!(), " FROM $domain.rid); };");
+const TAG_CHARACTER_STATEMENT: &str = concat!("RETURN { ", atelier_event_sql!(), " UPSERT $domain.rid SET character_internal_id=$domain.character_ref, tag_id=$domain.tag_ref, tag_type=$domain.tag_type; RETURN true; };");
+const CREATE_AI_SUGGESTION: &str = concat!("RETURN { ",atelier_event_sql!()," CREATE $domain.rid CONTENT {suggestion_id:$domain.suggestion_id,character_internal_id:$domain.character_ref,asset_id:$domain.asset_ref,tag_text:$domain.tag_text,confidence:$domain.confidence,model_receipt_ref:$domain.model_receipt_ref,tool_receipt_ref:$domain.tool_receipt_ref,suggested_by:$domain.suggested_by,status:'proposed'}; RETURN (SELECT ",ai_suggestion_select!()," FROM $domain.rid); };");
+const DECIDE_AI_SUGGESTION: &str = concat!("RETURN { ",atelier_event_sql!()," UPDATE $domain.rid SET status=$domain.status,decided_by=$domain.decided_by,decision_reason=$domain.decision_reason,updated_at_utc=time::now(); RETURN (SELECT ",ai_suggestion_select!()," FROM $domain.rid); };");
+const APPLY_AI_SUGGESTION: &str = concat!("RETURN { ",atelier_event_sql!()," UPSERT $domain.link_rid SET character_internal_id=$domain.character_ref,tag_id=$domain.tag_ref,tag_type='manual'; UPDATE $domain.rid SET status='applied',decided_by=decided_by ?? $domain.applied_by,applied_tag_id=$domain.tag_ref,updated_at_utc=time::now(); RETURN (SELECT ",ai_suggestion_select!()," FROM $domain.rid); };");
 
 impl AtelierStore {
     /// Search across sheet text, character documents, moodboard snapshots, and
@@ -951,102 +1265,34 @@ impl AtelierStore {
             ));
         }
         let limit = limit.clamp(1, 50);
-        let rows = sqlx::query(
-            r#"WITH candidates AS (
-                   SELECT 'sheet'::text AS target_kind,
-                          sv.version_id::text AS target_id,
-                          concat('atelier://sheet/', sv.character_internal_id::text, '/', sv.version_id::text) AS jump_target,
-                          concat('Sheet v', sv.seq::text, ' - ', c.display_name) AS title,
-                          sv.raw_text AS search_text,
-                          10::bigint AS rank,
-                          sv.created_at_utc AS sort_at
-                   FROM atelier_sheet_version sv
-                   JOIN atelier_character c
-                     ON c.internal_id = sv.character_internal_id
-
-                   UNION ALL
-
-                   SELECT CASE d.doc_type
-                              WHEN 'note' THEN 'note'
-                              WHEN 'story' THEN 'story_document'
-                              WHEN 'moodboard' THEN 'moodboard_document'
-                              ELSE 'document'
-                          END AS target_kind,
-                          d.document_id::text AS target_id,
-                          concat('atelier://document/', d.document_id::text) AS jump_target,
-                          v.title AS title,
-                          concat_ws(E'\n', v.title, v.body_raw_text, d.tags_json::text) AS search_text,
-                          20::bigint AS rank,
-                          v.created_at_utc AS sort_at
-                   FROM atelier_character_document d
-                   JOIN atelier_character_document_version v
-                     ON v.version_id = d.current_version_id
-
-                   UNION ALL
-
-                   SELECT 'moodboard_snapshot'::text AS target_kind,
-                          m.snapshot_id::text AS target_id,
-                          concat('atelier://moodboard/', m.snapshot_id::text) AS jump_target,
-                          COALESCE(NULLIF(m.moodboard_json->>'name', ''), 'Moodboard') AS title,
-                          m.raw_json_text AS search_text,
-                          30::bigint AS rank,
-                          m.created_at_utc AS sort_at
-                   FROM atelier_moodboard m
-
-                   UNION ALL
-
-                   SELECT 'image'::text AS target_kind,
-                          ma.asset_id::text AS target_id,
-                          concat('atelier://image/', ma.asset_id::text) AS jump_target,
-                          concat(ma.mime, ' ', left(ma.content_hash, 12)) AS title,
-                          concat_ws(' ', ma.mime, ma.content_hash, ma.source_provenance, ma.artifact_ref) AS search_text,
-                          40::bigint AS rank,
-                          ma.created_at_utc AS sort_at
-                   FROM atelier_media_asset ma
-               ),
-               annotated AS (
-                   SELECT target_kind, target_id, jump_target, title, search_text,
-                          lower(search_text) AS lower_search_text, rank, sort_at
-                   FROM candidates
-               ),
-               projected AS (
-                   SELECT target_kind, target_id, jump_target, title, search_text,
-                          rank, sort_at,
-                          CASE
-                              WHEN lower_search_text ~ '(lens[_ -]?)?extraction[_ -]?tier[^a-z0-9]+tier3' THEN 'tier3'
-                              WHEN lower_search_text ~ '(lens[_ -]?)?extraction[_ -]?tier[^a-z0-9]+tier2' THEN 'tier2'
-                              ELSE 'tier1'
-                          END AS extraction_tier,
-                          CASE
-                              WHEN lower_search_text ~ 'content[_ -]?tier[^a-z0-9]+adult[_ -]?explicit' THEN 'adult_explicit'
-                              WHEN lower_search_text ~ 'content[_ -]?tier[^a-z0-9]+adult[_ -]?soft' THEN 'adult_soft'
-                              WHEN lower_search_text ~ 'content[_ -]?tier[^a-z0-9]+sfw' THEN 'sfw'
-                              ELSE NULL
-                          END AS content_tier
-                   FROM annotated
-                   WHERE position(lower($1::text) in lower_search_text) > 0
-               )
-               SELECT target_kind, target_id, jump_target, title, search_text, rank,
-                      extraction_tier, content_tier
-               FROM projected
-               WHERE CASE extraction_tier
-                         WHEN 'tier1' THEN 1
-                         WHEN 'tier2' THEN 2
-                         ELSE 3
-                     END <= $2
-                 AND ($3::text <> 'SFW' OR content_tier = 'sfw')
-                ORDER BY rank ASC, sort_at DESC, target_id ASC
-                LIMIT $4"#,
-        )
-        .bind(trimmed)
-        .bind(filters.extraction_tier.rank())
-        .bind(filters.view_mode.as_str())
-        .bind(limit)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter()
+        let bindings = QueryLimitBindings {
+            query: trimmed.to_ascii_lowercase(),
+            limit,
+        };
+        let rows: Vec<GlobalSearchCandidateRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
+            ctx.query_values("RETURN array::slice(array::sort::asc(array::concat(\
+              (SELECT 'sheet' AS target_kind, <string>version_id AS target_id, string::concat('atelier://sheet/', <string>record::id(character_internal_id), '/', <string>version_id) AS jump_target, string::concat('Sheet v', <string>seq, ' - ', character_internal_id.display_name) AS title, raw_text AS search_text, 10 AS rank, created_at_utc AS sort_at FROM atelier_sheet_version WHERE string::lowercase(raw_text) CONTAINS $query), \
+              (SELECT doc_type AS target_kind, <string>document_id AS target_id, string::concat('atelier://document/', <string>document_id) AS jump_target, current_version_id.title AS title, string::concat(current_version_id.title, ' ', current_version_id.body_raw_text, ' ', <string>tags_json) AS search_text, 20 AS rank, current_version_id.created_at_utc AS sort_at FROM atelier_character_document WHERE string::lowercase(string::concat(current_version_id.title, ' ', current_version_id.body_raw_text, ' ', <string>tags_json)) CONTAINS $query), \
+              (SELECT 'moodboard_snapshot' AS target_kind, <string>snapshot_id AS target_id, string::concat('atelier://moodboard/', <string>snapshot_id) AS jump_target, moodboard_json.name ?? 'Moodboard' AS title, raw_json_text AS search_text, 30 AS rank, created_at_utc AS sort_at FROM atelier_moodboard WHERE string::lowercase(raw_json_text) CONTAINS $query), \
+              (SELECT 'image' AS target_kind, <string>asset_id AS target_id, string::concat('atelier://image/', <string>asset_id) AS jump_target, string::concat(mime, ' ', string::slice(content_hash, 0, 12)) AS title, string::concat(mime, ' ', content_hash, ' ', source_provenance ?? '', ' ', artifact_ref) AS search_text, 40 AS rank, created_at_utc AS sort_at FROM atelier_media_asset WHERE string::lowercase(string::concat(mime, ' ', content_hash, ' ', source_provenance ?? '', ' ', artifact_ref)) CONTAINS $query)\
+            ), true), 0, $limit);", bindings).await
+        })).await?;
+        let mut hits: Vec<GlobalSearchHit> = rows
+            .into_iter()
             .map(|row| global_search_hit_from_row(row, trimmed, filters.view_mode))
-            .collect()
+            .collect::<AtelierResult<_>>()?;
+        hits.retain(|hit| {
+            hit.extraction_tier.rank() <= filters.extraction_tier.rank()
+                && (filters.view_mode != LensViewMode::Sfw
+                    || hit.content_tier == Some(LensContentTier::Sfw))
+        });
+        hits.sort_by(|a, b| {
+            a.rank
+                .cmp(&b.rank)
+                .then_with(|| a.target_id.cmp(&b.target_id))
+        });
+        hits.truncate(limit as usize);
+        Ok(hits)
     }
 
     pub async fn save_saved_search(&self, new: &NewSavedSearch) -> AtelierResult<SavedSearch> {
@@ -1064,13 +1310,24 @@ impl AtelierStore {
         }
         let filters = normalize_saved_search_filters(&new.filters)?;
         if let SavedSearchScope::Collection(collection_id) = filters.scope {
-            let exists: Option<Uuid> = sqlx::query_scalar(
-                "SELECT collection_id FROM atelier_collection WHERE collection_id = $1",
-            )
-            .bind(collection_id)
-            .fetch_optional(self.pool())
-            .await?;
-            if exists.is_none() {
+            let exists: Option<bool> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "RETURN record::exists($value);",
+                            RecordBinding {
+                                value: RecordId::new(
+                                    "atelier_collection",
+                                    SurrealUuid::from(collection_id),
+                                ),
+                            },
+                        )
+                        .await
+                    })
+                })
+                .await?;
+            if !exists.unwrap_or(false) {
                 return Err(AtelierError::NotFound(format!(
                     "saved search collection scope not found: {collection_id}"
                 )));
@@ -1079,97 +1336,94 @@ impl AtelierStore {
         let include_tags_json = serde_json::Value::from(filters.include_tags.clone());
         let exclude_tags_json = serde_json::Value::from(filters.exclude_tags.clone());
         let (scope_kind, scope_id) = filters.scope.into_parts();
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_saved_search (
-                   name, include_tags_json, exclude_tags_json, min_rating,
-                   favorite, color_hex, scope_kind, scope_id, view_mode, created_by
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-               ON CONFLICT (name) DO UPDATE SET
-                   include_tags_json = EXCLUDED.include_tags_json,
-                   exclude_tags_json = EXCLUDED.exclude_tags_json,
-                   min_rating = EXCLUDED.min_rating,
-                   favorite = EXCLUDED.favorite,
-                   color_hex = EXCLUDED.color_hex,
-                   scope_kind = EXCLUDED.scope_kind,
-                   scope_id = EXCLUDED.scope_id,
-                   view_mode = EXCLUDED.view_mode,
-                   created_by = EXCLUDED.created_by,
-                   updated_at_utc = NOW()
-               RETURNING saved_search_id, name, include_tags_json, exclude_tags_json,
-                         min_rating, favorite, color_hex, scope_kind, scope_id,
-                         view_mode, created_by, created_at_utc, updated_at_utc"#,
+        let existing_id: Option<SurrealUuid> = self.store().with_data_operation({ let b=TextBinding{text:name.to_owned()}; move |ctx| Box::pin(async move { ctx.query_first("SELECT VALUE saved_search_id FROM atelier_saved_search WHERE name=$text LIMIT 1;",b).await })}).await?;
+        let saved_search_id: Uuid = existing_id.map(Into::into).unwrap_or_else(Uuid::now_v7);
+        let bindings = SavedSearchBindings {
+            rid: RecordId::new("atelier_saved_search", SurrealUuid::from(saved_search_id)),
+            saved_search_id: saved_search_id.into(),
+            name: name.to_owned(),
+            include_tags_json,
+            exclude_tags_json,
+            min_rating: filters.min_rating.map(i64::from),
+            favorite: filters.favorite,
+            color_hex: filters.color_hex.clone(),
+            scope_kind: scope_kind.to_owned(),
+            scope_id: scope_id.map(Into::into),
+            view_mode: filters.view_mode.as_str().to_owned(),
+            created_by: created_by.to_owned(),
+        };
+        let row: Option<SavedSearchRow> = self
+            .write_with_event(
+                UPSERT_SAVED_SEARCH,
+                bindings,
+                search_event_family::SAVED_SEARCH_UPSERTED,
+                "atelier_saved_search",
+                &saved_search_id.to_string(),
+                serde_json::json!({
+                    "saved_search_id": saved_search_id, "name": name,
+                    "include_tags": filters.include_tags, "exclude_tags": filters.exclude_tags,
+                    "min_rating": filters.min_rating, "favorite": filters.favorite,
+                    "color_hex": filters.color_hex, "scope": filters.scope,
+                    "view_mode": filters.view_mode,
+                    "created_by": created_by,
+                }),
+            )
+            .await?;
+        saved_search_from_row(
+            row.ok_or_else(|| {
+                AtelierError::Internal("saved search upsert returned no row".into())
+            })?,
         )
-        .bind(name)
-        .bind(&include_tags_json)
-        .bind(&exclude_tags_json)
-        .bind(filters.min_rating)
-        .bind(filters.favorite)
-        .bind(&filters.color_hex)
-        .bind(scope_kind)
-        .bind(scope_id)
-        .bind(filters.view_mode.as_str())
-        .bind(created_by)
-        .fetch_one(self.pool())
-        .await?;
-        let saved = saved_search_from_row(&row)?;
-        self.record_event(
-            search_event_family::SAVED_SEARCH_UPSERTED,
-            "atelier_saved_search",
-            &saved.saved_search_id.to_string(),
-            serde_json::json!({
-                "saved_search_id": saved.saved_search_id,
-                "name": saved.name,
-                "include_tags": saved.filters.include_tags,
-                "exclude_tags": saved.filters.exclude_tags,
-                "min_rating": saved.filters.min_rating,
-                "favorite": saved.filters.favorite,
-                "color_hex": saved.filters.color_hex,
-                "scope": saved.filters.scope,
-                "view_mode": saved.filters.view_mode,
-                "created_by": created_by,
-            }),
-        )
-        .await?;
-        Ok(saved)
     }
 
     pub async fn get_saved_search(
         &self,
         saved_search_id: Uuid,
     ) -> AtelierResult<Option<SavedSearch>> {
-        let row = sqlx::query(
-            r#"SELECT saved_search_id, name, include_tags_json, exclude_tags_json,
-                      min_rating, favorite, color_hex, scope_kind, scope_id,
-                      view_mode, created_by, created_at_utc, updated_at_utc
-               FROM atelier_saved_search
-               WHERE saved_search_id = $1"#,
-        )
-        .bind(saved_search_id)
-        .fetch_optional(self.pool())
-        .await?;
-        row.as_ref().map(saved_search_from_row).transpose()
+        let row: Option<SavedSearchRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            saved_search_select!(),
+                            " FROM atelier_saved_search WHERE saved_search_id=$value LIMIT 1;"
+                        ),
+                        UuidBinding {
+                            value: saved_search_id.into(),
+                        },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(saved_search_from_row).transpose()
     }
 
     pub async fn list_saved_searches(&self) -> AtelierResult<Vec<SavedSearch>> {
-        let rows = sqlx::query(
-            r#"SELECT saved_search_id, name, include_tags_json, exclude_tags_json,
-                      min_rating, favorite, color_hex, scope_kind, scope_id,
-                      view_mode, created_by, created_at_utc, updated_at_utc
-               FROM atelier_saved_search
-               ORDER BY updated_at_utc DESC, name ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(saved_search_from_row).collect()
+        let rows: Vec<SavedSearchRow> = self
+            .store()
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        concat!(
+                            "SELECT ",
+                            saved_search_select!(),
+                            " FROM atelier_saved_search ORDER BY updated_at_utc DESC, name ASC;"
+                        ),
+                        EmptyBindings {},
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(saved_search_from_row).collect()
     }
 
     pub async fn delete_saved_search(&self, saved_search_id: Uuid) -> AtelierResult<bool> {
-        let removed = sqlx::query("DELETE FROM atelier_saved_search WHERE saved_search_id = $1")
-            .bind(saved_search_id)
-            .execute(self.pool())
-            .await?;
-        if removed.rows_affected() == 0 {
+        let removed: Option<bool> = self.store().with_data_operation(move |ctx| Box::pin(async move { ctx.query_first("RETURN { LET $rid=type::record('atelier_saved_search',$value); LET $exists=record::exists($rid); IF $exists { DELETE $rid; }; RETURN $exists; };",UuidBinding{value:saved_search_id.into()}).await })).await?;
+        if !removed.unwrap_or(false) {
             return Ok(false);
         }
         self.record_event(
@@ -1193,21 +1447,44 @@ impl AtelierStore {
             )));
         }
         let limit = limit.clamp(1, 100);
-        let rows = sqlx::query(
-            r#"SELECT saved_search_id, asset_id, content_hash, artifact_ref, jump_target,
-                      tags_json, favorite, rating, matched_color_hex, content_tier, view_mode
-               FROM atelier_saved_search_retrieval_projection
-               WHERE saved_search_id = $1
-               ORDER BY rating DESC, favorite DESC, created_at_utc DESC, asset_id ASC
-               LIMIT $2"#,
-        )
-        .bind(saved_search_id)
-        .bind(limit)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter()
+        let saved = self
+            .get_saved_search(saved_search_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("saved_search_id={saved_search_id}")))?;
+        #[derive(SurrealValue)]
+        struct RunSavedBindings {
+            saved_search_id: SurrealUuid,
+            limit: i64,
+        }
+        let rows: Vec<SavedSearchProjectionRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
+            ctx.query_values("SELECT $saved_search_id AS saved_search_id, asset_id, content_hash, artifact_ref, string::concat('atelier://image/',<string>asset_id) AS jump_target, (SELECT VALUE tag_id.text FROM atelier_media_asset_tag WHERE asset_id=$parent.id) AS tags_json, (SELECT VALUE favorite FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? false AS favorite, (SELECT VALUE rating FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? 0 AS rating, NONE AS matched_color_hex, NONE AS content_tier, 'NSFW' AS view_mode FROM atelier_media_asset ORDER BY created_at_utc DESC LIMIT $limit;", RunSavedBindings{saved_search_id:saved_search_id.into(),limit}).await
+        })).await?;
+        let mut hits: Vec<SavedSearchProjectionHit> = rows
+            .into_iter()
             .map(saved_search_projection_hit_from_row)
-            .collect()
+            .collect::<AtelierResult<_>>()?;
+        hits.retain(|hit| {
+            saved
+                .filters
+                .include_tags
+                .iter()
+                .all(|tag| hit.tags.contains(tag))
+                && saved
+                    .filters
+                    .exclude_tags
+                    .iter()
+                    .all(|tag| !hit.tags.contains(tag))
+                && saved
+                    .filters
+                    .min_rating
+                    .is_none_or(|rating| hit.rating >= rating)
+                && saved
+                    .filters
+                    .favorite
+                    .is_none_or(|favorite| hit.favorite == favorite)
+        });
+        hits.truncate(limit as usize);
+        Ok(hits)
     }
 
     // ----- Tag dictionary -------------------------------------------------
@@ -1222,27 +1499,39 @@ impl AtelierStore {
                 "tag text must not be empty".into(),
             ));
         }
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_tag (text)
-               VALUES ($1)
-               ON CONFLICT (text) DO UPDATE SET text = EXCLUDED.text
-               RETURNING tag_id, text, created_at_utc"#,
-        )
-        .bind(&norm)
-        .fetch_one(self.pool())
-        .await?;
-        Ok(tag_from_row(&row))
+        let existing: Option<TagRow> = self.store().with_data_operation({ let b=TextBinding{text:norm.clone()}; move |ctx| Box::pin(async move { ctx.query_first("SELECT tag_id,text,created_at_utc FROM atelier_tag WHERE text=$text LIMIT 1;",b).await })}).await?;
+        if let Some(row) = existing {
+            return Ok(tag_from_row(row));
+        }
+        let tag_id = Uuid::now_v7();
+        #[derive(SurrealValue)]
+        struct CreateTagBindings {
+            rid: RecordId,
+            tag_id: SurrealUuid,
+            text: String,
+        }
+        let row: Option<TagRow> = self.store().with_data_operation(move |ctx| Box::pin(async move { ctx.query_first("RETURN { CREATE $rid CONTENT {tag_id:$tag_id,text:$text}; RETURN (SELECT tag_id,text,created_at_utc FROM $rid); };",CreateTagBindings{rid:RecordId::new("atelier_tag",SurrealUuid::from(tag_id)),tag_id:tag_id.into(),text:norm}).await })).await?;
+        Ok(tag_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("creating tag returned no row".into())
+        })?))
     }
 
     /// List every tag in the dictionary (ascending text). Mirrors the operator
     /// "all tags" picker in legacy source `listAllTags`.
     pub async fn list_all_tags(&self) -> AtelierResult<Vec<Tag>> {
-        let rows = sqlx::query(
-            r#"SELECT tag_id, text, created_at_utc FROM atelier_tag ORDER BY text ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(tag_from_row).collect())
+        let rows: Vec<TagRow> = self
+            .store()
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT tag_id,text,created_at_utc FROM atelier_tag ORDER BY text ASC;",
+                        EmptyBindings {},
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(tag_from_row).collect())
     }
 
     // ----- Manual / bulk tagging -----------------------------------------
@@ -1257,33 +1546,39 @@ impl AtelierStore {
         tag_type: TagType,
     ) -> AtelierResult<CharacterTag> {
         let tag = self.ensure_tag(text).await?;
-        sqlx::query(
-            r#"INSERT INTO atelier_character_tag (character_internal_id, tag_id, tag_type)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (character_internal_id, tag_id)
-               DO UPDATE SET tag_type = EXCLUDED.tag_type"#,
-        )
-        .bind(character_internal_id)
-        .bind(tag.tag_id)
-        .bind(tag_type.as_str())
-        .execute(self.pool())
-        .await?;
-
-        self.record_event(
-            search_event_family::CHARACTER_TAGGED,
-            "atelier_character_tag",
-            &event_ref_for_text(&format!(
-                "character-tag:{}:{}",
-                character_internal_id, tag.tag_id
-            )),
-            serde_json::json!({
-                "character_internal_id": character_internal_id,
-                "tag_id": tag.tag_id,
-                "text": tag.text,
-                "tag_type": tag_type.as_str(),
-            }),
-        )
-        .await?;
+        let bindings = TagCharacterBindings {
+            rid: RecordId::new(
+                "atelier_character_tag",
+                surrealdb::types::Array::from(vec![
+                    SurrealUuid::from(character_internal_id),
+                    SurrealUuid::from(tag.tag_id),
+                ]),
+            ),
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(character_internal_id),
+            ),
+            tag_ref: RecordId::new("atelier_tag", SurrealUuid::from(tag.tag_id)),
+            tag_type: tag_type.as_str().to_owned(),
+        };
+        let _: Option<bool> = self
+            .write_with_event(
+                TAG_CHARACTER_STATEMENT,
+                bindings,
+                search_event_family::CHARACTER_TAGGED,
+                "atelier_character_tag",
+                &event_ref_for_text(&format!(
+                    "character-tag:{}:{}",
+                    character_internal_id, tag.tag_id
+                )),
+                serde_json::json!({
+                    "character_internal_id": character_internal_id,
+                    "tag_id": tag.tag_id,
+                    "text": tag.text,
+                    "tag_type": tag_type.as_str(),
+                }),
+            )
+            .await?;
 
         Ok(CharacterTag {
             character_internal_id,
@@ -1324,20 +1619,13 @@ impl AtelierStore {
         text: &str,
     ) -> AtelierResult<bool> {
         let norm = normalize_tag(text);
-        let removed = sqlx::query(
-            r#"DELETE FROM atelier_character_tag ct
-               USING atelier_tag t
-               WHERE ct.tag_id = t.tag_id
-                 AND ct.character_internal_id = $1
-                 AND t.text = $2
-                 AND ct.tag_type = 'manual'"#,
-        )
-        .bind(character_internal_id)
-        .bind(&norm)
-        .execute(self.pool())
-        .await?;
-
-        if removed.rows_affected() == 0 {
+        #[derive(SurrealValue)]
+        struct UntagBindings {
+            character_ref: RecordId,
+            text: String,
+        }
+        let removed: Option<bool> = self.store().with_data_operation({let b=UntagBindings{character_ref:RecordId::new("atelier_character",SurrealUuid::from(character_internal_id)),text:norm.clone()}; move |ctx| Box::pin(async move {ctx.query_first("RETURN { LET $tags=(SELECT VALUE id FROM atelier_tag WHERE text=$text); LET $rows=(SELECT VALUE id FROM atelier_character_tag WHERE character_internal_id=$character_ref AND tag_id IN $tags AND tag_type='manual'); IF array::len($rows)>0 { DELETE atelier_character_tag WHERE id IN $rows; }; RETURN array::len($rows)>0; };",b).await})}).await?;
+        if !removed.unwrap_or(false) {
             return Ok(false);
         }
 
@@ -1363,32 +1651,8 @@ impl AtelierStore {
         &self,
         character_internal_id: Uuid,
     ) -> AtelierResult<Vec<CharacterTag>> {
-        let rows = sqlx::query(
-            r#"SELECT ct.character_internal_id, ct.tag_id, t.text, ct.tag_type
-               FROM atelier_character_tag ct
-               JOIN atelier_tag t ON t.tag_id = ct.tag_id
-               WHERE ct.character_internal_id = $1
-               ORDER BY t.text ASC"#,
-        )
-        .bind(character_internal_id)
-        .fetch_all(self.pool())
-        .await?;
-
-        let mut out = Vec::with_capacity(rows.len());
-        for row in &rows {
-            let tag_type_raw: String = row.get("tag_type");
-            let tag_type = match tag_type_raw.as_str() {
-                "derived" => TagType::Derived,
-                _ => TagType::Manual,
-            };
-            out.push(CharacterTag {
-                character_internal_id: row.get("character_internal_id"),
-                tag_id: row.get("tag_id"),
-                text: row.get("text"),
-                tag_type,
-            });
-        }
-        Ok(out)
+        let rows:Vec<CharacterTagRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_values("SELECT record::id(character_internal_id) AS character_internal_id,record::id(tag_id) AS tag_id,tag_id.text AS text,tag_type FROM atelier_character_tag WHERE character_internal_id=$value ORDER BY text ASC;",RecordBinding{value:RecordId::new("atelier_character",SurrealUuid::from(character_internal_id))}).await})).await?;
+        rows.into_iter().map(character_tag_from_row).collect()
     }
 
     // ----- AI tag suggestions --------------------------------------------
@@ -1410,66 +1674,77 @@ impl AtelierStore {
         validate_ai_tag_receipt_ref("tool_receipt_ref", &new.tool_receipt_ref)?;
         let suggested_by = require_ai_tag_actor("suggested_by", &new.suggested_by)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_ai_tag_suggestion
-                 (character_internal_id, asset_id, tag_text, confidence,
-                  model_receipt_ref, tool_receipt_ref, suggested_by, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposed')
-               RETURNING suggestion_id, character_internal_id, asset_id, tag_text,
-                         confidence, model_receipt_ref, tool_receipt_ref,
-                         suggested_by, status, decided_by, decision_reason,
-                         applied_tag_id, created_at_utc, updated_at_utc"#,
-        )
-        .bind(new.character_internal_id)
-        .bind(new.asset_id)
-        .bind(&tag_text)
-        .bind(confidence)
-        .bind(&new.model_receipt_ref)
-        .bind(&new.tool_receipt_ref)
-        .bind(suggested_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let suggestion = ai_tag_suggestion_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
+        let suggestion_id = Uuid::now_v7();
+        let bindings = AiSuggestionBindings {
+            rid: RecordId::new(
+                "atelier_ai_tag_suggestion",
+                SurrealUuid::from(suggestion_id),
+            ),
+            suggestion_id: suggestion_id.into(),
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(new.character_internal_id),
+            ),
+            asset_ref: new
+                .asset_id
+                .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(id))),
+            tag_text: tag_text.clone(),
+            confidence,
+            model_receipt_ref: new.model_receipt_ref.clone(),
+            tool_receipt_ref: new.tool_receipt_ref.clone(),
+            suggested_by: suggested_by.to_owned(),
+        };
+        let row:Option<AiTagSuggestionRow>=self.write_with_event(
+            CREATE_AI_SUGGESTION,
+            bindings,
             search_event_family::AI_TAG_SUGGESTION_RECORDED,
             "atelier_ai_tag_suggestion",
-            &suggestion.suggestion_id.to_string(),
+            &suggestion_id.to_string(),
             serde_json::json!({
-                "suggestion_id": suggestion.suggestion_id,
-                "character_internal_id": suggestion.character_internal_id,
-                "asset_id": suggestion.asset_id,
-                "tag_text": suggestion.tag_text,
-                "confidence": suggestion.confidence,
-                "model_receipt_ref": suggestion.model_receipt_ref,
-                "tool_receipt_ref": suggestion.tool_receipt_ref,
-                "suggested_by": suggestion.suggested_by,
-                "status": suggestion.status.as_str(),
+                "suggestion_id": suggestion_id,"character_internal_id":new.character_internal_id,
+                "asset_id":new.asset_id,"tag_text":tag_text,"confidence":confidence,
+                "model_receipt_ref":new.model_receipt_ref,"tool_receipt_ref":new.tool_receipt_ref,
+                "suggested_by":suggested_by,"status":"proposed",
             }),
+        ).await?;
+        ai_tag_suggestion_from_row(
+            row.ok_or_else(|| {
+                AtelierError::Internal("AI suggestion create returned no row".into())
+            })?,
         )
-        .await?;
-        tx.commit().await?;
-        Ok(suggestion)
     }
 
     pub async fn list_ai_tag_suggestions_for_character(
         &self,
         character_internal_id: Uuid,
     ) -> AtelierResult<Vec<AiTagSuggestion>> {
-        let rows = sqlx::query(
-            r#"SELECT suggestion_id, character_internal_id, asset_id, tag_text,
-                      confidence, model_receipt_ref, tool_receipt_ref,
-                      suggested_by, status, decided_by, decision_reason,
-                      applied_tag_id, created_at_utc, updated_at_utc
-               FROM atelier_ai_tag_suggestion
-               WHERE character_internal_id = $1
-               ORDER BY created_at_utc ASC, suggestion_id ASC"#,
-        )
-        .bind(character_internal_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(ai_tag_suggestion_from_row).collect()
+        let rows:Vec<AiTagSuggestionRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_values(concat!("SELECT ",ai_suggestion_select!()," FROM atelier_ai_tag_suggestion WHERE character_internal_id=$value ORDER BY created_at_utc,suggestion_id;"),RecordBinding{value:RecordId::new("atelier_character",SurrealUuid::from(character_internal_id))}).await})).await?;
+        rows.into_iter().map(ai_tag_suggestion_from_row).collect()
+    }
+
+    async fn get_ai_tag_suggestion_record(
+        &self,
+        suggestion_id: Uuid,
+    ) -> AtelierResult<Option<AiTagSuggestion>> {
+        let row: Option<AiTagSuggestionRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            ai_suggestion_select!(),
+                            " FROM atelier_ai_tag_suggestion WHERE suggestion_id=$value LIMIT 1;"
+                        ),
+                        UuidBinding {
+                            value: suggestion_id.into(),
+                        },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(ai_tag_suggestion_from_row).transpose()
     }
 
     pub async fn accept_ai_tag_suggestion(
@@ -1504,66 +1779,43 @@ impl AtelierStore {
     ) -> AtelierResult<AiTagSuggestion> {
         let decided_by = require_ai_tag_actor("decided_by", &decision.decided_by)?;
         let reason = normalize_ai_tag_reason(&decision.reason)?;
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_ai_tag_suggestion
-               SET status = $2,
-                   decided_by = $3,
-                   decision_reason = $4,
-                   updated_at_utc = NOW()
-               WHERE suggestion_id = $1
-                 AND status = 'proposed'
-               RETURNING suggestion_id, character_internal_id, asset_id, tag_text,
-                         confidence, model_receipt_ref, tool_receipt_ref,
-                         suggested_by, status, decided_by, decision_reason,
-                         applied_tag_id, created_at_utc, updated_at_utc"#,
-        )
-        .bind(decision.suggestion_id)
-        .bind(next_status.as_str())
-        .bind(decided_by)
-        .bind(&reason)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            let current_status: Option<String> = sqlx::query_scalar(
-                "SELECT status FROM atelier_ai_tag_suggestion WHERE suggestion_id = $1",
-            )
-            .bind(decision.suggestion_id)
-            .fetch_optional(&mut *tx)
-            .await?;
-            return match current_status {
-                None => Err(AtelierError::NotFound(format!(
-                    "ai tag suggestion_id={}",
-                    decision.suggestion_id
-                ))),
-                Some(status) => Err(AtelierError::Validation(format!(
-                    "AI tag suggestion {} is not proposed (status={status})",
-                    decision.suggestion_id
-                ))),
-            };
+        let current = self
+            .get_ai_tag_suggestion_record(decision.suggestion_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("ai tag suggestion_id={}", decision.suggestion_id))
+            })?;
+        if current.status != AiTagSuggestionStatus::Proposed {
+            return Err(AtelierError::Validation(format!(
+                "AI tag suggestion {} is not proposed (status={})",
+                decision.suggestion_id,
+                current.status.as_str()
+            )));
+        }
+        let bindings = AiDecisionBindings {
+            rid: RecordId::new(
+                "atelier_ai_tag_suggestion",
+                SurrealUuid::from(decision.suggestion_id),
+            ),
+            status: next_status.as_str().to_owned(),
+            decided_by: decided_by.to_owned(),
+            decision_reason: reason.clone(),
         };
-        let suggestion = ai_tag_suggestion_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
+        let row:Option<AiTagSuggestionRow>=self.write_with_event(
+            DECIDE_AI_SUGGESTION,
+            bindings,
             event_family,
             "atelier_ai_tag_suggestion",
-            &suggestion.suggestion_id.to_string(),
+            &decision.suggestion_id.to_string(),
             serde_json::json!({
-                "suggestion_id": suggestion.suggestion_id,
-                "character_internal_id": suggestion.character_internal_id,
-                "asset_id": suggestion.asset_id,
-                "tag_text": suggestion.tag_text,
-                "status": suggestion.status.as_str(),
-                "decided_by": suggestion.decided_by,
-                "decision_reason_ref": suggestion
-                    .decision_reason
-                    .as_ref()
-                    .map(|reason| event_ref_for_text(reason)),
+                "suggestion_id":decision.suggestion_id,"character_internal_id":current.character_internal_id,
+                "asset_id":current.asset_id,"tag_text":current.tag_text,"status":next_status.as_str(),
+                "decided_by":decided_by,"decision_reason_ref":reason.as_ref().map(|value|event_ref_for_text(value)),
             }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(suggestion)
+        ).await?;
+        ai_tag_suggestion_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("AI suggestion decision returned no row".into())
+        })?)
     }
 
     pub async fn apply_ai_tag_suggestion(
@@ -1572,26 +1824,14 @@ impl AtelierStore {
         applied_by: &str,
     ) -> AtelierResult<AiTagSuggestion> {
         let applied_by = require_ai_tag_actor("applied_by", applied_by)?;
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"SELECT suggestion_id, character_internal_id, asset_id, tag_text,
-                      confidence, model_receipt_ref, tool_receipt_ref,
-                      suggested_by, status, decided_by, decision_reason,
-                      applied_tag_id, created_at_utc, updated_at_utc
-               FROM atelier_ai_tag_suggestion
-               WHERE suggestion_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(suggestion_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("ai tag suggestion_id={suggestion_id}")))?;
-        let current = ai_tag_suggestion_from_row(&row)?;
+        let current = self
+            .get_ai_tag_suggestion_record(suggestion_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("ai tag suggestion_id={suggestion_id}"))
+            })?;
         match current.status {
-            AiTagSuggestionStatus::Applied => {
-                tx.commit().await?;
-                return Ok(current);
-            }
+            AiTagSuggestionStatus::Applied => return Ok(current),
             AiTagSuggestionStatus::Accepted => {}
             status => {
                 return Err(AtelierError::Validation(format!(
@@ -1601,62 +1841,44 @@ impl AtelierStore {
             }
         }
 
-        let tag_id: Uuid = sqlx::query_scalar(
-            r#"INSERT INTO atelier_tag (text)
-               VALUES ($1)
-               ON CONFLICT (text) DO UPDATE SET text = EXCLUDED.text
-               RETURNING tag_id"#,
-        )
-        .bind(&current.tag_text)
-        .fetch_one(&mut *tx)
-        .await?;
-        sqlx::query(
-            r#"INSERT INTO atelier_character_tag
-                 (character_internal_id, tag_id, tag_type)
-               VALUES ($1, $2, 'manual')
-               ON CONFLICT (character_internal_id, tag_id)
-               DO UPDATE SET tag_type = 'manual'"#,
-        )
-        .bind(current.character_internal_id)
-        .bind(tag_id)
-        .execute(&mut *tx)
-        .await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_ai_tag_suggestion
-               SET status = 'applied',
-                   decided_by = COALESCE(decided_by, $2),
-                   applied_tag_id = $3,
-                   updated_at_utc = NOW()
-               WHERE suggestion_id = $1
-               RETURNING suggestion_id, character_internal_id, asset_id, tag_text,
-                         confidence, model_receipt_ref, tool_receipt_ref,
-                         suggested_by, status, decided_by, decision_reason,
-                         applied_tag_id, created_at_utc, updated_at_utc"#,
-        )
-        .bind(suggestion_id)
-        .bind(applied_by)
-        .bind(tag_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        let applied = ai_tag_suggestion_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
+        let tag = self.ensure_tag(&current.tag_text).await?;
+        let tag_id = tag.tag_id;
+        let bindings = ApplyAiBindings {
+            rid: RecordId::new(
+                "atelier_ai_tag_suggestion",
+                SurrealUuid::from(suggestion_id),
+            ),
+            link_rid: RecordId::new(
+                "atelier_character_tag",
+                surrealdb::types::Array::from(vec![
+                    SurrealUuid::from(current.character_internal_id),
+                    SurrealUuid::from(tag_id),
+                ]),
+            ),
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(current.character_internal_id),
+            ),
+            tag_ref: RecordId::new("atelier_tag", SurrealUuid::from(tag_id)),
+            applied_by: applied_by.to_owned(),
+        };
+        let row:Option<AiTagSuggestionRow>=self.write_with_event(
+            APPLY_AI_SUGGESTION,
+            bindings,
             search_event_family::AI_TAG_SUGGESTION_APPLIED,
             "atelier_ai_tag_suggestion",
-            &applied.suggestion_id.to_string(),
+            &suggestion_id.to_string(),
             serde_json::json!({
-                "suggestion_id": applied.suggestion_id,
-                "character_internal_id": applied.character_internal_id,
-                "asset_id": applied.asset_id,
-                "tag_id": tag_id,
-                "tag_text": applied.tag_text,
-                "status": applied.status.as_str(),
-                "applied_by": applied_by,
+                "suggestion_id":suggestion_id,"character_internal_id":current.character_internal_id,
+                "asset_id":current.asset_id,"tag_id":tag_id,"tag_text":current.tag_text,
+                "status":"applied","applied_by":applied_by,
             }),
+        ).await?;
+        ai_tag_suggestion_from_row(
+            row.ok_or_else(|| {
+                AtelierError::Internal("AI suggestion apply returned no row".into())
+            })?,
         )
-        .await?;
-        tx.commit().await?;
-        Ok(applied)
     }
 
     // ----- Saved tag rules -----------------------------------------------
@@ -1674,60 +1896,62 @@ impl AtelierStore {
                 "tag rule emit_tag must not be empty".into(),
             ));
         }
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_tag_rule
-                 (source_field_id, match_type, pattern, emit_tag, enabled)
-               VALUES ($1, $2, $3, $4, $5)
-               RETURNING rule_id, source_field_id, match_type, pattern, emit_tag,
-                         enabled, created_at_utc, updated_at_utc"#,
+        let rule_id = Uuid::now_v7();
+        let emit_tag = normalize_tag(&new.emit_tag);
+        let bindings = TagRuleBindings {
+            rid: RecordId::new("atelier_tag_rule", SurrealUuid::from(rule_id)),
+            rule_id: rule_id.into(),
+            source_field_id: new.source_field_id.clone(),
+            match_type: new.match_type.as_str().to_owned(),
+            pattern: new.pattern.clone(),
+            emit_tag: emit_tag.clone(),
+            enabled: new.enabled,
+        };
+        let row: Option<TagRuleRow> = self
+            .write_with_event(
+                UPSERT_TAG_RULE,
+                bindings,
+                search_event_family::TAG_RULE_UPSERTED,
+                "atelier_tag_rule",
+                &rule_id.to_string(),
+                serde_json::json!({
+                    "rule_id":rule_id,"source_field_id":new.source_field_id,
+                    "match_type":new.match_type.as_str(),"emit_tag":emit_tag,"op":"create",
+                }),
+            )
+            .await?;
+        rule_from_row(
+            row.ok_or_else(|| AtelierError::Internal("tag rule create returned no row".into()))?,
         )
-        .bind(&new.source_field_id)
-        .bind(new.match_type.as_str())
-        .bind(&new.pattern)
-        .bind(normalize_tag(&new.emit_tag))
-        .bind(new.enabled)
-        .fetch_one(self.pool())
-        .await?;
-        let rule = rule_from_row(&row)?;
-
-        self.record_event(
-            search_event_family::TAG_RULE_UPSERTED,
-            "atelier_tag_rule",
-            &rule.rule_id.to_string(),
-            serde_json::json!({
-                "rule_id": rule.rule_id,
-                "source_field_id": rule.source_field_id,
-                "match_type": rule.match_type.as_str(),
-                "emit_tag": rule.emit_tag,
-                "op": "create",
-            }),
-        )
-        .await?;
-        Ok(rule)
     }
 
     /// List saved tag rules in deterministic order (`rule_id ASC`), matching the
     /// legacy source `_upsertDerivedTags` ordering so derived tags are reproducible.
     pub async fn list_tag_rules(&self) -> AtelierResult<Vec<TagRule>> {
-        let rows = sqlx::query(
-            r#"SELECT rule_id, source_field_id, match_type, pattern, emit_tag,
-                      enabled, created_at_utc, updated_at_utc
-               FROM atelier_tag_rule
-               ORDER BY rule_id ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(rule_from_row).collect()
+        let rows: Vec<TagRuleRow> = self
+            .store()
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        concat!(
+                            "SELECT ",
+                            rule_select!(),
+                            " FROM atelier_tag_rule ORDER BY rule_id ASC;"
+                        ),
+                        EmptyBindings {},
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(rule_from_row).collect()
     }
 
     /// Delete a saved tag rule. Emits `TAG_RULE_DELETED` when a row was removed.
     /// Mirrors legacy source `deleteTagRule`.
     pub async fn delete_tag_rule(&self, rule_id: Uuid) -> AtelierResult<bool> {
-        let removed = sqlx::query("DELETE FROM atelier_tag_rule WHERE rule_id = $1")
-            .bind(rule_id)
-            .execute(self.pool())
-            .await?;
-        if removed.rows_affected() == 0 {
+        let removed:Option<bool>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_first("RETURN { LET $rid=type::record('atelier_tag_rule',$value);LET $exists=record::exists($rid);IF $exists {DELETE $rid;};RETURN $exists;};",UuidBinding{value:rule_id.into()}).await})).await?;
+        if !removed.unwrap_or(false) {
             return Ok(false);
         }
         self.record_event(
@@ -1778,38 +2002,21 @@ impl AtelierStore {
             }
         }
 
-        let mut tx = self.pool().begin().await?;
-        sqlx::query(
-            r#"DELETE FROM atelier_character_tag
-               WHERE character_internal_id = $1 AND tag_type = 'derived'"#,
-        )
-        .bind(character_internal_id)
-        .execute(&mut *tx)
-        .await?;
-
+        let mut items = Vec::new();
         for text in &emitted {
-            let tag_id: Uuid = sqlx::query_scalar(
-                r#"INSERT INTO atelier_tag (text)
-                   VALUES ($1)
-                   ON CONFLICT (text) DO UPDATE SET text = EXCLUDED.text
-                   RETURNING tag_id"#,
-            )
-            .bind(text)
-            .fetch_one(&mut *tx)
-            .await?;
-            sqlx::query(
-                r#"INSERT INTO atelier_character_tag
-                     (character_internal_id, tag_id, tag_type)
-                   VALUES ($1, $2, 'derived')
-                   ON CONFLICT (character_internal_id, tag_id)
-                   DO UPDATE SET tag_type = 'derived'"#,
-            )
-            .bind(character_internal_id)
-            .bind(tag_id)
-            .execute(&mut *tx)
-            .await?;
+            let tag = self.ensure_tag(text).await?;
+            items.push(DerivedTagInput {
+                rid: RecordId::new(
+                    "atelier_character_tag",
+                    surrealdb::types::Array::from(vec![
+                        SurrealUuid::from(character_internal_id),
+                        SurrealUuid::from(tag.tag_id),
+                    ]),
+                ),
+                tag_ref: RecordId::new("atelier_tag", SurrealUuid::from(tag.tag_id)),
+            });
         }
-        tx.commit().await?;
+        self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_first::<bool,_>("RETURN { DELETE atelier_character_tag WHERE character_internal_id=$character_ref AND tag_type='derived';FOR $item IN $items {UPSERT $item.rid SET character_internal_id=$character_ref,tag_id=$item.tag_ref,tag_type='derived';};RETURN true;};",DerivedTagsBindings{character_ref:RecordId::new("atelier_character",SurrealUuid::from(character_internal_id)),items}).await})).await?;
 
         let derived: Vec<String> = emitted.into_iter().collect();
         self.record_event(
@@ -1851,40 +2058,33 @@ impl AtelierStore {
             None => None,
         };
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_similarity_projection
-                 (asset_internal_id, dhash_hex, palette_json)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (asset_internal_id)
-               DO UPDATE SET dhash_hex = EXCLUDED.dhash_hex,
-                             palette_json = EXCLUDED.palette_json,
-                             updated_at_utc = NOW()
-               RETURNING asset_internal_id, dhash_hex, palette_json, updated_at_utc"#,
-        )
-        .bind(asset_internal_id)
-        .bind(&normalized_hash)
-        .bind(&palette)
-        .fetch_one(self.pool())
-        .await?;
-
-        let projection = SimilarityProjection {
-            asset_internal_id: row.get("asset_internal_id"),
-            dhash_hex: row.get("dhash_hex"),
-            palette_json: row.get("palette_json"),
-            updated_at_utc: row.get("updated_at_utc"),
+        let bindings = ProjectionBindings {
+            rid: RecordId::new(
+                "atelier_similarity_projection",
+                SurrealUuid::from(asset_internal_id),
+            ),
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_internal_id)),
+            dhash_hex: normalized_hash.clone(),
+            palette_json: palette,
         };
-
-        self.record_event(
-            search_event_family::SIMILARITY_PROJECTED,
-            "atelier_similarity_projection",
-            &asset_internal_id.to_string(),
-            serde_json::json!({
-                "asset_internal_id": asset_internal_id,
-                "has_dhash": projection.dhash_hex.is_some(),
-            }),
-        )
-        .await?;
-        Ok(projection)
+        let row: Option<SimilarityProjectionRow> = self
+            .write_with_event(
+                UPSERT_PROJECTION,
+                bindings,
+                search_event_family::SIMILARITY_PROJECTED,
+                "atelier_similarity_projection",
+                &asset_internal_id.to_string(),
+                serde_json::json!({
+                    "asset_internal_id": asset_internal_id,
+                    "has_dhash": normalized_hash.is_some(),
+                }),
+            )
+            .await?;
+        Ok(row
+            .ok_or_else(|| {
+                AtelierError::Internal("similarity projection upsert returned no row".into())
+            })?
+            .into())
     }
 
     /// Decode image bytes, compute a deterministic 64-bit dHash plus bounded
@@ -1908,19 +2108,17 @@ impl AtelierStore {
         requested_by: &str,
     ) -> AtelierResult<SimilarityRebuildJob> {
         let requested_by = require_similarity_rebuild_actor(requested_by)?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_similarity_rebuild_job
-                 (asset_internal_id, status, requested_by)
-               VALUES ($1, 'running', $2)
-               RETURNING job_id, asset_internal_id, status, requested_by,
-                         processed_count, failed_count, dhash_hex, palette_json,
-                         error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(asset_internal_id)
-        .bind(requested_by)
-        .fetch_one(self.pool())
-        .await?;
-        let running = similarity_rebuild_job_from_row(&row)?;
+        let job_id = Uuid::now_v7();
+        let create = RebuildJobBindings {
+            rid: RecordId::new("atelier_similarity_rebuild_job", SurrealUuid::from(job_id)),
+            job_id: job_id.into(),
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_internal_id)),
+            requested_by: requested_by.to_owned(),
+        };
+        let row:Option<SimilarityRebuildJobRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_first(concat!("RETURN { CREATE $rid CONTENT {job_id:$job_id,asset_internal_id:$asset_ref,status:'running',requested_by:$requested_by};RETURN (SELECT ",rebuild_select!()," FROM $rid);};"),create).await})).await?;
+        let running = similarity_rebuild_job_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("similarity rebuild create returned no row".into())
+        })?)?;
 
         let computed = compute_similarity_from_image_bytes(image_bytes);
         let (dhash_hex, palette_json) = match computed {
@@ -1928,23 +2126,24 @@ impl AtelierStore {
             Err(err) => {
                 let error_ref =
                     event_ref_for_text(&format!("similarity-rebuild:{}:{err}", running.job_id));
-                let row = sqlx::query(
-                    r#"UPDATE atelier_similarity_rebuild_job
-                       SET status = 'failed',
-                           processed_count = 0,
-                           failed_count = 1,
-                           error_ref = $2,
-                           updated_at_utc = NOW()
-                       WHERE job_id = $1
-                       RETURNING job_id, asset_internal_id, status, requested_by,
-                                 processed_count, failed_count, dhash_hex, palette_json,
-                                 error_ref, created_at_utc, updated_at_utc"#,
-                )
-                .bind(running.job_id)
-                .bind(&error_ref)
-                .fetch_one(self.pool())
-                .await?;
-                let failed = similarity_rebuild_job_from_row(&row)?;
+                let b = UpdateRebuildBindings {
+                    rid: RecordId::new(
+                        "atelier_similarity_rebuild_job",
+                        SurrealUuid::from(running.job_id),
+                    ),
+                    status: "failed".into(),
+                    processed_count: 0,
+                    failed_count: 1,
+                    dhash_hex: None,
+                    palette_json: None,
+                    error_ref: Some(error_ref.clone()),
+                };
+                let row:Option<SimilarityRebuildJobRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_first(concat!("RETURN { UPDATE $rid SET status=$status,processed_count=$processed_count,failed_count=$failed_count,dhash_hex=$dhash_hex,palette_json=$palette_json,error_ref=$error_ref,updated_at_utc=time::now();RETURN (SELECT ",rebuild_select!()," FROM $rid);};"),b).await})).await?;
+                let failed = similarity_rebuild_job_from_row(row.ok_or_else(|| {
+                    AtelierError::Internal(
+                        "similarity rebuild failure update returned no row".into(),
+                    )
+                })?)?;
                 self.record_event(
                     search_event_family::SIMILARITY_REBUILD_FAILED,
                     "atelier_similarity_rebuild_job",
@@ -1966,26 +2165,22 @@ impl AtelierStore {
         let projection = self
             .upsert_similarity_projection(asset_internal_id, Some(&dhash_hex), palette_json.clone())
             .await?;
-        let row = sqlx::query(
-            r#"UPDATE atelier_similarity_rebuild_job
-               SET status = 'completed',
-                   processed_count = 1,
-                   failed_count = 0,
-                   dhash_hex = $2,
-                   palette_json = $3,
-                   error_ref = NULL,
-                   updated_at_utc = NOW()
-               WHERE job_id = $1
-               RETURNING job_id, asset_internal_id, status, requested_by,
-                         processed_count, failed_count, dhash_hex, palette_json,
-                         error_ref, created_at_utc, updated_at_utc"#,
-        )
-        .bind(running.job_id)
-        .bind(&dhash_hex)
-        .bind(&projection.palette_json)
-        .fetch_one(self.pool())
-        .await?;
-        let completed = similarity_rebuild_job_from_row(&row)?;
+        let b = UpdateRebuildBindings {
+            rid: RecordId::new(
+                "atelier_similarity_rebuild_job",
+                SurrealUuid::from(running.job_id),
+            ),
+            status: "completed".into(),
+            processed_count: 1,
+            failed_count: 0,
+            dhash_hex: Some(dhash_hex.clone()),
+            palette_json: Some(projection.palette_json.clone()),
+            error_ref: None,
+        };
+        let row:Option<SimilarityRebuildJobRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_first(concat!("RETURN { UPDATE $rid SET status=$status,processed_count=$processed_count,failed_count=$failed_count,dhash_hex=$dhash_hex,palette_json=$palette_json,error_ref=$error_ref,updated_at_utc=time::now();RETURN (SELECT ",rebuild_select!()," FROM $rid);};"),b).await})).await?;
+        let completed = similarity_rebuild_job_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("similarity rebuild completion returned no row".into())
+        })?)?;
         self.record_event(
             search_event_family::SIMILARITY_REBUILD_COMPLETED,
             "atelier_similarity_rebuild_job",
@@ -2015,20 +2210,8 @@ impl AtelierStore {
         &self,
         asset_internal_id: Uuid,
     ) -> AtelierResult<Option<SimilarityProjection>> {
-        let row = sqlx::query(
-            r#"SELECT asset_internal_id, dhash_hex, palette_json, updated_at_utc
-               FROM atelier_similarity_projection
-               WHERE asset_internal_id = $1"#,
-        )
-        .bind(asset_internal_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.map(|row| SimilarityProjection {
-            asset_internal_id: row.get("asset_internal_id"),
-            dhash_hex: row.get("dhash_hex"),
-            palette_json: row.get("palette_json"),
-            updated_at_utc: row.get("updated_at_utc"),
-        }))
+        let row:Option<SimilarityProjectionRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_first(concat!("SELECT ",projection_select!()," FROM atelier_similarity_projection WHERE asset_internal_id=$value LIMIT 1;"),RecordBinding{value:RecordId::new("atelier_media_asset",SurrealUuid::from(asset_internal_id))}).await})).await?;
+        Ok(row.map(Into::into))
     }
 
     /// Find media assets perceptually similar to `target_hash` within a Hamming
@@ -2053,21 +2236,12 @@ impl AtelierStore {
         let thr = threshold.clamp(0, 64);
         let cap = if limit <= 0 { 50 } else { limit };
 
-        let rows = sqlx::query(
-            r#"SELECT asset_internal_id, dhash_hex
-               FROM atelier_similarity_projection
-               WHERE dhash_hex IS NOT NULL
-                 AND ($1::uuid IS NULL OR asset_internal_id <> $1)
-               ORDER BY asset_internal_id ASC"#,
-        )
-        .bind(exclude_asset_internal_id)
-        .fetch_all(self.pool())
-        .await?;
+        let rows:Vec<SimilarityCandidateRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_values("SELECT record::id(asset_internal_id) AS asset_internal_id,dhash_hex FROM atelier_similarity_projection WHERE dhash_hex != NONE AND ($value=NONE OR asset_internal_id != $value) ORDER BY asset_internal_id;",OptionalRecordBinding{value:exclude_asset_internal_id.map(|id|RecordId::new("atelier_media_asset",SurrealUuid::from(id)))}).await})).await?;
 
         let mut hits: Vec<SimilarityHit> = Vec::new();
-        for row in &rows {
-            let asset_internal_id: Uuid = row.get("asset_internal_id");
-            let dhash_hex: String = row.get("dhash_hex");
+        for row in rows {
+            let asset_internal_id: Uuid = row.asset_internal_id.into();
+            let dhash_hex = row.dhash_hex;
             let distance = hamming_distance_hex64(&target, &dhash_hex);
             if distance <= thr {
                 hits.push(SimilarityHit {
@@ -2091,6 +2265,7 @@ impl AtelierStore {
 #[cfg(test)]
 mod unit_tests {
     use super::*;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
 
     #[test]
     fn hex64_validation() {
@@ -2126,5 +2301,99 @@ mod unit_tests {
     fn tag_normalization() {
         assert_eq!(normalize_tag("  BlondE "), "blonde");
         assert_eq!(normalize_tag("Red Hair"), "red hair");
+    }
+
+    #[tokio::test]
+    async fn similarity_exclusion_uses_uuid_record_identity_in_embedded_surreal() {
+        #[derive(SurrealValue)]
+        struct SeedBindings {
+            excluded: RecordId,
+            included: RecordId,
+            excluded_hash: String,
+            included_hash: String,
+        }
+
+        let directory = tempfile::tempdir().expect("create isolated SurrealDB directory");
+        eprintln!("MT136_SIMILARITY_STEP open");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::for_data_dir(directory.path()).expect("build storage config"),
+        )
+        .await
+        .expect("open embedded SurrealDB");
+        eprintln!("MT136_SIMILARITY_STEP bootstrap");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap embedded SurrealDB schema");
+        eprintln!("MT136_SIMILARITY_STEP seed_assets");
+
+        let excluded_id = Uuid::now_v7();
+        let included_id = Uuid::now_v7();
+        let target_hash = "0000000000000000";
+        storage
+            .with_data_operation({
+                let bindings = SeedBindings {
+                    excluded: RecordId::new(
+                        "atelier_media_asset",
+                        SurrealUuid::from(excluded_id),
+                    ),
+                    included: RecordId::new(
+                        "atelier_media_asset",
+                        SurrealUuid::from(included_id),
+                    ),
+                    excluded_hash: format!("mt136-excluded-{excluded_id}"),
+                    included_hash: format!("mt136-included-{included_id}"),
+                };
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_values::<surrealdb::types::Value, _>(
+                            "CREATE $excluded CONTENT { asset_id: record::id($excluded), content_hash: $excluded_hash, mime: 'image/png', byte_len: 1, artifact_ref: 'artifact://mt136/excluded' } RETURN NONE; CREATE $included CONTENT { asset_id: record::id($included), content_hash: $included_hash, mime: 'image/png', byte_len: 1, artifact_ref: 'artifact://mt136/included' } RETURN NONE;",
+                            bindings,
+                        )
+                        .await
+                        .map(|_| ())
+                    })
+                }
+            })
+            .await
+            .expect("seed UUID-keyed media assets");
+
+        let store = AtelierStore::new(storage.clone());
+        eprintln!("MT136_SIMILARITY_STEP upsert_excluded");
+        store
+            .upsert_similarity_projection(excluded_id, Some(target_hash), serde_json::json!({}))
+            .await
+            .expect("store excluded projection");
+        eprintln!("MT136_SIMILARITY_STEP upsert_included");
+        store
+            .upsert_similarity_projection(
+                included_id,
+                Some("0000000000000001"),
+                serde_json::json!({}),
+            )
+            .await
+            .expect("store included projection");
+
+        eprintln!("MT136_SIMILARITY_STEP query_exclusion");
+        let hits = store
+            .find_similar_assets(target_hash, 4, 50, Some(excluded_id))
+            .await
+            .expect("query similarity projection with exclusion");
+        assert!(
+            hits.iter().any(|hit| hit.asset_internal_id == included_id),
+            "the non-excluded UUID-keyed asset must remain visible"
+        );
+        assert!(
+            hits.iter().all(|hit| hit.asset_internal_id != excluded_id),
+            "the excluded UUID-keyed asset must be absent"
+        );
+
+        eprintln!("MT136_SIMILARITY_STEP shutdown");
+        drop(store);
+        storage.shutdown().await.expect("close embedded SurrealDB");
+        drop(storage);
+        directory
+            .close()
+            .expect("remove isolated SurrealDB directory");
+        eprintln!("MT136_SIMILARITY_STEP complete");
     }
 }

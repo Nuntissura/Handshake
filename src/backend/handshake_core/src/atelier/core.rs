@@ -118,9 +118,7 @@ impl AtelierStore {
             })?;
         let character: Character = created
             .ok_or_else(|| {
-                AtelierError::Internal(
-                    "creating an atelier character returned no row".to_owned(),
-                )
+                AtelierError::Internal("creating an atelier character returned no row".to_owned())
             })?
             .into();
         self.record_event(

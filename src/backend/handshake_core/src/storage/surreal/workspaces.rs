@@ -24,6 +24,11 @@ struct WorkspaceRecord {
     updated_at: Datetime,
 }
 
+#[derive(SurrealValue)]
+struct WorkspaceDeleteBinding {
+    workspace: RecordId,
+}
+
 impl TryFrom<WorkspaceRecord> for Workspace {
     type Error = SurrealStorageError;
 
@@ -92,8 +97,26 @@ impl SurrealDataContext<'_> {
     }
 
     async fn delete_workspace_record(&self, id: &str) -> Result<bool, SurrealStorageError> {
-        let deleted: Option<WorkspaceRecord> = self.client.delete((WORKSPACES_TABLE, id)).await?;
-        Ok(deleted.is_some())
+        // A workspace owns Loom blocks through ON DELETE CASCADE, while placements and Atelier
+        // projections deliberately REJECT deletion of a referenced block. Remove those dependants,
+        // then the blocks, while the workspace and asset references are still valid. The final
+        // workspace delete can then cascade the remaining workspace-owned rows atomically.
+        let deleted = self
+            .query_values_at::<WorkspaceRecord, _>(
+                "BEGIN TRANSACTION; \
+                 DELETE atelier_intake_item_loom_projection WHERE workspace_id = $workspace; \
+                 DELETE loom_canvas_visual_edges WHERE workspace_id = $workspace; \
+                 DELETE loom_canvas_placements WHERE workspace_id = $workspace; \
+                 DELETE loom_blocks WHERE workspace_id = $workspace; \
+                 DELETE $workspace RETURN BEFORE; \
+                 COMMIT TRANSACTION;",
+                WorkspaceDeleteBinding {
+                    workspace: RecordId::new(WORKSPACES_TABLE, id.to_owned()),
+                },
+                5,
+            )
+            .await?;
+        Ok(!deleted.is_empty())
     }
 }
 

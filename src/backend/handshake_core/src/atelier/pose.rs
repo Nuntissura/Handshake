@@ -15,8 +15,8 @@
 //! Spec authority: master-spec-v02.189 module 10 (Photo Studio, 10.10; the
 //! Calibration Panel 10.10.4.1.9 is recorded but kept BLOCKED/unresolved here,
 //! never faked). Storage authority is the single Handshake store + EventLedger
-//! only (MT-004). PENDING the SurrealDB port — see the `atelier` module header
-//! (MT-138).
+//! only (MT-004), backed exclusively by embedded SurrealDB with no legacy
+//! database fallback.
 //!
 //! legacy source source (intent only; SQLite/Electron/localhost/polling never copied):
 //!   * `src/posekit/core.mjs` -- BODY_18 / HAND_21 / face-70 taxonomy,
@@ -45,12 +45,41 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use std::time::Duration;
+use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
+    AtelierStore,
 };
+
+struct PoseRow(serde_json::Map<String, serde_json::Value>);
+
+impl PoseRow {
+    fn get<T, I>(&self, field: I) -> T
+    where
+        T: serde::de::DeserializeOwned,
+        I: AsRef<str>,
+    {
+        let field = field.as_ref();
+        serde_json::from_value(
+            self.0
+                .get(field)
+                .unwrap_or_else(|| panic!("missing persisted pose field {field}"))
+                .clone(),
+        )
+        .unwrap_or_else(|err| panic!("invalid persisted pose field {field}: {err}"))
+    }
+}
+
+fn pose_row(value: serde_json::Value) -> AtelierResult<PoseRow> {
+    value
+        .as_object()
+        .cloned()
+        .map(PoseRow)
+        .ok_or_else(|| AtelierError::Internal("pose query returned a non-object row".to_owned()))
+}
 
 /// Pose / identity event families (extends the MT-005 coverage set). The parent
 /// wires these into [`super::event_family::ALL`].
@@ -1355,7 +1384,7 @@ fn to_json_value<T: Serialize>(label: &str, value: &T) -> AtelierResult<serde_js
         .map_err(|err| AtelierError::Validation(format!("{label} serialization failed: {err}")))
 }
 
-fn context_state_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseContextState> {
+fn context_state_from_row(row: &PoseRow) -> AtelierResult<PoseContextState> {
     let kind: String = row.get("kind");
     Ok(PoseContextState {
         context_id: row.get("context_id"),
@@ -1371,7 +1400,7 @@ fn context_state_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseCont
     })
 }
 
-fn workspace_rig_state_from_row(row: &sqlx::postgres::PgRow) -> PoseWorkspaceRigState {
+fn workspace_rig_state_from_row(row: &PoseRow) -> PoseWorkspaceRigState {
     PoseWorkspaceRigState {
         workspace_ref: row.get("workspace_ref"),
         session_ref: row.get("session_ref"),
@@ -1390,7 +1419,7 @@ fn workspace_rig_state_from_row(row: &sqlx::postgres::PgRow) -> PoseWorkspaceRig
     }
 }
 
-fn rig_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseRig> {
+fn rig_from_row(row: &PoseRow) -> AtelierResult<PoseRig> {
     let detector_status: String = row.get("detector_status");
     Ok(PoseRig {
         rig_id: row.get("rig_id"),
@@ -1416,7 +1445,7 @@ fn rig_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseRig> {
     })
 }
 
-fn sidecar_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseSidecar> {
+fn sidecar_from_row(row: &PoseRow) -> AtelierResult<PoseSidecar> {
     let kind: String = row.get("kind");
     let status: String = row.get("status");
     Ok(PoseSidecar {
@@ -1439,7 +1468,7 @@ fn sidecar_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseSidecar> {
     })
 }
 
-fn source_image_strip_item_from_row(row: &sqlx::postgres::PgRow) -> PoseSourceImageStripItem {
+fn source_image_strip_item_from_row(row: &PoseRow) -> PoseSourceImageStripItem {
     let rig_id: Uuid = row.get("rig_id");
     let source_asset_id: Option<Uuid> = row.get("source_asset_id");
     PoseSourceImageStripItem {
@@ -1483,7 +1512,7 @@ fn openpose_sidecar_strip_item_from_sidecar(sidecar: PoseSidecar) -> PoseOpenPos
     }
 }
 
-fn head_pose_from_row(row: &sqlx::postgres::PgRow) -> HeadPose {
+fn head_pose_from_row(row: &PoseRow) -> HeadPose {
     HeadPose {
         rig_id: row.get("rig_id"),
         yaw_deg: row.get("yaw_deg"),
@@ -1499,7 +1528,7 @@ fn head_pose_from_row(row: &sqlx::postgres::PgRow) -> HeadPose {
     }
 }
 
-fn calibration_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<Calibration> {
+fn calibration_from_row(row: &PoseRow) -> AtelierResult<Calibration> {
     let state: String = row.get("state");
     let marker_visibility_json: serde_json::Value = row.get("marker_visibility");
     let marker_colors_json: serde_json::Value = row.get("marker_colors");
@@ -1525,7 +1554,7 @@ fn calibration_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<Calibratio
     })
 }
 
-fn identity_profile_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<IdentityProfile> {
+fn identity_profile_from_row(row: &PoseRow) -> AtelierResult<IdentityProfile> {
     let kind: String = row.get("kind");
     Ok(IdentityProfile {
         profile_id: row.get("profile_id"),
@@ -1546,9 +1575,7 @@ fn identity_profile_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<Ident
     })
 }
 
-fn identity_crop_artifact_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<IdentityCropArtifact> {
+fn identity_crop_artifact_from_row(row: &PoseRow) -> AtelierResult<IdentityCropArtifact> {
     let crop_box_json: serde_json::Value = row.get("crop_box");
     let landmarks_json: serde_json::Value = row.get("landmarks");
     Ok(IdentityCropArtifact {
@@ -1574,37 +1601,634 @@ fn identity_crop_artifact_from_row(
     })
 }
 
-const RIG_COLUMNS: &str = "rig_id, character_internal_id, source_asset_id, source_ref, \
-                           content_hash, canvas_width, canvas_height, detector_provider, \
-                           detector_model, detector_model_version, source_asset_version_ref, \
-                           source_asset_path_ref, confidence_available, detector_status, \
-                           error_reason, keypoints_json, sidecar_ref, created_at_utc";
+#[derive(SurrealValue)]
+struct PoseRecordBinding {
+    record_id: RecordId,
+}
 
-const CONTEXT_STATE_COLUMNS: &str = "context_id, state_seq, workspace_ref, kind, source_asset_id, \
-                                     character_internal_id, collection_id, selected_rig_id, \
-                                     requested_by, created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct PoseRigWriteBindings {
+    record_id: RecordId,
+    character_ref: RecordId,
+    source_asset_ref: Option<RecordId>,
+    source_ref: String,
+    content_hash: String,
+    canvas_width: i32,
+    canvas_height: i32,
+    detector_provider: String,
+    detector_model: String,
+    detector_model_version: String,
+    source_asset_version_ref: Option<String>,
+    source_asset_path_ref: Option<String>,
+    confidence_available: bool,
+    detector_status: String,
+    error_reason: Option<String>,
+    keypoints_json: serde_json::Value,
+    sidecar_ref: Option<String>,
+}
 
-const WORKSPACE_RIG_STATE_COLUMNS: &str =
-    "state.workspace_ref, state.session_ref, state.rig_id, rig.character_internal_id, rig.source_asset_id, \
-     rig.source_ref, state.open, state.sort_order, state.active, state.dirty_calibration, \
-     state.panel_state, state.requested_by, state.created_at_utc, state.updated_at_utc";
+#[derive(SurrealValue)]
+struct PoseRigIdBinding {
+    rig_ref: RecordId,
+}
 
-const SIDECAR_COLUMNS: &str = "sidecar_id, rig_id, source_asset_id, source_ref, kind, role, \
-                               artifact_ref, manifest_ref, content_hash, byte_len, mime, width, height, \
-                               status, error_message, created_at_utc";
+#[derive(SurrealValue)]
+struct PoseRigIdentityBinding {
+    character_ref: RecordId,
+    source_ref: String,
+    content_hash: String,
+}
 
-const PROFILE_COLUMNS: &str = "profile_id, character_internal_id, seq, version, kind, name, description, \
-                               reference_asset_id, reference_ref, source_ref, crop_ref, artifact_ref, \
-                               provenance, created_at_utc, updated_at_utc";
+#[derive(SurrealValue)]
+struct PoseRigListBindings {
+    character_ref: RecordId,
+    limit: i64,
+}
 
-const IDENTITY_CROP_COLUMNS: &str = "crop_id, profile_id, profile_version, character_internal_id, \
-                                     source_ref, crop_box, landmarks, artifact_ref, manifest_ref, \
-                                     content_hash, byte_len, mime, width, height, manifest, \
-                                     created_by, created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct PoseContextWriteBindings {
+    record_id: RecordId,
+    context_id: SurrealUuid,
+    workspace_ref: String,
+    kind: String,
+    source_asset_ref: Option<RecordId>,
+    character_ref: Option<RecordId>,
+    collection_ref: Option<RecordId>,
+    selected_rig_ref: Option<RecordId>,
+    requested_by: String,
+}
 
-const CALIBRATION_COLUMNS: &str =
-    "rig_id, state, block_reason, head_pose_ref, marker_visibility, marker_colors, \
-     hand_rows, history_refs, created_at_utc, updated_at_utc";
+#[derive(SurrealValue)]
+struct PoseWorkspaceBinding {
+    workspace_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct PoseWorkspaceRigWriteBindings {
+    record_id: RecordId,
+    workspace_ref: String,
+    session_ref: String,
+    rig_ref: RecordId,
+    open: bool,
+    sort_order: i32,
+    active: bool,
+    dirty_calibration: bool,
+    panel_state: serde_json::Value,
+    requested_by: String,
+}
+
+#[derive(SurrealValue)]
+struct PoseWorkspaceSessionBinding {
+    workspace_ref: String,
+    session_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct PoseSidecarWriteBindings {
+    record_id: RecordId,
+    rig_ref: RecordId,
+    source_asset_ref: Option<RecordId>,
+    source_ref: String,
+    kind: String,
+    role: String,
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    mime: String,
+    width: i32,
+    height: i32,
+    status: String,
+    error_message: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct PoseSidecarSourceBinding {
+    source_ref: String,
+    rig_ref: Option<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct PoseSidecarIdentityBinding {
+    rig_ref: RecordId,
+    kind: String,
+}
+
+#[derive(SurrealValue)]
+struct PoseSourceStripBindings {
+    character_ref: RecordId,
+    limit: i64,
+}
+
+macro_rules! rig_columns {
+    () => {
+        "rig_id, record::id(character_internal_id) AS character_internal_id, \
+         IF source_asset_id = NONE { NONE } ELSE { record::id(source_asset_id) } AS source_asset_id, \
+         source_ref, content_hash, canvas_width, canvas_height, detector_provider, \
+         detector_model, detector_model_version, source_asset_version_ref, \
+         source_asset_path_ref, confidence_available, detector_status, error_reason, \
+         keypoints_json, sidecar_ref, created_at_utc"
+    };
+}
+
+macro_rules! context_state_columns {
+    () => {
+        "context_id, state_seq, workspace_ref, kind, \
+         IF source_asset_id = NONE { NONE } ELSE { record::id(source_asset_id) } AS source_asset_id, \
+         IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, \
+         IF collection_id = NONE { NONE } ELSE { record::id(collection_id) } AS collection_id, \
+         IF selected_rig_id = NONE { NONE } ELSE { record::id(selected_rig_id) } AS selected_rig_id, \
+         requested_by, created_at_utc"
+    };
+}
+
+macro_rules! workspace_rig_state_columns {
+    () => {
+        "workspace_ref, session_ref, record::id(rig_id) AS rig_id, \
+         record::id(rig_id.character_internal_id) AS character_internal_id, \
+         IF rig_id.source_asset_id = NONE { NONE } ELSE { record::id(rig_id.source_asset_id) } AS source_asset_id, \
+         rig_id.source_ref AS source_ref, open, sort_order, active, dirty_calibration, \
+         panel_state, requested_by, created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! sidecar_columns {
+    () => {
+        "sidecar_id, record::id(rig_id) AS rig_id, \
+         IF source_asset_id = NONE { NONE } ELSE { record::id(source_asset_id) } AS source_asset_id, \
+         source_ref, kind, role, artifact_ref, manifest_ref, content_hash, byte_len, \
+         mime, width, height, status, error_message, created_at_utc"
+    };
+}
+
+const POSE_RECORD_EXISTS_STATEMENT: &str = "RETURN record::exists($record_id);";
+
+const WRITE_POSE_RIG_STATEMENT: &str = concat!(
+    "RETURN { IF !record::exists($domain.character_ref) { RETURN NONE; }; ",
+    "LET $existing = (SELECT VALUE id FROM atelier_pose_rig \
+       WHERE character_internal_id = $domain.character_ref \
+         AND source_ref = $domain.source_ref AND content_hash = $domain.content_hash LIMIT 1)[0]; ",
+    "LET $row = IF $existing = NONE { \
+       (CREATE $domain.record_id CONTENT { rig_id: record::id($domain.record_id), \
+         character_internal_id: $domain.character_ref, source_asset_id: $domain.source_asset_ref, \
+         source_ref: $domain.source_ref, content_hash: $domain.content_hash, \
+         canvas_width: $domain.canvas_width, canvas_height: $domain.canvas_height, \
+         detector_provider: $domain.detector_provider, detector_model: $domain.detector_model, \
+         detector_model_version: $domain.detector_model_version, \
+         source_asset_version_ref: $domain.source_asset_version_ref, \
+         source_asset_path_ref: $domain.source_asset_path_ref, \
+         confidence_available: $domain.confidence_available, \
+         detector_status: $domain.detector_status, error_reason: $domain.error_reason, \
+         keypoints_json: $domain.keypoints_json, sidecar_ref: $domain.sidecar_ref } RETURN AFTER)[0] \
+       } ELSE { (SELECT ",
+    rig_columns!(),
+    " FROM ONLY $existing) }; ",
+    atelier_event_sql!(),
+    " RETURN IF $existing = NONE { (SELECT ",
+    rig_columns!(),
+    " FROM ONLY $domain.record_id) } ELSE { $row }; };"
+);
+
+const GET_POSE_RIG_STATEMENT: &str = concat!("SELECT ", rig_columns!(), " FROM $rig_ref LIMIT 1;");
+
+const FIND_POSE_RIG_ID_STATEMENT: &str =
+    "SELECT VALUE rig_id FROM atelier_pose_rig WHERE character_internal_id = $character_ref \
+     AND source_ref = $source_ref AND content_hash = $content_hash LIMIT 1;";
+
+const LIST_POSE_RIGS_STATEMENT: &str = concat!(
+    "SELECT ",
+    rig_columns!(),
+    " FROM atelier_pose_rig WHERE character_internal_id = $character_ref \
+     ORDER BY created_at_utc DESC LIMIT $limit;"
+);
+
+const WRITE_POSE_CONTEXT_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $domain.record_id CONTENT { context_id: $domain.context_id, \
+       workspace_ref: $domain.workspace_ref, kind: $domain.kind, \
+       source_asset_id: $domain.source_asset_ref, character_internal_id: $domain.character_ref, \
+       collection_id: $domain.collection_ref, selected_rig_id: $domain.selected_rig_ref, \
+       requested_by: $domain.requested_by } RETURN ",
+    context_state_columns!(),
+    ")[0]; };"
+);
+
+const CURRENT_POSE_CONTEXT_STATEMENT: &str = concat!(
+    "SELECT ",
+    context_state_columns!(),
+    " FROM atelier_pose_context_state WHERE workspace_ref = $workspace_ref \
+     ORDER BY state_seq DESC LIMIT 1;"
+);
+
+const LIST_POSE_CONTEXT_STATEMENT: &str = concat!(
+    "SELECT ",
+    context_state_columns!(),
+    " FROM atelier_pose_context_state WHERE workspace_ref = $workspace_ref \
+     ORDER BY state_seq ASC;"
+);
+
+const WRITE_POSE_WORKSPACE_RIG_STATEMENT: &str = concat!(
+    "RETURN { IF !record::exists($domain.rig_ref) { RETURN NONE; }; ",
+    "LET $duplicate = IF $domain.open { (SELECT VALUE id FROM atelier_pose_workspace_rig_state \
+       WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
+         AND open = true AND rig_id != $domain.rig_ref AND sort_order = $domain.sort_order LIMIT 1)[0] \
+       } ELSE { NONE }; ",
+    "IF $duplicate != NONE { RETURN NONE; }; ",
+    "LET $existing = (SELECT VALUE id FROM atelier_pose_workspace_rig_state \
+       WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
+         AND rig_id = $domain.rig_ref LIMIT 1)[0]; ",
+    "LET $rid = IF $existing = NONE { $domain.record_id } ELSE { $existing }; ",
+    "IF $domain.active { UPDATE atelier_pose_workspace_rig_state SET active = false, \
+       requested_by = $domain.requested_by, updated_at_utc = time::now() \
+       WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
+         AND open = true AND active = true AND rig_id != $domain.rig_ref; }; ",
+    atelier_event_sql!(),
+    " UPSERT $rid MERGE { workspace_ref: $domain.workspace_ref, session_ref: $domain.session_ref, \
+       rig_id: $domain.rig_ref, open: $domain.open, sort_order: $domain.sort_order, \
+       active: $domain.active, dirty_calibration: $domain.dirty_calibration, \
+       panel_state: $domain.panel_state, requested_by: $domain.requested_by, \
+       updated_at_utc: time::now() }; ",
+    "RETURN (SELECT ",
+    workspace_rig_state_columns!(),
+    " FROM ONLY $rid); };"
+);
+
+const LIST_POSE_WORKSPACE_RIG_STATEMENT: &str = concat!(
+    "SELECT ",
+    workspace_rig_state_columns!(),
+    " FROM atelier_pose_workspace_rig_state \
+     WHERE workspace_ref = $workspace_ref AND session_ref = $session_ref AND open = true \
+     ORDER BY sort_order ASC, rig_id ASC;"
+);
+
+const WRITE_POSE_SIDECAR_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_pose_sidecar \
+       WHERE rig_id = $domain.rig_ref AND kind = $domain.kind LIMIT 1)[0]; ",
+    "LET $rid = IF $existing = NONE { $domain.record_id } ELSE { $existing }; ",
+    atelier_event_sql!(),
+    " UPSERT $rid MERGE { sidecar_id: record::id($rid), rig_id: $domain.rig_ref, \
+       source_asset_id: $domain.source_asset_ref, source_ref: $domain.source_ref, \
+       kind: $domain.kind, role: $domain.role, artifact_ref: $domain.artifact_ref, \
+       manifest_ref: $domain.manifest_ref, content_hash: $domain.content_hash, \
+       byte_len: $domain.byte_len, mime: $domain.mime, width: $domain.width, \
+       height: $domain.height, status: $domain.status, error_message: $domain.error_message, \
+       created_at_utc: time::now() }; ",
+    "RETURN (SELECT ",
+    sidecar_columns!(),
+    " FROM ONLY $rid); };"
+);
+
+const LIST_POSE_SIDECARS_STATEMENT: &str = concat!(
+    "SELECT ",
+    sidecar_columns!(),
+    " FROM atelier_pose_sidecar WHERE rig_id = $rig_ref \
+     ORDER BY created_at_utc ASC, sidecar_id ASC;"
+);
+
+const FIND_POSE_SIDECAR_ID_STATEMENT: &str = "SELECT VALUE sidecar_id FROM atelier_pose_sidecar \
+     WHERE rig_id = $rig_ref AND kind = $kind LIMIT 1;";
+
+const LIST_POSE_SIDECARS_FOR_SOURCE_STATEMENT: &str = concat!(
+    "SELECT ",
+    sidecar_columns!(),
+    " FROM atelier_pose_sidecar WHERE source_ref = $source_ref \
+       AND ($rig_ref = NONE OR rig_id = $rig_ref) \
+     ORDER BY created_at_utc ASC, sidecar_id ASC;"
+);
+
+const LIST_POSE_SOURCE_STRIP_STATEMENT: &str =
+    "SELECT rig_id, record::id(character_internal_id) AS character_internal_id, \
+            IF source_asset_id = NONE { NONE } ELSE { record::id(source_asset_id) } AS source_asset_id, \
+            source_ref, source_asset_id.artifact_ref AS source_artifact_ref, \
+            source_asset_id.content_hash AS source_content_hash, \
+            source_asset_id.mime AS source_mime, source_asset_id.byte_len AS source_byte_len, \
+            created_at_utc \
+     FROM atelier_pose_rig WHERE character_internal_id = $character_ref \
+     ORDER BY created_at_utc DESC, rig_id ASC LIMIT $limit;";
+
+const LIST_OPENPOSE_SIDECARS_STATEMENT: &str = concat!(
+    "SELECT ",
+    sidecar_columns!(),
+    " FROM atelier_pose_sidecar WHERE rig_id = $rig_ref \
+       AND kind IN ['openpose_json', 'openpose_png'] \
+     ORDER BY kind ASC, created_at_utc ASC, sidecar_id ASC;"
+);
+
+async fn pose_record_exists(store: &AtelierStore, record_id: RecordId) -> AtelierResult<bool> {
+    let binding = PoseRecordBinding { record_id };
+    let exists: Option<bool> = store
+        .with_data(move |ctx| {
+            Box::pin(async move { ctx.query_first(POSE_RECORD_EXISTS_STATEMENT, binding).await })
+        })
+        .await?;
+    Ok(exists.unwrap_or(false))
+}
+
+fn pose_sidecar_kind_order(kind: PoseSidecarKind) -> u8 {
+    match kind {
+        PoseSidecarKind::OpenPoseJson => 0,
+        PoseSidecarKind::OpenPosePng => 1,
+        PoseSidecarKind::ConditioningPng => 2,
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct PoseHeadPoseBindings {
+    record_id: RecordId,
+    rig_ref: RecordId,
+    yaw_deg: f64,
+    pitch_deg: f64,
+    roll_deg: f64,
+    quat_x: f64,
+    quat_y: f64,
+    quat_z: f64,
+    quat_w: f64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct PoseCalibrationBindings {
+    record_id: RecordId,
+    rig_ref: RecordId,
+    state: String,
+    block_reason: Option<String>,
+    head_pose_ref: Option<String>,
+    marker_visibility: serde_json::Value,
+    marker_colors: serde_json::Value,
+    hand_rows: serde_json::Value,
+    history_refs: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IdentityProfileAppendBindings {
+    record_id: RecordId,
+    profile_id: SurrealUuid,
+    character_ref: RecordId,
+    kind: String,
+    name: String,
+    description: String,
+    reference_asset_ref: Option<RecordId>,
+    reference_ref: String,
+    source_ref: Option<String>,
+    crop_ref: Option<String>,
+    artifact_ref: Option<String>,
+    provenance: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IdentityProfileUpdateBindings {
+    profile_ref: RecordId,
+    name: String,
+    description: String,
+    source_ref: Option<String>,
+    crop_ref: Option<String>,
+    artifact_ref: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IdentityProfileDeleteBindings {
+    profile_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct IdentityProfileListBindings {
+    character_ref: RecordId,
+    kind: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct IdentityProfileKindBinding {
+    character_ref: RecordId,
+    kind: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IdentityCropBindings {
+    record_id: RecordId,
+    crop_id: SurrealUuid,
+    profile_ref: RecordId,
+    profile_version: i64,
+    character_ref: RecordId,
+    source_ref: String,
+    crop_box: serde_json::Value,
+    landmarks: serde_json::Value,
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    mime: String,
+    width: i32,
+    height: i32,
+    manifest: serde_json::Value,
+    created_by: String,
+}
+
+#[derive(SurrealValue)]
+struct IdentityCropIdentityBinding {
+    profile_ref: RecordId,
+    profile_version: i64,
+    content_hash: String,
+}
+
+macro_rules! head_pose_columns {
+    () => {
+        "record::id(rig_id) AS rig_id, yaw_deg, pitch_deg, roll_deg, \
+         quat_x, quat_y, quat_z, quat_w, created_at_utc"
+    };
+}
+
+macro_rules! calibration_columns {
+    () => {
+        "record::id(rig_id) AS rig_id, state, block_reason, head_pose_ref, \
+         marker_visibility, marker_colors, hand_rows, history_refs, \
+         created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! profile_columns {
+    () => {
+        "profile_id, record::id(character_internal_id) AS character_internal_id, \
+         seq, version, kind, name, description, \
+         IF reference_asset_id = NONE { NONE } ELSE { record::id(reference_asset_id) } AS reference_asset_id, \
+         reference_ref, source_ref, crop_ref, artifact_ref, provenance, \
+         created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! identity_crop_columns {
+    () => {
+        "crop_id, record::id(profile_id) AS profile_id, profile_version, \
+         record::id(character_internal_id) AS character_internal_id, \
+         source_ref, crop_box, landmarks, artifact_ref, manifest_ref, content_hash, \
+         byte_len, mime, width, height, manifest, created_by, created_at_utc"
+    };
+}
+
+const WRITE_HEAD_POSE_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " UPSERT $domain.record_id MERGE { rig_id: $domain.rig_ref, yaw_deg: $domain.yaw_deg, \
+       pitch_deg: $domain.pitch_deg, roll_deg: $domain.roll_deg, quat_x: $domain.quat_x, \
+       quat_y: $domain.quat_y, quat_z: $domain.quat_z, quat_w: $domain.quat_w, \
+       created_at_utc: time::now() }; RETURN (SELECT ",
+    head_pose_columns!(),
+    " FROM ONLY $domain.record_id); };"
+);
+
+const GET_HEAD_POSE_STATEMENT: &str =
+    concat!("SELECT ", head_pose_columns!(), " FROM $rig_ref LIMIT 1;");
+
+const WRITE_CALIBRATION_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " UPSERT $domain.record_id MERGE { rig_id: $domain.rig_ref, state: $domain.state, \
+       block_reason: $domain.block_reason, head_pose_ref: $domain.head_pose_ref, \
+       marker_visibility: $domain.marker_visibility, marker_colors: $domain.marker_colors, \
+       hand_rows: $domain.hand_rows, history_refs: $domain.history_refs, \
+       updated_at_utc: time::now() }; RETURN (SELECT ",
+    calibration_columns!(),
+    " FROM ONLY $domain.record_id); };"
+);
+
+const GET_CALIBRATION_STATEMENT: &str =
+    concat!("SELECT ", calibration_columns!(), " FROM $rig_ref LIMIT 1;");
+
+const APPEND_IDENTITY_PROFILE_STATEMENT: &str = concat!(
+    "RETURN { IF !record::exists($domain.character_ref) { RETURN NONE; }; ",
+    "LET $next_seq = ((SELECT VALUE seq FROM atelier_identity_profile \
+       WHERE character_internal_id = $domain.character_ref ORDER BY seq DESC LIMIT 1)[0] ?? 0) + 1; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $domain.record_id CONTENT { profile_id: $domain.profile_id, \
+       character_internal_id: $domain.character_ref, seq: $next_seq, version: 1, \
+       kind: $domain.kind, name: $domain.name, description: $domain.description, \
+       reference_asset_id: $domain.reference_asset_ref, reference_ref: $domain.reference_ref, \
+       source_ref: $domain.source_ref, crop_ref: $domain.crop_ref, artifact_ref: $domain.artifact_ref, \
+       provenance: $domain.provenance } RETURN ",
+    profile_columns!(),
+    ")[0]; };"
+);
+
+const GET_IDENTITY_PROFILE_STATEMENT: &str = concat!(
+    "SELECT ",
+    profile_columns!(),
+    " FROM $record_id WHERE deleted_at_utc = NONE LIMIT 1;"
+);
+
+const UPDATE_IDENTITY_PROFILE_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT VALUE id FROM ONLY $domain.profile_ref \
+       WHERE deleted_at_utc = NONE); IF $current = NONE { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.profile_ref SET name = $domain.name, description = $domain.description, \
+       source_ref = $domain.source_ref, crop_ref = $domain.crop_ref, \
+       artifact_ref = $domain.artifact_ref, version += 1, updated_at_utc = time::now(); \
+       RETURN (SELECT ",
+    profile_columns!(),
+    " FROM ONLY $domain.profile_ref); };"
+);
+
+const DELETE_IDENTITY_PROFILE_STATEMENT: &str = concat!(
+    "RETURN { LET $current = (SELECT VALUE id FROM ONLY $domain.profile_ref \
+       WHERE deleted_at_utc = NONE); IF $current = NONE { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $domain.profile_ref SET deleted_at_utc = time::now(), version += 1, \
+       updated_at_utc = time::now(); RETURN (SELECT ",
+    profile_columns!(),
+    " FROM ONLY $domain.profile_ref); };"
+);
+
+const LIST_IDENTITY_PROFILES_STATEMENT: &str = concat!(
+    "SELECT ",
+    profile_columns!(),
+    " FROM atelier_identity_profile WHERE character_internal_id = $character_ref \
+       AND ($kind = NONE OR kind = $kind) AND deleted_at_utc = NONE ORDER BY seq ASC;"
+);
+
+const LATEST_IDENTITY_PROFILE_STATEMENT: &str = concat!(
+    "SELECT ",
+    profile_columns!(),
+    " FROM atelier_identity_profile WHERE character_internal_id = $character_ref \
+       AND kind = $kind AND deleted_at_utc = NONE ORDER BY seq DESC LIMIT 1;"
+);
+
+const GET_IDENTITY_CROP_PROFILE_STATEMENT: &str =
+    "SELECT record::id(character_internal_id) AS character_internal_id, version \
+     FROM $record_id WHERE deleted_at_utc = NONE LIMIT 1;";
+
+const FIND_IDENTITY_CROP_STATEMENT: &str = concat!(
+    "SELECT ",
+    identity_crop_columns!(),
+    " FROM atelier_identity_crop_artifact WHERE profile_id = $profile_ref \
+       AND profile_version = $profile_version AND content_hash = $content_hash LIMIT 1;"
+);
+
+const WRITE_IDENTITY_CROP_STATEMENT: &str = concat!(
+    "RETURN { LET $created = (CREATE $domain.record_id CONTENT { crop_id: $domain.crop_id, \
+       profile_id: $domain.profile_ref, profile_version: $domain.profile_version, \
+       character_internal_id: $domain.character_ref, source_ref: $domain.source_ref, \
+       crop_box: $domain.crop_box, landmarks: $domain.landmarks, \
+       artifact_ref: $domain.artifact_ref, manifest_ref: $domain.manifest_ref, \
+       content_hash: $domain.content_hash, byte_len: $domain.byte_len, mime: $domain.mime, \
+       width: $domain.width, height: $domain.height, manifest: $domain.manifest, \
+       created_by: $domain.created_by } RETURN ",
+    identity_crop_columns!(),
+    ")[0]; ",
+    atelier_event_sql!(),
+    " RETURN $created; };"
+);
+
+fn is_identity_crop_unique_conflict(error: &AtelierError) -> bool {
+    let text = error.to_string();
+    text.contains("Database index")
+        && text.contains("uq_atelier_identity_crop_artifact_profile_version_hash")
+        && text.contains("already contains")
+}
+
+const IDENTITY_CROP_TRANSACTION_MAX_ATTEMPTS: usize = 10;
+const IDENTITY_CROP_TRANSACTION_BACKOFF_CAP_MS: u64 = 32;
+
+fn is_identity_crop_retryable_transaction_conflict(error: &AtelierError) -> bool {
+    matches!(
+        error,
+        AtelierError::Database(crate::storage::surreal::SurrealStorageError::Database(source))
+            if source
+                .to_string()
+                .contains("Transaction conflict: Resource busy. This transaction can be retried")
+    )
+}
+
+fn identity_crop_transaction_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
+    let exponential_cap = 1_u64
+        .checked_shl(failed_attempt.min(5) as u32)
+        .unwrap_or(IDENTITY_CROP_TRANSACTION_BACKOFF_CAP_MS)
+        .min(IDENTITY_CROP_TRANSACTION_BACKOFF_CAP_MS);
+    let seed = seed.as_u128();
+    let mut mixed = (seed as u64)
+        ^ ((seed >> 64) as u64)
+        ^ (failed_attempt as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    mixed ^= mixed >> 30;
+    mixed = mixed.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    mixed ^= mixed >> 27;
+    mixed = mixed.wrapping_mul(0x94d0_49bb_1331_11eb);
+    mixed ^= mixed >> 31;
+    Duration::from_millis(mixed % (exponential_cap + 1))
+}
+
+async fn wait_before_identity_crop_transaction_retry(seed: Uuid, failed_attempt: usize) {
+    tokio::time::sleep(identity_crop_transaction_retry_delay(seed, failed_attempt)).await;
+}
+
+const GET_IDENTITY_CROP_STATEMENT: &str = concat!(
+    "SELECT ",
+    identity_crop_columns!(),
+    " FROM $record_id LIMIT 1;"
+);
+
+const LIST_IDENTITY_CROPS_STATEMENT: &str = concat!(
+    "SELECT ",
+    identity_crop_columns!(),
+    " FROM atelier_identity_crop_artifact WHERE profile_id = $record_id \
+     ORDER BY created_at_utc ASC, crop_id ASC;"
+);
 
 fn identity_crop_artifact_manifest(
     crop_id: Uuid,
@@ -1640,6 +2264,30 @@ fn identity_crop_artifact_manifest(
 }
 
 impl AtelierStore {
+    async fn find_identity_crop_artifact_by_identity(
+        &self,
+        profile_id: Uuid,
+        profile_version: i64,
+        content_hash: &str,
+    ) -> AtelierResult<Option<IdentityCropArtifact>> {
+        let identity = IdentityCropIdentityBinding {
+            profile_ref: RecordId::new("atelier_identity_profile", SurrealUuid::from(profile_id)),
+            profile_version,
+            content_hash: content_hash.to_owned(),
+        };
+        let existing: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(FIND_IDENTITY_CROP_STATEMENT, identity)
+                        .await
+                })
+            })
+            .await?;
+        existing
+            .map(|row| identity_crop_artifact_from_row(&pose_row(row)?))
+            .transpose()
+    }
+
     /// Record a head pose by deriving the normalized quaternion from legacy
     /// source YXZ Euler degrees (pitch=X, yaw=Y, roll=Z).
     pub async fn record_head_pose_from_yxz_euler(
@@ -1724,88 +2372,90 @@ impl AtelierStore {
         validate_detector_error_reason(new.detector_status, new.error_reason.as_deref())?;
         validate_keypoints(&new.keypoints_json)?;
 
-        let mut tx = self.pool().begin().await?;
-
-        let character_exists: Option<Uuid> =
-            sqlx::query_scalar("SELECT internal_id FROM atelier_character WHERE internal_id = $1")
-                .bind(new.character_internal_id)
-                .fetch_optional(&mut *tx)
-                .await?;
-        if character_exists.is_none() {
-            return Err(AtelierError::NotFound(format!(
+        let identity = PoseRigIdentityBinding {
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(new.character_internal_id),
+            ),
+            source_ref: new.source_ref.clone(),
+            content_hash: new.content_hash.clone(),
+        };
+        let existing_id: Option<SurrealUuid> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(FIND_POSE_RIG_ID_STATEMENT, identity).await })
+            })
+            .await?;
+        let rig_id = existing_id.map(Into::into).unwrap_or_else(Uuid::now_v7);
+        let bindings = PoseRigWriteBindings {
+            record_id: RecordId::new("atelier_pose_rig", SurrealUuid::from(rig_id)),
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(new.character_internal_id),
+            ),
+            source_asset_ref: new
+                .source_asset_id
+                .map(|asset_id| RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id))),
+            source_ref: new.source_ref.clone(),
+            content_hash: new.content_hash.clone(),
+            canvas_width: new.canvas.width,
+            canvas_height: new.canvas.height,
+            detector_provider: new.detector_provider.clone(),
+            detector_model: new.detector_model.clone(),
+            detector_model_version: new.detector_model_version.clone(),
+            source_asset_version_ref: new.source_asset_version_ref.clone(),
+            source_asset_path_ref: new.source_asset_path_ref.clone(),
+            confidence_available: new.confidence_available,
+            detector_status: new.detector_status.as_token().to_owned(),
+            error_reason: new.error_reason.clone(),
+            keypoints_json: new.keypoints_json.clone(),
+            sidecar_ref: new.sidecar_ref.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_POSE_RIG_STATEMENT,
+                bindings,
+                POSE_RIG_INGESTED,
+                "atelier_pose_rig",
+                &rig_id.to_string(),
+                serde_json::json!({
+                    "rig_id": rig_id,
+                    "source_asset_id": new.source_asset_id,
+                    "source_ref": new.source_ref,
+                    "content_hash": new.content_hash,
+                    "detector_provider": new.detector_provider,
+                    "detector_model": new.detector_model,
+                    "detector_model_version": new.detector_model_version,
+                    "source_asset_version_ref": new.source_asset_version_ref,
+                    "source_asset_path_ref": new.source_asset_path_ref,
+                    "confidence_available": new.confidence_available,
+                    "detector_status": new.detector_status.as_token(),
+                    "error_reason": new.error_reason,
+                    "canvas_width": new.canvas.width,
+                    "canvas_height": new.canvas.height,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::NotFound(format!(
                 "atelier_character internal_id={}",
                 new.character_internal_id
-            )));
-        }
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_pose_rig
-                (character_internal_id, source_asset_id, source_ref, content_hash,
-                  canvas_width, canvas_height, detector_provider, detector_status,
-                  detector_model, detector_model_version, source_asset_version_ref,
-                  source_asset_path_ref, confidence_available, error_reason, keypoints_json, sidecar_ref)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-               ON CONFLICT (character_internal_id, source_ref, content_hash)
-                 DO UPDATE SET source_ref = EXCLUDED.source_ref
-               RETURNING {RIG_COLUMNS}"#
-        ))
-        .bind(new.character_internal_id)
-        .bind(new.source_asset_id)
-        .bind(&new.source_ref)
-        .bind(&new.content_hash)
-        .bind(new.canvas.width)
-        .bind(new.canvas.height)
-        .bind(&new.detector_provider)
-        .bind(new.detector_status.as_token())
-        .bind(&new.detector_model)
-        .bind(&new.detector_model_version)
-        .bind(&new.source_asset_version_ref)
-        .bind(&new.source_asset_path_ref)
-        .bind(new.confidence_available)
-        .bind(&new.error_reason)
-        .bind(&new.keypoints_json)
-        .bind(&new.sidecar_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let rig = rig_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_RIG_INGESTED,
-            "atelier_pose_rig",
-            &rig.rig_id.to_string(),
-            serde_json::json!({
-                "rig_id": rig.rig_id,
-                "source_asset_id": rig.source_asset_id,
-                "source_ref": rig.source_ref,
-                "content_hash": rig.content_hash,
-                "detector_provider": rig.detector_provider,
-                "detector_model": rig.detector_model,
-                "detector_model_version": rig.detector_model_version,
-                "source_asset_version_ref": rig.source_asset_version_ref,
-                "source_asset_path_ref": rig.source_asset_path_ref,
-                "confidence_available": rig.confidence_available,
-                "detector_status": rig.detector_status.as_token(),
-                "error_reason": rig.error_reason,
-                "canvas_width": rig.canvas.width,
-                "canvas_height": rig.canvas.height,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(rig)
+            ))
+        })?;
+        rig_from_row(&pose_row(row)?)
     }
 
     /// Fetch a pose rig by id.
     pub async fn get_pose_rig(&self, rig_id: Uuid) -> AtelierResult<PoseRig> {
-        let row = sqlx::query(&format!(
-            "SELECT {RIG_COLUMNS} FROM atelier_pose_rig WHERE rig_id = $1"
-        ))
-        .bind(rig_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("pose rig_id={rig_id}")))?;
-        rig_from_row(&row)
+        let binding = PoseRigIdBinding {
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(rig_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_POSE_RIG_STATEMENT, binding).await })
+            })
+            .await?;
+        let row = row.ok_or_else(|| AtelierError::NotFound(format!("pose rig_id={rig_id}")))?;
+        rig_from_row(&pose_row(row)?)
     }
 
     /// List a character's pose rigs, newest first.
@@ -1815,17 +2465,21 @@ impl AtelierStore {
         limit: i64,
     ) -> AtelierResult<Vec<PoseRig>> {
         let capped = limit.clamp(1, 1000);
-        let rows = sqlx::query(&format!(
-            r#"SELECT {RIG_COLUMNS} FROM atelier_pose_rig
-               WHERE character_internal_id = $1
-               ORDER BY created_at_utc DESC
-               LIMIT $2"#
-        ))
-        .bind(character_internal_id)
-        .bind(capped)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(rig_from_row).collect()
+        let bindings = PoseRigListBindings {
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(character_internal_id),
+            ),
+            limit: capped,
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_POSE_RIGS_STATEMENT, bindings).await })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| rig_from_row(&pose_row(row)?))
+            .collect()
     }
 
     /// Append a typed pose context state for a workspace (MT-094).
@@ -1846,12 +2500,12 @@ impl AtelierStore {
         };
 
         if let Some(source_asset_id) = new.source_asset_id {
-            let exists: Option<Uuid> =
-                sqlx::query_scalar("SELECT asset_id FROM atelier_media_asset WHERE asset_id = $1")
-                    .bind(source_asset_id)
-                    .fetch_optional(self.pool())
-                    .await?;
-            if exists.is_none() {
+            if !pose_record_exists(
+                self,
+                RecordId::new("atelier_media_asset", SurrealUuid::from(source_asset_id)),
+            )
+            .await?
+            {
                 return Err(AtelierError::NotFound(format!(
                     "atelier_media_asset asset_id={source_asset_id}"
                 )));
@@ -1866,13 +2520,15 @@ impl AtelierStore {
         }
 
         if let Some(character_internal_id) = new.character_internal_id {
-            let exists: Option<Uuid> = sqlx::query_scalar(
-                "SELECT internal_id FROM atelier_character WHERE internal_id = $1",
+            if !pose_record_exists(
+                self,
+                RecordId::new(
+                    "atelier_character",
+                    SurrealUuid::from(character_internal_id),
+                ),
             )
-            .bind(character_internal_id)
-            .fetch_optional(self.pool())
-            .await?;
-            if exists.is_none() {
+            .await?
+            {
                 return Err(AtelierError::NotFound(format!(
                     "atelier_character internal_id={character_internal_id}"
                 )));
@@ -1914,44 +2570,49 @@ impl AtelierStore {
             }
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_pose_context_state
-                 (workspace_ref, kind, source_asset_id, character_internal_id,
-                  collection_id, selected_rig_id, requested_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING {CONTEXT_STATE_COLUMNS}"#
-        ))
-        .bind(&new.workspace_ref)
-        .bind(new.kind.as_token())
-        .bind(new.source_asset_id)
-        .bind(new.character_internal_id)
-        .bind(new.collection_id)
-        .bind(new.selected_rig_id)
-        .bind(&new.requested_by)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let state = context_state_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_CONTEXT_STATE_SET,
-            "atelier_pose_context_state",
-            &state.context_id.to_string(),
-            serde_json::json!({
-                "context_id": state.context_id,
-                "workspace_ref": state.workspace_ref,
-                "kind": state.kind.as_token(),
-                "source_asset_id": state.source_asset_id,
-                "character_internal_id": state.character_internal_id,
-                "collection_id": state.collection_id,
-                "selected_rig_id": state.selected_rig_id,
-                "requested_by": state.requested_by,
+        let context_id = Uuid::now_v7();
+        let bindings = PoseContextWriteBindings {
+            record_id: RecordId::new("atelier_pose_context_state", SurrealUuid::from(context_id)),
+            context_id: SurrealUuid::from(context_id),
+            workspace_ref: new.workspace_ref.clone(),
+            kind: new.kind.as_token().to_owned(),
+            source_asset_ref: new
+                .source_asset_id
+                .map(|asset_id| RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id))),
+            character_ref: new.character_internal_id.map(|character_id| {
+                RecordId::new("atelier_character", SurrealUuid::from(character_id))
             }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(state)
+            collection_ref: new.collection_id.map(|collection_id| {
+                RecordId::new("atelier_collection", SurrealUuid::from(collection_id))
+            }),
+            selected_rig_ref: new
+                .selected_rig_id
+                .map(|rig_id| RecordId::new("atelier_pose_rig", SurrealUuid::from(rig_id))),
+            requested_by: new.requested_by.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_POSE_CONTEXT_STATEMENT,
+                bindings,
+                POSE_CONTEXT_STATE_SET,
+                "atelier_pose_context_state",
+                &context_id.to_string(),
+                serde_json::json!({
+                    "context_id": context_id,
+                    "workspace_ref": new.workspace_ref,
+                    "kind": new.kind.as_token(),
+                    "source_asset_id": new.source_asset_id,
+                    "character_internal_id": new.character_internal_id,
+                    "collection_id": new.collection_id,
+                    "selected_rig_id": new.selected_rig_id,
+                    "requested_by": new.requested_by,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording pose context state returned no row".to_owned())
+        })?;
+        context_state_from_row(&pose_row(row)?)
     }
 
     /// Read the latest pose context state for a workspace.
@@ -1960,17 +2621,19 @@ impl AtelierStore {
         workspace_ref: &str,
     ) -> AtelierResult<Option<PoseContextState>> {
         validate_pose_context_ref("workspace_ref", workspace_ref)?;
-        let row = sqlx::query(&format!(
-            r#"SELECT {CONTEXT_STATE_COLUMNS}
-               FROM atelier_pose_context_state
-               WHERE workspace_ref = $1
-               ORDER BY state_seq DESC
-               LIMIT 1"#
-        ))
-        .bind(workspace_ref)
-        .fetch_optional(self.pool())
-        .await?;
-        row.as_ref().map(context_state_from_row).transpose()
+        let binding = PoseWorkspaceBinding {
+            workspace_ref: workspace_ref.to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(CURRENT_POSE_CONTEXT_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        row.map(|row| context_state_from_row(&pose_row(row)?))
+            .transpose()
     }
 
     /// List pose context state history oldest first for deterministic replay.
@@ -1979,16 +2642,19 @@ impl AtelierStore {
         workspace_ref: &str,
     ) -> AtelierResult<Vec<PoseContextState>> {
         validate_pose_context_ref("workspace_ref", workspace_ref)?;
-        let rows = sqlx::query(&format!(
-            r#"SELECT {CONTEXT_STATE_COLUMNS}
-               FROM atelier_pose_context_state
-               WHERE workspace_ref = $1
-               ORDER BY state_seq ASC"#
-        ))
-        .bind(workspace_ref)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(context_state_from_row).collect()
+        let binding = PoseWorkspaceBinding {
+            workspace_ref: workspace_ref.to_owned(),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(
+                    async move { ctx.query_values(LIST_POSE_CONTEXT_STATEMENT, binding).await },
+                )
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| context_state_from_row(&pose_row(row)?))
+            .collect()
     }
 
     /// Set one open rig tab's workspace state (MT-096).
@@ -2003,154 +2669,49 @@ impl AtelierStore {
     ) -> AtelierResult<PoseWorkspaceRigState> {
         validate_pose_workspace_rig_state_request(new)?;
         let _ = self.get_pose_rig(new.rig_id).await?;
-
-        let mut tx = self.pool().begin().await?;
-        let lock_key = format!("{}:{}", new.workspace_ref, new.session_ref);
-        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 960096))")
-            .bind(&lock_key)
-            .execute(&mut *tx)
-            .await?;
-
-        if new.open {
-            let duplicate_sort_order: Option<Uuid> = sqlx::query_scalar(
-                r#"SELECT rig_id
-                   FROM atelier_pose_workspace_rig_state
-                   WHERE workspace_ref = $1
-                     AND session_ref = $2
-                     AND open = TRUE
-                     AND rig_id <> $3
-                     AND sort_order = $4
-                   LIMIT 1"#,
+        let aggregate_id = format!("{}:{}:{}", new.workspace_ref, new.session_ref, new.rig_id);
+        let state_record_id = Uuid::now_v7();
+        let bindings = PoseWorkspaceRigWriteBindings {
+            record_id: RecordId::new(
+                "atelier_pose_workspace_rig_state",
+                SurrealUuid::from(state_record_id),
+            ),
+            workspace_ref: new.workspace_ref.clone(),
+            session_ref: new.session_ref.clone(),
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(new.rig_id)),
+            open: new.open,
+            sort_order: new.sort_order,
+            active: new.active,
+            dirty_calibration: new.dirty_calibration,
+            panel_state: new.panel_state.clone(),
+            requested_by: new.requested_by.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_POSE_WORKSPACE_RIG_STATEMENT,
+                bindings,
+                POSE_WORKSPACE_RIG_STATE_SET,
+                "atelier_pose_workspace_rig_state",
+                &aggregate_id,
+                serde_json::json!({
+                    "workspace_ref": new.workspace_ref,
+                    "session_ref": new.session_ref,
+                    "rig_id": new.rig_id,
+                    "open": new.open,
+                    "sort_order": new.sort_order,
+                    "active": new.active,
+                    "dirty_calibration": new.dirty_calibration,
+                    "panel_state_is_object": new.panel_state.is_object(),
+                    "requested_by": new.requested_by,
+                }),
             )
-            .bind(&new.workspace_ref)
-            .bind(&new.session_ref)
-            .bind(new.rig_id)
-            .bind(new.sort_order)
-            .fetch_optional(&mut *tx)
             .await?;
-            if duplicate_sort_order.is_some() {
-                return Err(AtelierError::Validation(
-                    "pose workspace sort_order must be unique among open rigs".into(),
-                ));
-            }
-        }
-
-        if new.active {
-            let deactivated_rows = sqlx::query(&format!(
-                r#"WITH deactivated AS (
-                       UPDATE atelier_pose_workspace_rig_state
-                       SET active = FALSE,
-                           requested_by = $4,
-                           updated_at_utc = NOW()
-                       WHERE workspace_ref = $1
-                         AND session_ref = $2
-                         AND open = TRUE
-                         AND active = TRUE
-                         AND rig_id <> $3
-                       RETURNING workspace_ref, session_ref, rig_id, open,
-                                 sort_order, active, dirty_calibration,
-                                 panel_state, requested_by,
-                                 created_at_utc, updated_at_utc
-                   )
-                   SELECT {WORKSPACE_RIG_STATE_COLUMNS}
-                   FROM deactivated state
-                   JOIN atelier_pose_rig rig ON rig.rig_id = state.rig_id"#
-            ))
-            .bind(&new.workspace_ref)
-            .bind(&new.session_ref)
-            .bind(new.rig_id)
-            .bind(&new.requested_by)
-            .fetch_all(&mut *tx)
-            .await?;
-            for row in deactivated_rows {
-                let state = workspace_rig_state_from_row(&row);
-                let aggregate_id = format!(
-                    "{}:{}:{}",
-                    state.workspace_ref, state.session_ref, state.rig_id
-                );
-                self.record_event_in_tx(
-                    &mut tx,
-                    POSE_WORKSPACE_RIG_STATE_SET,
-                    "atelier_pose_workspace_rig_state",
-                    &aggregate_id,
-                    serde_json::json!({
-                        "workspace_ref": state.workspace_ref,
-                        "session_ref": state.session_ref,
-                        "rig_id": state.rig_id,
-                        "character_internal_id": state.character_internal_id,
-                        "open": state.open,
-                        "sort_order": state.sort_order,
-                        "active": state.active,
-                        "dirty_calibration": state.dirty_calibration,
-                        "panel_state_is_object": state.panel_state.is_object(),
-                        "requested_by": state.requested_by,
-                        "reason": "deactivated_by_active_rig_switch",
-                    }),
-                )
-                .await?;
-            }
-        }
-
-        let row = sqlx::query(&format!(
-            r#"WITH upserted AS (
-                   INSERT INTO atelier_pose_workspace_rig_state
-                     (workspace_ref, session_ref, rig_id, open, sort_order, active,
-                      dirty_calibration, panel_state, requested_by)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                   ON CONFLICT (workspace_ref, session_ref, rig_id) DO UPDATE SET
-                     open = EXCLUDED.open,
-                     sort_order = EXCLUDED.sort_order,
-                     active = EXCLUDED.active,
-                     dirty_calibration = EXCLUDED.dirty_calibration,
-                     panel_state = EXCLUDED.panel_state,
-                     requested_by = EXCLUDED.requested_by,
-                     updated_at_utc = NOW()
-                   RETURNING workspace_ref, session_ref, rig_id, open, sort_order, active,
-                             dirty_calibration, panel_state, requested_by,
-                             created_at_utc, updated_at_utc
-               )
-               SELECT {WORKSPACE_RIG_STATE_COLUMNS}
-               FROM upserted state
-               JOIN atelier_pose_rig rig ON rig.rig_id = state.rig_id"#
-        ))
-        .bind(&new.workspace_ref)
-        .bind(&new.session_ref)
-        .bind(new.rig_id)
-        .bind(new.open)
-        .bind(new.sort_order)
-        .bind(new.active)
-        .bind(new.dirty_calibration)
-        .bind(&new.panel_state)
-        .bind(&new.requested_by)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let state = workspace_rig_state_from_row(&row);
-        let aggregate_id = format!(
-            "{}:{}:{}",
-            state.workspace_ref, state.session_ref, state.rig_id
-        );
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_WORKSPACE_RIG_STATE_SET,
-            "atelier_pose_workspace_rig_state",
-            &aggregate_id,
-            serde_json::json!({
-                "workspace_ref": state.workspace_ref,
-                "session_ref": state.session_ref,
-                "rig_id": state.rig_id,
-                "character_internal_id": state.character_internal_id,
-                "open": state.open,
-                "sort_order": state.sort_order,
-                "active": state.active,
-                "dirty_calibration": state.dirty_calibration,
-                "panel_state_is_object": state.panel_state.is_object(),
-                "requested_by": state.requested_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(state)
+        let row = row.ok_or_else(|| {
+            AtelierError::Validation(
+                "pose workspace sort_order must be unique among open rigs".into(),
+            )
+        })?;
+        Ok(workspace_rig_state_from_row(&pose_row(row)?))
     }
 
     /// List open rig tab state for a workspace in deterministic tab order.
@@ -2161,20 +2722,21 @@ impl AtelierStore {
     ) -> AtelierResult<Vec<PoseWorkspaceRigState>> {
         validate_pose_context_ref("workspace_ref", workspace_ref)?;
         validate_pose_context_ref("session_ref", session_ref)?;
-        let rows = sqlx::query(&format!(
-            r#"SELECT {WORKSPACE_RIG_STATE_COLUMNS}
-               FROM atelier_pose_workspace_rig_state state
-               JOIN atelier_pose_rig rig ON rig.rig_id = state.rig_id
-               WHERE state.workspace_ref = $1
-                 AND state.session_ref = $2
-                 AND state.open = TRUE
-               ORDER BY state.sort_order ASC, state.rig_id ASC"#
-        ))
-        .bind(workspace_ref)
-        .bind(session_ref)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(workspace_rig_state_from_row).collect())
+        let binding = PoseWorkspaceSessionBinding {
+            workspace_ref: workspace_ref.to_owned(),
+            session_ref: session_ref.to_owned(),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_POSE_WORKSPACE_RIG_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| Ok(workspace_rig_state_from_row(&pose_row(row)?)))
+            .collect()
     }
 
     /// Resolve and persist a durable product route to one rig in a multi-rig pose workspace (MT-097).
@@ -2288,94 +2850,95 @@ impl AtelierStore {
     pub async fn record_pose_sidecar(&self, new: &NewPoseSidecar) -> AtelierResult<PoseSidecar> {
         validate_pose_sidecar(new)?;
         let rig = self.get_pose_rig(new.rig_id).await?;
-
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_pose_sidecar
-                 (rig_id, source_asset_id, source_ref, kind, role, artifact_ref,
-                  manifest_ref, content_hash, byte_len, mime, width, height, status, error_message)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-               ON CONFLICT (rig_id, kind) DO UPDATE SET
-                 source_asset_id = EXCLUDED.source_asset_id,
-                 source_ref = EXCLUDED.source_ref,
-                 role = EXCLUDED.role,
-                 artifact_ref = EXCLUDED.artifact_ref,
-                 manifest_ref = EXCLUDED.manifest_ref,
-                 content_hash = EXCLUDED.content_hash,
-                 byte_len = EXCLUDED.byte_len,
-                 mime = EXCLUDED.mime,
-                 width = EXCLUDED.width,
-                 height = EXCLUDED.height,
-                 status = EXCLUDED.status,
-                 error_message = EXCLUDED.error_message,
-                 created_at_utc = NOW()
-               RETURNING {SIDECAR_COLUMNS}"#
-        ))
-        .bind(new.rig_id)
-        .bind(rig.source_asset_id)
-        .bind(&rig.source_ref)
-        .bind(new.kind.as_token())
-        .bind(new.kind.as_token())
-        .bind(&new.artifact_ref)
-        .bind(&new.manifest_ref)
-        .bind(&new.content_hash)
-        .bind(new.byte_len)
-        .bind(&new.mime)
-        .bind(new.width)
-        .bind(new.height)
-        .bind(new.status.as_token())
-        .bind(&new.error_message)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let sidecar = sidecar_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_SIDECAR_RECORDED,
-            "atelier_pose_sidecar",
-            &sidecar.sidecar_id.to_string(),
-            serde_json::json!({
-                "sidecar_id": sidecar.sidecar_id,
-                "rig_id": sidecar.rig_id,
-                "source_asset_id": sidecar.source_asset_id,
-                "source_ref": sidecar.source_ref,
-                "kind": sidecar.kind.as_token(),
-                "role": sidecar.role,
-                "artifact_ref": sidecar.artifact_ref,
-                "manifest_ref": sidecar.manifest_ref,
-                "content_hash": sidecar.content_hash,
-                "byte_len": sidecar.byte_len,
-                "mime": sidecar.mime,
-                "width": sidecar.width,
-                "height": sidecar.height,
-                "status": sidecar.status.as_token(),
-                "has_error_message": sidecar.error_message.is_some(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(sidecar)
+        let identity = PoseSidecarIdentityBinding {
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(new.rig_id)),
+            kind: new.kind.as_token().to_owned(),
+        };
+        let existing_id: Option<SurrealUuid> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(FIND_POSE_SIDECAR_ID_STATEMENT, identity)
+                        .await
+                })
+            })
+            .await?;
+        let sidecar_id = existing_id.map(Into::into).unwrap_or_else(Uuid::now_v7);
+        let bindings = PoseSidecarWriteBindings {
+            record_id: RecordId::new("atelier_pose_sidecar", SurrealUuid::from(sidecar_id)),
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(new.rig_id)),
+            source_asset_ref: rig
+                .source_asset_id
+                .map(|asset_id| RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id))),
+            source_ref: rig.source_ref.clone(),
+            kind: new.kind.as_token().to_owned(),
+            role: new.kind.as_token().to_owned(),
+            artifact_ref: new.artifact_ref.clone(),
+            manifest_ref: new.manifest_ref.clone(),
+            content_hash: new.content_hash.clone(),
+            byte_len: new.byte_len,
+            mime: new.mime.clone(),
+            width: new.width,
+            height: new.height,
+            status: new.status.as_token().to_owned(),
+            error_message: new.error_message.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_POSE_SIDECAR_STATEMENT,
+                bindings,
+                POSE_SIDECAR_RECORDED,
+                "atelier_pose_sidecar",
+                &sidecar_id.to_string(),
+                serde_json::json!({
+                    "sidecar_id": sidecar_id,
+                    "rig_id": new.rig_id,
+                    "source_asset_id": rig.source_asset_id,
+                    "source_ref": rig.source_ref,
+                    "kind": new.kind.as_token(),
+                    "role": new.kind.as_token(),
+                    "artifact_ref": new.artifact_ref,
+                    "manifest_ref": new.manifest_ref,
+                    "content_hash": new.content_hash,
+                    "byte_len": new.byte_len,
+                    "mime": new.mime,
+                    "width": new.width,
+                    "height": new.height,
+                    "status": new.status.as_token(),
+                    "has_error_message": new.error_message.is_some(),
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording pose sidecar returned no row".to_owned())
+        })?;
+        sidecar_from_row(&pose_row(row)?)
     }
 
     /// List typed sidecars for a rig in deterministic OpenPose/PNG/conditioning order.
     pub async fn list_pose_sidecars(&self, rig_id: Uuid) -> AtelierResult<Vec<PoseSidecar>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {SIDECAR_COLUMNS}
-               FROM atelier_pose_sidecar
-               WHERE rig_id = $1
-               ORDER BY CASE kind
-                    WHEN 'openpose_json' THEN 0
-                    WHEN 'openpose_png' THEN 1
-                    WHEN 'conditioning_png' THEN 2
-                    ELSE 99
-               END,
-               created_at_utc ASC,
-               sidecar_id ASC"#
-        ))
-        .bind(rig_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(sidecar_from_row).collect()
+        let binding = PoseRigIdBinding {
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(rig_id)),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_POSE_SIDECARS_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        let mut sidecars = rows
+            .into_iter()
+            .map(|row| sidecar_from_row(&pose_row(row)?))
+            .collect::<AtelierResult<Vec<_>>>()?;
+        sidecars.sort_by_key(|sidecar| {
+            (
+                pose_sidecar_kind_order(sidecar.kind),
+                sidecar.created_at_utc.clone(),
+                sidecar.sidecar_id,
+            )
+        });
+        Ok(sidecars)
     }
 
     /// Lookup typed pose sidecars by source image identity, optionally scoped to
@@ -2387,25 +2950,30 @@ impl AtelierStore {
         rig_id: Option<Uuid>,
     ) -> AtelierResult<Vec<PoseSidecar>> {
         let source_ref = validate_pose_source_ref_for_lookup(source_ref)?;
-        let rows = sqlx::query(&format!(
-            r#"SELECT {SIDECAR_COLUMNS}
-               FROM atelier_pose_sidecar
-               WHERE source_ref = $1
-                 AND ($2::UUID IS NULL OR rig_id = $2)
-               ORDER BY CASE kind
-                    WHEN 'openpose_json' THEN 0
-                    WHEN 'openpose_png' THEN 1
-                    WHEN 'conditioning_png' THEN 2
-                    ELSE 99
-               END,
-               created_at_utc ASC,
-               sidecar_id ASC"#
-        ))
-        .bind(&source_ref)
-        .bind(rig_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(sidecar_from_row).collect()
+        let binding = PoseSidecarSourceBinding {
+            source_ref,
+            rig_ref: rig_id.map(|id| RecordId::new("atelier_pose_rig", SurrealUuid::from(id))),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_POSE_SIDECARS_FOR_SOURCE_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        let mut sidecars = rows
+            .into_iter()
+            .map(|row| sidecar_from_row(&pose_row(row)?))
+            .collect::<AtelierResult<Vec<_>>>()?;
+        sidecars.sort_by_key(|sidecar| {
+            (
+                pose_sidecar_kind_order(sidecar.kind),
+                sidecar.created_at_utc.clone(),
+                sidecar.sidecar_id,
+            )
+        });
+        Ok(sidecars)
     }
 
     /// Projection contract for normal galleries: pose sidecars are hidden from
@@ -2441,28 +3009,24 @@ impl AtelierStore {
         limit: i64,
     ) -> AtelierResult<Vec<PoseSourceImageStripItem>> {
         let capped = limit.clamp(1, 1000);
-        let rows = sqlx::query(
-            r#"SELECT rig.rig_id,
-                      rig.character_internal_id,
-                      rig.source_asset_id,
-                      rig.source_ref,
-                      media.artifact_ref AS source_artifact_ref,
-                      media.content_hash AS source_content_hash,
-                      media.mime AS source_mime,
-                      media.byte_len AS source_byte_len,
-                      rig.created_at_utc
-               FROM atelier_pose_rig rig
-               LEFT JOIN atelier_media_asset media
-                 ON media.asset_id = rig.source_asset_id
-               WHERE rig.character_internal_id = $1
-               ORDER BY rig.created_at_utc DESC, rig.rig_id ASC
-               LIMIT $2"#,
-        )
-        .bind(character_internal_id)
-        .bind(capped)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(source_image_strip_item_from_row).collect())
+        let bindings = PoseSourceStripBindings {
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(character_internal_id),
+            ),
+            limit: capped,
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_POSE_SOURCE_STRIP_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| Ok(source_image_strip_item_from_row(&pose_row(row)?)))
+            .collect()
     }
 
     /// OpenPose sidecar strip projection for Diagnostics (MT-095).
@@ -2475,24 +3039,19 @@ impl AtelierStore {
         rig_id: Uuid,
     ) -> AtelierResult<Vec<PoseOpenPoseSidecarStripItem>> {
         let _ = self.get_pose_rig(rig_id).await?;
-        let rows = sqlx::query(&format!(
-            r#"SELECT {SIDECAR_COLUMNS}
-               FROM atelier_pose_sidecar
-               WHERE rig_id = $1
-                 AND kind IN ('openpose_json','openpose_png')
-               ORDER BY CASE kind
-                    WHEN 'openpose_json' THEN 0
-                    WHEN 'openpose_png' THEN 1
-                    ELSE 99
-               END,
-               created_at_utc ASC,
-               sidecar_id ASC"#
-        ))
-        .bind(rig_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter()
-            .map(sidecar_from_row)
+        let binding = PoseRigIdBinding {
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(rig_id)),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_OPENPOSE_SIDECARS_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| sidecar_from_row(&pose_row(row)?))
             .map(|result| result.map(openpose_sidecar_strip_item_from_sidecar))
             .collect()
     }
@@ -2551,64 +3110,52 @@ impl AtelierStore {
             quaternion[3] * inv,
         ];
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_pose_head_pose
-                 (rig_id, yaw_deg, pitch_deg, roll_deg, quat_x, quat_y, quat_z, quat_w)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (rig_id) DO UPDATE SET
-                 yaw_deg   = EXCLUDED.yaw_deg,
-                 pitch_deg = EXCLUDED.pitch_deg,
-                 roll_deg  = EXCLUDED.roll_deg,
-                 quat_x    = EXCLUDED.quat_x,
-                 quat_y    = EXCLUDED.quat_y,
-                 quat_z    = EXCLUDED.quat_z,
-                 quat_w    = EXCLUDED.quat_w,
-                 created_at_utc = NOW()
-               RETURNING rig_id, yaw_deg, pitch_deg, roll_deg,
-                         quat_x, quat_y, quat_z, quat_w, created_at_utc"#,
-        )
-        .bind(rig_id)
-        .bind(yaw_deg)
-        .bind(pitch_deg)
-        .bind(roll_deg)
-        .bind(q[0])
-        .bind(q[1])
-        .bind(q[2])
-        .bind(q[3])
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let head_pose = head_pose_from_row(&row);
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_HEAD_POSE_RECORDED,
-            "atelier_pose_rig",
-            &rig_id.to_string(),
-            serde_json::json!({
-                "rig_id": head_pose.rig_id,
-                "yaw_deg": head_pose.yaw_deg,
-                "pitch_deg": head_pose.pitch_deg,
-                "roll_deg": head_pose.roll_deg,
-                "quaternion": head_pose.quaternion,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(head_pose)
+        let rig_ref = RecordId::new("atelier_pose_rig", SurrealUuid::from(rig_id));
+        let bindings = PoseHeadPoseBindings {
+            record_id: RecordId::new("atelier_pose_head_pose", SurrealUuid::from(rig_id)),
+            rig_ref,
+            yaw_deg,
+            pitch_deg,
+            roll_deg,
+            quat_x: q[0],
+            quat_y: q[1],
+            quat_z: q[2],
+            quat_w: q[3],
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_HEAD_POSE_STATEMENT,
+                bindings,
+                POSE_HEAD_POSE_RECORDED,
+                "atelier_pose_rig",
+                &rig_id.to_string(),
+                serde_json::json!({
+                    "rig_id": rig_id,
+                    "yaw_deg": yaw_deg,
+                    "pitch_deg": pitch_deg,
+                    "roll_deg": roll_deg,
+                    "quaternion": q,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording head pose returned no row".to_owned())
+        })?;
+        Ok(head_pose_from_row(&pose_row(row)?))
     }
 
     /// Fetch the head pose for a rig, if recorded.
     pub async fn get_head_pose(&self, rig_id: Uuid) -> AtelierResult<Option<HeadPose>> {
-        let row = sqlx::query(
-            r#"SELECT rig_id, yaw_deg, pitch_deg, roll_deg,
-                      quat_x, quat_y, quat_z, quat_w, created_at_utc
-               FROM atelier_pose_head_pose WHERE rig_id = $1"#,
-        )
-        .bind(rig_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(head_pose_from_row))
+        let binding = PoseRigIdBinding {
+            rig_ref: RecordId::new("atelier_pose_head_pose", SurrealUuid::from(rig_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_HEAD_POSE_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(|row| Ok(head_pose_from_row(&pose_row(row)?)))
+            .transpose()
     }
 
     /// Set the calibration record for a rig, preserved as BLOCKED/unresolved by
@@ -2652,69 +3199,54 @@ impl AtelierStore {
         let hand_rows = to_json_value("hand_rows", &new.hand_rows)?;
         let history_refs = to_json_value("history_refs", &new.history_refs)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_pose_calibration
-                 (rig_id, state, block_reason, head_pose_ref, marker_visibility,
-                  marker_colors, hand_rows, history_refs)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (rig_id) DO UPDATE SET
-                 state         = EXCLUDED.state,
-                 block_reason  = EXCLUDED.block_reason,
-                 head_pose_ref = EXCLUDED.head_pose_ref,
-                 marker_visibility = EXCLUDED.marker_visibility,
-                 marker_colors = EXCLUDED.marker_colors,
-                 hand_rows = EXCLUDED.hand_rows,
-                 history_refs = EXCLUDED.history_refs,
-                 updated_at_utc = NOW()
-               RETURNING rig_id, state, block_reason, head_pose_ref, marker_visibility,
-                         marker_colors, hand_rows, history_refs, created_at_utc, updated_at_utc"#,
-        )
-        .bind(new.rig_id)
-        .bind(new.state.as_token())
-        .bind(&new.block_reason)
-        .bind(&new.head_pose_ref)
-        .bind(marker_visibility)
-        .bind(marker_colors)
-        .bind(hand_rows)
-        .bind(history_refs)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let calibration = calibration_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_CALIBRATION_SET,
-            "atelier_pose_rig",
-            &new.rig_id.to_string(),
-            serde_json::json!({
-                "rig_id": calibration.rig_id,
-                "state": calibration.state.as_token(),
-                "block_reason": calibration.block_reason,
-                "head_pose_ref": calibration.head_pose_ref,
-                "marker_visibility": calibration.marker_visibility,
-                "marker_colors": calibration.marker_colors,
-                "hand_rows": calibration.hand_rows,
-                "history_refs": calibration.history_refs,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(calibration)
+        let bindings = PoseCalibrationBindings {
+            record_id: RecordId::new("atelier_pose_calibration", SurrealUuid::from(new.rig_id)),
+            rig_ref: RecordId::new("atelier_pose_rig", SurrealUuid::from(new.rig_id)),
+            state: new.state.as_token().to_owned(),
+            block_reason: new.block_reason.clone(),
+            head_pose_ref: new.head_pose_ref.clone(),
+            marker_visibility,
+            marker_colors,
+            hand_rows,
+            history_refs,
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_CALIBRATION_STATEMENT,
+                bindings,
+                POSE_CALIBRATION_SET,
+                "atelier_pose_rig",
+                &new.rig_id.to_string(),
+                serde_json::json!({
+                    "rig_id": new.rig_id,
+                    "state": new.state.as_token(),
+                    "block_reason": new.block_reason,
+                    "head_pose_ref": new.head_pose_ref,
+                    "marker_visibility": new.marker_visibility,
+                    "marker_colors": new.marker_colors,
+                    "hand_rows": new.hand_rows,
+                    "history_refs": new.history_refs,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording pose calibration returned no row".to_owned())
+        })?;
+        calibration_from_row(&pose_row(row)?)
     }
 
     /// Fetch the calibration record for a rig, if any.
     pub async fn get_calibration(&self, rig_id: Uuid) -> AtelierResult<Option<Calibration>> {
-        let row = sqlx::query(&format!(
-            "SELECT {CALIBRATION_COLUMNS} FROM atelier_pose_calibration WHERE rig_id = $1"
-        ))
-        .bind(rig_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(calibration_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let binding = PoseRigIdBinding {
+            rig_ref: RecordId::new("atelier_pose_calibration", SurrealUuid::from(rig_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_CALIBRATION_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(|row| calibration_from_row(&pose_row(row)?))
+            .transpose()
     }
 
     /// Append a versioned identity profile for a character (MT-PoseKit).
@@ -2733,76 +3265,56 @@ impl AtelierStore {
         let description = redact_secrets(&new.description);
         let provenance = redact_secrets(&new.provenance);
 
-        let mut tx = self.pool().begin().await?;
-
-        let character_exists: Option<Uuid> =
-            sqlx::query_scalar("SELECT internal_id FROM atelier_character WHERE internal_id = $1")
-                .bind(new.character_internal_id)
-                .fetch_optional(&mut *tx)
-                .await?;
-        if character_exists.is_none() {
-            return Err(AtelierError::NotFound(format!(
+        let profile_id = Uuid::now_v7();
+        let bindings = IdentityProfileAppendBindings {
+            record_id: RecordId::new("atelier_identity_profile", SurrealUuid::from(profile_id)),
+            profile_id: SurrealUuid::from(profile_id),
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(new.character_internal_id),
+            ),
+            kind: new.kind.as_token().to_owned(),
+            name: name.clone(),
+            description: description.clone(),
+            reference_asset_ref: new
+                .reference_asset_id
+                .map(|asset_id| RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id))),
+            reference_ref: new.reference_ref.clone(),
+            source_ref: new.source_ref.clone(),
+            crop_ref: new.crop_ref.clone(),
+            artifact_ref: new.artifact_ref.clone(),
+            provenance: provenance.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                APPEND_IDENTITY_PROFILE_STATEMENT,
+                bindings,
+                IDENTITY_PROFILE_APPENDED,
+                "atelier_identity_profile",
+                &profile_id.to_string(),
+                serde_json::json!({
+                    "profile_id": profile_id,
+                    "version": 1,
+                    "kind": new.kind.as_token(),
+                    "reference_asset_id": new.reference_asset_id,
+                    "name_ref": event_ref_for_text(&name),
+                    "description_ref": event_ref_for_text(&description),
+                    "reference_ref": new.reference_ref,
+                    "source_ref": new.source_ref,
+                    "crop_ref": new.crop_ref,
+                    "artifact_ref": new.artifact_ref,
+                    "provenance": provenance,
+                    "mutation": "append",
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::NotFound(format!(
                 "atelier_character internal_id={}",
                 new.character_internal_id
-            )));
-        }
-
-        let next_seq: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_identity_profile \
-             WHERE character_internal_id = $1",
-        )
-        .bind(new.character_internal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_identity_profile
-                 (character_internal_id, seq, version, kind, name, description,
-                  reference_asset_id, reference_ref, source_ref, crop_ref,
-                  artifact_ref, provenance)
-               VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-               RETURNING {PROFILE_COLUMNS}"#
-        ))
-        .bind(new.character_internal_id)
-        .bind(next_seq)
-        .bind(new.kind.as_token())
-        .bind(&name)
-        .bind(&description)
-        .bind(new.reference_asset_id)
-        .bind(&new.reference_ref)
-        .bind(&new.source_ref)
-        .bind(&new.crop_ref)
-        .bind(&new.artifact_ref)
-        .bind(&provenance)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let profile = identity_profile_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            IDENTITY_PROFILE_APPENDED,
-            "atelier_identity_profile",
-            &profile.profile_id.to_string(),
-            serde_json::json!({
-                "profile_id": profile.profile_id,
-                "seq": profile.seq,
-                "version": profile.version,
-                "kind": profile.kind.as_token(),
-                "reference_asset_id": profile.reference_asset_id,
-                "name_ref": event_ref_for_text(&profile.name),
-                "description_ref": event_ref_for_text(&profile.description),
-                "reference_ref": profile.reference_ref,
-                "source_ref": profile.source_ref,
-                "crop_ref": profile.crop_ref,
-                "artifact_ref": profile.artifact_ref,
-                // Already redacted; never leak raw secrets into the ledger.
-                "provenance": profile.provenance,
-                "mutation": "append",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(profile)
+            ))
+        })?;
+        identity_profile_from_row(&pose_row(row)?)
     }
 
     /// Fetch one active identity profile by id.
@@ -2810,18 +3322,19 @@ impl AtelierStore {
         &self,
         profile_id: Uuid,
     ) -> AtelierResult<Option<IdentityProfile>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {PROFILE_COLUMNS} FROM atelier_identity_profile
-               WHERE profile_id = $1
-                 AND deleted_at_utc IS NULL"#
-        ))
-        .bind(profile_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(row) => Ok(Some(identity_profile_from_row(&row)?)),
-            None => Ok(None),
-        }
+        let binding = PoseRecordBinding {
+            record_id: RecordId::new("atelier_identity_profile", SurrealUuid::from(profile_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_IDENTITY_PROFILE_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        row.map(|row| identity_profile_from_row(&pose_row(row)?))
+            .transpose()
     }
 
     /// Update mutable identity profile metadata while preserving character/seq identity.
@@ -2832,57 +3345,53 @@ impl AtelierStore {
         validate_update_identity_profile(update)?;
         let name = redact_secrets(&update.name);
         let description = redact_secrets(&update.description);
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_identity_profile
-               SET name = $2,
-                   description = $3,
-                   source_ref = $4,
-                   crop_ref = $5,
-                   artifact_ref = $6,
-                   version = version + 1,
-                   updated_at_utc = NOW()
-               WHERE profile_id = $1
-                 AND deleted_at_utc IS NULL
-               RETURNING {PROFILE_COLUMNS}"#
-        ))
-        .bind(update.profile_id)
-        .bind(&name)
-        .bind(&description)
-        .bind(&update.source_ref)
-        .bind(&update.crop_ref)
-        .bind(&update.artifact_ref)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
+        let existing = self.get_identity_profile(update.profile_id).await?;
+        let Some(existing) = existing else {
             return Err(AtelierError::NotFound(format!(
                 "atelier_identity_profile profile_id={}",
                 update.profile_id
             )));
         };
-        let profile = identity_profile_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            IDENTITY_PROFILE_APPENDED,
-            "atelier_identity_profile",
-            &profile.profile_id.to_string(),
-            serde_json::json!({
-                "profile_id": profile.profile_id,
-                "seq": profile.seq,
-                "version": profile.version,
-                "kind": profile.kind.as_token(),
-                "name_ref": event_ref_for_text(&profile.name),
-                "description_ref": event_ref_for_text(&profile.description),
-                "source_ref": profile.source_ref,
-                "crop_ref": profile.crop_ref,
-                "artifact_ref": profile.artifact_ref,
-                "requested_by": update.requested_by,
-                "mutation": "update",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(profile)
+        let bindings = IdentityProfileUpdateBindings {
+            profile_ref: RecordId::new(
+                "atelier_identity_profile",
+                SurrealUuid::from(update.profile_id),
+            ),
+            name: name.clone(),
+            description: description.clone(),
+            source_ref: update.source_ref.clone(),
+            crop_ref: update.crop_ref.clone(),
+            artifact_ref: update.artifact_ref.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                UPDATE_IDENTITY_PROFILE_STATEMENT,
+                bindings,
+                IDENTITY_PROFILE_APPENDED,
+                "atelier_identity_profile",
+                &update.profile_id.to_string(),
+                serde_json::json!({
+                    "profile_id": update.profile_id,
+                    "seq": existing.seq,
+                    "version": existing.version + 1,
+                    "kind": existing.kind.as_token(),
+                    "name_ref": event_ref_for_text(&name),
+                    "description_ref": event_ref_for_text(&description),
+                    "source_ref": update.source_ref,
+                    "crop_ref": update.crop_ref,
+                    "artifact_ref": update.artifact_ref,
+                    "requested_by": update.requested_by,
+                    "mutation": "update",
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::NotFound(format!(
+                "atelier_identity_profile profile_id={}",
+                update.profile_id
+            ))
+        })?;
+        identity_profile_from_row(&pose_row(row)?)
     }
 
     /// Soft-delete an identity profile from normal CRUD/list projections.
@@ -2892,41 +3401,31 @@ impl AtelierStore {
         requested_by: &str,
     ) -> AtelierResult<bool> {
         reject_legacy_runtime_ref("requested_by", requested_by)?;
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_identity_profile
-               SET deleted_at_utc = NOW(),
-                   version = version + 1,
-                   updated_at_utc = NOW()
-               WHERE profile_id = $1
-                 AND deleted_at_utc IS NULL
-               RETURNING {PROFILE_COLUMNS}"#
-        ))
-        .bind(profile_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            tx.commit().await?;
+        let existing = self.get_identity_profile(profile_id).await?;
+        let Some(existing) = existing else {
             return Ok(false);
         };
-        let profile = identity_profile_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            IDENTITY_PROFILE_APPENDED,
-            "atelier_identity_profile",
-            &profile.profile_id.to_string(),
-            serde_json::json!({
-                "profile_id": profile.profile_id,
-                "seq": profile.seq,
-                "version": profile.version,
-                "kind": profile.kind.as_token(),
-                "requested_by": requested_by,
-                "mutation": "delete",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(true)
+        let bindings = IdentityProfileDeleteBindings {
+            profile_ref: RecordId::new("atelier_identity_profile", SurrealUuid::from(profile_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                DELETE_IDENTITY_PROFILE_STATEMENT,
+                bindings,
+                IDENTITY_PROFILE_APPENDED,
+                "atelier_identity_profile",
+                &profile_id.to_string(),
+                serde_json::json!({
+                    "profile_id": profile_id,
+                    "seq": existing.seq,
+                    "version": existing.version + 1,
+                    "kind": existing.kind.as_token(),
+                    "requested_by": requested_by,
+                    "mutation": "delete",
+                }),
+            )
+            .await?;
+        Ok(row.is_some())
     }
 
     /// Record a normalized 512x512 face crop artifact linked to the current
@@ -2941,24 +3440,42 @@ impl AtelierStore {
         let crop_box_json = to_json_value("identity crop_box", &new.crop_box)?;
         let landmarks_json = to_json_value("identity crop landmarks", &new.landmarks)?;
 
-        let mut tx = self.pool().begin().await?;
-        let profile_row = sqlx::query(
-            r#"SELECT character_internal_id, version
-               FROM atelier_identity_profile
-               WHERE profile_id = $1
-                 AND deleted_at_utc IS NULL"#,
-        )
-        .bind(new.profile_id)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let profile_ref = RecordId::new(
+            "atelier_identity_profile",
+            SurrealUuid::from(new.profile_id),
+        );
+        let profile_binding = PoseRecordBinding {
+            record_id: profile_ref.clone(),
+        };
+        let profile_row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_IDENTITY_CROP_PROFILE_STATEMENT, profile_binding)
+                        .await
+                })
+            })
+            .await?;
         let Some(profile_row) = profile_row else {
             return Err(AtelierError::NotFound(format!(
                 "atelier_identity_profile profile_id={}",
                 new.profile_id
             )));
         };
+        let profile_row = pose_row(profile_row)?;
         let character_internal_id: Uuid = profile_row.get("character_internal_id");
         let profile_version: i64 = profile_row.get("version");
+
+        if let Some(existing) = self
+            .find_identity_crop_artifact_by_identity(
+                new.profile_id,
+                profile_version,
+                &new.content_hash,
+            )
+            .await?
+        {
+            return Ok(existing);
+        }
+
         let crop_id = Uuid::now_v7();
         let manifest = identity_crop_artifact_manifest(
             crop_id,
@@ -2974,82 +3491,98 @@ impl AtelierStore {
             &new.mime,
         );
 
-        let inserted = sqlx::query(&format!(
-            r#"INSERT INTO atelier_identity_crop_artifact
-                 (crop_id, profile_id, profile_version, character_internal_id,
-                  source_ref, crop_box, landmarks, artifact_ref, manifest_ref,
-                  content_hash, byte_len, mime, width, height, manifest, created_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-               ON CONFLICT (profile_id, profile_version, content_hash) DO NOTHING
-               RETURNING {IDENTITY_CROP_COLUMNS}"#
-        ))
-        .bind(crop_id)
-        .bind(new.profile_id)
-        .bind(profile_version)
-        .bind(character_internal_id)
-        .bind(&new.source_ref)
-        .bind(&crop_box_json)
-        .bind(&landmarks_json)
-        .bind(&new.artifact_ref)
-        .bind(&new.manifest_ref)
-        .bind(&new.content_hash)
-        .bind(new.byte_len)
-        .bind(&new.mime)
-        .bind(new.width)
-        .bind(new.height)
-        .bind(&manifest)
-        .bind(&new.created_by)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let (crop, inserted_new) = match inserted {
-            Some(row) => (identity_crop_artifact_from_row(&row)?, true),
-            None => {
-                let row = sqlx::query(&format!(
-                    r#"SELECT {IDENTITY_CROP_COLUMNS}
-                       FROM atelier_identity_crop_artifact
-                       WHERE profile_id = $1
-                         AND profile_version = $2
-                         AND content_hash = $3"#
-                ))
-                .bind(new.profile_id)
-                .bind(profile_version)
-                .bind(&new.content_hash)
-                .fetch_one(&mut *tx)
-                .await?;
-                (identity_crop_artifact_from_row(&row)?, false)
+        let bindings = IdentityCropBindings {
+            record_id: RecordId::new("atelier_identity_crop_artifact", SurrealUuid::from(crop_id)),
+            crop_id: SurrealUuid::from(crop_id),
+            profile_ref,
+            profile_version,
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(character_internal_id),
+            ),
+            source_ref: new.source_ref.clone(),
+            crop_box: crop_box_json,
+            landmarks: landmarks_json,
+            artifact_ref: new.artifact_ref.clone(),
+            manifest_ref: new.manifest_ref.clone(),
+            content_hash: new.content_hash.clone(),
+            byte_len: new.byte_len,
+            mime: new.mime.clone(),
+            width: new.width,
+            height: new.height,
+            manifest: manifest.clone(),
+            created_by: new.created_by.clone(),
+        };
+        let payload = serde_json::json!({
+            "crop_id": crop_id,
+            "profile_id": new.profile_id,
+            "profile_version": profile_version,
+            "character_internal_id": character_internal_id,
+            "source_ref": new.source_ref,
+            "crop_box": new.crop_box,
+            "landmark_count": new.landmarks.len(),
+            "artifact_ref": new.artifact_ref,
+            "manifest_ref": new.manifest_ref,
+            "content_hash": new.content_hash,
+            "byte_len": new.byte_len,
+            "mime": new.mime,
+            "width": new.width,
+            "height": new.height,
+            "manifest": manifest,
+            "created_by": new.created_by,
+        });
+        let aggregate_id = crop_id.to_string();
+        let mut attempt = 1;
+        let row = loop {
+            let row_result: AtelierResult<Option<serde_json::Value>> = self
+                .write_with_event(
+                    WRITE_IDENTITY_CROP_STATEMENT,
+                    bindings.clone(),
+                    IDENTITY_CROP_ARTIFACT_RECORDED,
+                    "atelier_identity_crop_artifact",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+                .await;
+            match row_result {
+                Ok(Some(row)) => break row,
+                Ok(None) => {
+                    return Err(AtelierError::Internal(
+                        "recording identity crop returned no row".to_owned(),
+                    ));
+                }
+                Err(error)
+                    if is_identity_crop_unique_conflict(&error)
+                        || is_identity_crop_retryable_transaction_conflict(&error) =>
+                {
+                    match self
+                        .find_identity_crop_artifact_by_identity(
+                            new.profile_id,
+                            profile_version,
+                            &new.content_hash,
+                        )
+                        .await
+                    {
+                        Ok(Some(existing)) => return Ok(existing),
+                        Ok(None) => {}
+                        Err(read_error)
+                            if is_identity_crop_retryable_transaction_conflict(&read_error) => {}
+                        Err(read_error) => {
+                            return Err(AtelierError::Internal(format!(
+                                "recording identity crop failed: {error}; canonical idempotency reread also failed: {read_error}"
+                            )));
+                        }
+                    }
+                    if attempt >= IDENTITY_CROP_TRANSACTION_MAX_ATTEMPTS {
+                        return Err(error);
+                    }
+                    wait_before_identity_crop_transaction_retry(crop_id, attempt).await;
+                    attempt += 1;
+                }
+                Err(error) => return Err(error),
             }
         };
-
-        if inserted_new {
-            self.record_event_in_tx(
-                &mut tx,
-                IDENTITY_CROP_ARTIFACT_RECORDED,
-                "atelier_identity_crop_artifact",
-                &crop.crop_id.to_string(),
-                serde_json::json!({
-                    "crop_id": crop.crop_id,
-                    "profile_id": crop.profile_id,
-                    "profile_version": crop.profile_version,
-                    "character_internal_id": crop.character_internal_id,
-                    "source_ref": &crop.source_ref,
-                    "crop_box": &crop.crop_box,
-                    "landmark_count": crop.landmarks.len(),
-                    "artifact_ref": &crop.artifact_ref,
-                    "manifest_ref": &crop.manifest_ref,
-                    "content_hash": &crop.content_hash,
-                    "byte_len": crop.byte_len,
-                    "mime": &crop.mime,
-                    "width": crop.width,
-                    "height": crop.height,
-                    "manifest": &crop.manifest,
-                    "created_by": &crop.created_by,
-                }),
-            )
-            .await?;
-        }
-        tx.commit().await?;
-        Ok(crop)
+        identity_crop_artifact_from_row(&pose_row(row)?)
     }
 
     /// Fetch one identity crop artifact by id.
@@ -3057,18 +3590,16 @@ impl AtelierStore {
         &self,
         crop_id: Uuid,
     ) -> AtelierResult<Option<IdentityCropArtifact>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {IDENTITY_CROP_COLUMNS}
-               FROM atelier_identity_crop_artifact
-               WHERE crop_id = $1"#
-        ))
-        .bind(crop_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(row) => Ok(Some(identity_crop_artifact_from_row(&row)?)),
-            None => Ok(None),
-        }
+        let binding = PoseRecordBinding {
+            record_id: RecordId::new("atelier_identity_crop_artifact", SurrealUuid::from(crop_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_IDENTITY_CROP_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(|row| identity_crop_artifact_from_row(&pose_row(row)?))
+            .transpose()
     }
 
     /// List identity crop artifacts for one profile in creation order.
@@ -3076,16 +3607,20 @@ impl AtelierStore {
         &self,
         profile_id: Uuid,
     ) -> AtelierResult<Vec<IdentityCropArtifact>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {IDENTITY_CROP_COLUMNS}
-               FROM atelier_identity_crop_artifact
-               WHERE profile_id = $1
-               ORDER BY created_at_utc ASC, crop_id ASC"#
-        ))
-        .bind(profile_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(identity_crop_artifact_from_row).collect()
+        let binding = PoseRecordBinding {
+            record_id: RecordId::new("atelier_identity_profile", SurrealUuid::from(profile_id)),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_IDENTITY_CROPS_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| identity_crop_artifact_from_row(&pose_row(row)?))
+            .collect()
     }
 
     /// List a character's identity profiles in version order (ascending seq).
@@ -3094,18 +3629,24 @@ impl AtelierStore {
         character_internal_id: Uuid,
         kind: Option<IdentityProfileKind>,
     ) -> AtelierResult<Vec<IdentityProfile>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {PROFILE_COLUMNS} FROM atelier_identity_profile
-               WHERE character_internal_id = $1
-                 AND ($2::TEXT IS NULL OR kind = $2)
-                 AND deleted_at_utc IS NULL
-               ORDER BY seq ASC"#
-        ))
-        .bind(character_internal_id)
-        .bind(kind.map(|k| k.as_token()))
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(identity_profile_from_row).collect()
+        let bindings = IdentityProfileListBindings {
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(character_internal_id),
+            ),
+            kind: kind.map(|value| value.as_token().to_owned()),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_IDENTITY_PROFILES_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| identity_profile_from_row(&pose_row(row)?))
+            .collect()
     }
 
     /// The latest (highest-seq) identity profile of a kind for a character.
@@ -3114,20 +3655,23 @@ impl AtelierStore {
         character_internal_id: Uuid,
         kind: IdentityProfileKind,
     ) -> AtelierResult<Option<IdentityProfile>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {PROFILE_COLUMNS} FROM atelier_identity_profile
-               WHERE character_internal_id = $1 AND kind = $2
-                 AND deleted_at_utc IS NULL
-               ORDER BY seq DESC LIMIT 1"#
-        ))
-        .bind(character_internal_id)
-        .bind(kind.as_token())
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(identity_profile_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let binding = IdentityProfileKindBinding {
+            character_ref: RecordId::new(
+                "atelier_character",
+                SurrealUuid::from(character_internal_id),
+            ),
+            kind: kind.as_token().to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(LATEST_IDENTITY_PROFILE_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        row.map(|row| identity_profile_from_row(&pose_row(row)?))
+            .transpose()
     }
 }
 
@@ -3136,7 +3680,7 @@ impl AtelierStore {
 //
 // A typed runtime surface that records pose-workspace and Pose-tab features the
 // CKC WP-0133 parity work intentionally does NOT implement yet. Each deferred or
-// blocked feature is a real Postgres row + EventLedger event with a mandatory
+// blocked feature is a real embedded SurrealDB row + EventLedger event with a mandatory
 // machine-readable reason, so "deferred/blocked" can never be a false parity
 // claim hidden in governance prose. Detection/render still happens out of module;
 // this only records the deferral decision.
@@ -3208,13 +3752,59 @@ pub struct PoseDeferredFeature {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const POSE_DEFERRED_FEATURE_COLUMNS: &str =
-    "feature_id, feature_kind, status, feature_label, deferral_reason, \
-     carry_forward, source_ref, created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct PoseDeferredFeatureBindings {
+    record_id: RecordId,
+    feature_id: String,
+    feature_kind: String,
+    status: String,
+    feature_label: String,
+    deferral_reason: String,
+    carry_forward: bool,
+    source_ref: Option<String>,
+}
 
-fn pose_deferred_feature_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<PoseDeferredFeature> {
+#[derive(SurrealValue)]
+struct PoseFeatureKindBinding {
+    feature_kind: String,
+}
+
+#[derive(SurrealValue)]
+struct PoseEmptyBindings {}
+
+macro_rules! pose_deferred_feature_columns {
+    () => {
+        "feature_id, feature_kind, status, feature_label, deferral_reason, \
+         carry_forward, source_ref, created_at_utc"
+    };
+}
+
+const WRITE_POSE_DEFERRED_FEATURE_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " UPSERT $domain.record_id MERGE { feature_id: $domain.feature_id, \
+       feature_kind: $domain.feature_kind, status: $domain.status, \
+       feature_label: $domain.feature_label, deferral_reason: $domain.deferral_reason, \
+       carry_forward: $domain.carry_forward, source_ref: $domain.source_ref }; \
+       RETURN (SELECT ",
+    pose_deferred_feature_columns!(),
+    " FROM ONLY $domain.record_id); };"
+);
+
+const LIST_POSE_DEFERRED_FEATURES_STATEMENT: &str = concat!(
+    "SELECT ",
+    pose_deferred_feature_columns!(),
+    " FROM atelier_pose_deferred_feature ORDER BY feature_id ASC;"
+);
+
+const LIST_POSE_DEFERRED_FEATURES_BY_KIND_STATEMENT: &str = concat!(
+    "SELECT ",
+    pose_deferred_feature_columns!(),
+    " FROM atelier_pose_deferred_feature WHERE feature_kind = $feature_kind \
+     ORDER BY feature_id ASC;"
+);
+
+fn pose_deferred_feature_from_row(row: &PoseRow) -> AtelierResult<PoseDeferredFeature> {
     let status: String = row.get("status");
     Ok(PoseDeferredFeature {
         feature_id: row.get("feature_id"),
@@ -3442,62 +4032,53 @@ impl AtelierStore {
     ) -> AtelierResult<PoseDeferredFeature> {
         validate_pose_deferred_feature(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_pose_deferred_feature
-                 (feature_id, feature_kind, status, feature_label, deferral_reason,
-                  carry_forward, source_ref)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (feature_id) DO UPDATE SET
-                 feature_kind = EXCLUDED.feature_kind,
-                 status = EXCLUDED.status,
-                 feature_label = EXCLUDED.feature_label,
-                 deferral_reason = EXCLUDED.deferral_reason,
-                 carry_forward = EXCLUDED.carry_forward,
-                 source_ref = EXCLUDED.source_ref
-               RETURNING {POSE_DEFERRED_FEATURE_COLUMNS}"#
-        ))
-        .bind(&new.feature_id)
-        .bind(&new.feature_kind)
-        .bind(new.status.as_token())
-        .bind(&new.feature_label)
-        .bind(&new.deferral_reason)
-        .bind(new.carry_forward)
-        .bind(&new.source_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let feature = pose_deferred_feature_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            POSE_DEFERRED_FEATURE_RECORDED,
-            "atelier_pose_deferred_feature",
-            &feature.feature_id,
-            serde_json::json!({
-                "feature_id": feature.feature_id,
-                "feature_kind": feature.feature_kind,
-                "status": feature.status.as_token(),
-                "feature_label": feature.feature_label,
-                "deferral_reason": feature.deferral_reason,
-                "carry_forward": feature.carry_forward,
-                "source_ref": feature.source_ref,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(feature)
+        let bindings = PoseDeferredFeatureBindings {
+            record_id: RecordId::new("atelier_pose_deferred_feature", new.feature_id.clone()),
+            feature_id: new.feature_id.clone(),
+            feature_kind: new.feature_kind.clone(),
+            status: new.status.as_token().to_owned(),
+            feature_label: new.feature_label.clone(),
+            deferral_reason: new.deferral_reason.clone(),
+            carry_forward: new.carry_forward,
+            source_ref: new.source_ref.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_POSE_DEFERRED_FEATURE_STATEMENT,
+                bindings,
+                POSE_DEFERRED_FEATURE_RECORDED,
+                "atelier_pose_deferred_feature",
+                &new.feature_id,
+                serde_json::json!({
+                    "feature_id": new.feature_id,
+                    "feature_kind": new.feature_kind,
+                    "status": new.status.as_token(),
+                    "feature_label": new.feature_label,
+                    "deferral_reason": new.deferral_reason,
+                    "carry_forward": new.carry_forward,
+                    "source_ref": new.source_ref,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording pose deferred feature returned no row".to_owned())
+        })?;
+        pose_deferred_feature_from_row(&pose_row(row)?)
     }
 
     /// List every recorded deferred/blocked pose feature, by `feature_id`.
     pub async fn list_pose_deferred_features(&self) -> AtelierResult<Vec<PoseDeferredFeature>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {POSE_DEFERRED_FEATURE_COLUMNS}
-               FROM atelier_pose_deferred_feature
-               ORDER BY feature_id ASC"#
-        ))
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(pose_deferred_feature_from_row).collect()
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_POSE_DEFERRED_FEATURES_STATEMENT, PoseEmptyBindings {})
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| pose_deferred_feature_from_row(&pose_row(row)?))
+            .collect()
     }
 
     /// List recorded deferred/blocked pose features for one `feature_kind`.
@@ -3505,16 +4086,20 @@ impl AtelierStore {
         &self,
         feature_kind: &str,
     ) -> AtelierResult<Vec<PoseDeferredFeature>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {POSE_DEFERRED_FEATURE_COLUMNS}
-               FROM atelier_pose_deferred_feature
-               WHERE feature_kind = $1
-               ORDER BY feature_id ASC"#
-        ))
-        .bind(feature_kind)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(pose_deferred_feature_from_row).collect()
+        let binding = PoseFeatureKindBinding {
+            feature_kind: feature_kind.to_owned(),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_POSE_DEFERRED_FEATURES_BY_KIND_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| pose_deferred_feature_from_row(&pose_row(row)?))
+            .collect()
     }
 }
 

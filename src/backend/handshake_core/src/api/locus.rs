@@ -9,9 +9,7 @@
 //! `:workspace_id` segment is validated for path consistency but the lookup is
 //! by id. Read-only, single-store authority, no new store.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-137): this module still binds
-//! `sqlx` against the deleted relational backend and does not compile today.
-//! Handshake's only database is the embedded SurrealDB store.
+//! Locus records are resolved directly from the embedded SurrealDB authority.
 //!
 //! Reverse lookup (record -> referencing blocks) already works through
 //! `loom/search-v2`; it is intentionally NOT duplicated here.
@@ -25,6 +23,7 @@ use axum::{
     Json, Router,
 };
 use serde::Serialize;
+use surrealdb::types::SurrealValue;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
 type ApiResult<T> = Result<T, ApiError>;
@@ -76,23 +75,49 @@ struct LocusRecordWire {
     status: Option<String>,
 }
 
+#[derive(SurrealValue)]
+struct LocusIdBindings {
+    record_id: String,
+}
+
+#[derive(SurrealValue)]
+struct WorkPacketLocusRow {
+    title: String,
+    description: Option<String>,
+    status: String,
+}
+
+#[derive(SurrealValue)]
+struct MicroTaskLocusRow {
+    name: String,
+    status: String,
+}
+
 async fn resolve_work_packet(
     State(state): State<AppState>,
     Path((workspace_id, record_id)): Path<(String, String)>,
 ) -> ApiResult<Json<LocusRecordWire>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let row = sqlx::query_as::<_, (String, Option<String>, String)>(
-        "SELECT title, description, status FROM work_packets WHERE wp_id = $1",
-    )
-    .bind(&record_id)
-    .fetch_optional(&state.postgres_pool)
-    .await
-    .map_err(internal_error)?;
+    let row: Option<WorkPacketLocusRow> = state
+        .surreal
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT title, description, status FROM work_packets \
+                         WHERE wp_id = $record_id LIMIT 1;",
+                        LocusIdBindings { record_id },
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(internal_error)?;
     match row {
-        Some((title, description, status)) => Ok(Json(LocusRecordWire {
-            title,
-            summary: description.filter(|value| !value.trim().is_empty()),
-            status: Some(status),
+        Some(row) => Ok(Json(LocusRecordWire {
+            title: row.title,
+            summary: row.description.filter(|value| !value.trim().is_empty()),
+            status: Some(row.status),
         })),
         None => Err(not_found("locus_work_packet_not_found")),
     }
@@ -105,18 +130,26 @@ async fn resolve_micro_task(
     ensure_workspace_exists(&state, &workspace_id).await?;
     // `micro_tasks` carries `name` + `status` (no dedicated description column;
     // richer detail lives in `metadata`). Title = name; summary is left None.
-    let row = sqlx::query_as::<_, (String, String)>(
-        "SELECT name, status FROM micro_tasks WHERE mt_id = $1",
-    )
-    .bind(&record_id)
-    .fetch_optional(&state.postgres_pool)
-    .await
-    .map_err(internal_error)?;
+    let row: Option<MicroTaskLocusRow> = state
+        .surreal
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT name, status FROM micro_tasks \
+                         WHERE mt_id = $record_id LIMIT 1;",
+                        LocusIdBindings { record_id },
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(internal_error)?;
     match row {
-        Some((name, status)) => Ok(Json(LocusRecordWire {
-            title: name,
+        Some(row) => Ok(Json(LocusRecordWire {
+            title: row.name,
             summary: None,
-            status: Some(status),
+            status: Some(row.status),
         })),
         None => Err(not_found("locus_micro_task_not_found")),
     }

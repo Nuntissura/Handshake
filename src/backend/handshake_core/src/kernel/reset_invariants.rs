@@ -12,7 +12,7 @@ pub enum LegacyResetTopic {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResetDisposition {
-    PostgresEventLedgerCrdtAuthority,
+    SurrealEventLedgerCrdtAuthority,
     ProjectionOrAdvisory,
     PromotionGatedAction,
 }
@@ -21,7 +21,7 @@ impl ResetDisposition {
     pub fn is_allowed_kernel002_disposition(self) -> bool {
         matches!(
             self,
-            ResetDisposition::PostgresEventLedgerCrdtAuthority
+            ResetDisposition::SurrealEventLedgerCrdtAuthority
                 | ResetDisposition::ProjectionOrAdvisory
                 | ResetDisposition::PromotionGatedAction
         )
@@ -147,22 +147,22 @@ const KERNEL002_RESET_RECONCILIATIONS: &[ResetReconciliation] = &[
         source_stub_id: LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID,
         topic: LegacyResetTopic::LegacyLocalAuthority,
         legacy_assumption: "Legacy cache/offline boundary work can be mistaken for local runtime authority.",
-        reset_disposition: ResetDisposition::PostgresEventLedgerCrdtAuthority,
-        kernel_semantics: "Preserve offline/cache intent only; Kernel002 authority is Postgres/EventLedger/CRDT and promotion commits authority events through EventLedger.",
+        reset_disposition: ResetDisposition::SurrealEventLedgerCrdtAuthority,
+        kernel_semantics: "Preserve offline/cache intent only; Kernel002 authority is embedded SurrealDB/EventLedger/CRDT and promotion commits authority events through EventLedger.",
     },
     ResetReconciliation {
         source_stub_id: "WP-1-FEMS-Write-Time-Safeguards-v1",
         topic: LegacyResetTopic::LegacyLocalAuthority,
         legacy_assumption: "FEMS safeguard records and FTS-style search were scoped around legacy local storage.",
-        reset_disposition: ResetDisposition::PostgresEventLedgerCrdtAuthority,
-        kernel_semantics: "Preserve novelty, contradiction, dedup, and audit semantics; authoritative FEMS writes use Postgres/EventLedger/CRDT storage/search primitives.",
+        reset_disposition: ResetDisposition::SurrealEventLedgerCrdtAuthority,
+        kernel_semantics: "Preserve novelty, contradiction, dedup, and audit semantics; authoritative FEMS writes use embedded SurrealDB/EventLedger/CRDT storage/search primitives.",
     },
     ResetReconciliation {
         source_stub_id: "WP-1-Locus-Work-Tracking-System-Phase1-v1",
         topic: LegacyResetTopic::LegacyLocalAuthority,
         legacy_assumption: "Locus work tracking rows could remain authoritative in legacy local task-board state.",
-        reset_disposition: ResetDisposition::PostgresEventLedgerCrdtAuthority,
-        kernel_semantics: "Preserve work graph and task-board intent; authoritative Locus state is Postgres/EventLedger/CRDT and generated views remain projections.",
+        reset_disposition: ResetDisposition::SurrealEventLedgerCrdtAuthority,
+        kernel_semantics: "Preserve work graph and task-board intent; authoritative Locus state is embedded SurrealDB/EventLedger/CRDT and generated views remain projections.",
     },
     ResetReconciliation {
         source_stub_id: "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
@@ -267,7 +267,7 @@ const KERNEL002_RESET_RECONCILIATIONS: &[ResetReconciliation] = &[
         topic: LegacyResetTopic::UiLocalTruth,
         legacy_assumption: "DCC control-plane projection rows can be used as authority when stale or locally cached.",
         reset_disposition: ResetDisposition::ProjectionOrAdvisory,
-        kernel_semantics: "DCC projection rows are rebuildable Postgres/EventLedger/CRDT views with freshness status; stale views cannot promote authority.",
+        kernel_semantics: "DCC projection rows are rebuildable embedded SurrealDB/EventLedger/CRDT views with freshness status; stale views cannot promote authority.",
     },
     ResetReconciliation {
         source_stub_id: "WP-1-Session-Spawn-Tree-DCC-Visualization-v1",

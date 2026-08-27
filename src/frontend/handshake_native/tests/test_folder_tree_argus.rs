@@ -6,7 +6,7 @@
 //! folder-tree WIDGET, but never the mounted `HandshakeApp` through the real localhost `SwarmMcpServer`
 //! transport the way an out-of-process swarm agent does. This test closes that exact gap:
 //!
-//!   1. creates an isolated real-PostgreSQL workspace with two folders plus one member block, then
+//!   1. creates an isolated real-SurrealDB workspace with two folders plus one member block, then
 //!      mounts the production `HandshakeApp` Folders pane against the current-source backend,
 //!   2. binds the CANONICAL Argus driver (real localhost JSON-RPC, the same `argus.inspect` /
 //!      `argus.click` the swarm path uses) to the mounted app,
@@ -254,7 +254,7 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
                 && !tree.loading
                 && tree.error.is_none()
         },
-        "mounted host loads the two real-PostgreSQL folders",
+        "mounted host loads the two real-SurrealDB folders",
     );
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-022-folder-tree");
@@ -393,7 +393,7 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
-        "MT-022 canonical Argus mounted folder tree: inspect(2 real-PG folders) -> click({projects_author}) \
+        "MT-022 canonical Argus mounted folder tree: inspect(2 real-SurrealDB folders) -> click({projects_author}) \
          -> exact +1 selected/expanded child-list completion; receipt={} agent={} screenshot={} tree={}",
         receipt_status,
         agent_id,

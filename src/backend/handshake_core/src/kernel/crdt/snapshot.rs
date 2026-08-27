@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use super::identity::CrdtWorkspaceIdentityV1;
 use super::persistence::{
-    CrdtReplayStepV1, CrdtStorageAuthorityPosture, CrdtUpdateRecordV1,
-    CrdtUpdateRecordValidationError, sha256_hex, validate_crdt_update_record,
+    sha256_hex, validate_crdt_update_record, CrdtReplayStepV1, CrdtStorageAuthorityPosture,
+    CrdtUpdateRecordV1, CrdtUpdateRecordValidationError,
 };
 
 pub const CRDT_SNAPSHOT_RECORD_SCHEMA_ID: &str = "hsk.kernel.crdt_snapshot_record@1";
@@ -159,7 +159,7 @@ pub fn new_crdt_snapshot_record(input: CrdtSnapshotRecordInputV1<'_>) -> CrdtSna
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
-        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        storage_authority: CrdtStorageAuthorityPosture::SurrealEventLedger,
     }
 }
 
@@ -205,16 +205,16 @@ pub fn validate_crdt_snapshot_record(
             message: "value must be a 64-character sha256 hex digest",
         });
     }
-    if !snapshot.snapshot_bytes_ref.starts_with("postgres://") {
+    if !snapshot.snapshot_bytes_ref.starts_with("surreal://") {
         errors.push(CrdtSnapshotRecordValidationError {
             field: "snapshot_bytes_ref",
-            message: "CRDT snapshot bytes must be referenced from Postgres storage",
+            message: "CRDT snapshot bytes must be referenced from SurrealDB storage",
         });
     }
-    if snapshot.storage_authority != CrdtStorageAuthorityPosture::PostgresEventLedger {
+    if snapshot.storage_authority != CrdtStorageAuthorityPosture::SurrealEventLedger {
         errors.push(CrdtSnapshotRecordValidationError {
             field: "storage_authority",
-            message: "CRDT snapshot authority must be Postgres plus EventLedger",
+            message: "CRDT snapshot authority must be SurrealDB plus EventLedger",
         });
     }
     if snapshot
@@ -272,7 +272,7 @@ pub fn build_snapshot_bounded_replay_plan(
         base_snapshot_id: snapshot.snapshot_id.clone(),
         base_snapshot_state_vector: snapshot.state_vector.clone(),
         replay_from_update_seq,
-        source_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        source_authority: CrdtStorageAuthorityPosture::SurrealEventLedger,
         ordered_updates: ordered_updates.into_iter().map(replay_step).collect(),
         final_state_vector,
     })

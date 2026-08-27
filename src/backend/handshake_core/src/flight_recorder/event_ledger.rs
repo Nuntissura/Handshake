@@ -20,7 +20,7 @@ const TERMINAL_MIRROR_SOURCE: &str = "terminal_event_ledger_mirror";
 /// EventLedger while delegating the normal FlightRecorder API to an inner
 /// recorder.
 ///
-/// MT-252 needs real-Postgres session receipts for the integrated terminal.
+/// MT-252 needs real durable session receipts for the integrated terminal.
 /// The terminal runtime already emits canonical `terminal_command` FR events,
 /// so this adapter preserves the existing FR sink and adds durable kernel
 /// ledger receipts keyed by terminal session id.

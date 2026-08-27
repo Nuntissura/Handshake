@@ -14,7 +14,7 @@
 //! Backend reality (Spec-Realism Gate): the parser, normalization, chip render, `#` trigger detection,
 //! menu commit, click->TagActivated, AccessKit dump, and the convergence dedupe are FULLY proven here
 //! with NO live backend. The LIVE `POST /loom/edges` convergence round-trip is the gated
-//! NEEDS_MANAGED_RESOURCE_PROOF item (it needs a live managed PostgreSQL + per-canonical tag_hub block
+//! NEEDS_MANAGED_RESOURCE_PROOF item (it needs a live managed SurrealDB + per-canonical tag_hub block
 //! resolution — the backend tags an edge into a tag_hub BLOCK, not a name string); the deduped
 //! edge-PAYLOAD builder is proven standalone here (AC-005, which the contract explicitly allows).
 

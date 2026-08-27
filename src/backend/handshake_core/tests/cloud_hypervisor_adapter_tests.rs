@@ -521,13 +521,19 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
         .expect("create orphan dir");
     assert!(mk.success(), "fabricating orphan dir must succeed");
 
-    let found = adapter.discover_orphan_vm_dirs().await;
+    let found = adapter
+        .discover_orphan_vm_dirs()
+        .await
+        .expect("orphan discovery must succeed");
     assert!(
         found.iter().any(|d| d == &orphan),
         "fabricated orphan must be discovered; got {found:?}"
     );
 
-    let reclaimed = adapter.reclaim_orphan_vm_dirs().await;
+    let reclaimed = adapter
+        .reclaim_orphan_vm_dirs()
+        .await
+        .expect("orphan reclaim must succeed");
     assert!(
         reclaimed >= 1,
         "must reclaim at least the fabricated orphan"
@@ -536,6 +542,7 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
         !adapter
             .discover_orphan_vm_dirs()
             .await
+            .expect("post-reclaim orphan discovery must succeed")
             .iter()
             .any(|d| d == &orphan),
         "orphan must be gone after reclaim"

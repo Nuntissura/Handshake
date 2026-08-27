@@ -9,7 +9,7 @@
 //!
 //! ## No live backend needed (transport stub)
 //!
-//! The real persistence path is the backend's PostgreSQL-authoritative
+//! The real persistence path is the backend's SurrealDB-authoritative
 //! `GET`/`PUT /workspaces/:id/workbench/layout` REST endpoint (see
 //! `layout_persistence::WorkbenchLayoutClient`). To prove the app's capture/apply/lifecycle logic
 //! WITHOUT a running `handshake_core`, these tests inject an in-memory [`MemoryTransport`] (a public
@@ -52,7 +52,7 @@ fn big_desktop() -> egui::Rect {
 }
 
 /// In-memory `LayoutTransport` backed by a shared map keyed by workspace id. Stands in for the
-/// backend's PostgreSQL layout table so two shells sharing one map mirror a real app restart against
+/// backend's SurrealDB layout table so two shells sharing one map mirror a real app restart against
 /// the same backend, with no live server.
 #[derive(Clone, Default)]
 struct MemoryTransport {
@@ -449,10 +449,10 @@ fn lifecycle_loads_then_autosaves_a_change() {
     );
 }
 
-// ── Live-backend round trip (cfg-gated; needs managed-postgres + handshake_core running) ─────────
+// ── Live-backend round trip (cfg-gated; needs managed-surrealdb + handshake_core running) ─────────
 //
 // This is the ONLY test that exercises the REAL `WorkbenchLayoutClient` against a running
-// `handshake_core` (which must be started with managed PostgreSQL, migration 0323 applied) listening
+// `handshake_core` (which must be started with managed SurrealDB, migration 0323 applied) listening
 // on 127.0.0.1:37501, with a workspace whose id is set in the HSK_LIVE_WORKSPACE_ID env var.
 //
 // It is gated behind the `integration_tests` feature (NOT run in the default `cargo test`) because it
@@ -460,12 +460,12 @@ fn lifecycle_loads_then_autosaves_a_change() {
 //   cargo test --features integration_tests --test test_layout_persistence live_backend_ -- --ignored --nocapture
 //
 // The unit-level mapping + manager logic (above and in `layout_persistence.rs`) is the REAL,
-// always-run proof; this test documents + exercises the genuine PostgreSQL path when the operator
+// always-run proof; this test documents + exercises the genuine SurrealDB path when the operator
 // provides the infrastructure.
 #[cfg(feature = "integration_tests")]
 #[test]
-#[ignore = "needs managed-postgres + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
-fn live_backend_layout_round_trips_through_postgres() {
+#[ignore = "needs managed-surrealdb + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
+fn live_backend_layout_round_trips_through_surrealdb() {
     use handshake_native::backend_client::WorkbenchLayoutClient;
 
     let workspace_id = std::env::var("HSK_LIVE_WORKSPACE_ID")
@@ -503,6 +503,6 @@ fn live_backend_layout_round_trips_through_postgres() {
         .expect("backend returned a stored layout");
     assert_eq!(
         got, expected,
-        "live PostgreSQL layout_state round-trips identically"
+        "live SurrealDB layout_state round-trips identically"
     );
 }

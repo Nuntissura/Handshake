@@ -3,11 +3,8 @@
 //! Per AC-DISTILL-OPT-IN + operator decision Q-DISTILL-CORPUS:
 //! `governed_sessions.distill_corpus` is a per-session BOOLEAN that the
 //! operator sets at session close. Default is `false`. The
-//! [`SessionFlagStore`] trait abstracts the storage so the concrete
-//! Postgres `ALTER TABLE ... ADD COLUMN distill_corpus BOOLEAN NOT NULL
-//! DEFAULT false` migration + sqlx impl can land in a follow-on without
-//! touching the lib semantics; the in-memory impl in this module backs
-//! the unit tests.
+//! [`SessionFlagStore`] trait abstracts the embedded-store implementation;
+//! the in-memory implementation in this module backs the unit tests.
 //!
 //! Operator-signature is required (HBR-INT-006: governance obligation
 //! on session metadata writes). The signature is opaque to this
@@ -55,14 +52,13 @@ pub enum SessionFlagError {
 
 /// Storage abstraction. Concrete impls:
 /// - [`InMemorySessionFlagStore`] (in-module, used by unit tests).
-/// - PostgresSessionFlagStore (follow-on; reads/writes
-///   `governed_sessions.distill_corpus`).
+/// - The embedded-store adapter reads/writes
+///   `governed_sessions.distill_corpus`.
 ///
 /// `list_opted_in` returns every session row where `distill_corpus = true`,
 /// in insertion-order-stable form (the in-memory impl sorts by
-/// `session_id` so the order is deterministic for UI consumers; the
-/// Postgres impl will sort by `updated_at_utc DESC` per AC-DISTILL-OPT-IN
-/// queue ordering when it lands).
+/// `session_id` so the order is deterministic for UI consumers; the durable
+/// adapter sorts by `updated_at_utc DESC` per AC-DISTILL-OPT-IN queue ordering).
 pub trait SessionFlagStore {
     fn read(&self, session_id: &str) -> Result<Option<DistillSessionFlag>, SessionFlagError>;
     fn write(&self, flag: DistillSessionFlag) -> Result<(), SessionFlagError>;

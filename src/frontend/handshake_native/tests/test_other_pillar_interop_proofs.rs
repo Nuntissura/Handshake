@@ -1,7 +1,7 @@
 //! WP-KERNEL-012 MT-074 end-to-end proof suite for the Stage, Calendar, and Locus interop edges.
 //!
 //! OP-01..OP-03 are default managed-runtime scenarios: each starts or attaches to the real product backend,
-//! creates its own workspace, drives the production interop client over PostgreSQL, verifies persisted
+//! creates its own workspace, drives the production interop client over SurrealDB-backed APIs, verifies persisted
 //! state, and verifies the required native-editor Flight Recorder events. OP-04 drives all three stable
 //! operator-facing triggers through AccessKit action requests. No repository doubles, stub servers, or
 //! substitute persistence paths are permitted in this suite.
@@ -45,12 +45,12 @@ use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 use handshake_native::rich_editor::wikilinks::inline_view::locus_ref_chip_author_id;
 use handshake_native::tab_bar::TabState;
 
-// Shared managed-PostgreSQL product fixture. It attaches to a healthy root-managed backend or starts an
+// Shared managed-SurrealDB product fixture. It attaches to a healthy root-managed backend or starts an
 // already-built product executable, creates an isolated workspace, and never invokes Cargo.
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 use canonical_argus_driver::{json_has_author_id, ArgusObservation, CanonicalArgusDriver};
 
 mod stage_binding_proof {
@@ -409,9 +409,9 @@ mod stage_binding_proof {
     }
 }
 
-// These proofs intentionally exercise process-global DSN and native-binding environment variables.
+// These proofs intentionally exercise process-global data-root and native-binding environment variables.
 // Serialize only the environment-sensitive scenarios so Rust's default parallel test runner cannot let
-// the negative DSN proof or a second mounted native app change another scenario's live authority.
+// one isolated data-root proof or a second mounted native app change another scenario's live authority.
 static PROCESS_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -428,6 +428,7 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
 fn current_source_sha() -> String {
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .expect("read current MT-074 source commit");
     assert!(output.status.success(), "git rev-parse HEAD failed");
@@ -451,6 +452,7 @@ fn current_proof_source_blobs() -> serde_json::Value {
         .map(|path| {
             let output = std::process::Command::new("git")
                 .args(["hash-object", path])
+                .current_dir(env!("CARGO_MANIFEST_DIR"))
                 .output()
                 .unwrap_or_else(|error| panic!("hash current MT-074 proof path {path}: {error}"));
             assert!(output.status.success(), "git hash-object failed for {path}");
@@ -470,6 +472,7 @@ fn proof_paths_clean_against_head() -> bool {
         .arg("--quiet")
         .arg("--")
         .args(MT074_PROOF_PATHS)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
         .status()
         .expect("check MT-074 proof path provenance")
         .success()
@@ -757,52 +760,6 @@ fn assert_no_local_artifact_dir() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// Live-resource config resolution (HARD): PostgreSQL/EventLedger only — never a file-backed local store,
-// never a fake substitute, never an in-process fallback. (The forbidden local-store scheme literal is
-// assembled via `concat!` below so this file
-// carries no raw `sql`+`ite` token — the contract's proof_target greps the file for it and expects ZERO.)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// The standard integration-test env key for the live PostgreSQL DSN.
-const LIVE_PG_DSN_ENV: &str = "HANDSHAKE_TEST_PG_DSN";
-/// Fallback env key (the MT-008 code-nav live tests' key), accepted only when it carries a `postgres://`
-/// DSN — never a file-backed local-store path.
-const LIVE_PG_DSN_ENV_ALT: &str = "HANDSHAKE_TEST_DB_URL";
-
-/// Resolve the live PostgreSQL DSN, asserting it is PostgreSQL. PANICS (never a file-backed local-store /
-/// in-process / fake fallback) when no live DSN is configured. The non-ignored `op_dsn_absent_panics`
-/// proves the absent-DSN branch without a live backend.
-fn resolve_live_pg_dsn() -> String {
-    let candidate = std::env::var(LIVE_PG_DSN_ENV)
-        .ok()
-        .or_else(|| std::env::var(LIVE_PG_DSN_ENV_ALT).ok())
-        .filter(|s| !s.trim().is_empty());
-
-    let dsn = match candidate {
-        Some(dsn) => dsn,
-        None => panic!(
-            "live PostgreSQL DSN not configured for the other-pillar interop proof; refusing to run \
-             against a fake backend (set {LIVE_PG_DSN_ENV} to a postgres:// DSN)"
-        ),
-    };
-
-    let lowered = dsn.to_ascii_lowercase();
-    assert!(
-        lowered.starts_with("postgres://") || lowered.starts_with("postgresql://"),
-        "the other-pillar interop store must be PostgreSQL (postgres:// DSN); refusing a non-PostgreSQL / \
-         file-backed local store. Got a DSN with an unexpected scheme."
-    );
-    // The forbidden local-store scheme token is assembled via `concat!` so this file carries no raw
-    // `sql`+`ite` literal (the contract's proof_target greps the file for it and expects ZERO matches).
-    let forbidden_local_scheme = concat!("sql", "ite");
-    assert!(
-        !lowered.contains(forbidden_local_scheme) && !lowered.starts_with("file:"),
-        "a file-backed local-store DSN is never acceptable for the other-pillar interop proof"
-    );
-    dsn
-}
-
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 // Harness + AccessKit query/dispatch helpers (the MT-041 canonical pattern, reused).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -813,93 +770,123 @@ fn rt() -> tokio::runtime::Runtime {
         .expect("tokio runtime")
 }
 
-fn sql_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-fn psql_executable() -> PathBuf {
-    if let Ok(explicit) = std::env::var("HSK_PSQL_PATH") {
-        let path = PathBuf::from(explicit);
-        assert!(
-            path.is_file(),
-            "HSK_PSQL_PATH does not name psql: {}",
-            path.display()
-        );
-        return path;
-    }
-    let mut version_command = std::process::Command::new("psql");
-    version_command.arg("--version");
-    if command_output_with_timeout(version_command, std::time::Duration::from_secs(5))
-        .is_ok_and(|output| output.status.success())
-    {
-        return PathBuf::from("psql");
-    }
-    #[cfg(windows)]
-    if let Some(program_files) = std::env::var_os("ProgramFiles") {
-        let root = PathBuf::from(program_files).join("PostgreSQL");
-        if let Ok(versions) = std::fs::read_dir(root) {
-            let mut candidates = versions
-                .filter_map(Result::ok)
-                .map(|entry| entry.path().join("bin").join("psql.exe"))
-                .filter(|path| path.is_file())
-                .collect::<Vec<_>>();
-            candidates.sort();
-            if let Some(path) = candidates.pop() {
-                return path;
-            }
-        }
-    }
-    panic!("managed PostgreSQL proof requires psql");
-}
-
-fn run_pg_sql(sql: &str) {
-    let mut command = std::process::Command::new(psql_executable());
-    command
-        .args(["-X", "-v", "ON_ERROR_STOP=1", "-q", "--dbname"])
-        .arg(resolve_live_pg_dsn())
-        .arg("-c")
-        .arg(sql);
-    let output = command_output_with_timeout(command, std::time::Duration::from_secs(15))
-        .expect("bounded psql execution for MT-074 fixture");
-    assert!(
-        output.status.success(),
-        "MT-074 canonical fixture failed: {}",
-        String::from_utf8_lossy(&output.stderr)
+fn run_product_job(
+    backend: &backend_proof_support::LiveBackend,
+    job_kind: &str,
+    protocol_id: &str,
+    job_inputs: serde_json::Value,
+) -> serde_json::Value {
+    let submitted = backend.post_json(
+        "/jobs",
+        &serde_json::json!({
+            "job_kind": job_kind,
+            "protocol_id": protocol_id,
+            "job_inputs": job_inputs,
+        }),
     );
-}
-
-fn command_output_with_timeout(
-    mut command: std::process::Command,
-    timeout: std::time::Duration,
-) -> std::io::Result<std::process::Output> {
-    command
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    let mut child = command.spawn()?;
-    let deadline = std::time::Instant::now() + timeout;
+    let job_id = submitted["job_id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{protocol_id} response lacks job_id: {submitted}"));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     loop {
-        match child.try_wait()? {
-            Some(_) => return child.wait_with_output(),
-            None if std::time::Instant::now() < deadline => {
-                std::thread::sleep(std::time::Duration::from_millis(25));
+        let job = backend.get_json(&format!("/jobs/{job_id}"));
+        match job["state"].as_str() {
+            Some("completed") => return job["job_outputs"].clone(),
+            Some("failed") | Some("denied") => {
+                panic!("{protocol_id} did not complete successfully: {job}")
             }
-            None => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    format!("child process exceeded {} seconds", timeout.as_secs()),
-                ));
+            _ => {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "{protocol_id} did not complete within fifteen seconds: {job}"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(20));
             }
         }
     }
+}
+
+fn upsert_calendar_fixture(
+    backend: &backend_proof_support::LiveBackend,
+    workspace_id: &str,
+    source_id: &str,
+    event_id: &str,
+    title: &str,
+    date: chrono::NaiveDate,
+) {
+    let source = backend.put_json(
+        &format!("/workspaces/{workspace_id}/calendar/sources/{source_id}"),
+        &serde_json::json!({
+            "display_name": "MT-074 calendar fixture",
+            "provider_type": "local",
+            "write_policy": "read_only_import",
+            "default_tzid": "UTC",
+            "auto_export": false,
+            "credentials_ref": null,
+            "provider_calendar_id": null,
+            "capability_profile_id": null,
+            "config": {}
+        }),
+    );
+    assert_eq!(source["id"].as_str(), Some(source_id));
+    let output = run_product_job(
+        backend,
+        "workflow_run",
+        "calendar_sync",
+        serde_json::json!({
+            "workspace_id": workspace_id,
+            "source_id": source_id,
+            "full_sync": false,
+            "provider_events": [{
+                "id": event_id,
+                "external_id": event_id,
+                "external_etag": format!("fixture-{event_id}"),
+                "title": title,
+                "start_ts_utc": format!("{}T09:00:00Z", date.format("%Y-%m-%d")),
+                "end_ts_utc": format!("{}T10:00:00Z", date.format("%Y-%m-%d")),
+                "start_local": format!("{}T09:00:00", date.format("%Y-%m-%d")),
+                "end_local": format!("{}T10:00:00", date.format("%Y-%m-%d")),
+                "tzid": "UTC"
+            }]
+        }),
+    );
+    assert_eq!(output["provider_events_upserted"].as_u64(), Some(1));
+}
+
+fn create_locus_work_packet(backend: &backend_proof_support::LiveBackend, wp_id: &str, title: &str) {
+    let output = run_product_job(
+        backend,
+        "locus_operation",
+        "locus_create_wp_v1",
+        serde_json::json!({
+            "wp_id": wp_id,
+            "title": title,
+            "description": "MT-074 persisted reverse lookup proof",
+            "priority": 1,
+            "type": "test",
+            "phase": "1",
+            "routing": "GOV_LIGHT",
+            "reporter": "mt074-proof"
+        }),
+    );
+    assert_eq!(output["wp_id"].as_str(), Some(wp_id));
+}
+
+fn delete_locus_work_packet(backend: &backend_proof_support::LiveBackend, wp_id: &str) {
+    let output = run_product_job(
+        backend,
+        "locus_operation",
+        "locus_delete_wp_v1",
+        serde_json::json!({"wp_id": wp_id}),
+    );
+    assert_eq!(output["wp_id"].as_str(), Some(wp_id));
 }
 
 /// Fail-safe cleanup for every canonical row an MT-074 scenario creates. `LiveBackend` also owns an
 /// isolated workspace and deletes it on Drop; this inner guard removes each fixture first so a panic
 /// cannot leave test rows visible until the outer workspace guard eventually runs.
 struct Mt074FixtureCleanup<'a> {
-    backend: &'a pg_proof_support::LiveBackend,
+    backend: &'a backend_proof_support::LiveBackend,
     document_ids: Vec<String>,
     loom_block_ids: Vec<String>,
     calendar_source_ids: Vec<String>,
@@ -911,7 +898,7 @@ struct Mt074FixtureCleanup<'a> {
 }
 
 impl<'a> Mt074FixtureCleanup<'a> {
-    fn new(backend: &'a pg_proof_support::LiveBackend) -> Self {
+    fn new(backend: &'a backend_proof_support::LiveBackend) -> Self {
         Self {
             backend,
             document_ids: Vec::new(),
@@ -975,21 +962,12 @@ impl<'a> Mt074FixtureCleanup<'a> {
     }
 
     fn assert_cleanup(&mut self) {
-        // Discover every native-editor recorder row this workspace minted BEFORE deleting anything.
-        // MT-066 proved a passing run can report zero residue while real rows survive, because the
-        // mounted app emits more native-editor events than a scenario tracks by id.
-        if let Some(rows) = authorized_flight_recorder_rows(self.backend) {
-            let discovered = rows
-                .as_array()
-                .into_iter()
-                .flatten()
-                .cloned()
-                .collect::<Vec<_>>();
-            for row in &discovered {
-                if row["event_id"].as_str().is_some() {
-                    self.native_fr(row);
-                }
-            }
+        for block_id in &self.loom_block_ids {
+            let status = self.backend.delete(&format!(
+                "/workspaces/{}/loom/blocks/{block_id}",
+                self.backend.workspace_id
+            ));
+            assert!(matches!(status, 200 | 202 | 204 | 404));
         }
         for document_id in &self.document_ids {
             let status = self
@@ -1000,124 +978,33 @@ impl<'a> Mt074FixtureCleanup<'a> {
                 "MT-074 cleanup: document {document_id} delete returned {status}"
             );
         }
-
-        let mut statements = Vec::new();
-        for span_id in &self.calendar_span_ids {
-            statements.push(format!(
-                "DELETE FROM calendar_activity_spans WHERE span_id = {};",
-                sql_literal(span_id)
-            ));
-        }
-        for event_id in &self.calendar_event_ids {
-            statements.push(format!(
-                "DELETE FROM calendar_events WHERE id = {};",
-                sql_literal(event_id)
-            ));
-        }
-        for source_id in &self.calendar_source_ids {
-            statements.push(format!(
-                "DELETE FROM calendar_sources WHERE id = {};",
-                sql_literal(source_id)
-            ));
-        }
-        for artifact_id in &self.stage_artifact_ids {
-            statements.push(format!(
-                "DO $stage_cleanup$ DECLARE v_job TEXT; v_stored TEXT; v_decision TEXT; BEGIN \
-                 SELECT job_id, event_ledger_event_id INTO v_job, v_stored \
-                 FROM stage_capture_artifacts WHERE artifact_id = {artifact}; \
-                 SELECT payload->>'decision_event_id' INTO v_decision \
-                 FROM kernel_event_ledger WHERE event_id = v_stored; \
-                 DELETE FROM stage_capture_artifacts WHERE artifact_id = {artifact}; \
-                 DELETE FROM kernel_event_ledger WHERE event_id IN (v_stored, v_decision); \
-                 DELETE FROM ai_jobs WHERE id = v_job; END $stage_cleanup$;",
-                artifact = sql_literal(artifact_id)
-            ));
-        }
-        if !self.backend.workspace_id.is_empty() {
-            statements.push(format!(
-                "DO $stage_workspace_cleanup$ DECLARE v RECORD; v_decision TEXT; BEGIN \
-                 FOR v IN SELECT artifact_id, job_id, event_ledger_event_id \
-                 FROM stage_capture_artifacts WHERE workspace_id = {workspace} LOOP \
-                 SELECT payload->>'decision_event_id' INTO v_decision \
-                 FROM kernel_event_ledger WHERE event_id = v.event_ledger_event_id; \
-                 DELETE FROM stage_capture_artifacts WHERE artifact_id = v.artifact_id; \
-                 DELETE FROM kernel_event_ledger \
-                 WHERE event_id IN (v.event_ledger_event_id, v_decision); \
-                 DELETE FROM ai_jobs WHERE id = v.job_id; END LOOP; \
-                 END $stage_workspace_cleanup$;",
-                workspace = sql_literal(&self.backend.workspace_id)
-            ));
-        }
         for wp_id in &self.work_packet_ids {
-            statements.push(format!(
-                "DELETE FROM work_packets WHERE wp_id = {};",
-                sql_literal(wp_id)
-            ));
-        }
-        for block_id in &self.loom_block_ids {
-            statements.push(format!(
-                "DELETE FROM loom_blocks WHERE block_id = {};",
-                sql_literal(block_id)
-            ));
-        }
-        if !self.backend.workspace_id.is_empty() {
-            // MT-109 partitioned the native-editor EventLedger idempotency keys by workspace
-            // (`native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`). Sweeping by the
-            // exact workspace prefix reaches every row THIS run minted, including the ones no scenario
-            // tracked by id, and stays scoped to this run's own generated workspace.
-            let workspace = self.backend.workspace_id.replace('\'', "''");
-            statements.push(format!(
-                "DELETE FROM kernel_event_ledger \
-                 WHERE idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
-                    OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%'; \
-                 DO $native_fr_workspace_cleanup$ BEGIN IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                 WHERE idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
-                    OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%') \
-                 THEN RAISE EXCEPTION \
-                 'MT-074 workspace-partitioned native FR EventLedger cleanup left rows'; END IF; \
-                 END $native_fr_workspace_cleanup$;"
-            ));
-        }
-        if !self.native_fr_event_ids.is_empty() {
-            let workspace_id = self.backend.workspace_id.clone();
-            let keys = self
-                .native_fr_event_ids
-                .iter()
-                .flat_map(|event_id| {
-                    // Both spellings: rows minted before MT-109 partitioned the keys, and rows minted
-                    // after. Every key is still scoped to this proof's own event ids.
-                    [
-                        format!("native-editor-fr-pending:{event_id}"),
-                        format!("native-editor-fr-complete:{event_id}"),
-                        format!("native-editor-fr-pending:{workspace_id}:{event_id}"),
-                        format!("native-editor-fr-complete:{workspace_id}:{event_id}"),
-                    ]
-                })
-                .map(|key| sql_literal(&key))
-                .collect::<Vec<_>>()
-                .join(", ");
-            statements.push(format!(
-                "DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({keys}); \
-                 DO $native_fr_cleanup$ BEGIN IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                 WHERE idempotency_key IN ({keys})) THEN RAISE EXCEPTION \
-                 'MT-074 native FR EventLedger cleanup left fixture rows'; END IF; \
-                 END $native_fr_cleanup$;"
-            ));
-        }
-        if !statements.is_empty() {
-            let sql = format!("BEGIN; {} COMMIT;", statements.join(" "));
-            let mut command = std::process::Command::new(psql_executable());
-            command
-                .args(["-X", "-v", "ON_ERROR_STOP=1", "-q", "--dbname"])
-                .arg(resolve_live_pg_dsn())
-                .arg("-c")
-                .arg(sql);
-            let output = command_output_with_timeout(command, std::time::Duration::from_secs(15))
-                .expect("MT-074 bounded canonical-row cleanup completed");
-            assert!(
-                output.status.success(),
-                "MT-074 canonical-row cleanup failed: {}",
-                String::from_utf8_lossy(&output.stderr)
+            delete_locus_work_packet(self.backend, wp_id);
+            let tombstone = run_product_job(
+                self.backend,
+                "locus_operation",
+                "locus_get_wp_status_v1",
+                serde_json::json!({"wp_id": wp_id}),
+            );
+            assert_eq!(
+                tombstone["status"].as_str(),
+                Some("cancelled"),
+                "MT-074 cleanup: SurrealDB soft-delete must expose the cancelled work-packet status"
+            );
+            assert_eq!(
+                tombstone["task_board_status"].as_str(),
+                Some("CANCELLED"),
+                "MT-074 cleanup: SurrealDB soft-delete must expose the cancelled task-board status"
+            );
+            let (read_status, read_row) = self.backend.get_json_response(&format!(
+                    "/workspaces/{}/locus/work-packets/{wp_id}",
+                    self.backend.workspace_id
+                ));
+            assert_eq!(read_status, 200);
+            assert_eq!(
+                read_row["status"].as_str(),
+                Some("cancelled"),
+                "MT-074 cleanup: the product read API must project the canonical SurrealDB tombstone"
             );
         }
         self.document_ids.clear();
@@ -1127,8 +1014,7 @@ impl<'a> Mt074FixtureCleanup<'a> {
         self.calendar_span_ids.clear();
         self.stage_artifact_ids.clear();
         self.work_packet_ids.clear();
-        // Keep the exact UUIDs through Drop so an explicit scenario cleanup is immediately repeated and
-        // proves idempotent zero-row cleanup against the same pending/completion key set.
+        self.native_fr_event_ids.clear();
     }
 }
 
@@ -1197,7 +1083,7 @@ fn try_live_binding_session_token() -> Result<String, String> {
 }
 
 fn wait_for_native_fr(
-    backend: &pg_proof_support::LiveBackend,
+    backend: &backend_proof_support::LiveBackend,
     kind: &str,
     matches_fixture: impl Fn(&serde_json::Value) -> bool,
 ) -> serde_json::Value {
@@ -1234,7 +1120,7 @@ fn wait_for_native_fr(
 /// deterministic fixture cleanup so ledger residue minted by the mounted app — not only the rows a
 /// scenario tracked by id — is named exactly.
 fn authorized_flight_recorder_rows(
-    backend: &pg_proof_support::LiveBackend,
+    backend: &backend_proof_support::LiveBackend,
 ) -> Option<serde_json::Value> {
     match try_live_binding_session_token() {
         Ok(session_token) => Some(backend.get_json_with_session_token(
@@ -1266,7 +1152,7 @@ fn assert_causal_order(first: &serde_json::Value, second: &serde_json::Value, la
 }
 
 fn build_managed_app_state(
-    backend: &pg_proof_support::LiveBackend,
+    backend: &backend_proof_support::LiveBackend,
     pane_type: PaneType,
     content_id: Option<String>,
 ) -> (tokio::runtime::Runtime, HandshakeApp, PaneId) {
@@ -1431,7 +1317,7 @@ fn doc_with_locus_ref(locus_uri: &str, label: &str, resolved: bool) -> BlockNode
 // SCENARIO OP-01 — Stage interop (Pillar 17): route-to-Stage then embed-back round-trip.
 // Provable NOW: the route-leg payload + the embed-back leg inserts the MT-014 hsLink NodeView whose
 // SHA-256 manifest provenance EQUALS the recomputed SHA-256 of the exact routed bytes (CTRL-3). The live
-// route round-trip against real PG + live FR ingestion is the gated `*_live` proof below.
+// route round-trip against real SurrealDB + live FR ingestion is the gated `*_live` proof below.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -1530,7 +1416,7 @@ fn unit_op01_stage_payload_and_embed_projection() {
     println!(
         "OP-01 OK (Stage route->embed-back): sha256 {recomputed} matches the recomputed digest of the \
          routed bytes; MT-014 hsLink NodeView inserted into the note. The LIVE route round-trip against \
-         real PG + the STAGE_ROUTE/STAGE_EMBED_BACK FR events are the GATED live half."
+         real SurrealDB + the STAGE_ROUTE/STAGE_EMBED_BACK FR events are the GATED live half."
     );
 }
 
@@ -1539,7 +1425,7 @@ fn unit_op01_stage_payload_and_embed_projection() {
 // AccessKit author_ids (no coordinates, no label-scraping). This is the swarm-parity guarantee
 // (HBR-SWARM) and is PROVABLE NOW: build each interop pane's widget tree with egui_kittest, look up the
 // trigger ONLY by author_id, assert the post-action result/effect, and read the exact automatically
-// persisted FR sequence from managed PostgreSQL.
+// persisted FR sequence from managed SurrealDB.
 //
 // `Harness::run()` advances the mounted product frame and re-collects the resulting AccessKit tree after
 // each dispatch; assertions are made only against that post-action tree and the persisted product state.
@@ -1551,7 +1437,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op04-stage");
-    let mut be = pg_proof_support::require_live_backend();
+    let mut be = backend_proof_support::require_live_backend();
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
@@ -1767,25 +1653,14 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     let source_id = format!("CAL-SRC-OP04-{suffix}");
     let event_id = format!("CAL-EVT-OP04-{suffix}");
     let span_id = format!("CAS-OP04-{suffix}");
-    let event_start = format!("{} 11:00:00", today.format("%Y-%m-%d"));
-    let event_end = format!("{} 12:00:00", today.format("%Y-%m-%d"));
-    run_pg_sql(&format!(
-        "BEGIN; \
-         INSERT INTO calendar_sources \
-           (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
-         VALUES ({source}, {workspace}, 'MT-074 OP-04', 'local', 'read_only_import', 'UTC', '{{}}'); \
-         INSERT INTO calendar_events \
-           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, start_local, end_local, \
-            tzid, status, visibility, export_mode) \
-         VALUES ({event}, {workspace}, {source}, 'MT-074 OP-04 event', TIMESTAMP {start}, \
-                 TIMESTAMP {end}, TIMESTAMP {start}, TIMESTAMP {end}, 'UTC', 'confirmed', 'private', \
-                 'full_export'); COMMIT;",
-        source = sql_literal(&source_id),
-        workspace = sql_literal(&ws),
-        event = sql_literal(&event_id),
-        start = sql_literal(&event_start),
-        end = sql_literal(&event_end),
-    ));
+    upsert_calendar_fixture(
+        &be,
+        &ws,
+        &source_id,
+        &event_id,
+        "MT-074 OP-04 event",
+        today,
+    );
     fixtures.calendar_source(source_id.clone());
     fixtures.calendar_event(event_id.clone());
     let journal = CalendarInteropService::with_base_url(
@@ -1991,16 +1866,8 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     calendar_argus.finish();
 
     // Locus: persisted reference -> mounted rich chip -> resolve and reverse lookup product effects.
-    let wp_id = format!("WP4-{}", &suffix[..8]);
-    run_pg_sql(&format!(
-        "INSERT INTO work_packets \
-           (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
-            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata) \
-         VALUES ({wp}, 1, 'MT-074 OP-04 Locus', 'aggregate AccessKit proof', 'in_progress', 1, \
-                 'validation', 'native-editors', '', 'in_progress', NULL, 'mt074-proof', \
-                 '2026-07-16T00:00:00Z', '2026-07-16T00:00:00Z', '{{}}', '{{}}');",
-        wp = sql_literal(&wp_id),
-    ));
+    let wp_id = format!("WP-4-{}", &suffix[..8]);
+    create_locus_work_packet(&be, &wp_id, "MT-074 OP-04 Locus");
     fixtures.work_packet(wp_id.clone());
     let locus_uri = format!("locus://wp/{wp_id}");
     let locus_doc = doc_with_locus_ref(&locus_uri, &wp_id, true);
@@ -2657,72 +2524,20 @@ fn other_pillar_fr_route_resolved() {
     );
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — the live-DSN resolver PANICS when no live PostgreSQL DSN is configured (never a
-// file-backed local-store / in-process / fake fallback). Proves the honesty gate of the three live proofs
-// without a live backend.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
 #[test]
-fn op_dsn_absent_panics() {
-    let _env_guard = PROCESS_ENV_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let saved_primary = std::env::var(LIVE_PG_DSN_ENV).ok();
-    let saved_alt = std::env::var(LIVE_PG_DSN_ENV_ALT).ok();
-
-    let outcome = std::thread::spawn(|| {
-        std::env::remove_var(LIVE_PG_DSN_ENV);
-        std::env::remove_var(LIVE_PG_DSN_ENV_ALT);
-        resolve_live_pg_dsn()
-    })
-    .join();
-
-    match saved_primary {
-        Some(v) => std::env::set_var(LIVE_PG_DSN_ENV, v),
-        None => std::env::remove_var(LIVE_PG_DSN_ENV),
-    }
-    match saved_alt {
-        Some(v) => std::env::set_var(LIVE_PG_DSN_ENV_ALT, v),
-        None => std::env::remove_var(LIVE_PG_DSN_ENV_ALT),
-    }
-
-    let panic_payload = outcome.expect_err(
-        "resolve_live_pg_dsn must PANIC when no live PostgreSQL DSN is configured — never a fake backend",
-    );
-    let msg = panic_payload
-        .downcast_ref::<String>()
-        .cloned()
-        .or_else(|| panic_payload.downcast_ref::<&str>().map(|s| s.to_string()))
-        .unwrap_or_default();
-    assert!(
-        msg.contains("live PostgreSQL DSN not configured")
-            && msg.contains("refusing to run against a fake backend"),
-        "the absent-DSN panic must carry the mandated message; got '{msg}'"
-    );
-    println!(
-        "DSN-absent OK: no live DSN -> panic 'refusing to run against a fake backend' (no file-backed local-store / in-process / fake fallback)"
-    );
-}
-
-#[test]
-fn direct_sql_and_cleanup_use_exact_live_dsn() {
+fn fixture_writes_use_typed_product_apis() {
     let source = include_str!("test_other_pillar_interop_proofs.rs");
-    let exact_dsn_arg = concat!(".arg(resolve_live_pg_", "dsn())");
-    assert_eq!(
-        source.matches(exact_dsn_arg).count(),
-        2,
-        "fixture SQL and Drop cleanup must both use the suite's exact accepted live DSN"
-    );
-    for forbidden in [
-        concat!("fn managed_pg", "_url"),
-        concat!("POSTGRES", "_TEST_URL"),
-        concat!("DATABASE", "_URL"),
-        concat!("postgres://postgres@127.0.0.1:5544/", "handshake"),
+    for required in [
+        "fn run_product_job(",
+        "fn upsert_calendar_fixture(",
+        "fn create_locus_work_packet(",
+        "/calendar/sources/{source_id}",
+        "locus_create_wp_v1",
+        "calendar_sync",
     ] {
         assert!(
-            !source.contains(forbidden),
-            "direct SQL must not resolve or default an unrelated database via '{forbidden}'"
+            source.contains(required),
+            "MT-140: typed product fixture path is missing '{required}'"
         );
     }
 }
@@ -2941,12 +2756,12 @@ fn stage_binding_recovers_exact_killed_child_owner() {
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // PROOF (NON-IGNORED) — a static gate proving there is NO local-store / fake-DB token anywhere in this
-// suite. PostgreSQL/EventLedger is the only durable authority (CTRL-1, RISK-1). The suite's `*_live`
+// suite. SurrealDB/EventLedger is the only durable authority (CTRL-1, RISK-1). The suite's `*_live`
 // proofs reach the store only through the real HTTP/service surface; the counted backends prove only the
-// DELEGATION path (the live PG persistence is the gated half), never substitute a local store.
+// DELEGATION path (live SurrealDB persistence is the gated half), never substitute a local store.
 //
 // IMPORTANT: this entire file is ALSO kept free of the four raw tokens the contract's proof_target greps
-// for (the file-DB scheme, the fake-resource word, the in-memory-DB ident, and the in-memory DSN), so a
+// for (the file-DB scheme, the fake-resource word, and the in-memory-DB ident), so a
 // reviewer running the contract's case-insensitive grep over this file gets ZERO matches (exit 1). Every
 // forbidden token used by this gate is assembled at runtime via `concat!` so the source carries none of
 // them as a literal.
@@ -2964,36 +2779,31 @@ fn other_pillar_no_local_store_no_fake_db() {
     let sql_orm = concat!("die", "sel");
     let fake_db = concat!("mo", "ck");
     let inmem_db_token = concat!("in_", "memory", "_db");
-    let mem_dsn = concat!(":", ":mem", "ory:");
     let forbidden = [
         local_db,
         local_db_driver,
         sql_orm,
         fake_db,
         inmem_db_token,
-        mem_dsn,
     ];
     let lowered = suite_src.to_ascii_lowercase();
     for token in forbidden {
         assert!(
             !lowered.contains(&token.to_ascii_lowercase()),
-            "CTRL-1/RISK-1: the suite must contain no '{token}' token (PostgreSQL/EventLedger only)"
+            "CTRL-1/RISK-1: the suite must contain no '{token}' token (SurrealDB/EventLedger only)"
         );
     }
-    // The live-DSN resolver explicitly refuses a file-backed local-store / file: scheme (the runtime
-    // guard). The refusal text is matched without naming the forbidden token literally.
+    // Live proofs must use the shared managed-backend fixture and its isolated embedded data root.
     assert!(
-        suite_src.contains("file-backed local-store DSN is never acceptable"),
-        "CTRL-1: the suite must explicitly refuse a file-backed local-store DSN at the live-DSN resolver"
+        suite_src.contains("backend_proof_support::require_live_backend()"),
+        "CTRL-1: live proofs must acquire the shared managed SurrealDB backend fixture"
     );
-    // Also assert the resolver builds its forbidden-scheme check via concat! (so the source carries no raw
-    // local-store token) — the structural proof that the zero-token invariant is enforced, not accidental.
     assert!(
-        suite_src.contains("let forbidden_local_scheme = concat!"),
-        "CTRL-1: the live-DSN resolver must build the forbidden local-store scheme token via concat! (no raw literal)"
+        include_str!("backend_proof_support/mod.rs").contains("HANDSHAKE_DATA_DIR"),
+        "CTRL-1: the managed backend fixture must isolate each embedded store through HANDSHAKE_DATA_DIR"
     );
     println!(
-        "no-local-store OK (CTRL-1/RISK-1): zero local-store/fake-DB/in-memory token in the suite source; PostgreSQL/EventLedger is the only authority"
+        "no-local-store OK (CTRL-1/RISK-1): zero local-store/fake-DB/in-memory token in the suite source; SurrealDB/EventLedger is the only authority"
     );
 }
 
@@ -3092,14 +2902,14 @@ fn other_pillar_reuses_interop_modules_no_glue() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// OP-01 (LIVE): drive the mounted bus route, privileged capture, exact-byte retrieval, and embed-back
-/// against managed PostgreSQL, then persist and reload the provenance-bearing rich document.
+/// against managed SurrealDB, then persist and reload the provenance-bearing rich document.
 #[test]
 fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op01-stage");
-    let be = pg_proof_support::require_live_backend();
+    let be = backend_proof_support::require_live_backend();
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = &be.workspace_id;
     let routed_text = "route this selection to the Stage pane (live)";
@@ -3305,7 +3115,7 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
     assert!(artifact.event_ledger_event_id.is_some());
 
     // Return to the rich tab and save through its mounted AccessKit control so the operator-produced
-    // embed, including provenance, becomes canonical PostgreSQL state.
+    // embed, including provenance, becomes canonical SurrealDB state.
     {
         let bar = harness
             .state_mut()
@@ -3339,7 +3149,7 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         assert!(std::time::Instant::now() < save_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    // The save action's authoritative effect is a PostgreSQL mutation, not a projected AccessKit value,
+    // The save action's authoritative effect is a SurrealDB mutation, not a projected AccessKit value,
     // so its predicate performs a FRESH authoritative GET of the origin document at the same terminal
     // instant and recomputes the persisted provenance triple plus the advanced revision. Re-reading it
     // after the call would not be bound to this observation at all.
@@ -3355,7 +3165,7 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         let manifest_ref_for_predicate = expected_manifest_ref.clone();
         argus.assert_latest_terminal_predicate_with_evidence(
             &mut harness,
-            "mt074-op01-save-persists-exact-embed-provenance-in-postgresql",
+            "mt074-op01-save-persists-exact-embed-provenance-in-surrealdb",
             serde_json::json!({
                 "expected_document_id": document_id,
                 "expected_artifact_id": artifact_id,
@@ -3499,7 +3309,7 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
                 {
                     "receipt_id": observations[3].1.receipt_id,
                     "target": "editor.rich.save",
-                    "predicate": "PostgreSQL reload contains artifact id, sha256, and manifest_ref",
+                    "predicate": "SurrealDB reload contains artifact id, sha256, and manifest_ref",
                     "observed_outcome": {
                         "artifact_id": artifact_id,
                         "sha256": created_sha,
@@ -3520,15 +3330,15 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
     verdict.complete(evidence.clone());
 
     println!(
-        "OP-01 LIVE OK: stage artifact {artifact_id} round-tripped on real PG; sha256 {created_sha} \
+        "OP-01 LIVE OK: stage artifact {artifact_id} round-tripped on real SurrealDB; sha256 {created_sha} \
          matches on reload; manifest_ref persisted in a real rich document; route_to_stage + \
          stage_embed_back Flight Recorder events persisted; canonical Argus evidence={}.",
         evidence.display()
     );
 }
 
-/// OP-02 (LIVE, requires_pg): the calendar activity-span + events-window route round-trip against REAL
-/// PostgreSQL. POST an ActivitySpan for a calendar event (idempotent upsert on a fixed span_id so reruns
+/// OP-02 (LIVE): the calendar activity-span + events-window route round-trip against real SurrealDB.
+/// POST an ActivitySpan for a calendar event (idempotent upsert on a fixed span_id so reruns
 /// update the same row — CTRL-9), then GET the correlation back and assert it returns the edited documents;
 /// GET the events window responds with a JSON array. The routes EXIST (`api/calendar.rs`, MT-067). The
 /// CALENDAR_EVENT_BOUND/ACTIVITY_SPAN_CORRELATED FR events are a FRONTEND-emission follow-up.
@@ -3538,7 +3348,7 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut argus_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op02-calendar");
-    let be = pg_proof_support::require_live_backend();
+    let be = backend_proof_support::require_live_backend();
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
@@ -3549,27 +3359,14 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
     // operator date. Seed that same date: around local midnight `Utc::now().date_naive()` is the prior
     // day, which proves a different date and leaves the mounted event/span state correctly empty.
     let date = chrono::Local::now().date_naive();
-    let event_start = format!("{} 09:00:00", date.format("%Y-%m-%d"));
-    let event_end = format!("{} 10:00:00", date.format("%Y-%m-%d"));
-    run_pg_sql(&format!(
-        "BEGIN; \
-         INSERT INTO calendar_sources \
-           (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
-         VALUES ({source}, {workspace}, 'MT-074 live fixture', 'local', 'read_only_import', 'UTC', '{{}}'); \
-         INSERT INTO calendar_events \
-           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, start_local, end_local, \
-            tzid, status, visibility, export_mode) \
-         VALUES ({event}, {workspace}, {source}, 'MT-074 live calendar event', \
-                 TIMESTAMP {event_start}, TIMESTAMP {event_end}, \
-                 TIMESTAMP {event_start}, TIMESTAMP {event_end}, \
-                 'UTC', 'confirmed', 'private', 'full_export'); \
-         COMMIT;",
-        source = sql_literal(&source_id),
-        workspace = sql_literal(&ws),
-        event = sql_literal(&event_id),
-        event_start = sql_literal(&event_start),
-        event_end = sql_literal(&event_end),
-    ));
+    upsert_calendar_fixture(
+        &be,
+        &ws,
+        &source_id,
+        &event_id,
+        "MT-074 live calendar event",
+        date,
+    );
     fixtures.calendar_source(source_id.clone());
     fixtures.calendar_event(event_id.clone());
 
@@ -3893,14 +3690,14 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
     drop(argus_binding);
 
     println!(
-        "OP-02 LIVE OK: activity_span {span_id} returns edited_documents on real PG; correlation returns edited docs \
+        "OP-02 LIVE OK: activity_span {span_id} returns edited_documents on real SurrealDB; correlation returns edited docs \
          [{}]; daily note {} persisted bidirectionally on event {}; calendar_event_bound + \
          activity_span_correlated Flight Recorder events persisted; canonical Argus evidence={}.",
         binding.doc_id, binding.doc_id, event.id, evidence.display(),
     );
 }
 
-/// OP-03 (LIVE, requires_pg): the locus:// resolve route round-trip against REAL PostgreSQL. GET the Locus
+/// OP-03 (LIVE): the locus:// resolve route round-trip against real SurrealDB. GET the Locus
 /// work-packet display record for a seeded WP id (overridable via `HSK_TEST_LOCUS_WP_ID`, default the WP
 /// under proof) and assert a non-empty title. The route EXISTS (`api/locus.rs`, MT-068; the persisted
 /// reverse index is the existing loom/search-v2 pipeline, proven non-ignored in op03). The
@@ -3911,20 +3708,12 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut argus_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op03-locus");
-    let be = pg_proof_support::require_live_backend();
+    let be = backend_proof_support::require_live_backend();
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
-    let wp_id = format!("WP3-{}", &suffix[..8]);
-    run_pg_sql(&format!(
-        "INSERT INTO work_packets \
-           (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
-            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata) \
-         VALUES ({wp}, 1, 'MT-074 live Locus target', 'persisted reverse lookup proof', 'in_progress', \
-                 1, 'validation', 'native-editors', '', 'in_progress', NULL, 'mt074-proof', \
-                 '2026-07-16T00:00:00Z', '2026-07-16T00:00:00Z', '{{}}', '{{}}');",
-        wp = sql_literal(&wp_id),
-    ));
+    let wp_id = format!("WP-3-{}", &suffix[..8]);
+    create_locus_work_packet(&be, &wp_id, "MT-074 live Locus target");
     fixtures.work_packet(wp_id.clone());
     let locus_uri = format!("locus://wp/{wp_id}");
     let document = doc_with_locus_ref(&locus_uri, &wp_id, true);
@@ -4169,7 +3958,7 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
     drop(argus_binding);
 
     println!(
-        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{}'; reverse_lookup returned \
+        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real SurrealDB -> title '{}'; reverse_lookup returned \
          referencing document {document_id} exactly once; locus_ref_resolved + locus_reverse_lookup \
          Flight Recorder events persisted; canonical Argus evidence={}.",
         record.title, evidence.display(),

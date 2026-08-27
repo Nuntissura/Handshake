@@ -3,16 +3,15 @@
 //!
 //! The two allow-listed editable surfaces persist their live values here:
 //! ModelManual capsule section text and RetrievalPolicy parameters. The
-//! production PG-backed surface providers ([`pg_model_manual_surface`] /
-//! [`pg_retrieval_policy_surface`]) read snapshots from these tables and
+//! production store-backed surface providers ([`live_model_manual_surface`] /
+//! [`live_retrieval_policy_surface`]) read snapshots from these tables and
 //! write promotions through these methods, which mirror every
 //! live-authority write into the Atelier EventLedger.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, SurrealValue};
 
-use crate::memory::persistence_postgres::block_on;
 use crate::memory::policy_table::CapsulePolicyTable;
 use crate::memory::TaskType;
 use crate::self_improve::editable_surface::{
@@ -20,7 +19,7 @@ use crate::self_improve::editable_surface::{
 };
 use crate::self_improve::iteration::PolicyParameterRef;
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, AtelierError, AtelierResult, AtelierStore};
 
 pub mod editable_surface_event_family {
     pub const MODEL_MANUAL_SECTION_WRITTEN: &str =
@@ -71,27 +70,127 @@ pub struct RetrievalPolicyValueRecord {
     pub updated_at_utc: DateTime<Utc>,
 }
 
+/// One `atelier_model_manual_section` row as the store returns it.
+#[derive(SurrealValue)]
+struct ModelManualSectionRow {
+    section_id: String,
+    section_text: String,
+    revision: i64,
+    updated_by: String,
+    updated_at_utc: Datetime,
+    created_at_utc: Datetime,
+}
+
+impl From<ModelManualSectionRow> for ModelManualSectionRecord {
+    fn from(row: ModelManualSectionRow) -> Self {
+        ModelManualSectionRecord {
+            section_id: row.section_id,
+            section_text: row.section_text,
+            revision: row.revision,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+            created_at_utc: row.created_at_utc.into(),
+        }
+    }
+}
+
+/// One `atelier_retrieval_policy` row as the store returns it.
+#[derive(SurrealValue)]
+struct RetrievalPolicyRow {
+    value: i64,
+    updated_by: String,
+    updated_at_utc: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct SectionIdBinding {
+    section_id: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpsertManualSectionBindings {
+    section_id: String,
+    section_text: String,
+    updated_by: String,
+}
+
+#[derive(SurrealValue)]
+struct RetrievalPolicyKeyBindings {
+    task_type: String,
+    parameter: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpsertRetrievalPolicyBindings {
+    policy_id: String,
+    task_type: String,
+    parameter: String,
+    value: i64,
+    updated_by: String,
+}
+
+const GET_MODEL_MANUAL_SECTION_STATEMENT: &str =
+    "SELECT section_id, section_text, revision, updated_by, updated_at_utc, created_at_utc \
+     FROM atelier_model_manual_section WHERE section_id = $section_id LIMIT 1;";
+
+/// Insert-or-revision-bump for one manual section, with the EventLedger
+/// mirror in the same atomic statement. `revision` is NONE before the first
+/// write, so `(revision ?? 0) + 1` yields 1 on insert and a bump on update;
+/// `created_at_utc` comes from the schema default and survives updates.
+const UPSERT_MODEL_MANUAL_SECTION_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = type::record('atelier_model_manual_section', $domain.section_id); ",
+    atelier_event_sql!(),
+    " RETURN (UPSERT $rid SET \
+         section_id = $domain.section_id, \
+         section_text = $domain.section_text, \
+         revision = (revision ?? 0) + 1, \
+         updated_by = $domain.updated_by, \
+         updated_at_utc = time::now() \
+       RETURN AFTER)[0]; };"
+);
+
+const GET_RETRIEVAL_POLICY_STATEMENT: &str =
+    "SELECT value, updated_by, updated_at_utc FROM atelier_retrieval_policy \
+     WHERE task_type = $task_type AND parameter = $parameter LIMIT 1;";
+
+const UPSERT_RETRIEVAL_POLICY_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = type::record('atelier_retrieval_policy', $domain.policy_id); ",
+    atelier_event_sql!(),
+    " RETURN (UPSERT $rid SET \
+         task_type = $domain.task_type, \
+         parameter = $domain.parameter, \
+         value = $domain.value, \
+         updated_by = $domain.updated_by, \
+         updated_at_utc = time::now() \
+       RETURN AFTER)[0]; };"
+);
+
 impl AtelierStore {
     /// Read the live ModelManual section text, if persisted.
     pub async fn get_model_manual_section(
         &self,
         section_id: &str,
     ) -> AtelierResult<Option<ModelManualSectionRecord>> {
-        let row = sqlx::query(
-            r#"SELECT section_id, section_text, revision, updated_by,
-                      updated_at_utc, created_at_utc
-               FROM atelier_model_manual_section
-               WHERE section_id = $1"#,
-        )
-        .bind(section_id)
-        .fetch_optional(self.pool())
-        .await?;
-        row.map(|row| manual_section_from_row(&row)).transpose()
+        let bindings = SectionIdBinding {
+            section_id: section_id.to_owned(),
+        };
+        let row: Option<ModelManualSectionRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_MODEL_MANUAL_SECTION_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(row.map(ModelManualSectionRecord::from))
     }
 
     /// Write the live ModelManual section text (insert or revision bump)
     /// and mirror the write through the EventLedger. This is the single
-    /// authority write path the PG surface provider's `promote` uses.
+    /// authority write path the live surface provider's `promote` uses.
     pub async fn upsert_model_manual_section(
         &self,
         section_id: &str,
@@ -111,44 +210,44 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_model_manual_section (
-                   section_id, section_text, revision, updated_by
-               )
-               VALUES ($1, $2, 1, $3)
-               ON CONFLICT (section_id) DO UPDATE
-               SET section_text = EXCLUDED.section_text,
-                   revision = atelier_model_manual_section.revision + 1,
-                   updated_by = EXCLUDED.updated_by,
-                   updated_at_utc = NOW()
-               RETURNING section_id, section_text, revision, updated_by,
-                         updated_at_utc, created_at_utc"#,
-        )
-        .bind(section_id)
-        .bind(section_text)
-        .bind(updated_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = manual_section_from_row(&row)?;
+        // Best-effort view of the revision the statement will assign, so the
+        // event payload keeps carrying it. The row returned by the write is
+        // the authoritative value.
+        let expected_revision = self
+            .get_model_manual_section(section_id)
+            .await?
+            .map(|record| record.revision + 1)
+            .unwrap_or(1);
 
-        self.record_event_in_tx(
-            &mut tx,
-            editable_surface_event_family::MODEL_MANUAL_SECTION_WRITTEN,
-            "atelier_model_manual_section",
-            &record.section_id,
-            serde_json::json!({
-                "section_id": record.section_id,
-                "revision": record.revision,
-                "section_text_sha256": sha256_hex(record.section_text.as_bytes()),
-                "section_text_bytes": record.section_text.len(),
-                "updated_by": record.updated_by,
-                "schema": "hsk.atelier.model_manual_section@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let bindings = UpsertManualSectionBindings {
+            section_id: section_id.to_owned(),
+            section_text: section_text.to_owned(),
+            updated_by: updated_by.to_owned(),
+        };
+        let row: Option<ModelManualSectionRow> = self
+            .write_with_event(
+                UPSERT_MODEL_MANUAL_SECTION_STATEMENT,
+                bindings,
+                editable_surface_event_family::MODEL_MANUAL_SECTION_WRITTEN,
+                "atelier_model_manual_section",
+                section_id,
+                serde_json::json!({
+                    "section_id": section_id,
+                    "revision": expected_revision,
+                    "section_text_sha256": sha256_hex(section_text.as_bytes()),
+                    "section_text_bytes": section_text.len(),
+                    "updated_by": updated_by,
+                    "schema": "hsk.atelier.model_manual_section@1",
+                }),
+            )
+            .await?;
+        Ok(row
+            .ok_or_else(|| {
+                AtelierError::Internal(
+                    "upserting a model manual section returned no row".to_owned(),
+                )
+            })?
+            .into())
     }
 
     /// Read the live RetrievalPolicy parameter value, if persisted. Callers
@@ -158,25 +257,26 @@ impl AtelierStore {
         task_type: TaskType,
         parameter: PolicyParameterRef,
     ) -> AtelierResult<Option<RetrievalPolicyValueRecord>> {
-        let row = sqlx::query(
-            r#"SELECT task_type, parameter, value, updated_by, updated_at_utc
-               FROM atelier_retrieval_policy
-               WHERE task_type = $1 AND parameter = $2"#,
-        )
-        .bind(task_type_token(task_type))
-        .bind(policy_parameter_token(parameter))
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(row) => Ok(Some(RetrievalPolicyValueRecord {
-                task_type,
-                parameter,
-                value: row.get("value"),
-                updated_by: row.get("updated_by"),
-                updated_at_utc: row.get("updated_at_utc"),
-            })),
-            None => Ok(None),
-        }
+        let bindings = RetrievalPolicyKeyBindings {
+            task_type: task_type_token(task_type).to_owned(),
+            parameter: policy_parameter_token(parameter).to_owned(),
+        };
+        let row: Option<RetrievalPolicyRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_RETRIEVAL_POLICY_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(row.map(|row| RetrievalPolicyValueRecord {
+            task_type,
+            parameter,
+            value: row.value,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+        }))
     }
 
     /// Write the live RetrievalPolicy parameter value and mirror it through
@@ -195,65 +295,45 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_retrieval_policy (
-                   task_type, parameter, value, updated_by
-               )
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (task_type, parameter) DO UPDATE
-               SET value = EXCLUDED.value,
-                   updated_by = EXCLUDED.updated_by,
-                   updated_at_utc = NOW()
-               RETURNING task_type, parameter, value, updated_by, updated_at_utc"#,
-        )
-        .bind(task_type_token(task_type))
-        .bind(policy_parameter_token(parameter))
-        .bind(value)
-        .bind(updated_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = RetrievalPolicyValueRecord {
-            task_type,
-            parameter,
-            value: row.get("value"),
-            updated_by: row.get("updated_by"),
-            updated_at_utc: row.get("updated_at_utc"),
-        };
-
         let aggregate_id = format!(
             "{}:{}",
             task_type_token(task_type),
             policy_parameter_token(parameter)
         );
-        self.record_event_in_tx(
-            &mut tx,
-            editable_surface_event_family::RETRIEVAL_POLICY_WRITTEN,
-            "atelier_retrieval_policy",
-            &aggregate_id,
-            serde_json::json!({
-                "task_type": task_type_token(task_type),
-                "parameter": policy_parameter_token(parameter),
-                "value": record.value,
-                "updated_by": record.updated_by,
-                "schema": "hsk.atelier.retrieval_policy@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let bindings = UpsertRetrievalPolicyBindings {
+            policy_id: aggregate_id.clone(),
+            task_type: task_type_token(task_type).to_owned(),
+            parameter: policy_parameter_token(parameter).to_owned(),
+            value,
+            updated_by: updated_by.to_owned(),
+        };
+        let row: Option<RetrievalPolicyRow> = self
+            .write_with_event(
+                UPSERT_RETRIEVAL_POLICY_STATEMENT,
+                bindings,
+                editable_surface_event_family::RETRIEVAL_POLICY_WRITTEN,
+                "atelier_retrieval_policy",
+                &aggregate_id,
+                serde_json::json!({
+                    "task_type": task_type_token(task_type),
+                    "parameter": policy_parameter_token(parameter),
+                    "value": value,
+                    "updated_by": updated_by,
+                    "schema": "hsk.atelier.retrieval_policy@1",
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("upserting a retrieval policy value returned no row".to_owned())
+        })?;
+        Ok(RetrievalPolicyValueRecord {
+            task_type,
+            parameter,
+            value: row.value,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+        })
     }
-}
-
-fn manual_section_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ModelManualSectionRecord> {
-    Ok(ModelManualSectionRecord {
-        section_id: row.get("section_id"),
-        section_text: row.get("section_text"),
-        revision: row.get("revision"),
-        updated_by: row.get("updated_by"),
-        updated_at_utc: row.get("updated_at_utc"),
-        created_at_utc: row.get("created_at_utc"),
-    })
 }
 
 fn validate_trimmed(field: &str, value: &str) -> AtelierResult<()> {
@@ -276,17 +356,30 @@ fn surface_io(error: AtelierError) -> EditableSurfaceError {
     }
 }
 
-/// Production [`ModelManualSurface`] wired to the live PG authority table.
+/// Bridge the sync `EditableSurfaceProvider` trait to the async store.
+/// Callers inside a runtime must use a multi-thread runtime
+/// (`#[tokio::test(flavor = "multi_thread")]`).
+fn block_on_surface<F: std::future::Future>(future: F) -> F::Output {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => tokio::task::block_in_place(|| handle.block_on(future)),
+        Err(_) => {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio current-thread runtime must build");
+            runtime.block_on(future)
+        }
+    }
+}
+
+/// Production [`ModelManualSurface`] wired to the live embedded-store
+/// authority table.
 ///
 /// `snapshot` reads the persisted section text through
 /// [`AtelierStore::get_model_manual_section`]; `promote` writes the gated
 /// candidate through [`AtelierStore::upsert_model_manual_section`], the
 /// single authority write path (revision bump + EventLedger mirror).
-///
-/// The provider closures bridge the sync `EditableSurfaceProvider` trait to
-/// async PG via the shared Tokio bridge; callers inside a runtime must use
-/// a multi-thread runtime (`#[tokio::test(flavor = "multi_thread")]`).
-pub fn pg_model_manual_surface(
+pub fn live_model_manual_surface(
     store: AtelierStore,
     updated_by: String,
 ) -> ModelManualSurface<
@@ -297,8 +390,8 @@ pub fn pg_model_manual_surface(
     let write_store = store;
     ModelManualSurface::new(
         move |section_id: &str| {
-            let record =
-                block_on(read_store.get_model_manual_section(section_id)).map_err(surface_io)?;
+            let record = block_on_surface(read_store.get_model_manual_section(section_id))
+                .map_err(surface_io)?;
             match record {
                 Some(record) => Ok(record.section_text),
                 None => Err(EditableSurfaceError::Io {
@@ -310,22 +403,26 @@ pub fn pg_model_manual_surface(
             }
         },
         move |section_id: &str, new_text: &str| {
-            block_on(write_store.upsert_model_manual_section(section_id, new_text, &updated_by))
-                .map(|_| ())
-                .map_err(surface_io)
+            block_on_surface(write_store.upsert_model_manual_section(
+                section_id,
+                new_text,
+                &updated_by,
+            ))
+            .map(|_| ())
+            .map_err(surface_io)
         },
     )
 }
 
-/// Production [`RetrievalPolicySurface`] wired to the live PG authority
-/// table.
+/// Production [`RetrievalPolicySurface`] wired to the live embedded-store
+/// authority table.
 ///
 /// `snapshot` reads the persisted parameter value through
 /// [`AtelierStore::get_retrieval_policy_value`], falling back to
 /// [`CapsulePolicyTable::default_policy_for`] when no live row exists yet;
 /// `promote` writes the gated candidate through
 /// [`AtelierStore::upsert_retrieval_policy_value`] (EventLedger mirror).
-pub fn pg_retrieval_policy_surface(
+pub fn live_retrieval_policy_surface(
     store: AtelierStore,
     updated_by: String,
 ) -> RetrievalPolicySurface<
@@ -336,8 +433,9 @@ pub fn pg_retrieval_policy_surface(
     let write_store = store;
     RetrievalPolicySurface::new(
         move |task_type: TaskType, parameter: PolicyParameterRef| {
-            let record = block_on(read_store.get_retrieval_policy_value(task_type, parameter))
-                .map_err(surface_io)?;
+            let record =
+                block_on_surface(read_store.get_retrieval_policy_value(task_type, parameter))
+                    .map_err(surface_io)?;
             match record {
                 Some(record) => u64::try_from(record.value).map_err(|_| EditableSurfaceError::Io {
                     message: format!(
@@ -360,7 +458,7 @@ pub fn pg_retrieval_policy_surface(
             let value = i64::try_from(value).map_err(|_| EditableSurfaceError::Io {
                 message: format!("retrieval policy value {value} exceeds i64 range"),
             })?;
-            block_on(write_store.upsert_retrieval_policy_value(
+            block_on_surface(write_store.upsert_retrieval_policy_value(
                 task_type,
                 parameter,
                 value,

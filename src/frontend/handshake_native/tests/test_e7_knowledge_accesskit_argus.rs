@@ -1,4 +1,4 @@
-//! WP-KERNEL-012 MT-042 V4 canonical Argus/live-PostgreSQL proof.
+//! WP-KERNEL-012 MT-042 V4 canonical Argus/live-SurrealDB proof.
 #![cfg(all(feature = "integration", feature = "wgpu_screenshots"))]
 
 use std::path::{Path, PathBuf};
@@ -168,14 +168,68 @@ fn isolate_knowledge_proof_surface(app: &mut HandshakeApp) {
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
 }
 
-fn pg_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
+fn graph_projection(
+    live: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+) -> serde_json::Value {
+    live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/graph/global?node_limit=200"
+    ))
 }
 
-fn pg_scalar(sql: &str) -> String {
-    interconnect_support::run_bounded_psql(sql, None)
-        .trim()
-        .to_owned()
+fn graph_edge_count(live: &interconnect_support::LiveBackend, workspace_id: &str) -> usize {
+    graph_projection(live, workspace_id)["edges"]
+        .as_array()
+        .expect("global graph returns edge rows")
+        .len()
+}
+
+fn graph_has_edge(
+    live: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+    edge_id: &str,
+    source_id: &str,
+    target_id: &str,
+    edge_type: &str,
+) -> bool {
+    graph_projection(live, workspace_id)["edges"]
+        .as_array()
+        .expect("global graph returns edge rows")
+        .iter()
+        .any(|row| {
+            row.pointer("/edge/edge_id").and_then(|value| value.as_str()) == Some(edge_id)
+                && row
+                    .pointer("/edge/source_block_id")
+                    .and_then(|value| value.as_str())
+                    == Some(source_id)
+                && row
+                    .pointer("/edge/target_block_id")
+                    .and_then(|value| value.as_str())
+                    == Some(target_id)
+                && row
+                    .pointer("/edge/edge_type")
+                    .and_then(|value| value.as_str())
+                    == Some(edge_type)
+        })
+}
+
+fn canvas_has_placement(
+    live: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+    canvas_id: &str,
+    placement_id: &str,
+    placed_block_id: &str,
+) -> bool {
+    live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+    ))["placements"]
+        .as_array()
+        .expect("canvas projection returns placements")
+        .iter()
+        .any(|placement| {
+            placement["placement_id"] == placement_id
+                && placement["placed_block_id"] == placed_block_id
+        })
 }
 
 fn process_absent(pid: u64) -> bool {
@@ -510,10 +564,7 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
     ));
 
     let mut actions = Vec::new();
-    let edge_count_before_malformed = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {}",
-        pg_literal(&workspace_id)
-    ));
+    let edge_count_before_malformed = graph_edge_count(&live, &workspace_id);
     argus.click_with_payload_expect_typed_rejected_and_reinspect(
         &mut harness,
         "graph.add-edge",
@@ -525,10 +576,7 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
             .as_array()
             .is_some_and(|rows| rows.iter().any(|row| row["status"] == "rejected"))
     });
-    let edge_count_after_malformed = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {}",
-        pg_literal(&workspace_id)
-    ));
+    let edge_count_after_malformed = graph_edge_count(&live, &workspace_id);
     assert_eq!(edge_count_after_malformed, edge_count_before_malformed);
     record_latest(&argus, &mut actions);
 
@@ -548,14 +596,15 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         .and_then(|edge| edge.edge_id.clone())
         .expect("exact created edge in authoritative projection");
     let created_edge_author = graph_edge_author_id(&created_edge_id);
-    let created_edge_present_after_add = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {} AND edge_id = {} AND source_block_id = {} AND target_block_id = {} AND edge_type = 'mention'",
-        pg_literal(&workspace_id),
-        pg_literal(&created_edge_id),
-        pg_literal(&alpha),
-        pg_literal(&gamma),
-    ));
-    assert_eq!(created_edge_present_after_add, "1");
+    let created_edge_present_after_add = graph_has_edge(
+        &live,
+        &workspace_id,
+        &created_edge_id,
+        &alpha,
+        &gamma,
+        "mention",
+    );
+    assert!(created_edge_present_after_add);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
         "exact-edge-created",
@@ -572,12 +621,15 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
     argus.assert_latest_terminal_predicate(&mut harness, "exact-edge-removed", |tree| {
         !json_has_author_id(tree, &created_edge_author)
     });
-    let created_edge_absent_after_remove = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {} AND edge_id = {}",
-        pg_literal(&workspace_id),
-        pg_literal(&created_edge_id),
-    ));
-    assert_eq!(created_edge_absent_after_remove, "0");
+    let created_edge_absent_after_remove = !graph_projection(&live, &workspace_id)["edges"]
+        .as_array()
+        .expect("global graph returns edge rows")
+        .iter()
+        .any(|row| {
+            row.pointer("/edge/edge_id").and_then(|value| value.as_str())
+                == Some(created_edge_id.as_str())
+        });
+    assert!(created_edge_absent_after_remove);
     record_latest(&argus, &mut actions);
     artifacts.extend(capture_with_tree(
         &mut argus,
@@ -628,10 +680,7 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
             .is_ok_and(|graph| !graph.loading && graph.error.is_none())
     });
     let stale_before = inspect_clean(&mut argus, &mut harness);
-    let edges_before_stale = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {}",
-        pg_literal(&workspace_id)
-    ));
+    let edges_before_stale = graph_edge_count(&live, &workspace_id);
     {
         let board = harness.state().mounted_canvas_board();
         let mut board = board.lock().unwrap();
@@ -652,10 +701,7 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         &stale_before,
         "no live widget",
     );
-    let edges_after_stale = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {}",
-        pg_literal(&workspace_id)
-    ));
+    let edges_after_stale = graph_edge_count(&live, &workspace_id);
     assert_eq!(edges_after_stale, edges_before_stale);
 
     argus.click_with_payload_expect_applied_and_reinspect(
@@ -674,13 +720,14 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         .map(|placement| placement.placement_id.clone())
         .expect("authoritative Canvas contains exact placement");
     let placement_author = canvas_card_author_id(&placement_id);
-    let placement_present_after_create = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_canvas_placements WHERE workspace_id = {} AND placement_id = {} AND placed_block_id = {}",
-        pg_literal(&workspace_id),
-        pg_literal(&placement_id),
-        pg_literal(&alpha),
-    ));
-    assert_eq!(placement_present_after_create, "1");
+    let placement_present_after_create = canvas_has_placement(
+        &live,
+        &workspace_id,
+        &canvas_id,
+        &placement_id,
+        &alpha,
+    );
+    assert!(placement_present_after_create);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
         "exact-placement-created",
@@ -703,12 +750,14 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
     argus.assert_latest_terminal_predicate(&mut harness, "exact-placement-removed", |tree| {
         !json_has_author_id(tree, &placement_author)
     });
-    let placement_absent_after_remove = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_canvas_placements WHERE workspace_id = {} AND placement_id = {}",
-        pg_literal(&workspace_id),
-        pg_literal(&placement_id),
-    ));
-    assert_eq!(placement_absent_after_remove, "0");
+    let placement_absent_after_remove = !canvas_has_placement(
+        &live,
+        &workspace_id,
+        &canvas_id,
+        &placement_id,
+        &alpha,
+    );
+    assert!(placement_absent_after_remove);
     record_latest(&argus, &mut actions);
     artifacts.extend(capture_with_tree(
         &mut argus,
@@ -749,16 +798,32 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
                 && author_value(tree, &alpha_card_author).as_deref() == Some(done.as_str())
         },
     );
-    let source_tag_absent_after_move = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {} AND source_block_id = {} AND target_block_id = {} AND edge_type = 'tag'",
-        pg_literal(&workspace_id), pg_literal(&alpha), pg_literal(&todo),
-    ));
-    let target_tag_present_after_move = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {} AND source_block_id = {} AND target_block_id = {} AND edge_type = 'tag'",
-        pg_literal(&workspace_id), pg_literal(&alpha), pg_literal(&done),
-    ));
-    assert_eq!(source_tag_absent_after_move, "0");
-    assert_eq!(target_tag_present_after_move, "1");
+    let moved_graph = graph_projection(&live, &workspace_id);
+    let moved_edges = moved_graph["edges"]
+        .as_array()
+        .expect("global graph returns moved tag edges");
+    let tag_edge_count = |target_id: &str| {
+        moved_edges
+            .iter()
+            .filter(|row| {
+                row.pointer("/edge/source_block_id")
+                    .and_then(|value| value.as_str())
+                    == Some(alpha.as_str())
+                    && row
+                        .pointer("/edge/target_block_id")
+                        .and_then(|value| value.as_str())
+                        == Some(target_id)
+                    && row
+                        .pointer("/edge/edge_type")
+                        .and_then(|value| value.as_str())
+                        == Some("tag")
+            })
+            .count()
+    };
+    let source_tag_absent_after_move = tag_edge_count(&todo) == 0;
+    let target_tag_present_after_move = tag_edge_count(&done) == 1;
+    assert!(source_tag_absent_after_move);
+    assert!(target_tag_present_after_move);
     record_latest(&argus, &mut actions);
     artifacts.extend(capture_with_tree(
         &mut argus,
@@ -864,30 +929,59 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         &actions_json,
     ));
 
-    let exact_node_count = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = {} AND block_id IN ({},{},{},{})",
-        pg_literal(&workspace_id),
-        pg_literal(&alpha),
-        pg_literal(&beta),
-        pg_literal(&gamma),
-        pg_literal(&delta),
-    ));
-    let exact_document_count = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = {} AND rich_document_id IN ({},{},{},{})",
-        pg_literal(&workspace_id), pg_literal(&alpha), pg_literal(&beta), pg_literal(&gamma), pg_literal(&delta),
-    ));
-    let initial_edges_present = pg_scalar(&format!(
-        "SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {} AND edge_id IN ({},{}) AND edge_type = 'mention'",
-        pg_literal(&workspace_id),
-        pg_literal(initial_edge_one["edge_id"].as_str().unwrap()),
-        pg_literal(initial_edge_two["edge_id"].as_str().unwrap()),
-    ));
-    assert_eq!(exact_node_count, "4");
-    assert_eq!(exact_document_count, "4");
-    assert_eq!(initial_edges_present, "2");
-    let db_evidence = serde_json::json!({
+    let final_graph = graph_projection(&live, &workspace_id);
+    let expected_document_ids = [&alpha, &beta, &gamma, &delta];
+    let exact_node_count = final_graph["nodes"]
+        .as_array()
+        .expect("global graph returns node rows")
+        .iter()
+        .filter(|row| {
+            row.pointer("/block/block_id")
+                .and_then(|value| value.as_str())
+                .is_some_and(|id| {
+                    expected_document_ids
+                        .iter()
+                        .any(|expected| expected.as_str() == id)
+                })
+        })
+        .count();
+    let exact_document_count = expected_document_ids
+        .iter()
+        .filter(|document_id| {
+            runtime
+                .block_on(docs.load_document(&headers, document_id.as_str()))
+                .is_ok()
+        })
+        .count();
+    let initial_edge_one_id = initial_edge_one["edge_id"].as_str().unwrap();
+    let initial_edge_two_id = initial_edge_two["edge_id"].as_str().unwrap();
+    let initial_edges_present = [
+        graph_has_edge(
+            &live,
+            &workspace_id,
+            initial_edge_one_id,
+            &alpha,
+            &beta,
+            "mention",
+        ),
+        graph_has_edge(
+            &live,
+            &workspace_id,
+            initial_edge_two_id,
+            &beta,
+            &gamma,
+            "mention",
+        ),
+    ]
+    .into_iter()
+    .filter(|present| *present)
+    .count();
+    assert_eq!(exact_node_count, 4);
+    assert_eq!(exact_document_count, 4);
+    assert_eq!(initial_edges_present, 2);
+    let product_evidence = serde_json::json!({
         "workspace_id": workspace_id,
-        "query_bindings": {"alpha":alpha,"beta":beta,"gamma":gamma,"delta":delta,"created_edge_id":created_edge_id,"placement_id":placement_id,"todo":todo,"done":done},
+        "api_bindings": {"alpha":alpha,"beta":beta,"gamma":gamma,"delta":delta,"created_edge_id":created_edge_id,"placement_id":placement_id,"todo":todo,"done":done},
         "exact_node_count": exact_node_count,
         "exact_document_count": exact_document_count,
         "initial_edges_present": initial_edges_present,
@@ -904,8 +998,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
     });
     artifacts.push(write_json(
         &proof_dir,
-        "database-evidence.json",
-        &db_evidence,
+        "product-api-evidence.json",
+        &product_evidence,
     ));
 
     let backend_pid = backend_binding["backend_pid"].as_u64().unwrap();

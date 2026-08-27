@@ -94,7 +94,7 @@ fn concrete_write_box_types_share_required_common_contract() {
     );
     assert_eq!(
         common.operation_payload_refs[0].payload_ref,
-        "postgres://kernel_crdt_updates/crdt-update-1/update_bytes"
+        "surreal://kernel_crdt_updates/crdt-update-1/update_bytes"
     );
     assert_eq!(
         common.receipt_refs,
@@ -267,7 +267,7 @@ fn sample_common(kind: WriteBoxKind) -> WriteBoxCommon {
         operation_payload_refs: vec![WriteBoxPayloadRef {
             payload_id: "payload-crdt-update-1".to_string(),
             payload_kind: "yjs_update".to_string(),
-            payload_ref: "postgres://kernel_crdt_updates/crdt-update-1/update_bytes".to_string(),
+            payload_ref: "surreal://kernel_crdt_updates/crdt-update-1/update_bytes".to_string(),
             payload_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                 .to_string(),
         }],

@@ -682,7 +682,7 @@ mod tests {
         let report = pass_report();
         let bun = bundle(&run);
         let inputs = good_inputs(&run, &report, &bun);
-        let mut store = InMemoryKb003Storage::new_postgres_primary();
+        let mut store = InMemoryKb003Storage::new_surreal_primary();
         let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
         assert!(out.decision.is_accepted());
         assert_eq!(
@@ -701,7 +701,7 @@ mod tests {
         let run = completed_run();
         let report = pass_report();
         let bun = bundle(&run);
-        let mut store = InMemoryKb003Storage::new_postgres_primary();
+        let mut store = InMemoryKb003Storage::new_surreal_primary();
 
         let inputs1 = good_inputs(&run, &report, &bun);
         let out1 = PromotionGate::evaluate(inputs1, &mut store).unwrap();
@@ -731,7 +731,7 @@ mod tests {
         let run = completed_run();
         let report = pass_report();
         let bun = bundle(&run);
-        let mut store = InMemoryKb003Storage::new_postgres_primary();
+        let mut store = InMemoryKb003Storage::new_surreal_primary();
 
         let inputs1 = good_inputs(&run, &report, &bun);
         let _ = PromotionGate::evaluate(inputs1, &mut store).unwrap();

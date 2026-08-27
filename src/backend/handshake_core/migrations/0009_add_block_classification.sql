@@ -1,5 +1,0 @@
--- [HSK-ACE-VAL-100] Add classification columns for ACE runtime validators
--- Sensitivity: "low", "medium", "high", "unknown" (NULL treated as "unknown" -> blocks)
--- Exportable: 0=false (local-only), 1=true (can export to cloud), NULL=true (default exportable)
--- Using INTEGER for exportable ensures portability across SQLite and PostgreSQL
--- NOTE: Replay-safe normalization: block classification columns are created in `0001_init.sql`.

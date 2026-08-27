@@ -12,7 +12,7 @@
 //! - HBR-VIS `rename_input_screenshot`: an egui_kittest screenshot of the open inline input is saved to
 //!   the EXTERNAL artifact root (never repo-local — CX-212E).
 //!
-//! Provable WITHOUT a live PostgreSQL / a language server: the rename surface (input + preview + AccessKit
+//! Provable WITHOUT a live SurrealDB / a language server: the rename surface (input + preview + AccessKit
 //! nodes) is independent of the backend; the input opens from a tree-sitter identifier resolution and is
 //! driven through the panel's public API.
 

@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
 use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
@@ -35,6 +34,7 @@ use crate::role_mailbox_v1::{
     MicroTaskVerificationNeededBody, PriorAttemptRef, RoleMailboxClaimLeaseV1,
     RoleMailboxRepository, RoleMailboxThreadId, RouteDecision,
 };
+use crate::storage::surreal::SurrealStorage;
 
 #[derive(Clone)]
 pub struct CoderAuthorizationToken {
@@ -795,7 +795,7 @@ impl MicroTaskExecutor {
     }
 }
 
-pub struct PostgresMtExecutorIo<'a> {
+pub struct SurrealMtExecutorIo<'a> {
     queue: &'a MicroTaskQueue,
     scheduler: &'a FairScheduler,
     mailbox_repo: &'a RoleMailboxRepository,
@@ -804,7 +804,7 @@ pub struct PostgresMtExecutorIo<'a> {
     flight_recorder: Option<&'a dyn FlightRecorder>,
 }
 
-impl<'a> PostgresMtExecutorIo<'a> {
+impl<'a> SurrealMtExecutorIo<'a> {
     pub fn new(
         queue: &'a MicroTaskQueue,
         scheduler: &'a FairScheduler,
@@ -827,8 +827,8 @@ impl<'a> PostgresMtExecutorIo<'a> {
         self
     }
 
-    pub fn pool(&self) -> &PgPool {
-        self.queue.pool()
+    pub fn storage(&self) -> &SurrealStorage {
+        self.queue.storage()
     }
 
     async fn append_checked_message(
@@ -885,14 +885,14 @@ impl<'a> PostgresMtExecutorIo<'a> {
 }
 
 #[async_trait]
-impl MtExecutorIo for PostgresMtExecutorIo<'_> {
+impl MtExecutorIo for SurrealMtExecutorIo<'_> {
     async fn claim_next(
         &self,
         executor_identity: &ExecutorIdentity,
     ) -> Result<Option<MicroTaskJob>, MtExecutorRunError> {
         let Some(job_id) = self
             .scheduler
-            .claim_next_priority(self.queue.pool(), executor_identity.session_id)
+            .claim_next_priority(self.queue, executor_identity.session_id)
             .await
             .map_err(|err| MtExecutorRunError::Queue(err.to_string()))?
         else {
@@ -1006,7 +1006,7 @@ impl MtExecutorIo for PostgresMtExecutorIo<'_> {
         outcome: MtOutcome,
         session_id: Uuid,
     ) -> Result<(), MtExecutorRunError> {
-        MtOutcomeRecorder::persist(self.queue.pool(), job, outcome, session_id)
+        MtOutcomeRecorder::persist(self.queue.storage(), job, outcome, session_id)
             .await
             .map(|_| ())
             .map_err(|err| MtExecutorRunError::Outcome(err.to_string()))

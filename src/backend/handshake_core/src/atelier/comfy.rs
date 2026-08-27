@@ -47,20 +47,48 @@
 //!     (settings.rs redaction style) and never embeds credential material or
 //!     machine-local absolute paths.
 //!
-//! Storage authority is the single Handshake store only (LAW-COMFY-INTAKE-004);
-//! SQLite is forbidden. PENDING the SurrealDB port — see the `atelier` module
-//! header (MT-138). Microtasks: MT-202 (ComfyUI intake records), MT-005 (event
-//! coverage).
+//! Storage authority is the single embedded SurrealDB Handshake store only
+//! (LAW-COMFY-INTAKE-004); legacy database fallbacks are forbidden.
+//! Microtasks: MT-202 (ComfyUI intake records), MT-005 (event coverage).
 
 use crate::capabilities::CapabilityRegistry;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{QueryBuilder, Row};
 use std::collections::BTreeMap;
+use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::intake::IntakeLane;
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
+
+struct ComfyRow(serde_json::Map<String, serde_json::Value>);
+
+impl ComfyRow {
+    fn get<T, I>(&self, field: I) -> T
+    where
+        T: serde::de::DeserializeOwned,
+        I: AsRef<str>,
+    {
+        let field = field.as_ref();
+        serde_json::from_value(
+            self.0
+                .get(field)
+                .unwrap_or_else(|| panic!("missing persisted Comfy field {field}"))
+                .clone(),
+        )
+        .unwrap_or_else(|err| panic!("invalid persisted Comfy field {field}: {err}"))
+    }
+}
+
+fn comfy_row(value: serde_json::Value) -> AtelierResult<ComfyRow> {
+    value
+        .as_object()
+        .cloned()
+        .map(ComfyRow)
+        .ok_or_else(|| AtelierError::Internal("Comfy query returned a non-object row".to_owned()))
+}
 
 /// ComfyUI intake event families (MT-202, extends the MT-005 coverage set).
 ///
@@ -1061,7 +1089,7 @@ pub struct ResolvedReplayInputs {
 // is (workflow_kind, spec_version); re-registration is an idempotent upsert.
 // Version metadata pins the three named provenance versions (pose model-asset,
 // image tool, ComfyUI model) per workflow run so provenance is reproducible.
-// Storage stays PostgreSQL only (LAW-COMFY-INTAKE-004). Neither path executes
+// Storage stays in embedded SurrealDB only (LAW-COMFY-INTAKE-004). Neither path executes
 // ComfyUI; they only persist durable governed records (LAW-COMFY-INTAKE-001).
 // ---------------------------------------------------------------------------
 
@@ -1142,7 +1170,7 @@ pub struct NewComfyVersionMetadata {
 // minimum a no-context model needs to triage a failed run without re-running
 // it. No raw bytes, no credentials, no socket: this is the GOVERNED DATA +
 // RECEIPT model only (LAW-COMFY-INTAKE-001/005). Storage authority is
-// PostgreSQL only (LAW-COMFY-INTAKE-004).
+// embedded SurrealDB only (LAW-COMFY-INTAKE-004).
 // ---------------------------------------------------------------------------
 
 /// A structured diagnostic bundle for a failed pose/ComfyUI operation (MT-112).
@@ -1192,7 +1220,7 @@ pub struct NewDiagnosticBundle {
 // distinct from the workflow *receipt* in `atelier_comfy_workflow_receipt`: the
 // receipt summarizes a completed run's refs/outputs, while this is the
 // request + poll + cancel/timeout state machine that precedes/drives a run.
-// Storage stays PostgreSQL only (LAW-COMFY-INTAKE-004).
+// Storage stays in embedded SurrealDB only (LAW-COMFY-INTAKE-004).
 // ---------------------------------------------------------------------------
 
 /// Lifecycle status of a Comfy-compatible job (MT-126/127/128).
@@ -1367,7 +1395,7 @@ pub struct PollingResponse {
     pub error_reason: Option<String>,
 }
 
-fn comfy_job_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ComfyJob> {
+fn comfy_job_from_row(row: &ComfyRow) -> AtelierResult<ComfyJob> {
     let status: String = row.get("status");
     Ok(ComfyJob {
         job_id: row.get("job_id"),
@@ -1383,10 +1411,7 @@ fn comfy_job_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ComfyJob> {
     })
 }
 
-const COMFY_JOB_COLUMNS: &str = "job_id, workflow_run_id, spec_id, request_json, status, \
-     partial_evidence_ref, error_reason, queued_at, started_at, finished_at";
-
-fn workflow_spec_from_row(row: &sqlx::postgres::PgRow) -> WorkflowSpec {
+fn workflow_spec_from_row(row: &ComfyRow) -> WorkflowSpec {
     WorkflowSpec {
         spec_id: row.get("spec_id"),
         workflow_kind: row.get("workflow_kind"),
@@ -1401,7 +1426,7 @@ fn workflow_spec_from_row(row: &sqlx::postgres::PgRow) -> WorkflowSpec {
     }
 }
 
-fn version_metadata_from_row(row: &sqlx::postgres::PgRow) -> ComfyVersionMetadata {
+fn version_metadata_from_row(row: &ComfyRow) -> ComfyVersionMetadata {
     ComfyVersionMetadata {
         version_metadata_id: row.get("version_metadata_id"),
         workflow_run_id: row.get("workflow_run_id"),
@@ -1439,7 +1464,7 @@ fn reject_legacy_runtime_refs_in_json(field: &str, value: &serde_json::Value) ->
     }
 }
 
-fn diagnostic_bundle_from_row(row: &sqlx::postgres::PgRow) -> DiagnosticBundle {
+fn diagnostic_bundle_from_row(row: &ComfyRow) -> DiagnosticBundle {
     DiagnosticBundle {
         bundle_id: row.get("bundle_id"),
         workflow_run_id: row.get("workflow_run_id"),
@@ -1462,7 +1487,7 @@ fn require_token_field(field: &str, value: &str) -> AtelierResult<()> {
     Ok(())
 }
 
-fn probe_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BridgeProbe> {
+fn probe_from_row(row: &ComfyRow) -> AtelierResult<BridgeProbe> {
     let outcome: String = row.get("probe_outcome");
     let node_instance_ids: serde_json::Value = row.get("node_instance_ids");
     let node_instance_ids: Vec<String> = serde_json::from_value(node_instance_ids)
@@ -1480,7 +1505,7 @@ fn probe_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BridgeProbe> {
     })
 }
 
-fn declared_output_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DeclaredOutput> {
+fn declared_output_from_row(row: &ComfyRow) -> AtelierResult<DeclaredOutput> {
     let media_kind: String = row.get("media_kind");
     let routing_intent: String = row.get("routing_intent");
     Ok(DeclaredOutput {
@@ -1491,7 +1516,7 @@ fn declared_output_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<Declar
     })
 }
 
-fn output_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<IntakeOutput> {
+fn output_from_row(row: &ComfyRow) -> AtelierResult<IntakeOutput> {
     let media_kind: String = row.get("media_kind");
     let routing_intent: String = row.get("routing_intent");
     Ok(IntakeOutput {
@@ -1544,36 +1569,26 @@ fn workflow_receipt_outputs_from_value(
     }
 }
 
-fn workflow_receipt_output_from_row(row: &sqlx::postgres::PgRow) -> serde_json::Value {
-    let intake_output_id: Uuid = row.get("intake_output_id");
-    let workflow_run_id: Uuid = row.get("workflow_run_id");
-    let media_kind: String = row.get("media_kind");
-    let routing_intent: String = row.get("routing_intent");
-    let registration_id: Option<Uuid> = row.get("registration_id");
-    let parent_artifact_ref: Option<String> = row.get("parent_artifact_ref");
-    let prompt_json_ref: Option<String> = row.get("prompt_json_ref");
-    let graph_hash: Option<String> = row.get("graph_hash");
-    let seed: Option<i64> = row.get("seed");
-    let materialized_at_utc: DateTime<Utc> = row.get("materialized_at_utc");
+fn workflow_receipt_output_from_output(output: &IntakeOutput) -> serde_json::Value {
     serde_json::json!({
-        "intake_output_id": intake_output_id,
-        "workflow_run_id": workflow_run_id,
-        "node_execution_id": row.get::<String, _>("node_execution_id"),
-        "registration_id": registration_id,
-        "source_node_instance_id": row.get::<String, _>("source_node_instance_id"),
-        "source_output_slot": row.get::<String, _>("source_output_slot"),
-        "media_kind": media_kind,
-        "mime": row.get::<String, _>("mime"),
-        "artifact_ref": row.get::<String, _>("artifact_ref"),
-        "artifact_manifest_ref": row.get::<String, _>("artifact_manifest_ref"),
-        "content_hash": row.get::<String, _>("content_hash"),
-        "routing_intent": routing_intent,
-        "parent_artifact_ref": parent_artifact_ref,
-        "prompt_json_ref": prompt_json_ref,
-        "graph_hash": graph_hash,
-        "seed": seed,
-        "workflow_input_metadata": row.get::<serde_json::Value, _>("workflow_input_metadata"),
-        "materialized_at_utc": materialized_at_utc,
+        "intake_output_id": output.intake_output_id,
+        "workflow_run_id": output.workflow_run_id,
+        "node_execution_id": output.node_execution_id,
+        "registration_id": output.registration_id,
+        "source_node_instance_id": output.source_node_instance_id,
+        "source_output_slot": output.source_output_slot,
+        "media_kind": output.media_kind.as_token(),
+        "mime": output.mime,
+        "artifact_ref": output.artifact_ref,
+        "artifact_manifest_ref": output.artifact_manifest_ref,
+        "content_hash": output.content_hash,
+        "routing_intent": output.routing_intent.as_token(),
+        "parent_artifact_ref": output.parent_artifact_ref,
+        "prompt_json_ref": output.prompt_json_ref,
+        "graph_hash": output.graph_hash,
+        "seed": output.seed,
+        "workflow_input_metadata": output.workflow_input_metadata,
+        "materialized_at_utc": output.materialized_at_utc,
     })
 }
 
@@ -1617,7 +1632,7 @@ fn workflow_receipt_character_ref(evidence: &serde_json::Value) -> AtelierResult
     Ok(Some(character_ref.to_string()))
 }
 
-fn workflow_receipt_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ComfyWorkflowReceipt> {
+fn workflow_receipt_from_row(row: &ComfyRow) -> AtelierResult<ComfyWorkflowReceipt> {
     let status: String = row.get("status");
     let outputs: serde_json::Value = row.get("outputs");
     Ok(ComfyWorkflowReceipt {
@@ -1691,7 +1706,7 @@ fn validate_registration_failure_shape(
 }
 
 fn output_registration_failure_from_row(
-    row: &sqlx::postgres::PgRow,
+    row: &ComfyRow,
 ) -> AtelierResult<ComfyOutputRegistrationFailure> {
     let media_kind: String = row.get("media_kind");
     let routing_intent: String = row.get("routing_intent");
@@ -1725,6 +1740,513 @@ fn output_registration_failure_from_row(
     })
 }
 
+#[derive(SurrealValue)]
+struct WorkflowRunBinding {
+    workflow_run_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct NoBindings {}
+
+#[derive(SurrealValue)]
+struct RegistrationIdBinding {
+    registration_id: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BridgeProbeBindings {
+    record_id: RecordId,
+    probe_id: SurrealUuid,
+    workflow_run_id: SurrealUuid,
+    node_class_id: String,
+    detected: bool,
+    bridge_protocol_version: Option<String>,
+    node_instance_ids: serde_json::Value,
+    probe_outcome: String,
+    fallback_reason: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct CapabilityRegistrationBindings {
+    record_id: RecordId,
+    registration_id: SurrealUuid,
+    workflow_run_id: SurrealUuid,
+    node_class_id: String,
+    bridge_protocol_version: String,
+    capability_grant_ref: String,
+    consent_decision_ref: Option<String>,
+    accepted_outputs: serde_json::Value,
+    rejected_outputs: serde_json::Value,
+}
+
+#[derive(SurrealValue)]
+struct IntakeOutputLookupBinding {
+    workflow_run_id: SurrealUuid,
+    content_hash: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IntakeOutputBindings {
+    record_id: RecordId,
+    intake_output_id: SurrealUuid,
+    workflow_run_id: SurrealUuid,
+    node_execution_id: String,
+    registration_id: Option<RecordId>,
+    source_node_instance_id: String,
+    source_output_slot: String,
+    media_kind: String,
+    mime: String,
+    artifact_ref: String,
+    artifact_manifest_ref: String,
+    content_hash: String,
+    routing_intent: String,
+    parent_artifact_ref: Option<String>,
+    prompt_json_ref: Option<String>,
+    graph_hash: Option<String>,
+    seed: Option<i64>,
+    workflow_input_metadata: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct FallbackBindings {
+    record_id: RecordId,
+    workflow_run_id: SurrealUuid,
+    fallback_reason: String,
+}
+
+#[derive(SurrealValue)]
+struct FailureLookupBinding {
+    workflow_run_id: SurrealUuid,
+    content_hash: String,
+    failure_stage: String,
+}
+
+#[derive(SurrealValue)]
+struct FailureIdBinding {
+    failure_id: SurrealUuid,
+}
+
+#[derive(Clone, SurrealValue)]
+struct FailureWriteBindings {
+    record_id: RecordId,
+    failure_id: SurrealUuid,
+    data: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct FailureRetryBindings {
+    record_id: RecordId,
+    resolved_intake_output_id: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct WorkflowReceiptBindings {
+    record_id: RecordId,
+    receipt_id: SurrealUuid,
+    data: serde_json::Value,
+}
+
+#[derive(SurrealValue)]
+struct WorkflowSpecKeyBinding {
+    workflow_kind: String,
+    spec_version: String,
+}
+
+#[derive(SurrealValue)]
+struct ComfyRecordBinding {
+    record_id: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct WorkflowSpecBindings {
+    record_id: RecordId,
+    spec_id: SurrealUuid,
+    workflow_kind: String,
+    spec_version: String,
+    spec_hash: String,
+    handler_id: String,
+    compatibility_pin: Option<String>,
+    spec_json: serde_json::Value,
+    source_ref: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct VersionMetadataBindings {
+    record_id: RecordId,
+    version_metadata_id: SurrealUuid,
+    workflow_run_id: SurrealUuid,
+    spec_id: Option<RecordId>,
+    pose_model_asset_version: String,
+    image_tool_version: String,
+    comfy_model_version: String,
+    preflight_evidence: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct DiagnosticBundleBindings {
+    record_id: RecordId,
+    bundle_id: SurrealUuid,
+    workflow_run_id: SurrealUuid,
+    request_json: serde_json::Value,
+    refs_json: serde_json::Value,
+    versions_json: serde_json::Value,
+    logs_ref: String,
+    artifacts_json: serde_json::Value,
+    error_taxonomy: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ComfyJobBindings {
+    record_id: RecordId,
+    job_id: SurrealUuid,
+    workflow_run_id: SurrealUuid,
+    spec_id: Option<RecordId>,
+    request_json: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ComfyJobTransitionBindings {
+    record_id: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ComfyJobEvidenceBindings {
+    record_id: RecordId,
+    partial_evidence_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ComfyJobTerminalBindings {
+    record_id: RecordId,
+    status: String,
+    reason: Option<String>,
+    partial_evidence_ref: Option<String>,
+}
+
+const GET_WORKFLOW_SPEC_BY_KEY_STATEMENT: &str =
+    "SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id, compatibility_pin, \
+            spec_json, source_ref, created_at_utc, updated_at_utc \
+     FROM atelier_comfy_workflow_spec \
+     WHERE workflow_kind = $workflow_kind AND spec_version = $spec_version LIMIT 1;";
+const GET_WORKFLOW_SPEC_STATEMENT: &str =
+    "SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id, compatibility_pin, \
+            spec_json, source_ref, created_at_utc, updated_at_utc FROM $record_id LIMIT 1;";
+const LIST_WORKFLOW_SPECS_STATEMENT: &str =
+    "SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id, compatibility_pin, \
+            spec_json, source_ref, created_at_utc, updated_at_utc \
+     FROM atelier_comfy_workflow_spec ORDER BY created_at_utc DESC, spec_id DESC;";
+const WRITE_WORKFLOW_SPEC_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { spec_id: $domain.spec_id, workflow_kind: $domain.workflow_kind, \
+         spec_version: $domain.spec_version, spec_hash: $domain.spec_hash, \
+         handler_id: $domain.handler_id, compatibility_pin: $domain.compatibility_pin, \
+         spec_json: $domain.spec_json, source_ref: $domain.source_ref, \
+         updated_at_utc: time::now() }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id, \
+       compatibility_pin, spec_json, source_ref, created_at_utc, updated_at_utc \
+       FROM $rid)[0]; };"
+);
+
+const GET_VERSION_METADATA_STATEMENT: &str =
+    "SELECT version_metadata_id, workflow_run_id, record::id(spec_id) AS spec_id, \
+            pose_model_asset_version, image_tool_version, comfy_model_version, \
+            preflight_evidence, created_at_utc, updated_at_utc \
+     FROM atelier_comfy_version_metadata WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
+const WRITE_VERSION_METADATA_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { version_metadata_id: $domain.version_metadata_id, \
+         workflow_run_id: $domain.workflow_run_id, spec_id: $domain.spec_id, \
+         pose_model_asset_version: $domain.pose_model_asset_version, \
+         image_tool_version: $domain.image_tool_version, \
+         comfy_model_version: $domain.comfy_model_version, \
+         preflight_evidence: $domain.preflight_evidence, updated_at_utc: time::now() }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT version_metadata_id, workflow_run_id, record::id(spec_id) AS spec_id, \
+       pose_model_asset_version, image_tool_version, comfy_model_version, \
+       preflight_evidence, created_at_utc, updated_at_utc FROM $rid)[0]; };"
+);
+
+const GET_DIAGNOSTIC_BUNDLE_STATEMENT: &str =
+    "SELECT bundle_id, workflow_run_id, request_json, refs_json, versions_json, logs_ref, \
+            artifacts_json, error_taxonomy, created_at_utc \
+     FROM atelier_comfy_diagnostic_bundle WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
+const WRITE_DIAGNOSTIC_BUNDLE_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { bundle_id: $domain.bundle_id, workflow_run_id: $domain.workflow_run_id, \
+         request_json: $domain.request_json, refs_json: $domain.refs_json, \
+         versions_json: $domain.versions_json, logs_ref: $domain.logs_ref, \
+         artifacts_json: $domain.artifacts_json, error_taxonomy: $domain.error_taxonomy }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT bundle_id, workflow_run_id, request_json, refs_json, versions_json, \
+       logs_ref, artifacts_json, error_taxonomy, created_at_utc FROM $rid)[0]; };"
+);
+
+const FIND_COMFY_JOB_BY_RUN_STATEMENT: &str =
+    "SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, status, \
+            partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+     FROM atelier_comfy_job WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
+const GET_COMFY_JOB_STATEMENT: &str =
+    "SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, status, \
+            partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+     FROM $record_id LIMIT 1;";
+const LIST_COMFY_JOBS_STATEMENT: &str =
+    "SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, status, \
+            partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+     FROM atelier_comfy_job ORDER BY queued_at ASC, job_id ASC;";
+const WRITE_COMFY_JOB_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { job_id: $domain.job_id, workflow_run_id: $domain.workflow_run_id, \
+         spec_id: $domain.spec_id, request_json: $domain.request_json, status: 'QUEUED', \
+         partial_evidence_ref: NONE, error_reason: NONE, queued_at: time::now(), \
+         started_at: NONE, finished_at: NONE }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+       status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+       FROM $rid)[0]; };"
+);
+const MARK_COMFY_JOB_RUNNING_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       IF (SELECT VALUE status FROM $rid LIMIT 1)[0] != 'QUEUED' { \
+         THROW 'atelier comfy job transition source changed'; }; \
+       UPDATE $rid SET status = 'RUNNING', started_at = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+       status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+       FROM $rid)[0]; };"
+);
+const MARK_COMFY_JOB_COMPLETED_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       IF (SELECT VALUE status FROM $rid LIMIT 1)[0] != 'RUNNING' { \
+         THROW 'atelier comfy job transition source changed'; }; \
+       UPDATE $rid SET status = 'COMPLETED', finished_at = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+       status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+       FROM $rid)[0]; };"
+);
+const ATTACH_COMFY_JOB_EVIDENCE_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       IF !record::exists($rid) { THROW 'atelier comfy job disappeared'; }; \
+       UPDATE $rid SET partial_evidence_ref = $domain.partial_evidence_ref; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+       status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+       FROM $rid)[0]; };"
+);
+const TERMINATE_COMFY_JOB_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       IF (SELECT VALUE status FROM $rid LIMIT 1)[0] NOT IN ['QUEUED', 'RUNNING'] { \
+         THROW 'atelier comfy job transition source changed'; }; \
+       UPDATE $rid SET status = $domain.status, error_reason = $domain.reason, \
+         partial_evidence_ref = IF $domain.partial_evidence_ref = NONE { partial_evidence_ref } \
+           ELSE { $domain.partial_evidence_ref } END, finished_at = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+       status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
+       FROM $rid)[0]; };"
+);
+
+macro_rules! bridge_probe_columns {
+    () => {
+        "probe_id, workflow_run_id, node_class_id, detected, bridge_protocol_version, \
+         node_instance_ids, probe_outcome, fallback_reason, probed_at_utc"
+    };
+}
+const GET_BRIDGE_PROBE_STATEMENT: &str = concat!(
+    "SELECT ",
+    bridge_probe_columns!(),
+    " FROM atelier_comfy_bridge_probe WHERE workflow_run_id = $workflow_run_id LIMIT 1;"
+);
+const WRITE_BRIDGE_PROBE_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { probe_id: $domain.probe_id, \
+       workflow_run_id: $domain.workflow_run_id, node_class_id: $domain.node_class_id, \
+       detected: $domain.detected, bridge_protocol_version: $domain.bridge_protocol_version, \
+       node_instance_ids: $domain.node_instance_ids, probe_outcome: $domain.probe_outcome, \
+       fallback_reason: $domain.fallback_reason, probed_at_utc: time::now() }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    bridge_probe_columns!(),
+    " FROM $rid)[0]; };"
+);
+const GET_CAPABILITY_REGISTRATION_STATEMENT: &str =
+    "SELECT registration_id, workflow_run_id, node_class_id, bridge_protocol_version, \
+            capability_grant_ref, consent_decision_ref, registered_at_utc \
+     FROM atelier_comfy_capability_registration \
+     WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
+const LIST_DECLARED_OUTPUTS_STATEMENT: &str =
+    "SELECT output_slot, media_kind, expected_mime, routing_intent \
+     FROM atelier_comfy_declared_output WHERE registration_id = $registration_id \
+     ORDER BY seq ASC;";
+const LIST_CAPABILITY_REJECTS_STATEMENT: &str =
+    "SELECT output_slot, reason FROM atelier_comfy_capability_reject \
+     WHERE registration_id.workflow_run_id = $workflow_run_id ORDER BY seq ASC;";
+const WRITE_CAPABILITY_REGISTRATION_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid CONTENT { registration_id: $domain.registration_id, \
+         workflow_run_id: $domain.workflow_run_id, node_class_id: $domain.node_class_id, \
+         bridge_protocol_version: $domain.bridge_protocol_version, \
+         capability_grant_ref: $domain.capability_grant_ref, \
+         consent_decision_ref: $domain.consent_decision_ref, registered_at_utc: time::now() }; \
+       DELETE atelier_comfy_declared_output WHERE registration_id = $rid; \
+       DELETE atelier_comfy_capability_reject WHERE registration_id = $rid; \
+       FOR $out IN $domain.accepted_outputs { \
+         LET $child = type::record('atelier_comfy_declared_output', rand::uuid::v7()); \
+         CREATE $child CONTENT { declared_output_id: record::id($child), registration_id: $rid, \
+           seq: $out.seq, output_slot: $out.output_slot, media_kind: $out.media_kind, \
+           expected_mime: $out.expected_mime, routing_intent: $out.routing_intent }; \
+       }; \
+       FOR $reject IN $domain.rejected_outputs { \
+         LET $child = type::record('atelier_comfy_capability_reject', rand::uuid::v7()); \
+         CREATE $child CONTENT { reject_id: record::id($child), registration_id: $rid, \
+           seq: $reject.seq, output_slot: $reject.output_slot, reason: $reject.reason }; \
+       }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT registration_id, workflow_run_id, node_class_id, \
+       bridge_protocol_version, capability_grant_ref, consent_decision_ref, registered_at_utc \
+       FROM $rid)[0]; };"
+);
+macro_rules! intake_output_columns {
+    () => {
+        "intake_output_id, workflow_run_id, node_execution_id, \
+         record::id(registration_id) AS registration_id, source_node_instance_id, \
+         source_output_slot, media_kind, mime, artifact_ref, artifact_manifest_ref, \
+         content_hash, routing_intent, parent_artifact_ref, prompt_json_ref, graph_hash, seed, \
+         workflow_input_metadata, materialized_at_utc"
+    };
+}
+const GET_INTAKE_OUTPUT_STATEMENT: &str = concat!(
+    "SELECT ",
+    intake_output_columns!(),
+    " FROM atelier_comfy_intake_output WHERE workflow_run_id = $workflow_run_id \
+      AND content_hash = $content_hash LIMIT 1;"
+);
+const LIST_INTAKE_OUTPUTS_STATEMENT: &str = concat!(
+    "SELECT ",
+    intake_output_columns!(),
+    " FROM atelier_comfy_intake_output WHERE workflow_run_id = $workflow_run_id \
+      ORDER BY materialized_at_utc ASC, intake_output_id ASC;"
+);
+const WRITE_INTAKE_OUTPUT_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       CREATE $rid CONTENT { intake_output_id: $domain.intake_output_id, \
+       workflow_run_id: $domain.workflow_run_id, node_execution_id: $domain.node_execution_id, \
+       registration_id: $domain.registration_id, \
+       source_node_instance_id: $domain.source_node_instance_id, \
+       source_output_slot: $domain.source_output_slot, media_kind: $domain.media_kind, \
+       mime: $domain.mime, artifact_ref: $domain.artifact_ref, \
+       artifact_manifest_ref: $domain.artifact_manifest_ref, content_hash: $domain.content_hash, \
+       routing_intent: $domain.routing_intent, parent_artifact_ref: $domain.parent_artifact_ref, \
+       prompt_json_ref: $domain.prompt_json_ref, graph_hash: $domain.graph_hash, seed: $domain.seed, \
+       workflow_input_metadata: $domain.workflow_input_metadata }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ", intake_output_columns!(), " FROM $rid)[0]; };"
+);
+const WRITE_FALLBACK_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { workflow_run_id: $domain.workflow_run_id, \
+         fallback_reason: $domain.fallback_reason, engaged_at_utc: time::now() }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT workflow_run_id, fallback_reason, engaged_at_utc FROM $rid)[0]; };"
+);
+const GET_FALLBACK_STATEMENT: &str =
+    "RETURN (SELECT VALUE fallback_reason FROM atelier_comfy_fallback_marker \
+     WHERE workflow_run_id = $workflow_run_id LIMIT 1)[0];";
+macro_rules! failure_columns {
+    () => {
+        "failure_id, workflow_run_id, node_execution_id, attempted_registration_id, \
+         source_node_instance_id, source_output_slot, media_kind, mime, artifact_ref, \
+         artifact_manifest_ref, content_hash, routing_intent, parent_artifact_ref, \
+         prompt_json_ref, graph_hash, seed, workflow_input_metadata, failure_stage, \
+         failure_reason, evidence, status, retry_count, \
+         record::id(resolved_intake_output_id) AS resolved_intake_output_id, \
+         created_at_utc, updated_at_utc"
+    };
+}
+const FIND_FAILURE_STATEMENT: &str = concat!(
+    "SELECT ",
+    failure_columns!(),
+    " FROM atelier_comfy_output_registration_failure \
+      WHERE workflow_run_id = $workflow_run_id AND content_hash = $content_hash \
+      AND failure_stage = $failure_stage LIMIT 1;"
+);
+const GET_FAILURE_STATEMENT: &str = concat!(
+    "SELECT ",
+    failure_columns!(),
+    " FROM atelier_comfy_output_registration_failure WHERE failure_id = $failure_id LIMIT 1;"
+);
+const LIST_FAILURES_STATEMENT: &str = concat!(
+    "SELECT ",
+    failure_columns!(),
+    " FROM atelier_comfy_output_registration_failure WHERE workflow_run_id = $workflow_run_id \
+      ORDER BY created_at_utc ASC, failure_id ASC;"
+);
+const WRITE_FAILURE_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { failure_id: $domain.failure_id, \
+       workflow_run_id: type::uuid($domain.data.workflow_run_id), \
+       node_execution_id: $domain.data.node_execution_id, \
+       attempted_registration_id: IF $domain.data.attempted_registration_id IN [NONE, NULL] { NONE } \
+         ELSE { type::uuid($domain.data.attempted_registration_id) } END, \
+       source_node_instance_id: $domain.data.source_node_instance_id, \
+       source_output_slot: $domain.data.source_output_slot, media_kind: $domain.data.media_kind, \
+       mime: $domain.data.mime, artifact_ref: $domain.data.artifact_ref, \
+       artifact_manifest_ref: $domain.data.artifact_manifest_ref, content_hash: $domain.data.content_hash, \
+       routing_intent: $domain.data.routing_intent, \
+       parent_artifact_ref: IF $domain.data.parent_artifact_ref IN [NONE, NULL] { NONE } \
+         ELSE { $domain.data.parent_artifact_ref } END, \
+       prompt_json_ref: IF $domain.data.prompt_json_ref IN [NONE, NULL] { NONE } \
+         ELSE { $domain.data.prompt_json_ref } END, \
+       graph_hash: IF $domain.data.graph_hash IN [NONE, NULL] { NONE } \
+         ELSE { $domain.data.graph_hash } END, \
+       seed: IF $domain.data.seed IN [NONE, NULL] { NONE } ELSE { $domain.data.seed } END, \
+       workflow_input_metadata: $domain.data.workflow_input_metadata, \
+       failure_stage: $domain.data.failure_stage, failure_reason: $domain.data.failure_reason, \
+       evidence: $domain.data.evidence, updated_at_utc: time::now() }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ", failure_columns!(), " FROM $rid)[0]; };"
+);
+const RETRY_FAILURE_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPDATE $rid SET status = 'registered', retry_count += 1, \
+       resolved_intake_output_id = $domain.resolved_intake_output_id, \
+       updated_at_utc = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    failure_columns!(),
+    " FROM $rid)[0]; };"
+);
+macro_rules! workflow_receipt_columns {
+    () => {
+        "receipt_id, system_id, workflow_run_id, character_ref, workflow_spec_ref, \
+         workflow_json_ref, prompt_ref, all_refs, outputs, status, error_ref, evidence, \
+         receipt_json, created_at_utc, updated_at_utc"
+    };
+}
+const GET_WORKFLOW_RECEIPT_STATEMENT: &str = concat!(
+    "SELECT ",
+    workflow_receipt_columns!(),
+    " FROM atelier_comfy_workflow_receipt WHERE workflow_run_id = $workflow_run_id LIMIT 1;"
+);
+const LIST_WORKFLOW_RECEIPTS_STATEMENT: &str = concat!(
+    "SELECT ",
+    workflow_receipt_columns!(),
+    " FROM atelier_comfy_workflow_receipt ORDER BY created_at_utc ASC, receipt_id ASC;"
+);
+const WRITE_WORKFLOW_RECEIPT_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; \
+       UPSERT $rid MERGE { receipt_id: $domain.receipt_id, \
+       system_id: $domain.data.system_id, workflow_run_id: type::uuid($domain.data.workflow_run_id), \
+       character_ref: $domain.data.character_ref, workflow_spec_ref: $domain.data.workflow_spec_ref, \
+       workflow_json_ref: $domain.data.workflow_json_ref, prompt_ref: $domain.data.prompt_ref, \
+       all_refs: $domain.data.all_refs, outputs: $domain.data.outputs, status: $domain.data.status, \
+       error_ref: $domain.data.error_ref, evidence: $domain.data.evidence, \
+       receipt_json: $domain.data.receipt_json, updated_at_utc: time::now() }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ", workflow_receipt_columns!(), " FROM $rid)[0]; };"
+);
+
 impl AtelierStore {
     /// Record the bounded bridge-node presence probe for a job (Section 6.9.2).
     ///
@@ -1756,46 +2278,41 @@ impl AtelierStore {
         let node_instance_ids = serde_json::to_value(&new.node_instance_ids)
             .map_err(|e| AtelierError::Validation(format!("node_instance_ids: {e}")))?;
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_bridge_probe
-                 (workflow_run_id, node_class_id, detected, bridge_protocol_version,
-                  node_instance_ids, probe_outcome, fallback_reason)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET node_class_id           = EXCLUDED.node_class_id,
-                     detected                = EXCLUDED.detected,
-                     bridge_protocol_version = EXCLUDED.bridge_protocol_version,
-                     node_instance_ids       = EXCLUDED.node_instance_ids,
-                     probe_outcome           = EXCLUDED.probe_outcome,
-                     fallback_reason         = EXCLUDED.fallback_reason
-               RETURNING probe_id, workflow_run_id, node_class_id, detected,
-                         bridge_protocol_version, node_instance_ids, probe_outcome,
-                         fallback_reason, probed_at_utc"#,
-        )
-        .bind(new.workflow_run_id)
-        .bind(&new.node_class_id)
-        .bind(detected)
-        .bind(&new.bridge_protocol_version)
-        .bind(node_instance_ids)
-        .bind(new.probe_outcome.as_token())
-        .bind(&new.fallback_reason)
-        .fetch_one(self.pool())
-        .await?;
-        let probe = probe_from_row(&row)?;
-
-        self.record_event(
-            PROBE_RECORDED,
-            "atelier_comfy_bridge_probe",
-            &probe.workflow_run_id.to_string(),
-            serde_json::json!({
-                "probe_id": probe.probe_id,
-                "node_class_id": probe.node_class_id,
-                "probe_outcome": probe.probe_outcome.as_token(),
-                "fallback_reason": probe.fallback_reason,
-            }),
-        )
-        .await?;
-        Ok(probe)
+        let existing = self.get_bridge_probe(new.workflow_run_id).await?;
+        let probe_id = existing
+            .as_ref()
+            .map(|probe| probe.probe_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let bindings = BridgeProbeBindings {
+            record_id: RecordId::new("atelier_comfy_bridge_probe", SurrealUuid::from(probe_id)),
+            probe_id: SurrealUuid::from(probe_id),
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            node_class_id: new.node_class_id.clone(),
+            detected,
+            bridge_protocol_version: new.bridge_protocol_version.clone(),
+            node_instance_ids,
+            probe_outcome: new.probe_outcome.as_token().to_owned(),
+            fallback_reason: new.fallback_reason.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_BRIDGE_PROBE_STATEMENT,
+                bindings,
+                PROBE_RECORDED,
+                "atelier_comfy_bridge_probe",
+                &new.workflow_run_id.to_string(),
+                serde_json::json!({
+                    "probe_id": probe_id,
+                    "node_class_id": new.node_class_id,
+                    "probe_outcome": new.probe_outcome.as_token(),
+                    "fallback_reason": new.fallback_reason,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording a bridge probe returned no row".to_owned())
+        })?;
+        probe_from_row(&comfy_row(row)?)
     }
 
     /// Fetch the single probe for a job, if one was recorded.
@@ -1803,17 +2320,16 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Option<BridgeProbe>> {
-        let row = sqlx::query(
-            r#"SELECT probe_id, workflow_run_id, node_class_id, detected,
-                      bridge_protocol_version, node_instance_ids, probe_outcome,
-                      fallback_reason, probed_at_utc
-               FROM atelier_comfy_bridge_probe WHERE workflow_run_id = $1"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_BRIDGE_PROBE_STATEMENT, binding).await })
+            })
+            .await?;
         match row {
-            Some(r) => Ok(Some(probe_from_row(&r)?)),
+            Some(row) => Ok(Some(probe_from_row(&comfy_row(row)?)?)),
             None => Ok(None),
         }
     }
@@ -1843,81 +2359,68 @@ impl AtelierStore {
         }
         validate_engine_comfyui_grant_ref(&new.capability_grant_ref)?;
 
-        let mut tx = self.pool().begin().await?;
-
-        // One registration per run. Re-registration replaces the child rows so
-        // the shape is replay-stable rather than accreting duplicates.
-        let reg_row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_capability_registration
-                 (workflow_run_id, node_class_id, bridge_protocol_version,
-                  capability_grant_ref, consent_decision_ref)
-               VALUES ($1, $2, $3, $4, $5)
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET node_class_id           = EXCLUDED.node_class_id,
-                     bridge_protocol_version = EXCLUDED.bridge_protocol_version,
-                     capability_grant_ref    = EXCLUDED.capability_grant_ref,
-                     consent_decision_ref    = EXCLUDED.consent_decision_ref,
-                     registered_at_utc       = NOW()
-               RETURNING registration_id, workflow_run_id, node_class_id,
-                         bridge_protocol_version, capability_grant_ref,
-                         consent_decision_ref, registered_at_utc"#,
-        )
-        .bind(new.workflow_run_id)
-        .bind(&new.node_class_id)
-        .bind(&new.bridge_protocol_version)
-        .bind(&new.capability_grant_ref)
-        .bind(&new.consent_decision_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let registration_id: Uuid = reg_row.get("registration_id");
-
-        // Replace child rows for replay-stability on re-registration.
-        sqlx::query("DELETE FROM atelier_comfy_declared_output WHERE registration_id = $1")
-            .bind(registration_id)
-            .execute(&mut *tx)
+        let existing = self
+            .get_capability_registration(new.workflow_run_id)
             .await?;
-        sqlx::query("DELETE FROM atelier_comfy_capability_reject WHERE registration_id = $1")
-            .bind(registration_id)
-            .execute(&mut *tx)
-            .await?;
-
+        let registration_id = existing
+            .as_ref()
+            .map(|registration| registration.registration_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let mut accepted_outputs = Vec::with_capacity(new.accepted_outputs.len());
         for (seq, out) in new.accepted_outputs.iter().enumerate() {
             if out.output_slot.trim().is_empty() {
                 return Err(AtelierError::Validation(
                     "declared output_slot must not be empty".into(),
                 ));
             }
-            sqlx::query(
-                r#"INSERT INTO atelier_comfy_declared_output
-                     (registration_id, seq, output_slot, media_kind, expected_mime, routing_intent)
-                   VALUES ($1, $2, $3, $4, $5, $6)"#,
-            )
-            .bind(registration_id)
-            .bind(seq as i64)
-            .bind(&out.output_slot)
-            .bind(out.media_kind.as_token())
-            .bind(&out.expected_mime)
-            .bind(out.routing_intent.as_token())
-            .execute(&mut *tx)
-            .await?;
+            accepted_outputs.push(serde_json::json!({
+                "seq": seq as i64,
+                "output_slot": out.output_slot,
+                "media_kind": out.media_kind.as_token(),
+                "expected_mime": out.expected_mime,
+                "routing_intent": out.routing_intent.as_token(),
+            }));
         }
-
+        let mut rejected_outputs = Vec::with_capacity(new.rejected_outputs.len());
         for (seq, (slot, reason)) in new.rejected_outputs.iter().enumerate() {
-            sqlx::query(
-                r#"INSERT INTO atelier_comfy_capability_reject
-                     (registration_id, seq, output_slot, reason)
-                   VALUES ($1, $2, $3, $4)"#,
-            )
-            .bind(registration_id)
-            .bind(seq as i64)
-            .bind(slot)
-            .bind(reason)
-            .execute(&mut *tx)
-            .await?;
+            require_token_field("rejected output_slot", slot)?;
+            require_token_field("rejected reason", reason)?;
+            rejected_outputs.push(serde_json::json!({
+                "seq": seq as i64,
+                "output_slot": slot,
+                "reason": reason,
+            }));
         }
 
-        tx.commit().await?;
+        let bindings = CapabilityRegistrationBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_capability_registration",
+                SurrealUuid::from(registration_id),
+            ),
+            registration_id: SurrealUuid::from(registration_id),
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            node_class_id: new.node_class_id.clone(),
+            bridge_protocol_version: new.bridge_protocol_version.clone(),
+            capability_grant_ref: new.capability_grant_ref.clone(),
+            consent_decision_ref: new.consent_decision_ref.clone(),
+            accepted_outputs: serde_json::Value::Array(accepted_outputs),
+            rejected_outputs: serde_json::Value::Array(rejected_outputs),
+        };
+        let _: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_CAPABILITY_REGISTRATION_STATEMENT,
+                bindings,
+                CAPABILITY_REGISTERED,
+                "atelier_comfy_capability_registration",
+                &registration_id.to_string(),
+                serde_json::json!({
+                    "registration_id": registration_id,
+                    "workflow_run_id": new.workflow_run_id,
+                    "declared_output_count": new.accepted_outputs.len(),
+                    "reject_count": new.rejected_outputs.len(),
+                }),
+            )
+            .await?;
 
         // One reject event per dropped output (Section 6.9.5).
         for (slot, reason) in &new.rejected_outputs {
@@ -1933,19 +2436,6 @@ impl AtelierStore {
             )
             .await?;
         }
-
-        self.record_event(
-            CAPABILITY_REGISTERED,
-            "atelier_comfy_capability_registration",
-            &registration_id.to_string(),
-            serde_json::json!({
-                "registration_id": registration_id,
-                "workflow_run_id": new.workflow_run_id,
-                "declared_output_count": new.accepted_outputs.len(),
-                "reject_count": new.rejected_outputs.len(),
-            }),
-        )
-        .await?;
 
         self.get_capability_registration(new.workflow_run_id)
             .await?
@@ -1963,34 +2453,40 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Option<CapabilityRegistration>> {
-        let reg_row = sqlx::query(
-            r#"SELECT registration_id, workflow_run_id, node_class_id,
-                      bridge_protocol_version, capability_grant_ref,
-                      consent_decision_ref, registered_at_utc
-               FROM atelier_comfy_capability_registration
-               WHERE workflow_run_id = $1"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let reg_row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_CAPABILITY_REGISTRATION_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
         let reg_row = match reg_row {
-            Some(r) => r,
+            Some(row) => comfy_row(row)?,
             None => return Ok(None),
         };
         let registration_id: Uuid = reg_row.get("registration_id");
 
-        let out_rows = sqlx::query(
-            r#"SELECT output_slot, media_kind, expected_mime, routing_intent
-               FROM atelier_comfy_declared_output
-               WHERE registration_id = $1
-               ORDER BY seq ASC"#,
-        )
-        .bind(registration_id)
-        .fetch_all(self.pool())
-        .await?;
+        let binding = RegistrationIdBinding {
+            registration_id: RecordId::new(
+                "atelier_comfy_capability_registration",
+                SurrealUuid::from(registration_id),
+            ),
+        };
+        let out_rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_DECLARED_OUTPUTS_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
         let mut declared_outputs = Vec::with_capacity(out_rows.len());
-        for r in &out_rows {
-            declared_outputs.push(declared_output_from_row(r)?);
+        for row in out_rows {
+            declared_outputs.push(declared_output_from_row(&comfy_row(row)?)?);
         }
 
         Ok(Some(CapabilityRegistration {
@@ -2011,25 +2507,23 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Vec<(String, String)>> {
-        let rows = sqlx::query(
-            r#"SELECT r.output_slot AS output_slot, r.reason AS reason
-               FROM atelier_comfy_capability_reject r
-               JOIN atelier_comfy_capability_registration g
-                 ON g.registration_id = r.registration_id
-               WHERE g.workflow_run_id = $1
-               ORDER BY r.seq ASC"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows
-            .iter()
-            .map(|r| {
-                let slot: String = r.get("output_slot");
-                let reason: String = r.get("reason");
-                (slot, reason)
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_CAPABILITY_REJECTS_STATEMENT, binding)
+                        .await
+                })
             })
-            .collect())
+            .await?;
+        rows.into_iter()
+            .map(|row| {
+                let row = comfy_row(row)?;
+                Ok((row.get("output_slot"), row.get("reason")))
+            })
+            .collect()
     }
 
     /// Record one governed intake output, materialized through the ArtifactStore
@@ -2115,59 +2609,57 @@ impl AtelierStore {
             });
         }
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_intake_output
-                 (workflow_run_id, node_execution_id, registration_id,
-                  source_node_instance_id, source_output_slot, media_kind, mime,
-                  artifact_ref, artifact_manifest_ref, content_hash, routing_intent,
-                  parent_artifact_ref, prompt_json_ref, graph_hash, seed,
-                  workflow_input_metadata)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-               ON CONFLICT (workflow_run_id, content_hash) DO UPDATE
-                 SET artifact_ref = EXCLUDED.artifact_ref
-               RETURNING intake_output_id, workflow_run_id, node_execution_id,
-                         registration_id, source_node_instance_id, source_output_slot,
-                         media_kind, mime, artifact_ref, artifact_manifest_ref,
-                         content_hash, routing_intent, parent_artifact_ref,
-                         prompt_json_ref, graph_hash, seed, workflow_input_metadata,
-                         materialized_at_utc"#,
-        )
-        .bind(new.workflow_run_id)
-        .bind(&new.node_execution_id)
-        .bind(new.registration_id)
-        .bind(&new.source_node_instance_id)
-        .bind(&new.source_output_slot)
-        .bind(new.media_kind.as_token())
-        .bind(&new.mime)
-        .bind(&new.artifact_ref)
-        .bind(&new.artifact_manifest_ref)
-        .bind(&new.content_hash)
-        .bind(new.routing_intent.as_token())
-        .bind(&new.parent_artifact_ref)
-        .bind(&new.prompt_json_ref)
-        .bind(&new.graph_hash)
-        .bind(new.seed)
-        .bind(&workflow_input_metadata)
-        .fetch_one(self.pool())
-        .await?;
-        let output = output_from_row(&row)?;
-
-        self.record_event(
-            OUTPUT_MATERIALIZED,
-            "atelier_comfy_intake_output",
-            &output.intake_output_id.to_string(),
-            serde_json::json!({
-                "workflow_run_id": output.workflow_run_id,
-                "artifact_ref": output.artifact_ref,
-                "artifact_manifest_ref": output.artifact_manifest_ref,
-                "routing_intent": output.routing_intent.as_token(),
-                "source_output_slot": output.source_output_slot,
-                "graph_hash": output.graph_hash,
-                "seed": output.seed,
-                "workflow_input_metadata": output.workflow_input_metadata,
+        let intake_output_id = Uuid::now_v7();
+        let bindings = IntakeOutputBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_intake_output",
+                SurrealUuid::from(intake_output_id),
+            ),
+            intake_output_id: SurrealUuid::from(intake_output_id),
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            node_execution_id: new.node_execution_id.clone(),
+            registration_id: new.registration_id.map(|id| {
+                RecordId::new(
+                    "atelier_comfy_capability_registration",
+                    SurrealUuid::from(id),
+                )
             }),
-        )
-        .await?;
+            source_node_instance_id: new.source_node_instance_id.clone(),
+            source_output_slot: new.source_output_slot.clone(),
+            media_kind: new.media_kind.as_token().to_owned(),
+            mime: new.mime.clone(),
+            artifact_ref: new.artifact_ref.clone(),
+            artifact_manifest_ref: new.artifact_manifest_ref.clone(),
+            content_hash: new.content_hash.clone(),
+            routing_intent: new.routing_intent.as_token().to_owned(),
+            parent_artifact_ref: new.parent_artifact_ref.clone(),
+            prompt_json_ref: new.prompt_json_ref.clone(),
+            graph_hash: new.graph_hash.clone(),
+            seed: new.seed,
+            workflow_input_metadata: workflow_input_metadata.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_INTAKE_OUTPUT_STATEMENT,
+                bindings,
+                OUTPUT_MATERIALIZED,
+                "atelier_comfy_intake_output",
+                &intake_output_id.to_string(),
+                serde_json::json!({
+                    "workflow_run_id": new.workflow_run_id,
+                    "artifact_ref": new.artifact_ref,
+                    "artifact_manifest_ref": new.artifact_manifest_ref,
+                    "routing_intent": new.routing_intent.as_token(),
+                    "source_output_slot": new.source_output_slot,
+                    "graph_hash": new.graph_hash,
+                    "seed": new.seed,
+                    "workflow_input_metadata": workflow_input_metadata,
+                }),
+            )
+            .await?;
+        let output = output_from_row(&comfy_row(row.ok_or_else(|| {
+            AtelierError::Internal("recording a Comfy intake output returned no row".to_owned())
+        })?)?)?;
         Ok(RecordOutputOutcome {
             output,
             deduplicated: false,
@@ -2180,22 +2672,17 @@ impl AtelierStore {
         workflow_run_id: Uuid,
         content_hash: &str,
     ) -> AtelierResult<Option<IntakeOutput>> {
-        let row = sqlx::query(
-            r#"SELECT intake_output_id, workflow_run_id, node_execution_id,
-                      registration_id, source_node_instance_id, source_output_slot,
-                      media_kind, mime, artifact_ref, artifact_manifest_ref,
-                      content_hash, routing_intent, parent_artifact_ref,
-                      prompt_json_ref, graph_hash, seed, workflow_input_metadata,
-                      materialized_at_utc
-               FROM atelier_comfy_intake_output
-               WHERE workflow_run_id = $1 AND content_hash = $2"#,
-        )
-        .bind(workflow_run_id)
-        .bind(content_hash)
-        .fetch_optional(self.pool())
-        .await?;
+        let binding = IntakeOutputLookupBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+            content_hash: content_hash.to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_INTAKE_OUTPUT_STATEMENT, binding).await })
+            })
+            .await?;
         match row {
-            Some(r) => Ok(Some(output_from_row(&r)?)),
+            Some(row) => Ok(Some(output_from_row(&comfy_row(row)?)?)),
             None => Ok(None),
         }
     }
@@ -2205,21 +2692,20 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Vec<IntakeOutput>> {
-        let rows = sqlx::query(
-            r#"SELECT intake_output_id, workflow_run_id, node_execution_id,
-                      registration_id, source_node_instance_id, source_output_slot,
-                      media_kind, mime, artifact_ref, artifact_manifest_ref,
-                      content_hash, routing_intent, parent_artifact_ref,
-                      prompt_json_ref, graph_hash, seed, workflow_input_metadata,
-                      materialized_at_utc
-               FROM atelier_comfy_intake_output
-               WHERE workflow_run_id = $1
-               ORDER BY materialized_at_utc ASC, intake_output_id ASC"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(output_from_row).collect()
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_INTAKE_OUTPUTS_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| output_from_row(&comfy_row(row)?))
+            .collect()
     }
 
     /// Mark that intake degraded to the SaveImage scan fallback for a job
@@ -2236,29 +2722,27 @@ impl AtelierStore {
                 "fallback_reason must not be empty".into(),
             ));
         }
-        sqlx::query(
-            r#"INSERT INTO atelier_comfy_fallback_marker
-                 (workflow_run_id, fallback_reason)
-               VALUES ($1, $2)
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET fallback_reason = EXCLUDED.fallback_reason,
-                     engaged_at_utc  = NOW()"#,
-        )
-        .bind(workflow_run_id)
-        .bind(fallback_reason)
-        .execute(self.pool())
-        .await?;
-
-        self.record_event(
-            FALLBACK_ENGAGED,
-            "atelier_comfy_fallback_marker",
-            &workflow_run_id.to_string(),
-            serde_json::json!({
-                "workflow_run_id": workflow_run_id,
-                "fallback_reason": fallback_reason,
-            }),
-        )
-        .await?;
+        let bindings = FallbackBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_fallback_marker",
+                SurrealUuid::from(workflow_run_id),
+            ),
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+            fallback_reason: fallback_reason.to_owned(),
+        };
+        let _: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_FALLBACK_STATEMENT,
+                bindings,
+                FALLBACK_ENGAGED,
+                "atelier_comfy_fallback_marker",
+                &workflow_run_id.to_string(),
+                serde_json::json!({
+                    "workflow_run_id": workflow_run_id,
+                    "fallback_reason": fallback_reason,
+                }),
+            )
+            .await?;
         Ok(())
     }
 
@@ -2267,12 +2751,14 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Option<String>> {
-        let reason: Option<String> = sqlx::query_scalar(
-            "SELECT fallback_reason FROM atelier_comfy_fallback_marker WHERE workflow_run_id = $1",
-        )
-        .bind(workflow_run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let reason: Option<String> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_FALLBACK_STATEMENT, binding).await })
+            })
+            .await?;
         Ok(reason)
     }
 
@@ -2307,104 +2793,95 @@ impl AtelierStore {
             workflow_input_metadata_from_identity(new.identity_metadata.as_ref())?;
         let evidence = scrub_provenance(&new.evidence);
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_output_registration_failure
-                 (workflow_run_id, node_execution_id, attempted_registration_id,
-                  source_node_instance_id, source_output_slot, media_kind, mime,
-                  artifact_ref, artifact_manifest_ref, content_hash, routing_intent,
-                  parent_artifact_ref, prompt_json_ref, graph_hash, seed,
-                  workflow_input_metadata, failure_stage, failure_reason, evidence)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                       $13, $14, $15, $16, $17, $18, $19)
-               ON CONFLICT (workflow_run_id, content_hash, failure_stage) DO UPDATE
-                 SET node_execution_id = EXCLUDED.node_execution_id,
-                     attempted_registration_id = EXCLUDED.attempted_registration_id,
-                     source_node_instance_id = EXCLUDED.source_node_instance_id,
-                     source_output_slot = EXCLUDED.source_output_slot,
-                     media_kind = EXCLUDED.media_kind,
-                     mime = EXCLUDED.mime,
-                     artifact_ref = EXCLUDED.artifact_ref,
-                     artifact_manifest_ref = EXCLUDED.artifact_manifest_ref,
-                     routing_intent = EXCLUDED.routing_intent,
-                     parent_artifact_ref = EXCLUDED.parent_artifact_ref,
-                     prompt_json_ref = EXCLUDED.prompt_json_ref,
-                     graph_hash = EXCLUDED.graph_hash,
-                     seed = EXCLUDED.seed,
-                     workflow_input_metadata = EXCLUDED.workflow_input_metadata,
-                     failure_reason = EXCLUDED.failure_reason,
-                     evidence = EXCLUDED.evidence,
-                     updated_at_utc = NOW()
-               RETURNING failure_id, workflow_run_id, node_execution_id,
-                         attempted_registration_id, source_node_instance_id,
-                         source_output_slot, media_kind, mime, artifact_ref,
-                         artifact_manifest_ref, content_hash, routing_intent,
-                         parent_artifact_ref, prompt_json_ref, graph_hash, seed,
-                         workflow_input_metadata, failure_stage, failure_reason,
-                         evidence, status, retry_count, resolved_intake_output_id,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(new.workflow_run_id)
-        .bind(&new.node_execution_id)
-        .bind(new.attempted_registration_id)
-        .bind(&new.source_node_instance_id)
-        .bind(&new.source_output_slot)
-        .bind(new.media_kind.as_token())
-        .bind(&new.mime)
-        .bind(&new.artifact_ref)
-        .bind(&new.artifact_manifest_ref)
-        .bind(&new.content_hash)
-        .bind(new.routing_intent.as_token())
-        .bind(&new.parent_artifact_ref)
-        .bind(&new.prompt_json_ref)
-        .bind(&new.graph_hash)
-        .bind(new.seed)
-        .bind(&workflow_input_metadata)
-        .bind(&new.failure_stage)
-        .bind(&new.failure_reason)
-        .bind(&evidence)
-        .fetch_one(self.pool())
-        .await?;
-        let failure = output_registration_failure_from_row(&row)?;
-
-        self.record_event(
-            OUTPUT_REGISTRATION_FAILURE_RECORDED,
-            "atelier_comfy_output_registration_failure",
-            &failure.failure_id.to_string(),
-            serde_json::json!({
-                "failure_id": failure.failure_id,
-                "workflow_run_id": failure.workflow_run_id,
-                "artifact_ref": failure.artifact_ref,
-                "artifact_manifest_ref": failure.artifact_manifest_ref,
-                "content_hash": failure.content_hash,
-                "failure_stage": failure.failure_stage,
-                "status": failure.status.as_token(),
-            }),
-        )
-        .await?;
-        Ok(failure)
+        let lookup = FailureLookupBinding {
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            content_hash: new.content_hash.clone(),
+            failure_stage: new.failure_stage.clone(),
+        };
+        let existing: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(FIND_FAILURE_STATEMENT, lookup).await })
+            })
+            .await?;
+        let existing = existing.map(comfy_row).transpose()?;
+        let failure_id = existing
+            .as_ref()
+            .map(|row| row.get("failure_id"))
+            .unwrap_or_else(Uuid::now_v7);
+        let status = existing
+            .as_ref()
+            .map(|row| row.get("status"))
+            .unwrap_or_else(|| "retryable".to_owned());
+        let data = serde_json::json!({
+            "workflow_run_id": new.workflow_run_id,
+            "node_execution_id": new.node_execution_id,
+            "attempted_registration_id": new.attempted_registration_id,
+            "source_node_instance_id": new.source_node_instance_id,
+            "source_output_slot": new.source_output_slot,
+            "media_kind": new.media_kind.as_token(),
+            "mime": new.mime,
+            "artifact_ref": new.artifact_ref,
+            "artifact_manifest_ref": new.artifact_manifest_ref,
+            "content_hash": new.content_hash,
+            "routing_intent": new.routing_intent.as_token(),
+            "parent_artifact_ref": new.parent_artifact_ref,
+            "prompt_json_ref": new.prompt_json_ref,
+            "graph_hash": new.graph_hash,
+            "seed": new.seed,
+            "workflow_input_metadata": workflow_input_metadata,
+            "failure_stage": new.failure_stage,
+            "failure_reason": new.failure_reason,
+            "evidence": evidence,
+        });
+        let bindings = FailureWriteBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_output_registration_failure",
+                SurrealUuid::from(failure_id),
+            ),
+            failure_id: SurrealUuid::from(failure_id),
+            data,
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_FAILURE_STATEMENT,
+                bindings,
+                OUTPUT_REGISTRATION_FAILURE_RECORDED,
+                "atelier_comfy_output_registration_failure",
+                &failure_id.to_string(),
+                serde_json::json!({
+                    "failure_id": failure_id,
+                    "workflow_run_id": new.workflow_run_id,
+                    "artifact_ref": new.artifact_ref,
+                    "artifact_manifest_ref": new.artifact_manifest_ref,
+                    "content_hash": new.content_hash,
+                    "failure_stage": new.failure_stage,
+                    "status": status,
+                }),
+            )
+            .await?;
+        output_registration_failure_from_row(&comfy_row(row.ok_or_else(|| {
+            AtelierError::Internal(
+                "recording a Comfy registration failure returned no row".to_owned(),
+            )
+        })?)?)
     }
 
     pub async fn get_comfy_output_registration_failure(
         &self,
         failure_id: Uuid,
     ) -> AtelierResult<Option<ComfyOutputRegistrationFailure>> {
-        let row = sqlx::query(
-            r#"SELECT failure_id, workflow_run_id, node_execution_id,
-                      attempted_registration_id, source_node_instance_id,
-                      source_output_slot, media_kind, mime, artifact_ref,
-                      artifact_manifest_ref, content_hash, routing_intent,
-                      parent_artifact_ref, prompt_json_ref, graph_hash, seed,
-                      workflow_input_metadata, failure_stage, failure_reason,
-                      evidence, status, retry_count, resolved_intake_output_id,
-                      created_at_utc, updated_at_utc
-               FROM atelier_comfy_output_registration_failure
-               WHERE failure_id = $1"#,
-        )
-        .bind(failure_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let binding = FailureIdBinding {
+            failure_id: SurrealUuid::from(failure_id),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_FAILURE_STATEMENT, binding).await })
+            })
+            .await?;
         match row {
-            Some(row) => Ok(Some(output_registration_failure_from_row(&row)?)),
+            Some(row) => Ok(Some(output_registration_failure_from_row(&comfy_row(
+                row,
+            )?)?)),
             None => Ok(None),
         }
     }
@@ -2413,24 +2890,16 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Vec<ComfyOutputRegistrationFailure>> {
-        let rows = sqlx::query(
-            r#"SELECT failure_id, workflow_run_id, node_execution_id,
-                      attempted_registration_id, source_node_instance_id,
-                      source_output_slot, media_kind, mime, artifact_ref,
-                      artifact_manifest_ref, content_hash, routing_intent,
-                      parent_artifact_ref, prompt_json_ref, graph_hash, seed,
-                      workflow_input_metadata, failure_stage, failure_reason,
-                      evidence, status, retry_count, resolved_intake_output_id,
-                      created_at_utc, updated_at_utc
-               FROM atelier_comfy_output_registration_failure
-               WHERE workflow_run_id = $1
-               ORDER BY created_at_utc ASC, failure_id ASC"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter()
-            .map(output_registration_failure_from_row)
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_FAILURES_STATEMENT, binding).await })
+            })
+            .await?;
+        rows.into_iter()
+            .map(|row| output_registration_failure_from_row(&comfy_row(row)?))
             .collect()
     }
 
@@ -2476,32 +2945,32 @@ impl AtelierStore {
         };
         let outcome = self.record_intake_output(&retry).await?;
 
-        sqlx::query(
-            r#"UPDATE atelier_comfy_output_registration_failure
-               SET status = 'registered',
-                   retry_count = retry_count + 1,
-                   resolved_intake_output_id = $2,
-                   updated_at_utc = NOW()
-               WHERE failure_id = $1"#,
-        )
-        .bind(failure_id)
-        .bind(outcome.output.intake_output_id)
-        .execute(self.pool())
-        .await?;
-
-        self.record_event(
-            OUTPUT_REGISTRATION_FAILURE_RETRIED,
-            "atelier_comfy_output_registration_failure",
-            &failure_id.to_string(),
-            serde_json::json!({
-                "failure_id": failure_id,
-                "workflow_run_id": outcome.output.workflow_run_id,
-                "intake_output_id": outcome.output.intake_output_id,
-                "registration_id": registration_id,
-                "deduplicated": outcome.deduplicated,
-            }),
-        )
-        .await?;
+        let bindings = FailureRetryBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_output_registration_failure",
+                SurrealUuid::from(failure_id),
+            ),
+            resolved_intake_output_id: RecordId::new(
+                "atelier_comfy_intake_output",
+                SurrealUuid::from(outcome.output.intake_output_id),
+            ),
+        };
+        let _: Option<serde_json::Value> = self
+            .write_with_event(
+                RETRY_FAILURE_STATEMENT,
+                bindings,
+                OUTPUT_REGISTRATION_FAILURE_RETRIED,
+                "atelier_comfy_output_registration_failure",
+                &failure_id.to_string(),
+                serde_json::json!({
+                    "failure_id": failure_id,
+                    "workflow_run_id": outcome.output.workflow_run_id,
+                    "intake_output_id": outcome.output.intake_output_id,
+                    "registration_id": registration_id,
+                    "deduplicated": outcome.deduplicated,
+                }),
+            )
+            .await?;
         Ok(outcome)
     }
 
@@ -2520,31 +2989,18 @@ impl AtelierStore {
             .await?
             .map(|p| p.probe_outcome);
 
-        let registered_output_count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*)
-               FROM atelier_comfy_declared_output d
-               JOIN atelier_comfy_capability_registration g
-                 ON g.registration_id = d.registration_id
-               WHERE g.workflow_run_id = $1"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_one(self.pool())
-        .await?;
+        let registered_output_count = self
+            .get_capability_registration(workflow_run_id)
+            .await?
+            .map(|registration| registration.declared_outputs.len() as i64)
+            .unwrap_or_default();
 
-        let output_rows = sqlx::query(
-            r#"SELECT artifact_ref, workflow_input_metadata
-               FROM atelier_comfy_intake_output
-               WHERE workflow_run_id = $1
-               ORDER BY materialized_at_utc ASC, intake_output_id ASC"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_all(self.pool())
-        .await?;
-        let mut materialized_artifact_refs = Vec::with_capacity(output_rows.len());
-        let mut workflow_inputs = Vec::with_capacity(output_rows.len());
-        for row in output_rows {
-            let artifact_ref: String = row.get("artifact_ref");
-            let workflow_input_metadata: serde_json::Value = row.get("workflow_input_metadata");
+        let outputs = self.list_intake_outputs(workflow_run_id).await?;
+        let mut materialized_artifact_refs = Vec::with_capacity(outputs.len());
+        let mut workflow_inputs = Vec::with_capacity(outputs.len());
+        for output in outputs {
+            let artifact_ref = output.artifact_ref;
+            let workflow_input_metadata = output.workflow_input_metadata;
             let identity = workflow_input_metadata
                 .get("identity")
                 .cloned()
@@ -2617,23 +3073,10 @@ impl AtelierStore {
             ));
         }
 
-        let output_rows = sqlx::query(
-            r#"SELECT intake_output_id, workflow_run_id, node_execution_id,
-                      registration_id, source_node_instance_id, source_output_slot,
-                      media_kind, mime, artifact_ref, artifact_manifest_ref,
-                      content_hash, routing_intent, parent_artifact_ref,
-                      prompt_json_ref, graph_hash, seed, workflow_input_metadata,
-                      materialized_at_utc
-               FROM atelier_comfy_intake_output
-               WHERE workflow_run_id = $1
-               ORDER BY materialized_at_utc ASC, intake_output_id ASC"#,
-        )
-        .bind(new.workflow_run_id)
-        .fetch_all(self.pool())
-        .await?;
-        let outputs: Vec<serde_json::Value> = output_rows
+        let intake_outputs = self.list_intake_outputs(new.workflow_run_id).await?;
+        let outputs: Vec<serde_json::Value> = intake_outputs
             .iter()
-            .map(workflow_receipt_output_from_row)
+            .map(workflow_receipt_output_from_output)
             .collect();
         let all_refs = workflow_receipt_refs(new, &outputs);
         let evidence = scrub_provenance(&new.evidence);
@@ -2650,62 +3093,53 @@ impl AtelierStore {
             "evidence": evidence.clone(),
         });
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_workflow_receipt
-                 (system_id, workflow_run_id, character_ref, workflow_spec_ref,
-                  workflow_json_ref, prompt_ref, all_refs, outputs, status,
-                  error_ref, evidence, receipt_json)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET system_id = EXCLUDED.system_id,
-                     character_ref = EXCLUDED.character_ref,
-                     workflow_spec_ref = EXCLUDED.workflow_spec_ref,
-                     workflow_json_ref = EXCLUDED.workflow_json_ref,
-                     prompt_ref = EXCLUDED.prompt_ref,
-                     all_refs = EXCLUDED.all_refs,
-                     outputs = EXCLUDED.outputs,
-                     status = EXCLUDED.status,
-                     error_ref = EXCLUDED.error_ref,
-                     evidence = EXCLUDED.evidence,
-                     receipt_json = EXCLUDED.receipt_json,
-                     updated_at_utc = NOW()
-               RETURNING receipt_id, system_id, workflow_run_id, character_ref,
-                         workflow_spec_ref, workflow_json_ref, prompt_ref,
-                         all_refs, outputs, status, error_ref, evidence,
-                         receipt_json, created_at_utc, updated_at_utc"#,
-        )
-        .bind(&new.system_id)
-        .bind(new.workflow_run_id)
-        .bind(&character_ref)
-        .bind(&new.workflow_spec_ref)
-        .bind(&new.workflow_json_ref)
-        .bind(&new.prompt_ref)
-        .bind(&all_refs)
-        .bind(&serde_json::Value::Array(outputs))
-        .bind(new.status.as_token())
-        .bind(&new.error_ref)
-        .bind(&evidence)
-        .bind(&receipt_json)
-        .fetch_one(self.pool())
-        .await?;
-        let receipt = workflow_receipt_from_row(&row)?;
-
-        self.record_event(
-            WORKFLOW_RECEIPT_RECORDED,
-            "atelier_comfy_workflow_receipt",
-            &receipt.workflow_run_id.to_string(),
-            serde_json::json!({
-                "receipt_id": receipt.receipt_id,
-                "workflow_run_id": receipt.workflow_run_id,
-                "system_id": receipt.system_id,
-                "character_ref": receipt.character_ref,
-                "status": receipt.status.as_token(),
-                "output_count": receipt.outputs.len(),
-                "error_ref": receipt.error_ref,
-            }),
-        )
-        .await?;
-        Ok(receipt)
+        let existing = self.get_comfy_workflow_receipt(new.workflow_run_id).await?;
+        let receipt_id = existing
+            .map(|receipt| receipt.receipt_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let data = serde_json::json!({
+            "system_id": new.system_id,
+            "workflow_run_id": new.workflow_run_id,
+            "character_ref": character_ref,
+            "workflow_spec_ref": new.workflow_spec_ref,
+            "workflow_json_ref": new.workflow_json_ref,
+            "prompt_ref": new.prompt_ref,
+            "all_refs": all_refs,
+            "outputs": outputs,
+            "status": new.status.as_token(),
+            "error_ref": new.error_ref,
+            "evidence": evidence,
+            "receipt_json": receipt_json,
+        });
+        let bindings = WorkflowReceiptBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_workflow_receipt",
+                SurrealUuid::from(receipt_id),
+            ),
+            receipt_id: SurrealUuid::from(receipt_id),
+            data,
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_WORKFLOW_RECEIPT_STATEMENT,
+                bindings,
+                WORKFLOW_RECEIPT_RECORDED,
+                "atelier_comfy_workflow_receipt",
+                &new.workflow_run_id.to_string(),
+                serde_json::json!({
+                    "receipt_id": receipt_id,
+                    "workflow_run_id": new.workflow_run_id,
+                    "system_id": new.system_id,
+                    "character_ref": character_ref,
+                    "status": new.status.as_token(),
+                    "output_count": outputs.len(),
+                    "error_ref": new.error_ref,
+                }),
+            )
+            .await?;
+        workflow_receipt_from_row(&comfy_row(row.ok_or_else(|| {
+            AtelierError::Internal("recording a Comfy workflow receipt returned no row".to_owned())
+        })?)?)
     }
 
     /// Fetch the durable workflow-level ComfyUI receipt by workflow run.
@@ -2713,19 +3147,19 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Option<ComfyWorkflowReceipt>> {
-        let row = sqlx::query(
-            r#"SELECT receipt_id, system_id, workflow_run_id, workflow_spec_ref,
-                      character_ref, workflow_json_ref, prompt_ref, all_refs,
-                      outputs, status, error_ref, evidence, receipt_json,
-                      created_at_utc, updated_at_utc
-               FROM atelier_comfy_workflow_receipt
-               WHERE workflow_run_id = $1"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_WORKFLOW_RECEIPT_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
         match row {
-            Some(row) => Ok(Some(workflow_receipt_from_row(&row)?)),
+            Some(row) => Ok(Some(workflow_receipt_from_row(&comfy_row(row)?)?)),
             None => Ok(None),
         }
     }
@@ -2749,32 +3183,6 @@ impl AtelierStore {
         Ok(())
     }
 
-    fn push_comfy_workflow_history_filters(
-        builder: &mut QueryBuilder<'_, sqlx::Postgres>,
-        query: &ComfyWorkflowHistoryQuery,
-    ) {
-        if let Some(character_ref) = &query.character_ref {
-            builder.push(" AND character_ref = ");
-            builder.push_bind(character_ref.clone());
-        }
-        if let Some(workflow_spec_ref) = &query.workflow_spec_ref {
-            builder.push(" AND workflow_spec_ref = ");
-            builder.push_bind(workflow_spec_ref.clone());
-        }
-        if let Some(status) = query.status {
-            builder.push(" AND status = ");
-            builder.push_bind(status.as_token());
-        }
-        if let Some(from_utc) = query.from_utc {
-            builder.push(" AND created_at_utc >= ");
-            builder.push_bind(from_utc);
-        }
-        if let Some(to_utc) = query.to_utc {
-            builder.push(" AND created_at_utc <= ");
-            builder.push_bind(to_utc);
-        }
-    }
-
     /// List durable ComfyUI workflow receipts by character, spec, status, and
     /// time range. Failed receipts are included by default.
     pub async fn list_comfy_workflow_history(
@@ -2782,18 +3190,42 @@ impl AtelierStore {
         query: &ComfyWorkflowHistoryQuery,
     ) -> AtelierResult<Vec<ComfyWorkflowReceipt>> {
         Self::validate_comfy_workflow_history_query(query)?;
-        let mut builder = QueryBuilder::<sqlx::Postgres>::new(
-            r#"SELECT receipt_id, system_id, workflow_run_id, character_ref,
-                      workflow_spec_ref, workflow_json_ref, prompt_ref, all_refs,
-                      outputs, status, error_ref, evidence, receipt_json,
-                      created_at_utc, updated_at_utc
-               FROM atelier_comfy_workflow_receipt
-               WHERE TRUE"#,
-        );
-        Self::push_comfy_workflow_history_filters(&mut builder, query);
-        builder.push(" ORDER BY created_at_utc ASC, receipt_id ASC");
-        let rows = builder.build().fetch_all(self.pool()).await?;
-        rows.iter().map(workflow_receipt_from_row).collect()
+        let rows: Vec<serde_json::Value> = self
+            .with_data(|ctx| {
+                Box::pin(
+                    async move { ctx.query_values(LIST_WORKFLOW_RECEIPTS_STATEMENT, ()).await },
+                )
+            })
+            .await?;
+        let mut receipts = rows
+            .into_iter()
+            .map(|row| workflow_receipt_from_row(&comfy_row(row)?))
+            .collect::<AtelierResult<Vec<_>>>()?;
+        receipts.retain(|receipt| {
+            query
+                .character_ref
+                .as_ref()
+                .map(|value| receipt.character_ref.as_ref() == Some(value))
+                .unwrap_or(true)
+                && query
+                    .workflow_spec_ref
+                    .as_ref()
+                    .map(|value| &receipt.workflow_spec_ref == value)
+                    .unwrap_or(true)
+                && query
+                    .status
+                    .map(|value| receipt.status == value)
+                    .unwrap_or(true)
+                && query
+                    .from_utc
+                    .map(|value| receipt.created_at_utc >= value)
+                    .unwrap_or(true)
+                && query
+                    .to_utc
+                    .map(|value| receipt.created_at_utc <= value)
+                    .unwrap_or(true)
+        });
+        Ok(receipts)
     }
 
     /// Aggregate ComfyUI workflow receipt stats over the same filter contract as
@@ -2803,22 +3235,14 @@ impl AtelierStore {
         query: &ComfyWorkflowHistoryQuery,
     ) -> AtelierResult<ComfyWorkflowStats> {
         Self::validate_comfy_workflow_history_query(query)?;
-        let mut builder = QueryBuilder::<sqlx::Postgres>::new(
-            r#"SELECT status, COUNT(*)::BIGINT AS status_count
-               FROM atelier_comfy_workflow_receipt
-               WHERE TRUE"#,
-        );
-        Self::push_comfy_workflow_history_filters(&mut builder, query);
-        builder.push(" GROUP BY status ORDER BY status ASC");
-        let rows = builder.build().fetch_all(self.pool()).await?;
+        let receipts = self.list_comfy_workflow_history(query).await?;
         let mut status_counts = BTreeMap::new();
-        let mut total_count = 0_i64;
-        for row in rows {
-            let status: String = row.get("status");
-            let status_count: i64 = row.get("status_count");
-            total_count += status_count;
-            status_counts.insert(status, status_count);
+        for receipt in &receipts {
+            *status_counts
+                .entry(receipt.status.as_token().to_owned())
+                .or_insert(0_i64) += 1;
         }
+        let total_count = receipts.len() as i64;
         let failure_count = status_counts.get("failed").copied().unwrap_or(0);
         Ok(ComfyWorkflowStats {
             total_count,
@@ -2858,28 +3282,22 @@ impl AtelierStore {
             // The ref must resolve to a stored artifact for THIS run (containment,
             // Section 6.9.1). Reuse the existing intake-output store as the
             // portable-handle resolution surface.
-            let row = sqlx::query(
-                r#"SELECT intake_output_id, content_hash
-                   FROM atelier_comfy_intake_output
-                   WHERE workflow_run_id = $1 AND artifact_ref = $2
-                   ORDER BY materialized_at_utc ASC, intake_output_id ASC
-                   LIMIT 1"#,
-            )
-            .bind(request.workflow_run_id)
-            .bind(artifact_ref)
-            .fetch_optional(self.pool())
-            .await?;
-            let row = row.ok_or_else(|| {
-                AtelierError::Validation(format!(
-                    "replay input artifact_ref {artifact_ref} does not resolve to a stored \
+            let output = self
+                .list_intake_outputs(request.workflow_run_id)
+                .await?
+                .into_iter()
+                .find(|output| &output.artifact_ref == artifact_ref)
+                .ok_or_else(|| {
+                    AtelierError::Validation(format!(
+                        "replay input artifact_ref {artifact_ref} does not resolve to a stored \
                      artifact for workflow run {}",
-                    request.workflow_run_id
-                ))
-            })?;
+                        request.workflow_run_id
+                    ))
+                })?;
             resolved.push(ResolvedReplayInput {
                 artifact_ref: artifact_ref.clone(),
-                intake_output_id: row.get("intake_output_id"),
-                content_hash: row.get("content_hash"),
+                intake_output_id: output.intake_output_id,
+                content_hash: output.content_hash,
             });
         }
 
@@ -2978,62 +3396,70 @@ impl AtelierStore {
             ));
         }
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_workflow_spec
-                 (workflow_kind, spec_version, spec_hash, handler_id,
-                  compatibility_pin, spec_json, source_ref)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (workflow_kind, spec_version) DO UPDATE
-                 SET spec_hash         = EXCLUDED.spec_hash,
-                     handler_id        = EXCLUDED.handler_id,
-                     compatibility_pin = EXCLUDED.compatibility_pin,
-                     spec_json         = EXCLUDED.spec_json,
-                     source_ref        = EXCLUDED.source_ref,
-                     updated_at_utc    = NOW()
-               RETURNING spec_id, workflow_kind, spec_version, spec_hash,
-                         handler_id, compatibility_pin, spec_json, source_ref,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(&new.workflow_kind)
-        .bind(&new.spec_version)
-        .bind(&new.spec_hash)
-        .bind(&new.handler_id)
-        .bind(&new.compatibility_pin)
-        .bind(&new.spec_json)
-        .bind(&new.source_ref)
-        .fetch_one(self.pool())
-        .await?;
-        let spec = workflow_spec_from_row(&row);
-
-        self.record_event(
-            comfy_event_family::WORKFLOW_SPEC_REGISTERED,
-            "atelier_comfy_workflow_spec",
-            &spec.spec_id.to_string(),
-            serde_json::json!({
-                "spec_id": spec.spec_id,
-                "workflow_kind": spec.workflow_kind,
-                "spec_version": spec.spec_version,
-                "spec_hash": spec.spec_hash,
-                "handler_id": spec.handler_id,
-                "compatibility_pin": spec.compatibility_pin,
-            }),
-        )
-        .await?;
-        Ok(spec)
+        let lookup = WorkflowSpecKeyBinding {
+            workflow_kind: new.workflow_kind.clone(),
+            spec_version: new.spec_version.clone(),
+        };
+        let existing: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_WORKFLOW_SPEC_BY_KEY_STATEMENT, lookup)
+                        .await
+                })
+            })
+            .await?;
+        let spec_id = existing
+            .map(comfy_row)
+            .transpose()?
+            .map(|row| row.get("spec_id"))
+            .unwrap_or_else(Uuid::now_v7);
+        let bindings = WorkflowSpecBindings {
+            record_id: RecordId::new("atelier_comfy_workflow_spec", SurrealUuid::from(spec_id)),
+            spec_id: SurrealUuid::from(spec_id),
+            workflow_kind: new.workflow_kind.clone(),
+            spec_version: new.spec_version.clone(),
+            spec_hash: new.spec_hash.clone(),
+            handler_id: new.handler_id.clone(),
+            compatibility_pin: new.compatibility_pin.clone(),
+            spec_json: new.spec_json.clone(),
+            source_ref: new.source_ref.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_WORKFLOW_SPEC_STATEMENT,
+                bindings,
+                comfy_event_family::WORKFLOW_SPEC_REGISTERED,
+                "atelier_comfy_workflow_spec",
+                &spec_id.to_string(),
+                serde_json::json!({
+                    "spec_id": spec_id,
+                    "workflow_kind": new.workflow_kind,
+                    "spec_version": new.spec_version,
+                    "spec_hash": new.spec_hash,
+                    "handler_id": new.handler_id,
+                    "compatibility_pin": new.compatibility_pin,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("registering a workflow spec returned no row".to_owned())
+        })?;
+        Ok(workflow_spec_from_row(&comfy_row(row)?))
     }
 
     /// Fetch a registered workflow spec by id.
     pub async fn get_workflow_spec(&self, spec_id: Uuid) -> AtelierResult<Option<WorkflowSpec>> {
-        let row = sqlx::query(
-            r#"SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id,
-                      compatibility_pin, spec_json, source_ref, created_at_utc,
-                      updated_at_utc
-               FROM atelier_comfy_workflow_spec WHERE spec_id = $1"#,
-        )
-        .bind(spec_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(workflow_spec_from_row))
+        let binding = ComfyRecordBinding {
+            record_id: RecordId::new("atelier_comfy_workflow_spec", SurrealUuid::from(spec_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_WORKFLOW_SPEC_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(comfy_row)
+            .transpose()
+            .map(|row| row.as_ref().map(workflow_spec_from_row))
     }
 
     /// List registered workflow specs, newest first, optionally filtered by kind.
@@ -3041,19 +3467,28 @@ impl AtelierStore {
         &self,
         workflow_kind: Option<&str>,
     ) -> AtelierResult<Vec<WorkflowSpec>> {
-        let mut builder = QueryBuilder::<sqlx::Postgres>::new(
-            r#"SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id,
-                      compatibility_pin, spec_json, source_ref, created_at_utc,
-                      updated_at_utc
-               FROM atelier_comfy_workflow_spec WHERE TRUE"#,
-        );
-        if let Some(workflow_kind) = workflow_kind {
-            builder.push(" AND workflow_kind = ");
-            builder.push_bind(workflow_kind.to_string());
-        }
-        builder.push(" ORDER BY created_at_utc DESC, spec_id DESC");
-        let rows = builder.build().fetch_all(self.pool()).await?;
-        Ok(rows.iter().map(workflow_spec_from_row).collect())
+        let rows: Vec<serde_json::Value> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_WORKFLOW_SPECS_STATEMENT, NoBindings {})
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(comfy_row)
+            .map(|row| row.map(|row| workflow_spec_from_row(&row)))
+            .filter(|result| {
+                result
+                    .as_ref()
+                    .map(|spec| {
+                        workflow_kind
+                            .map(|kind| spec.workflow_kind == kind)
+                            .unwrap_or(true)
+                    })
+                    .unwrap_or(true)
+            })
+            .collect()
     }
 
     /// Record (pin) external tool/model version metadata for a workflow run
@@ -3078,48 +3513,47 @@ impl AtelierStore {
         }
         let preflight_evidence = scrub_provenance(&new.preflight_evidence);
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_version_metadata
-                 (workflow_run_id, spec_id, pose_model_asset_version,
-                  image_tool_version, comfy_model_version, preflight_evidence)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET spec_id                  = EXCLUDED.spec_id,
-                     pose_model_asset_version = EXCLUDED.pose_model_asset_version,
-                     image_tool_version       = EXCLUDED.image_tool_version,
-                     comfy_model_version      = EXCLUDED.comfy_model_version,
-                     preflight_evidence       = EXCLUDED.preflight_evidence,
-                     updated_at_utc           = NOW()
-               RETURNING version_metadata_id, workflow_run_id, spec_id,
-                         pose_model_asset_version, image_tool_version,
-                         comfy_model_version, preflight_evidence,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(new.workflow_run_id)
-        .bind(new.spec_id)
-        .bind(&new.pose_model_asset_version)
-        .bind(&new.image_tool_version)
-        .bind(&new.comfy_model_version)
-        .bind(&preflight_evidence)
-        .fetch_one(self.pool())
-        .await?;
-        let metadata = version_metadata_from_row(&row);
-
-        self.record_event(
-            comfy_event_family::VERSION_METADATA_RECORDED,
-            "atelier_comfy_version_metadata",
-            &metadata.workflow_run_id.to_string(),
-            serde_json::json!({
-                "version_metadata_id": metadata.version_metadata_id,
-                "workflow_run_id": metadata.workflow_run_id,
-                "spec_id": metadata.spec_id,
-                "pose_model_asset_version": metadata.pose_model_asset_version,
-                "image_tool_version": metadata.image_tool_version,
-                "comfy_model_version": metadata.comfy_model_version,
+        let existing = self.get_version_metadata(new.workflow_run_id).await?;
+        let version_metadata_id = existing
+            .as_ref()
+            .map(|metadata| metadata.version_metadata_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let bindings = VersionMetadataBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_version_metadata",
+                SurrealUuid::from(version_metadata_id),
+            ),
+            version_metadata_id: SurrealUuid::from(version_metadata_id),
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            spec_id: new.spec_id.map(|spec_id| {
+                RecordId::new("atelier_comfy_workflow_spec", SurrealUuid::from(spec_id))
             }),
-        )
-        .await?;
-        Ok(metadata)
+            pose_model_asset_version: new.pose_model_asset_version.clone(),
+            image_tool_version: new.image_tool_version.clone(),
+            comfy_model_version: new.comfy_model_version.clone(),
+            preflight_evidence,
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_VERSION_METADATA_STATEMENT,
+                bindings,
+                comfy_event_family::VERSION_METADATA_RECORDED,
+                "atelier_comfy_version_metadata",
+                &new.workflow_run_id.to_string(),
+                serde_json::json!({
+                    "version_metadata_id": version_metadata_id,
+                    "workflow_run_id": new.workflow_run_id,
+                    "spec_id": new.spec_id,
+                    "pose_model_asset_version": new.pose_model_asset_version,
+                    "image_tool_version": new.image_tool_version,
+                    "comfy_model_version": new.comfy_model_version,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording version metadata returned no row".to_owned())
+        })?;
+        Ok(version_metadata_from_row(&comfy_row(row)?))
     }
 
     /// Fetch the pinned version metadata for a workflow run, if recorded.
@@ -3127,17 +3561,20 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Option<ComfyVersionMetadata>> {
-        let row = sqlx::query(
-            r#"SELECT version_metadata_id, workflow_run_id, spec_id,
-                      pose_model_asset_version, image_tool_version,
-                      comfy_model_version, preflight_evidence, created_at_utc,
-                      updated_at_utc
-               FROM atelier_comfy_version_metadata WHERE workflow_run_id = $1"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(version_metadata_from_row))
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_VERSION_METADATA_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        row.map(comfy_row)
+            .transpose()
+            .map(|row| row.as_ref().map(version_metadata_from_row))
     }
 
     /// Record a structured diagnostic bundle for a failed pose/ComfyUI
@@ -3187,46 +3624,44 @@ impl AtelierStore {
         let versions = scrub_provenance(&new.versions);
         let artifacts = scrub_provenance(&new.artifacts);
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_comfy_diagnostic_bundle
-                 (workflow_run_id, request_json, refs_json, versions_json,
-                  logs_ref, artifacts_json, error_taxonomy)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET request_json   = EXCLUDED.request_json,
-                     refs_json      = EXCLUDED.refs_json,
-                     versions_json  = EXCLUDED.versions_json,
-                     logs_ref       = EXCLUDED.logs_ref,
-                     artifacts_json = EXCLUDED.artifacts_json,
-                     error_taxonomy = EXCLUDED.error_taxonomy
-               RETURNING bundle_id, workflow_run_id, request_json, refs_json,
-                         versions_json, logs_ref, artifacts_json, error_taxonomy,
-                         created_at_utc"#,
-        )
-        .bind(new.workflow_run_id)
-        .bind(&request)
-        .bind(&refs)
-        .bind(&versions)
-        .bind(&new.logs_ref)
-        .bind(&artifacts)
-        .bind(&new.error_taxonomy)
-        .fetch_one(self.pool())
-        .await?;
-        let bundle = diagnostic_bundle_from_row(&row);
-
-        self.record_event(
-            comfy_event_family::DIAGNOSTIC_BUNDLE_RECORDED,
-            "atelier_comfy_diagnostic_bundle",
-            &bundle.workflow_run_id.to_string(),
-            serde_json::json!({
-                "bundle_id": bundle.bundle_id,
-                "workflow_run_id": bundle.workflow_run_id,
-                "logs_ref": bundle.logs_ref,
-                "error_taxonomy": bundle.error_taxonomy,
-            }),
-        )
-        .await?;
-        Ok(bundle)
+        let existing = self.get_diagnostic_bundle(new.workflow_run_id).await?;
+        let bundle_id = existing
+            .as_ref()
+            .map(|bundle| bundle.bundle_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let bindings = DiagnosticBundleBindings {
+            record_id: RecordId::new(
+                "atelier_comfy_diagnostic_bundle",
+                SurrealUuid::from(bundle_id),
+            ),
+            bundle_id: SurrealUuid::from(bundle_id),
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            request_json: request,
+            refs_json: refs,
+            versions_json: versions,
+            logs_ref: new.logs_ref.clone(),
+            artifacts_json: artifacts,
+            error_taxonomy: new.error_taxonomy.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_DIAGNOSTIC_BUNDLE_STATEMENT,
+                bindings,
+                comfy_event_family::DIAGNOSTIC_BUNDLE_RECORDED,
+                "atelier_comfy_diagnostic_bundle",
+                &new.workflow_run_id.to_string(),
+                serde_json::json!({
+                    "bundle_id": bundle_id,
+                    "workflow_run_id": new.workflow_run_id,
+                    "logs_ref": new.logs_ref,
+                    "error_taxonomy": new.error_taxonomy,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("recording a diagnostic bundle returned no row".to_owned())
+        })?;
+        Ok(diagnostic_bundle_from_row(&comfy_row(row)?))
     }
 
     /// Fetch the diagnostic bundle for a workflow run, if recorded (MT-112).
@@ -3234,16 +3669,20 @@ impl AtelierStore {
         &self,
         workflow_run_id: Uuid,
     ) -> AtelierResult<Option<DiagnosticBundle>> {
-        let row = sqlx::query(
-            r#"SELECT bundle_id, workflow_run_id, request_json, refs_json,
-                      versions_json, logs_ref, artifacts_json, error_taxonomy,
-                      created_at_utc
-               FROM atelier_comfy_diagnostic_bundle WHERE workflow_run_id = $1"#,
-        )
-        .bind(workflow_run_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(diagnostic_bundle_from_row))
+        let binding = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(workflow_run_id),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_DIAGNOSTIC_BUNDLE_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        row.map(comfy_row)
+            .transpose()
+            .map(|row| row.as_ref().map(diagnostic_bundle_from_row))
     }
 
     // -----------------------------------------------------------------------
@@ -3268,55 +3707,66 @@ impl AtelierStore {
         }
         let request_json = scrub_provenance(&new.request_json);
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_comfy_job
-                 (workflow_run_id, spec_id, request_json, status)
-               VALUES ($1, $2, $3, 'QUEUED')
-               ON CONFLICT (workflow_run_id) DO UPDATE
-                 SET spec_id              = EXCLUDED.spec_id,
-                     request_json         = EXCLUDED.request_json,
-                     status               = 'QUEUED',
-                     partial_evidence_ref = NULL,
-                     error_reason         = NULL,
-                     queued_at            = NOW(),
-                     started_at           = NULL,
-                     finished_at          = NULL
-               RETURNING {COMFY_JOB_COLUMNS}"#
-        ))
-        .bind(new.workflow_run_id)
-        .bind(new.spec_id)
-        .bind(&request_json)
-        .fetch_one(self.pool())
-        .await?;
-        let job = comfy_job_from_row(&row)?;
-
-        self.record_event(
-            JOB_ENQUEUED,
-            "atelier_comfy_job",
-            &job.job_id.to_string(),
-            serde_json::json!({
-                "job_id": job.job_id,
-                "workflow_run_id": job.workflow_run_id,
-                "spec_id": job.spec_id,
-                "status": job.status.as_token(),
+        let lookup = WorkflowRunBinding {
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+        };
+        let existing: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(FIND_COMFY_JOB_BY_RUN_STATEMENT, lookup)
+                        .await
+                })
+            })
+            .await?;
+        let job_id = existing
+            .map(comfy_row)
+            .transpose()?
+            .map(|row| row.get("job_id"))
+            .unwrap_or_else(Uuid::now_v7);
+        let bindings = ComfyJobBindings {
+            record_id: RecordId::new("atelier_comfy_job", SurrealUuid::from(job_id)),
+            job_id: SurrealUuid::from(job_id),
+            workflow_run_id: SurrealUuid::from(new.workflow_run_id),
+            spec_id: new.spec_id.map(|spec_id| {
+                RecordId::new("atelier_comfy_workflow_spec", SurrealUuid::from(spec_id))
             }),
-        )
-        .await?;
-        Ok(job)
+            request_json,
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_COMFY_JOB_STATEMENT,
+                bindings,
+                JOB_ENQUEUED,
+                "atelier_comfy_job",
+                &job_id.to_string(),
+                serde_json::json!({
+                    "job_id": job_id,
+                    "workflow_run_id": new.workflow_run_id,
+                    "spec_id": new.spec_id,
+                    "status": ComfyJobStatus::Queued.as_token(),
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("enqueuing a Comfy job returned no row".to_owned())
+        })?;
+        comfy_job_from_row(&comfy_row(row)?)
     }
 
     /// Fetch a job by id.
     pub async fn get_comfy_job(&self, job_id: Uuid) -> AtelierResult<Option<ComfyJob>> {
-        let row = sqlx::query(&format!(
-            "SELECT {COMFY_JOB_COLUMNS} FROM atelier_comfy_job WHERE job_id = $1"
-        ))
-        .bind(job_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(comfy_job_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let binding = ComfyRecordBinding {
+            record_id: RecordId::new("atelier_comfy_job", SurrealUuid::from(job_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_COMFY_JOB_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(comfy_row)
+            .transpose()?
+            .map(|row| comfy_job_from_row(&row))
+            .transpose()
     }
 
     /// List all jobs in queue order (oldest queued first). Optionally filter to
@@ -3325,16 +3775,24 @@ impl AtelierStore {
         &self,
         status: Option<ComfyJobStatus>,
     ) -> AtelierResult<Vec<ComfyJob>> {
-        let mut builder = QueryBuilder::<sqlx::Postgres>::new(format!(
-            "SELECT {COMFY_JOB_COLUMNS} FROM atelier_comfy_job WHERE TRUE"
-        ));
-        if let Some(status) = status {
-            builder.push(" AND status = ");
-            builder.push_bind(status.as_token());
-        }
-        builder.push(" ORDER BY queued_at ASC, job_id ASC");
-        let rows = builder.build().fetch_all(self.pool()).await?;
-        rows.iter().map(comfy_job_from_row).collect()
+        let rows: Vec<serde_json::Value> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_COMFY_JOBS_STATEMENT, NoBindings {})
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(comfy_row)
+            .map(|row| row.and_then(|row| comfy_job_from_row(&row)))
+            .filter(|result| {
+                result
+                    .as_ref()
+                    .map(|job| status.map(|wanted| job.status == wanted).unwrap_or(true))
+                    .unwrap_or(true)
+            })
+            .collect()
     }
 
     /// Poll a job's lifecycle status and map it to a typed poll response
@@ -3364,59 +3822,59 @@ impl AtelierStore {
     /// transition from any non-QUEUED status so a terminal or already-running
     /// job is never silently re-started. Emits `JOB_RUNNING`.
     pub async fn mark_comfy_job_running(&self, job_id: Uuid) -> AtelierResult<ComfyJob> {
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_comfy_job
-               SET status = 'RUNNING', started_at = NOW()
-               WHERE job_id = $1 AND status = 'QUEUED'
-               RETURNING {COMFY_JOB_COLUMNS}"#
-        ))
-        .bind(job_id)
-        .fetch_optional(self.pool())
-        .await?;
-        let job = self
-            .require_job_transition(job_id, row, ComfyJobStatus::Queued, "RUNNING")
+        let existing = self
+            .require_job_source_status(job_id, ComfyJobStatus::Queued, "RUNNING")
             .await?;
-        self.record_event(
-            JOB_RUNNING,
-            "atelier_comfy_job",
-            &job.job_id.to_string(),
-            serde_json::json!({
-                "job_id": job.job_id,
-                "workflow_run_id": job.workflow_run_id,
-                "status": job.status.as_token(),
-            }),
-        )
-        .await?;
-        Ok(job)
+        let bindings = ComfyJobTransitionBindings {
+            record_id: RecordId::new("atelier_comfy_job", SurrealUuid::from(job_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                MARK_COMFY_JOB_RUNNING_STATEMENT,
+                bindings,
+                JOB_RUNNING,
+                "atelier_comfy_job",
+                &job_id.to_string(),
+                serde_json::json!({
+                    "job_id": job_id,
+                    "workflow_run_id": existing.workflow_run_id,
+                    "status": ComfyJobStatus::Running.as_token(),
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("marking a Comfy job running returned no row".to_owned())
+        })?;
+        comfy_job_from_row(&comfy_row(row)?)
     }
 
     /// Resolve a RUNNING job to COMPLETED (MT-127), stamping `finished_at`.
     /// Rejects completion of a non-RUNNING job. Emits `JOB_COMPLETED`.
     pub async fn mark_comfy_job_completed(&self, job_id: Uuid) -> AtelierResult<ComfyJob> {
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_comfy_job
-               SET status = 'COMPLETED', finished_at = NOW()
-               WHERE job_id = $1 AND status = 'RUNNING'
-               RETURNING {COMFY_JOB_COLUMNS}"#
-        ))
-        .bind(job_id)
-        .fetch_optional(self.pool())
-        .await?;
-        let job = self
-            .require_job_transition(job_id, row, ComfyJobStatus::Running, "COMPLETED")
+        let existing = self
+            .require_job_source_status(job_id, ComfyJobStatus::Running, "COMPLETED")
             .await?;
-        self.record_event(
-            JOB_COMPLETED,
-            "atelier_comfy_job",
-            &job.job_id.to_string(),
-            serde_json::json!({
-                "job_id": job.job_id,
-                "workflow_run_id": job.workflow_run_id,
-                "status": job.status.as_token(),
-            }),
-        )
-        .await?;
-        Ok(job)
+        let bindings = ComfyJobTransitionBindings {
+            record_id: RecordId::new("atelier_comfy_job", SurrealUuid::from(job_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                MARK_COMFY_JOB_COMPLETED_STATEMENT,
+                bindings,
+                JOB_COMPLETED,
+                "atelier_comfy_job",
+                &job_id.to_string(),
+                serde_json::json!({
+                    "job_id": job_id,
+                    "workflow_run_id": existing.workflow_run_id,
+                    "status": ComfyJobStatus::Completed.as_token(),
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("completing a Comfy job returned no row".to_owned())
+        })?;
+        comfy_job_from_row(&comfy_row(row)?)
     }
 
     /// Fail a QUEUED/RUNNING job (MT-128), preserving partial evidence so no
@@ -3511,33 +3969,32 @@ impl AtelierStore {
         partial_evidence_ref: &str,
     ) -> AtelierResult<ComfyJob> {
         reject_legacy_runtime_ref("partial_evidence_ref", partial_evidence_ref)?;
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_comfy_job
-               SET partial_evidence_ref = $2
-               WHERE job_id = $1
-               RETURNING {COMFY_JOB_COLUMNS}"#
-        ))
-        .bind(job_id)
-        .bind(partial_evidence_ref)
-        .fetch_optional(self.pool())
-        .await?;
-        let job = row
-            .as_ref()
-            .map(comfy_job_from_row)
-            .transpose()?
+        let existing = self
+            .get_comfy_job(job_id)
+            .await?
             .ok_or_else(|| AtelierError::NotFound(format!("comfy job {job_id}")))?;
-        self.record_event(
-            JOB_PARTIAL_EVIDENCE_PRESERVED,
-            "atelier_comfy_job",
-            &job.job_id.to_string(),
-            serde_json::json!({
-                "job_id": job.job_id,
-                "workflow_run_id": job.workflow_run_id,
-                "partial_evidence_ref": job.partial_evidence_ref,
-            }),
-        )
-        .await?;
-        Ok(job)
+        let bindings = ComfyJobEvidenceBindings {
+            record_id: RecordId::new("atelier_comfy_job", SurrealUuid::from(job_id)),
+            partial_evidence_ref: partial_evidence_ref.to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                ATTACH_COMFY_JOB_EVIDENCE_STATEMENT,
+                bindings,
+                JOB_PARTIAL_EVIDENCE_PRESERVED,
+                "atelier_comfy_job",
+                &job_id.to_string(),
+                serde_json::json!({
+                    "job_id": job_id,
+                    "workflow_run_id": existing.workflow_run_id,
+                    "partial_evidence_ref": partial_evidence_ref,
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("attaching Comfy job evidence returned no row".to_owned())
+        })?;
+        comfy_job_from_row(&comfy_row(row)?)
     }
 
     /// Shared terminator for cancel/timeout/fail (MT-128). Transitions a
@@ -3564,39 +4021,43 @@ impl AtelierStore {
             reject_legacy_runtime_ref("partial_evidence_ref", partial_evidence_ref)?;
         }
 
-        // Only QUEUED/RUNNING jobs may transition to a terminal state; cancelling
-        // / timing out / failing an already-terminal job is rejected. The WHERE
-        // clause enforces this atomically (no row updated -> rejected).
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_comfy_job
-               SET status = $2,
-                   error_reason = $3,
-                   partial_evidence_ref = COALESCE($4, partial_evidence_ref),
-                   finished_at = NOW()
-               WHERE job_id = $1 AND status IN ('QUEUED', 'RUNNING')
-               RETURNING {COMFY_JOB_COLUMNS}"#
-        ))
-        .bind(job_id)
-        .bind(target.as_token())
-        .bind(reason)
-        .bind(partial_evidence_ref)
-        .fetch_optional(self.pool())
-        .await?;
-
-        let job = match row {
-            Some(r) => comfy_job_from_row(&r)?,
-            None => {
-                // Disambiguate not-found vs reject-of-terminal for a clear error.
-                return match self.get_comfy_job(job_id).await? {
-                    Some(existing) => Err(AtelierError::Validation(format!(
-                        "comfy job {job_id} cannot transition to {} from terminal status {}",
-                        target.as_token(),
-                        existing.status.as_token()
-                    ))),
-                    None => Err(AtelierError::NotFound(format!("comfy job {job_id}"))),
-                };
-            }
+        let existing = self
+            .get_comfy_job(job_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("comfy job {job_id}")))?;
+        if existing.status.is_terminal() {
+            return Err(AtelierError::Validation(format!(
+                "comfy job {job_id} cannot transition to {} from terminal status {}",
+                target.as_token(),
+                existing.status.as_token()
+            )));
+        }
+        let bindings = ComfyJobTerminalBindings {
+            record_id: RecordId::new("atelier_comfy_job", SurrealUuid::from(job_id)),
+            status: target.as_token().to_owned(),
+            reason: reason.map(str::to_owned),
+            partial_evidence_ref: partial_evidence_ref.map(str::to_owned),
         };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                TERMINATE_COMFY_JOB_STATEMENT,
+                bindings,
+                event_family,
+                "atelier_comfy_job",
+                &job_id.to_string(),
+                serde_json::json!({
+                    "job_id": job_id,
+                    "workflow_run_id": existing.workflow_run_id,
+                    "status": target.as_token(),
+                    "error_reason": reason,
+                    "partial_evidence_ref": partial_evidence_ref.or(existing.partial_evidence_ref.as_deref()),
+                }),
+            )
+            .await?;
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("terminating a Comfy job returned no row".to_owned())
+        })?;
+        let job = comfy_job_from_row(&comfy_row(row)?)?;
 
         if job.partial_evidence_ref.is_some() {
             self.record_event(
@@ -3613,19 +4074,6 @@ impl AtelierStore {
             .await?;
         }
 
-        self.record_event(
-            event_family,
-            "atelier_comfy_job",
-            &job.job_id.to_string(),
-            serde_json::json!({
-                "job_id": job.job_id,
-                "workflow_run_id": job.workflow_run_id,
-                "status": job.status.as_token(),
-                "error_reason": job.error_reason,
-                "partial_evidence_ref": job.partial_evidence_ref,
-            }),
-        )
-        .await?;
         Ok(job)
     }
 
@@ -3633,24 +4081,21 @@ impl AtelierStore {
     /// clear error distinguishing not-found from wrong-source-status (MT-127).
     /// Used by the QUEUED->RUNNING and RUNNING->COMPLETED transitions which each
     /// require one specific source status.
-    async fn require_job_transition(
+    async fn require_job_source_status(
         &self,
         job_id: Uuid,
-        row: Option<sqlx::postgres::PgRow>,
         expected_from: ComfyJobStatus,
         target_token: &str,
     ) -> AtelierResult<ComfyJob> {
-        match row {
-            Some(r) => comfy_job_from_row(&r),
-            None => match self.get_comfy_job(job_id).await? {
-                Some(existing) => Err(AtelierError::Validation(format!(
-                    "comfy job {job_id} cannot transition to {target_token} from status {}; \
+        match self.get_comfy_job(job_id).await? {
+            Some(existing) if existing.status == expected_from => Ok(existing),
+            Some(existing) => Err(AtelierError::Validation(format!(
+                "comfy job {job_id} cannot transition to {target_token} from status {}; \
                      it must be {}",
-                    existing.status.as_token(),
-                    expected_from.as_token()
-                ))),
-                None => Err(AtelierError::NotFound(format!("comfy job {job_id}"))),
-            },
+                existing.status.as_token(),
+                expected_from.as_token()
+            ))),
+            None => Err(AtelierError::NotFound(format!("comfy job {job_id}"))),
         }
     }
 }

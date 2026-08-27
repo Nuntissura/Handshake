@@ -309,7 +309,7 @@ fn file_save_dispatches_editor_save_path() {
     // AC-004 / PT-003 (the REAL MT-020 proof, NOT a host-set marker): the menu Save reached the MT-020
     // SaveManager save entry — `request_save` moved the SaveManager's OWN state machine into
     // `SaveState::Saving` (asserted via `save_is_in_flight`, a SaveManager-internal state the host does NOT
-    // set). This proves the dispatch reaches the real MT-020 save path, not a shell-local/SQLite write.
+    // set). This proves the dispatch reaches the real MT-020 save path, not a shell-local/alternate local store write.
     assert!(
         rich_state.lock().unwrap().save_is_in_flight(),
         "FILE > Save reached the MT-020 SaveManager save entry (request_save -> SaveState::Saving)"

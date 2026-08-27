@@ -4,27 +4,27 @@
 //!
 //! Each E4 feature has TWO proofs:
 //!
-//!  1. `parity_<feature>_native` — a NON-ignored proof that runs IN-PROCESS (no PostgreSQL). It drives
+//!  1. `parity_<feature>_native` — a NON-ignored proof that runs IN-PROCESS (no SurrealDB). It drives
 //!     the REAL native search code: the `backend_client::LoomSearchV2Client` request builders +
 //!     `LoomSearchV2Body::baseline`, the `loom_search_v2` panel consume path (facet ordering, `<mark>`
 //!     highlight parsing, semantic status), the `find_in_files` regex match engine, and the
 //!     `quick_switcher` recents-first ordering — asserting on the NATIVE output. These PASS today with
 //!     no backend.
-//!  2. `parity_<feature>` — the `#[ignore = "requires_pg"]` live round-trip. It calls the SAME native
+//!  2. `parity_<feature>` — the `#[ignore = "requires_surrealdb"]` live round-trip. It calls the SAME native
 //!     builder/consume path (CTRL-2 for the manifest `proof_fn`), then exercises the seeded
-//!     handshake_core loom/search-v2 (+ quick-switcher / views) route. Gated `requires_pg`; with no env
-//!     + no backend it panics with a `requires_pg` message, never fake-passes.
+//!     handshake_core loom/search-v2 (+ quick-switcher / views) route. Gated `requires_surrealdb`; with no env
+//!     + no backend it panics with a `requires_surrealdb` message, never fake-passes.
 //!
-//! There is NO sqlite, NO in-process backend substitute, and NO hard-coded result: the native half runs
-//! the ported search code and the live half runs real PostgreSQL behind handshake_core.
+//! There is NO alternate_local_store, NO in-process backend substitute, and NO hard-coded result: the native half runs
+//! the ported search code and the live half runs real SurrealDB behind handshake_core.
 
 mod parity_manifest_support;
-mod pg_proof_support;
+mod backend_proof_support;
 
 use std::collections::BTreeMap;
 
 use parity_manifest_support::mark_pass;
-use pg_proof_support::{require_live_backend, LiveBackend};
+use backend_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::backend_client::{
     HttpMethod, LoomGraphSearchHit as BcSearchHit, LoomSearchV2Body, LoomSearchV2Client,
@@ -104,7 +104,7 @@ fn parity_full_text_search_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (POST /loom/search-v2)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (POST /loom/search-v2)"]
 fn parity_full_text_search() {
     let be: LiveBackend = require_live_backend();
     let block_id = be.require_block_id();
@@ -136,13 +136,13 @@ fn parity_fuzzy_search_native() {
     let body = spec.body.expect("E4-38: fuzzy search carries a body");
     assert_eq!(
         body["query"], typo,
-        "E4-38: the typo'd query is sent verbatim (pg_trgm fuzzy matches server-side)"
+        "E4-38: the typo'd query is sent verbatim (the backend performs fuzzy matching)"
     );
     println!("E4-38 NATIVE PASS: LoomSearchV2Body::baseline carried the typo'd query '{typo}'");
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (POST /loom/search-v2 fuzzy)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (POST /loom/search-v2 fuzzy)"]
 fn parity_fuzzy_search() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -198,7 +198,7 @@ fn parity_semantic_search_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + pgvector + embedding model + mt250 fixture + HSK_TEST_WORKSPACE_ID (POST /loom/search-v2, assert semantic_available)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + pgvector + embedding model + mt250 fixture + HSK_TEST_WORKSPACE_ID (POST /loom/search-v2, assert semantic_available)"]
 fn parity_semantic_search() {
     let be = require_live_backend();
     let query = std::env::var("HSK_TEST_QUERY").unwrap_or_else(|_| "knowledge graph".to_owned());
@@ -261,7 +261,7 @@ fn parity_faceted_filter_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST /loom/search-v2 facet)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (POST /loom/search-v2 facet)"]
 fn parity_faceted_filter() {
     let be = require_live_backend();
     let content_type = std::env::var("HSK_TEST_CONTENT_TYPE").unwrap_or_else(|_| "note".to_owned());
@@ -336,7 +336,7 @@ fn parity_save_results_as_view_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST /loom/views/definitions)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (POST /loom/views/definitions)"]
 fn parity_save_results_as_view() {
     let be = require_live_backend();
     let saved_facet = "annotated_file";
@@ -404,7 +404,7 @@ fn parity_find_in_files_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (find-in-files across 3 files)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (find-in-files across 3 files)"]
 fn parity_find_in_files() {
     let be = require_live_backend();
     let needle =
@@ -474,13 +474,13 @@ fn parity_quick_switcher_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID + HSK_TEST_QS_BLOCK_ID (GET /loom/quick-switcher/recents)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID + HSK_TEST_QS_BLOCK_ID (GET /loom/quick-switcher/recents)"]
 fn parity_quick_switcher() {
     let be = require_live_backend();
     let block_id = std::env::var("HSK_TEST_QS_BLOCK_ID")
         .or_else(|_| std::env::var("HSK_TEST_BLOCK_ID"))
         .expect(
-            "E4-43 requires_pg: set HSK_TEST_QS_BLOCK_ID (or HSK_TEST_BLOCK_ID) to a real block id",
+            "E4-43 requires_surrealdb: set HSK_TEST_QS_BLOCK_ID (or HSK_TEST_BLOCK_ID) to a real block id",
         );
     // CTRL-2: prove the native recents-first ordering surfaces the recorded block.
     let recorded = hit("loom_block", &block_id, "parity-e4-43", "");

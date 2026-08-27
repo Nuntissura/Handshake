@@ -52,6 +52,7 @@ pub(crate) struct OutboxRow {
     pub workspace_id: RecordId,
     pub event: JsonValue,
     pub event_hash: String,
+    pub created_at: Datetime,
     pub published_at: Option<Datetime>,
     pub quarantined_at: Option<Datetime>,
 }
@@ -166,7 +167,7 @@ pub(crate) async fn load_row(
             Box::pin(async move {
                 database
                     .query_first(
-                        "SELECT event_id, workspace_id, event, event_hash, published_at, \
+                        "SELECT event_id, workspace_id, event, event_hash, created_at, published_at, \
                          quarantined_at FROM loom_block_view_fr_outbox \
                          WHERE workspace_id = $workspace AND event_id = $event_id;",
                         bindings,
@@ -236,7 +237,7 @@ pub(crate) async fn list_pending_rows(
             Box::pin(async move {
                 database
                     .query_values(
-                        "SELECT event_id, workspace_id, event, event_hash, published_at, \
+                        "SELECT event_id, workspace_id, event, event_hash, created_at, published_at, \
                          quarantined_at FROM loom_block_view_fr_outbox \
                          WHERE ($workspace = NONE OR workspace_id = $workspace) \
                          AND ($event_id = NONE OR event_id = $event_id) \

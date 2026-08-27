@@ -47,6 +47,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -56,6 +57,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use surrealdb::types::SurrealValue;
 use thiserror::Error;
+use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
@@ -87,6 +89,7 @@ pub const DEFAULT_LEDGER_BATCH_SIZE: usize = 64;
 /// batch_size reached OR interval elapsed since the first queued
 /// event in the current batch).
 pub const DEFAULT_LEDGER_FLUSH_INTERVAL: Duration = Duration::from_millis(50);
+const DROP_ABORT_JOIN_GRACE: Duration = Duration::from_millis(250);
 
 /// Source-component string written into `kernel_event_ledger.source_component`.
 pub const FR_EMITTER_SOURCE_COMPONENT: &str = "flight_recorder.span_fr_emitter";
@@ -113,6 +116,13 @@ pub enum FrRecorderError {
     /// Recorder was already shut down (Drop signalled the flusher).
     #[error("recorder is shut down")]
     Shutdown,
+    /// Cooperative shutdown exceeded its bounded wait and the flusher was
+    /// aborted. The caller must treat all unconfirmed queued events as lost.
+    #[error("recorder shutdown timed out after {waited_ms} ms")]
+    ShutdownTimeout { waited_ms: u64 },
+    /// The background flusher panicked or was cancelled.
+    #[error("recorder flusher join failed: {0}")]
+    Join(String),
 }
 
 // ---------------- SpanContextRef ----------------
@@ -612,7 +622,10 @@ impl Default for SurrealFrRecorderConfig {
     }
 }
 
+#[derive(Clone)]
 struct SurrealFrRecorderEnvelope {
+    event_uuid: Uuid,
+    idempotency_key: String,
     event_id: FrEventId,
     payload: JsonValue,
     span_context: Option<SpanContextRef>,
@@ -632,19 +645,22 @@ struct SurrealFrRecorderEnvelope {
 /// signal worth surfacing on its own.
 pub struct SurrealFrRecorder {
     tx: mpsc::Sender<SurrealFrRecorderEnvelope>,
-    flusher: Option<JoinHandle<()>>,
+    flusher: Option<JoinHandle<Result<(), FrRecorderError>>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
+    origin_runtime: Handle,
 }
 
 impl SurrealFrRecorder {
     pub fn spawn(storage: SurrealStorage, cfg: SurrealFrRecorderConfig) -> Self {
         let (tx, rx) = mpsc::channel::<SurrealFrRecorderEnvelope>(cfg.channel_capacity);
         let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
-        let flusher = tokio::spawn(flusher_loop(storage, cfg, rx, shutdown_rx));
+        let origin_runtime = Handle::current();
+        let flusher = origin_runtime.spawn(flusher_loop(storage, cfg, rx, shutdown_rx));
         Self {
             tx,
             flusher: Some(flusher),
             shutdown_tx: Some(shutdown_tx),
+            origin_runtime,
         }
     }
 
@@ -655,12 +671,23 @@ impl SurrealFrRecorder {
     }
 
     /// Cooperative shutdown: signal flusher, then join. Idempotent.
-    pub async fn shutdown(&mut self) {
+    pub async fn shutdown(&mut self) -> Result<(), FrRecorderError> {
         if let Some(s) = self.shutdown_tx.take() {
             let _ = s.send(()).await;
         }
         if let Some(handle) = self.flusher.take() {
-            let _ = timeout(Duration::from_secs(5), handle).await;
+            let mut handle = handle;
+            match timeout(Duration::from_secs(5), &mut handle).await {
+                Ok(Ok(result)) => result,
+                Ok(Err(error)) => Err(FrRecorderError::Join(error.to_string())),
+                Err(_) => {
+                    handle.abort();
+                    let _ = handle.await;
+                    Err(FrRecorderError::ShutdownTimeout { waited_ms: 5_000 })
+                }
+            }
+        } else {
+            Ok(())
         }
     }
 }
@@ -672,7 +699,10 @@ impl FrRecorder for SurrealFrRecorder {
         payload: JsonValue,
         span_context: Option<SpanContextRef>,
     ) -> RecordFuture<'a> {
+        let event_uuid = Uuid::now_v7();
         let envelope = SurrealFrRecorderEnvelope {
+            event_uuid,
+            idempotency_key: format!("mt199:{}:{}", event_id.as_str(), event_uuid),
             event_id,
             payload,
             span_context,
@@ -699,10 +729,79 @@ impl Drop for SurrealFrRecorder {
             let _ = s.try_send(());
         }
         if let Some(handle) = self.flusher.take() {
-            if let Ok(rt) = tokio::runtime::Handle::try_current() {
-                rt.spawn(async move {
-                    let _ = timeout(Duration::from_secs(2), handle).await;
-                });
+            let abort = handle.abort_handle();
+            let cleanup = finish_guarded_flusher_on_drop(
+                AbortFlusherOnDrop::new(handle),
+                Duration::from_secs(2),
+            );
+            if catch_unwind(AssertUnwindSafe(|| self.origin_runtime.spawn(cleanup))).is_err() {
+                // `Drop` may run on a plain thread or while the originating
+                // runtime is tearing down. If it cannot accept the bounded
+                // cleanup future, cancellation is still mandatory.
+                abort.abort();
+            }
+        }
+    }
+}
+
+struct AbortFlusherOnDrop {
+    handle: Option<JoinHandle<Result<(), FrRecorderError>>>,
+}
+
+impl AbortFlusherOnDrop {
+    fn new(handle: JoinHandle<Result<(), FrRecorderError>>) -> Self {
+        Self {
+            handle: Some(handle),
+        }
+    }
+
+    fn handle_mut(&mut self) -> &mut JoinHandle<Result<(), FrRecorderError>> {
+        self.handle
+            .as_mut()
+            .expect("Flight Recorder flusher handle")
+    }
+}
+
+impl Drop for AbortFlusherOnDrop {
+    fn drop(&mut self) {
+        if let Some(handle) = self.handle.as_ref() {
+            if !handle.is_finished() {
+                handle.abort();
+            }
+        }
+    }
+}
+
+async fn finish_flusher_on_drop(handle: JoinHandle<Result<(), FrRecorderError>>, wait: Duration) {
+    finish_guarded_flusher_on_drop(AbortFlusherOnDrop::new(handle), wait).await;
+}
+
+async fn finish_guarded_flusher_on_drop(mut guarded: AbortFlusherOnDrop, wait: Duration) {
+    let handle = guarded.handle_mut();
+    match timeout(wait, &mut *handle).await {
+        Ok(Ok(Ok(()))) => {}
+        Ok(Ok(Err(error))) => tracing::error!(
+            target: FR_EMITTER_SOURCE_COMPONENT,
+            error = %error,
+            "Flight Recorder flusher failed during Drop"
+        ),
+        Ok(Err(error)) => tracing::error!(
+            target: FR_EMITTER_SOURCE_COMPONENT,
+            error = %error,
+            "Flight Recorder flusher join failed during Drop"
+        ),
+        Err(_) => {
+            handle.abort();
+            match timeout(DROP_ABORT_JOIN_GRACE, &mut *handle).await {
+                Ok(_) => tracing::error!(
+                    target: FR_EMITTER_SOURCE_COMPONENT,
+                    "Flight Recorder flusher timed out and was aborted during Drop"
+                ),
+                Err(_) => tracing::error!(
+                    target: FR_EMITTER_SOURCE_COMPONENT,
+                    waited_ms = DROP_ABORT_JOIN_GRACE.as_millis(),
+                    "Flight Recorder flusher remained pending after Drop abort"
+                ),
             }
         }
     }
@@ -713,7 +812,7 @@ async fn flusher_loop(
     cfg: SurrealFrRecorderConfig,
     mut rx: mpsc::Receiver<SurrealFrRecorderEnvelope>,
     mut shutdown_rx: mpsc::Receiver<()>,
-) {
+) -> Result<(), FrRecorderError> {
     let mut batch: Vec<SurrealFrRecorderEnvelope> = Vec::with_capacity(cfg.batch_size);
     loop {
         let collected = tokio::select! {
@@ -723,9 +822,9 @@ async fn flusher_loop(
                     batch.push(env);
                 }
                 if !batch.is_empty() {
-                    let _ = flush_batch(&pool, &cfg, &mut batch).await;
+                    flush_batch(&pool, &cfg, &mut batch).await?;
                 }
-                return;
+                return Ok(());
             }
             envelope = rx.recv() => {
                 match envelope {
@@ -736,9 +835,9 @@ async fn flusher_loop(
                     None => {
                         // sender side dropped; final drain and exit
                         if !batch.is_empty() {
-                            let _ = flush_batch(&pool, &cfg, &mut batch).await;
+                            flush_batch(&pool, &cfg, &mut batch).await?;
                         }
-                        return;
+                        return Ok(());
                     }
                 }
             }
@@ -756,7 +855,7 @@ async fn flusher_loop(
         }
 
         if batch.len() >= cfg.batch_size || (!collected && !batch.is_empty()) {
-            let _ = flush_batch(&pool, &cfg, &mut batch).await;
+            flush_batch(&pool, &cfg, &mut batch).await?;
         }
     }
 }
@@ -801,21 +900,12 @@ async fn flush_batch(
     // Appends into kernel_event_ledger. The idempotency key is unique per
     // emitted event, so concurrent flushers cannot double-write and the
     // schema's UNIQUE idempotency index is never contended.
-    // Note: this is a best-effort path — store errors are logged and
-    // the batch is dropped (we have no retry queue yet). The contract
-    // for failures being preserved at the SOURCE is held by the
-    // SpanGuard Drop emitting an in-process recorder before any
-    // batched recorder is touched.
-    //
-    // The previous implementation wrapped the whole batch in one transaction,
-    // so a mid-batch failure rolled every row back and a retry of the retained
-    // batch re-emitted each event exactly once. The embedded store commits per
-    // record instead, so the successfully written prefix is drained before the
-    // error propagates; without that, the retry would append a second ledger
-    // row (under a fresh event id) for every event that had already landed.
+    // Each accepted envelope owns a stable record id and idempotency key before
+    // the first write attempt. Ambiguous commits and bounded retries therefore
+    // converge on the same row rather than duplicating an event.
     let mut written = 0usize;
     for env in batch.iter() {
-        let event_uuid = Uuid::now_v7();
+        let event_uuid = env.event_uuid;
         let event_id_str = env.event_id.as_str();
         let aggregate_type = "flight_recorder_span";
         let aggregate_id = env
@@ -823,7 +913,6 @@ async fn flush_batch(
             .as_ref()
             .map(|s| s.span_id.as_uuid().to_string())
             .unwrap_or_else(|| "unknown_span".to_string());
-        let idempotency_key = format!("mt199:{}:{}", event_id_str, event_uuid);
         let payload_hash = blake3_hash_of_payload(&env.payload);
         let correlation_id = env
             .span_context
@@ -843,7 +932,7 @@ async fn flush_batch(
             session_run_id: cfg.session_run_id.clone(),
             aggregate_type: aggregate_type.to_string(),
             aggregate_id,
-            idempotency_key,
+            idempotency_key: env.idempotency_key.clone(),
             event_type: event_id_str.to_string(),
             actor_kind: "system".to_string(),
             actor_id: "mt199_fr_emitter".to_string(),
@@ -854,19 +943,58 @@ async fn flush_batch(
             payload: env.payload.clone(),
             created_at: env.queued_at,
         };
-        let outcome = pool
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    let _: Option<KernelEventLedgerRow> = database
-                        .upsert_one(KERNEL_EVENT_LEDGER_TABLE, &record_id, row)
-                        .await?;
-                    Ok(())
+        let mut final_error = None;
+        for attempt in 0..5u32 {
+            let record_id = record_id.clone();
+            let row = row.clone();
+            let outcome = pool
+                .with_data_operation(move |database| {
+                    Box::pin(async move {
+                        // A retry after an ambiguous commit must not issue
+                        // CONTENT against the existing row: SurrealDB would
+                        // replace store-generated fields such as
+                        // `event_sequence` with NONE. The stable UUID lets a
+                        // retry recognize the already-durable append. A race
+                        // between two first attempts is resolved by the outer
+                        // bounded retry: one CREATE wins and the loser observes
+                        // that same record on its next attempt.
+                        if database
+                            .select_one::<KernelEventLedgerRow>(
+                                KERNEL_EVENT_LEDGER_TABLE,
+                                &record_id,
+                            )
+                            .await?
+                            .is_some()
+                        {
+                            return Ok(());
+                        }
+                        let _: Option<KernelEventLedgerRow> = database
+                            .create_one(KERNEL_EVENT_LEDGER_TABLE, &record_id, row)
+                            .await?;
+                        Ok(())
+                    })
                 })
-            })
-            .await;
-        if let Err(error) = outcome {
+                .await;
+            match outcome {
+                Ok(()) => {
+                    final_error = None;
+                    break;
+                }
+                Err(error) if attempt < 4 => {
+                    final_error = Some(error);
+                    let cap_ms = 1u64 << attempt;
+                    let jitter_ms = (event_uuid.as_u128() as u64 % cap_ms).saturating_add(1);
+                    tokio::time::sleep(Duration::from_millis(jitter_ms)).await;
+                }
+                Err(error) => {
+                    final_error = Some(error);
+                    break;
+                }
+            }
+        }
+        if let Some(error) = final_error {
             batch.drain(..written);
-            return Err(FrRecorderError::from(error));
+            return Err(error.into());
         }
         written += 1;
     }
@@ -875,7 +1003,6 @@ async fn flush_batch(
 }
 
 fn blake3_hash_of_payload(payload: &JsonValue) -> String {
-    use std::io::Write;
     let mut hasher = DefaultHasher::new();
     let bytes = serde_json::to_vec(payload).unwrap_or_default();
     let _ = hasher.write(&bytes);
@@ -887,6 +1014,29 @@ fn blake3_hash_of_payload(payload: &JsonValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flight_recorder::spans::{Limit, SessionAggregateQueries};
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorageConfig};
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[derive(Debug, SurrealValue)]
+    struct KernelEventLedgerProofRow {
+        event_id: String,
+        event_sequence: i64,
+        session_run_id: String,
+        event_type: String,
+    }
+
+    async fn open(path: &std::path::Path) -> SurrealStorage {
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(path).expect("valid Flight Recorder test path"),
+        )
+        .await
+        .expect("open embedded Flight Recorder store");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap Flight Recorder schema");
+        storage
+    }
 
     fn ctx(span_id: SpanId, is_session: bool) -> SpanContextRef {
         if is_session {
@@ -1060,5 +1210,223 @@ mod tests {
         };
         // Overflow clamps to 1 -> always sample
         assert!(cfg2.should_sample(SpanId::new_v7()));
+    }
+
+    #[tokio::test]
+    async fn mt137_surreal_append_is_visible_through_consumer_query_after_reopen() {
+        let directory = tempfile::tempdir().expect("temporary Flight Recorder root");
+        let path = directory.path().join("store");
+        let storage = open(&path).await;
+        let session_id = Uuid::now_v7();
+        let from_utc = Utc::now() - chrono::Duration::seconds(1);
+        let mut recorder = SurrealFrRecorder::spawn(
+            storage.clone(),
+            SurrealFrRecorderConfig {
+                channel_capacity: 4,
+                batch_size: 1,
+                flush_interval: Duration::from_secs(5),
+                kernel_task_run_id: "mt137-flight-recorder-proof".to_owned(),
+                session_run_id: session_id.to_string(),
+            },
+        );
+        recorder
+            .record(
+                FrEventId::SpanStarted,
+                json!({"proof":"mt137","span_id":Uuid::now_v7().to_string()}),
+                None,
+            )
+            .await
+            .expect("queue Flight Recorder event");
+        recorder
+            .record(
+                FrEventId::SpanEnded,
+                json!({"proof":"mt137-order","span_id":Uuid::now_v7().to_string()}),
+                None,
+            )
+            .await
+            .expect("queue second Flight Recorder event");
+        recorder
+            .shutdown()
+            .await
+            .expect("flush Flight Recorder event");
+        storage
+            .shutdown()
+            .await
+            .expect("close Flight Recorder store");
+        drop(recorder);
+        drop(storage);
+
+        let reopened = open(&path).await;
+        let timeline = SessionAggregateQueries::new(reopened.clone())
+            .session_timeline(
+                session_id,
+                from_utc,
+                Utc::now() + chrono::Duration::seconds(1),
+                Limit::new(10),
+            )
+            .await
+            .expect("query reopened Flight Recorder timeline");
+        assert!(timeline.entries.iter().any(|entry| {
+            entry.kind == "event" && entry.summary == FrEventId::SpanStarted.as_str()
+        }));
+        let rows: Vec<KernelEventLedgerProofRow> = reopened
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.select_all(KERNEL_EVENT_LEDGER_TABLE).await })
+            })
+            .await
+            .expect("read reopened Flight Recorder sequences");
+        let mut rows = rows
+            .into_iter()
+            .filter(|row| row.session_run_id == session_id.to_string())
+            .collect::<Vec<_>>();
+        rows.sort_by_key(|row| row.event_sequence);
+        assert_eq!(rows.len(), 2);
+        assert!(rows[0].event_sequence > 0);
+        assert!(rows[0].event_sequence < rows[1].event_sequence);
+        assert_eq!(rows[0].event_type, FrEventId::SpanStarted.as_str());
+        assert_eq!(rows[1].event_type, FrEventId::SpanEnded.as_str());
+        reopened.shutdown().await.expect("close reopened store");
+    }
+
+    #[tokio::test]
+    async fn mt137_retried_envelope_keeps_one_durable_identity() {
+        let directory = tempfile::tempdir().expect("temporary Flight Recorder retry root");
+        let storage = open(&directory.path().join("store")).await;
+        let event_uuid = Uuid::now_v7();
+        let envelope = SurrealFrRecorderEnvelope {
+            event_uuid,
+            idempotency_key: format!("mt137-retry:{event_uuid}"),
+            event_id: FrEventId::SpanStarted,
+            payload: json!({"proof":"stable-envelope"}),
+            span_context: None,
+            queued_at: Utc::now(),
+        };
+        let cfg = SurrealFrRecorderConfig {
+            kernel_task_run_id: "mt137-retry-task".to_owned(),
+            session_run_id: Uuid::now_v7().to_string(),
+            ..SurrealFrRecorderConfig::default()
+        };
+
+        let mut first = vec![envelope.clone()];
+        flush_batch(&storage, &cfg, &mut first)
+            .await
+            .expect("first envelope write");
+        let before_retry: Vec<KernelEventLedgerProofRow> = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.select_all(KERNEL_EVENT_LEDGER_TABLE).await })
+            })
+            .await
+            .expect("read first durable Flight Recorder event");
+        let before_retry = before_retry
+            .into_iter()
+            .find(|row| row.event_id == event_uuid.to_string())
+            .expect("first durable event exists");
+        assert!(before_retry.event_sequence > 0);
+        let mut ambiguous_retry = vec![envelope];
+        flush_batch(&storage, &cfg, &mut ambiguous_retry)
+            .await
+            .expect("same envelope retry");
+
+        let rows: Vec<KernelEventLedgerProofRow> = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.select_all(KERNEL_EVENT_LEDGER_TABLE).await })
+            })
+            .await
+            .expect("read Flight Recorder ledger");
+        assert_eq!(
+            rows.iter()
+                .filter(|row| row.event_id == event_uuid.to_string())
+                .count(),
+            1
+        );
+        let after_retry = rows
+            .iter()
+            .find(|row| row.event_id == event_uuid.to_string())
+            .expect("retried durable event exists");
+        assert_eq!(after_retry.event_sequence, before_retry.event_sequence);
+        storage.shutdown().await.expect("close retry store");
+    }
+
+    #[tokio::test]
+    async fn mt137_drop_timeout_aborts_the_flusher_task() {
+        struct DropFlag(Arc<AtomicBool>);
+        impl Drop for DropFlag {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let dropped = Arc::new(AtomicBool::new(false));
+        let task_dropped = Arc::clone(&dropped);
+        let handle = tokio::spawn(async move {
+            let _flag = DropFlag(task_dropped);
+            std::future::pending::<()>().await;
+            #[allow(unreachable_code)]
+            Ok(())
+        });
+        finish_flusher_on_drop(handle, Duration::from_millis(10)).await;
+        assert!(
+            dropped.load(Ordering::SeqCst),
+            "timed-out Drop helper must abort and drain the flusher"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt137_drop_from_standard_thread_terminates_actual_flusher() {
+        let directory = tempfile::tempdir().expect("temporary Flight Recorder Drop root");
+        let storage = open(&directory.path().join("store")).await;
+        let recorder = SurrealFrRecorder::spawn(
+            storage.clone(),
+            SurrealFrRecorderConfig {
+                flush_interval: Duration::from_secs(60),
+                ..SurrealFrRecorderConfig::default()
+            },
+        );
+        let flusher = recorder
+            .flusher
+            .as_ref()
+            .expect("actual flusher exists")
+            .abort_handle();
+
+        std::thread::spawn(move || drop(recorder))
+            .join()
+            .expect("drop recorder on standard thread");
+        timeout(Duration::from_secs(2), async {
+            while !flusher.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("originating runtime terminates dropped recorder flusher");
+        storage.shutdown().await.expect("close Drop proof store");
+    }
+
+    #[tokio::test]
+    async fn mt137_shutdown_reports_durable_sink_failure() {
+        let directory = tempfile::tempdir().expect("temporary Flight Recorder failure root");
+        let storage = open(&directory.path().join("store")).await;
+        storage.shutdown().await.expect("close store before write");
+        let mut recorder = SurrealFrRecorder::spawn(
+            storage,
+            SurrealFrRecorderConfig {
+                channel_capacity: 1,
+                batch_size: 1,
+                flush_interval: Duration::from_millis(1),
+                ..SurrealFrRecorderConfig::default()
+            },
+        );
+        recorder
+            .record(
+                FrEventId::SpanStarted,
+                json!({"proof":"sink-failure"}),
+                None,
+            )
+            .await
+            .expect("queue event before flusher observes closed store");
+        let error = recorder
+            .shutdown()
+            .await
+            .expect_err("shutdown must surface the durable sink failure");
+        assert!(matches!(error, FrRecorderError::Storage(_)));
     }
 }

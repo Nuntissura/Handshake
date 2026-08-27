@@ -1077,6 +1077,9 @@ impl SwarmCoordinator {
                     _ => ReclaimTrigger::Close.as_str(),
                 },
             }),
+            reclaim_claimed_at: None,
+            reclaim_expected_reason: None,
+            reclaim_expected_killed_reason: None,
         }
     }
 
@@ -1262,6 +1265,9 @@ async fn reap_expired(inner: &Arc<Inner>) {
                 "swarm_id": handle.swarm_id,
                 "worktree_id": handle.worktree_id,
             }),
+            reclaim_claimed_at: None,
+            reclaim_expected_reason: None,
+            reclaim_expected_killed_reason: None,
         };
         let _ = inner.ledger.record_stop(stop);
 

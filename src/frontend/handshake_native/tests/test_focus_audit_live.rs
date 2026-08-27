@@ -77,7 +77,7 @@
 // (no display), so the audit cannot run meaningfully. It is therefore gated `#[ignore]` and run
 // deliberately with `cargo test --test test_focus_audit_live -- --ignored` on a controlled CI/test
 // desktop. This mirrors the project's GPU-gated pixel proofs (egui_kittest render) and the cfg-gated
-// live-PostgreSQL tests (`integration_tests` feature): real proofs that need a real environment, kept
+// live-SurrealDB tests (`integration_tests` feature): real proofs that need a real environment, kept
 // out of the default suite so the default suite stays deterministic and quiet.
 //
 // ## Deviations from the contract body (adapted to the REAL shell + forbidden paths; disclosed)
@@ -570,7 +570,7 @@ fn discover_binding(
 #[ignore = "LIVE Win32 audit: spawns a real on-screen window AND installs a GLOBAL WH_KEYBOARD_LL \
             keyboard hook (would itself pop a window + intercept all keystrokes in a non-interactive \
             session); requires an interactive desktop + a running message pump. Run on a controlled \
-            CI/test desktop with `--ignored`, like the GPU-gated pixel proofs and cfg-gated live-PG \
+            CI/test desktop with `--ignored`, like the GPU-gated pixel proofs and cfg-gated live-SurrealDB \
             tests."]
 #[test]
 fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {

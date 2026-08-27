@@ -2,7 +2,7 @@
 //!
 //! Submodules:
 //!  - `job`: MicroTaskJob + EscalationTier + JobState primitives (MT-184)
-//!  - `queue`: Postgres-backed MicroTaskQueue with SKIP LOCKED claims (MT-184)
+//!  - `queue`: embedded-SurrealDB MicroTaskQueue with guarded atomic claims (MT-184)
 //!  - `loop_control`: MtLoopCheckpoint + MtLoopControlBudget (MT-185)
 //!  - `cancellation`: cooperative + forced cancellation (MT-186)
 //!  - `scheduler`: FairScheduler with age-based priority (MT-187)

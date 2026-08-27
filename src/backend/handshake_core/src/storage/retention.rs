@@ -458,7 +458,7 @@ fn dir_size_bytes(root: &Path) -> std::io::Result<u64> {
 mod tests {
     use super::*;
     use crate::flight_recorder::{EventFilter, RecorderError};
-    use crate::storage::tests::optional_postgres_backend_from_env;
+    use crate::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
     use crate::storage::{AccessMode, JobKind, JobMetrics, NewAiJob, SafetyMode};
     use async_trait::async_trait;
     use chrono::Utc;
@@ -522,15 +522,15 @@ mod tests {
             Arc<Mutex<Vec<FlightRecorderEvent>>>,
             tempfile::TempDir,
             tempfile::TempDir,
+            EmbeddedTestBackend,
         )>,
         Box<dyn Error>,
     > {
         let workspace_dir = tempdir()?;
 
         let db_dir = tempdir()?;
-        let Some(db) = optional_postgres_backend_from_env().await? else {
-            return Ok(None);
-        };
+        let backend = embedded_test_backend().await?;
+        let db = backend.database.clone();
 
         // In-memory recorder for tests
         let recorder = MemoryRecorder::new(7);
@@ -542,6 +542,7 @@ mod tests {
             events,
             db_dir,
             workspace_dir,
+            backend,
         )))
     }
 
@@ -577,7 +578,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_pinned_items() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
         else {
             return Ok(());
         };
@@ -623,7 +624,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_window() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
         else {
             return Ok(());
         };
@@ -659,7 +660,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dry_run_does_not_delete() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
         else {
             return Ok(());
         };
@@ -697,7 +698,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_min_versions_constraint() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
         else {
             return Ok(());
         };
@@ -733,7 +734,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_flight_recorder_event_emitted() -> Result<(), Box<dyn Error>> {
-        let Some((db, flight_recorder, events, _db_dir, workspace_dir)) = setup_test_db().await?
+        let Some((db, flight_recorder, events, _db_dir, workspace_dir, _backend)) = setup_test_db().await?
         else {
             return Ok(());
         };

@@ -22,8 +22,8 @@
 //! unavailable every method fails closed with a typed `StorageError` (MT-064).
 //!
 //! Namespace decision (MT-049): all tables use the `knowledge_` prefix in the
-//! active schema; see migrations/0130_knowledge_schema_namespace.sql for the
-//! full rationale recorded next to the boundary table.
+//! active schema; the complete boundary is declared in
+//! `storage/surreal/schema.surql`.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -48,7 +48,7 @@ pub struct KnowledgeSchemaRegistryRow {
     pub table_name: String,
     pub record_family: String,
     pub authority_class: KnowledgeAuthorityClass,
-    pub migration_file: String,
+    pub schema_source: String,
     pub wp_id: String,
     pub mt_id: String,
     pub registered_at: DateTime<Utc>,
@@ -252,11 +252,11 @@ pub fn normalize_repo_relative_path(path: &str) -> StorageResult<String> {
     Ok(normalized)
 }
 
-fn new_knowledge_id(prefix: &str) -> String {
+pub(crate) fn new_knowledge_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::now_v7().simple())
 }
 
-fn is_sha256_hex(value: &str) -> bool {
+pub(crate) fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64
         && value
             .chars()
@@ -492,14 +492,6 @@ pub struct NewKnowledgeSource {
     pub source_modified_at: Option<DateTime<Utc>>,
 }
 
-const KNOWLEDGE_SOURCE_COLUMNS: &str = r#"
-    source_id, workspace_id, root_id, source_kind, relative_path,
-    asset_id, loom_block_id, document_id, content_hash, size_bytes,
-    provenance, permission_scope, redaction_state, parser_status,
-    extraction_status, stale, last_index_receipt_event_id,
-    source_modified_at, created_at, updated_at
-"#;
-
 // ---------------------------------------------------------------------------
 // MT-052 IndexRunLifecycleTables: durable index run lifecycle.
 // ---------------------------------------------------------------------------
@@ -603,7 +595,7 @@ pub enum KnowledgeIndexRunOutcome {
 }
 
 impl KnowledgeIndexRunOutcome {
-    fn state(&self) -> KnowledgeIndexRunState {
+    pub(crate) fn state(&self) -> KnowledgeIndexRunState {
         match self {
             Self::Completed { .. } => KnowledgeIndexRunState::Completed,
             Self::Failed { .. } => KnowledgeIndexRunState::Failed,
@@ -611,7 +603,7 @@ impl KnowledgeIndexRunOutcome {
         }
     }
 
-    fn counts(&self) -> KnowledgeIndexRunCounts {
+    pub(crate) fn counts(&self) -> KnowledgeIndexRunCounts {
         match self {
             Self::Completed { counts }
             | Self::Failed { counts, .. }
@@ -619,21 +611,13 @@ impl KnowledgeIndexRunOutcome {
         }
     }
 
-    fn error_capture(&self) -> Option<&Value> {
+    pub(crate) fn error_capture(&self) -> Option<&Value> {
         match self {
             Self::Failed { error_capture, .. } => Some(error_capture),
             _ => None,
         }
     }
 }
-
-const KNOWLEDGE_INDEX_RUN_COLUMNS: &str = r#"
-    index_run_id, workspace_id, root_id, run_state, scope, actor_kind,
-    actor_id, worktree_id, restart_checkpoint, sources_seen, sources_indexed,
-    spans_extracted, entities_detected, edges_written, claims_written,
-    error_capture, start_receipt_event_id, finish_receipt_event_id,
-    started_at, finished_at
-"#;
 
 // ---------------------------------------------------------------------------
 // MT-055 KnowledgeSpanTables: the minimum citeable evidence unit.
@@ -719,12 +703,6 @@ pub struct NewKnowledgeSpan {
     pub index_run_id: Option<String>,
     pub display_snippet: Option<String>,
 }
-
-const KNOWLEDGE_SPAN_COLUMNS: &str = r#"
-    span_id, source_id, span_kind, range_start, range_end, line_start,
-    line_end, section_path, content_sha256, parser_version,
-    extraction_receipt_event_id, index_run_id, display_snippet, created_at
-"#;
 
 // ---------------------------------------------------------------------------
 // MT-053 KnowledgeEntityTables: typed entities detected from spans.
@@ -885,21 +863,6 @@ pub struct NewKnowledgeEntity {
     pub evidence_span_ids: Vec<String>,
 }
 
-const KNOWLEDGE_ENTITY_COLUMNS: &str = r#"
-    entity_id, workspace_id, entity_kind, entity_key, display_name,
-    detection_provenance, lifecycle_state, primary_source_id,
-    first_detected_in_run, last_detected_in_run, created_at, updated_at
-"#;
-
-/// `KNOWLEDGE_ENTITY_COLUMNS` qualified with an `e.` table alias for joined
-/// selects (column names in the result stay unqualified, so `entity_from_pg`
-/// reads them unchanged).
-const KNOWLEDGE_ENTITY_COLUMNS_E: &str = r#"
-    e.entity_id, e.workspace_id, e.entity_kind, e.entity_key, e.display_name,
-    e.detection_provenance, e.lifecycle_state, e.primary_source_id,
-    e.first_detected_in_run, e.last_detected_in_run, e.created_at, e.updated_at
-"#;
-
 // ---------------------------------------------------------------------------
 // MT-054 KnowledgeEdgeTables: typed relationships with stable relationship_id.
 // ---------------------------------------------------------------------------
@@ -1039,7 +1002,7 @@ impl FromStr for KnowledgeEdgeLifecycle {
 /// ```
 ///
 /// where `len(x)` is the number of UTF-8 bytes in `x`. The derivation is
-/// authoritative and mirrored in migrations/0136_knowledge_edges.sql.
+/// authoritative and mirrored in `storage/surreal/schema.surql`.
 ///
 /// NOTE: this v2 framing changes the hash of EVERY edge relative to the prior
 /// unescaped-join scheme. That is intentional and safe on this pre-merge dev
@@ -1110,12 +1073,6 @@ pub struct NewKnowledgeEdge {
     /// REQUIRED evidence: at least one span id (spec 2.3.13.11).
     pub evidence_span_ids: Vec<String>,
 }
-
-const KNOWLEDGE_EDGE_COLUMNS: &str = r#"
-    edge_id, workspace_id, relationship_id, edge_type, source_entity_id,
-    target_entity_id, extractor_version, lifecycle_state, confidence,
-    conflict_marker, created_in_run, last_seen_in_run, created_at, updated_at
-"#;
 
 // ---------------------------------------------------------------------------
 // MT-056 KnowledgeClaimTables: claims with lifecycle + evidence lineage.
@@ -1303,13 +1260,6 @@ pub struct KnowledgeClaimConflict {
     pub resolved_at: Option<DateTime<Utc>>,
 }
 
-const KNOWLEDGE_CLAIM_COLUMNS: &str = r#"
-    claim_id, workspace_id, claim_kind, claim_text, subject_entity_id,
-    lifecycle_state, temporal_qualifier, granularity_qualifier, confidence,
-    retirement_reason, superseded_by_claim_id, proposed_in_run,
-    resolution_receipt_event_id, created_at, updated_at
-"#;
-
 // ---------------------------------------------------------------------------
 // MT-057 PassageEvidenceTables: MemoryPassage records with derivation lineage.
 // ---------------------------------------------------------------------------
@@ -1433,13 +1383,6 @@ pub struct NewKnowledgeMemoryPassage {
     /// REQUIRED derivation lineage: at least one source/claim/span ref.
     pub evidence: Vec<KnowledgePassageEvidenceRef>,
 }
-
-const KNOWLEDGE_PASSAGE_COLUMNS: &str = r#"
-    passage_id, workspace_id, passage_text, token_count,
-    ocr_transcript_metadata, extraction_confidence, ranking_features,
-    retrieval_mode, freshness_at, compaction_policy,
-    failure_receipt_event_id, derived_in_run, created_at, updated_at
-"#;
 
 // ---------------------------------------------------------------------------
 // MT-058 WikiProjectionTables: derived, staleable, regenerable views.
@@ -1577,13 +1520,6 @@ pub struct NewKnowledgeWikiProjection {
     pub staleness_hash: String,
 }
 
-const KNOWLEDGE_PROJECTION_COLUMNS: &str = r#"
-    projection_id, workspace_id, projection_kind, title, source_records,
-    rendered_content, rebuild_status, staleness_hash,
-    rebuild_receipt_event_id, last_rebuilt_at, page_type, compile_stamp,
-    compile_recipe, page_links, created_at, updated_at
-"#;
-
 // ---------------------------------------------------------------------------
 // MT-059 RichDocumentTables: versioned RichDocument JSON authority +
 // EditorCodeNode payloads (spec 2.3.13.11 RichDocument / EditorCodeNode).
@@ -1597,7 +1533,7 @@ const KNOWLEDGE_PROJECTION_COLUMNS: &str = r#"
 
 /// sha256 over the canonical JSON encoding of a value (same canonical form
 /// as kernel ContextBundle hashing, so content hashes are replayable).
-fn knowledge_canonical_json_sha256(content: &Value) -> String {
+pub(crate) fn knowledge_canonical_json_sha256(content: &Value) -> String {
     crate::kernel::context_bundle::sha256_hex(&crate::kernel::context_bundle::canonical_json_bytes(
         content,
     ))
@@ -1660,7 +1596,7 @@ fn collect_rich_document_link_search_values(node: &Value, values: &mut Vec<Strin
     }
 }
 
-fn rich_document_loom_projection(
+pub(crate) fn rich_document_loom_projection(
     title: &str,
     content_json: &Value,
 ) -> StorageResult<(String, String)> {
@@ -1852,26 +1788,6 @@ pub struct UpsertEditorCodeNode {
     pub lint_diagnostics: Value,
 }
 
-const KNOWLEDGE_RICH_DOCUMENT_COLUMNS: &str = r#"
-    rich_document_id, workspace_id, document_id, title, schema_version,
-    doc_version, content_json, content_sha256, crdt_document_id,
-    crdt_snapshot_id, promotion_receipt_event_id, projection_refs,
-    project_ref, folder_ref, authority_label, owner_actor_kind, owner_actor_id,
-    created_at, updated_at
-"#;
-
-const KNOWLEDGE_RICH_DOCUMENT_DRAFT_COLUMNS: &str = r#"
-    rich_document_id, workspace_id, base_doc_version, base_content_sha256,
-    draft_content_json, draft_content_sha256, actor_kind, actor_id,
-    kernel_task_run_id, session_run_id, created_at, updated_at
-"#;
-
-const KNOWLEDGE_CODE_NODE_COLUMNS: &str = r#"
-    code_node_id, rich_document_id, node_path, language_id, code_text,
-    round_trip_sha256, worker_requirements, source_mapping, lint_diagnostics,
-    created_at, updated_at
-"#;
-
 // ---------------------------------------------------------------------------
 // MT-152 EmbedReferenceModel + MT-153 BrokenEmbedRepairState:
 // knowledge_document_embeds (migration 0281). Embeds are TYPED references
@@ -1909,11 +1825,6 @@ pub struct UpsertKnowledgeDocumentEmbed {
     pub caption: Option<String>,
 }
 
-const KNOWLEDGE_DOCUMENT_EMBED_COLUMNS: &str = r#"
-    embed_id, rich_document_id, block_id, ref_kind, ref_value, caption,
-    repair_state, repair_reason, created_at, updated_at
-"#;
-
 // ---------------------------------------------------------------------------
 // MT-155 DocumentBacklinkBridge: knowledge_document_backlinks (migration
 // 0282). Document-scoped backlinks keyed by a STABLE relationship_id derived
@@ -1949,11 +1860,6 @@ pub struct UpsertKnowledgeDocumentBacklink {
     pub target: String,
     pub block_id: String,
 }
-
-const KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS: &str = r#"
-    backlink_id, workspace_id, relationship_id, source_document_id, link_kind,
-    target, block_id, created_at, updated_at
-"#;
 
 // ---------------------------------------------------------------------------
 // MT-060 ContextBundleTables: durable bundle runs, per-item retrieval
@@ -2112,7 +2018,9 @@ pub struct KnowledgeRetrievalTrace {
     pub mode_reason: String,
     pub query_text: Option<String>,
     pub bundle_id: Option<String>,
-    /// Replayable decision log: `[{"step": ..., "action": ...}, ...]`.
+    /// Replayable JSON decision payload. Legacy callers may store an event
+    /// array; the current retrieval pipeline stores the versioned QueryPlan +
+    /// RetrievalTrace object produced by `RetrievalTrace::to_decisions_json`.
     pub decisions: Value,
     pub trace_receipt_event_id: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -2129,17 +2037,6 @@ pub struct NewKnowledgeRetrievalTrace {
     pub decisions: Value,
     pub trace_receipt_event_id: Option<String>,
 }
-
-const KNOWLEDGE_BUNDLE_COLUMNS: &str = r#"
-    bundle_id, workspace_id, kernel_task_run_id, session_run_id,
-    allowed_context, context_hash, query_text, token_budget, tokens_used,
-    build_receipt_event_id, created_at
-"#;
-
-const KNOWLEDGE_TRACE_COLUMNS: &str = r#"
-    trace_id, workspace_id, retrieval_mode, mode_reason, query_text,
-    bundle_id, decisions, trace_receipt_event_id, created_at
-"#;
 
 // ---------------------------------------------------------------------------
 // MT-062 TransactionalIdempotencyKeys: replay-safe knowledge mutations.
@@ -2210,7 +2107,10 @@ pub struct KnowledgeIdempotentWrite<T> {
 }
 
 /// sha256 over the canonical JSON of an idempotent request payload.
-fn knowledge_request_hash<T: Serialize>(operation: &str, payload: &T) -> StorageResult<String> {
+pub(crate) fn knowledge_request_hash<T: Serialize>(
+    operation: &str,
+    payload: &T,
+) -> StorageResult<String> {
     let value = serde_json::to_value(payload)?;
     Ok(knowledge_canonical_json_sha256(&serde_json::json!({
         "operation": operation,
@@ -2218,7 +2118,7 @@ fn knowledge_request_hash<T: Serialize>(operation: &str, payload: &T) -> Storage
     })))
 }
 
-fn validate_knowledge_idempotency_key(idempotency_key: &str) -> StorageResult<()> {
+pub(crate) fn validate_knowledge_idempotency_key(idempotency_key: &str) -> StorageResult<()> {
     if idempotency_key.trim() != idempotency_key || idempotency_key.is_empty() {
         return Err(StorageError::Validation(
             "knowledge idempotency_key must be non-empty and trimmed",
@@ -2227,14 +2127,19 @@ fn validate_knowledge_idempotency_key(idempotency_key: &str) -> StorageResult<()
     Ok(())
 }
 
-const RICH_DOCUMENT_RESULT_REF_KIND: &str = "rich_document";
-const RICH_DOCUMENT_VERSION_RESULT_REF_KIND: &str = "rich_document_version";
+pub(crate) const RICH_DOCUMENT_RESULT_REF_KIND: &str = "rich_document";
+pub(crate) const RICH_DOCUMENT_VERSION_RESULT_REF_KIND: &str = "rich_document_version";
 
-fn rich_document_version_result_ref_id(rich_document_id: &str, doc_version: i64) -> String {
+pub(crate) fn rich_document_version_result_ref_id(
+    rich_document_id: &str,
+    doc_version: i64,
+) -> String {
     format!("{rich_document_id}:{doc_version}")
 }
 
-fn parse_rich_document_version_result_ref_id(ref_id: &str) -> StorageResult<(String, i64)> {
+pub(crate) fn parse_rich_document_version_result_ref_id(
+    ref_id: &str,
+) -> StorageResult<(String, i64)> {
     let Some((rich_document_id, doc_version)) = ref_id.rsplit_once(':') else {
         return Err(StorageError::Validation(
             "rich document version idempotency result ref is malformed",
@@ -2253,7 +2158,7 @@ fn parse_rich_document_version_result_ref_id(ref_id: &str) -> StorageResult<(Str
     Ok((rich_document_id.to_string(), doc_version))
 }
 
-fn rich_document_crdt_id_change_requested(
+pub(crate) fn rich_document_crdt_id_change_requested(
     existing_crdt_document_id: Option<&str>,
     requested_crdt_document_id: Option<&str>,
 ) -> bool {
@@ -2269,19 +2174,17 @@ fn rich_document_crdt_id_change_requested(
 
 /// WP-009 ProjectKnowledgeIndex storage operations.
 ///
-/// WP-KERNEL-012 MT-136: the former `impl KnowledgeStore for PostgresDatabase`
-/// was removed together with the physically deleted PostgreSQL backend. This
-/// trait currently has NO implementor; the SurrealDB/EventLedger implementor
-/// is still to be written under `storage/surreal/`. The removed PostgreSQL
-/// bodies remain the reference for the required table/column shapes and are
-/// recoverable from git at commit 1af216a1.
+/// WP-KERNEL-012 MT-136: [`super::surreal::SurrealDatabase`] implements this
+/// complete surface over the embedded store. The default bodies remain a
+/// fail-closed compatibility contract for alternate test or future backends;
+/// they are not the runtime authority.
 ///
 /// # Why every method has a default body
 ///
-/// All 81 methods default to `StorageError::NotImplemented`. This mirrors the
+/// All 82 methods default to `StorageError::NotImplemented`. This mirrors the
 /// [`Database`](super::Database) trait, where 88 of 93 defaults already do the
 /// same thing, and it exists for one reason: without defaults an implementor
-/// must supply all 81 methods before the crate compiles at all, which forces
+/// must supply all 82 methods before the crate compiles at all, which forces
 /// the entire SurrealDB knowledge port into a single unreviewable change. With
 /// them, the port lands domain by domain - documents, then entities, then
 /// claims - and every method that has not been written yet FAILS CLOSED at its
@@ -2363,8 +2266,10 @@ pub trait KnowledgeStore: Send + Sync {
         ))
     }
 
-    async fn get_knowledge_source(&self, source_id: &str)
-        -> StorageResult<Option<KnowledgeSource>> {
+    async fn get_knowledge_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeSource>> {
         Err(StorageError::NotImplemented(
             "surreal knowledge edge backend",
         ))
@@ -2497,8 +2402,10 @@ pub trait KnowledgeStore: Send + Sync {
         ))
     }
 
-    async fn get_knowledge_entity(&self, entity_id: &str)
-        -> StorageResult<Option<KnowledgeEntity>> {
+    async fn get_knowledge_entity(
+        &self,
+        entity_id: &str,
+    ) -> StorageResult<Option<KnowledgeEntity>> {
         Err(StorageError::NotImplemented(
             "surreal knowledge entity backend",
         ))
@@ -3193,6 +3100,20 @@ pub trait KnowledgeStore: Send + Sync {
             "surreal knowledge rich-document backend",
         ))
     }
+
+    /// Returns the code-index state associated with one knowledge source.
+    ///
+    /// This belongs on the trait because code-navigation consumers operate on
+    /// `dyn KnowledgeStore`; keeping it only as a concrete-backend helper
+    /// makes those consumers compile against PostgreSQL-era assumptions.
+    async fn get_knowledge_code_file_by_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeCodeFile>> {
+        Err(StorageError::NotImplemented(
+            "surreal knowledge code-index backend",
+        ))
+    }
 }
 
 // ===========================================================================
@@ -3325,13 +3246,6 @@ pub struct UpsertKnowledgeCodeFile {
     pub last_index_receipt_event_id: Option<String>,
 }
 
-const KNOWLEDGE_CODE_FILE_COLUMNS: &str = r#"
-    code_file_id, workspace_id, source_id, file_entity_id, language,
-    indexed_content_hash, parser_version, parse_status, stale,
-    symbols_indexed, edges_indexed, failure_detail, last_indexed_in_run,
-    last_index_receipt_event_id, created_at, updated_at
-"#;
-
 /// SCIP/LSIF import format (MT-105).
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -3419,13 +3333,6 @@ pub struct NewKnowledgeScipImport {
     pub import_receipt_event_id: Option<String>,
 }
 
-const KNOWLEDGE_SCIP_IMPORT_COLUMNS: &str = r#"
-    scip_import_id, workspace_id, artifact_format, tool_name, tool_version,
-    artifact_hash, status, reason, symbols_imported, occurrences_imported,
-    edges_imported, import_detail, imported_in_run, import_receipt_event_id,
-    created_at
-"#;
-
 // ===========================================================================
 // MT-108 code-index repair queue (`knowledge_code_repair_queue`, 0230).
 //
@@ -3511,22 +3418,6 @@ pub struct NewKnowledgeCodeRepairEntry {
     pub reason_class: KnowledgeCodeRepairReason,
     pub reason_detail: Value,
     pub enqueue_event_id: Option<String>,
-}
-
-const KNOWLEDGE_CODE_REPAIR_COLUMNS: &str = r#"
-    code_repair_id, workspace_id, source_id, relative_path, reason_class,
-    reason_detail, state, attempts, max_attempts, last_attempt_at,
-    enqueue_event_id, resolved_receipt_event_id, created_at, updated_at
-"#;
-
-/// Escape SQL `LIKE` metacharacters (`%`, `_`, `\`) in an operator-
-/// supplied literal so a symbol name/path containing them matches literally and
-/// cannot widen the scan. The default escape char `\` is escaped first.
-fn escape_like(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 // ===========================================================================
@@ -3619,4 +3510,3 @@ pub struct WikiLoomBlockState {
     pub asset_id: Option<String>,
     pub content_hash: Option<String>,
 }
-

@@ -21,7 +21,7 @@
 use serde_json::{json, Value};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError, StorageResult};
 
 /// A recorder-visible ContextPack lifecycle decision.
@@ -97,7 +97,7 @@ impl ContextPackDecisionRecord {
 /// Emit a recorder-visible ContextPack decision receipt to the EventLedger.
 /// Returns the receipt event id (the stable evidence handle).
 pub async fn record_context_pack_decision(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     actor: KernelActor,
     kernel_task_run_id: &str,
     session_run_id: &str,

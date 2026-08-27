@@ -4,19 +4,41 @@
 //! typed identity, claim leases over shared worktrees/workspaces, role-mailbox
 //! handoff receipts, deterministic backend navigation commands, restartable
 //! compaction checkpoints, recovery receipts, and a serial lease queue for
-//! parallel index writers. PostgreSQL tables from migration 0311 are authority;
-//! EventLedger rows provide the receipt trail.
+//! parallel index writers. Embedded SurrealDB tables declared in
+//! `storage/surreal/schema.surql` (`knowledge_agent_*`,
+//! `knowledge_parallel_indexing_lease_queue`) are authority; EventLedger rows
+//! provide the receipt trail.
+//!
+//! # Porting notes (PostgreSQL -> embedded SurrealDB)
+//!
+//! * The row-plus-event transactions where every value is known up front
+//!   (claims, handoffs, checkpoints, recovery receipts, quiet-work receipts,
+//!   cloud-assistance receipts, lease inserts) are single
+//!   `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` statements, so the
+//!   receipt row and its EventLedger receipt still land or fail together.
+//!   The rows now carry their EventLedger link at CREATE time, replacing the
+//!   PostgreSQL insert-then-UPDATE-event-id shape.
+//! * The `SELECT ... FOR UPDATE` reclaim/release/promotion loops are guarded
+//!   single-statement UPDATEs: the guard re-states the condition the row lock
+//!   used to protect, so a lost race matches zero rows instead of trampling.
+//!   Where the EventLedger receipt for a state transition needs data only the
+//!   transition produces (lease promotion, orphan reclaim), the transition
+//!   commits first and the receipt lands in a follow-up write. DISCLOSED
+//!   NARROWING: a crash between the two leaves the transitioned row without
+//!   its receipt link; the row state itself remains correct and
+//!   TTL-recoverable.
+//! * PostgreSQL partial unique indexes are stored-discriminator UNIQUE
+//!   indexes in the schema (`active_scope_key`, `acquired_scope_key`); a
+//!   racing writer surfaces as an index violation exactly as before, detected
+//!   by index name in the store error text rather than SQLSTATE 23505.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-};
+use std::collections::{BTreeMap, BTreeSet};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{postgres::PgRow, PgPool, Postgres, Row, Transaction};
+use surrealdb::types::{RecordId, RecordIdKey, SurrealValue};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -24,7 +46,8 @@ use crate::kernel::{
     sandbox::{EnvRedactionV1, Redactor},
     KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
 };
-use crate::storage::{Database, StorageError};
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
+use crate::storage::StorageError;
 
 #[derive(Debug, Error)]
 pub enum StateRecoveryError {
@@ -34,8 +57,8 @@ pub enum StateRecoveryError {
     Kernel(String),
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("embedded store error: {0}")]
+    Surreal(#[from] SurrealStorageError),
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
     #[error("checkpoint not found: {0}")]
@@ -1327,14 +1350,416 @@ pub struct IndexingLeaseRecord {
     pub event_ledger_event_id: String,
 }
 
+const CLAIMS_TABLE: &str = "knowledge_agent_worktree_claims";
+const HANDOFFS_TABLE: &str = "knowledge_agent_role_mailbox_handoffs";
+const CHECKPOINTS_TABLE: &str = "knowledge_agent_state_recovery_checkpoints";
+const RECEIPTS_TABLE: &str = "knowledge_agent_recovery_receipts";
+const LEASES_TABLE: &str = "knowledge_parallel_indexing_lease_queue";
+const QUIET_TABLE: &str = "knowledge_agent_quiet_background_work";
+const CLOUD_RECEIPTS_TABLE: &str = "knowledge_agent_cloud_assistance_receipts";
+const EVENT_LEDGER_TABLE: &str = "kernel_event_ledger";
+
+/// One `kernel_event_ledger` receipt row; mirrors the `SCHEMAFULL` table and
+/// the write shape established by `flight_recorder::fr_emitter`.
+#[derive(SurrealValue)]
+struct EventLedgerWriteRow {
+    event_id: String,
+    event_version: String,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    idempotency_key: String,
+    event_type: String,
+    actor_kind: String,
+    actor_id: String,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    payload_hash: String,
+    source_component: String,
+    payload: Value,
+    created_at: DateTime<Utc>,
+}
+
+/// One `knowledge_agent_worktree_claims` record. EventLedger links are record
+/// links; the schema's computed `active_scope_key` is deliberately absent
+/// (reads tolerate it because unmodelled fields are ignored).
+#[derive(SurrealValue)]
+struct ClaimRow {
+    claim_id: String,
+    workspace_id: String,
+    wp_id: String,
+    mt_id: Option<String>,
+    scope_kind: String,
+    scope_id: String,
+    lane_id: String,
+    actor_id: String,
+    lane_kind: String,
+    attribution_jsonb: Value,
+    session_id: String,
+    status: String,
+    reason: String,
+    claimed_at_utc: DateTime<Utc>,
+    expires_at_utc: DateTime<Utc>,
+    released_at_utc: Option<DateTime<Utc>>,
+    event_ledger_event_id: Option<RecordId>,
+    release_event_ledger_event_id: Option<RecordId>,
+    reclaim_event_ledger_event_id: Option<RecordId>,
+}
+
+/// One `knowledge_agent_role_mailbox_handoffs` record.
+#[derive(SurrealValue)]
+struct HandoffRow {
+    handoff_id: String,
+    wp_id: String,
+    mt_id: String,
+    claim_id: Option<RecordId>,
+    from_lane_id: String,
+    from_actor_id: String,
+    from_lane_kind: String,
+    from_attribution_jsonb: Value,
+    to_role: String,
+    mailbox_thread_id: String,
+    mailbox_message_id: String,
+    status: String,
+    summary: String,
+    body_sha256: String,
+    event_ledger_event_id: RecordId,
+    created_at_utc: DateTime<Utc>,
+}
+
+/// One `knowledge_agent_state_recovery_checkpoints` record.
+#[derive(SurrealValue)]
+struct CheckpointRow {
+    checkpoint_id: String,
+    lane_id: String,
+    actor_id: String,
+    lane_kind: String,
+    attribution_jsonb: Value,
+    session_id: String,
+    workspace_id: String,
+    wp_id: String,
+    mt_id: String,
+    claim_id: Option<RecordId>,
+    mailbox_handoff_id: Option<RecordId>,
+    navigation_command_id: Option<String>,
+    resume_pointer_jsonb: Value,
+    touched_files_jsonb: Vec<String>,
+    tests_jsonb: Vec<String>,
+    hbr_rows_jsonb: Vec<String>,
+    next_step_context: String,
+    payload_jsonb: Value,
+    payload_sha256: String,
+    compaction_reason: String,
+    git_head: String,
+    event_ledger_event_id: RecordId,
+    created_at_utc: DateTime<Utc>,
+}
+
+/// One `knowledge_agent_recovery_receipts` record.
+#[derive(SurrealValue)]
+struct RecoveryReceiptRow {
+    receipt_id: String,
+    checkpoint_id: RecordId,
+    prior_session_id: String,
+    new_session_id: String,
+    new_lane_id: String,
+    new_actor_id: String,
+    new_lane_kind: String,
+    new_attribution_jsonb: Value,
+    resume_pointer_jsonb: Value,
+    event_ledger_event_id: RecordId,
+    recovered_at_utc: DateTime<Utc>,
+}
+
+/// One `knowledge_parallel_indexing_lease_queue` record; the computed
+/// `acquired_scope_key` is deliberately absent.
+#[derive(Clone, SurrealValue)]
+struct LeaseRow {
+    lease_id: String,
+    workspace_id: String,
+    wp_id: String,
+    mt_id: String,
+    scope_kind: String,
+    scope_id: String,
+    lane_id: String,
+    actor_id: String,
+    lane_kind: String,
+    attribution_jsonb: Value,
+    session_id: String,
+    index_run_id: String,
+    priority: i64,
+    ttl_seconds: i64,
+    status: String,
+    blocked_by_lease_id: Option<String>,
+    enqueued_at_utc: DateTime<Utc>,
+    acquired_at_utc: Option<DateTime<Utc>>,
+    expires_at_utc: Option<DateTime<Utc>>,
+    completed_at_utc: Option<DateTime<Utc>>,
+    event_ledger_event_id: Option<RecordId>,
+    quiet_policy_jsonb: Value,
+}
+
+/// One `knowledge_agent_quiet_background_work` record.
+#[derive(SurrealValue)]
+struct QuietWorkRow {
+    receipt_id: String,
+    workspace_id: String,
+    wp_id: String,
+    mt_id: String,
+    work_kind: String,
+    subject_id: String,
+    lane_id: String,
+    actor_id: String,
+    lane_kind: String,
+    attribution_jsonb: Value,
+    session_id: String,
+    quiet_policy_jsonb: Value,
+    evidence_ref: String,
+    event_ledger_event_id: RecordId,
+    created_at_utc: DateTime<Utc>,
+}
+
+/// Bindings for the canonical "receipt row plus its EventLedger receipt in
+/// one transaction" write.
+#[derive(SurrealValue)]
+struct CreateRowWithEventBindings {
+    event_record: RecordId,
+    event_content: surrealdb::types::Value,
+    record: RecordId,
+    content: surrealdb::types::Value,
+}
+
+#[derive(SurrealValue)]
+struct WorkspaceBinding {
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct WorkspaceLimitBindings {
+    workspace_id: String,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct DashboardFilterBindings {
+    workspace_id: String,
+    wp_id: Option<String>,
+    mt_id: Option<String>,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct TotalsFilterBindings {
+    workspace_id: String,
+    wp_id: Option<String>,
+    mt_id: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct EventLookupBindings {
+    source_component: String,
+    event_ids: Vec<String>,
+}
+
+#[derive(SurrealValue)]
+struct GroupCountRow {
+    group_key: String,
+    row_count: i64,
+}
+
+#[derive(SurrealValue)]
+struct CheckpointIdBinding {
+    checkpoint_id: String,
+}
+
+#[derive(SurrealValue)]
+struct ScopeBinding {
+    scope_kind: String,
+    scope_id: String,
+}
+
+#[derive(SurrealValue)]
+struct RecordActorBinding {
+    record: RecordId,
+    actor_id: String,
+    completed_at_utc: DateTime<Utc>,
+}
+
+#[derive(SurrealValue)]
+struct AcquireLeaseBinding {
+    record: RecordId,
+    scope_kind: String,
+    scope_id: String,
+    acquired_at_utc: DateTime<Utc>,
+    expires_at_utc: DateTime<Utc>,
+}
+
+#[derive(SurrealValue)]
+struct RecordEventBinding {
+    record: RecordId,
+    event_record: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CreateEventBinding {
+    event_record: RecordId,
+    event_content: surrealdb::types::Value,
+}
+
+#[derive(SurrealValue)]
+struct ClaimActorBindings {
+    claim_id: String,
+    actor_id: String,
+}
+
+#[derive(SurrealValue)]
+struct ReleaseClaimBindings {
+    claim: RecordId,
+    actor_id: String,
+    reason: String,
+    event_record: RecordId,
+    event_content: surrealdb::types::Value,
+}
+
+#[derive(SurrealValue)]
+struct EmptyBindings {}
+
+#[derive(SurrealValue)]
+struct ExpiredRecordBinding {
+    record: RecordId,
+    completed_at_utc: DateTime<Utc>,
+}
+
+#[derive(SurrealValue)]
+struct ReclaimClaimBinding {
+    record: RecordId,
+    released_at_utc: DateTime<Utc>,
+    reason: String,
+}
+
+fn scope_binding(scope: &ClaimScope) -> ScopeBinding {
+    ScopeBinding {
+        scope_kind: scope.kind_str().to_string(),
+        scope_id: scope.scope_id(),
+    }
+}
+
+const CREATE_ROW_WITH_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
+     CREATE $event_record CONTENT $event_content; \
+     CREATE $record CONTENT $content; \
+     COMMIT TRANSACTION;";
+
+fn event_record(event_id: &str) -> RecordId {
+    RecordId::new(EVENT_LEDGER_TABLE, event_id.to_string())
+}
+
+/// The stored-discriminator UNIQUE indexes replace PostgreSQL's partial
+/// unique indexes, so a lost race surfaces as an index violation. The locked
+/// SDK exposes the violated index only in the error text; the index names are
+/// schema-owned constants, so matching on them is stable.
+fn is_unique_violation(error: &SurrealStorageError, index_name: &str) -> bool {
+    matches!(error, SurrealStorageError::Database(_)) && error.to_string().contains(index_name)
+}
+
+/// EventLedger record keys are strings (`KE-...`); a non-string key is a
+/// corrupt link rather than a case to tolerate.
+fn record_key_string(record: &RecordId) -> StateRecoveryResult<String> {
+    match &record.key {
+        RecordIdKey::String(value) => Ok(value.clone()),
+        other => Err(StateRecoveryError::InvalidInput(format!(
+            "record id key is not a string: {other:?}"
+        ))),
+    }
+}
+
+fn optional_record_key(record: Option<&RecordId>) -> StateRecoveryResult<Option<String>> {
+    record.map(record_key_string).transpose()
+}
+
+fn event_ledger_write_row(
+    event: &NewKernelEvent,
+    kernel_event: &KernelEvent,
+) -> EventLedgerWriteRow {
+    EventLedgerWriteRow {
+        event_id: kernel_event.event_id.clone(),
+        event_version: event.event_version.clone(),
+        kernel_task_run_id: event.kernel_task_run_id.clone(),
+        session_run_id: event.session_run_id.clone(),
+        aggregate_type: event.aggregate_type.clone(),
+        aggregate_id: event.aggregate_id.clone(),
+        idempotency_key: event.idempotency_key.clone(),
+        event_type: event.event_type.as_str().to_string(),
+        actor_kind: event.actor.actor_kind().to_string(),
+        actor_id: event.actor.actor_id().to_string(),
+        causation_id: event.causation_id.clone(),
+        correlation_id: event.correlation_id.clone(),
+        payload_hash: event.payload_hash.clone(),
+        source_component: event.source_component.clone(),
+        payload: event.payload.clone(),
+        created_at: kernel_event.created_at,
+    }
+}
+
 #[derive(Clone)]
 pub struct ParallelSwarmStateRecoveryStore {
-    pool: PgPool,
+    storage: SurrealStorage,
 }
 
 impl ParallelSwarmStateRecoveryStore {
-    pub fn new(pool: PgPool, _events: Arc<dyn Database>) -> Self {
-        Self { pool }
+    pub fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
+    }
+
+    pub fn storage(&self) -> &SurrealStorage {
+        &self.storage
+    }
+
+    async fn query<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Send + 'static,
+    {
+        self.storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values(statement, bindings).await })
+            })
+            .await
+    }
+
+    async fn query_first<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Send + 'static,
+    {
+        Ok(self.query(statement, bindings).await?.into_iter().next())
+    }
+
+    /// Builds the receipt event and the row-plus-event transaction bindings
+    /// for a fresh receipt row.
+    fn event_and_bindings(
+        event: NewKernelEvent,
+        table: &'static str,
+        row_id: String,
+        content: surrealdb::types::Value,
+    ) -> (String, CreateRowWithEventBindings) {
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(table, row_id),
+            content,
+        };
+        (event_id, bindings)
     }
 
     pub async fn claim_work_surface(
@@ -1362,81 +1787,64 @@ impl ParallelSwarmStateRecoveryStore {
 
         let claim_id = format!("PSR-CLAIM-{}", Uuid::now_v7());
         let persistent_lane = request.lane.scrubbed_for_persistence();
-        let lane_json = serde_json::to_value(&persistent_lane.attribution)?;
-        let mut tx = self.pool.begin().await?;
-        let inserted = sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_worktree_claims (
-                claim_id, workspace_id, wp_id, mt_id, scope_kind, scope_id,
-                lane_id, actor_id, lane_kind, attribution_jsonb, session_id,
-                status, reason, expires_at_utc
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11,
-                'active', $12, NOW() + ($13::BIGINT * INTERVAL '1 second')
-            )
-            "#,
-        )
-        .bind(&claim_id)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(request.scope.kind_str())
-        .bind(request.scope.scope_id())
-        .bind(&request.lane.lane_id)
-        .bind(&request.lane.actor_id)
-        .bind(request.lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(&request.session_id)
-        .bind(&request.reason)
-        .bind(request.ttl_seconds)
-        .execute(&mut *tx)
-        .await;
-
-        match inserted {
-            Ok(_) => {
-                let event_id = self
-                    .append_event_tx(
-                        &mut tx,
-                        KernelEventType::SessionClaimed,
-                        "parallel_swarm_claim",
-                        &claim_id,
-                        &persistent_lane,
-                        &request.session_id,
-                        json!({
-                            "schema_id": "hsk.parallel_swarm.claim@1",
-                            "claim_id": claim_id,
-                            "workspace_id": request.workspace_id,
-                            "wp_id": request.wp_id,
-                            "mt_id": request.mt_id,
-                            "scope": request.scope,
-                            "lane": persistent_lane,
-                            "reason": request.reason,
-                        }),
-                    )
-                    .await?;
-                sqlx::query(
-                    r#"
-                    UPDATE knowledge_agent_worktree_claims
-                       SET event_ledger_event_id = $2
-                     WHERE claim_id = $1
-                    "#,
-                )
-                .bind(&claim_id)
-                .bind(&event_id)
-                .execute(&mut *tx)
-                .await?;
-                tx.commit().await?;
-                Ok(WorkClaimOutcome {
-                    status: ClaimStatus::Active,
-                    claim_id,
-                    active_holder: None,
-                    event_ledger_event_id: Some(event_id),
-                })
-            }
-            Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
-                let _ = tx.rollback().await;
+        let now = Utc::now();
+        let event = Self::build_event(
+            KernelEventType::SessionClaimed,
+            "parallel_swarm_claim",
+            &claim_id,
+            &persistent_lane,
+            &request.session_id,
+            json!({
+                "schema_id": "hsk.parallel_swarm.claim@1",
+                "claim_id": claim_id,
+                "workspace_id": request.workspace_id,
+                "wp_id": request.wp_id,
+                "mt_id": request.mt_id,
+                "scope": request.scope,
+                "lane": persistent_lane,
+                "reason": request.reason,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let claim_row = ClaimRow {
+            claim_id: claim_id.clone(),
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            scope_kind: request.scope.kind_str().to_string(),
+            scope_id: request.scope.scope_id(),
+            lane_id: persistent_lane.lane_id.clone(),
+            actor_id: persistent_lane.actor_id.clone(),
+            lane_kind: persistent_lane.lane_kind.as_str().to_string(),
+            attribution_jsonb: serde_json::to_value(&persistent_lane.attribution)?,
+            session_id: request.session_id.clone(),
+            status: ClaimStatus::Active.as_str().to_string(),
+            reason: request.reason.clone(),
+            claimed_at_utc: now,
+            expires_at_utc: now + ChronoDuration::seconds(request.ttl_seconds),
+            released_at_utc: None,
+            event_ledger_event_id: Some(event_record(&event_id)),
+            release_event_ledger_event_id: None,
+            reclaim_event_ledger_event_id: None,
+        };
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(CLAIMS_TABLE, claim_id.clone()),
+            content: claim_row.into_value(),
+        };
+        match self
+            .query::<surrealdb::types::Value, _>(CREATE_ROW_WITH_EVENT_QUERY, bindings)
+            .await
+        {
+            Ok(_) => Ok(WorkClaimOutcome {
+                status: ClaimStatus::Active,
+                claim_id,
+                active_holder: None,
+                event_ledger_event_id: Some(event_id),
+            }),
+            Err(error) if is_unique_violation(&error, "ux_agent_worktree_claims_active_scope") => {
                 let holder = self.active_claim_for_scope(&request.scope).await?;
                 Ok(WorkClaimOutcome {
                     status: ClaimStatus::Held,
@@ -1448,7 +1856,7 @@ impl ParallelSwarmStateRecoveryStore {
                     event_ledger_event_id: None,
                 })
             }
-            Err(err) => Err(err.into()),
+            Err(error) => Err(error.into()),
         }
     }
 
@@ -1463,19 +1871,17 @@ impl ParallelSwarmStateRecoveryStore {
             "opportunistic expired claim sweep",
         )
         .await?;
-        let rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_worktree_claims
-            WHERE workspace_id = $1
-              AND status = 'active'
-              AND released_at_utc IS NULL
-              AND expires_at_utc > NOW()
-            ORDER BY claimed_at_utc ASC, claim_id ASC
-            "#,
-        )
-        .bind(workspace_id)
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<ClaimRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id AND status = 'active' \
+                   AND released_at_utc = NONE AND expires_at_utc > time::now() \
+                 ORDER BY claimed_at_utc ASC, claim_id ASC;",
+                WorkspaceBinding {
+                    workspace_id: workspace_id.to_string(),
+                },
+            )
+            .await?;
         rows.into_iter().map(work_claim_from_row).collect()
     }
 
@@ -1486,85 +1892,63 @@ impl ParallelSwarmStateRecoveryStore {
         require_capability(&request.lane, AgentCapability::InspectEvidence)?;
         ensure_safe_token("workspace_id", &request.workspace_id)?;
         let limit = bounded_inspection_limit(request.limit)?;
+        let bindings = || WorkspaceLimitBindings {
+            workspace_id: request.workspace_id.clone(),
+            limit,
+        };
 
-        let claim_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_worktree_claims
-            WHERE workspace_id = $1
-            ORDER BY claimed_at_utc DESC, claim_id DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
-        let handoff_rows = sqlx::query(
-            r#"
-            SELECT h.*
-            FROM knowledge_agent_role_mailbox_handoffs h
-            INNER JOIN knowledge_agent_worktree_claims c
-                    ON c.claim_id = h.claim_id
-            WHERE c.workspace_id = $1
-            ORDER BY h.created_at_utc DESC, h.handoff_id DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
-        let checkpoint_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_state_recovery_checkpoints
-            WHERE workspace_id = $1
-            ORDER BY created_at_utc DESC, checkpoint_id DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
-        let recovery_rows = sqlx::query(
-            r#"
-            SELECT r.*
-            FROM knowledge_agent_recovery_receipts r
-            INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                    ON c.checkpoint_id = r.checkpoint_id
-            WHERE c.workspace_id = $1
-            ORDER BY r.recovered_at_utc DESC, r.receipt_id DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
-        let lease_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-            WHERE workspace_id = $1
-            ORDER BY enqueued_at_utc DESC, lease_id DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
-        let quiet_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_quiet_background_work
-            WHERE workspace_id = $1
-            ORDER BY created_at_utc DESC, receipt_id DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let claim_rows: Vec<ClaimRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id \
+                 ORDER BY claimed_at_utc DESC, claim_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
+        // The previous SQL joins walked handoff -> claim and receipt ->
+        // checkpoint; the record links express the same constraint as field
+        // traversals (a NONE link never equals the workspace, matching the
+        // INNER JOIN exclusion).
+        let handoff_rows: Vec<HandoffRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_role_mailbox_handoffs \
+                 WHERE claim_id.workspace_id = $workspace_id \
+                 ORDER BY created_at_utc DESC, handoff_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
+        let checkpoint_rows: Vec<CheckpointRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_state_recovery_checkpoints \
+                 WHERE workspace_id = $workspace_id \
+                 ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
+        let recovery_rows: Vec<RecoveryReceiptRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_recovery_receipts \
+                 WHERE checkpoint_id.workspace_id = $workspace_id \
+                 ORDER BY recovered_at_utc DESC, receipt_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
+        let lease_rows: Vec<LeaseRow> = self
+            .query(
+                "SELECT * FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE workspace_id = $workspace_id \
+                 ORDER BY enqueued_at_utc DESC, lease_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
+        let quiet_rows: Vec<QuietWorkRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_quiet_background_work \
+                 WHERE workspace_id = $workspace_id \
+                 ORDER BY created_at_utc DESC, receipt_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
 
         Ok(SwarmEvidenceInspectionSnapshot {
             workspace_id: request.workspace_id,
@@ -1610,133 +1994,98 @@ impl ParallelSwarmStateRecoveryStore {
         let limit = bounded_inspection_limit(request.limit)?;
         let generated_at_utc = Utc::now();
 
-        let claim_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_worktree_claims
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            ORDER BY claimed_at_utc DESC, claim_id DESC
-            LIMIT $4
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(request.wp_id.as_deref())
-        .bind(request.mt_id.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let bindings = || DashboardFilterBindings {
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            limit,
+        };
+
+        let claim_rows: Vec<ClaimRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 ORDER BY claimed_at_utc DESC, claim_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
         let claims = claim_rows
             .into_iter()
             .map(work_claim_from_row)
             .collect::<StateRecoveryResult<Vec<_>>>()?;
 
-        let handoff_rows = sqlx::query(
-            r#"
-            SELECT h.*
-            FROM knowledge_agent_role_mailbox_handoffs h
-            INNER JOIN knowledge_agent_worktree_claims c
-                    ON c.claim_id = h.claim_id
-            WHERE c.workspace_id = $1
-              AND ($2::TEXT IS NULL OR h.wp_id = $2)
-              AND ($3::TEXT IS NULL OR h.mt_id = $3)
-            ORDER BY h.created_at_utc DESC, h.handoff_id DESC
-            LIMIT $4
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(request.wp_id.as_deref())
-        .bind(request.mt_id.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let handoff_rows: Vec<HandoffRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_role_mailbox_handoffs \
+                 WHERE claim_id.workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 ORDER BY created_at_utc DESC, handoff_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
         let mailbox_handoffs = handoff_rows
             .into_iter()
             .map(mailbox_handoff_from_row)
             .collect::<StateRecoveryResult<Vec<_>>>()?;
 
-        let checkpoint_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_state_recovery_checkpoints
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            ORDER BY created_at_utc DESC, checkpoint_id DESC
-            LIMIT $4
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(request.wp_id.as_deref())
-        .bind(request.mt_id.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let checkpoint_rows: Vec<CheckpointRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_state_recovery_checkpoints \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
         let checkpoints = checkpoint_rows
             .into_iter()
             .map(checkpoint_from_row)
             .collect::<StateRecoveryResult<Vec<_>>>()?;
 
-        let recovery_rows = sqlx::query(
-            r#"
-            SELECT r.*
-            FROM knowledge_agent_recovery_receipts r
-            INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                    ON c.checkpoint_id = r.checkpoint_id
-            WHERE c.workspace_id = $1
-              AND ($2::TEXT IS NULL OR c.wp_id = $2)
-              AND ($3::TEXT IS NULL OR c.mt_id = $3)
-            ORDER BY r.recovered_at_utc DESC, r.receipt_id DESC
-            LIMIT $4
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(request.wp_id.as_deref())
-        .bind(request.mt_id.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let recovery_rows: Vec<RecoveryReceiptRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_recovery_receipts \
+                 WHERE checkpoint_id.workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR checkpoint_id.wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR checkpoint_id.mt_id = $mt_id) \
+                 ORDER BY recovered_at_utc DESC, receipt_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
         let recovery_receipts = recovery_rows
             .into_iter()
             .map(recovery_receipt_from_row)
             .collect::<StateRecoveryResult<Vec<_>>>()?;
 
-        let lease_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            ORDER BY enqueued_at_utc DESC, lease_id DESC
-            LIMIT $4
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(request.wp_id.as_deref())
-        .bind(request.mt_id.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let lease_rows: Vec<LeaseRow> = self
+            .query(
+                "SELECT * FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 ORDER BY enqueued_at_utc DESC, lease_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
         let indexing_leases = lease_rows
             .into_iter()
             .map(index_lease_from_row)
             .collect::<StateRecoveryResult<Vec<_>>>()?;
 
-        let quiet_rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_quiet_background_work
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            ORDER BY created_at_utc DESC, receipt_id DESC
-            LIMIT $4
-            "#,
-        )
-        .bind(&request.workspace_id)
-        .bind(request.wp_id.as_deref())
-        .bind(request.mt_id.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let quiet_rows: Vec<QuietWorkRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_quiet_background_work \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 ORDER BY created_at_utc DESC, receipt_id DESC LIMIT $limit;",
+                bindings(),
+            )
+            .await?;
         let quiet_background_work = quiet_rows
             .into_iter()
             .map(quiet_background_work_from_row)
@@ -1877,249 +2226,237 @@ impl ParallelSwarmStateRecoveryStore {
         wp_id: Option<&str>,
         mt_id: Option<&str>,
     ) -> StateRecoveryResult<SwarmDashboardAuthorityTotals> {
-        let claim_summary = sqlx::query(
-            r#"
-            SELECT COUNT(*) AS claims,
-                   COUNT(*) FILTER (WHERE status = 'active') AS active_claims,
-                   COUNT(*) FILTER (
-                       WHERE status = 'active' AND expires_at_utc <= NOW()
-                   ) AS stale_active_claims
-            FROM knowledge_agent_worktree_claims
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let handoff_count: i64 = sqlx::query_scalar(
-            r#"
-            SELECT COUNT(*)
-            FROM knowledge_agent_role_mailbox_handoffs h
-            INNER JOIN knowledge_agent_worktree_claims c
-                    ON c.claim_id = h.claim_id
-            WHERE c.workspace_id = $1
-              AND ($2::TEXT IS NULL OR h.wp_id = $2)
-              AND ($3::TEXT IS NULL OR h.mt_id = $3)
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let checkpoint_count: i64 = sqlx::query_scalar(
-            r#"
-            SELECT COUNT(*)
-            FROM knowledge_agent_state_recovery_checkpoints
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let recovery_count: i64 = sqlx::query_scalar(
-            r#"
-            SELECT COUNT(*)
-            FROM knowledge_agent_recovery_receipts r
-            INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                    ON c.checkpoint_id = r.checkpoint_id
-            WHERE c.workspace_id = $1
-              AND ($2::TEXT IS NULL OR c.wp_id = $2)
-              AND ($3::TEXT IS NULL OR c.mt_id = $3)
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let lease_summary = sqlx::query(
-            r#"
-            SELECT COUNT(*) AS indexing_leases,
-                   COUNT(*) FILTER (WHERE status = 'acquired') AS acquired_indexing_leases
-            FROM knowledge_parallel_indexing_lease_queue
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let quiet_count: i64 = sqlx::query_scalar(
-            r#"
-            SELECT COUNT(*)
-            FROM knowledge_agent_quiet_background_work
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let event_count: i64 = sqlx::query_scalar(
-            r#"
-            WITH source_events(event_id) AS (
-                SELECT event_ledger_event_id
-                FROM knowledge_agent_worktree_claims
-                WHERE workspace_id = $1
-                  AND ($2::TEXT IS NULL OR wp_id = $2)
-                  AND ($3::TEXT IS NULL OR mt_id = $3)
-                  AND event_ledger_event_id IS NOT NULL
-                UNION
-                SELECT release_event_ledger_event_id
-                FROM knowledge_agent_worktree_claims
-                WHERE workspace_id = $1
-                  AND ($2::TEXT IS NULL OR wp_id = $2)
-                  AND ($3::TEXT IS NULL OR mt_id = $3)
-                  AND release_event_ledger_event_id IS NOT NULL
-                UNION
-                SELECT reclaim_event_ledger_event_id
-                FROM knowledge_agent_worktree_claims
-                WHERE workspace_id = $1
-                  AND ($2::TEXT IS NULL OR wp_id = $2)
-                  AND ($3::TEXT IS NULL OR mt_id = $3)
-                  AND reclaim_event_ledger_event_id IS NOT NULL
-                UNION
-                SELECT h.event_ledger_event_id
-                FROM knowledge_agent_role_mailbox_handoffs h
-                INNER JOIN knowledge_agent_worktree_claims c
-                        ON c.claim_id = h.claim_id
-                WHERE c.workspace_id = $1
-                  AND ($2::TEXT IS NULL OR h.wp_id = $2)
-                  AND ($3::TEXT IS NULL OR h.mt_id = $3)
-                UNION
-                SELECT event_ledger_event_id
-                FROM knowledge_agent_state_recovery_checkpoints
-                WHERE workspace_id = $1
-                  AND ($2::TEXT IS NULL OR wp_id = $2)
-                  AND ($3::TEXT IS NULL OR mt_id = $3)
-                UNION
-                SELECT r.event_ledger_event_id
-                FROM knowledge_agent_recovery_receipts r
-                INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                        ON c.checkpoint_id = r.checkpoint_id
-                WHERE c.workspace_id = $1
-                  AND ($2::TEXT IS NULL OR c.wp_id = $2)
-                  AND ($3::TEXT IS NULL OR c.mt_id = $3)
-                UNION
-                SELECT event_ledger_event_id
-                FROM knowledge_parallel_indexing_lease_queue
-                WHERE workspace_id = $1
-                  AND ($2::TEXT IS NULL OR wp_id = $2)
-                  AND ($3::TEXT IS NULL OR mt_id = $3)
-                  AND event_ledger_event_id IS NOT NULL
-                UNION
-                SELECT event_ledger_event_id
-                FROM knowledge_agent_quiet_background_work
-                WHERE workspace_id = $1
-                  AND ($2::TEXT IS NULL OR wp_id = $2)
-                  AND ($3::TEXT IS NULL OR mt_id = $3)
+        #[derive(SurrealValue)]
+        struct AuthorityCounts {
+            claims: i64,
+            active_claims: i64,
+            stale_active_claims: i64,
+            mailbox_handoffs: i64,
+            recovery_checkpoints: i64,
+            recovery_receipts: i64,
+            indexing_leases: i64,
+            acquired_indexing_leases: i64,
+            quiet_background_work: i64,
+        }
+
+        let bindings = || TotalsFilterBindings {
+            workspace_id: workspace_id.to_string(),
+            wp_id: wp_id.map(ToOwned::to_owned),
+            mt_id: mt_id.map(ToOwned::to_owned),
+        };
+
+        // One RETURN statement evaluates every scalar total in a single
+        // statement (one transaction), replacing PostgreSQL's per-table
+        // COUNT/FILTER queries with one snapshot.
+        let counts: AuthorityCounts = self
+            .query_first(
+                "RETURN { \
+                 claims: array::len((SELECT VALUE id FROM knowledge_agent_worktree_claims \
+                     WHERE workspace_id = $workspace_id \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 active_claims: array::len((SELECT VALUE id FROM knowledge_agent_worktree_claims \
+                     WHERE workspace_id = $workspace_id AND status = 'active' \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 stale_active_claims: array::len((SELECT VALUE id FROM knowledge_agent_worktree_claims \
+                     WHERE workspace_id = $workspace_id AND status = 'active' \
+                       AND expires_at_utc <= time::now() \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 mailbox_handoffs: array::len((SELECT VALUE id FROM knowledge_agent_role_mailbox_handoffs \
+                     WHERE claim_id.workspace_id = $workspace_id \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 recovery_checkpoints: array::len((SELECT VALUE id FROM knowledge_agent_state_recovery_checkpoints \
+                     WHERE workspace_id = $workspace_id \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 recovery_receipts: array::len((SELECT VALUE id FROM knowledge_agent_recovery_receipts \
+                     WHERE checkpoint_id.workspace_id = $workspace_id \
+                       AND ($wp_id = NONE OR checkpoint_id.wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR checkpoint_id.mt_id = $mt_id))), \
+                 indexing_leases: array::len((SELECT VALUE id FROM knowledge_parallel_indexing_lease_queue \
+                     WHERE workspace_id = $workspace_id \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 acquired_indexing_leases: array::len((SELECT VALUE id FROM knowledge_parallel_indexing_lease_queue \
+                     WHERE workspace_id = $workspace_id AND status = 'acquired' \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))), \
+                 quiet_background_work: array::len((SELECT VALUE id FROM knowledge_agent_quiet_background_work \
+                     WHERE workspace_id = $workspace_id \
+                       AND ($wp_id = NONE OR wp_id = $wp_id) \
+                       AND ($mt_id = NONE OR mt_id = $mt_id))) \
+                 };",
+                bindings(),
             )
-            SELECT COUNT(DISTINCT e.event_id)
-            FROM source_events s
-            INNER JOIN kernel_event_ledger e
-                    ON e.event_id = s.event_id
-                   AND e.source_component = $4
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .bind(PARALLEL_SWARM_SOURCE_COMPONENT)
-        .fetch_one(&self.pool)
-        .await?;
-        let claim_status_rows = sqlx::query(
-            r#"
-            SELECT status, COUNT(*) AS row_count
-            FROM knowledge_agent_worktree_claims
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            GROUP BY status
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_all(&self.pool)
-        .await?;
-        let handoff_status_rows = sqlx::query(
-            r#"
-            SELECT h.status, COUNT(*) AS row_count
-            FROM knowledge_agent_role_mailbox_handoffs h
-            INNER JOIN knowledge_agent_worktree_claims c
-                    ON c.claim_id = h.claim_id
-            WHERE c.workspace_id = $1
-              AND ($2::TEXT IS NULL OR h.wp_id = $2)
-              AND ($3::TEXT IS NULL OR h.mt_id = $3)
-            GROUP BY h.status
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_all(&self.pool)
-        .await?;
-        let lease_status_rows = sqlx::query(
-            r#"
-            SELECT status, COUNT(*) AS row_count
-            FROM knowledge_parallel_indexing_lease_queue
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            GROUP BY status
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_all(&self.pool)
-        .await?;
-        let quiet_kind_rows = sqlx::query(
-            r#"
-            SELECT work_kind, COUNT(*) AS row_count
-            FROM knowledge_agent_quiet_background_work
-            WHERE workspace_id = $1
-              AND ($2::TEXT IS NULL OR wp_id = $2)
-              AND ($3::TEXT IS NULL OR mt_id = $3)
-            GROUP BY work_kind
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(wp_id)
-        .bind(mt_id)
-        .fetch_all(&self.pool)
-        .await?;
+            .await?
+            .ok_or_else(|| {
+                StateRecoveryError::InvalidInput(
+                    "dashboard authority totals returned no snapshot".to_string(),
+                )
+            })?;
+
+        // The distinct-EventLedger count: gather the receipt links from every
+        // source table (the PostgreSQL CTE's UNION legs), then count the
+        // matching ledger rows. `record::id(...)` unwraps the record link to
+        // the ledger's string event id; the UNION's DISTINCT is reproduced by
+        // the BTreeSet.
+        let mut source_event_ids = BTreeSet::new();
+        let id_batches: [Vec<String>; 8] = [
+            self.query(
+                "SELECT VALUE record::id(event_ledger_event_id) \
+                 FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id AND event_ledger_event_id != NONE \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(release_event_ledger_event_id) \
+                 FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id AND release_event_ledger_event_id != NONE \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(reclaim_event_ledger_event_id) \
+                 FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id AND reclaim_event_ledger_event_id != NONE \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(event_ledger_event_id) \
+                 FROM knowledge_agent_role_mailbox_handoffs \
+                 WHERE claim_id.workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(event_ledger_event_id) \
+                 FROM knowledge_agent_state_recovery_checkpoints \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(event_ledger_event_id) \
+                 FROM knowledge_agent_recovery_receipts \
+                 WHERE checkpoint_id.workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR checkpoint_id.wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR checkpoint_id.mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(event_ledger_event_id) \
+                 FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE workspace_id = $workspace_id AND event_ledger_event_id != NONE \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+            self.query(
+                "SELECT VALUE record::id(event_ledger_event_id) \
+                 FROM knowledge_agent_quiet_background_work \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id);",
+                bindings(),
+            )
+            .await?,
+        ];
+        for batch in id_batches {
+            source_event_ids.extend(batch);
+        }
+        let events = if source_event_ids.is_empty() {
+            0
+        } else {
+            let matched: Vec<String> = self
+                .query(
+                    "SELECT VALUE event_id FROM kernel_event_ledger \
+                     WHERE source_component = $source_component AND event_id IN $event_ids;",
+                    EventLookupBindings {
+                        source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+                        event_ids: source_event_ids.into_iter().collect(),
+                    },
+                )
+                .await?;
+            matched.into_iter().collect::<BTreeSet<String>>().len() as i64
+        };
+
+        let claim_status_rows: Vec<GroupCountRow> = self
+            .query(
+                "SELECT status AS group_key, count() AS row_count \
+                 FROM knowledge_agent_worktree_claims \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 GROUP BY group_key;",
+                bindings(),
+            )
+            .await?;
+        let handoff_status_rows: Vec<GroupCountRow> = self
+            .query(
+                "SELECT status AS group_key, count() AS row_count \
+                 FROM knowledge_agent_role_mailbox_handoffs \
+                 WHERE claim_id.workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 GROUP BY group_key;",
+                bindings(),
+            )
+            .await?;
+        let lease_status_rows: Vec<GroupCountRow> = self
+            .query(
+                "SELECT status AS group_key, count() AS row_count \
+                 FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 GROUP BY group_key;",
+                bindings(),
+            )
+            .await?;
+        let quiet_kind_rows: Vec<GroupCountRow> = self
+            .query(
+                "SELECT work_kind AS group_key, count() AS row_count \
+                 FROM knowledge_agent_quiet_background_work \
+                 WHERE workspace_id = $workspace_id \
+                   AND ($wp_id = NONE OR wp_id = $wp_id) \
+                   AND ($mt_id = NONE OR mt_id = $mt_id) \
+                 GROUP BY group_key;",
+                bindings(),
+            )
+            .await?;
 
         Ok(SwarmDashboardAuthorityTotals {
-            claims: claim_summary.try_get("claims")?,
-            active_claims: claim_summary.try_get("active_claims")?,
-            stale_active_claims: claim_summary.try_get("stale_active_claims")?,
-            mailbox_handoffs: handoff_count,
-            recovery_checkpoints: checkpoint_count,
-            recovery_receipts: recovery_count,
-            indexing_leases: lease_summary.try_get("indexing_leases")?,
-            acquired_indexing_leases: lease_summary.try_get("acquired_indexing_leases")?,
-            quiet_background_work: quiet_count,
-            events: event_count,
-            claims_by_status: dashboard_group_count_map(claim_status_rows, "status")?,
-            handoffs_by_status: dashboard_group_count_map(handoff_status_rows, "status")?,
-            leases_by_status: dashboard_group_count_map(lease_status_rows, "status")?,
-            quiet_work_by_kind: dashboard_group_count_map(quiet_kind_rows, "work_kind")?,
+            claims: counts.claims,
+            active_claims: counts.active_claims,
+            stale_active_claims: counts.stale_active_claims,
+            mailbox_handoffs: counts.mailbox_handoffs,
+            recovery_checkpoints: counts.recovery_checkpoints,
+            recovery_receipts: counts.recovery_receipts,
+            indexing_leases: counts.indexing_leases,
+            acquired_indexing_leases: counts.acquired_indexing_leases,
+            quiet_background_work: counts.quiet_background_work,
+            events,
+            claims_by_status: dashboard_group_count_map(claim_status_rows),
+            handoffs_by_status: dashboard_group_count_map(handoff_status_rows),
+            leases_by_status: dashboard_group_count_map(lease_status_rows),
+            quiet_work_by_kind: dashboard_group_count_map(quiet_kind_rows),
         })
     }
 
@@ -2137,33 +2474,37 @@ impl ParallelSwarmStateRecoveryStore {
                 missing_event_refs: Vec::new(),
             });
         }
-        let rows = sqlx::query(
-            r#"
-            SELECT event_id,
-                   source_component,
-                   aggregate_type,
-                   aggregate_id,
-                   created_at AT TIME ZONE 'UTC' AS created_at_utc
-            FROM kernel_event_ledger
-            WHERE source_component = $1
-              AND event_id = ANY($2)
-            ORDER BY created_at DESC, event_id DESC
-            "#,
-        )
-        .bind(PARALLEL_SWARM_SOURCE_COMPONENT)
-        .bind(&event_ids)
-        .fetch_all(&self.pool)
-        .await?;
+        #[derive(SurrealValue)]
+        struct WatermarkRow {
+            event_id: String,
+            source_component: String,
+            aggregate_type: String,
+            aggregate_id: String,
+            created_at: DateTime<Utc>,
+        }
+
+        let rows: Vec<WatermarkRow> = self
+            .query(
+                "SELECT event_id, source_component, aggregate_type, aggregate_id, created_at \
+                 FROM kernel_event_ledger \
+                 WHERE source_component = $source_component AND event_id IN $event_ids \
+                 ORDER BY created_at DESC, event_id DESC;",
+                EventLookupBindings {
+                    source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+                    event_ids: event_ids.clone(),
+                },
+            )
+            .await?;
         let mut found = BTreeSet::new();
         let mut counts = BTreeMap::<String, i64>::new();
         let mut max_created = None;
         let mut events = Vec::new();
         for row in rows {
-            let event_id: String = row.try_get("event_id")?;
-            let source_component: String = row.try_get("source_component")?;
-            let aggregate_type: String = row.try_get("aggregate_type")?;
-            let aggregate_id: String = row.try_get("aggregate_id")?;
-            let created_at: DateTime<Utc> = row.try_get("created_at_utc")?;
+            let event_id = row.event_id;
+            let source_component = row.source_component;
+            let aggregate_type = row.aggregate_type;
+            let aggregate_id = row.aggregate_id;
+            let created_at = row.created_at;
             found.insert(event_id.clone());
             *counts.entry(aggregate_type.clone()).or_insert(0) += 1;
             if max_created.map_or(true, |current| created_at > current) {
@@ -2202,23 +2543,6 @@ impl ParallelSwarmStateRecoveryStore {
         &self,
         request: QuietBackgroundWorkRequest,
     ) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
-        let mut tx = self.pool.begin().await?;
-        let record = match self.record_quiet_background_work_tx(&mut tx, request).await {
-            Ok(record) => record,
-            Err(error) => {
-                let _ = tx.rollback().await;
-                return Err(error);
-            }
-        };
-        tx.commit().await?;
-        Ok(record)
-    }
-
-    pub(crate) async fn record_quiet_background_work_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        request: QuietBackgroundWorkRequest,
-    ) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
         require_capability(&request.lane, AgentCapability::RunQuietBackgroundWork)?;
         ensure_safe_token("workspace_id", &request.workspace_id)?;
         ensure_safe_token("wp_id", &request.wp_id)?;
@@ -2230,57 +2554,66 @@ impl ParallelSwarmStateRecoveryStore {
 
         let receipt_id = format!("PSR-QUIET-{}", Uuid::now_v7());
         let persistent_lane = request.lane.scrubbed_for_persistence();
-        let lane_json = serde_json::to_value(&persistent_lane.attribution)?;
-        let policy_json = serde_json::to_value(&request.policy)?;
-        let event_id = self
-            .append_event_tx(
-                tx,
-                KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
-                "parallel_swarm_quiet_background_work",
-                &receipt_id,
-                &persistent_lane,
-                &request.session_id,
-                json!({
-                    "schema_id": "hsk.parallel_swarm.quiet_background_work@1",
-                    "receipt_id": &receipt_id,
-                    "workspace_id": &request.workspace_id,
-                    "wp_id": &request.wp_id,
-                    "mt_id": &request.mt_id,
-                    "work_kind": request.work_kind,
-                    "subject_id": &request.subject_id,
-                    "quiet_policy": &request.policy,
-                    "evidence_ref": &request.evidence_ref,
-                }),
-            )
-            .await?;
-        let row = sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_quiet_background_work (
-                receipt_id, workspace_id, wp_id, mt_id, work_kind, subject_id,
-                lane_id, actor_id, lane_kind, attribution_jsonb, session_id,
-                quiet_policy_jsonb, evidence_ref, event_ledger_event_id
-            )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-            RETURNING *
-            "#,
-        )
-        .bind(&receipt_id)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(request.work_kind.as_str())
-        .bind(&request.subject_id)
-        .bind(&persistent_lane.lane_id)
-        .bind(&persistent_lane.actor_id)
-        .bind(persistent_lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(&request.session_id)
-        .bind(policy_json)
-        .bind(&request.evidence_ref)
-        .bind(&event_id)
-        .fetch_one(&mut **tx)
-        .await?;
-        quiet_background_work_from_row(row)
+        let created_at_utc = Utc::now();
+        let event = Self::build_event(
+            KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
+            "parallel_swarm_quiet_background_work",
+            &receipt_id,
+            &persistent_lane,
+            &request.session_id,
+            json!({
+                "schema_id": "hsk.parallel_swarm.quiet_background_work@1",
+                "receipt_id": &receipt_id,
+                "workspace_id": &request.workspace_id,
+                "wp_id": &request.wp_id,
+                "mt_id": &request.mt_id,
+                "work_kind": request.work_kind,
+                "subject_id": &request.subject_id,
+                "quiet_policy": &request.policy,
+                "evidence_ref": &request.evidence_ref,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let row = QuietWorkRow {
+            receipt_id: receipt_id.clone(),
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            work_kind: request.work_kind.as_str().to_string(),
+            subject_id: request.subject_id.clone(),
+            lane_id: persistent_lane.lane_id.clone(),
+            actor_id: persistent_lane.actor_id.clone(),
+            lane_kind: persistent_lane.lane_kind.as_str().to_string(),
+            attribution_jsonb: serde_json::to_value(&persistent_lane.attribution)?,
+            session_id: request.session_id.clone(),
+            quiet_policy_jsonb: serde_json::to_value(&request.policy)?,
+            evidence_ref: request.evidence_ref.clone(),
+            event_ledger_event_id: event_record(&event_id),
+            created_at_utc,
+        };
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(QUIET_TABLE, receipt_id.clone()),
+            content: row.into_value(),
+        };
+        let _: Vec<surrealdb::types::Value> =
+            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        Ok(QuietBackgroundWorkRecord {
+            receipt_id,
+            workspace_id: request.workspace_id,
+            wp_id: request.wp_id,
+            mt_id: request.mt_id,
+            work_kind: request.work_kind,
+            subject_id: request.subject_id,
+            lane: persistent_lane,
+            session_id: request.session_id,
+            policy: request.policy,
+            evidence_ref: request.evidence_ref,
+            event_ledger_event_id: event_id,
+            created_at_utc,
+        })
     }
 
     pub async fn resolve_backend_navigation_quiet(
@@ -2332,69 +2665,73 @@ impl ParallelSwarmStateRecoveryStore {
         lane: &AgentLaneIdentity,
         reason: &str,
     ) -> StateRecoveryResult<bool> {
-        let mut tx = self.pool.begin().await?;
-        let row = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_worktree_claims
-             WHERE claim_id = $1
-               AND actor_id = $2
-               AND status = 'active'
-               AND released_at_utc IS NULL
-             FOR UPDATE
-            "#,
-        )
-        .bind(claim_id)
-        .bind(&lane.actor_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            tx.rollback().await?;
-            return Ok(false);
-        };
-        let claim = work_claim_from_row(row)?;
-        let persistent_lane = lane.scrubbed_for_persistence();
-        let event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::SessionCompleted,
-                "parallel_swarm_claim",
-                claim_id,
-                &persistent_lane,
-                &format!("release-{claim_id}"),
-                json!({
-                    "schema_id": "hsk.parallel_swarm.claim_release@1",
-                    "claim_id": claim_id,
-                    "workspace_id": claim.workspace_id,
-                    "wp_id": claim.wp_id,
-                    "mt_id": claim.mt_id,
-                    "scope": claim.scope,
-                    "lane": persistent_lane,
-                    "status": ClaimStatus::Released,
-                    "reason": reason,
-                }),
+        // The event payload is built from a pre-read of the owned active
+        // claim; the guarded transaction below re-checks the same ownership
+        // predicate, so a lost race between the read and the write releases
+        // nothing (the FOR UPDATE lock's guarantee, carried by the guard).
+        let rows: Vec<ClaimRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE claim_id = $claim_id AND actor_id = $actor_id \
+                   AND status = 'active' AND released_at_utc = NONE;",
+                ClaimActorBindings {
+                    claim_id: claim_id.to_string(),
+                    actor_id: lane.actor_id.clone(),
+                },
             )
             .await?;
-        sqlx::query(
-            r#"
-            UPDATE knowledge_agent_worktree_claims
-               SET status = 'released',
-                   released_at_utc = NOW(),
-                   reason = $3,
-                   release_event_ledger_event_id = $4
-             WHERE claim_id = $1
-               AND actor_id = $2
-               AND status = 'active'
-               AND released_at_utc IS NULL
-            "#,
-        )
-        .bind(claim_id)
-        .bind(&lane.actor_id)
-        .bind(reason)
-        .bind(&event_id)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        Ok(true)
+        let Some(claim) = rows
+            .into_iter()
+            .next()
+            .map(work_claim_from_row)
+            .transpose()?
+        else {
+            return Ok(false);
+        };
+        let persistent_lane = lane.scrubbed_for_persistence();
+        let event = Self::build_event(
+            KernelEventType::SessionCompleted,
+            "parallel_swarm_claim",
+            claim_id,
+            &persistent_lane,
+            &format!("release-{claim_id}"),
+            json!({
+                "schema_id": "hsk.parallel_swarm.claim_release@1",
+                "claim_id": claim_id,
+                "workspace_id": claim.workspace_id,
+                "wp_id": claim.wp_id,
+                "mt_id": claim.mt_id,
+                "scope": claim.scope,
+                "lane": persistent_lane,
+                "status": ClaimStatus::Released,
+                "reason": reason,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let released: Option<bool> = self
+            .query_first(
+                "BEGIN TRANSACTION; \
+                 IF count((SELECT VALUE id FROM $claim \
+                     WHERE actor_id = $actor_id AND status = 'active' \
+                       AND released_at_utc = NONE)) > 0 { \
+                     CREATE $event_record CONTENT $event_content; \
+                     UPDATE $claim SET status = 'released', \
+                         released_at_utc = time::now(), reason = $reason, \
+                         release_event_ledger_event_id = $event_record; \
+                     RETURN true; \
+                 } ELSE { RETURN NONE; }; \
+                 COMMIT TRANSACTION;",
+                ReleaseClaimBindings {
+                    claim: RecordId::new(CLAIMS_TABLE, claim_id.to_string()),
+                    actor_id: lane.actor_id.clone(),
+                    reason: reason.to_string(),
+                    event_record: event_record(&event_id),
+                    event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+                },
+            )
+            .await?;
+        Ok(released.unwrap_or(false))
     }
 
     pub async fn record_role_mailbox_handoff(
@@ -2406,62 +2743,73 @@ impl ParallelSwarmStateRecoveryStore {
         ensure_sha256(&request.body_sha256)?;
         let handoff_id = format!("PSR-HANDOFF-{}", Uuid::now_v7());
         let from_lane = request.from_lane.scrubbed_for_persistence();
-        let mut tx = self.pool.begin().await?;
-        let event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::HbrHandoffGate,
-                "parallel_swarm_handoff",
-                &handoff_id,
-                &from_lane,
-                &format!("handoff-{handoff_id}"),
-                json!({
-                    "schema_id": "hsk.parallel_swarm.mailbox_handoff@1",
-                    "handoff_id": handoff_id,
-                    "wp_id": request.wp_id,
-                    "mt_id": request.mt_id,
-                    "claim_id": request.claim_id,
-                    "to_role": request.to_role,
-                    "mailbox_thread_id": request.mailbox_thread_id,
-                    "mailbox_message_id": request.mailbox_message_id,
-                    "status": request.status,
-                    "summary": request.summary,
-                    "body_sha256": request.body_sha256,
-                }),
-            )
-            .await?;
-        let lane_json = serde_json::to_value(&from_lane.attribution)?;
-        let row = sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_role_mailbox_handoffs (
-                handoff_id, wp_id, mt_id, claim_id, from_lane_id, from_actor_id,
-                from_lane_kind, from_attribution_jsonb, to_role,
-                mailbox_thread_id, mailbox_message_id, status, summary,
-                body_sha256, event_ledger_event_id
-            )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-            RETURNING *
-            "#,
-        )
-        .bind(&handoff_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(&request.claim_id)
-        .bind(&from_lane.lane_id)
-        .bind(&from_lane.actor_id)
-        .bind(from_lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(&request.to_role)
-        .bind(&request.mailbox_thread_id)
-        .bind(&request.mailbox_message_id)
-        .bind(request.status.as_str())
-        .bind(&request.summary)
-        .bind(&request.body_sha256)
-        .bind(&event_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        mailbox_handoff_from_row(row)
+        let created_at_utc = Utc::now();
+        let event = Self::build_event(
+            KernelEventType::HbrHandoffGate,
+            "parallel_swarm_handoff",
+            &handoff_id,
+            &from_lane,
+            &format!("handoff-{handoff_id}"),
+            json!({
+                "schema_id": "hsk.parallel_swarm.mailbox_handoff@1",
+                "handoff_id": handoff_id,
+                "wp_id": request.wp_id,
+                "mt_id": request.mt_id,
+                "claim_id": request.claim_id,
+                "to_role": request.to_role,
+                "mailbox_thread_id": request.mailbox_thread_id,
+                "mailbox_message_id": request.mailbox_message_id,
+                "status": request.status,
+                "summary": request.summary,
+                "body_sha256": request.body_sha256,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let row = HandoffRow {
+            handoff_id: handoff_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            claim_id: request
+                .claim_id
+                .as_ref()
+                .map(|claim_id| RecordId::new(CLAIMS_TABLE, claim_id.clone())),
+            from_lane_id: from_lane.lane_id.clone(),
+            from_actor_id: from_lane.actor_id.clone(),
+            from_lane_kind: from_lane.lane_kind.as_str().to_string(),
+            from_attribution_jsonb: serde_json::to_value(&from_lane.attribution)?,
+            to_role: request.to_role.clone(),
+            mailbox_thread_id: request.mailbox_thread_id.clone(),
+            mailbox_message_id: request.mailbox_message_id.clone(),
+            status: request.status.as_str().to_string(),
+            summary: request.summary.clone(),
+            body_sha256: request.body_sha256.clone(),
+            event_ledger_event_id: event_record(&event_id),
+            created_at_utc,
+        };
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(HANDOFFS_TABLE, handoff_id.clone()),
+            content: row.into_value(),
+        };
+        let _: Vec<surrealdb::types::Value> =
+            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        Ok(RoleMailboxHandoffRecord {
+            handoff_id,
+            wp_id: request.wp_id,
+            mt_id: request.mt_id,
+            claim_id: request.claim_id,
+            from_lane,
+            to_role: request.to_role,
+            mailbox_thread_id: request.mailbox_thread_id,
+            mailbox_message_id: request.mailbox_message_id,
+            status: request.status,
+            summary: request.summary,
+            body_sha256: request.body_sha256,
+            event_ledger_event_id: event_id,
+            created_at_utc,
+        })
     }
 
     pub async fn record_cloud_fallback_basis(
@@ -2495,33 +2843,39 @@ impl ParallelSwarmStateRecoveryStore {
 
         let basis_id = format!("PSR-FALLBACK-{}", Uuid::now_v7());
         let lane = request.lane.scrubbed_for_persistence();
-        let mut tx = self.pool.begin().await?;
-        let fallback_basis_event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::HbrHandoffGate,
-                "parallel_swarm_cloud_fallback_basis",
-                &basis_id,
-                &lane,
-                &request.session_id,
-                json!({
-                    "schema_id": PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID,
-                    "basis_id": &basis_id,
-                    "workspace_id": &request.workspace_id,
-                    "wp_id": &request.wp_id,
-                    "mt_id": &request.mt_id,
-                    "claim_id": &request.claim_id,
-                    "parent_session_id": &request.parent_session_id,
-                    "prompt_sha256": &request.prompt_sha256,
-                    "lane": &lane,
-                    "fallback_reason": request.fallback_reason,
-                    "local_attempt_ref": &request.local_attempt_ref,
-                    "evidence_sha256": &request.evidence_sha256,
-                    "summary": &request.summary,
-                }),
+        let event = Self::build_event(
+            KernelEventType::HbrHandoffGate,
+            "parallel_swarm_cloud_fallback_basis",
+            &basis_id,
+            &lane,
+            &request.session_id,
+            json!({
+                "schema_id": PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID,
+                "basis_id": &basis_id,
+                "workspace_id": &request.workspace_id,
+                "wp_id": &request.wp_id,
+                "mt_id": &request.mt_id,
+                "claim_id": &request.claim_id,
+                "parent_session_id": &request.parent_session_id,
+                "prompt_sha256": &request.prompt_sha256,
+                "lane": &lane,
+                "fallback_reason": request.fallback_reason,
+                "local_attempt_ref": &request.local_attempt_ref,
+                "evidence_sha256": &request.evidence_sha256,
+                "summary": &request.summary,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let fallback_basis_event_id = kernel_event.event_id.clone();
+        let _: Vec<surrealdb::types::Value> = self
+            .query(
+                "CREATE $event_record CONTENT $event_content RETURN AFTER;",
+                CreateEventBinding {
+                    event_record: event_record(&fallback_basis_event_id),
+                    event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+                },
             )
             .await?;
-        tx.commit().await?;
 
         Ok(CloudFallbackBasisReceiptV1 {
             schema_id: PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID.to_string(),
@@ -2567,170 +2921,289 @@ impl ParallelSwarmStateRecoveryStore {
         let receipt_id = format!("PSR-CLOUD-{}", Uuid::now_v7());
         let handoff_id = format!("PSR-HANDOFF-{}", Uuid::now_v7());
         let from_lane = request.from_lane.scrubbed_for_persistence();
-        let lane_json = serde_json::to_value(&from_lane.attribution)?;
-        let mut tx = self.pool.begin().await?;
+        // Pre-reads produce the typed errors; the transaction below re-checks
+        // both predicates in-store and THROWs on a lost race, so the receipt
+        // can never land against a claim or basis proof that disappeared.
         let claim = self
-            .active_cloud_assistance_claim_tx(&mut tx, &request)
+            .active_cloud_assistance_claim(&request)
             .await?
             .ok_or_else(|| {
                 StateRecoveryError::InvalidInput(
                     "cloud assistance requires an active cloud-owned workspace claim".to_string(),
                 )
             })?;
-        self.ensure_cloud_fallback_basis_event_tx(&mut tx, &request)
-            .await?;
+        self.ensure_cloud_fallback_basis_event(&request).await?;
 
-        let handoff_event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::HbrHandoffGate,
-                "parallel_swarm_handoff",
-                &handoff_id,
-                &from_lane,
-                &format!("handoff-{handoff_id}"),
-                json!({
-                    "schema_id": "hsk.parallel_swarm.mailbox_handoff@1",
-                    "handoff_id": &handoff_id,
-                    "wp_id": &request.wp_id,
-                    "mt_id": &request.mt_id,
-                    "claim_id": &request.claim_id,
-                    "to_role": &request.to_role,
-                    "mailbox_thread_id": &request.mailbox_thread_id,
-                    "mailbox_message_id": &request.mailbox_message_id,
-                    "status": SwarmReceiptStatus::Progress,
-                    "summary": &request.summary,
-                    "body_sha256": &request.body_sha256,
-                    "cloud_assistance_receipt_id": &receipt_id,
-                }),
-            )
-            .await?;
-        let handoff_row = sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_role_mailbox_handoffs (
-                handoff_id, wp_id, mt_id, claim_id, from_lane_id, from_actor_id,
-                from_lane_kind, from_attribution_jsonb, to_role,
-                mailbox_thread_id, mailbox_message_id, status, summary,
-                body_sha256, event_ledger_event_id
-            )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-            RETURNING *
-            "#,
-        )
-        .bind(&handoff_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(&request.claim_id)
-        .bind(&from_lane.lane_id)
-        .bind(&from_lane.actor_id)
-        .bind(from_lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(&request.to_role)
-        .bind(&request.mailbox_thread_id)
-        .bind(&request.mailbox_message_id)
-        .bind(SwarmReceiptStatus::Progress.as_str())
-        .bind(&request.summary)
-        .bind(&request.body_sha256)
-        .bind(&handoff_event_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let created_at_utc = Utc::now();
+        let handoff_event = Self::build_event(
+            KernelEventType::HbrHandoffGate,
+            "parallel_swarm_handoff",
+            &handoff_id,
+            &from_lane,
+            &format!("handoff-{handoff_id}"),
+            json!({
+                "schema_id": "hsk.parallel_swarm.mailbox_handoff@1",
+                "handoff_id": &handoff_id,
+                "wp_id": &request.wp_id,
+                "mt_id": &request.mt_id,
+                "claim_id": &request.claim_id,
+                "to_role": &request.to_role,
+                "mailbox_thread_id": &request.mailbox_thread_id,
+                "mailbox_message_id": &request.mailbox_message_id,
+                "status": SwarmReceiptStatus::Progress,
+                "summary": &request.summary,
+                "body_sha256": &request.body_sha256,
+                "cloud_assistance_receipt_id": &receipt_id,
+            }),
+        )?;
+        let handoff_kernel_event = KernelEvent::from_new(handoff_event.clone());
+        let handoff_event_id = handoff_kernel_event.event_id.clone();
+        let handoff_row = HandoffRow {
+            handoff_id: handoff_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            claim_id: Some(RecordId::new(CLAIMS_TABLE, request.claim_id.clone())),
+            from_lane_id: from_lane.lane_id.clone(),
+            from_actor_id: from_lane.actor_id.clone(),
+            from_lane_kind: from_lane.lane_kind.as_str().to_string(),
+            from_attribution_jsonb: serde_json::to_value(&from_lane.attribution)?,
+            to_role: request.to_role.clone(),
+            mailbox_thread_id: request.mailbox_thread_id.clone(),
+            mailbox_message_id: request.mailbox_message_id.clone(),
+            status: SwarmReceiptStatus::Progress.as_str().to_string(),
+            summary: request.summary.clone(),
+            body_sha256: request.body_sha256.clone(),
+            event_ledger_event_id: event_record(&handoff_event_id),
+            created_at_utc,
+        };
 
-        let cloud_assistance_event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::HbrHandoffGate,
-                "parallel_swarm_cloud_assistance",
-                &receipt_id,
-                &from_lane,
-                &request.session_id,
-                json!({
-                    "schema_id": PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID,
-                    "receipt_id": &receipt_id,
-                    "workspace_id": &request.workspace_id,
-                    "wp_id": &request.wp_id,
-                    "mt_id": &request.mt_id,
-                    "claim_id": &request.claim_id,
-                    "handoff_id": &handoff_id,
-                    "handoff_event_ledger_event_id": &handoff_event_id,
-                    "fallback_basis_event_id": &request.fallback_basis_event_id,
-                    "parent_session_id": &request.parent_session_id,
-                    "prompt_sha256": &request.prompt_sha256,
-                    "session_id": &request.session_id,
-                    "lane": &from_lane,
-                    "fallback_reason": request.fallback_reason,
-                    "output_kind": request.output_kind,
-                    "output_sha256": &request.output_sha256,
-                    "body_sha256": &request.body_sha256,
-                    "output_text": &request.output_text,
-                    "output_body": &request.output_body_jsonb,
-                    "target_ref": &request.target_ref,
-                    "review_state": "pending_review",
-                    "non_authoritative": true,
-                    "requires_promotion": true,
-                    "authority_mutation_allowed": false,
-                    "promotion_event_id": Option::<String>::None,
-                }),
+        let assistance_event = Self::build_event(
+            KernelEventType::HbrHandoffGate,
+            "parallel_swarm_cloud_assistance",
+            &receipt_id,
+            &from_lane,
+            &request.session_id,
+            json!({
+                "schema_id": PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID,
+                "receipt_id": &receipt_id,
+                "workspace_id": &request.workspace_id,
+                "wp_id": &request.wp_id,
+                "mt_id": &request.mt_id,
+                "claim_id": &request.claim_id,
+                "handoff_id": &handoff_id,
+                "handoff_event_ledger_event_id": &handoff_event_id,
+                "fallback_basis_event_id": &request.fallback_basis_event_id,
+                "parent_session_id": &request.parent_session_id,
+                "prompt_sha256": &request.prompt_sha256,
+                "session_id": &request.session_id,
+                "lane": &from_lane,
+                "fallback_reason": request.fallback_reason,
+                "output_kind": request.output_kind,
+                "output_sha256": &request.output_sha256,
+                "body_sha256": &request.body_sha256,
+                "output_text": &request.output_text,
+                "output_body": &request.output_body_jsonb,
+                "target_ref": &request.target_ref,
+                "review_state": "pending_review",
+                "non_authoritative": true,
+                "requires_promotion": true,
+                "authority_mutation_allowed": false,
+                "promotion_event_id": Option::<String>::None,
+            }),
+        )?;
+        let assistance_kernel_event = KernelEvent::from_new(assistance_event.clone());
+        let cloud_assistance_event_id = assistance_kernel_event.event_id.clone();
+
+        #[derive(SurrealValue)]
+        struct CloudReceiptRow {
+            receipt_id: String,
+            workspace_id: String,
+            wp_id: String,
+            mt_id: String,
+            claim_id: RecordId,
+            handoff_id: RecordId,
+            handoff_event_ledger_event_id: RecordId,
+            cloud_assistance_event_id: RecordId,
+            fallback_basis_event_id: RecordId,
+            parent_session_id: String,
+            prompt_sha256: String,
+            lane_id: String,
+            actor_id: String,
+            lane_kind: String,
+            provider: String,
+            model_label: String,
+            attribution_jsonb: Value,
+            session_id: String,
+            fallback_reason: String,
+            output_kind: String,
+            output_sha256: String,
+            body_sha256: String,
+            output_text: String,
+            output_body_jsonb: Value,
+            target_ref: String,
+            review_state: String,
+            non_authoritative: bool,
+            requires_promotion: bool,
+            authority_mutation_allowed: bool,
+            promotion_event_id: Option<String>,
+        }
+
+        let receipt_row = CloudReceiptRow {
+            receipt_id: receipt_id.clone(),
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            claim_id: RecordId::new(CLAIMS_TABLE, request.claim_id.clone()),
+            handoff_id: RecordId::new(HANDOFFS_TABLE, handoff_id.clone()),
+            handoff_event_ledger_event_id: event_record(&handoff_event_id),
+            cloud_assistance_event_id: event_record(&cloud_assistance_event_id),
+            fallback_basis_event_id: event_record(&request.fallback_basis_event_id),
+            parent_session_id: request.parent_session_id.clone(),
+            prompt_sha256: request.prompt_sha256.clone(),
+            lane_id: from_lane.lane_id.clone(),
+            actor_id: from_lane.actor_id.clone(),
+            lane_kind: from_lane.lane_kind.as_str().to_string(),
+            provider: model_provider_kind_as_str(from_lane.attribution.provider.ok_or_else(
+                || {
+                    StateRecoveryError::InvalidInput(
+                        "cloud assistance provider must be present".to_string(),
+                    )
+                },
+            )?)
+            .to_string(),
+            model_label: from_lane.attribution.model_label.clone(),
+            attribution_jsonb: serde_json::to_value(&from_lane.attribution)?,
+            session_id: request.session_id.clone(),
+            fallback_reason: request.fallback_reason.as_str().to_string(),
+            output_kind: request.output_kind.as_str().to_string(),
+            output_sha256: request.output_sha256.clone(),
+            body_sha256: request.body_sha256.clone(),
+            output_text: request.output_text.clone(),
+            output_body_jsonb: request.output_body_jsonb.clone(),
+            target_ref: request.target_ref.clone(),
+            review_state: "pending_review".to_string(),
+            non_authoritative: true,
+            requires_promotion: true,
+            authority_mutation_allowed: false,
+            promotion_event_id: None,
+        };
+
+        #[derive(SurrealValue)]
+        struct CloudAssistanceTxBindings {
+            claim: RecordId,
+            workspace_id: String,
+            wp_id: String,
+            mt_id: String,
+            lane_id: String,
+            actor_id: String,
+            basis_event: RecordId,
+            source_component: String,
+            basis_schema_id: String,
+            claim_id_text: String,
+            parent_session_id: String,
+            prompt_sha256: String,
+            fallback_reason: String,
+            handoff_event_record: RecordId,
+            handoff_event_content: surrealdb::types::Value,
+            handoff_record: RecordId,
+            handoff_content: surrealdb::types::Value,
+            assistance_event_record: RecordId,
+            assistance_event_content: surrealdb::types::Value,
+            receipt_record: RecordId,
+            receipt_content: surrealdb::types::Value,
+        }
+
+        let bindings = CloudAssistanceTxBindings {
+            claim: RecordId::new(CLAIMS_TABLE, request.claim_id.clone()),
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            lane_id: from_lane.lane_id.clone(),
+            actor_id: from_lane.actor_id.clone(),
+            basis_event: event_record(&request.fallback_basis_event_id),
+            source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+            basis_schema_id: PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID.to_string(),
+            claim_id_text: request.claim_id.clone(),
+            parent_session_id: request.parent_session_id.clone(),
+            prompt_sha256: request.prompt_sha256.clone(),
+            fallback_reason: request.fallback_reason.as_str().to_string(),
+            handoff_event_record: event_record(&handoff_event_id),
+            handoff_event_content: event_ledger_write_row(&handoff_event, &handoff_kernel_event)
+                .into_value(),
+            handoff_record: RecordId::new(HANDOFFS_TABLE, handoff_id.clone()),
+            handoff_content: handoff_row.into_value(),
+            assistance_event_record: event_record(&cloud_assistance_event_id),
+            assistance_event_content: event_ledger_write_row(
+                &assistance_event,
+                &assistance_kernel_event,
             )
-            .await?;
-        sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_cloud_assistance_receipts (
-                receipt_id, workspace_id, wp_id, mt_id, claim_id,
-                handoff_id, handoff_event_ledger_event_id, cloud_assistance_event_id,
-                fallback_basis_event_id, parent_session_id, prompt_sha256,
-                lane_id, actor_id, lane_kind,
-                provider, model_label, attribution_jsonb, session_id,
-                fallback_reason, output_kind, output_sha256, body_sha256,
-                output_text, output_body_jsonb, target_ref,
-                review_state, non_authoritative, requires_promotion,
-                authority_mutation_allowed, promotion_event_id
+            .into_value(),
+            receipt_record: RecordId::new(CLOUD_RECEIPTS_TABLE, receipt_id.clone()),
+            receipt_content: receipt_row.into_value(),
+        };
+        let tx_result: Result<Vec<surrealdb::types::Value>, SurrealStorageError> = self
+            .query(
+                "BEGIN TRANSACTION; \
+                 IF count((SELECT VALUE id FROM $claim \
+                     WHERE workspace_id = $workspace_id AND wp_id = $wp_id \
+                       AND mt_id = $mt_id AND scope_kind = 'workspace' \
+                       AND scope_id = $workspace_id AND lane_id = $lane_id \
+                       AND actor_id = $actor_id AND lane_kind = 'cloud' \
+                       AND status = 'active' AND released_at_utc = NONE \
+                       AND expires_at_utc > time::now())) = 0 { \
+                     THROW 'PSR_CLOUD_CLAIM_GONE'; \
+                 }; \
+                 IF count((SELECT VALUE id FROM $basis_event \
+                     WHERE aggregate_type = 'parallel_swarm_cloud_fallback_basis' \
+                       AND source_component = $source_component \
+                       AND payload.schema_id = $basis_schema_id \
+                       AND payload.workspace_id = $workspace_id \
+                       AND payload.wp_id = $wp_id AND payload.mt_id = $mt_id \
+                       AND payload.claim_id = $claim_id_text \
+                       AND payload.parent_session_id = $parent_session_id \
+                       AND payload.prompt_sha256 = $prompt_sha256 \
+                       AND payload.fallback_reason = $fallback_reason \
+                       AND payload.lane.lane_kind IN ['local', 'system'])) = 0 { \
+                     THROW 'PSR_CLOUD_BASIS_GONE'; \
+                 }; \
+                 CREATE $handoff_event_record CONTENT $handoff_event_content; \
+                 CREATE $handoff_record CONTENT $handoff_content; \
+                 CREATE $assistance_event_record CONTENT $assistance_event_content; \
+                 CREATE $receipt_record CONTENT $receipt_content; \
+                 COMMIT TRANSACTION;",
+                bindings,
             )
-            VALUES (
-                $1,$2,$3,$4,$5,
-                $6,$7,$8,
-                $9,$10,$11,
-                $12,$13,$14,
-                $15,$16,$17,$18,
-                $19,$20,$21,$22,
-                $23,$24,$25,
-                'pending_review', TRUE, TRUE, FALSE, NULL
-            )
-            "#,
-        )
-        .bind(&receipt_id)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(&request.claim_id)
-        .bind(&handoff_id)
-        .bind(&handoff_event_id)
-        .bind(&cloud_assistance_event_id)
-        .bind(&request.fallback_basis_event_id)
-        .bind(&request.parent_session_id)
-        .bind(&request.prompt_sha256)
-        .bind(&from_lane.lane_id)
-        .bind(&from_lane.actor_id)
-        .bind(from_lane.lane_kind.as_str())
-        .bind(model_provider_kind_as_str(
-            from_lane.attribution.provider.ok_or_else(|| {
-                StateRecoveryError::InvalidInput(
-                    "cloud assistance provider must be present".to_string(),
-                )
-            })?,
-        ))
-        .bind(&from_lane.attribution.model_label)
-        .bind(serde_json::to_value(&from_lane.attribution)?)
-        .bind(&request.session_id)
-        .bind(request.fallback_reason.as_str())
-        .bind(request.output_kind.as_str())
-        .bind(&request.output_sha256)
-        .bind(&request.body_sha256)
-        .bind(&request.output_text)
-        .bind(&request.output_body_jsonb)
-        .bind(&request.target_ref)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        let handoff = mailbox_handoff_from_row(handoff_row)?;
+            .await;
+        if let Err(error) = tx_result {
+            let message = error.to_string();
+            if message.contains("PSR_CLOUD_CLAIM_GONE") {
+                return Err(StateRecoveryError::InvalidInput(
+                    "cloud assistance requires an active cloud-owned workspace claim".to_string(),
+                ));
+            }
+            if message.contains("PSR_CLOUD_BASIS_GONE") {
+                return Err(StateRecoveryError::InvalidInput(
+                    "cloud assistance requires a matching fallback-basis EventLedger proof"
+                        .to_string(),
+                ));
+            }
+            return Err(error.into());
+        }
+        let handoff = RoleMailboxHandoffRecord {
+            handoff_id,
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            claim_id: Some(request.claim_id.clone()),
+            from_lane: from_lane.clone(),
+            to_role: request.to_role.clone(),
+            mailbox_thread_id: request.mailbox_thread_id.clone(),
+            mailbox_message_id: request.mailbox_message_id.clone(),
+            status: SwarmReceiptStatus::Progress,
+            summary: request.summary.clone(),
+            body_sha256: request.body_sha256.clone(),
+            event_ledger_event_id: handoff_event_id,
+            created_at_utc,
+        };
         let receipt = CloudAssistanceReceiptV1 {
             schema_id: PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID.to_string(),
             receipt_id,
@@ -2768,83 +3241,93 @@ impl ParallelSwarmStateRecoveryStore {
         Ok(receipt)
     }
 
-    async fn active_cloud_assistance_claim_tx(
+    async fn active_cloud_assistance_claim(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
         request: &CloudAssistanceRequest,
     ) -> StateRecoveryResult<Option<WorkClaimRecord>> {
-        let row = sqlx::query(
-            r#"
-            SELECT *
-            FROM knowledge_agent_worktree_claims
-            WHERE claim_id = $1
-              AND workspace_id = $2
-              AND wp_id = $3
-              AND mt_id = $4
-              AND scope_kind = 'workspace'
-              AND scope_id = $2
-              AND lane_id = $5
-              AND actor_id = $6
-              AND lane_kind = 'cloud'
-              AND status = 'active'
-              AND released_at_utc IS NULL
-              AND expires_at_utc > NOW()
-            FOR UPDATE
-            "#,
-        )
-        .bind(&request.claim_id)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(&request.from_lane.lane_id)
-        .bind(&request.from_lane.actor_id)
-        .fetch_optional(&mut **tx)
-        .await?;
-        row.map(work_claim_from_row).transpose()
+        #[derive(SurrealValue)]
+        struct Bindings {
+            claim_id: String,
+            workspace_id: String,
+            wp_id: String,
+            mt_id: String,
+            lane_id: String,
+            actor_id: String,
+        }
+
+        let rows: Vec<ClaimRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE claim_id = $claim_id AND workspace_id = $workspace_id \
+                   AND wp_id = $wp_id AND mt_id = $mt_id \
+                   AND scope_kind = 'workspace' AND scope_id = $workspace_id \
+                   AND lane_id = $lane_id AND actor_id = $actor_id \
+                   AND lane_kind = 'cloud' AND status = 'active' \
+                   AND released_at_utc = NONE AND expires_at_utc > time::now();",
+                Bindings {
+                    claim_id: request.claim_id.clone(),
+                    workspace_id: request.workspace_id.clone(),
+                    wp_id: request.wp_id.clone(),
+                    mt_id: request.mt_id.clone(),
+                    lane_id: request.from_lane.lane_id.clone(),
+                    actor_id: request.from_lane.actor_id.clone(),
+                },
+            )
+            .await?;
+        rows.into_iter().next().map(work_claim_from_row).transpose()
     }
 
-    async fn ensure_cloud_fallback_basis_event_tx(
+    async fn ensure_cloud_fallback_basis_event(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
         request: &CloudAssistanceRequest,
     ) -> StateRecoveryResult<()> {
-        let found: Option<i64> = sqlx::query_scalar(
-            r#"
-            SELECT 1::BIGINT
-            FROM kernel_event_ledger
-            WHERE event_id = $1
-              AND aggregate_type = 'parallel_swarm_cloud_fallback_basis'
-              AND source_component = $2
-              AND payload ->> 'schema_id' = $3
-              AND payload ->> 'workspace_id' = $4
-              AND payload ->> 'wp_id' = $5
-              AND payload ->> 'mt_id' = $6
-              AND payload ->> 'claim_id' = $7
-              AND payload ->> 'parent_session_id' = $8
-              AND payload ->> 'prompt_sha256' = $9
-              AND payload ->> 'fallback_reason' = $10
-              AND COALESCE(payload -> 'lane' ->> 'lane_kind', '') <> 'cloud'
-              AND COALESCE(payload -> 'lane' ->> 'lane_kind', '') IN ('local', 'system')
-            "#,
-        )
-        .bind(&request.fallback_basis_event_id)
-        .bind(PARALLEL_SWARM_SOURCE_COMPONENT)
-        .bind(PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(&request.claim_id)
-        .bind(&request.parent_session_id)
-        .bind(&request.prompt_sha256)
-        .bind(request.fallback_reason.as_str())
-        .fetch_optional(&mut **tx)
-        .await?;
-        if found.is_some() {
-            Ok(())
-        } else {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            basis_event: RecordId,
+            source_component: String,
+            basis_schema_id: String,
+            workspace_id: String,
+            wp_id: String,
+            mt_id: String,
+            claim_id_text: String,
+            parent_session_id: String,
+            prompt_sha256: String,
+            fallback_reason: String,
+        }
+
+        let found: Vec<String> = self
+            .query(
+                "SELECT VALUE event_id FROM $basis_event \
+                 WHERE aggregate_type = 'parallel_swarm_cloud_fallback_basis' \
+                   AND source_component = $source_component \
+                   AND payload.schema_id = $basis_schema_id \
+                   AND payload.workspace_id = $workspace_id \
+                   AND payload.wp_id = $wp_id AND payload.mt_id = $mt_id \
+                   AND payload.claim_id = $claim_id_text \
+                   AND payload.parent_session_id = $parent_session_id \
+                   AND payload.prompt_sha256 = $prompt_sha256 \
+                   AND payload.fallback_reason = $fallback_reason \
+                   AND payload.lane.lane_kind IN ['local', 'system'];",
+                Bindings {
+                    basis_event: event_record(&request.fallback_basis_event_id),
+                    source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+                    basis_schema_id: PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID.to_string(),
+                    workspace_id: request.workspace_id.clone(),
+                    wp_id: request.wp_id.clone(),
+                    mt_id: request.mt_id.clone(),
+                    claim_id_text: request.claim_id.clone(),
+                    parent_session_id: request.parent_session_id.clone(),
+                    prompt_sha256: request.prompt_sha256.clone(),
+                    fallback_reason: request.fallback_reason.as_str().to_string(),
+                },
+            )
+            .await?;
+        if found.is_empty() {
             Err(StateRecoveryError::InvalidInput(
                 "cloud assistance requires a matching fallback-basis EventLedger proof".to_string(),
             ))
+        } else {
+            Ok(())
         }
     }
 
@@ -2858,75 +3341,91 @@ impl ParallelSwarmStateRecoveryStore {
         let payload_sha256 = sha256_hex(&payload_bytes);
         let resume_pointer = serde_json::to_value(&request.resume_pointer)?;
         let lane = request.lane.scrubbed_for_persistence();
-        let mut tx = self.pool.begin().await?;
-        let event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::KnowledgeCrdtCheckpointRecorded,
-                "parallel_swarm_checkpoint",
-                &checkpoint_id,
-                &lane,
-                &request.session_id,
-                json!({
-                    "schema_id": "hsk.parallel_swarm.checkpoint@1",
-                    "checkpoint_id": checkpoint_id,
-                    "workspace_id": request.workspace_id,
-                    "wp_id": request.wp_id,
-                    "mt_id": request.mt_id,
-                    "claim_id": request.claim_id,
-                    "mailbox_handoff_id": request.mailbox_handoff_id,
-                    "navigation_command_id": request.navigation_command_id,
-                    "resume_pointer": resume_pointer,
-                    "payload_sha256": payload_sha256,
-                    "compaction_reason": request.compaction_reason,
-                    "git_head": request.git_head,
-                }),
-            )
-            .await?;
-        let lane_json = serde_json::to_value(&lane.attribution)?;
-        let row = sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_state_recovery_checkpoints (
-                checkpoint_id, lane_id, actor_id, lane_kind, attribution_jsonb,
-                session_id, workspace_id, wp_id, mt_id, claim_id,
-                mailbox_handoff_id, navigation_command_id, resume_pointer_jsonb,
-                touched_files_jsonb, tests_jsonb, hbr_rows_jsonb,
-                next_step_context, payload_jsonb, payload_sha256,
-                compaction_reason, git_head, event_ledger_event_id
-            )
-            VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
-                $14,$15,$16,$17,$18,$19,$20,$21,$22
-            )
-            RETURNING *
-            "#,
-        )
-        .bind(&checkpoint_id)
-        .bind(&lane.lane_id)
-        .bind(&lane.actor_id)
-        .bind(lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(&request.session_id)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(&request.claim_id)
-        .bind(&request.mailbox_handoff_id)
-        .bind(&request.navigation_command_id)
-        .bind(serde_json::to_value(&request.resume_pointer)?)
-        .bind(json!(request.touched_files))
-        .bind(json!(request.tests))
-        .bind(json!(request.hbr_rows))
-        .bind(&request.next_step_context)
-        .bind(&request.payload)
-        .bind(&payload_sha256)
-        .bind(&request.compaction_reason)
-        .bind(&request.git_head)
-        .bind(&event_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        checkpoint_from_row(row)
+        let created_at_utc = Utc::now();
+        let event = Self::build_event(
+            KernelEventType::KnowledgeCrdtCheckpointRecorded,
+            "parallel_swarm_checkpoint",
+            &checkpoint_id,
+            &lane,
+            &request.session_id,
+            json!({
+                "schema_id": "hsk.parallel_swarm.checkpoint@1",
+                "checkpoint_id": checkpoint_id,
+                "workspace_id": request.workspace_id,
+                "wp_id": request.wp_id,
+                "mt_id": request.mt_id,
+                "claim_id": request.claim_id,
+                "mailbox_handoff_id": request.mailbox_handoff_id,
+                "navigation_command_id": request.navigation_command_id,
+                "resume_pointer": resume_pointer,
+                "payload_sha256": payload_sha256,
+                "compaction_reason": request.compaction_reason,
+                "git_head": request.git_head,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let row = CheckpointRow {
+            checkpoint_id: checkpoint_id.clone(),
+            lane_id: lane.lane_id.clone(),
+            actor_id: lane.actor_id.clone(),
+            lane_kind: lane.lane_kind.as_str().to_string(),
+            attribution_jsonb: serde_json::to_value(&lane.attribution)?,
+            session_id: request.session_id.clone(),
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            claim_id: request
+                .claim_id
+                .as_ref()
+                .map(|claim_id| RecordId::new(CLAIMS_TABLE, claim_id.clone())),
+            mailbox_handoff_id: request
+                .mailbox_handoff_id
+                .as_ref()
+                .map(|handoff_id| RecordId::new(HANDOFFS_TABLE, handoff_id.clone())),
+            navigation_command_id: request.navigation_command_id.clone(),
+            resume_pointer_jsonb: serde_json::to_value(&request.resume_pointer)?,
+            touched_files_jsonb: request.touched_files.clone(),
+            tests_jsonb: request.tests.clone(),
+            hbr_rows_jsonb: request.hbr_rows.clone(),
+            next_step_context: request.next_step_context.clone(),
+            payload_jsonb: request.payload.clone(),
+            payload_sha256: payload_sha256.clone(),
+            compaction_reason: request.compaction_reason.clone(),
+            git_head: request.git_head.clone(),
+            event_ledger_event_id: event_record(&event_id),
+            created_at_utc,
+        };
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(CHECKPOINTS_TABLE, checkpoint_id.clone()),
+            content: row.into_value(),
+        };
+        let _: Vec<surrealdb::types::Value> =
+            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        Ok(RecoveryCheckpointRecord {
+            checkpoint_id,
+            lane,
+            session_id: request.session_id,
+            workspace_id: request.workspace_id,
+            wp_id: request.wp_id,
+            mt_id: request.mt_id,
+            claim_id: request.claim_id,
+            mailbox_handoff_id: request.mailbox_handoff_id,
+            navigation_command_id: request.navigation_command_id,
+            resume_pointer: request.resume_pointer,
+            touched_files: request.touched_files,
+            tests: request.tests,
+            hbr_rows: request.hbr_rows,
+            next_step_context: request.next_step_context,
+            payload: request.payload,
+            payload_sha256,
+            compaction_reason: request.compaction_reason,
+            git_head: request.git_head,
+            event_ledger_event_id: event_id,
+            created_at_utc,
+        })
     }
 
     pub async fn recover_from_checkpoint(
@@ -2936,14 +3435,21 @@ impl ParallelSwarmStateRecoveryStore {
         new_session_id: &str,
     ) -> StateRecoveryResult<RecoveredCheckpoint> {
         require_capability(&new_lane, AgentCapability::RecordCheckpoint)?;
-        let row = sqlx::query(
-            "SELECT * FROM knowledge_agent_state_recovery_checkpoints WHERE checkpoint_id = $1",
-        )
-        .bind(checkpoint_id)
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| StateRecoveryError::CheckpointNotFound(checkpoint_id.to_string()))?;
-        let checkpoint = checkpoint_from_row(row)?;
+        let rows: Vec<CheckpointRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_state_recovery_checkpoints \
+                 WHERE checkpoint_id = $checkpoint_id;",
+                CheckpointIdBinding {
+                    checkpoint_id: checkpoint_id.to_string(),
+                },
+            )
+            .await?;
+        let checkpoint = rows
+            .into_iter()
+            .next()
+            .map(checkpoint_from_row)
+            .transpose()?
+            .ok_or_else(|| StateRecoveryError::CheckpointNotFound(checkpoint_id.to_string()))?;
         let found = sha256_hex(&serde_json::to_vec(&checkpoint.payload)?);
         if found != checkpoint.payload_sha256 {
             return Err(StateRecoveryError::PayloadHashMismatch {
@@ -2954,51 +3460,55 @@ impl ParallelSwarmStateRecoveryStore {
         }
         let receipt_id = format!("PSR-RECOVERY-{}", Uuid::now_v7());
         let new_lane = new_lane.scrubbed_for_persistence();
-        let mut tx = self.pool.begin().await?;
-        let event_id = self
-            .append_event_tx(
-                &mut tx,
-                KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
-                "parallel_swarm_recovery",
-                &receipt_id,
-                &new_lane,
-                new_session_id,
-                json!({
-                    "schema_id": "hsk.parallel_swarm.recovery_receipt@1",
-                    "receipt_id": receipt_id,
-                    "checkpoint_id": checkpoint.checkpoint_id,
-                    "prior_session_id": checkpoint.session_id,
-                    "new_session_id": new_session_id,
-                    "resume_pointer": checkpoint.resume_pointer,
-                }),
-            )
-            .await?;
-        let lane_json = serde_json::to_value(&new_lane.attribution)?;
-        let row = sqlx::query(
-            r#"
-            INSERT INTO knowledge_agent_recovery_receipts (
-                receipt_id, checkpoint_id, prior_session_id, new_session_id,
-                new_lane_id, new_actor_id, new_lane_kind, new_attribution_jsonb,
-                resume_pointer_jsonb, event_ledger_event_id
-            )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-            RETURNING *
-            "#,
-        )
-        .bind(&receipt_id)
-        .bind(&checkpoint.checkpoint_id)
-        .bind(&checkpoint.session_id)
-        .bind(new_session_id)
-        .bind(&new_lane.lane_id)
-        .bind(&new_lane.actor_id)
-        .bind(new_lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(serde_json::to_value(&checkpoint.resume_pointer)?)
-        .bind(&event_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        let receipt = recovery_receipt_from_row(row)?;
+        let recovered_at_utc = Utc::now();
+        let event = Self::build_event(
+            KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
+            "parallel_swarm_recovery",
+            &receipt_id,
+            &new_lane,
+            new_session_id,
+            json!({
+                "schema_id": "hsk.parallel_swarm.recovery_receipt@1",
+                "receipt_id": receipt_id,
+                "checkpoint_id": checkpoint.checkpoint_id,
+                "prior_session_id": checkpoint.session_id,
+                "new_session_id": new_session_id,
+                "resume_pointer": checkpoint.resume_pointer,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let row = RecoveryReceiptRow {
+            receipt_id: receipt_id.clone(),
+            checkpoint_id: RecordId::new(CHECKPOINTS_TABLE, checkpoint.checkpoint_id.clone()),
+            prior_session_id: checkpoint.session_id.clone(),
+            new_session_id: new_session_id.to_string(),
+            new_lane_id: new_lane.lane_id.clone(),
+            new_actor_id: new_lane.actor_id.clone(),
+            new_lane_kind: new_lane.lane_kind.as_str().to_string(),
+            new_attribution_jsonb: serde_json::to_value(&new_lane.attribution)?,
+            resume_pointer_jsonb: serde_json::to_value(&checkpoint.resume_pointer)?,
+            event_ledger_event_id: event_record(&event_id),
+            recovered_at_utc,
+        };
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(RECEIPTS_TABLE, receipt_id.clone()),
+            content: row.into_value(),
+        };
+        let _: Vec<surrealdb::types::Value> =
+            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        let receipt = RecoveryReceiptRecord {
+            receipt_id,
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            prior_session_id: checkpoint.session_id.clone(),
+            new_session_id: new_session_id.to_string(),
+            new_lane,
+            resume_pointer: checkpoint.resume_pointer.clone(),
+            event_ledger_event_id: event_id,
+            recovered_at_utc,
+        };
         Ok(RecoveredCheckpoint {
             resume_pointer: checkpoint.resume_pointer.clone(),
             checkpoint,
@@ -3013,13 +3523,16 @@ impl ParallelSwarmStateRecoveryStore {
         require_capability(&request.requested_by_lane, AgentCapability::NavigateBackend)?;
         ensure_safe_token("checkpoint_id", &request.checkpoint_id)?;
         let max_chars = bounded_handoff_body_chars(request.max_chars)?;
-        let row = sqlx::query(
-            "SELECT * FROM knowledge_agent_state_recovery_checkpoints WHERE checkpoint_id = $1",
-        )
-        .bind(&request.checkpoint_id)
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| StateRecoveryError::CheckpointNotFound(request.checkpoint_id.clone()))?;
+        let row: CheckpointRow = self
+            .query_first(
+                "SELECT * FROM knowledge_agent_state_recovery_checkpoints \
+                 WHERE checkpoint_id = $checkpoint_id;",
+                CheckpointIdBinding {
+                    checkpoint_id: request.checkpoint_id.clone(),
+                },
+            )
+            .await?
+            .ok_or_else(|| StateRecoveryError::CheckpointNotFound(request.checkpoint_id.clone()))?;
         let checkpoint = checkpoint_from_row(row)?;
         let found = sha256_hex(&serde_json::to_vec(&checkpoint.payload)?);
         if found != checkpoint.payload_sha256 {
@@ -3088,8 +3601,9 @@ impl ParallelSwarmStateRecoveryStore {
             .await
         {
             Ok(record) => Ok(record),
-            Err(StateRecoveryError::Sqlx(sqlx::Error::Database(db_err)))
-                if db_err.is_unique_violation() && status == IndexLeaseStatus::Acquired =>
+            Err(StateRecoveryError::Surreal(error))
+                if is_unique_violation(&error, "ux_parallel_indexing_lease_queue_active_scope")
+                    && status == IndexLeaseStatus::Acquired =>
             {
                 let active = self.active_index_writer_for_scope(&request.scope).await?;
                 let queued_ahead = if active.is_none() {
@@ -3138,8 +3652,8 @@ impl ParallelSwarmStateRecoveryStore {
             .await
         {
             Ok(record) => Ok(Some(record)),
-            Err(StateRecoveryError::Sqlx(sqlx::Error::Database(db_err)))
-                if db_err.is_unique_violation() =>
+            Err(StateRecoveryError::Surreal(error))
+                if is_unique_violation(&error, "ux_parallel_indexing_lease_queue_active_scope") =>
             {
                 Ok(None)
             }
@@ -3153,131 +3667,74 @@ impl ParallelSwarmStateRecoveryStore {
         status: IndexLeaseStatus,
         blocked_by: Option<String>,
     ) -> StateRecoveryResult<IndexingLeaseRecord> {
-        let mut tx = self.pool.begin().await?;
-        let record = match self
-            .insert_indexing_lease_outcome_tx(&mut tx, request, status, blocked_by)
-            .await
-        {
-            Ok(record) => record,
-            Err(error) => {
-                let _ = tx.rollback().await;
-                return Err(error);
-            }
-        };
-        tx.commit().await?;
-        Ok(record)
-    }
-
-    pub(crate) async fn try_acquire_indexing_lease_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        request: &IndexingLeaseRequest,
-    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
-        validate_ttl(request.ttl_seconds)?;
-        validate_quiet_background_policy(QuietBackgroundWorkKind::Indexing, &request.quiet_policy)?;
-        require_capability(&request.lane, AgentCapability::WriteLocalIndex)?;
-        if self
-            .active_index_writer_for_scope_tx(tx, &request.scope)
-            .await?
-            .is_some()
-            || self
-                .queued_index_writer_for_scope_tx(tx, &request.scope)
-                .await?
-                .is_some()
-        {
-            return Ok(None);
-        }
-        self.insert_indexing_lease_outcome_tx(tx, request, IndexLeaseStatus::Acquired, None)
-            .await
-            .map(Some)
-    }
-
-    async fn insert_indexing_lease_outcome_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        request: &IndexingLeaseRequest,
-        status: IndexLeaseStatus,
-        blocked_by: Option<String>,
-    ) -> StateRecoveryResult<IndexingLeaseRecord> {
         let lease_id = format!("PSR-IDXLEASE-{}", Uuid::now_v7());
         let persistent_lane = request.lane.scrubbed_for_persistence();
-        let lane_json = serde_json::to_value(&persistent_lane.attribution)?;
-        let inserted = sqlx::query(
-            r#"
-            INSERT INTO knowledge_parallel_indexing_lease_queue (
-                lease_id, workspace_id, wp_id, mt_id, scope_kind, scope_id,
-                lane_id, actor_id, lane_kind, attribution_jsonb, session_id,
-                index_run_id, priority, ttl_seconds, quiet_policy_jsonb, status,
-                blocked_by_lease_id, acquired_at_utc, expires_at_utc
+        let now = Utc::now();
+        let (acquired_at_utc, expires_at_utc) = if status == IndexLeaseStatus::Acquired {
+            (
+                Some(now),
+                Some(now + ChronoDuration::seconds(request.ttl_seconds)),
             )
-            VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-                CASE WHEN $16 = 'acquired' THEN NOW() ELSE NULL END,
-                CASE WHEN $16 = 'acquired' THEN NOW() + ($14::BIGINT * INTERVAL '1 second') ELSE NULL END
-            )
-            "#,
-        )
-        .bind(&lease_id)
-        .bind(&request.workspace_id)
-        .bind(&request.wp_id)
-        .bind(&request.mt_id)
-        .bind(request.scope.kind_str())
-        .bind(request.scope.scope_id())
-        .bind(&persistent_lane.lane_id)
-        .bind(&persistent_lane.actor_id)
-        .bind(persistent_lane.lane_kind.as_str())
-        .bind(lane_json)
-        .bind(&request.session_id)
-        .bind(&request.index_run_id)
-        .bind(request.priority)
-        .bind(request.ttl_seconds)
-        .bind(serde_json::to_value(&request.quiet_policy)?)
-        .bind(status.as_str())
-        .bind(blocked_by.as_deref())
-        .execute(&mut **tx)
-        .await;
-        if let Err(error) = inserted {
-            return Err(error.into());
-        }
-
-        let event_id = self
-            .append_event_tx(
-                tx,
-                match status {
-                    IndexLeaseStatus::Acquired => KernelEventType::KnowledgeIndexRunStarted,
-                    IndexLeaseStatus::Queued => KernelEventType::SessionQueued,
-                    _ => KernelEventType::KnowledgeIndexRunStarted,
-                },
-                "parallel_indexing_lease",
-                &lease_id,
-                &persistent_lane,
-                &request.session_id,
-                json!({
-                    "schema_id": "hsk.parallel_swarm.indexing_lease@1",
-                    "lease_id": lease_id,
-                    "workspace_id": &request.workspace_id,
-                    "wp_id": &request.wp_id,
-                    "mt_id": &request.mt_id,
-                    "scope": &request.scope,
-                    "index_run_id": &request.index_run_id,
-                    "status": status,
-                    "blocked_by_lease_id": blocked_by.as_deref(),
-                    "quiet_policy": &request.quiet_policy,
-                }),
-            )
-            .await?;
-        let row = sqlx::query(
-            r#"
-            UPDATE knowledge_parallel_indexing_lease_queue
-               SET event_ledger_event_id = $2
-             WHERE lease_id = $1
-            RETURNING *
-            "#,
-        )
-        .bind(&lease_id)
-        .bind(&event_id)
-        .fetch_one(&mut **tx)
-        .await?;
+        } else {
+            (None, None)
+        };
+        let event = Self::build_event(
+            match status {
+                IndexLeaseStatus::Acquired => KernelEventType::KnowledgeIndexRunStarted,
+                IndexLeaseStatus::Queued => KernelEventType::SessionQueued,
+                _ => KernelEventType::KnowledgeIndexRunStarted,
+            },
+            "parallel_indexing_lease",
+            &lease_id,
+            &persistent_lane,
+            &request.session_id,
+            json!({
+                "schema_id": "hsk.parallel_swarm.indexing_lease@1",
+                "lease_id": lease_id,
+                "workspace_id": &request.workspace_id,
+                "wp_id": &request.wp_id,
+                "mt_id": &request.mt_id,
+                "scope": &request.scope,
+                "index_run_id": &request.index_run_id,
+                "status": status,
+                "blocked_by_lease_id": blocked_by.as_deref(),
+                "quiet_policy": &request.quiet_policy,
+            }),
+        )?;
+        let kernel_event = KernelEvent::from_new(event.clone());
+        let event_id = kernel_event.event_id.clone();
+        let row = LeaseRow {
+            lease_id: lease_id.clone(),
+            workspace_id: request.workspace_id.clone(),
+            wp_id: request.wp_id.clone(),
+            mt_id: request.mt_id.clone(),
+            scope_kind: request.scope.kind_str().to_string(),
+            scope_id: request.scope.scope_id(),
+            lane_id: persistent_lane.lane_id.clone(),
+            actor_id: persistent_lane.actor_id.clone(),
+            lane_kind: persistent_lane.lane_kind.as_str().to_string(),
+            attribution_jsonb: serde_json::to_value(&persistent_lane.attribution)?,
+            session_id: request.session_id.clone(),
+            index_run_id: request.index_run_id.clone(),
+            priority: i64::from(request.priority),
+            ttl_seconds: request.ttl_seconds,
+            status: status.as_str().to_string(),
+            blocked_by_lease_id: blocked_by,
+            enqueued_at_utc: now,
+            acquired_at_utc,
+            expires_at_utc,
+            completed_at_utc: None,
+            event_ledger_event_id: Some(event_record(&event_id)),
+            quiet_policy_jsonb: serde_json::to_value(&request.quiet_policy)?,
+        };
+        let bindings = CreateRowWithEventBindings {
+            event_record: event_record(&event_id),
+            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            record: RecordId::new(LEASES_TABLE, lease_id),
+            content: row.clone().into_value(),
+        };
+        let _: Vec<surrealdb::types::Value> =
+            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
         index_lease_from_row(row)
     }
 
@@ -3285,44 +3742,15 @@ impl ParallelSwarmStateRecoveryStore {
         &self,
         scope: &ClaimScope,
     ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
-        let row = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-            WHERE scope_kind = $1
-              AND scope_id = $2
-              AND status = 'acquired'
-              AND expires_at_utc > NOW()
-            ORDER BY acquired_at_utc ASC
-            LIMIT 1
-            "#,
-        )
-        .bind(scope.kind_str())
-        .bind(scope.scope_id())
-        .fetch_optional(&self.pool)
-        .await?;
-        row.map(index_lease_from_row).transpose()
-    }
-
-    async fn active_index_writer_for_scope_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        scope: &ClaimScope,
-    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
-        let row = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-            WHERE scope_kind = $1
-              AND scope_id = $2
-              AND status = 'acquired'
-              AND expires_at_utc > NOW()
-            ORDER BY acquired_at_utc ASC
-            LIMIT 1
-            "#,
-        )
-        .bind(scope.kind_str())
-        .bind(scope.scope_id())
-        .fetch_optional(&mut **tx)
-        .await?;
+        let row: Option<LeaseRow> = self
+            .query_first(
+                "SELECT * FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE scope_kind = $scope_kind AND scope_id = $scope_id \
+                   AND status = 'acquired' AND expires_at_utc > time::now() \
+                 ORDER BY acquired_at_utc ASC LIMIT 1;",
+                scope_binding(scope),
+            )
+            .await?;
         row.map(index_lease_from_row).transpose()
     }
 
@@ -3330,42 +3758,15 @@ impl ParallelSwarmStateRecoveryStore {
         &self,
         scope: &ClaimScope,
     ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
-        let row = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-            WHERE scope_kind = $1
-              AND scope_id = $2
-              AND status = 'queued'
-            ORDER BY priority DESC, enqueued_at_utc ASC, lease_id ASC
-            LIMIT 1
-            "#,
-        )
-        .bind(scope.kind_str())
-        .bind(scope.scope_id())
-        .fetch_optional(&self.pool)
-        .await?;
-        row.map(index_lease_from_row).transpose()
-    }
-
-    async fn queued_index_writer_for_scope_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        scope: &ClaimScope,
-    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
-        let row = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-            WHERE scope_kind = $1
-              AND scope_id = $2
-              AND status = 'queued'
-            ORDER BY priority DESC, enqueued_at_utc ASC, lease_id ASC
-            LIMIT 1
-            "#,
-        )
-        .bind(scope.kind_str())
-        .bind(scope.scope_id())
-        .fetch_optional(&mut **tx)
-        .await?;
+        let row: Option<LeaseRow> = self
+            .query_first(
+                "SELECT * FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE scope_kind = $scope_kind AND scope_id = $scope_id \
+                   AND status = 'queued' \
+                 ORDER BY priority DESC, enqueued_at_utc ASC, lease_id ASC LIMIT 1;",
+                scope_binding(scope),
+            )
+            .await?;
         row.map(index_lease_from_row).transpose()
     }
 
@@ -3374,20 +3775,19 @@ impl ParallelSwarmStateRecoveryStore {
         lease_id: &str,
         lane: &AgentLaneIdentity,
     ) -> StateRecoveryResult<bool> {
-        let result = sqlx::query(
-            r#"
-            UPDATE knowledge_parallel_indexing_lease_queue
-               SET status = 'completed', completed_at_utc = NOW()
-             WHERE lease_id = $1
-               AND actor_id = $2
-               AND status = 'acquired'
-            "#,
-        )
-        .bind(lease_id)
-        .bind(&lane.actor_id)
-        .execute(&self.pool)
-        .await?;
-        Ok(result.rows_affected() > 0)
+        let rows: Vec<LeaseRow> = self
+            .query(
+                "UPDATE $record SET status = 'completed', \
+                 completed_at_utc = $completed_at_utc \
+                 WHERE actor_id = $actor_id AND status = 'acquired' RETURN AFTER;",
+                RecordActorBinding {
+                    record: RecordId::new(LEASES_TABLE, lease_id.to_string()),
+                    actor_id: lane.actor_id.clone(),
+                    completed_at_utc: Utc::now(),
+                },
+            )
+            .await?;
+        Ok(!rows.is_empty())
     }
 
     pub async fn acquire_next_indexing_lease(
@@ -3397,38 +3797,35 @@ impl ParallelSwarmStateRecoveryStore {
         if self.active_index_writer_for_scope(scope).await?.is_some() {
             return Ok(None);
         }
-        let mut tx = self.pool.begin().await?;
-        let row = sqlx::query(
-            r#"
-            UPDATE knowledge_parallel_indexing_lease_queue
-               SET status = 'acquired',
-                   blocked_by_lease_id = NULL,
-                   acquired_at_utc = NOW(),
-                   expires_at_utc = NOW() + (ttl_seconds::BIGINT * INTERVAL '1 second')
-             WHERE lease_id = (
-                 SELECT lease_id
-                   FROM knowledge_parallel_indexing_lease_queue
-                  WHERE scope_kind = $1
-                    AND scope_id = $2
-                    AND status = 'queued'
-                  ORDER BY priority DESC, enqueued_at_utc ASC, lease_id ASC
-                  LIMIT 1
-             )
-            RETURNING *
-            "#,
-        )
-        .bind(scope.kind_str())
-        .bind(scope.scope_id())
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            tx.commit().await?;
+        let Some(candidate) = self.queued_index_writer_for_scope(scope).await? else {
             return Ok(None);
         };
-        let promoted = index_lease_from_row(row)?;
+        let acquired_at_utc = Utc::now();
+        let rows: Vec<LeaseRow> = self
+            .query(
+                "UPDATE $record SET status = 'acquired', blocked_by_lease_id = NONE, \
+                 acquired_at_utc = $acquired_at_utc, expires_at_utc = $expires_at_utc \
+                 WHERE status = 'queued' AND array::len((SELECT VALUE id \
+                   FROM knowledge_parallel_indexing_lease_queue \
+                   WHERE scope_kind = $scope_kind AND scope_id = $scope_id \
+                     AND status = 'acquired' AND expires_at_utc > time::now())) = 0 \
+                 RETURN AFTER;",
+                AcquireLeaseBinding {
+                    record: RecordId::new(LEASES_TABLE, candidate.lease_id.clone()),
+                    scope_kind: scope.kind_str().to_string(),
+                    scope_id: scope.scope_id(),
+                    acquired_at_utc,
+                    expires_at_utc: acquired_at_utc
+                        + ChronoDuration::seconds(candidate.ttl_seconds),
+                },
+            )
+            .await?;
+        let Some(row) = rows.into_iter().next() else {
+            return Ok(None);
+        };
+        let mut promoted = index_lease_from_row(row)?;
         let event_id = self
-            .append_event_tx(
-                &mut tx,
+            .append_event(
                 KernelEventType::KnowledgeIndexRunStarted,
                 "parallel_indexing_lease",
                 &promoted.lease_id,
@@ -3448,43 +3845,52 @@ impl ParallelSwarmStateRecoveryStore {
                 }),
             )
             .await?;
-        let row = sqlx::query(
-            r#"
-            UPDATE knowledge_parallel_indexing_lease_queue
-               SET event_ledger_event_id = $2
-             WHERE lease_id = $1
-            RETURNING *
-            "#,
-        )
-        .bind(&promoted.lease_id)
-        .bind(&event_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        index_lease_from_row(row).map(Some)
+        let _: Vec<LeaseRow> = self
+            .query(
+                "UPDATE $record SET event_ledger_event_id = $event_record \
+                 WHERE status = 'acquired' RETURN AFTER;",
+                RecordEventBinding {
+                    record: RecordId::new(LEASES_TABLE, promoted.lease_id.clone()),
+                    event_record: event_record(&event_id),
+                },
+            )
+            .await?;
+        promoted.event_ledger_event_id = event_id;
+        Ok(Some(promoted))
     }
 
     pub async fn reclaim_orphaned_indexing_leases(
         &self,
     ) -> StateRecoveryResult<Vec<IndexingLeaseRecord>> {
-        let mut tx = self.pool.begin().await?;
-        let rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_parallel_indexing_lease_queue
-             WHERE status = 'acquired'
-               AND expires_at_utc <= NOW()
-             ORDER BY acquired_at_utc ASC, lease_id ASC
-             FOR UPDATE
-            "#,
-        )
-        .fetch_all(&mut *tx)
-        .await?;
+        let rows: Vec<LeaseRow> = self
+            .query(
+                "SELECT * FROM knowledge_parallel_indexing_lease_queue \
+                 WHERE status = 'acquired' AND expires_at_utc <= time::now() \
+                 ORDER BY acquired_at_utc ASC, lease_id ASC;",
+                EmptyBindings {},
+            )
+            .await?;
         let mut reclaimed = Vec::with_capacity(rows.len());
         for row in rows {
-            let lease = index_lease_from_row(row)?;
+            let candidate = index_lease_from_row(row)?;
+            let changed: Vec<LeaseRow> = self
+                .query(
+                    "UPDATE $record SET status = 'reclaimed', \
+                     completed_at_utc = $completed_at_utc \
+                     WHERE status = 'acquired' AND expires_at_utc <= time::now() \
+                     RETURN AFTER;",
+                    ExpiredRecordBinding {
+                        record: RecordId::new(LEASES_TABLE, candidate.lease_id.clone()),
+                        completed_at_utc: Utc::now(),
+                    },
+                )
+                .await?;
+            let Some(row) = changed.into_iter().next() else {
+                continue;
+            };
+            let mut lease = index_lease_from_row(row)?;
             let event_id = self
-                .append_event_tx(
-                    &mut tx,
+                .append_event(
                     KernelEventType::KnowledgeIndexRunCancelled,
                     "parallel_indexing_lease",
                     &lease.lease_id,
@@ -3504,24 +3910,19 @@ impl ParallelSwarmStateRecoveryStore {
                     }),
                 )
                 .await?;
-            let row = sqlx::query(
-                r#"
-                UPDATE knowledge_parallel_indexing_lease_queue
-                   SET status = 'reclaimed',
-                       completed_at_utc = NOW(),
-                       event_ledger_event_id = $2
-                 WHERE lease_id = $1
-                   AND status = 'acquired'
-                RETURNING *
-                "#,
-            )
-            .bind(&lease.lease_id)
-            .bind(&event_id)
-            .fetch_one(&mut *tx)
-            .await?;
-            reclaimed.push(index_lease_from_row(row)?);
+            let _: Vec<LeaseRow> = self
+                .query(
+                    "UPDATE $record SET event_ledger_event_id = $event_record \
+                     WHERE status = 'reclaimed' RETURN AFTER;",
+                    RecordEventBinding {
+                        record: RecordId::new(LEASES_TABLE, lease.lease_id.clone()),
+                        event_record: event_record(&event_id),
+                    },
+                )
+                .await?;
+            lease.event_ledger_event_id = event_id;
+            reclaimed.push(lease);
         }
-        tx.commit().await?;
         Ok(reclaimed)
     }
 
@@ -3529,22 +3930,16 @@ impl ParallelSwarmStateRecoveryStore {
         &self,
         scope: &ClaimScope,
     ) -> StateRecoveryResult<Option<WorkClaimRecord>> {
-        let row = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_worktree_claims
-            WHERE scope_kind = $1
-              AND scope_id = $2
-              AND status = 'active'
-              AND released_at_utc IS NULL
-              AND expires_at_utc > NOW()
-            ORDER BY claimed_at_utc ASC
-            LIMIT 1
-            "#,
-        )
-        .bind(scope.kind_str())
-        .bind(scope.scope_id())
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<ClaimRow> = self
+            .query_first(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE scope_kind = $scope_kind AND scope_id = $scope_id \
+                   AND status = 'active' AND released_at_utc = NONE \
+                   AND expires_at_utc > time::now() \
+                 ORDER BY claimed_at_utc ASC LIMIT 1;",
+                scope_binding(scope),
+            )
+            .await?;
         row.map(work_claim_from_row).transpose()
     }
 
@@ -3556,25 +3951,37 @@ impl ParallelSwarmStateRecoveryStore {
     ) -> StateRecoveryResult<Vec<WorkClaimRecord>> {
         require_capability(lane, AgentCapability::ClaimWorktree)?;
         let reclaimer = lane.scrubbed_for_persistence();
-        let mut tx = self.pool.begin().await?;
-        let rows = sqlx::query(
-            r#"
-            SELECT * FROM knowledge_agent_worktree_claims
-             WHERE status = 'active'
-               AND released_at_utc IS NULL
-               AND expires_at_utc <= NOW()
-             ORDER BY claimed_at_utc ASC, claim_id ASC
-             FOR UPDATE
-            "#,
-        )
-        .fetch_all(&mut *tx)
-        .await?;
+        let rows: Vec<ClaimRow> = self
+            .query(
+                "SELECT * FROM knowledge_agent_worktree_claims \
+                 WHERE status = 'active' AND released_at_utc = NONE \
+                   AND expires_at_utc <= time::now() \
+                 ORDER BY claimed_at_utc ASC, claim_id ASC;",
+                EmptyBindings {},
+            )
+            .await?;
         let mut reclaimed = Vec::with_capacity(rows.len());
         for row in rows {
-            let claim = work_claim_from_row(row)?;
+            let candidate = work_claim_from_row(row)?;
+            let changed: Vec<ClaimRow> = self
+                .query(
+                    "UPDATE $record SET status = 'reclaimed', \
+                     released_at_utc = $released_at_utc, reason = $reason \
+                     WHERE status = 'active' AND released_at_utc = NONE \
+                       AND expires_at_utc <= time::now() RETURN AFTER;",
+                    ReclaimClaimBinding {
+                        record: RecordId::new(CLAIMS_TABLE, candidate.claim_id.clone()),
+                        released_at_utc: Utc::now(),
+                        reason: reason.to_string(),
+                    },
+                )
+                .await?;
+            let Some(row) = changed.into_iter().next() else {
+                continue;
+            };
+            let mut claim = work_claim_from_row(row)?;
             let event_id = self
-                .append_event_tx(
-                    &mut tx,
+                .append_event(
                     KernelEventType::SessionCancelled,
                     "parallel_swarm_claim_reclaim",
                     &claim.claim_id,
@@ -3593,26 +4000,19 @@ impl ParallelSwarmStateRecoveryStore {
                     }),
                 )
                 .await?;
-            let row = sqlx::query(
-                r#"
-                UPDATE knowledge_agent_worktree_claims
-                   SET status = 'reclaimed',
-                       released_at_utc = NOW(),
-                       reason = $2,
-                       reclaim_event_ledger_event_id = $3
-                 WHERE claim_id = $1
-                   AND status = 'active'
-                RETURNING *
-                "#,
-            )
-            .bind(&claim.claim_id)
-            .bind(reason)
-            .bind(&event_id)
-            .fetch_one(&mut *tx)
-            .await?;
-            reclaimed.push(work_claim_from_row(row)?);
+            let _: Vec<ClaimRow> = self
+                .query(
+                    "UPDATE $record SET reclaim_event_ledger_event_id = $event_record \
+                     WHERE status = 'reclaimed' RETURN AFTER;",
+                    RecordEventBinding {
+                        record: RecordId::new(CLAIMS_TABLE, claim.claim_id.clone()),
+                        event_record: event_record(&event_id),
+                    },
+                )
+                .await?;
+            claim.reclaim_event_ledger_event_id = Some(event_id);
+            reclaimed.push(claim);
         }
-        tx.commit().await?;
         Ok(reclaimed)
     }
 
@@ -3642,9 +4042,8 @@ impl ParallelSwarmStateRecoveryStore {
         .map_err(|error| StateRecoveryError::Kernel(error.to_string()))
     }
 
-    async fn append_event_tx(
+    async fn append_event(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
         event_type: KernelEventType,
         aggregate_type: &str,
         aggregate_id: &str,
@@ -3661,53 +4060,23 @@ impl ParallelSwarmStateRecoveryStore {
             payload,
         )?;
         let kernel_event = KernelEvent::from_new(event.clone());
-        let payload = String::from_utf8(crate::kernel::context_bundle::canonical_json_bytes(
-            &event.payload,
-        ))
-        .expect("canonical JSON is valid UTF-8");
-        sqlx::query_scalar(
-            r#"
-            INSERT INTO kernel_event_ledger (
-                event_id,
-                event_version,
-                kernel_task_run_id,
-                session_run_id,
-                aggregate_type,
-                aggregate_id,
-                idempotency_key,
-                event_type,
-                actor_kind,
-                actor_id,
-                causation_id,
-                correlation_id,
-                payload_hash,
-                source_component,
-                payload,
-                created_at
+        let event_id = kernel_event.event_id.clone();
+        let created: Vec<EventLedgerWriteRow> = self
+            .query(
+                "CREATE $event_record CONTENT $event_content RETURN AFTER;",
+                CreateEventBinding {
+                    event_record: event_record(&event_id),
+                    event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+                },
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16)
-            RETURNING event_id
-            "#,
-        )
-        .bind(&kernel_event.event_id)
-        .bind(&event.event_version)
-        .bind(&event.kernel_task_run_id)
-        .bind(&event.session_run_id)
-        .bind(&event.aggregate_type)
-        .bind(&event.aggregate_id)
-        .bind(&event.idempotency_key)
-        .bind(event.event_type.as_str())
-        .bind(event.actor.actor_kind())
-        .bind(event.actor.actor_id())
-        .bind(event.causation_id.as_deref())
-        .bind(event.correlation_id.as_deref())
-        .bind(&event.payload_hash)
-        .bind(&event.source_component)
-        .bind(payload)
-        .bind(kernel_event.created_at)
-        .fetch_one(&mut **tx)
-        .await
-        .map_err(StateRecoveryError::from)
+            .await?;
+        if created.len() != 1 {
+            return Err(StateRecoveryError::InvalidInput(format!(
+                "EventLedger append for {event_id} returned {} rows",
+                created.len()
+            )));
+        }
+        Ok(event_id)
     }
 }
 
@@ -4060,11 +4429,11 @@ fn validate_source_refs<'a>(
             if source_ref.row_id != row_id {
                 errors.push(format!("{row_kind} {row_id} has mismatched source row_id"));
             }
-            if source_ref.row_source_ref != format!("postgres://{}/{}", expected_table, row_id) {
+            if source_ref.row_source_ref != format!("surreal://{}/{}", expected_table, row_id) {
                 errors.push(format!("{row_kind} {row_id} has mismatched row source ref"));
             }
             if source_ref.row_source_ref.trim().is_empty()
-                || !source_ref.row_source_ref.starts_with("postgres://")
+                || !source_ref.row_source_ref.starts_with("surreal://")
             {
                 errors.push(format!("{row_kind} {row_id} has invalid row source ref"));
             }
@@ -4187,7 +4556,7 @@ fn dashboard_source_ref(
     SwarmDashboardSourceRefV1 {
         table_name: table_name.to_string(),
         row_id: row_id.to_string(),
-        row_source_ref: format!("postgres://{table_name}/{row_id}"),
+        row_source_ref: format!("surreal://{table_name}/{row_id}"),
         event_ledger_event_id: event_ledger_event_id.map(ToOwned::to_owned),
         event_source_ref: event_ledger_event_id
             .map(|event_id| format!("event-ledger://{event_id}")),
@@ -4522,16 +4891,9 @@ fn dashboard_totals(authority: SwarmDashboardAuthorityTotals) -> SwarmDashboardT
     }
 }
 
-fn dashboard_group_count_map(
-    rows: Vec<PgRow>,
-    key_column: &str,
-) -> StateRecoveryResult<BTreeMap<String, i64>> {
+fn dashboard_group_count_map(rows: Vec<GroupCountRow>) -> BTreeMap<String, i64> {
     rows.into_iter()
-        .map(|row| {
-            let key: String = row.try_get(key_column)?;
-            let count: i64 = row.try_get("row_count")?;
-            Ok((key, count))
-        })
+        .map(|row| (row.group_key, row.row_count))
         .collect()
 }
 
@@ -4560,162 +4922,188 @@ fn attribution_mode_as_str(mode: AttributionMode) -> &'static str {
     }
 }
 
-fn work_claim_from_row(row: PgRow) -> StateRecoveryResult<WorkClaimRecord> {
-    let scope = scope_from_parts(
-        row.try_get("scope_kind")?,
-        row.try_get::<String, _>("scope_id")?,
-    )?;
+fn work_claim_from_row(row: ClaimRow) -> StateRecoveryResult<WorkClaimRecord> {
+    let event_ledger_event_id = optional_record_key(row.event_ledger_event_id.as_ref())?;
+    let release_event_ledger_event_id =
+        optional_record_key(row.release_event_ledger_event_id.as_ref())?;
+    let reclaim_event_ledger_event_id =
+        optional_record_key(row.reclaim_event_ledger_event_id.as_ref())?;
+    let scope = scope_from_parts(row.scope_kind, row.scope_id)?;
     let lane = lane_from_parts(
-        row.try_get("lane_id")?,
-        row.try_get("actor_id")?,
-        row.try_get("lane_kind")?,
-        row.try_get("attribution_jsonb")?,
+        row.lane_id,
+        row.actor_id,
+        row.lane_kind,
+        row.attribution_jsonb,
     )?;
     Ok(WorkClaimRecord {
-        claim_id: row.try_get("claim_id")?,
-        workspace_id: row.try_get("workspace_id")?,
-        wp_id: row.try_get("wp_id")?,
-        mt_id: row.try_get("mt_id")?,
+        claim_id: row.claim_id,
+        workspace_id: row.workspace_id,
+        wp_id: row.wp_id,
+        mt_id: row.mt_id,
         scope,
         lane,
-        session_id: row.try_get("session_id")?,
-        status: ClaimStatus::parse(row.try_get::<String, _>("status")?.as_str())?,
-        reason: row.try_get("reason")?,
-        claimed_at_utc: row.try_get("claimed_at_utc")?,
-        expires_at_utc: row.try_get("expires_at_utc")?,
-        released_at_utc: row.try_get("released_at_utc")?,
-        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
-        release_event_ledger_event_id: row.try_get("release_event_ledger_event_id")?,
-        reclaim_event_ledger_event_id: row.try_get("reclaim_event_ledger_event_id")?,
+        session_id: row.session_id,
+        status: ClaimStatus::parse(&row.status)?,
+        reason: row.reason,
+        claimed_at_utc: row.claimed_at_utc,
+        expires_at_utc: row.expires_at_utc,
+        released_at_utc: row.released_at_utc,
+        event_ledger_event_id,
+        release_event_ledger_event_id,
+        reclaim_event_ledger_event_id,
     })
 }
 
-fn mailbox_handoff_from_row(row: PgRow) -> StateRecoveryResult<RoleMailboxHandoffRecord> {
+fn mailbox_handoff_from_row(row: HandoffRow) -> StateRecoveryResult<RoleMailboxHandoffRecord> {
+    let claim_id = optional_record_key(row.claim_id.as_ref())?;
+    let event_ledger_event_id = record_key_string(&row.event_ledger_event_id)?;
     let lane = lane_from_parts(
-        row.try_get("from_lane_id")?,
-        row.try_get("from_actor_id")?,
-        row.try_get("from_lane_kind")?,
-        row.try_get("from_attribution_jsonb")?,
+        row.from_lane_id,
+        row.from_actor_id,
+        row.from_lane_kind,
+        row.from_attribution_jsonb,
     )?;
     Ok(RoleMailboxHandoffRecord {
-        handoff_id: row.try_get("handoff_id")?,
-        wp_id: row.try_get("wp_id")?,
-        mt_id: row.try_get("mt_id")?,
-        claim_id: row.try_get("claim_id")?,
+        handoff_id: row.handoff_id,
+        wp_id: row.wp_id,
+        mt_id: row.mt_id,
+        claim_id,
         from_lane: lane,
-        to_role: row.try_get("to_role")?,
-        mailbox_thread_id: row.try_get("mailbox_thread_id")?,
-        mailbox_message_id: row.try_get("mailbox_message_id")?,
-        status: SwarmReceiptStatus::parse(row.try_get::<String, _>("status")?.as_str())?,
-        summary: row.try_get("summary")?,
-        body_sha256: row.try_get("body_sha256")?,
-        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
-        created_at_utc: row.try_get("created_at_utc")?,
+        to_role: row.to_role,
+        mailbox_thread_id: row.mailbox_thread_id,
+        mailbox_message_id: row.mailbox_message_id,
+        status: SwarmReceiptStatus::parse(&row.status)?,
+        summary: row.summary,
+        body_sha256: row.body_sha256,
+        event_ledger_event_id,
+        created_at_utc: row.created_at_utc,
     })
 }
 
-fn checkpoint_from_row(row: PgRow) -> StateRecoveryResult<RecoveryCheckpointRecord> {
+fn checkpoint_from_row(row: CheckpointRow) -> StateRecoveryResult<RecoveryCheckpointRecord> {
+    let claim_id = optional_record_key(row.claim_id.as_ref())?;
+    let mailbox_handoff_id = optional_record_key(row.mailbox_handoff_id.as_ref())?;
+    let event_ledger_event_id = record_key_string(&row.event_ledger_event_id)?;
     let lane = lane_from_parts(
-        row.try_get("lane_id")?,
-        row.try_get("actor_id")?,
-        row.try_get("lane_kind")?,
-        row.try_get("attribution_jsonb")?,
+        row.lane_id,
+        row.actor_id,
+        row.lane_kind,
+        row.attribution_jsonb,
     )?;
-    let resume_pointer: RecoveryResumePointer =
-        serde_json::from_value(row.try_get("resume_pointer_jsonb")?)?;
+    let resume_pointer: RecoveryResumePointer = serde_json::from_value(row.resume_pointer_jsonb)?;
     Ok(RecoveryCheckpointRecord {
-        checkpoint_id: row.try_get("checkpoint_id")?,
+        checkpoint_id: row.checkpoint_id,
         lane,
-        session_id: row.try_get("session_id")?,
-        workspace_id: row.try_get("workspace_id")?,
-        wp_id: row.try_get("wp_id")?,
-        mt_id: row.try_get("mt_id")?,
-        claim_id: row.try_get("claim_id")?,
-        mailbox_handoff_id: row.try_get("mailbox_handoff_id")?,
-        navigation_command_id: row.try_get("navigation_command_id")?,
+        session_id: row.session_id,
+        workspace_id: row.workspace_id,
+        wp_id: row.wp_id,
+        mt_id: row.mt_id,
+        claim_id,
+        mailbox_handoff_id,
+        navigation_command_id: row.navigation_command_id,
         resume_pointer,
-        touched_files: serde_json::from_value(row.try_get("touched_files_jsonb")?)?,
-        tests: serde_json::from_value(row.try_get("tests_jsonb")?)?,
-        hbr_rows: serde_json::from_value(row.try_get("hbr_rows_jsonb")?)?,
-        next_step_context: row.try_get("next_step_context")?,
-        payload: row.try_get("payload_jsonb")?,
-        payload_sha256: row.try_get("payload_sha256")?,
-        compaction_reason: row.try_get("compaction_reason")?,
-        git_head: row.try_get("git_head")?,
-        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
-        created_at_utc: row.try_get("created_at_utc")?,
+        touched_files: row.touched_files_jsonb,
+        tests: row.tests_jsonb,
+        hbr_rows: row.hbr_rows_jsonb,
+        next_step_context: row.next_step_context,
+        payload: row.payload_jsonb,
+        payload_sha256: row.payload_sha256,
+        compaction_reason: row.compaction_reason,
+        git_head: row.git_head,
+        event_ledger_event_id,
+        created_at_utc: row.created_at_utc,
     })
 }
 
-fn recovery_receipt_from_row(row: PgRow) -> StateRecoveryResult<RecoveryReceiptRecord> {
+fn recovery_receipt_from_row(
+    row: RecoveryReceiptRow,
+) -> StateRecoveryResult<RecoveryReceiptRecord> {
+    let checkpoint_id = record_key_string(&row.checkpoint_id)?;
+    let event_ledger_event_id = record_key_string(&row.event_ledger_event_id)?;
     let new_lane = lane_from_parts(
-        row.try_get("new_lane_id")?,
-        row.try_get("new_actor_id")?,
-        row.try_get("new_lane_kind")?,
-        row.try_get("new_attribution_jsonb")?,
+        row.new_lane_id,
+        row.new_actor_id,
+        row.new_lane_kind,
+        row.new_attribution_jsonb,
     )?;
     Ok(RecoveryReceiptRecord {
-        receipt_id: row.try_get("receipt_id")?,
-        checkpoint_id: row.try_get("checkpoint_id")?,
-        prior_session_id: row.try_get("prior_session_id")?,
-        new_session_id: row.try_get("new_session_id")?,
+        receipt_id: row.receipt_id,
+        checkpoint_id,
+        prior_session_id: row.prior_session_id,
+        new_session_id: row.new_session_id,
         new_lane,
-        resume_pointer: serde_json::from_value(row.try_get("resume_pointer_jsonb")?)?,
-        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
-        recovered_at_utc: row.try_get("recovered_at_utc")?,
+        resume_pointer: serde_json::from_value(row.resume_pointer_jsonb)?,
+        event_ledger_event_id,
+        recovered_at_utc: row.recovered_at_utc,
     })
 }
 
-fn quiet_background_work_from_row(row: PgRow) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
+fn quiet_background_work_from_row(
+    row: QuietWorkRow,
+) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
+    let event_ledger_event_id = record_key_string(&row.event_ledger_event_id)?;
     let lane = lane_from_parts(
-        row.try_get("lane_id")?,
-        row.try_get("actor_id")?,
-        row.try_get("lane_kind")?,
-        row.try_get("attribution_jsonb")?,
+        row.lane_id,
+        row.actor_id,
+        row.lane_kind,
+        row.attribution_jsonb,
     )?;
-    let policy: QuietBackgroundPolicy = serde_json::from_value(row.try_get("quiet_policy_jsonb")?)?;
+    let policy: QuietBackgroundPolicy = serde_json::from_value(row.quiet_policy_jsonb)?;
     Ok(QuietBackgroundWorkRecord {
-        receipt_id: row.try_get("receipt_id")?,
-        workspace_id: row.try_get("workspace_id")?,
-        wp_id: row.try_get("wp_id")?,
-        mt_id: row.try_get("mt_id")?,
-        work_kind: QuietBackgroundWorkKind::parse(row.try_get::<String, _>("work_kind")?.as_str())?,
-        subject_id: row.try_get("subject_id")?,
+        receipt_id: row.receipt_id,
+        workspace_id: row.workspace_id,
+        wp_id: row.wp_id,
+        mt_id: row.mt_id,
+        work_kind: QuietBackgroundWorkKind::parse(&row.work_kind)?,
+        subject_id: row.subject_id,
         lane,
-        session_id: row.try_get("session_id")?,
+        session_id: row.session_id,
         policy,
-        evidence_ref: row.try_get("evidence_ref")?,
-        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
-        created_at_utc: row.try_get("created_at_utc")?,
+        evidence_ref: row.evidence_ref,
+        event_ledger_event_id,
+        created_at_utc: row.created_at_utc,
     })
 }
 
-fn index_lease_from_row(row: PgRow) -> StateRecoveryResult<IndexingLeaseRecord> {
-    let scope = scope_from_parts(
-        row.try_get("scope_kind")?,
-        row.try_get::<String, _>("scope_id")?,
-    )?;
+fn index_lease_from_row(row: LeaseRow) -> StateRecoveryResult<IndexingLeaseRecord> {
+    let event_ledger_event_id = row
+        .event_ledger_event_id
+        .as_ref()
+        .ok_or_else(|| {
+            StateRecoveryError::InvalidInput(format!(
+                "indexing lease {} is missing its EventLedger receipt",
+                row.lease_id
+            ))
+        })
+        .and_then(record_key_string)?;
+    let priority = i32::try_from(row.priority).map_err(|_| {
+        StateRecoveryError::InvalidInput(format!(
+            "indexing lease {} has out-of-range priority {}",
+            row.lease_id, row.priority
+        ))
+    })?;
+    let scope = scope_from_parts(row.scope_kind, row.scope_id)?;
     let lane = lane_from_parts(
-        row.try_get("lane_id")?,
-        row.try_get("actor_id")?,
-        row.try_get("lane_kind")?,
-        row.try_get("attribution_jsonb")?,
+        row.lane_id,
+        row.actor_id,
+        row.lane_kind,
+        row.attribution_jsonb,
     )?;
     Ok(IndexingLeaseRecord {
-        lease_id: row.try_get("lease_id")?,
-        workspace_id: row.try_get("workspace_id")?,
-        wp_id: row.try_get("wp_id")?,
-        mt_id: row.try_get("mt_id")?,
+        lease_id: row.lease_id,
+        workspace_id: row.workspace_id,
+        wp_id: row.wp_id,
+        mt_id: row.mt_id,
         scope,
         lane,
-        session_id: row.try_get("session_id")?,
-        index_run_id: row.try_get("index_run_id")?,
-        priority: row.try_get("priority")?,
-        ttl_seconds: row.try_get("ttl_seconds")?,
-        status: IndexLeaseStatus::parse(row.try_get::<String, _>("status")?.as_str())?,
-        blocked_by_lease_id: row.try_get("blocked_by_lease_id")?,
-        quiet_policy: serde_json::from_value(row.try_get("quiet_policy_jsonb")?)?,
-        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
+        session_id: row.session_id,
+        index_run_id: row.index_run_id,
+        priority,
+        ttl_seconds: row.ttl_seconds,
+        status: IndexLeaseStatus::parse(&row.status)?,
+        blocked_by_lease_id: row.blocked_by_lease_id,
+        quiet_policy: serde_json::from_value(row.quiet_policy_jsonb)?,
+        event_ledger_event_id,
     })
 }
 
@@ -4882,7 +5270,7 @@ fn compressed_handoff_body(
         format!("git_head={}", checkpoint.git_head),
         format!("payload_sha256={}", checkpoint.payload_sha256),
         format!("checkpoint_event_id={}", checkpoint.event_ledger_event_id),
-        "authority=PostgreSQL checkpoint row plus EventLedger receipt; this compressed handoff is a projection only".to_string(),
+        "authority=embedded SurrealDB checkpoint record plus EventLedger receipt; this compressed handoff is a projection only".to_string(),
         "resume_action=recover_from_checkpoint(checkpoint_id) and continue from resume_pointer".to_string(),
         format!(
             "omitted_inputs={}",

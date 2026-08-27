@@ -806,7 +806,7 @@ enum Mt117Expectation {
         edited_document_ids: Vec<String>,
     },
     /// Daily-journal date navigation. Added after the four original targets because
-    /// `test_calendar_interop::open_or_create_daily_note_is_idempotent_against_real_pg_live`
+    /// `test_calendar_interop::open_or_create_daily_note_is_idempotent_against_real_backend_live`
     /// proved `daily-journal-next-day` has the SAME defect the other four had: its AccessKit
     /// `value` was `null`, so a canonical Argus click on it finished `indeterminate` with
     /// "click was dispatched, but this target exposes no action-specific completion predicate",

@@ -14,7 +14,7 @@
 //!   the wire by `edge_span_refs`, so cross-file occurrence-precise rename needs that projection widened
 //!   (a backend change), never a backend edit here.
 //!
-//! Provable WITHOUT a live PostgreSQL / a language server: the panel's LSP client defaults to
+//! Provable WITHOUT a live SurrealDB / a language server: the panel's LSP client defaults to
 //! `LspClient::disabled` (no server), so the rename takes the single-file tree-sitter fallback, and the
 //! atomic-write test uses a temp dir.
 

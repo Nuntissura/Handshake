@@ -18,18 +18,13 @@
 //!
 //! Single-store/EventLedger authority only — NO SQLite.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the bodies below still bind
-//! `sqlx` against the deleted relational backend, so this module does not
-//! compile and none of the described writes execute today. Handshake's only
-//! database is the embedded SurrealDB store; the JSON columns documented here
-//! are still written as canonical text so the ported version keeps byte-identical
-//! payloads and the kernel event-ledger append/read pattern.
-
+//! Embedded SurrealDB is the only persistence authority for this module.
 use chrono::{DateTime, Utc};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{PgPool, Row};
+use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
+use tokio::sync::Mutex;
 
 use crate::ace::{
     FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitAppliedOp, MemoryCommitOpStatus,
@@ -39,70 +34,14 @@ use crate::ace::{
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
-use crate::storage::{StorageError, StorageResult};
+use crate::storage::{
+    surreal::{bootstrap_schema, event_ledger, SurrealStorage},
+    StorageError, StorageResult,
+};
 
 /// Verify that the versioned FEMS migration has installed the required tables.
 ///
-/// Schema evolution belongs to SQLx migrations. Keeping request-time DDL/backfills out
-/// of this path makes startup and concurrent proposal intake deterministic.
-pub async fn ensure_fems_memory_schema(pool: &PgPool) -> StorageResult<()> {
-    let ready: bool = sqlx::query_scalar(
-        r#"
-        SELECT to_regclass('fems_memory_packs') IS NOT NULL
-           AND to_regclass('fems_memory_proposals') IS NOT NULL
-           AND to_regclass('fems_memory_items') IS NOT NULL
-           AND to_regclass('fems_memory_commit_reports') IS NOT NULL
-           AND to_regclass('fems_memory_commit_fr_outbox') IS NOT NULL
-           AND to_regclass('fems_memory_lifecycle_fr_outbox') IS NOT NULL
-           AND EXISTS (
-               SELECT 1 FROM information_schema.columns
-               WHERE table_schema = current_schema()
-                 AND table_name = 'fems_memory_proposals'
-                 AND column_name = 'request_id'
-                 AND is_nullable = 'NO'
-           )
-           AND EXISTS (
-               SELECT 1 FROM pg_constraint
-               WHERE conname = 'fk_fems_memory_packs_workspace'
-                 AND conrelid = to_regclass('fems_memory_packs')
-                 AND confrelid = to_regclass('workspaces')
-                 AND confdeltype = 'c'
-           )
-           AND EXISTS (
-               SELECT 1 FROM pg_constraint
-               WHERE conname = 'fk_fems_memory_proposals_workspace'
-                 AND conrelid = to_regclass('fems_memory_proposals')
-                 AND confrelid = to_regclass('workspaces')
-                 AND confdeltype = 'c'
-           )
-           AND EXISTS (
-               SELECT 1 FROM pg_constraint
-               WHERE conname = 'fk_fems_memory_items_workspace'
-                 AND conrelid = to_regclass('fems_memory_items')
-                 AND confrelid = to_regclass('workspaces')
-                 AND confdeltype = 'c'
-           )
-           AND EXISTS (
-               SELECT 1 FROM pg_index
-               WHERE indexrelid = to_regclass('idx_fems_memory_proposals_ws_request')
-                 AND indrelid = to_regclass('fems_memory_proposals')
-                 AND indisunique
-           )
-        "#,
-    )
-    .fetch_one(pool)
-    .await?;
-    if !ready {
-        return Err(StorageError::Migration(
-            "FEMS memory schema is missing; run versioned migrations".to_owned(),
-        ));
-    }
-    Ok(())
-}
-
-fn to_jsonb_text<T: Serialize>(value: &T) -> StorageResult<String> {
-    serde_json::to_string(value).map_err(|err| StorageError::Serialization(err.to_string()))
-}
+/// Embedded schema readiness is checked through the configured SurrealDB namespace/database.
 
 // ---------------------------------------------------------------------------
 // Memory packs (AC-109-2).
@@ -111,105 +50,10 @@ fn to_jsonb_text<T: Serialize>(value: &T) -> StorageResult<String> {
 /// Insert an immutable stored memory pack keyed by its content-addressed `pack_id`.
 /// Exact retries are accepted, while any attempt to bind the identity to different
 /// workspace, scope, or bytes fails closed.
-pub async fn upsert_memory_pack(
-    pool: &PgPool,
-    workspace_id: &str,
-    scope_key: &str,
-    pack: &MemoryPack,
-) -> StorageResult<()> {
-    ensure_fems_memory_schema(pool).await?;
-    let pack_json = to_jsonb_text(pack)?;
-    let generated_at = chrono::DateTime::parse_from_rfc3339(&pack.generated_at)
-        .map(|dt| dt.with_timezone(&chrono::Utc))
-        .unwrap_or_else(|_| chrono::Utc::now());
-    let result = sqlx::query(
-        r#"
-        INSERT INTO fems_memory_packs (pack_id, workspace_id, scope_key, pack, generated_at)
-        VALUES ($1, $2, $3, $4::jsonb, $5)
-        ON CONFLICT (pack_id) DO NOTHING
-        "#,
-    )
-    .bind(&pack.pack_id)
-    .bind(workspace_id)
-    .bind(scope_key)
-    .bind(pack_json)
-    .bind(generated_at)
-    .execute(pool)
-    .await?;
-    if result.rows_affected() == 0 {
-        let existing: Option<(String, String, String, DateTime<Utc>)> = sqlx::query_as(
-            "SELECT workspace_id, scope_key, pack::text, generated_at FROM fems_memory_packs WHERE pack_id = $1",
-        )
-        .bind(&pack.pack_id)
-        .fetch_optional(pool)
-        .await?;
-        if existing
-            .as_ref()
-            .is_none_or(|(owner, stored_scope, stored_pack, stored_at)| {
-                owner != workspace_id
-                    || stored_scope != scope_key
-                    || serde_json::from_str::<MemoryPack>(stored_pack).ok() != Some(pack.clone())
-                    || *stored_at != generated_at
-            })
-        {
-            return Err(StorageError::Conflict(
-                "memory pack identity is bound to different evidence",
-            ));
-        }
-    }
-    Ok(())
-}
 
 /// Fetch the most recently created memory pack for `workspace_id`, optionally preferring an exact
 /// `scope_key`. The workspace-level (`scope_key=''`) pack is also eligible for a context request so a
 /// newer approved-memory commit supersedes an older context-specific empty projection.
-pub async fn get_latest_memory_pack(
-    pool: &PgPool,
-    workspace_id: &str,
-    scope_key: Option<&str>,
-) -> StorageResult<Option<MemoryPack>> {
-    ensure_fems_memory_schema(pool).await?;
-    let row = if let Some(scope) = scope_key.filter(|s| !s.trim().is_empty()) {
-        sqlx::query(
-            r#"
-            SELECT pack::text AS pack
-            FROM fems_memory_packs
-            WHERE workspace_id = $1 AND scope_key IN ($2, '')
-            ORDER BY created_at DESC,
-                     CASE WHEN scope_key = $2 THEN 0 ELSE 1 END,
-                     pack_id DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(scope)
-        .fetch_optional(pool)
-        .await?
-    } else {
-        sqlx::query(
-            r#"
-            SELECT pack::text AS pack
-            FROM fems_memory_packs
-            WHERE workspace_id = $1
-            ORDER BY created_at DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(workspace_id)
-        .fetch_optional(pool)
-        .await?
-    };
-
-    match row {
-        Some(row) => {
-            let pack_text: String = row.try_get("pack")?;
-            let pack: MemoryPack = serde_json::from_str(&pack_text)
-                .map_err(|err| StorageError::Serialization(err.to_string()))?;
-            Ok(Some(pack))
-        }
-        None => Ok(None),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Review-gated proposals (AC-109-3).
@@ -466,156 +310,110 @@ fn heal_legacy_proposal_artifact(stored: &StoredMemoryProposal) -> Option<Value>
 /// `fems_memory_items` (the never-editor-direct invariant). Replaying the same
 /// workspace/request identity returns the original row and receipt without duplication.
 pub async fn insert_memory_proposal_with_receipt(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     proposal: &StoredMemoryProposal,
     receipt: NewKernelEvent,
 ) -> StorageResult<StoredMemoryProposal> {
-    insert_memory_proposal_with_receipt_inner(pool, proposal, receipt, false).await
+    insert_memory_proposal_with_receipt_inner(storage, proposal, receipt, false).await
 }
 
 async fn insert_memory_proposal_with_receipt_inner(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     proposal: &StoredMemoryProposal,
     receipt: NewKernelEvent,
     force_failure_after_proposal_insert: bool,
 ) -> StorageResult<StoredMemoryProposal> {
-    ensure_fems_memory_schema(pool).await?;
-    let mut proposal = proposal.clone();
-    stamp_receipt_identity(&mut proposal.proposal, &receipt)?;
-    let proposal_json = to_jsonb_text(&proposal.proposal)?;
-    let mut tx = pool.begin().await?;
-    let insert = sqlx::query(
-        r#"
-        INSERT INTO fems_memory_proposals (
-            proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
-            content_hash, memory_class, status, review_gated, created_at, proposal
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
-        ON CONFLICT (workspace_id, request_id) DO NOTHING
-        "#,
-    )
-    .bind(&proposal.proposal_id)
-    .bind(&proposal.request_id)
-    .bind(&proposal.workspace_id)
-    .bind(&proposal.document_id)
-    .bind(proposal.selection_start)
-    .bind(proposal.selection_end)
-    .bind(&proposal.content_hash)
-    .bind(&proposal.memory_class)
-    .bind(&proposal.status)
-    .bind(proposal.review_gated)
-    .bind(&proposal.created_at)
-    .bind(proposal_json)
-    .execute(&mut *tx)
-    .await
-    .map_err(|error| match &error {
-        sqlx::Error::Database(database_error)
-            if database_error.code().as_deref() == Some("23503") =>
-        {
-            StorageError::NotFound("workspace")
+    ensure_fems_memory_schema(storage).await?;
+    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let mut candidate = proposal.clone();
+    stamp_receipt_identity(&mut candidate.proposal, &receipt)?;
+
+    if let Some(stored) =
+        proposal_by_request(storage, &candidate.workspace_id, &candidate.request_id).await?
+    {
+        if !same_logical_proposal(&stored, &candidate) {
+            return Err(StorageError::Conflict(
+                "memory proposal request_id was reused with a different payload",
+            ));
         }
-        _ => StorageError::from(error),
-    })?;
-
-    // MT-118 AC-118-2 (the mint/recovery split). `ON CONFLICT DO NOTHING` reports 0 affected
-    // rows exactly when the workspace/request identity was ALREADY durable, which is the only
-    // situation in which a missing `_canonical_artifact` can be genuine pre-hardening state.
-    // A row this call just created must carry its own artifact, so healing - and with it the
-    // legacy non-UUID `proposal_id` admission - is denied on that mint path and such a payload
-    // still fails closed. Both concurrent retries of an existing row see 0 here, so they both
-    // heal from the same durable row and converge.
-    let artifact_heal = if insert.rows_affected() == 0 {
-        LegacyArtifactHeal::Allow
-    } else {
-        LegacyArtifactHeal::Deny
-    };
-
-    let stored = get_memory_proposal_by_request_with_executor(
-        &mut tx,
-        &proposal.workspace_id,
-        &proposal.request_id,
-    )
-    .await?
-    .ok_or(StorageError::Database(
-        "proposal insert/readback produced no row".to_owned(),
-    ))?;
-    if !same_logical_proposal(&stored, &proposal) {
+        let expected = receipt_for_stored_proposal(receipt, &stored)?;
+        let persisted = event_ledger::get_by_idempotency(storage, &expected.idempotency_key)
+            .await?
+            .ok_or(StorageError::Conflict(
+                "memory proposal exists without its EventLedger receipt",
+            ))?;
+        validate_existing_proposal_receipt(&persisted, &stored)?;
+        ensure_lifecycle_outbox(
+            storage,
+            &stored,
+            "FR-EVT-MEM-001",
+            &build_memory_proposal_flight_recorder_event(
+                &stored,
+                &persisted,
+                LegacyArtifactHeal::Allow,
+            )?,
+        )
+        .await?;
+        return Ok(stored);
+    }
+    if get_memory_proposal(storage, &candidate.proposal_id)
+        .await?
+        .is_some()
+    {
         return Err(StorageError::Conflict(
-            "memory proposal request_id was reused with a different payload",
+            "memory proposal id is bound to a different request",
         ));
     }
-    if force_failure_after_proposal_insert {
-        return Err(StorageError::Database(
-            "forced failure after proposal insert".to_owned(),
-        ));
-    }
-    let receipt = receipt_for_stored_proposal(receipt, &stored)?;
-    let existing_receipt = sqlx::query(
-        r#"
-            SELECT
-                event_id,
-                event_sequence,
-                event_version,
-                kernel_task_run_id,
-                session_run_id,
-                aggregate_type,
-                aggregate_id,
-                idempotency_key,
-                event_type,
-                actor_kind,
-                actor_id,
-                causation_id,
-                correlation_id,
-                payload_hash,
-                source_component,
-                payload::text AS payload,
-                created_at
-            FROM kernel_event_ledger
-            WHERE idempotency_key = $1
-            "#,
-    )
-    .bind(&receipt.idempotency_key)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let persisted_receipt = if let Some(row) = existing_receipt {
-        let existing = crate::storage::postgres::map_kernel_event(row)?;
-        validate_existing_proposal_receipt(&existing, &stored)?;
-        existing
-    } else {
-        crate::storage::postgres::append_kernel_event_with_executor(&mut *tx, receipt).await?
+    let receipt = receipt_for_stored_proposal(receipt, &candidate)?;
+    let (persisted_receipt, ledger) = event_ledger::prepare_event(receipt)?;
+    let event = build_memory_proposal_flight_recorder_event(
+        &candidate,
+        &persisted_receipt,
+        LegacyArtifactHeal::Deny,
+    )?;
+    let bindings = ProposalInsertBindings {
+        proposal_record: RecordId::new(PROPOSALS_TABLE, candidate.proposal_id.clone()),
+        proposal: proposal_content(&candidate),
+        force_failure_after_proposal_insert,
+        ledger,
+        outbox: lifecycle_outbox_write(
+            &candidate.workspace_id,
+            &candidate.proposal_id,
+            "FR-EVT-MEM-001",
+            &event,
+        )?,
     };
-    let flight_recorder_event =
-        build_memory_proposal_flight_recorder_event(&stored, &persisted_receipt, artifact_heal)?;
-    store_memory_lifecycle_outbox_event_with_executor(
-        &mut tx,
-        &stored.workspace_id,
-        &stored.proposal_id,
-        "FR-EVT-MEM-001",
-        &flight_recorder_event,
-    )
-    .await?;
-    tx.commit().await?;
-    Ok(stored)
+    run_proposal_insert_transaction(storage, bindings).await?;
+    Ok(candidate)
+}
+
+#[cfg(test)]
+pub async fn insert_memory_proposal_with_receipt_forced_failure(
+    storage: &SurrealStorage,
+    proposal: &StoredMemoryProposal,
+    receipt: NewKernelEvent,
+) -> StorageResult<StoredMemoryProposal> {
+    insert_memory_proposal_with_receipt_inner(storage, proposal, receipt, true).await
 }
 
 /// Atomically move a proposal out of `pending_review` and append the matching durable
 /// EventLedger decision receipt. Exact retries return the original transition; a different
 /// decision or reviewer identity is a conflict and cannot rewrite the audit record.
 pub async fn review_memory_proposal_with_receipt(
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     proposal_id: &str,
     review: &MemoryProposalReview,
     mut receipt: NewKernelEvent,
 ) -> StorageResult<MemoryProposalReviewResult> {
-    ensure_fems_memory_schema(pool).await?;
+    ensure_fems_memory_schema(storage).await?;
     let target_status = match review.decision.as_str() {
         "approved" => "approved",
         "rejected" => "rejected",
         _ => {
             return Err(StorageError::Validation(
                 "memory proposal review decision must be approved or rejected",
-            ))
+            ));
         }
     };
     if !matches!(
@@ -631,19 +429,18 @@ pub async fn review_memory_proposal_with_receipt(
         || review
             .reason
             .as_deref()
-            .is_some_and(|reason| reason.trim().is_empty() || reason.len() > 1000)
+            .is_some_and(|reason| reason.trim().is_empty() || reason.len() > 1_000)
     {
         return Err(StorageError::Validation(
             "memory proposal review identity is invalid",
         ));
     }
 
-    let mut tx = pool.begin().await?;
-    let mut stored =
-        get_memory_proposal_for_review_with_executor(&mut tx, workspace_id, proposal_id)
-            .await?
-            .ok_or(StorageError::NotFound("memory proposal in workspace"))?;
-
+    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let mut stored = get_memory_proposal(storage, proposal_id)
+        .await?
+        .filter(|stored| stored.workspace_id == workspace_id)
+        .ok_or(StorageError::NotFound("memory proposal in workspace"))?;
     let expected_review = json!({
         "decision": review.decision,
         "reviewer_kind": review.reviewer_kind,
@@ -652,8 +449,8 @@ pub async fn review_memory_proposal_with_receipt(
         "reason": review.reason,
         "correlation_id": review.correlation_id,
     });
-
-    let reviewed_at = if stored.status == "pending_review" {
+    let is_new = stored.status == "pending_review";
+    let reviewed_at = if is_new {
         let reviewed_at = Utc::now();
         let Value::Object(proposal) = &mut stored.proposal else {
             return Err(StorageError::Conflict(
@@ -663,43 +460,28 @@ pub async fn review_memory_proposal_with_receipt(
         let mut persisted_review = expected_review.clone();
         persisted_review
             .as_object_mut()
-            .ok_or(StorageError::Serialization(
-                "memory review metadata was not an object".to_owned(),
-            ))?
+            .expect("review literal is an object")
             .insert("reviewed_at".to_owned(), json!(reviewed_at));
         proposal.insert("review".to_owned(), persisted_review);
         proposal.insert("status".to_owned(), json!(target_status));
         stored.status = target_status.to_owned();
-        let proposal_json = to_jsonb_text(&stored.proposal)?;
-        sqlx::query(
-            r#"
-            UPDATE fems_memory_proposals
-            SET status = $1, proposal = $2::jsonb
-            WHERE workspace_id = $3 AND proposal_id = $4 AND status = 'pending_review'
-            "#,
-        )
-        .bind(target_status)
-        .bind(proposal_json)
-        .bind(workspace_id)
-        .bind(proposal_id)
-        .execute(&mut *tx)
-        .await?;
         reviewed_at
     } else if stored.status == target_status
         || (stored.status == "committed" && target_status == "approved")
     {
-        let persisted_review = stored
+        let mut comparable = stored
             .proposal
             .get("review")
             .and_then(Value::as_object)
+            .cloned()
+            .map(Value::Object)
             .ok_or(StorageError::Conflict(
                 "reviewed memory proposal is missing review evidence",
             ))?;
-        let mut comparable = Value::Object(persisted_review.clone());
         let reviewed_at = comparable
             .as_object_mut()
-            .and_then(|review| review.remove("reviewed_at"))
-            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .and_then(|value| value.remove("reviewed_at"))
+            .and_then(|value| value.as_str().map(str::to_owned))
             .and_then(|value| DateTime::parse_from_rfc3339(&value).ok())
             .map(|value| value.with_timezone(&Utc))
             .ok_or(StorageError::Conflict(
@@ -743,23 +525,44 @@ pub async fn review_memory_proposal_with_receipt(
     receipt.payload_hash = crate::kernel::context_bundle::sha256_hex(
         &crate::kernel::context_bundle::canonical_json_bytes(&receipt.payload),
     );
-    let receipt =
-        crate::storage::postgres::append_kernel_event_with_executor(&mut *tx, receipt).await?;
-    let flight_recorder_event =
-        build_memory_review_flight_recorder_event(&stored, &receipt, reviewed_at)?;
-    store_memory_lifecycle_outbox_event_with_executor(
-        &mut tx,
-        &stored.workspace_id,
-        &stored.proposal_id,
-        "FR-EVT-MEM-002",
-        &flight_recorder_event,
-    )
-    .await?;
-    tx.commit().await?;
 
+    if !is_new {
+        let persisted = event_ledger::get_by_idempotency(storage, &receipt.idempotency_key)
+            .await?
+            .ok_or(StorageError::Conflict(
+                "reviewed memory proposal exists without its EventLedger receipt",
+            ))?;
+        let candidate = KernelEvent::from_new(receipt);
+        ensure_matching_receipt(&persisted, &candidate)?;
+        let event = build_memory_review_flight_recorder_event(&stored, &persisted, reviewed_at)?;
+        ensure_lifecycle_outbox(storage, &stored, "FR-EVT-MEM-002", &event).await?;
+        return Ok(MemoryProposalReviewResult {
+            proposal: stored,
+            receipt: persisted,
+            reviewed_at,
+        });
+    }
+
+    let (persisted, ledger) = event_ledger::prepare_event(receipt)?;
+    let event = build_memory_review_flight_recorder_event(&stored, &persisted, reviewed_at)?;
+    let bindings = ProposalReviewBindings {
+        proposal_record: RecordId::new(PROPOSALS_TABLE, stored.proposal_id.clone()),
+        proposal: proposal_content(&stored),
+        expected_status: "pending_review".to_owned(),
+        ledger,
+        outbox: lifecycle_outbox_write(workspace_id, proposal_id, "FR-EVT-MEM-002", &event)?,
+    };
+    run_proposal_review_transaction(storage, bindings).await?;
+    let candidate_receipt = persisted;
+    let persisted = event_ledger::get_by_idempotency(storage, &candidate_receipt.idempotency_key)
+        .await?
+        .ok_or(StorageError::Conflict(
+            "reviewed memory proposal transaction committed without its EventLedger receipt",
+        ))?;
+    ensure_matching_receipt(&persisted, &candidate_receipt)?;
     Ok(MemoryProposalReviewResult {
         proposal: stored,
-        receipt,
+        receipt: persisted,
         reviewed_at,
     })
 }
@@ -783,7 +586,7 @@ fn receipt_for_stored_proposal(
             _ => {
                 return Err(StorageError::Conflict(
                     "memory proposal receipt identity contains an invalid actor kind",
-                ))
+                ));
             }
         };
         receipt.causation_id = optional_identity_string(identity, "causation_id")?;
@@ -1008,147 +811,10 @@ fn same_logical_proposal(stored: &StoredMemoryProposal, incoming: &StoredMemoryP
         && without_server_identity(&stored.proposal) == without_server_identity(&incoming.proposal)
 }
 
-#[cfg(test)]
-pub(crate) async fn insert_memory_proposal_with_receipt_forced_failure(
-    pool: &PgPool,
-    proposal: &StoredMemoryProposal,
-    receipt: NewKernelEvent,
-) -> StorageResult<StoredMemoryProposal> {
-    insert_memory_proposal_with_receipt_inner(pool, proposal, receipt, true).await
-}
-
 /// Read a stored proposal by id (used by the AC-109-3 proofs).
-pub async fn get_memory_proposal(
-    pool: &PgPool,
-    proposal_id: &str,
-) -> StorageResult<Option<StoredMemoryProposal>> {
-    ensure_fems_memory_schema(pool).await?;
-    let row = sqlx::query(
-        r#"
-        SELECT proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
-               content_hash, memory_class, status, review_gated, created_at,
-               proposal::text AS proposal
-        FROM fems_memory_proposals
-        WHERE proposal_id = $1
-        "#,
-    )
-    .bind(proposal_id)
-    .fetch_optional(pool)
-    .await?;
-
-    match row {
-        Some(row) => {
-            let proposal_text: String = row.try_get("proposal")?;
-            let proposal_value: Value = serde_json::from_str(&proposal_text)
-                .map_err(|err| StorageError::Serialization(err.to_string()))?;
-            Ok(Some(StoredMemoryProposal {
-                proposal_id: row.try_get("proposal_id")?,
-                request_id: row.try_get("request_id")?,
-                workspace_id: row.try_get("workspace_id")?,
-                document_id: row.try_get("document_id")?,
-                selection_start: row.try_get("selection_start")?,
-                selection_end: row.try_get("selection_end")?,
-                content_hash: row.try_get("content_hash")?,
-                memory_class: row.try_get("memory_class")?,
-                status: row.try_get("status")?,
-                review_gated: row.try_get("review_gated")?,
-                created_at: row.try_get("created_at")?,
-                proposal: proposal_value,
-            }))
-        }
-        None => Ok(None),
-    }
-}
 
 /// List a bounded workspace projection of actionable memory proposals. Approved proposals sort
 /// first so an interrupted review->commit sequence is recovered before new pending reviews.
-pub async fn list_memory_proposals(
-    pool: &PgPool,
-    workspace_id: &str,
-    limit: i64,
-) -> StorageResult<Vec<StoredMemoryProposal>> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
-               content_hash, memory_class, status, review_gated, created_at,
-               proposal::text AS proposal
-        FROM fems_memory_proposals
-        WHERE workspace_id = $1 AND status IN ('pending_review', 'approved')
-        ORDER BY CASE WHEN status = 'approved' THEN 0 ELSE 1 END, created_at DESC, proposal_id DESC
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit.clamp(1, 200))
-    .fetch_all(pool)
-    .await?;
-    rows.into_iter().map(map_memory_proposal_row).collect()
-}
-
-async fn get_memory_proposal_by_request_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    workspace_id: &str,
-    request_id: &str,
-) -> StorageResult<Option<StoredMemoryProposal>> {
-    let row = sqlx::query(
-        r#"
-        SELECT proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
-               content_hash, memory_class, status, review_gated, created_at,
-               proposal::text AS proposal
-        FROM fems_memory_proposals
-        WHERE workspace_id = $1 AND request_id = $2
-        FOR UPDATE
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(request_id)
-    .fetch_optional(&mut **tx)
-    .await?;
-    row.map(map_memory_proposal_row).transpose()
-}
-
-async fn get_memory_proposal_for_review_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    workspace_id: &str,
-    proposal_id: &str,
-) -> StorageResult<Option<StoredMemoryProposal>> {
-    let row = sqlx::query(
-        r#"
-        SELECT proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
-               content_hash, memory_class, status, review_gated, created_at,
-               proposal::text AS proposal
-        FROM fems_memory_proposals
-        WHERE workspace_id = $1 AND proposal_id = $2
-        FOR UPDATE
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(proposal_id)
-    .fetch_optional(&mut **tx)
-    .await?;
-    row.map(map_memory_proposal_row).transpose()
-}
-
-fn map_memory_proposal_row(row: sqlx::postgres::PgRow) -> StorageResult<StoredMemoryProposal> {
-    let proposal_text: String = row.try_get("proposal")?;
-    let proposal_value: Value = serde_json::from_str(&proposal_text)
-        .map_err(|err| StorageError::Serialization(err.to_string()))?;
-    Ok(StoredMemoryProposal {
-        proposal_id: row.try_get("proposal_id")?,
-        request_id: row.try_get("request_id")?,
-        workspace_id: row.try_get("workspace_id")?,
-        document_id: row.try_get("document_id")?,
-        selection_start: row.try_get("selection_start")?,
-        selection_end: row.try_get("selection_end")?,
-        content_hash: row.try_get("content_hash")?,
-        memory_class: row.try_get("memory_class")?,
-        status: row.try_get("status")?,
-        review_gated: row.try_get("review_gated")?,
-        created_at: row.try_get("created_at")?,
-        proposal: proposal_value,
-    })
-}
 
 // ---------------------------------------------------------------------------
 // Committed memory items (proposals must NEVER write here — AC-109-3 negative proof).
@@ -1396,175 +1062,6 @@ fn build_memory_pack_flight_recorder_event(
     Ok(event)
 }
 
-async fn load_memory_commit_receipt_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    proposal_id: &str,
-) -> StorageResult<KernelEvent> {
-    let row = sqlx::query(
-        r#"
-        SELECT event_id, event_sequence, event_version, kernel_task_run_id, session_run_id,
-               aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id,
-               causation_id, correlation_id, payload_hash, source_component,
-               payload::text AS payload, created_at
-        FROM kernel_event_ledger
-        WHERE idempotency_key = $1
-        "#,
-    )
-    .bind(format!("fems-memory-commit:{proposal_id}"))
-    .fetch_one(&mut **tx)
-    .await?;
-    crate::storage::postgres::map_kernel_event(row)
-}
-
-async fn load_memory_pack_by_id_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    workspace_id: &str,
-    pack_id: &str,
-) -> StorageResult<MemoryPack> {
-    let row = sqlx::query(
-        "SELECT pack::text AS pack FROM fems_memory_packs WHERE workspace_id = $1 AND pack_id = $2",
-    )
-    .bind(workspace_id)
-    .bind(pack_id)
-    .fetch_optional(&mut **tx)
-    .await?
-    .ok_or(StorageError::Conflict(
-        "memory commit receipt references a missing memory pack",
-    ))?;
-    let pack_text: String = row.try_get("pack")?;
-    let pack: MemoryPack = serde_json::from_str(&pack_text)
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    let computed_hash = pack
-        .compute_hash()
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    if computed_hash != pack.memory_pack_hash {
-        return Err(StorageError::Conflict(
-            "memory commit receipt references a corrupt memory pack",
-        ));
-    }
-    Ok(pack)
-}
-
-async fn store_memory_lifecycle_outbox_event_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    workspace_id: &str,
-    proposal_id: &str,
-    event_code: &str,
-    event: &FlightRecorderEvent,
-) -> StorageResult<()> {
-    let event_hash = event_json_hash(event)?;
-    let event_json = to_jsonb_text(event)?;
-    let inserted = sqlx::query(
-        r#"
-        INSERT INTO fems_memory_lifecycle_fr_outbox
-            (event_id, workspace_id, proposal_id, event_code, event, event_hash, created_at)
-        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
-        ON CONFLICT (proposal_id, event_code) DO NOTHING
-        "#,
-    )
-    .bind(event.event_id.to_string())
-    .bind(workspace_id)
-    .bind(proposal_id)
-    .bind(event_code)
-    .bind(event_json)
-    .bind(&event_hash)
-    .bind(event.timestamp)
-    .execute(&mut **tx)
-    .await?;
-    if inserted.rows_affected() == 1 {
-        return Ok(());
-    }
-    let row = sqlx::query(
-        r#"
-        SELECT event_id, workspace_id, event::text AS event, event_hash
-        FROM fems_memory_lifecycle_fr_outbox
-        WHERE proposal_id = $1 AND event_code = $2
-        FOR UPDATE
-        "#,
-    )
-    .bind(proposal_id)
-    .bind(event_code)
-    .fetch_one(&mut **tx)
-    .await?;
-    let stored_event_text: String = row.try_get("event")?;
-    let stored_event: FlightRecorderEvent = serde_json::from_str(&stored_event_text)
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    let stored_hash: String = row.try_get("event_hash")?;
-    if row.try_get::<String, _>("event_id")? != event.event_id.to_string()
-        || row.try_get::<String, _>("workspace_id")? != workspace_id
-        || !same_memory_commit_event(&stored_event, event)
-        || stored_hash != event_hash
-        || event_json_hash(&stored_event)? != stored_hash
-    {
-        return Err(StorageError::Conflict(
-            "memory lifecycle outbox identity is bound to different evidence",
-        ));
-    }
-    Ok(())
-}
-
-async fn store_memory_commit_outbox_event_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    workspace_id: &str,
-    proposal_id: &str,
-    commit_id: &str,
-    event_code: &str,
-    event: &FlightRecorderEvent,
-) -> StorageResult<()> {
-    let event_hash = event_json_hash(event)?;
-    let event_json = to_jsonb_text(event)?;
-    let inserted = sqlx::query(
-        r#"
-        INSERT INTO fems_memory_commit_fr_outbox
-            (event_id, workspace_id, proposal_id, commit_id, event_code, event, event_hash, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
-        ON CONFLICT (proposal_id, event_code) DO NOTHING
-        "#,
-    )
-    .bind(event.event_id.to_string())
-    .bind(workspace_id)
-    .bind(proposal_id)
-    .bind(commit_id)
-    .bind(event_code)
-    .bind(event_json)
-    .bind(&event_hash)
-    .bind(event.timestamp)
-    .execute(&mut **tx)
-    .await?;
-    if inserted.rows_affected() == 1 {
-        return Ok(());
-    }
-
-    let row = sqlx::query(
-        r#"
-        SELECT event_id, workspace_id, commit_id, event::text AS event, event_hash
-        FROM fems_memory_commit_fr_outbox
-        WHERE proposal_id = $1 AND event_code = $2
-        FOR UPDATE
-        "#,
-    )
-    .bind(proposal_id)
-    .bind(event_code)
-    .fetch_one(&mut **tx)
-    .await?;
-    let stored_event_text: String = row.try_get("event")?;
-    let stored_event: FlightRecorderEvent = serde_json::from_str(&stored_event_text)
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
-    let stored_hash: String = row.try_get("event_hash")?;
-    if row.try_get::<String, _>("event_id")? != event.event_id.to_string()
-        || row.try_get::<String, _>("workspace_id")? != workspace_id
-        || row.try_get::<String, _>("commit_id")? != commit_id
-        || !same_memory_commit_event(&stored_event, event)
-        || stored_hash != event_hash
-        || event_json_hash(&stored_event)? != stored_hash
-    {
-        return Err(StorageError::Conflict(
-            "memory commit outbox identity is bound to different evidence",
-        ));
-    }
-    Ok(())
-}
-
 fn same_memory_commit_event(left: &FlightRecorderEvent, right: &FlightRecorderEvent) -> bool {
     left.event_id == right.event_id
         && left.trace_id == right.trace_id
@@ -1584,7 +1081,6 @@ fn same_memory_commit_event(left: &FlightRecorderEvent, right: &FlightRecorderEv
         && left.payload == right.payload
 }
 
-const OUTBOX_QUARANTINE_AFTER_ATTEMPTS: i64 = 3;
 const OUTBOX_ERROR_MAX_CHARS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1595,646 +1091,21 @@ pub enum MemoryLifecyclePublicationState {
     Missing,
 }
 
-pub async fn memory_lifecycle_publication_state(
-    pool: &PgPool,
-    proposal_id: &str,
-    event_code: &str,
-) -> StorageResult<MemoryLifecyclePublicationState> {
-    ensure_fems_memory_schema(pool).await?;
-    let row = sqlx::query(
-        r#"
-        SELECT published_at IS NOT NULL AS published,
-               quarantined_at IS NOT NULL AS quarantined
-        FROM fems_memory_lifecycle_fr_outbox
-        WHERE proposal_id = $1 AND event_code = $2
-        "#,
-    )
-    .bind(proposal_id)
-    .bind(event_code)
-    .fetch_optional(pool)
-    .await?;
-    Ok(match row {
-        None => MemoryLifecyclePublicationState::Missing,
-        Some(row) if row.try_get::<bool, _>("published")? => {
-            MemoryLifecyclePublicationState::Published
-        }
-        Some(row) if row.try_get::<bool, _>("quarantined")? => {
-            MemoryLifecyclePublicationState::Quarantined
-        }
-        Some(_) => MemoryLifecyclePublicationState::Pending,
-    })
-}
-
 /// Explicitly retry a quarantined lifecycle projection for an identical authoritative proposal.
 /// The proposal row and immutable event payload remain unchanged; only the delivery-attempt state is
 /// reset so the bounded reconciler can try the exact event again.
-pub async fn requeue_quarantined_memory_lifecycle_event(
-    pool: &PgPool,
-    proposal_id: &str,
-    event_code: &str,
-) -> StorageResult<bool> {
-    ensure_fems_memory_schema(pool).await?;
-    let result = sqlx::query(
-        r#"
-        UPDATE fems_memory_lifecycle_fr_outbox
-        SET attempt_count = 0,
-            last_error = NULL,
-            last_error_at = NULL,
-            quarantined_at = NULL
-        WHERE proposal_id = $1
-          AND event_code = $2
-          AND published_at IS NULL
-          AND quarantined_at IS NOT NULL
-        "#,
-    )
-    .bind(proposal_id)
-    .bind(event_code)
-    .execute(pool)
-    .await?;
-    Ok(result.rows_affected() == 1)
-}
 
 fn bounded_outbox_error(error: &str) -> String {
     error.chars().take(OUTBOX_ERROR_MAX_CHARS).collect()
 }
 
-async fn record_memory_lifecycle_event_failure_by_id(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: &str,
-    error: &str,
-    quarantine_now: bool,
-) -> StorageResult<()> {
-    ensure_fems_memory_schema(pool).await?;
-    let updated = sqlx::query(
-        r#"
-        UPDATE fems_memory_lifecycle_fr_outbox
-        SET attempt_count = attempt_count + 1,
-            last_error = $3,
-            last_error_at = now(),
-            quarantined_at = CASE
-                WHEN $4 OR attempt_count + 1 >= $5 THEN COALESCE(quarantined_at, now())
-                ELSE quarantined_at
-            END
-        WHERE workspace_id = $1 AND event_id = $2 AND published_at IS NULL
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id)
-    .bind(bounded_outbox_error(error))
-    .bind(quarantine_now)
-    .bind(OUTBOX_QUARANTINE_AFTER_ATTEMPTS)
-    .execute(pool)
-    .await?;
-    if updated.rows_affected() != 1 {
-        return Err(StorageError::NotFound(
-            "memory lifecycle flight-recorder outbox event",
-        ));
-    }
-    Ok(())
-}
-
-pub async fn record_memory_lifecycle_event_failure(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: uuid::Uuid,
-    error: &str,
-    quarantine_now: bool,
-) -> StorageResult<()> {
-    record_memory_lifecycle_event_failure_by_id(
-        pool,
-        workspace_id,
-        &event_id.to_string(),
-        error,
-        quarantine_now,
-    )
-    .await
-}
-
-async fn decode_lifecycle_outbox_rows(
-    pool: &PgPool,
-    rows: Vec<sqlx::postgres::PgRow>,
-) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
-    let mut decoded = Vec::with_capacity(rows.len());
-    for row in rows {
-        let event_id_text: String = row.try_get("event_id")?;
-        let workspace_id: String = row.try_get("workspace_id")?;
-        let decoded_event = (|| -> StorageResult<FlightRecorderEvent> {
-            let event_id = uuid::Uuid::parse_str(&event_id_text)
-                .map_err(|error| StorageError::Serialization(error.to_string()))?;
-            let event_text: String = row.try_get("event")?;
-            let stored_hash: String = row.try_get("event_hash")?;
-            let event: FlightRecorderEvent = serde_json::from_str(&event_text)
-                .map_err(|error| StorageError::Serialization(error.to_string()))?;
-            if event.event_id != event_id || event_json_hash(&event)? != stored_hash {
-                return Err(StorageError::Conflict(
-                    "memory lifecycle outbox event hash or identity does not match its envelope",
-                ));
-            }
-            event
-                .validate()
-                .map_err(|error| StorageError::Serialization(error.to_string()))?;
-            Ok(event)
-        })();
-        match decoded_event {
-            Ok(event) => decoded.push((workspace_id, event)),
-            Err(error) => {
-                record_memory_lifecycle_event_failure_by_id(
-                    pool,
-                    &workspace_id,
-                    &event_id_text,
-                    &error.to_string(),
-                    true,
-                )
-                .await?;
-                tracing::error!(
-                    target: "handshake_core::fems_memory",
-                    workspace_id,
-                    event_id = %event_id_text,
-                    error = %error,
-                    "fems_memory_lifecycle_outbox_event_quarantined"
-                );
-            }
-        }
-    }
-    Ok(decoded)
-}
-
-pub async fn list_all_pending_memory_lifecycle_events(
-    pool: &PgPool,
-    limit: i64,
-) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT event_id, workspace_id, event::text AS event, event_hash
-        FROM fems_memory_lifecycle_fr_outbox
-        WHERE published_at IS NULL AND quarantined_at IS NULL
-        ORDER BY created_at ASC, event_id ASC
-        LIMIT $1
-        "#,
-    )
-    .bind(limit.clamp(1, 200))
-    .fetch_all(pool)
-    .await?;
-    decode_lifecycle_outbox_rows(pool, rows).await
-}
-
-pub async fn list_pending_memory_lifecycle_events(
-    pool: &PgPool,
-    workspace_id: &str,
-    limit: i64,
-) -> StorageResult<Vec<FlightRecorderEvent>> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT event_id, workspace_id, event::text AS event, event_hash
-        FROM fems_memory_lifecycle_fr_outbox
-        WHERE workspace_id = $1 AND published_at IS NULL AND quarantined_at IS NULL
-        ORDER BY created_at ASC, event_id ASC
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit.clamp(1, 200))
-    .fetch_all(pool)
-    .await?;
-    Ok(decode_lifecycle_outbox_rows(pool, rows)
-        .await?
-        .into_iter()
-        .map(|(_, event)| event)
-        .collect())
-}
-
-pub async fn mark_memory_lifecycle_event_published(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: uuid::Uuid,
-) -> StorageResult<()> {
-    ensure_fems_memory_schema(pool).await?;
-    let updated = sqlx::query(
-        r#"
-        UPDATE fems_memory_lifecycle_fr_outbox
-        SET published_at = COALESCE(published_at, GREATEST(now(), created_at))
-        WHERE workspace_id = $1 AND event_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id.to_string())
-    .execute(pool)
-    .await?;
-    if updated.rows_affected() != 1 {
-        return Err(StorageError::NotFound(
-            "memory lifecycle flight-recorder outbox event",
-        ));
-    }
-    Ok(())
-}
-
-async fn load_kernel_event_by_idempotency_key(
-    pool: &PgPool,
-    idempotency_key: &str,
-) -> StorageResult<KernelEvent> {
-    let row = sqlx::query(
-        r#"
-        SELECT event_id, event_sequence, event_version, kernel_task_run_id, session_run_id,
-               aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id,
-               causation_id, correlation_id, payload_hash, source_component,
-               payload::text AS payload, created_at
-        FROM kernel_event_ledger
-        WHERE idempotency_key = $1
-        "#,
-    )
-    .bind(idempotency_key)
-    .fetch_one(pool)
-    .await?;
-    crate::storage::postgres::map_kernel_event(row)
-}
-
 /// Restart/upgrade healing for proposal and review rows created before their transactional outbox
 /// landed, and for fault-injection tests that remove an outbox row after the authoritative commit.
-pub async fn recover_missing_memory_lifecycle_outbox_events(pool: &PgPool) -> StorageResult<u64> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT proposal.proposal_id, proposal.workspace_id,
-               proposal.proposal ? 'review' AS has_review,
-               proposed.event_id IS NULL AS missing_proposed,
-               reviewed.event_id IS NULL AS missing_reviewed
-        FROM fems_memory_proposals proposal
-        LEFT JOIN fems_memory_lifecycle_fr_outbox proposed
-          ON proposed.proposal_id = proposal.proposal_id
-         AND proposed.event_code = 'FR-EVT-MEM-001'
-        LEFT JOIN fems_memory_lifecycle_fr_outbox reviewed
-          ON reviewed.proposal_id = proposal.proposal_id
-         AND reviewed.event_code = 'FR-EVT-MEM-002'
-        WHERE proposed.event_id IS NULL
-           OR (proposal.proposal ? 'review' AND reviewed.event_id IS NULL)
-        ORDER BY proposal.created_at ASC, proposal.proposal_id ASC
-        "#,
-    )
-    .fetch_all(pool)
-    .await?;
-    let mut recovered = 0u64;
-    for row in rows {
-        let proposal_id: String = row.try_get("proposal_id")?;
-        let workspace_id: String = row.try_get("workspace_id")?;
-        let has_review: bool = row.try_get("has_review")?;
-        let missing_proposed: bool = row.try_get("missing_proposed")?;
-        let missing_reviewed: bool = row.try_get("missing_reviewed")?;
-        let stored = get_memory_proposal(pool, &proposal_id)
-            .await?
-            .ok_or(StorageError::NotFound("memory proposal"))?;
-        // Resolve the authoritative EventLedger receipts before opening the write
-        // transaction. This recovery path must also work with a one-connection pool.
-        let proposed_event = if missing_proposed {
-            let receipt = load_kernel_event_by_idempotency_key(
-                pool,
-                &format!("fems-memory-proposal:{proposal_id}"),
-            )
-            .await?;
-            // MT-118: this loop only ever visits rows that are ALREADY durable in
-            // `fems_memory_proposals`, so it is a recovery path by construction and cannot
-            // mint one. A pre-hardening row carried the same missing-artifact defect here as
-            // on the retry path, and both must rebuild the artifact through the SAME
-            // definition or the outbox identity check would reject the other one's event.
-            Some(build_memory_proposal_flight_recorder_event(
-                &stored,
-                &receipt,
-                LegacyArtifactHeal::Allow,
-            )?)
-        } else {
-            None
-        };
-        let reviewed_event = if has_review && missing_reviewed {
-            let receipt = load_kernel_event_by_idempotency_key(
-                pool,
-                &format!("fems-memory-proposal-review:{proposal_id}"),
-            )
-            .await?;
-            let reviewed_at = stored
-                .proposal
-                .get("review")
-                .and_then(Value::as_object)
-                .and_then(|review| review.get("reviewed_at"))
-                .and_then(Value::as_str)
-                .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
-                .map(|value| value.with_timezone(&Utc))
-                .ok_or(StorageError::Conflict(
-                    "reviewed memory proposal has invalid review timestamp",
-                ))?;
-            Some(build_memory_review_flight_recorder_event(
-                &stored,
-                &receipt,
-                reviewed_at,
-            )?)
-        } else {
-            None
-        };
-        let mut tx = pool.begin().await?;
-        if let Some(event) = proposed_event {
-            store_memory_lifecycle_outbox_event_with_executor(
-                &mut tx,
-                &workspace_id,
-                &proposal_id,
-                "FR-EVT-MEM-001",
-                &event,
-            )
-            .await?;
-            recovered += 1;
-        }
-        if let Some(event) = reviewed_event {
-            store_memory_lifecycle_outbox_event_with_executor(
-                &mut tx,
-                &workspace_id,
-                &proposal_id,
-                "FR-EVT-MEM-002",
-                &event,
-            )
-            .await?;
-            recovered += 1;
-        }
-        tx.commit().await?;
-    }
-    Ok(recovered)
-}
-
-pub async fn list_pending_memory_commit_events(
-    pool: &PgPool,
-    workspace_id: &str,
-    limit: i64,
-) -> StorageResult<Vec<FlightRecorderEvent>> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT event_id, workspace_id, event::text AS event, event_hash
-        FROM fems_memory_commit_fr_outbox current_event
-        WHERE workspace_id = $1
-          AND published_at IS NULL
-          AND quarantined_at IS NULL
-          AND (
-              event_code = 'FR-EVT-MEM-003'
-              OR EXISTS (
-                  SELECT 1 FROM fems_memory_commit_fr_outbox committed
-                  WHERE committed.commit_id = current_event.commit_id
-                    AND committed.event_code = 'FR-EVT-MEM-003'
-                    AND committed.published_at IS NOT NULL
-              )
-          )
-        ORDER BY created_at ASC,
-                 CASE event_code WHEN 'FR-EVT-MEM-003' THEN 0 ELSE 1 END,
-                 event_id ASC
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit.clamp(1, 200))
-    .fetch_all(pool)
-    .await?;
-    Ok(decode_commit_outbox_rows(pool, rows)
-        .await?
-        .into_iter()
-        .map(|(_, event)| event)
-        .collect())
-}
-
-pub async fn list_all_pending_memory_commit_events(
-    pool: &PgPool,
-    limit: i64,
-) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT event_id, workspace_id, event::text AS event, event_hash
-        FROM fems_memory_commit_fr_outbox current_event
-        WHERE published_at IS NULL
-          AND quarantined_at IS NULL
-          AND (
-              event_code = 'FR-EVT-MEM-003'
-              OR EXISTS (
-                  SELECT 1 FROM fems_memory_commit_fr_outbox committed
-                  WHERE committed.commit_id = current_event.commit_id
-                    AND committed.event_code = 'FR-EVT-MEM-003'
-                    AND committed.published_at IS NOT NULL
-              )
-          )
-        ORDER BY created_at ASC,
-                 CASE event_code WHEN 'FR-EVT-MEM-003' THEN 0 ELSE 1 END,
-                 event_id ASC
-        LIMIT $1
-        "#,
-    )
-    .bind(limit.clamp(1, 200))
-    .fetch_all(pool)
-    .await?;
-    decode_commit_outbox_rows(pool, rows).await
-}
-
-async fn record_memory_commit_event_failure_by_id(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: &str,
-    error: &str,
-    quarantine_now: bool,
-) -> StorageResult<()> {
-    ensure_fems_memory_schema(pool).await?;
-    let updated = sqlx::query(
-        r#"
-        UPDATE fems_memory_commit_fr_outbox
-        SET attempt_count = attempt_count + 1,
-            last_error = $3,
-            last_error_at = now(),
-            quarantined_at = CASE
-                WHEN $4 OR attempt_count + 1 >= $5 THEN COALESCE(quarantined_at, now())
-                ELSE quarantined_at
-            END
-        WHERE workspace_id = $1 AND event_id = $2 AND published_at IS NULL
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id)
-    .bind(bounded_outbox_error(error))
-    .bind(quarantine_now)
-    .bind(OUTBOX_QUARANTINE_AFTER_ATTEMPTS)
-    .execute(pool)
-    .await?;
-    if updated.rows_affected() != 1 {
-        return Err(StorageError::NotFound(
-            "memory commit flight-recorder outbox event",
-        ));
-    }
-    Ok(())
-}
-
-pub async fn record_memory_commit_event_failure(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: uuid::Uuid,
-    error: &str,
-    quarantine_now: bool,
-) -> StorageResult<()> {
-    record_memory_commit_event_failure_by_id(
-        pool,
-        workspace_id,
-        &event_id.to_string(),
-        error,
-        quarantine_now,
-    )
-    .await
-}
-
-async fn decode_commit_outbox_rows(
-    pool: &PgPool,
-    rows: Vec<sqlx::postgres::PgRow>,
-) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
-    let mut decoded = Vec::with_capacity(rows.len());
-    for row in rows {
-        let event_id_text: String = row.try_get("event_id")?;
-        let workspace_id: String = row.try_get("workspace_id")?;
-        let decoded_event = (|| -> StorageResult<FlightRecorderEvent> {
-            let event_id = uuid::Uuid::parse_str(&event_id_text)
-                .map_err(|error| StorageError::Serialization(error.to_string()))?;
-            let event_text: String = row.try_get("event")?;
-            let stored_hash: String = row.try_get("event_hash")?;
-            let event: FlightRecorderEvent = serde_json::from_str(&event_text)
-                .map_err(|error| StorageError::Serialization(error.to_string()))?;
-            if event.event_id != event_id || event_json_hash(&event)? != stored_hash {
-                return Err(StorageError::Conflict(
-                    "memory commit outbox event hash or identity does not match its envelope",
-                ));
-            }
-            event
-                .validate()
-                .map_err(|error| StorageError::Serialization(error.to_string()))?;
-            Ok(event)
-        })();
-        match decoded_event {
-            Ok(event) => decoded.push((workspace_id, event)),
-            Err(error) => {
-                record_memory_commit_event_failure_by_id(
-                    pool,
-                    &workspace_id,
-                    &event_id_text,
-                    &error.to_string(),
-                    true,
-                )
-                .await?;
-                tracing::error!(
-                    target: "handshake_core::fems_memory",
-                    workspace_id,
-                    event_id = %event_id_text,
-                    error = %error,
-                    "fems_memory_commit_outbox_event_quarantined"
-                );
-            }
-        }
-    }
-    Ok(decoded)
-}
 
 /// Upgrade/restart recovery for commits written before the transactional outbox migration, or for
 /// any row whose projection envelope was deliberately removed by a fault-injection proof. The
 /// existing-commit branch reconstructs the envelope only from immutable report/EventLedger/pack
 /// evidence; the placeholder receipt below is never used for an already committed proposal.
-pub async fn recover_missing_memory_commit_outbox_events(pool: &PgPool) -> StorageResult<u64> {
-    ensure_fems_memory_schema(pool).await?;
-    let rows = sqlx::query(
-        r#"
-        SELECT report.workspace_id, report.proposal_id
-        FROM fems_memory_commit_reports report
-        LEFT JOIN fems_memory_commit_fr_outbox committed
-          ON committed.proposal_id = report.proposal_id
-         AND committed.event_code = 'FR-EVT-MEM-003'
-        LEFT JOIN fems_memory_commit_fr_outbox packed
-          ON packed.proposal_id = report.proposal_id
-         AND packed.event_code = 'FR-EVT-MEM-004'
-        WHERE committed.proposal_id IS NULL OR packed.proposal_id IS NULL
-        ORDER BY report.created_at ASC, report.commit_id ASC
-        "#,
-    )
-    .fetch_all(pool)
-    .await?;
-    let mut recovered = 0u64;
-    for row in rows {
-        let workspace_id: String = row.try_get("workspace_id")?;
-        let proposal_id: String = row.try_get("proposal_id")?;
-        let placeholder_receipt = NewKernelEvent::builder(
-            "fems-memory-startup-recovery",
-            "fems-memory-startup-recovery",
-            KernelEventType::ArtifactStored,
-            KernelActor::System("fems-memory-startup-recovery".to_owned()),
-        )
-        .idempotency_key(format!("unused-fems-memory-recovery:{proposal_id}"))
-        .source_component("fems_memory_startup_recovery")
-        .payload(json!({"proposal_id": proposal_id}))
-        .build()
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
-        commit_memory_proposal_with_receipt(pool, &workspace_id, &proposal_id, placeholder_receipt)
-            .await?;
-        recovered += 1;
-    }
-    Ok(recovered)
-}
-
-pub async fn mark_memory_commit_event_published(
-    pool: &PgPool,
-    workspace_id: &str,
-    event_id: uuid::Uuid,
-) -> StorageResult<()> {
-    ensure_fems_memory_schema(pool).await?;
-    let updated = sqlx::query(
-        r#"
-        UPDATE fems_memory_commit_fr_outbox
-        SET published_at = COALESCE(published_at, GREATEST(now(), created_at))
-        WHERE workspace_id = $1 AND event_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(event_id.to_string())
-    .execute(pool)
-    .await?;
-    if updated.rows_affected() != 1 {
-        return Err(StorageError::NotFound(
-            "memory commit flight-recorder outbox event",
-        ));
-    }
-    Ok(())
-}
-
-pub async fn get_memory_commit_report(
-    pool: &PgPool,
-    workspace_id: &str,
-    commit_id: &str,
-) -> StorageResult<Option<MemoryCommitReport>> {
-    ensure_fems_memory_schema(pool).await?;
-    let row = sqlx::query(
-        r#"
-        SELECT report::text AS report, report_hash
-        FROM fems_memory_commit_reports
-        WHERE workspace_id = $1 AND commit_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(commit_id)
-    .fetch_optional(pool)
-    .await?;
-    row.map(|row| {
-        let report_text: String = row.try_get("report")?;
-        let stored_hash: String = row.try_get("report_hash")?;
-        let report: MemoryCommitReport = serde_json::from_str(&report_text)
-            .map_err(|error| StorageError::Serialization(error.to_string()))?;
-        let computed_hash = report
-            .compute_hash()
-            .map_err(|error| StorageError::Serialization(error.to_string()))?;
-        if report.commit_id != commit_id || computed_hash != stored_hash {
-            return Err(StorageError::Conflict(
-                "memory commit report artifact failed identity or hash validation",
-            ));
-        }
-        Ok(report)
-    })
-    .transpose()
-}
 
 fn stable_uuid(seed: &str) -> uuid::Uuid {
     let digest = Sha256::digest(seed.as_bytes());
@@ -2347,29 +1218,1734 @@ fn build_memory_item(
     Ok((item, pack_item, scope_ref))
 }
 
-async fn build_memory_pack_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+/// Commit exactly one approved proposal. The canonical item, immutable commit report,
+/// strict MemoryPack projection, proposal terminal state, and EventLedger receipt are
+/// written in one transaction. Exact retries return the original result.
+pub async fn commit_memory_proposal_with_receipt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    proposal_id: &str,
+    mut receipt: NewKernelEvent,
+) -> StorageResult<MemoryProposalCommitResult> {
+    ensure_fems_memory_schema(storage).await?;
+    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let mut proposal = get_memory_proposal(storage, proposal_id)
+        .await?
+        .filter(|proposal| proposal.workspace_id == workspace_id)
+        .ok_or(StorageError::NotFound("memory proposal in workspace"))?;
+    if proposal.status != "approved" && proposal.status != "committed" {
+        return Err(StorageError::Conflict(
+            "memory proposal must be approved before commit",
+        ));
+    }
+    let reviewed_at = proposal_reviewed_at(&proposal)?;
+    let memory_id = stable_uuid(&format!("fems-memory-item:{proposal_id}")).to_string();
+    let commit_id = stable_uuid(&format!("fems-memory-commit:{proposal_id}")).to_string();
+    let (memory_item, pack_item, scope_ref) =
+        build_memory_item(&proposal, &memory_id, reviewed_at)?;
+
+    if let Some(report_row) = select_report_by_proposal(storage, proposal_id).await? {
+        let stored_commit_id = report_row.commit_id.clone();
+        let stored_memory_id = record_key(report_row.memory_id, "commit report memory")?;
+        let commit_report: MemoryCommitReport = serde_json::from_value(report_row.report)?;
+        let computed_hash = commit_report
+            .compute_hash()
+            .map_err(|error| StorageError::Serialization(error.to_string()))?;
+        if stored_commit_id != commit_id
+            || stored_memory_id != memory_id
+            || commit_report.source_proposal_id != proposal_id
+            || report_row.report_hash != computed_hash
+        {
+            return Err(StorageError::Conflict(
+                "memory proposal commit identity is bound to different evidence",
+            ));
+        }
+        let item = select_item(storage, &memory_id)
+            .await?
+            .ok_or(StorageError::Conflict(
+                "memory proposal commit references a missing item",
+            ))?;
+        if record_key(item.workspace_id, "memory item workspace")? != workspace_id
+            || item.item != memory_item
+        {
+            return Err(StorageError::Conflict(
+                "memory proposal commit references different item evidence",
+            ));
+        }
+        let persisted =
+            event_ledger::get_by_idempotency(storage, &format!("fems-memory-commit:{proposal_id}"))
+                .await?
+                .ok_or(StorageError::Conflict(
+                    "memory proposal commit is missing its EventLedger receipt",
+                ))?;
+        let payload = persisted.payload.as_object().ok_or(StorageError::Conflict(
+            "memory commit receipt payload is not an object",
+        ))?;
+        let payload_string = |key: &str| payload.get(key).and_then(Value::as_str);
+        if payload_string("workspace_id") != Some(workspace_id)
+            || payload_string("proposal_id") != Some(proposal_id)
+            || payload_string("commit_id") != Some(commit_id.as_str())
+            || payload_string("memory_id") != Some(memory_id.as_str())
+            || payload_string("commit_report_hash") != Some(computed_hash.as_str())
+        {
+            return Err(StorageError::Conflict(
+                "memory commit receipt is bound to different evidence",
+            ));
+        }
+        let pack_id = payload_string("memory_pack_id").ok_or(StorageError::Conflict(
+            "memory commit receipt is missing memory_pack_id",
+        ))?;
+        let pack_row =
+            select_pack(storage, workspace_id, pack_id)
+                .await?
+                .ok_or(StorageError::Conflict(
+                    "memory commit receipt references a missing memory pack",
+                ))?;
+        if record_key(pack_row.workspace_id, "memory pack workspace")? != workspace_id {
+            return Err(StorageError::Conflict(
+                "memory commit receipt references another workspace's memory pack",
+            ));
+        }
+        let memory_pack: MemoryPack = serde_json::from_value(pack_row.pack)?;
+        let pack_hash = memory_pack
+            .compute_hash()
+            .map_err(|error| StorageError::Serialization(error.to_string()))?;
+        if pack_hash != memory_pack.memory_pack_hash
+            || payload_string("memory_pack_hash") != Some(pack_hash.as_str())
+        {
+            return Err(StorageError::Conflict(
+                "memory commit receipt references a corrupt memory pack",
+            ));
+        }
+        let committed_event = build_memory_commit_flight_recorder_event(
+            workspace_id,
+            proposal_id,
+            &memory_id,
+            &commit_report,
+            &computed_hash,
+            &persisted,
+        )?;
+        let packed_event = build_memory_pack_flight_recorder_event(
+            workspace_id,
+            proposal_id,
+            &commit_id,
+            &memory_pack,
+            &committed_event,
+        )?;
+        create_commit_outbox_if_absent(
+            storage,
+            workspace_id,
+            proposal_id,
+            &commit_id,
+            "FR-EVT-MEM-003",
+            &committed_event,
+        )
+        .await?;
+        create_commit_outbox_if_absent(
+            storage,
+            workspace_id,
+            proposal_id,
+            &commit_id,
+            "FR-EVT-MEM-004",
+            &packed_event,
+        )
+        .await?;
+        return Ok(MemoryProposalCommitResult {
+            proposal,
+            memory_item,
+            memory_pack,
+            commit_report,
+            commit_report_hash: computed_hash,
+            receipt: persisted,
+            flight_recorder_event: committed_event,
+            memory_pack_flight_recorder_event: packed_event,
+        });
+    }
+
+    if proposal.status != "approved" {
+        return Err(StorageError::Conflict(
+            "committed memory proposal is missing its immutable report",
+        ));
+    }
+    if select_item(storage, &memory_id).await?.is_some() {
+        return Err(StorageError::Conflict(
+            "memory item identity is bound without a matching commit report",
+        ));
+    }
+    let now = Utc::now();
+    let committed_at = if now <= reviewed_at {
+        reviewed_at + chrono::Duration::microseconds(1)
+    } else {
+        now
+    };
+    let commit_report = MemoryCommitReport {
+        schema_version: "hsk.memory_commit_report@0.1".to_owned(),
+        commit_id: commit_id.clone(),
+        created_at: committed_at.to_rfc3339(),
+        source_proposal_id: proposal_id.to_owned(),
+        applied_ops: vec![MemoryCommitAppliedOp {
+            op: MemoryMutationOp::Add,
+            memory_id: memory_id.clone(),
+            previous_version: None,
+            new_version: Some(1),
+            status: MemoryCommitOpStatus::Applied,
+            reason: None,
+        }],
+        warnings: Vec::new(),
+        pack_rebuild_hints: vec![MemoryPackRebuildHint {
+            scope_ref: scope_ref.clone(),
+            reason: MemoryPackRebuildHintReason::MemoryChanged,
+        }],
+    };
+    let commit_report_hash = commit_report
+        .compute_hash()
+        .map_err(|error| StorageError::Serialization(error.to_string()))?;
+    let memory_pack =
+        build_memory_pack(storage, workspace_id, committed_at, scope_ref, pack_item).await?;
+
+    proposal.status = "committed".to_owned();
+    if let Value::Object(object) = &mut proposal.proposal {
+        object.insert("status".to_owned(), json!("committed"));
+    }
+    receipt.aggregate_type = "fems_memory_commit".to_owned();
+    receipt.aggregate_id = commit_id.clone();
+    receipt.idempotency_key = format!("fems-memory-commit:{proposal_id}");
+    receipt.event_type = KernelEventType::ArtifactStored;
+    receipt.correlation_id = Some(format!("fems-memory-proposal:{proposal_id}"));
+    receipt.source_component = "fems_memory_proposal_commit".to_owned();
+    receipt.payload = json!({
+        "receipt_kind": "fems_memory_write_committed",
+        "fr_event_id": "FR-EVT-MEM-003",
+        "memory_pack_fr_event_id": "FR-EVT-MEM-004",
+        "workspace_id": workspace_id,
+        "proposal_id": proposal_id,
+        "commit_id": commit_id,
+        "memory_id": memory_id,
+        "memory_pack_id": memory_pack.pack_id,
+        "memory_pack_hash": memory_pack.memory_pack_hash,
+        "commit_report_hash": commit_report_hash,
+    });
+    receipt.payload_hash = crate::kernel::context_bundle::sha256_hex(
+        &crate::kernel::context_bundle::canonical_json_bytes(&receipt.payload),
+    );
+    let (persisted, ledger) = event_ledger::prepare_event(receipt)?;
+    let committed_event = build_memory_commit_flight_recorder_event(
+        workspace_id,
+        proposal_id,
+        &memory_id,
+        &commit_report,
+        &commit_report_hash,
+        &persisted,
+    )?;
+    let packed_event = build_memory_pack_flight_recorder_event(
+        workspace_id,
+        proposal_id,
+        &commit_id,
+        &memory_pack,
+        &committed_event,
+    )?;
+    let stamp = Datetime::from(committed_at);
+    let bindings = CommitBindings {
+        item_record: RecordId::new(ITEMS_TABLE, memory_id.clone()),
+        item: ItemContent {
+            memory_id: memory_id.clone(),
+            workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+            item: memory_item.clone(),
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        },
+        report_record: RecordId::new(REPORTS_TABLE, commit_id.clone()),
+        report: ReportContent {
+            commit_id: commit_id.clone(),
+            workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+            proposal_id: RecordId::new(PROPOSALS_TABLE, proposal_id),
+            memory_id: RecordId::new(ITEMS_TABLE, memory_id.clone()),
+            report: serde_json::to_value(&commit_report)?,
+            report_hash: commit_report_hash.clone(),
+            created_at: stamp.clone(),
+        },
+        proposal_record: RecordId::new(PROPOSALS_TABLE, proposal_id),
+        proposal: proposal_content(&proposal),
+        expected_status: "approved".to_owned(),
+        pack_record: RecordId::new(PACKS_TABLE, memory_pack.pack_id.clone()),
+        pack: PackContent {
+            pack_id: memory_pack.pack_id.clone(),
+            workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+            scope_key: String::new(),
+            pack: serde_json::to_value(&memory_pack)?,
+            generated_at: stamp.clone(),
+            created_at: stamp,
+        },
+        ledger,
+        committed_outbox: commit_outbox_write(
+            workspace_id,
+            proposal_id,
+            &commit_id,
+            "FR-EVT-MEM-003",
+            &committed_event,
+        )?,
+        packed_outbox: commit_outbox_write(
+            workspace_id,
+            proposal_id,
+            &commit_id,
+            "FR-EVT-MEM-004",
+            &packed_event,
+        )?,
+    };
+    run_commit_transaction(storage, bindings).await?;
+    let candidate_receipt = persisted;
+    let persisted = event_ledger::get_by_idempotency(storage, &candidate_receipt.idempotency_key)
+        .await?
+        .ok_or(StorageError::Conflict(
+            "memory commit transaction committed without its EventLedger receipt",
+        ))?;
+    ensure_matching_receipt(&persisted, &candidate_receipt)?;
+    Ok(MemoryProposalCommitResult {
+        proposal,
+        memory_item,
+        memory_pack,
+        commit_report,
+        commit_report_hash,
+        receipt: persisted,
+        flight_recorder_event: committed_event,
+        memory_pack_flight_recorder_event: packed_event,
+    })
+}
+
+/// Insert or replace a COMMITTED memory item. This is only reachable from a downstream
+/// review/commit path (out of MT-109 scope) or a test seeding a committed item to prove
+/// a proposal cannot mutate it.
+
+/// Read a committed memory item's JSON by id (AC-109-3 negative proof: unchanged after a
+/// proposal is submitted).
+
+/// Count committed memory items for a workspace (AC-109-3 negative proof: submitting a
+/// proposal does not increase the committed-item count).
+
+// ---------------------------------------------------------------------------
+// Embedded SurrealDB persistence (WP-KERNEL-012 MT-136).
+// ---------------------------------------------------------------------------
+
+const WORKSPACES_TABLE: &str = "workspaces";
+const PACKS_TABLE: &str = "fems_memory_packs";
+const PROPOSALS_TABLE: &str = "fems_memory_proposals";
+const ITEMS_TABLE: &str = "fems_memory_items";
+const REPORTS_TABLE: &str = "fems_memory_commit_reports";
+const LIFECYCLE_OUTBOX_TABLE: &str = "fems_memory_lifecycle_fr_outbox";
+const COMMIT_OUTBOX_TABLE: &str = "fems_memory_commit_fr_outbox";
+
+static FEMS_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+
+#[derive(SurrealValue)]
+struct WorkspaceBinding {
+    workspace: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct WorkspaceScopeBinding {
+    workspace: RecordId,
+    scope: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct WorkspaceLimitBinding {
+    workspace: RecordId,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct OutboxListBinding {
+    workspace: Option<RecordId>,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct WorkspaceValueBinding {
+    workspace: RecordId,
+    value: String,
+}
+
+#[derive(SurrealValue)]
+struct ProposalEventBinding {
+    proposal: RecordId,
+    event_code: String,
+}
+
+#[derive(SurrealValue)]
+struct EventMutationBinding {
+    workspace: RecordId,
+    event_id: String,
+    error: Option<String>,
+    quarantine: bool,
+    now: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct OutboxIdentityBinding {
+    workspace: RecordId,
+    event_id: String,
+}
+
+#[derive(SurrealValue)]
+struct FailureMutationBinding {
+    workspace: RecordId,
+    event_id: String,
+    error: String,
+    expected_attempt_count: i64,
+    next_attempt_count: i64,
+    quarantined_at: Option<Datetime>,
+    now: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct AttemptCountRow {
+    attempt_count: i64,
+}
+
+#[derive(SurrealValue)]
+struct LimitBinding {
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct PackContent {
+    pack_id: String,
+    workspace_id: RecordId,
+    scope_key: String,
+    pack: Value,
+    generated_at: Datetime,
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct PackRow {
+    pack_id: String,
+    workspace_id: RecordId,
+    scope_key: String,
+    pack: Value,
+    generated_at: Datetime,
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct ProposalContent {
+    proposal_id: String,
+    request_id: String,
+    workspace_id: RecordId,
+    document_id: String,
+    selection_start: i64,
+    selection_end: i64,
+    content_hash: String,
+    memory_class: String,
+    status: String,
+    review_gated: bool,
+    created_at: Datetime,
+    proposal: Value,
+}
+
+#[derive(SurrealValue)]
+struct ProposalRow {
+    proposal_id: String,
+    request_id: String,
+    workspace_id: RecordId,
+    document_id: String,
+    selection_start: i64,
+    selection_end: i64,
+    content_hash: String,
+    memory_class: String,
+    status: String,
+    review_gated: bool,
+    created_at: Datetime,
+    proposal: Value,
+}
+
+#[derive(SurrealValue)]
+struct ItemContent {
+    memory_id: String,
+    workspace_id: RecordId,
+    item: Value,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct ItemRow {
+    memory_id: String,
+    workspace_id: RecordId,
+    item: Value,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct CountRow {
+    count: i64,
+}
+
+#[derive(SurrealValue)]
+struct ReportRow {
+    commit_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    memory_id: RecordId,
+    report: Value,
+    report_hash: String,
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct ReportContent {
+    commit_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    memory_id: RecordId,
+    report: Value,
+    report_hash: String,
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct OutboxRow {
+    event_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    commit_id: Option<RecordId>,
+    event_code: String,
+    event: Value,
+    event_hash: String,
+    created_at: Datetime,
+    published_at: Option<Datetime>,
+    attempt_count: i64,
+    last_error: Option<String>,
+    last_error_at: Option<Datetime>,
+    quarantined_at: Option<Datetime>,
+}
+
+#[derive(SurrealValue)]
+struct LifecycleOutboxRow {
+    event_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    event_code: String,
+    event: Value,
+    event_hash: String,
+    created_at: Datetime,
+    published_at: Option<Datetime>,
+    attempt_count: i64,
+    last_error: Option<String>,
+    last_error_at: Option<Datetime>,
+    quarantined_at: Option<Datetime>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct LifecycleOutboxWrite {
+    record: RecordId,
+    event_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    event_code: String,
+    event: Value,
+    event_hash: String,
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct LifecycleOutboxContent {
+    event_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    event_code: String,
+    event: Value,
+    event_hash: String,
+    created_at: Datetime,
+}
+
+impl From<LifecycleOutboxWrite> for LifecycleOutboxContent {
+    fn from(value: LifecycleOutboxWrite) -> Self {
+        Self {
+            event_id: value.event_id,
+            workspace_id: value.workspace_id,
+            proposal_id: value.proposal_id,
+            event_code: value.event_code,
+            event: value.event,
+            event_hash: value.event_hash,
+            created_at: value.created_at,
+        }
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct CommitOutboxWrite {
+    record: RecordId,
+    event_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    commit_id: RecordId,
+    event_code: String,
+    event: Value,
+    event_hash: String,
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct CommitOutboxContent {
+    event_id: String,
+    workspace_id: RecordId,
+    proposal_id: RecordId,
+    commit_id: RecordId,
+    event_code: String,
+    event: Value,
+    event_hash: String,
+    created_at: Datetime,
+}
+
+impl From<CommitOutboxWrite> for CommitOutboxContent {
+    fn from(value: CommitOutboxWrite) -> Self {
+        Self {
+            event_id: value.event_id,
+            workspace_id: value.workspace_id,
+            proposal_id: value.proposal_id,
+            commit_id: value.commit_id,
+            event_code: value.event_code,
+            event: value.event,
+            event_hash: value.event_hash,
+            created_at: value.created_at,
+        }
+    }
+}
+
+#[derive(SurrealValue)]
+struct ProposalInsertBindings {
+    proposal_record: RecordId,
+    proposal: ProposalContent,
+    force_failure_after_proposal_insert: bool,
+    ledger: event_ledger::LedgerWrite,
+    outbox: LifecycleOutboxWrite,
+}
+
+#[derive(SurrealValue)]
+struct ProposalReviewBindings {
+    proposal_record: RecordId,
+    proposal: ProposalContent,
+    expected_status: String,
+    ledger: event_ledger::LedgerWrite,
+    outbox: LifecycleOutboxWrite,
+}
+
+#[derive(SurrealValue)]
+struct CommitBindings {
+    item_record: RecordId,
+    item: ItemContent,
+    report_record: RecordId,
+    report: ReportContent,
+    proposal_record: RecordId,
+    proposal: ProposalContent,
+    expected_status: String,
+    pack_record: RecordId,
+    pack: PackContent,
+    ledger: event_ledger::LedgerWrite,
+    committed_outbox: CommitOutboxWrite,
+    packed_outbox: CommitOutboxWrite,
+}
+
+#[derive(Clone, Copy)]
+enum OutboxKind {
+    Lifecycle,
+    Commit,
+}
+
+async fn run_proposal_insert_transaction(
+    storage: &SurrealStorage,
+    bindings: ProposalInsertBindings,
+) -> StorageResult<()> {
+    let rows: Vec<ProposalRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values_at(
+                        "BEGIN TRANSACTION; \
+                         CREATE $proposal_record CONTENT { \
+                            proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
+                            workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
+                            selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
+                            content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
+                            status: $proposal.status, review_gated: $proposal.review_gated, \
+                            created_at: $proposal.created_at, proposal: $proposal.proposal \
+                         } RETURN AFTER; \
+                         IF $force_failure_after_proposal_insert { \
+                            THROW 'forced failure after proposal insert'; \
+                         }; \
+                         CREATE $ledger.record CONTENT { \
+                            event_id: $ledger.event_id, event_version: $ledger.event_version, \
+                            kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, \
+                            aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, \
+                            idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, \
+                            actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
+                            causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
+                            payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
+                            payload: $ledger.payload, created_at: $ledger.created_at \
+                         }; \
+                         CREATE $outbox.record CONTENT { \
+                            event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
+                            proposal_id: $outbox.proposal_id, event_code: $outbox.event_code, \
+                            event: $outbox.event, event_hash: $outbox.event_hash, created_at: $outbox.created_at \
+                         }; \
+                         COMMIT TRANSACTION;",
+                        bindings,
+                        1,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    if rows.len() == 1 {
+        Ok(())
+    } else {
+        Err(StorageError::Database(
+            "proposal transaction did not create exactly one row".to_owned(),
+        ))
+    }
+}
+
+async fn run_proposal_review_transaction(
+    storage: &SurrealStorage,
+    bindings: ProposalReviewBindings,
+) -> StorageResult<()> {
+    let _: Vec<surrealdb::types::Value> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values_at(
+                        "BEGIN TRANSACTION; \
+                         IF array::len((UPDATE $proposal_record CONTENT { \
+                            proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
+                            workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
+                            selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
+                            content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
+                            status: $proposal.status, review_gated: $proposal.review_gated, \
+                            created_at: $proposal.created_at, proposal: $proposal.proposal \
+                         } WHERE status = $expected_status RETURN AFTER)) != 1 { \
+                            THROW 'HSK-FEMS-REVIEW-STATE'; \
+                         }; \
+                         CREATE $ledger.record CONTENT { \
+                            event_id: $ledger.event_id, event_version: $ledger.event_version, \
+                            kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, \
+                            aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, \
+                            idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, \
+                            actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
+                            causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
+                            payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
+                            payload: $ledger.payload, created_at: $ledger.created_at \
+                         }; \
+                         CREATE $outbox.record CONTENT { \
+                            event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
+                            proposal_id: $outbox.proposal_id, event_code: $outbox.event_code, \
+                            event: $outbox.event, event_hash: $outbox.event_hash, created_at: $outbox.created_at \
+                         }; \
+                         COMMIT TRANSACTION;",
+                        bindings,
+                        1,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(|error| {
+            if error.to_string().contains("HSK-FEMS-REVIEW-STATE") {
+                StorageError::Conflict(
+                    "memory proposal review lost its pending-review transition",
+                )
+            } else {
+                StorageError::from(error)
+            }
+        })?;
+    Ok(())
+}
+
+pub async fn ensure_fems_memory_schema(storage: &SurrealStorage) -> StorageResult<()> {
+    bootstrap_schema(storage)
+        .await
+        .map(|_| ())
+        .map_err(|error| StorageError::Migration(error.to_string()))
+}
+
+pub async fn upsert_memory_pack(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    scope_key: &str,
+    pack: &MemoryPack,
+) -> StorageResult<()> {
+    ensure_fems_memory_schema(storage).await?;
+    let generated_at = DateTime::parse_from_rfc3339(&pack.generated_at)
+        .map(|value| value.with_timezone(&Utc))
+        .map_err(|_| StorageError::Validation("memory pack generated_at is invalid"))?;
+    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let record_id = pack.pack_id.clone();
+    let pack_value = serde_json::to_value(pack)?;
+    if let Some(existing) = select_pack(storage, workspace_id, &record_id).await? {
+        if record_key(existing.workspace_id, "memory pack workspace")? != workspace_id
+            || existing.scope_key != scope_key
+            || existing.pack != pack_value
+        {
+            return Err(StorageError::Conflict(
+                "memory pack id is bound to different immutable content",
+            ));
+        }
+        return Ok(());
+    }
+    let now = Datetime::from(Utc::now());
+    let content = PackContent {
+        pack_id: pack.pack_id.clone(),
+        workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        scope_key: scope_key.to_owned(),
+        pack: pack_value,
+        generated_at: Datetime::from(generated_at),
+        created_at: now,
+    };
+    let id = pack.pack_id.clone();
+    let created: Option<PackRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.create_if_absent(PACKS_TABLE, &id, content).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    if created.is_some() {
+        Ok(())
+    } else {
+        Err(StorageError::Conflict(
+            "memory pack id was concurrently bound to different content",
+        ))
+    }
+}
+
+pub async fn get_latest_memory_pack(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    scope_key: Option<&str>,
+) -> StorageResult<Option<MemoryPack>> {
+    ensure_fems_memory_schema(storage).await?;
+    let bindings = WorkspaceScopeBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        scope: scope_key
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned),
+    };
+    let row: Option<PackRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT pack_id, workspace_id, scope_key, pack, generated_at, created_at \
+                         FROM fems_memory_packs WHERE workspace_id = $workspace \
+                         AND ($scope = NONE OR scope_key = $scope OR scope_key = '') \
+                         ORDER BY created_at DESC, scope_key DESC, pack_id DESC LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    row.map(|row| serde_json::from_value(row.pack).map_err(StorageError::from))
+        .transpose()
+}
+
+pub async fn get_memory_proposal(
+    storage: &SurrealStorage,
+    proposal_id: &str,
+) -> StorageResult<Option<StoredMemoryProposal>> {
+    let id = proposal_id.to_owned();
+    let row: Option<ProposalRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.select_one(PROPOSALS_TABLE, &id).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    row.map(proposal_from_row).transpose()
+}
+
+pub async fn list_memory_proposals(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    limit: i64,
+) -> StorageResult<Vec<StoredMemoryProposal>> {
+    let bindings = WorkspaceLimitBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        limit: limit.clamp(1, 200),
+    };
+    let rows: Vec<ProposalRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT proposal_id, request_id, workspace_id, document_id, selection_start, \
+                         selection_end, content_hash, memory_class, status, review_gated, created_at, proposal \
+                         FROM fems_memory_proposals WHERE workspace_id = $workspace \
+                         ORDER BY created_at DESC, proposal_id ASC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    rows.into_iter().map(proposal_from_row).collect()
+}
+
+pub async fn upsert_memory_item(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    memory_id: &str,
+    item: &Value,
+) -> StorageResult<()> {
+    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let now = Datetime::from(Utc::now());
+    let created_at = if let Some(existing) = select_item(storage, memory_id).await? {
+        if record_key(existing.workspace_id, "memory item workspace")? != workspace_id {
+            return Err(StorageError::Conflict(
+                "memory item id belongs to a different workspace",
+            ));
+        }
+        existing.created_at
+    } else {
+        now.clone()
+    };
+    let content = ItemContent {
+        memory_id: memory_id.to_owned(),
+        workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        item: item.clone(),
+        created_at,
+        updated_at: now,
+    };
+    let id = memory_id.to_owned();
+    let _: Option<ItemRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.upsert_one(ITEMS_TABLE, &id, content).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(())
+}
+
+pub async fn get_memory_item(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    memory_id: &str,
+) -> StorageResult<Option<Value>> {
+    let Some(row) = select_item(storage, memory_id).await? else {
+        return Ok(None);
+    };
+    if record_key(row.workspace_id.clone(), "memory item workspace")? != workspace_id {
+        return Ok(None);
+    }
+    Ok(Some(row.item))
+}
+
+pub async fn count_memory_items(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+) -> StorageResult<i64> {
+    let bindings = WorkspaceBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+    };
+    let row: Option<CountRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT count() AS count FROM fems_memory_items \
+                         WHERE workspace_id = $workspace GROUP ALL;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(row.map_or(0, |row| row.count))
+}
+
+pub async fn memory_lifecycle_publication_state(
+    storage: &SurrealStorage,
+    proposal_id: &str,
+    event_code: &str,
+) -> StorageResult<MemoryLifecyclePublicationState> {
+    Ok(
+        match lookup_lifecycle_outbox(storage, proposal_id, event_code).await? {
+            None => MemoryLifecyclePublicationState::Missing,
+            Some(row) if row.published_at.is_some() => MemoryLifecyclePublicationState::Published,
+            Some(row) if row.quarantined_at.is_some() => {
+                MemoryLifecyclePublicationState::Quarantined
+            }
+            Some(_) => MemoryLifecyclePublicationState::Pending,
+        },
+    )
+}
+
+pub async fn requeue_quarantined_memory_lifecycle_event(
+    storage: &SurrealStorage,
+    proposal_id: &str,
+    event_code: &str,
+) -> StorageResult<bool> {
+    let bindings = ProposalEventBinding {
+        proposal: RecordId::new(PROPOSALS_TABLE, proposal_id),
+        event_code: event_code.to_owned(),
+    };
+    let count = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .execute_returning(
+                        "UPDATE fems_memory_lifecycle_fr_outbox SET attempt_count = 0, \
+                         last_error = NONE, last_error_at = NONE, quarantined_at = NONE \
+                         WHERE proposal_id = $proposal AND event_code = $event_code \
+                         AND published_at = NONE AND quarantined_at != NONE RETURN AFTER;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(count == 1)
+}
+
+pub async fn record_memory_lifecycle_event_failure(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    event_id: uuid::Uuid,
+    error: &str,
+    quarantine_now: bool,
+) -> StorageResult<()> {
+    record_outbox_failure(
+        storage,
+        OutboxKind::Lifecycle,
+        workspace_id,
+        &event_id.to_string(),
+        error,
+        quarantine_now,
+    )
+    .await
+}
+
+pub async fn list_all_pending_memory_lifecycle_events(
+    storage: &SurrealStorage,
+    limit: i64,
+) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
+    let rows = list_lifecycle_rows(storage, None, limit).await?;
+    decode_lifecycle_rows(storage, rows).await
+}
+
+pub async fn list_pending_memory_lifecycle_events(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    limit: i64,
+) -> StorageResult<Vec<FlightRecorderEvent>> {
+    Ok(decode_lifecycle_rows(
+        storage,
+        list_lifecycle_rows(storage, Some(workspace_id), limit).await?,
+    )
+    .await?
+    .into_iter()
+    .map(|(_, event)| event)
+    .collect())
+}
+
+pub async fn mark_memory_lifecycle_event_published(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    event_id: uuid::Uuid,
+) -> StorageResult<()> {
+    mark_outbox_published(
+        storage,
+        OutboxKind::Lifecycle,
+        workspace_id,
+        &event_id.to_string(),
+    )
+    .await
+}
+
+pub async fn recover_missing_memory_lifecycle_outbox_events(
+    storage: &SurrealStorage,
+) -> StorageResult<u64> {
+    ensure_fems_memory_schema(storage).await?;
+    let rows: Vec<ProposalRow> = storage
+        .with_data_operation(|database| {
+            Box::pin(async move { database.select_all(PROPOSALS_TABLE).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    let mut recovered = 0;
+    for row in rows {
+        let stored = proposal_from_row(row)?;
+        if lookup_lifecycle_outbox(storage, &stored.proposal_id, "FR-EVT-MEM-001")
+            .await?
+            .is_none()
+        {
+            let receipt = event_ledger::get_by_idempotency(
+                storage,
+                &format!("fems-memory-proposal:{}", stored.proposal_id),
+            )
+            .await?
+            .ok_or(StorageError::Conflict(
+                "memory proposal is missing its EventLedger receipt",
+            ))?;
+            let event = build_memory_proposal_flight_recorder_event(
+                &stored,
+                &receipt,
+                LegacyArtifactHeal::Allow,
+            )?;
+            create_lifecycle_outbox_if_absent(storage, &stored, "FR-EVT-MEM-001", &event).await?;
+            recovered += 1;
+        }
+        if stored.proposal.get("review").is_some()
+            && lookup_lifecycle_outbox(storage, &stored.proposal_id, "FR-EVT-MEM-002")
+                .await?
+                .is_none()
+        {
+            let receipt = event_ledger::get_by_idempotency(
+                storage,
+                &format!("fems-memory-proposal-review:{}", stored.proposal_id),
+            )
+            .await?
+            .ok_or(StorageError::Conflict(
+                "reviewed memory proposal is missing its EventLedger receipt",
+            ))?;
+            let reviewed_at = proposal_reviewed_at(&stored)?;
+            let event = build_memory_review_flight_recorder_event(&stored, &receipt, reviewed_at)?;
+            create_lifecycle_outbox_if_absent(storage, &stored, "FR-EVT-MEM-002", &event).await?;
+            recovered += 1;
+        }
+    }
+    Ok(recovered)
+}
+
+pub async fn list_pending_memory_commit_events(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    limit: i64,
+) -> StorageResult<Vec<FlightRecorderEvent>> {
+    Ok(decode_commit_rows(
+        storage,
+        list_commit_rows(storage, Some(workspace_id), limit).await?,
+    )
+    .await?
+    .into_iter()
+    .map(|(_, event)| event)
+    .collect())
+}
+
+pub async fn list_all_pending_memory_commit_events(
+    storage: &SurrealStorage,
+    limit: i64,
+) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
+    let rows = list_commit_rows(storage, None, limit).await?;
+    decode_commit_rows(storage, rows).await
+}
+
+pub async fn record_memory_commit_event_failure(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    event_id: uuid::Uuid,
+    error: &str,
+    quarantine_now: bool,
+) -> StorageResult<()> {
+    record_outbox_failure(
+        storage,
+        OutboxKind::Commit,
+        workspace_id,
+        &event_id.to_string(),
+        error,
+        quarantine_now,
+    )
+    .await
+}
+
+pub async fn recover_missing_memory_commit_outbox_events(
+    storage: &SurrealStorage,
+) -> StorageResult<u64> {
+    ensure_fems_memory_schema(storage).await?;
+    let rows: Vec<ReportRow> = storage
+        .with_data_operation(|database| {
+            Box::pin(async move { database.select_all(REPORTS_TABLE).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    let mut recovered = 0;
+    for row in rows {
+        let workspace_id = record_key(row.workspace_id, "commit report workspace")?;
+        let proposal_id = record_key(row.proposal_id, "commit report proposal")?;
+        let missing_commit = lookup_commit_outbox(storage, &proposal_id, "FR-EVT-MEM-003")
+            .await?
+            .is_none();
+        let missing_pack = lookup_commit_outbox(storage, &proposal_id, "FR-EVT-MEM-004")
+            .await?
+            .is_none();
+        if missing_commit || missing_pack {
+            let placeholder = NewKernelEvent::builder(
+                "fems-memory-startup-recovery",
+                "fems-memory-startup-recovery",
+                KernelEventType::ArtifactStored,
+                KernelActor::System("fems-memory-startup-recovery".to_owned()),
+            )
+            .idempotency_key(format!("unused-fems-memory-recovery:{proposal_id}"))
+            .source_component("fems_memory_startup_recovery")
+            .payload(json!({"proposal_id": proposal_id}))
+            .build()
+            .map_err(|error| StorageError::Serialization(error.to_string()))?;
+            commit_memory_proposal_with_receipt(storage, &workspace_id, &proposal_id, placeholder)
+                .await?;
+            recovered += u64::from(missing_commit) + u64::from(missing_pack);
+        }
+    }
+    Ok(recovered)
+}
+
+pub async fn mark_memory_commit_event_published(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    event_id: uuid::Uuid,
+) -> StorageResult<()> {
+    mark_outbox_published(
+        storage,
+        OutboxKind::Commit,
+        workspace_id,
+        &event_id.to_string(),
+    )
+    .await
+}
+
+pub async fn get_memory_commit_report(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    commit_id: &str,
+) -> StorageResult<Option<MemoryCommitReport>> {
+    let bindings = WorkspaceValueBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        value: commit_id.to_owned(),
+    };
+    let row: Option<ReportRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT commit_id, workspace_id, proposal_id, memory_id, report, report_hash, created_at \
+                         FROM fems_memory_commit_reports WHERE workspace_id = $workspace \
+                         AND commit_id = $value LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    row.map(|row| {
+        let report: MemoryCommitReport = serde_json::from_value(row.report)?;
+        let hash = report
+            .compute_hash()
+            .map_err(|error| StorageError::Serialization(error.to_string()))?;
+        if hash != row.report_hash {
+            return Err(StorageError::Conflict(
+                "memory commit report hash does not match stored evidence",
+            ));
+        }
+        Ok(report)
+    })
+    .transpose()
+}
+
+fn lifecycle_outbox_write(
+    workspace_id: &str,
+    proposal_id: &str,
+    event_code: &str,
+    event: &FlightRecorderEvent,
+) -> StorageResult<LifecycleOutboxWrite> {
+    Ok(LifecycleOutboxWrite {
+        record: RecordId::new(LIFECYCLE_OUTBOX_TABLE, event.event_id.to_string()),
+        event_id: event.event_id.to_string(),
+        workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        proposal_id: RecordId::new(PROPOSALS_TABLE, proposal_id),
+        event_code: event_code.to_owned(),
+        event: serde_json::to_value(event)?,
+        event_hash: event_json_hash(event)?,
+        created_at: Datetime::from(event.timestamp),
+    })
+}
+
+fn commit_outbox_write(
+    workspace_id: &str,
+    proposal_id: &str,
+    commit_id: &str,
+    event_code: &str,
+    event: &FlightRecorderEvent,
+) -> StorageResult<CommitOutboxWrite> {
+    Ok(CommitOutboxWrite {
+        record: RecordId::new(COMMIT_OUTBOX_TABLE, event.event_id.to_string()),
+        event_id: event.event_id.to_string(),
+        workspace_id: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        proposal_id: RecordId::new(PROPOSALS_TABLE, proposal_id),
+        commit_id: RecordId::new(REPORTS_TABLE, commit_id),
+        event_code: event_code.to_owned(),
+        event: serde_json::to_value(event)?,
+        event_hash: event_json_hash(event)?,
+        created_at: Datetime::from(event.timestamp),
+    })
+}
+
+async fn ensure_lifecycle_outbox(
+    storage: &SurrealStorage,
+    proposal: &StoredMemoryProposal,
+    event_code: &str,
+    event: &FlightRecorderEvent,
+) -> StorageResult<()> {
+    let bindings = ProposalEventBinding {
+        proposal: RecordId::new(PROPOSALS_TABLE, proposal.proposal_id.clone()),
+        event_code: event_code.to_owned(),
+    };
+    let row: Option<LifecycleOutboxRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT event_id, workspace_id, proposal_id, event_code, event, event_hash, \
+                         created_at, published_at, attempt_count, last_error, last_error_at, quarantined_at \
+                         FROM fems_memory_lifecycle_fr_outbox WHERE proposal_id = $proposal \
+                         AND event_code = $event_code LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    let row = row.ok_or(StorageError::Conflict(
+        "memory proposal exists without its lifecycle outbox event",
+    ))?;
+    let stored: FlightRecorderEvent = serde_json::from_value(row.event)?;
+    if row.event_id != event.event_id.to_string()
+        || record_key(row.workspace_id, "lifecycle outbox workspace")? != proposal.workspace_id
+        || record_key(row.proposal_id, "lifecycle outbox proposal")? != proposal.proposal_id
+        || row.event_code != event_code
+        || !same_memory_commit_event(&stored, event)
+        || row.event_hash != event_json_hash(event)?
+        || event_json_hash(&stored)? != row.event_hash
+    {
+        return Err(StorageError::Conflict(
+            "memory lifecycle outbox identity is bound to different evidence",
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_matching_receipt(stored: &KernelEvent, candidate: &KernelEvent) -> StorageResult<()> {
+    if stored.event_version == candidate.event_version
+        && stored.kernel_task_run_id == candidate.kernel_task_run_id
+        && stored.session_run_id == candidate.session_run_id
+        && stored.aggregate_type == candidate.aggregate_type
+        && stored.aggregate_id == candidate.aggregate_id
+        && stored.idempotency_key == candidate.idempotency_key
+        && stored.event_type == candidate.event_type
+        && stored.actor == candidate.actor
+        && stored.causation_id == candidate.causation_id
+        && stored.correlation_id == candidate.correlation_id
+        && stored.payload_hash == candidate.payload_hash
+        && stored.source_component == candidate.source_component
+        && stored.payload == candidate.payload
+    {
+        Ok(())
+    } else {
+        Err(StorageError::Conflict(
+            "kernel event idempotency key was reused with different event content",
+        ))
+    }
+}
+
+async fn lookup_lifecycle_outbox(
+    storage: &SurrealStorage,
+    proposal_id: &str,
+    event_code: &str,
+) -> StorageResult<Option<LifecycleOutboxRow>> {
+    let bindings = ProposalEventBinding {
+        proposal: RecordId::new(PROPOSALS_TABLE, proposal_id),
+        event_code: event_code.to_owned(),
+    };
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT event_id, workspace_id, proposal_id, event_code, event, event_hash, \
+                         created_at, published_at, attempt_count, last_error, last_error_at, quarantined_at \
+                         FROM fems_memory_lifecycle_fr_outbox WHERE proposal_id = $proposal \
+                         AND event_code = $event_code LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn lookup_commit_outbox(
+    storage: &SurrealStorage,
+    proposal_id: &str,
+    event_code: &str,
+) -> StorageResult<Option<OutboxRow>> {
+    let bindings = ProposalEventBinding {
+        proposal: RecordId::new(PROPOSALS_TABLE, proposal_id),
+        event_code: event_code.to_owned(),
+    };
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT event_id, workspace_id, proposal_id, commit_id, event_code, event, \
+                         event_hash, created_at, published_at, attempt_count, last_error, \
+                         last_error_at, quarantined_at FROM fems_memory_commit_fr_outbox \
+                         WHERE proposal_id = $proposal AND event_code = $event_code LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn create_lifecycle_outbox_if_absent(
+    storage: &SurrealStorage,
+    proposal: &StoredMemoryProposal,
+    event_code: &str,
+    event: &FlightRecorderEvent,
+) -> StorageResult<()> {
+    let write = lifecycle_outbox_write(
+        &proposal.workspace_id,
+        &proposal.proposal_id,
+        event_code,
+        event,
+    )?;
+    let id = write.event_id.clone();
+    let content = LifecycleOutboxContent::from(write);
+    let created: Option<LifecycleOutboxRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .create_if_absent(LIFECYCLE_OUTBOX_TABLE, &id, content)
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    if created.is_none() {
+        ensure_lifecycle_outbox(storage, proposal, event_code, event).await?;
+    }
+    Ok(())
+}
+
+async fn list_lifecycle_rows(
+    storage: &SurrealStorage,
+    workspace_id: Option<&str>,
+    limit: i64,
+) -> StorageResult<Vec<LifecycleOutboxRow>> {
+    let bindings = OutboxListBinding {
+        workspace: workspace_id.map(|id| RecordId::new(WORKSPACES_TABLE, id)),
+        limit: limit.clamp(1, 200),
+    };
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT event_id, workspace_id, proposal_id, event_code, event, event_hash, \
+                         created_at, published_at, attempt_count, last_error, last_error_at, quarantined_at \
+                         FROM fems_memory_lifecycle_fr_outbox \
+                         WHERE published_at = NONE AND quarantined_at = NONE \
+                         AND ($workspace = NONE OR workspace_id = $workspace) \
+                         ORDER BY created_at ASC, event_id ASC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn list_commit_rows(
+    storage: &SurrealStorage,
+    workspace_id: Option<&str>,
+    limit: i64,
+) -> StorageResult<Vec<OutboxRow>> {
+    let bindings = OutboxListBinding {
+        workspace: workspace_id.map(|id| RecordId::new(WORKSPACES_TABLE, id)),
+        limit: limit.clamp(1, 200),
+    };
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT event_id, workspace_id, proposal_id, commit_id, event_code, event, \
+                         event_hash, created_at, published_at, attempt_count, last_error, \
+                         last_error_at, quarantined_at FROM fems_memory_commit_fr_outbox \
+                         WHERE published_at = NONE AND quarantined_at = NONE \
+                         AND ($workspace = NONE OR workspace_id = $workspace) \
+                         AND (event_code = 'FR-EVT-MEM-003' OR commit_id IN \
+                            (SELECT VALUE commit_id FROM fems_memory_commit_fr_outbox \
+                             WHERE event_code = 'FR-EVT-MEM-003' AND published_at != NONE)) \
+                         ORDER BY created_at ASC, event_code ASC, event_id ASC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn decode_lifecycle_rows(
+    storage: &SurrealStorage,
+    rows: Vec<LifecycleOutboxRow>,
+) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
+    let mut decoded = Vec::with_capacity(rows.len());
+    for row in rows {
+        let workspace_id = record_key(row.workspace_id, "lifecycle outbox workspace")?;
+        match decode_outbox_event(&row.event_id, &row.event_hash, row.event) {
+            Ok(event) => decoded.push((workspace_id, event)),
+            Err(error) => {
+                record_outbox_failure(
+                    storage,
+                    OutboxKind::Lifecycle,
+                    &workspace_id,
+                    &row.event_id,
+                    &error.to_string(),
+                    true,
+                )
+                .await?;
+            }
+        }
+    }
+    Ok(decoded)
+}
+
+async fn decode_commit_rows(
+    storage: &SurrealStorage,
+    rows: Vec<OutboxRow>,
+) -> StorageResult<Vec<(String, FlightRecorderEvent)>> {
+    let mut decoded = Vec::with_capacity(rows.len());
+    for row in rows {
+        let workspace_id = record_key(row.workspace_id, "commit outbox workspace")?;
+        match decode_outbox_event(&row.event_id, &row.event_hash, row.event) {
+            Ok(event) => decoded.push((workspace_id, event)),
+            Err(error) => {
+                record_outbox_failure(
+                    storage,
+                    OutboxKind::Commit,
+                    &workspace_id,
+                    &row.event_id,
+                    &error.to_string(),
+                    true,
+                )
+                .await?;
+            }
+        }
+    }
+    Ok(decoded)
+}
+
+fn decode_outbox_event(
+    event_id: &str,
+    event_hash: &str,
+    value: Value,
+) -> StorageResult<FlightRecorderEvent> {
+    let expected_id = uuid::Uuid::parse_str(event_id)
+        .map_err(|error| StorageError::Serialization(error.to_string()))?;
+    let event: FlightRecorderEvent = serde_json::from_value(value)?;
+    if event.event_id != expected_id || event_json_hash(&event)? != event_hash {
+        return Err(StorageError::Conflict(
+            "memory outbox event hash or identity does not match its envelope",
+        ));
+    }
+    event
+        .validate()
+        .map_err(|error| StorageError::Serialization(error.to_string()))?;
+    Ok(event)
+}
+
+async fn record_outbox_failure(
+    storage: &SurrealStorage,
+    kind: OutboxKind,
+    workspace_id: &str,
+    event_id: &str,
+    error: &str,
+    quarantine_now: bool,
+) -> StorageResult<()> {
+    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let identity = OutboxIdentityBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        event_id: event_id.to_owned(),
+    };
+    let select = match kind {
+        OutboxKind::Lifecycle => {
+            "SELECT attempt_count FROM fems_memory_lifecycle_fr_outbox \
+             WHERE workspace_id = $workspace AND event_id = $event_id \
+             AND published_at = NONE LIMIT 1;"
+        }
+        OutboxKind::Commit => {
+            "SELECT attempt_count FROM fems_memory_commit_fr_outbox \
+             WHERE workspace_id = $workspace AND event_id = $event_id \
+             AND published_at = NONE LIMIT 1;"
+        }
+    };
+    let current: Option<AttemptCountRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.query_first(select, identity).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    let Some(current) = current else {
+        return Err(StorageError::NotFound(match kind {
+            OutboxKind::Lifecycle => "memory lifecycle flight-recorder outbox event",
+            OutboxKind::Commit => "memory commit flight-recorder outbox event",
+        }));
+    };
+    let now = Datetime::from(Utc::now());
+    let next_attempt_count = current.attempt_count.saturating_add(1);
+    let bindings = FailureMutationBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        event_id: event_id.to_owned(),
+        error: bounded_outbox_error(error),
+        expected_attempt_count: current.attempt_count,
+        next_attempt_count,
+        quarantined_at: (quarantine_now || next_attempt_count >= 3).then(|| now.clone()),
+        now,
+    };
+    let statement = match kind {
+        OutboxKind::Lifecycle => {
+            "UPDATE fems_memory_lifecycle_fr_outbox SET attempt_count = $next_attempt_count, \
+             last_error = $error, last_error_at = $now, \
+             quarantined_at = IF $quarantined_at != NONE { $quarantined_at } ELSE { quarantined_at } \
+             WHERE workspace_id = $workspace AND event_id = $event_id \
+             AND published_at = NONE AND attempt_count = $expected_attempt_count RETURN AFTER;"
+        }
+        OutboxKind::Commit => {
+            "UPDATE fems_memory_commit_fr_outbox SET attempt_count = $next_attempt_count, \
+             last_error = $error, last_error_at = $now, \
+             quarantined_at = IF $quarantined_at != NONE { $quarantined_at } ELSE { quarantined_at } \
+             WHERE workspace_id = $workspace AND event_id = $event_id \
+             AND published_at = NONE AND attempt_count = $expected_attempt_count RETURN AFTER;"
+        }
+    };
+    let count = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.execute_returning(statement, bindings).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    if count == 1 {
+        Ok(())
+    } else {
+        Err(StorageError::Conflict(
+            "memory outbox failure attempt lost its compare-and-set",
+        ))
+    }
+}
+
+async fn mark_outbox_published(
+    storage: &SurrealStorage,
+    kind: OutboxKind,
+    workspace_id: &str,
+    event_id: &str,
+) -> StorageResult<()> {
+    let bindings = EventMutationBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        event_id: event_id.to_owned(),
+        error: None,
+        quarantine: false,
+        now: Datetime::from(Utc::now()),
+    };
+    let statement = match kind {
+        OutboxKind::Lifecycle => {
+            "UPDATE fems_memory_lifecycle_fr_outbox SET \
+             published_at = IF published_at = NONE { $now } ELSE { published_at } \
+             WHERE workspace_id = $workspace AND event_id = $event_id RETURN AFTER;"
+        }
+        OutboxKind::Commit => {
+            "UPDATE fems_memory_commit_fr_outbox SET \
+             published_at = IF published_at = NONE { $now } ELSE { published_at } \
+             WHERE workspace_id = $workspace AND event_id = $event_id RETURN AFTER;"
+        }
+    };
+    let count = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.execute_returning(statement, bindings).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    if count == 1 {
+        Ok(())
+    } else {
+        Err(StorageError::NotFound(match kind {
+            OutboxKind::Lifecycle => "memory lifecycle flight-recorder outbox event",
+            OutboxKind::Commit => "memory commit flight-recorder outbox event",
+        }))
+    }
+}
+
+async fn select_report_by_proposal(
+    storage: &SurrealStorage,
+    proposal_id: &str,
+) -> StorageResult<Option<ReportRow>> {
+    #[derive(SurrealValue)]
+    struct Binding {
+        proposal: RecordId,
+    }
+    let bindings = Binding {
+        proposal: RecordId::new(PROPOSALS_TABLE, proposal_id),
+    };
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT commit_id, workspace_id, proposal_id, memory_id, report, \
+                         report_hash, created_at FROM fems_memory_commit_reports \
+                         WHERE proposal_id = $proposal LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn build_memory_pack(
+    storage: &SurrealStorage,
     workspace_id: &str,
     generated_at: DateTime<Utc>,
     scope_ref: FemsEntityRef,
+    candidate: MemoryPackItem,
 ) -> StorageResult<MemoryPack> {
-    let rows = sqlx::query(
-        r#"
-        SELECT item::text AS item
-        FROM fems_memory_items
-        WHERE workspace_id = $1 AND COALESCE(item ->> 'status', 'active') = 'active'
-        ORDER BY memory_id ASC
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_all(&mut **tx)
-    .await?;
-    let total = rows.len();
+    let rows: Vec<ItemRow> = storage
+        .with_data_operation(|database| {
+            Box::pin(async move { database.select_all(ITEMS_TABLE).await })
+        })
+        .await
+        .map_err(StorageError::from)?;
     let mut invalid_items = 0usize;
     let mut items = Vec::new();
     for row in rows {
-        let text: String = row.try_get("item")?;
-        match serde_json::from_str::<MemoryPackItem>(&text) {
+        if record_key(row.workspace_id, "memory item workspace")? != workspace_id
+            || row.item.get("status").and_then(Value::as_str) == Some("inactive")
+        {
+            continue;
+        }
+        match serde_json::from_value::<MemoryPackItem>(row.item) {
             Ok(mut item) => {
                 item.summary = bounded_chars(&item.summary, 240);
                 item.content = bounded_chars(&item.content, 600);
@@ -2378,7 +2954,10 @@ async fn build_memory_pack_with_executor(
             Err(_) => invalid_items += 1,
         }
     }
+    items.retain(|item| item.memory_id != candidate.memory_id);
+    items.push(candidate);
     items.sort_by(|left, right| left.memory_id.cmp(&right.memory_id));
+    let total_valid = items.len();
     items.truncate(24);
     let token_estimate = items
         .iter()
@@ -2386,17 +2965,17 @@ async fn build_memory_pack_with_executor(
         .sum::<u32>()
         .min(500);
     let mut warnings = Vec::new();
-    if total.saturating_sub(invalid_items) > items.len() {
+    if total_valid > items.len() {
         warnings.push("memory_pack_truncated_to_24_items".to_owned());
     }
     if invalid_items > 0 {
         warnings.push(format!("ignored_{invalid_items}_invalid_memory_items"));
     }
     let generated_at = generated_at.to_rfc3339();
-    let identity_value = json!({
+    let identity = json!({
         "schema_version": "hsk.memory_pack@0.1",
         "workspace_id": workspace_id,
-        "generated_at": &generated_at,
+        "generated_at": generated_at,
         "determinism_mode": MemoryPackDeterminismMode::Strict,
         "memory_policy": MemoryPolicy::WorkspaceScoped,
         "scope_refs": [scope_ref.clone()],
@@ -2405,12 +2984,12 @@ async fn build_memory_pack_with_executor(
             "max_items": 24,
             "max_items_per_type": {},
         },
-        "items": &items,
+        "items": items,
         "token_estimate": token_estimate,
-        "warnings": &warnings,
+        "warnings": warnings,
     });
     let content_address =
-        crate::llm::sha256_hex(crate::llm::canonical_json_bytes_nfc(&identity_value).as_slice());
+        crate::llm::sha256_hex(crate::llm::canonical_json_bytes_nfc(&identity).as_slice());
     let mut pack = MemoryPack {
         schema_version: "hsk.memory_pack@0.1".to_owned(),
         pack_id: stable_uuid(&format!(
@@ -2437,443 +3016,245 @@ async fn build_memory_pack_with_executor(
     Ok(pack)
 }
 
-async fn store_memory_pack_immutable_with_executor(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    workspace_id: &str,
-    scope_key: &str,
-    pack: &MemoryPack,
+async fn run_commit_transaction(
+    storage: &SurrealStorage,
+    bindings: CommitBindings,
 ) -> StorageResult<()> {
-    let generated_at = DateTime::parse_from_rfc3339(&pack.generated_at)
-        .map(|value| value.with_timezone(&Utc))
-        .map_err(|_| StorageError::Conflict("memory pack has invalid generated_at"))?;
-    let inserted = sqlx::query(
-        r#"
-        INSERT INTO fems_memory_packs (pack_id, workspace_id, scope_key, pack, generated_at)
-        VALUES ($1, $2, $3, $4::jsonb, $5)
-        ON CONFLICT (pack_id) DO NOTHING
-        "#,
-    )
-    .bind(&pack.pack_id)
-    .bind(workspace_id)
-    .bind(scope_key)
-    .bind(to_jsonb_text(pack)?)
-    .bind(generated_at)
-    .execute(&mut **tx)
-    .await?;
-    if inserted.rows_affected() == 1 {
-        return Ok(());
-    }
-    let existing: Option<(String, String, String, DateTime<Utc>)> = sqlx::query_as(
-        "SELECT workspace_id, scope_key, pack::text, generated_at FROM fems_memory_packs WHERE pack_id = $1 FOR UPDATE",
-    )
-    .bind(&pack.pack_id)
-    .fetch_optional(&mut **tx)
-    .await?;
-    if existing
-        .as_ref()
-        .is_none_or(|(owner, stored_scope, stored_pack, stored_at)| {
-            owner != workspace_id
-                || stored_scope != scope_key
-                || serde_json::from_str::<MemoryPack>(stored_pack).ok() != Some(pack.clone())
-                || *stored_at != generated_at
+    let rows: Vec<surrealdb::types::Value> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values_at(
+                        "BEGIN TRANSACTION; \
+                         CREATE $item_record CONTENT { memory_id: $item.memory_id, \
+                            workspace_id: $item.workspace_id, item: $item.item, \
+                            created_at: $item.created_at, updated_at: $item.updated_at } RETURN AFTER; \
+                         CREATE $report_record CONTENT { commit_id: $report.commit_id, \
+                            workspace_id: $report.workspace_id, proposal_id: $report.proposal_id, \
+                            memory_id: $report.memory_id, report: $report.report, \
+                            report_hash: $report.report_hash, created_at: $report.created_at }; \
+                         IF array::len((UPDATE $proposal_record CONTENT { \
+                            proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
+                            workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
+                            selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
+                            content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
+                            status: $proposal.status, review_gated: $proposal.review_gated, \
+                            created_at: $proposal.created_at, proposal: $proposal.proposal \
+                         } WHERE status = $expected_status RETURN AFTER)) != 1 { \
+                            THROW 'HSK-FEMS-COMMIT-STATE'; \
+                         }; \
+                         CREATE $pack_record CONTENT { pack_id: $pack.pack_id, \
+                            workspace_id: $pack.workspace_id, scope_key: $pack.scope_key, \
+                            pack: $pack.pack, generated_at: $pack.generated_at, created_at: $pack.created_at }; \
+                         CREATE $ledger.record CONTENT { event_id: $ledger.event_id, \
+                            event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, \
+                            session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, \
+                            aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, \
+                            event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, \
+                            actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, \
+                            correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, \
+                            source_component: $ledger.source_component, payload: $ledger.payload, \
+                            created_at: $ledger.created_at }; \
+                         CREATE $committed_outbox.record CONTENT { event_id: $committed_outbox.event_id, \
+                            workspace_id: $committed_outbox.workspace_id, proposal_id: $committed_outbox.proposal_id, \
+                            commit_id: $committed_outbox.commit_id, event_code: $committed_outbox.event_code, \
+                            event: $committed_outbox.event, event_hash: $committed_outbox.event_hash, \
+                            created_at: $committed_outbox.created_at }; \
+                         CREATE $packed_outbox.record CONTENT { event_id: $packed_outbox.event_id, \
+                            workspace_id: $packed_outbox.workspace_id, proposal_id: $packed_outbox.proposal_id, \
+                            commit_id: $packed_outbox.commit_id, event_code: $packed_outbox.event_code, \
+                            event: $packed_outbox.event, event_hash: $packed_outbox.event_hash, \
+                            created_at: $packed_outbox.created_at }; \
+                         COMMIT TRANSACTION;",
+                        bindings,
+                        1,
+                    )
+                    .await
+            })
         })
+        .await
+        .map_err(|error| {
+            if error.to_string().contains("HSK-FEMS-COMMIT-STATE") {
+                StorageError::Conflict(
+                    "memory proposal commit lost its approved-state transition",
+                )
+            } else {
+                StorageError::from(error)
+            }
+        })?;
+    if rows.len() == 1 {
+        Ok(())
+    } else {
+        Err(StorageError::Database(
+            "memory commit transaction did not create exactly one item".to_owned(),
+        ))
+    }
+}
+
+async fn create_commit_outbox_if_absent(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    proposal_id: &str,
+    commit_id: &str,
+    event_code: &str,
+    event: &FlightRecorderEvent,
+) -> StorageResult<()> {
+    let write = commit_outbox_write(workspace_id, proposal_id, commit_id, event_code, event)?;
+    let id = write.event_id.clone();
+    let content = CommitOutboxContent::from(write);
+    let created: Option<OutboxRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .create_if_absent(COMMIT_OUTBOX_TABLE, &id, content)
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    if created.is_none() {
+        ensure_commit_outbox(
+            storage,
+            workspace_id,
+            proposal_id,
+            commit_id,
+            event_code,
+            event,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+async fn ensure_commit_outbox(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    proposal_id: &str,
+    commit_id: &str,
+    event_code: &str,
+    event: &FlightRecorderEvent,
+) -> StorageResult<()> {
+    let row = lookup_commit_outbox(storage, proposal_id, event_code)
+        .await?
+        .ok_or(StorageError::Conflict(
+            "memory commit exists without its outbox event",
+        ))?;
+    let stored: FlightRecorderEvent = serde_json::from_value(row.event)?;
+    if row.event_id != event.event_id.to_string()
+        || record_key(row.workspace_id, "commit outbox workspace")? != workspace_id
+        || record_key(row.proposal_id, "commit outbox proposal")? != proposal_id
+        || row
+            .commit_id
+            .ok_or(StorageError::Conflict(
+                "commit outbox is missing commit identity",
+            ))
+            .and_then(|record| record_key(record, "commit outbox commit"))?
+            != commit_id
+        || row.event_code != event_code
+        || !same_memory_commit_event(&stored, event)
+        || row.event_hash != event_json_hash(event)?
+        || event_json_hash(&stored)? != row.event_hash
     {
         return Err(StorageError::Conflict(
-            "memory pack identity is bound to different evidence",
+            "memory commit outbox identity is bound to different evidence",
         ));
     }
     Ok(())
 }
 
-/// Commit exactly one approved proposal. The canonical item, immutable commit report,
-/// strict MemoryPack projection, proposal terminal state, and EventLedger receipt are
-/// written in one transaction. Exact retries return the original result.
-pub async fn commit_memory_proposal_with_receipt(
-    pool: &PgPool,
+async fn select_pack(
+    storage: &SurrealStorage,
+    _workspace_id: &str,
+    pack_id: &str,
+) -> StorageResult<Option<PackRow>> {
+    let id = pack_id.to_owned();
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.select_one(PACKS_TABLE, &id).await })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn select_item(storage: &SurrealStorage, memory_id: &str) -> StorageResult<Option<ItemRow>> {
+    let id = memory_id.to_owned();
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.select_one(ITEMS_TABLE, &id).await })
+        })
+        .await
+        .map_err(StorageError::from)
+}
+
+async fn proposal_by_request(
+    storage: &SurrealStorage,
     workspace_id: &str,
-    proposal_id: &str,
-    mut receipt: NewKernelEvent,
-) -> StorageResult<MemoryProposalCommitResult> {
-    ensure_fems_memory_schema(pool).await?;
-    let mut tx = pool.begin().await?;
-    // Pack reconstruction reads every committed item in a workspace. Serialize
-    // workspace commits so two proposals cannot each publish a pack that omits
-    // the other transaction's newly committed item.
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-        .bind(format!("fems-memory-commit:{workspace_id}"))
-        .execute(&mut *tx)
-        .await?;
-    let mut proposal =
-        get_memory_proposal_for_review_with_executor(&mut tx, workspace_id, proposal_id)
-            .await?
-            .ok_or(StorageError::NotFound("memory proposal in workspace"))?;
-
-    let existing_report = sqlx::query(
-        r#"
-        SELECT commit_id, memory_id, report::text AS report, report_hash
-        FROM fems_memory_commit_reports
-        WHERE workspace_id = $1 AND proposal_id = $2
-        FOR UPDATE
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(proposal_id)
-    .fetch_optional(&mut *tx)
-    .await?;
-    if proposal.status != "approved" && proposal.status != "committed" {
-        return Err(StorageError::Conflict(
-            "memory proposal must be approved before commit",
-        ));
-    }
-    let reviewed_at = proposal_reviewed_at(&proposal)?;
-    let memory_id = stable_uuid(&format!("fems-memory-item:{proposal_id}")).to_string();
-    let commit_id = stable_uuid(&format!("fems-memory-commit:{proposal_id}")).to_string();
-    let (memory_item, pack_item, scope_ref) =
-        build_memory_item(&proposal, &memory_id, reviewed_at)?;
-
-    if let Some(row) = existing_report {
-        let stored_commit_id: String = row.try_get("commit_id")?;
-        let stored_memory_id: String = row.try_get("memory_id")?;
-        let stored_report_text: String = row.try_get("report")?;
-        let stored_hash: String = row.try_get("report_hash")?;
-        let commit_report: MemoryCommitReport = serde_json::from_str(&stored_report_text)
-            .map_err(|error| StorageError::Serialization(error.to_string()))?;
-        let computed_report_hash = commit_report
-            .compute_hash()
-            .map_err(|error| StorageError::Serialization(error.to_string()))?;
-        if stored_commit_id != commit_id
-            || stored_memory_id != memory_id
-            || commit_report.source_proposal_id != proposal_id
-            || stored_hash != computed_report_hash
-        {
-            return Err(StorageError::Conflict(
-                "memory proposal commit identity is bound to different evidence",
-            ));
-        }
-
-        let stored_item: Option<(String, String)> = sqlx::query_as(
-            "SELECT workspace_id, item::text FROM fems_memory_items WHERE memory_id = $1 FOR UPDATE",
-        )
-        .bind(&memory_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-        if stored_item.as_ref().is_none_or(|(owner, item)| {
-            owner != workspace_id
-                || serde_json::from_str::<Value>(item).ok() != Some(memory_item.clone())
-        }) {
-            return Err(StorageError::Conflict(
-                "memory proposal commit references different item evidence",
-            ));
-        }
-
-        let receipt = load_memory_commit_receipt_with_executor(&mut tx, proposal_id).await?;
-        let payload = receipt.payload.as_object().ok_or(StorageError::Conflict(
-            "memory commit receipt payload is not an object",
-        ))?;
-        let payload_string = |key: &str| payload.get(key).and_then(Value::as_str);
-        if payload_string("workspace_id") != Some(workspace_id)
-            || payload_string("proposal_id") != Some(proposal_id)
-            || payload_string("commit_id") != Some(commit_id.as_str())
-            || payload_string("memory_id") != Some(memory_id.as_str())
-            || payload_string("commit_report_hash") != Some(stored_hash.as_str())
-        {
-            return Err(StorageError::Conflict(
-                "memory commit receipt is bound to different evidence",
-            ));
-        }
-        let pack_id = payload_string("memory_pack_id").ok_or(StorageError::Conflict(
-            "memory commit receipt is missing memory_pack_id",
-        ))?;
-        let memory_pack =
-            load_memory_pack_by_id_with_executor(&mut tx, workspace_id, pack_id).await?;
-        if payload_string("memory_pack_hash") != Some(memory_pack.memory_pack_hash.as_str()) {
-            return Err(StorageError::Conflict(
-                "memory commit receipt memory pack hash does not match its original pack",
-            ));
-        }
-        let flight_recorder_event = build_memory_commit_flight_recorder_event(
-            workspace_id,
-            proposal_id,
-            &memory_id,
-            &commit_report,
-            &stored_hash,
-            &receipt,
-        )?;
-        store_memory_commit_outbox_event_with_executor(
-            &mut tx,
-            workspace_id,
-            proposal_id,
-            &commit_id,
-            "FR-EVT-MEM-003",
-            &flight_recorder_event,
-        )
-        .await?;
-        let memory_pack_flight_recorder_event = build_memory_pack_flight_recorder_event(
-            workspace_id,
-            proposal_id,
-            &commit_id,
-            &memory_pack,
-            &flight_recorder_event,
-        )?;
-        store_memory_commit_outbox_event_with_executor(
-            &mut tx,
-            workspace_id,
-            proposal_id,
-            &commit_id,
-            "FR-EVT-MEM-004",
-            &memory_pack_flight_recorder_event,
-        )
-        .await?;
-        tx.commit().await?;
-        return Ok(MemoryProposalCommitResult {
-            proposal,
-            memory_item,
-            memory_pack,
-            commit_report,
-            commit_report_hash: stored_hash,
-            receipt,
-            flight_recorder_event,
-            memory_pack_flight_recorder_event,
-        });
-    }
-
-    let now = Utc::now();
-    let committed_at = if now <= reviewed_at {
-        reviewed_at + chrono::Duration::microseconds(1)
-    } else {
-        now
+    request_id: &str,
+) -> StorageResult<Option<StoredMemoryProposal>> {
+    let bindings = WorkspaceValueBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        value: request_id.to_owned(),
     };
-    let applied = MemoryCommitAppliedOp {
-        op: MemoryMutationOp::Add,
-        memory_id: memory_id.clone(),
-        previous_version: None,
-        new_version: Some(1),
-        status: MemoryCommitOpStatus::Applied,
-        reason: None,
-    };
-    let commit_report = MemoryCommitReport {
-        schema_version: "hsk.memory_commit_report@0.1".to_owned(),
-        commit_id: commit_id.clone(),
-        created_at: committed_at.to_rfc3339(),
-        source_proposal_id: proposal_id.to_owned(),
-        applied_ops: vec![applied],
-        warnings: Vec::new(),
-        pack_rebuild_hints: vec![MemoryPackRebuildHint {
-            scope_ref: scope_ref.clone(),
-            reason: MemoryPackRebuildHintReason::MemoryChanged,
-        }],
-    };
-    let commit_report_hash = commit_report
-        .compute_hash()
-        .map_err(|error| StorageError::Serialization(error.to_string()))?;
+    let row: Option<ProposalRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT proposal_id, request_id, workspace_id, document_id, selection_start, \
+                         selection_end, content_hash, memory_class, status, review_gated, created_at, proposal \
+                         FROM fems_memory_proposals WHERE workspace_id = $workspace \
+                         AND request_id = $value LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    row.map(proposal_from_row).transpose()
+}
 
-    let item_json = to_jsonb_text(&memory_item)?;
-    let inserted = sqlx::query(
-        r#"
-            INSERT INTO fems_memory_items (memory_id, workspace_id, item)
-            VALUES ($1, $2, $3::jsonb)
-            ON CONFLICT (memory_id) DO NOTHING
-            "#,
-    )
-    .bind(&memory_id)
-    .bind(workspace_id)
-    .bind(item_json)
-    .execute(&mut *tx)
-    .await?;
-    if inserted.rows_affected() == 0 {
-        let existing: Option<(String, String)> = sqlx::query_as(
-                "SELECT workspace_id, item::text FROM fems_memory_items WHERE memory_id = $1 FOR UPDATE",
-            )
-            .bind(&memory_id)
-            .fetch_optional(&mut *tx)
-        .await?;
-        if existing.as_ref().is_none_or(|(owner, item)| {
-            owner != workspace_id
-                || serde_json::from_str::<Value>(item).ok() != Some(memory_item.clone())
-        }) {
-            return Err(StorageError::Conflict(
-                "memory item identity is bound to different evidence",
-            ));
-        }
-    }
-    sqlx::query(
-        r#"
-            INSERT INTO fems_memory_commit_reports
-                (commit_id, workspace_id, proposal_id, memory_id, report, report_hash, created_at)
-            VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
-            "#,
-    )
-    .bind(&commit_id)
-    .bind(workspace_id)
-    .bind(proposal_id)
-    .bind(&memory_id)
-    .bind(to_jsonb_text(&commit_report)?)
-    .bind(&commit_report_hash)
-    .bind(committed_at)
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query(
-            "UPDATE fems_memory_proposals SET status = 'committed', proposal = jsonb_set(proposal, '{status}', '\"committed\"'::jsonb, true) WHERE workspace_id = $1 AND proposal_id = $2 AND status = 'approved'",
-        )
-        .bind(workspace_id)
-        .bind(proposal_id)
-    .execute(&mut *tx)
-    .await?;
-    proposal.status = "committed".to_owned();
-    if let Value::Object(object) = &mut proposal.proposal {
-        object.insert("status".to_owned(), json!("committed"));
-    }
-
-    let memory_pack =
-        build_memory_pack_with_executor(&mut tx, workspace_id, committed_at, scope_ref).await?;
-    store_memory_pack_immutable_with_executor(&mut tx, workspace_id, "", &memory_pack).await?;
-
-    receipt.aggregate_type = "fems_memory_commit".to_owned();
-    receipt.aggregate_id = commit_id.clone();
-    receipt.idempotency_key = format!("fems-memory-commit:{proposal_id}");
-    receipt.event_type = KernelEventType::ArtifactStored;
-    receipt.correlation_id = Some(format!("fems-memory-proposal:{proposal_id}"));
-    receipt.source_component = "fems_memory_proposal_commit".to_owned();
-    receipt.payload = json!({
-        "receipt_kind": "fems_memory_write_committed",
-        "fr_event_id": "FR-EVT-MEM-003",
-        "memory_pack_fr_event_id": "FR-EVT-MEM-004",
-        "workspace_id": workspace_id,
-        "proposal_id": proposal_id,
-        "commit_id": commit_id,
-        "memory_id": memory_id,
-        "memory_pack_id": memory_pack.pack_id,
-        "memory_pack_hash": memory_pack.memory_pack_hash,
-        "commit_report_hash": commit_report_hash,
-    });
-    receipt.payload_hash = crate::kernel::context_bundle::sha256_hex(
-        &crate::kernel::context_bundle::canonical_json_bytes(&receipt.payload),
-    );
-    let receipt =
-        crate::storage::postgres::append_kernel_event_with_executor(&mut *tx, receipt).await?;
-    let flight_recorder_event = build_memory_commit_flight_recorder_event(
-        workspace_id,
-        proposal_id,
-        &memory_id,
-        &commit_report,
-        &commit_report_hash,
-        &receipt,
-    )?;
-    store_memory_commit_outbox_event_with_executor(
-        &mut tx,
-        workspace_id,
-        proposal_id,
-        &commit_id,
-        "FR-EVT-MEM-003",
-        &flight_recorder_event,
-    )
-    .await?;
-    let memory_pack_flight_recorder_event = build_memory_pack_flight_recorder_event(
-        workspace_id,
-        proposal_id,
-        &commit_id,
-        &memory_pack,
-        &flight_recorder_event,
-    )?;
-    store_memory_commit_outbox_event_with_executor(
-        &mut tx,
-        workspace_id,
-        proposal_id,
-        &commit_id,
-        "FR-EVT-MEM-004",
-        &memory_pack_flight_recorder_event,
-    )
-    .await?;
-    tx.commit().await?;
-
-    let _ = pack_item;
-    Ok(MemoryProposalCommitResult {
-        proposal,
-        memory_item,
-        memory_pack,
-        commit_report,
-        commit_report_hash,
-        receipt,
-        flight_recorder_event,
-        memory_pack_flight_recorder_event,
+fn proposal_from_row(row: ProposalRow) -> StorageResult<StoredMemoryProposal> {
+    Ok(StoredMemoryProposal {
+        proposal_id: row.proposal_id,
+        request_id: row.request_id,
+        workspace_id: record_key(row.workspace_id, "memory proposal workspace")?,
+        document_id: row.document_id,
+        selection_start: row.selection_start,
+        selection_end: row.selection_end,
+        content_hash: row.content_hash,
+        memory_class: row.memory_class,
+        status: row.status,
+        review_gated: row.review_gated,
+        created_at: row.created_at.into_inner(),
+        proposal: row.proposal,
     })
 }
 
-/// Insert or replace a COMMITTED memory item. This is only reachable from a downstream
-/// review/commit path (out of MT-109 scope) or a test seeding a committed item to prove
-/// a proposal cannot mutate it.
-pub async fn upsert_memory_item(
-    pool: &PgPool,
-    workspace_id: &str,
-    memory_id: &str,
-    item: &Value,
-) -> StorageResult<()> {
-    ensure_fems_memory_schema(pool).await?;
-    let item_json = to_jsonb_text(item)?;
-    let result = sqlx::query(
-        r#"
-        INSERT INTO fems_memory_items (memory_id, workspace_id, item)
-        VALUES ($1, $2, $3::jsonb)
-        ON CONFLICT (memory_id) DO UPDATE SET
-            item = EXCLUDED.item,
-            updated_at = now()
-        WHERE fems_memory_items.workspace_id = EXCLUDED.workspace_id
-        "#,
-    )
-    .bind(memory_id)
-    .bind(workspace_id)
-    .bind(item_json)
-    .execute(pool)
-    .await?;
-    if result.rows_affected() != 1 {
-        return Err(StorageError::Conflict(
-            "memory item id belongs to a different workspace",
-        ));
-    }
-    Ok(())
-}
-
-/// Read a committed memory item's JSON by id (AC-109-3 negative proof: unchanged after a
-/// proposal is submitted).
-pub async fn get_memory_item(
-    pool: &PgPool,
-    workspace_id: &str,
-    memory_id: &str,
-) -> StorageResult<Option<Value>> {
-    ensure_fems_memory_schema(pool).await?;
-    let row = sqlx::query(
-        r#"
-        SELECT item::text AS item
-        FROM fems_memory_items
-        WHERE workspace_id = $1 AND memory_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(memory_id)
-    .fetch_optional(pool)
-    .await?;
-
-    match row {
-        Some(row) => {
-            let item_text: String = row.try_get("item")?;
-            let item: Value = serde_json::from_str(&item_text)
-                .map_err(|err| StorageError::Serialization(err.to_string()))?;
-            Ok(Some(item))
-        }
-        None => Ok(None),
+fn proposal_content(proposal: &StoredMemoryProposal) -> ProposalContent {
+    ProposalContent {
+        proposal_id: proposal.proposal_id.clone(),
+        request_id: proposal.request_id.clone(),
+        workspace_id: RecordId::new(WORKSPACES_TABLE, proposal.workspace_id.clone()),
+        document_id: proposal.document_id.clone(),
+        selection_start: proposal.selection_start,
+        selection_end: proposal.selection_end,
+        content_hash: proposal.content_hash.clone(),
+        memory_class: proposal.memory_class.clone(),
+        status: proposal.status.clone(),
+        review_gated: proposal.review_gated,
+        created_at: Datetime::from(proposal.created_at),
+        proposal: proposal.proposal.clone(),
     }
 }
 
-/// Count committed memory items for a workspace (AC-109-3 negative proof: submitting a
-/// proposal does not increase the committed-item count).
-pub async fn count_memory_items(pool: &PgPool, workspace_id: &str) -> StorageResult<i64> {
-    ensure_fems_memory_schema(pool).await?;
-    let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM fems_memory_items WHERE workspace_id = $1")
-            .bind(workspace_id)
-            .fetch_one(pool)
-            .await?;
-    Ok(count)
+fn record_key(record: RecordId, field: &str) -> StorageResult<String> {
+    match record.key {
+        RecordIdKey::String(value) => Ok(value),
+        _ => Err(StorageError::Serialization(format!(
+            "{field} is not a string record key"
+        ))),
+    }
 }
 
 #[cfg(test)]
@@ -3068,5 +3449,70 @@ mod receipt_authenticity_tests {
         ));
         assert_eq!(canonical, reordered);
         assert_eq!(canonical, independent);
+    }
+
+    #[tokio::test]
+    async fn memory_pack_survives_embedded_store_shutdown_and_reopen() {
+        use crate::storage::{
+            surreal::{SurrealDatabase, SurrealStorageConfig},
+            Database, NewWorkspace, WriteContext,
+        };
+
+        let directory = tempfile::tempdir().expect("temporary MT-136 FEMS root");
+        let path = directory.path().join("store");
+        let config = SurrealStorageConfig::with_path(&path).expect("valid embedded test path");
+        let storage = SurrealStorage::open(config.clone())
+            .await
+            .expect("open embedded store");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap embedded schema");
+        let database = SurrealDatabase::new(storage.clone());
+        let workspace = database
+            .create_workspace(
+                &WriteContext::human(Some("mt-136-operator".to_owned())),
+                NewWorkspace {
+                    name: "MT-136 FEMS Proof".to_owned(),
+                },
+            )
+            .await
+            .expect("create FEMS proof workspace");
+        let mut pack = MemoryPack {
+            schema_version: "hsk.memory_pack@0.1".to_owned(),
+            pack_id: "MPK-mt-136-reopen".to_owned(),
+            generated_at: Utc::now().to_rfc3339(),
+            determinism_mode: MemoryPackDeterminismMode::Strict,
+            memory_policy: MemoryPolicy::WorkspaceScoped,
+            scope_refs: Vec::new(),
+            budgets: MemoryPackBudgets {
+                max_tokens: 256,
+                max_items: 4,
+                max_items_per_type: std::collections::BTreeMap::new(),
+            },
+            items: Vec::new(),
+            token_estimate: 0,
+            memory_pack_hash: String::new(),
+            warnings: vec!["mt-136-close-reopen-proof".to_owned()],
+        };
+        pack.memory_pack_hash = pack.compute_hash().expect("hash FEMS proof pack");
+        upsert_memory_pack(&storage, &workspace.id, "", &pack)
+            .await
+            .expect("store FEMS proof pack");
+        drop(database);
+        storage.shutdown().await.expect("close embedded store");
+        drop(storage);
+
+        let reopened = SurrealStorage::open(config)
+            .await
+            .expect("reopen embedded store");
+        bootstrap_schema(&reopened)
+            .await
+            .expect("verify reopened schema");
+        let persisted = get_latest_memory_pack(&reopened, &workspace.id, None)
+            .await
+            .expect("read reopened FEMS pack")
+            .expect("durable FEMS pack");
+        assert_eq!(persisted, pack);
+        reopened.shutdown().await.expect("close reopened store");
     }
 }

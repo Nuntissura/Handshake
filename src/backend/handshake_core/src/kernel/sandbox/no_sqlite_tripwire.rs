@@ -1,11 +1,11 @@
 //! MT-015 No-SQLite authority tripwire.
 //!
-//! Acceptance (MT-015.json): "Kernel003 authority fails closed without
-//! Postgres/EventLedger authority." The tripwire is a deterministic guard
+//! Acceptance (MT-015.json): Kernel003 authority fails closed without the
+//! embedded SurrealDB/EventLedger authority. The tripwire is a deterministic guard
 //! every KB003 write must call before persisting a `SandboxRunV1`,
 //! `SandboxPolicyV1`, `ValidationRunV1`, `PromotionDecisionV1`, or
 //! `PromotionReceiptV1`. If the active control-plane mode is anything but
-//! `PostgresPrimary`, the guard returns an error and the caller MUST refuse
+//! `SurrealPrimary`, the guard returns an error and the caller MUST refuse
 //! to write.
 //!
 //! Why a separate module rather than re-using `assert_kernel_authority_storage_mode`:
@@ -22,16 +22,16 @@ pub const KB003_NO_SQLITE_AUTHORITY_POLICY_ID: &str = "KB003_NO_SQLITE_AUTHORITY
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum NoSqliteTripwireError {
     #[error(
-        "KB003 authority write refused: control-plane mode `{mode}` is not PostgresPrimary (policy {policy})"
+        "KB003 authority write refused: control-plane mode `{mode}` is not SurrealPrimary (policy {policy})"
     )]
-    NonPostgresAuthority { mode: String, policy: &'static str },
+    NonSurrealAuthority { mode: String, policy: &'static str },
 }
 
 /// Modes the tripwire recognises. Mirrors `ControlPlaneStorageMode` so this
 /// module can be tested without pulling the full storage stack.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthorityMode {
-    PostgresPrimary,
+    SurrealPrimary,
     SqliteCache,
     SqliteOffline,
     Test,
@@ -40,24 +40,24 @@ pub enum AuthorityMode {
 impl AuthorityMode {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::PostgresPrimary => "postgres_primary",
+            Self::SurrealPrimary => "surreal_primary",
             Self::SqliteCache => "sqlite_cache",
             Self::SqliteOffline => "sqlite_offline",
             Self::Test => "test",
         }
     }
     pub fn is_authority(&self) -> bool {
-        matches!(self, Self::PostgresPrimary)
+        matches!(self, Self::SurrealPrimary)
     }
 }
 
-/// Returns `Ok(())` only if `mode` is `PostgresPrimary`. Every KB003 authority
+/// Returns `Ok(())` only if `mode` is `SurrealPrimary`. Every KB003 authority
 /// write site must call this before persisting.
 pub fn guard_authority_write(mode: AuthorityMode) -> Result<(), NoSqliteTripwireError> {
     if mode.is_authority() {
         Ok(())
     } else {
-        Err(NoSqliteTripwireError::NonPostgresAuthority {
+        Err(NoSqliteTripwireError::NonSurrealAuthority {
             mode: mode.as_str().to_string(),
             policy: KB003_NO_SQLITE_AUTHORITY_POLICY_ID,
         })
@@ -69,8 +69,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn postgres_primary_allows_write() {
-        assert!(guard_authority_write(AuthorityMode::PostgresPrimary).is_ok());
+    fn surreal_primary_allows_write() {
+        assert!(guard_authority_write(AuthorityMode::SurrealPrimary).is_ok());
+        assert_eq!(AuthorityMode::SurrealPrimary.as_str(), "surreal_primary");
+        assert!(!AuthorityMode::SurrealPrimary.as_str().contains("postgres"));
     }
 
     #[test]
@@ -81,9 +83,9 @@ mod tests {
             AuthorityMode::Test,
         ] {
             let err = guard_authority_write(mode_under_test)
-                .expect_err("KB003 must refuse non-Postgres authority");
+                .expect_err("KB003 must refuse non-Surreal authority");
             match err {
-                NoSqliteTripwireError::NonPostgresAuthority { mode: m, policy } => {
+                NoSqliteTripwireError::NonSurrealAuthority { mode: m, policy } => {
                     assert_eq!(policy, KB003_NO_SQLITE_AUTHORITY_POLICY_ID);
                     assert_eq!(m, mode_str_round_trip(mode_under_test));
                 }

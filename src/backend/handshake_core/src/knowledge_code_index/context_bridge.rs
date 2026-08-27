@@ -328,7 +328,7 @@ async fn file_staleness(
         return Ok(StalenessVerdict::MarkedStale);
     };
     // WP-KERNEL-012 TRAIT-SURFACE GAP: `get_knowledge_code_file_by_source` was
-    // an inherent method on the removed `PostgresDatabase`, not a member of
+    // an inherent method on the embedded `SurrealDatabase`, not a member of
     // `storage::knowledge::KnowledgeStore`. It must be promoted onto that trait
     // as
     //   async fn get_knowledge_code_file_by_source(

@@ -26,7 +26,6 @@
 //! `fileSha256Hex` -- content-hash identity; `runIngestion`/`ensureBatch` -- the
 //! idempotent ingestion batch keyed by spec + version + dataset). Storage
 //! authority here is the single Handshake store + EventLedger only (MT-004).
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 //!
 //! Microtasks: MT-201 (sourcing-spec schema + handler version matrix),
 //! MT-005 (event coverage).
@@ -34,10 +33,13 @@
 use chrono::{DateTime, Utc};
 use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sha2::{Digest, Sha256};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid, Value};
 use uuid::Uuid;
 
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 /// Sourcing event families (MT-201, MT-005). Defined here so the parent can
 /// fold these into [`super::event_family::ALL`] and the MT-005 coverage check
@@ -577,17 +579,9 @@ fn required_string_array_field(
         .collect()
 }
 
-/// SHA-256 hex of bytes, computed by the database rather than pulling a new
-/// crate. A tiny DB round-trip on the shared handle keeps the hash
-/// matches whatever the rest of the system would compute server-side.
-async fn sha256_hex(store: &AtelierStore, bytes: &[u8]) -> AtelierResult<String> {
-    // pgcrypto `digest` is available in the atelier database (used elsewhere via
-    // gen_random_uuid from pgcrypto). Fall back to sha256 builtin if present.
-    let hex: String = sqlx::query_scalar("SELECT encode(sha256($1::bytea), 'hex')")
-        .bind(bytes)
-        .fetch_one(store.pool())
-        .await?;
-    Ok(hex)
+/// Deterministic SHA-256 hex over the canonical spec bytes.
+fn sha256_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
 }
 
 /// Compare two `MAJOR.MINOR.PATCH` semver strings. Non-numeric / missing
@@ -666,105 +660,291 @@ fn semver_major(v: &str) -> u64 {
         .unwrap_or(0)
 }
 
-fn spec_from_row(row: &sqlx::postgres::PgRow) -> SourcingSpecRecord {
+#[derive(SurrealValue)]
+struct SourcingSpecRow {
+    record_id: SurrealUuid,
+    sourcing_spec_id: String,
+    schema_version: String,
+    source_kind: String,
+    source_ref: String,
+    handler_family: String,
+    handler_version_pin: String,
+    params_json: serde_json::Value,
+    required_capabilities: Vec<String>,
+    idempotency_key: Option<String>,
+    spec_hash: String,
+    created_at_utc: Datetime,
+}
+
+fn spec_from_row(row: SourcingSpecRow) -> SourcingSpecRecord {
     SourcingSpecRecord {
-        record_id: row.get("record_id"),
-        sourcing_spec_id: row.get("sourcing_spec_id"),
-        schema_version: row.get("schema_version"),
-        source_kind: row.get("source_kind"),
-        source_ref: row.get("source_ref"),
-        handler_family: row.get("handler_family"),
-        handler_version_pin: row.get("handler_version_pin"),
-        params_json: row.get("params_json"),
-        required_capabilities: json_string_array(row.get("required_capabilities")),
-        idempotency_key: row.get("idempotency_key"),
-        spec_hash: row.get("spec_hash"),
-        created_at_utc: row.get("created_at_utc"),
+        record_id: row.record_id.into(),
+        sourcing_spec_id: row.sourcing_spec_id,
+        schema_version: row.schema_version,
+        source_kind: row.source_kind,
+        source_ref: row.source_ref,
+        handler_family: row.handler_family,
+        handler_version_pin: row.handler_version_pin,
+        params_json: row.params_json,
+        required_capabilities: row.required_capabilities,
+        idempotency_key: row.idempotency_key,
+        spec_hash: row.spec_hash,
+        created_at_utc: row.created_at_utc.into(),
     }
 }
 
-fn matrix_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<HandlerVersionMatrixEntry> {
-    let side_effect: String = row.get("side_effect");
-    let idempotency: String = row.get("idempotency");
-    let status: String = row.get("status");
+#[derive(SurrealValue)]
+struct MatrixRow {
+    entry_id: SurrealUuid,
+    handler_family: String,
+    handler_version: String,
+    schema_version_min: String,
+    schema_version_max: String,
+    side_effect: String,
+    idempotency: String,
+    required_capabilities: Vec<String>,
+    determinism: String,
+    status: String,
+    job_profile_ref: String,
+    created_at_utc: Datetime,
+}
+
+fn matrix_from_row(row: MatrixRow) -> AtelierResult<HandlerVersionMatrixEntry> {
     Ok(HandlerVersionMatrixEntry {
-        entry_id: row.get("entry_id"),
-        handler_family: row.get("handler_family"),
-        handler_version: row.get("handler_version"),
-        schema_version_min: row.get("schema_version_min"),
-        schema_version_max: row.get("schema_version_max"),
-        side_effect: SideEffect::from_token(&side_effect)?,
-        idempotency: IdempotencyClass::from_token(&idempotency)?,
-        required_capabilities: json_string_array(row.get("required_capabilities")),
-        determinism: row.get("determinism"),
-        status: HandlerStatus::from_token(&status)?,
-        job_profile_ref: row.get("job_profile_ref"),
-        created_at_utc: row.get("created_at_utc"),
+        entry_id: row.entry_id.into(),
+        handler_family: row.handler_family,
+        handler_version: row.handler_version,
+        schema_version_min: row.schema_version_min,
+        schema_version_max: row.schema_version_max,
+        side_effect: SideEffect::from_token(&row.side_effect)?,
+        idempotency: IdempotencyClass::from_token(&row.idempotency)?,
+        required_capabilities: row.required_capabilities,
+        determinism: row.determinism,
+        status: HandlerStatus::from_token(&row.status)?,
+        job_profile_ref: row.job_profile_ref,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
 
-fn decision_from_row(row: &sqlx::postgres::PgRow) -> BindingDecision {
+#[derive(SurrealValue)]
+struct DecisionRow {
+    decision_id: SurrealUuid,
+    sourcing_spec_id: String,
+    spec_hash: String,
+    handler_family: String,
+    handler_version_pin: String,
+    bound: bool,
+    resolved_handler_version: Option<String>,
+    matched_entry_id: Option<SurrealUuid>,
+    matrix_snapshot_id: SurrealUuid,
+    capability_satisfied: bool,
+    resolution_reason: String,
+    created_at_utc: Datetime,
+}
+
+fn decision_from_row(row: DecisionRow) -> BindingDecision {
     BindingDecision {
-        decision_id: row.get("decision_id"),
-        sourcing_spec_id: row.get("sourcing_spec_id"),
-        spec_hash: row.get("spec_hash"),
-        handler_family: row.get("handler_family"),
-        handler_version_pin: row.get("handler_version_pin"),
-        bound: row.get("bound"),
-        resolved_handler_version: row.get("resolved_handler_version"),
-        matched_entry_id: row.get("matched_entry_id"),
-        matrix_snapshot_id: row.get("matrix_snapshot_id"),
-        capability_satisfied: row.get("capability_satisfied"),
-        resolution_reason: row.get("resolution_reason"),
-        created_at_utc: row.get("created_at_utc"),
+        decision_id: row.decision_id.into(),
+        sourcing_spec_id: row.sourcing_spec_id,
+        spec_hash: row.spec_hash,
+        handler_family: row.handler_family,
+        handler_version_pin: row.handler_version_pin,
+        bound: row.bound,
+        resolved_handler_version: row.resolved_handler_version,
+        matched_entry_id: row.matched_entry_id.map(Into::into),
+        matrix_snapshot_id: row.matrix_snapshot_id.into(),
+        capability_satisfied: row.capability_satisfied,
+        resolution_reason: row.resolution_reason,
+        created_at_utc: row.created_at_utc.into(),
     }
 }
 
-fn mismatch_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<VersionMismatchReceipt> {
-    let reason: String = row.get("reason");
+#[derive(SurrealValue)]
+struct MismatchRow {
+    receipt_id: SurrealUuid,
+    decision_id: SurrealUuid,
+    sourcing_spec_id: String,
+    spec_hash: String,
+    requested_pin: String,
+    evaluated_versions: Vec<String>,
+    matrix_snapshot_id: SurrealUuid,
+    reason: String,
+    created_at_utc: Datetime,
+}
+
+fn mismatch_from_row(row: MismatchRow) -> AtelierResult<VersionMismatchReceipt> {
     Ok(VersionMismatchReceipt {
-        receipt_id: row.get("receipt_id"),
-        decision_id: row.get("decision_id"),
-        sourcing_spec_id: row.get("sourcing_spec_id"),
-        spec_hash: row.get("spec_hash"),
-        requested_pin: row.get("requested_pin"),
-        evaluated_versions: json_string_array(row.get("evaluated_versions")),
-        matrix_snapshot_id: row.get("matrix_snapshot_id"),
-        reason: MismatchReason::from_token(&reason)?,
-        created_at_utc: row.get("created_at_utc"),
+        receipt_id: row.receipt_id.into(),
+        decision_id: row.decision_id.into(),
+        sourcing_spec_id: row.sourcing_spec_id,
+        spec_hash: row.spec_hash,
+        requested_pin: row.requested_pin,
+        evaluated_versions: row.evaluated_versions,
+        matrix_snapshot_id: row.matrix_snapshot_id.into(),
+        reason: MismatchReason::from_token(&row.reason)?,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
 
-fn ingestion_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<IngestionReceipt> {
-    let outcome: String = row.get("outcome");
+#[derive(SurrealValue)]
+struct IngestionRow {
+    receipt_id: SurrealUuid,
+    decision_id: SurrealUuid,
+    ingestion_key: String,
+    handler_family: String,
+    handler_version: String,
+    spec_hash: String,
+    artifact_manifest_refs: Vec<String>,
+    outcome: String,
+    completed_count: i64,
+    pending_count: i64,
+    created_at_utc: Datetime,
+}
+
+fn ingestion_from_row(row: IngestionRow) -> AtelierResult<IngestionReceipt> {
     Ok(IngestionReceipt {
-        receipt_id: row.get("receipt_id"),
-        decision_id: row.get("decision_id"),
-        ingestion_key: row.get("ingestion_key"),
-        handler_family: row.get("handler_family"),
-        handler_version: row.get("handler_version"),
-        spec_hash: row.get("spec_hash"),
-        artifact_manifest_refs: json_string_array(row.get("artifact_manifest_refs")),
-        outcome: IngestionOutcome::from_token(&outcome)?,
-        completed_count: row.get("completed_count"),
-        pending_count: row.get("pending_count"),
-        created_at_utc: row.get("created_at_utc"),
+        receipt_id: row.receipt_id.into(),
+        decision_id: row.decision_id.into(),
+        ingestion_key: row.ingestion_key,
+        handler_family: row.handler_family,
+        handler_version: row.handler_version,
+        spec_hash: row.spec_hash,
+        artifact_manifest_refs: row.artifact_manifest_refs,
+        outcome: IngestionOutcome::from_token(&row.outcome)?,
+        completed_count: row.completed_count,
+        pending_count: row.pending_count,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
 
-const SPEC_COLUMNS: &str = "record_id, sourcing_spec_id, schema_version, source_kind, source_ref, \
-                            handler_family, handler_version_pin, params_json, \
-                            required_capabilities, idempotency_key, spec_hash, created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct SourcingHashBinding {
+    spec_hash: String,
+}
 
-const MATRIX_COLUMNS: &str = "entry_id, handler_family, handler_version, schema_version_min, \
-                              schema_version_max, side_effect, idempotency, \
-                              required_capabilities, determinism, status, job_profile_ref, \
-                              created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct HandlerVersionBinding {
+    handler_family: String,
+    handler_version: String,
+}
 
-const DECISION_COLUMNS: &str = "decision_id, sourcing_spec_id, spec_hash, handler_family, \
-                                handler_version_pin, bound, resolved_handler_version, \
-                                matched_entry_id, matrix_snapshot_id, capability_satisfied, \
-                                resolution_reason, created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct HandlerFamilyBinding {
+    handler_family: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SourcingSpecWriteBindings {
+    record_id: RecordId,
+    record_uuid: SurrealUuid,
+    sourcing_spec_id: String,
+    schema_version: String,
+    source_kind: String,
+    source_ref: String,
+    handler_family: String,
+    handler_version_pin: String,
+    params_json: Value,
+    required_capabilities: Vec<String>,
+    idempotency_key: Option<String>,
+    spec_hash: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct MatrixWriteBindings {
+    record_id: RecordId,
+    entry_id: SurrealUuid,
+    handler_family: String,
+    handler_version: String,
+    schema_version_min: String,
+    schema_version_max: String,
+    side_effect: String,
+    idempotency: String,
+    required_capabilities: Vec<String>,
+    determinism: String,
+    status: String,
+    job_profile_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct DecisionWriteBindings {
+    record_id: RecordId,
+    decision_id: SurrealUuid,
+    sourcing_spec_id: String,
+    spec_hash: String,
+    handler_family: String,
+    handler_version_pin: String,
+    resolved_handler_version: String,
+    matched_entry_id: RecordId,
+    matrix_snapshot_id: SurrealUuid,
+    resolution_reason: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RejectionWriteBindings {
+    decision_record: RecordId,
+    decision_id: SurrealUuid,
+    receipt_record: RecordId,
+    receipt_id: SurrealUuid,
+    sourcing_spec_id: String,
+    spec_hash: String,
+    handler_family: String,
+    handler_version_pin: String,
+    matrix_snapshot_id: SurrealUuid,
+    capability_satisfied: bool,
+    resolution_reason: String,
+    evaluated_versions: Vec<String>,
+    mismatch_reason: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SourcingUuidBinding {
+    record_uuid: SurrealUuid,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IngestionWriteBindings {
+    record_id: RecordId,
+    receipt_id: SurrealUuid,
+    decision_id: RecordId,
+    ingestion_key: String,
+    handler_family: String,
+    handler_version: String,
+    spec_hash: String,
+    artifact_manifest_refs: Vec<String>,
+    completed_count: i64,
+    pending_count: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct IngestionKeyBinding {
+    ingestion_key: String,
+}
+
+const CREATE_SPEC_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (CREATE $domain.record_id CONTENT { record_id: $domain.record_uuid, sourcing_spec_id: $domain.sourcing_spec_id, schema_version: $domain.schema_version, source_kind: $domain.source_kind, source_ref: $domain.source_ref, handler_family: $domain.handler_family, handler_version_pin: $domain.handler_version_pin, params_json: $domain.params_json, required_capabilities: $domain.required_capabilities, idempotency_key: $domain.idempotency_key, spec_hash: $domain.spec_hash } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const CREATE_MATRIX_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (CREATE $domain.record_id CONTENT { entry_id: $domain.entry_id, handler_family: $domain.handler_family, handler_version: $domain.handler_version, schema_version_min: $domain.schema_version_min, schema_version_max: $domain.schema_version_max, side_effect: $domain.side_effect, idempotency: $domain.idempotency, required_capabilities: $domain.required_capabilities, determinism: $domain.determinism, status: $domain.status, job_profile_ref: $domain.job_profile_ref } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const CREATE_DECISION_STATEMENT: &str = concat!(
+    "RETURN { CREATE $domain.record_id CONTENT { decision_id: $domain.decision_id, sourcing_spec_id: $domain.sourcing_spec_id, spec_hash: $domain.spec_hash, handler_family: $domain.handler_family, handler_version_pin: $domain.handler_version_pin, bound: true, resolved_handler_version: $domain.resolved_handler_version, matched_entry_id: $domain.matched_entry_id, matrix_snapshot_id: $domain.matrix_snapshot_id, capability_satisfied: true, resolution_reason: $domain.resolution_reason } RETURN NONE; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT decision_id, sourcing_spec_id, spec_hash, handler_family, handler_version_pin, bound, resolved_handler_version, record::id(matched_entry_id) AS matched_entry_id, matrix_snapshot_id, capability_satisfied, resolution_reason, created_at_utc FROM $domain.record_id)[0]; };"
+);
+
+const CREATE_REJECTION_STATEMENT: &str = "RETURN { LET $decision = (CREATE $decision_record CONTENT { decision_id: $decision_id, sourcing_spec_id: $sourcing_spec_id, spec_hash: $spec_hash, handler_family: $handler_family, handler_version_pin: $handler_version_pin, bound: false, resolved_handler_version: NONE, matched_entry_id: NONE, matrix_snapshot_id: $matrix_snapshot_id, capability_satisfied: $capability_satisfied, resolution_reason: $resolution_reason } RETURN AFTER)[0]; CREATE $receipt_record CONTENT { receipt_id: $receipt_id, decision_id: $decision_record, sourcing_spec_id: $sourcing_spec_id, spec_hash: $spec_hash, requested_pin: $handler_version_pin, evaluated_versions: $evaluated_versions, matrix_snapshot_id: $matrix_snapshot_id, reason: $mismatch_reason }; RETURN $decision; };";
+
+const CREATE_INGESTION_STATEMENT: &str = concat!(
+    "RETURN { CREATE $domain.record_id CONTENT { receipt_id: $domain.receipt_id, decision_id: $domain.decision_id, ingestion_key: $domain.ingestion_key, handler_family: $domain.handler_family, handler_version: $domain.handler_version, spec_hash: $domain.spec_hash, artifact_manifest_refs: $domain.artifact_manifest_refs, outcome: 'fresh', completed_count: $domain.completed_count, pending_count: $domain.pending_count } RETURN NONE; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT receipt_id, record::id(decision_id) AS decision_id, ingestion_key, handler_family, handler_version, spec_hash, artifact_manifest_refs, outcome, completed_count, pending_count, created_at_utc FROM $domain.record_id)[0]; };"
+);
 
 impl AtelierStore {
     /// Parse, Draft-2020-12 validate, and register a YAML sourcing-spec
@@ -879,53 +1059,49 @@ impl AtelierStore {
             "required_capabilities": new.required_capabilities,
             "idempotency_key": new.idempotency_key,
         });
-        let spec_hash = sha256_hex(self, &canonical_json_bytes(&canonical)).await?;
+        let spec_hash = sha256_hex(&canonical_json_bytes(&canonical));
 
         // Idempotent fast path on canonical spec_hash.
         if let Some(existing) = self.get_sourcing_spec_by_hash(&spec_hash).await? {
             return Ok(existing);
         }
 
-        let caps = serde_json::json!(new.required_capabilities);
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_sourcing_spec
-                 (sourcing_spec_id, schema_version, source_kind, source_ref, handler_family,
-                  handler_version_pin, params_json, required_capabilities, idempotency_key, spec_hash)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-               ON CONFLICT (spec_hash) DO UPDATE SET spec_hash = EXCLUDED.spec_hash
-               RETURNING {SPEC_COLUMNS}"#
-        ))
-        .bind(&new.sourcing_spec_id)
-        .bind(&new.schema_version)
-        .bind(&new.source_kind)
-        .bind(&new.source_ref)
-        .bind(&new.handler_family)
-        .bind(&new.handler_version_pin)
-        .bind(scrubbed_params)
-        .bind(caps)
-        .bind(&new.idempotency_key)
-        .bind(&spec_hash)
-        .fetch_one(self.pool())
-        .await?;
-        let record = spec_from_row(&row);
-
-        self.record_event(
-            SOURCING_SPEC_REGISTERED,
-            "atelier_sourcing_spec",
-            &record.spec_hash,
-            serde_json::json!({
-                "record_id": record.record_id,
-                "sourcing_spec_id": record.sourcing_spec_id,
-                "schema_version": record.schema_version,
-                "handler_family": record.handler_family,
-                "handler_version_pin": record.handler_version_pin,
-                "spec_hash": record.spec_hash,
+        let record_id = Uuid::now_v7();
+        let row: Option<SourcingSpecRow> = self
+            .write_with_event(
+                CREATE_SPEC_STATEMENT,
+                SourcingSpecWriteBindings {
+                    record_id: RecordId::new("atelier_sourcing_spec", SurrealUuid::from(record_id)),
+                    record_uuid: record_id.into(),
+                    sourcing_spec_id: new.sourcing_spec_id.clone(),
+                    schema_version: new.schema_version.clone(),
+                    source_kind: new.source_kind.clone(),
+                    source_ref: new.source_ref.clone(),
+                    handler_family: new.handler_family.clone(),
+                    handler_version_pin: new.handler_version_pin.clone(),
+                    params_json: SurrealValue::into_value(scrubbed_params.clone()),
+                    required_capabilities: new.required_capabilities.clone(),
+                    idempotency_key: new.idempotency_key.clone(),
+                    spec_hash: spec_hash.clone(),
+                },
+                SOURCING_SPEC_REGISTERED,
+                "atelier_sourcing_spec",
+                &spec_hash,
+                serde_json::json!({
+                "record_id": record_id,
+                "sourcing_spec_id": new.sourcing_spec_id,
+                "schema_version": new.schema_version,
+                "handler_family": new.handler_family,
+                "handler_version_pin": new.handler_version_pin,
+                "spec_hash": spec_hash,
                 // params omitted/redacted: never leak secrets into the ledger.
-                "params": record.params_json,
-            }),
-        )
-        .await?;
-        Ok(record)
+                "params": scrubbed_params,
+                }),
+            )
+            .await?;
+        row.map(spec_from_row).ok_or_else(|| {
+            AtelierError::Internal("sourcing spec create returned no row".to_string())
+        })
     }
 
     /// Fetch a sourcing-spec record by its canonical `spec_hash`.
@@ -933,13 +1109,19 @@ impl AtelierStore {
         &self,
         spec_hash: &str,
     ) -> AtelierResult<Option<SourcingSpecRecord>> {
-        let row = sqlx::query(&format!(
-            "SELECT {SPEC_COLUMNS} FROM atelier_sourcing_spec WHERE spec_hash = $1"
-        ))
-        .bind(spec_hash)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(spec_from_row))
+        let spec_hash = spec_hash.to_owned();
+        let row: Option<SourcingSpecRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT record_id, sourcing_spec_id, schema_version, source_kind, source_ref, handler_family, handler_version_pin, params_json, required_capabilities, idempotency_key, spec_hash, created_at_utc FROM atelier_sourcing_spec WHERE spec_hash = $spec_hash LIMIT 1;",
+                        SourcingHashBinding { spec_hash },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(spec_from_row))
     }
 
     /// Publish a handler version matrix entry (S6.12.3). Entries are immutable
@@ -966,45 +1148,42 @@ impl AtelierStore {
             return Ok(existing);
         }
 
-        let caps = serde_json::json!(new.required_capabilities);
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_handler_version_matrix
-                 (handler_family, handler_version, schema_version_min, schema_version_max,
-                  side_effect, idempotency, required_capabilities, determinism, status,
-                  job_profile_ref)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-               ON CONFLICT (handler_family, handler_version) DO UPDATE
-                 SET handler_family = EXCLUDED.handler_family
-               RETURNING {MATRIX_COLUMNS}"#
-        ))
-        .bind(&new.handler_family)
-        .bind(&new.handler_version)
-        .bind(&new.schema_version_min)
-        .bind(&new.schema_version_max)
-        .bind(new.side_effect.as_token())
-        .bind(new.idempotency.as_token())
-        .bind(caps)
-        .bind(&new.determinism)
-        .bind(new.status.as_token())
-        .bind(&new.job_profile_ref)
-        .fetch_one(self.pool())
-        .await?;
-        let entry = matrix_from_row(&row)?;
-
-        self.record_event(
-            HANDLER_MATRIX_ENTRY_PUBLISHED,
-            "atelier_handler_version_matrix",
-            &entry.entry_id.to_string(),
-            serde_json::json!({
-                "handler_family": entry.handler_family,
-                "handler_version": entry.handler_version,
-                "side_effect": entry.side_effect.as_token(),
-                "idempotency": entry.idempotency.as_token(),
-                "status": entry.status.as_token(),
-            }),
-        )
-        .await?;
-        Ok(entry)
+        let entry_id = Uuid::now_v7();
+        let row: Option<MatrixRow> = self
+            .write_with_event(
+                CREATE_MATRIX_STATEMENT,
+                MatrixWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_handler_version_matrix",
+                        SurrealUuid::from(entry_id),
+                    ),
+                    entry_id: entry_id.into(),
+                    handler_family: new.handler_family.clone(),
+                    handler_version: new.handler_version.clone(),
+                    schema_version_min: new.schema_version_min.clone(),
+                    schema_version_max: new.schema_version_max.clone(),
+                    side_effect: new.side_effect.as_token().to_owned(),
+                    idempotency: new.idempotency.as_token().to_owned(),
+                    required_capabilities: new.required_capabilities.clone(),
+                    determinism: new.determinism.clone(),
+                    status: new.status.as_token().to_owned(),
+                    job_profile_ref: new.job_profile_ref.clone(),
+                },
+                HANDLER_MATRIX_ENTRY_PUBLISHED,
+                "atelier_handler_version_matrix",
+                &entry_id.to_string(),
+                serde_json::json!({
+                "handler_family": new.handler_family,
+                "handler_version": new.handler_version,
+                "side_effect": new.side_effect.as_token(),
+                "idempotency": new.idempotency.as_token(),
+                "status": new.status.as_token(),
+                }),
+            )
+            .await?;
+        row.map(matrix_from_row).transpose()?.ok_or_else(|| {
+            AtelierError::Internal("handler matrix create returned no row".to_string())
+        })
     }
 
     /// Fetch a single matrix entry by `(handler_family, handler_version)`.
@@ -1013,18 +1192,22 @@ impl AtelierStore {
         handler_family: &str,
         handler_version: &str,
     ) -> AtelierResult<Option<HandlerVersionMatrixEntry>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {MATRIX_COLUMNS} FROM atelier_handler_version_matrix
-               WHERE handler_family = $1 AND handler_version = $2"#
-        ))
-        .bind(handler_family)
-        .bind(handler_version)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(matrix_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let bindings = HandlerVersionBinding {
+            handler_family: handler_family.to_owned(),
+            handler_version: handler_version.to_owned(),
+        };
+        let row: Option<MatrixRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT entry_id, handler_family, handler_version, schema_version_min, schema_version_max, side_effect, idempotency, required_capabilities, determinism, status, job_profile_ref, created_at_utc FROM atelier_handler_version_matrix WHERE handler_family = $handler_family AND handler_version = $handler_version LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(matrix_from_row).transpose()
     }
 
     /// List all matrix entries for a handler family (newest first).
@@ -1032,15 +1215,19 @@ impl AtelierStore {
         &self,
         handler_family: &str,
     ) -> AtelierResult<Vec<HandlerVersionMatrixEntry>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {MATRIX_COLUMNS} FROM atelier_handler_version_matrix
-               WHERE handler_family = $1
-               ORDER BY created_at_utc DESC"#
-        ))
-        .bind(handler_family)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(matrix_from_row).collect()
+        let handler_family = handler_family.to_owned();
+        let rows: Vec<MatrixRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT entry_id, handler_family, handler_version, schema_version_min, schema_version_max, side_effect, idempotency, required_capabilities, determinism, status, job_profile_ref, created_at_utc FROM atelier_handler_version_matrix WHERE handler_family = $handler_family ORDER BY created_at_utc DESC;",
+                        HandlerFamilyBinding { handler_family },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(matrix_from_row).collect()
     }
 
     /// Resolve a sourcing-spec to a concrete handler version and record a
@@ -1150,41 +1337,44 @@ impl AtelierStore {
                 "bound to highest ACTIVE handler version satisfying pin + schema range"
             };
 
-            let row = sqlx::query(&format!(
-                r#"INSERT INTO atelier_sourcing_binding_decision
-                     (sourcing_spec_id, spec_hash, handler_family, handler_version_pin, bound,
-                      resolved_handler_version, matched_entry_id, matrix_snapshot_id,
-                      capability_satisfied, resolution_reason)
-                   VALUES ($1, $2, $3, $4, TRUE, $5, $6, $7, TRUE, $8)
-                   RETURNING {DECISION_COLUMNS}"#
-            ))
-            .bind(&spec.sourcing_spec_id)
-            .bind(&spec.spec_hash)
-            .bind(&spec.handler_family)
-            .bind(&spec.handler_version_pin)
-            .bind(&entry.handler_version)
-            .bind(entry.entry_id)
-            .bind(matrix_snapshot_id)
-            .bind(reason)
-            .fetch_one(self.pool())
-            .await?;
-            let decision = decision_from_row(&row);
-
-            self.record_event(
-                SOURCING_BINDING_DECIDED,
-                "atelier_sourcing_binding_decision",
-                &decision.decision_id.to_string(),
-                serde_json::json!({
-                    "sourcing_spec_id": decision.sourcing_spec_id,
-                    "spec_hash": decision.spec_hash,
-                    "resolved_handler_version": decision.resolved_handler_version,
-                    "matched_entry_id": decision.matched_entry_id,
-                    "matrix_snapshot_id": decision.matrix_snapshot_id,
+            let decision_id = Uuid::now_v7();
+            let row: Option<DecisionRow> = self
+                .write_with_event(
+                    CREATE_DECISION_STATEMENT,
+                    DecisionWriteBindings {
+                        record_id: RecordId::new(
+                            "atelier_sourcing_binding_decision",
+                            SurrealUuid::from(decision_id),
+                        ),
+                        decision_id: decision_id.into(),
+                        sourcing_spec_id: spec.sourcing_spec_id.clone(),
+                        spec_hash: spec.spec_hash.clone(),
+                        handler_family: spec.handler_family.clone(),
+                        handler_version_pin: spec.handler_version_pin.clone(),
+                        resolved_handler_version: entry.handler_version.clone(),
+                        matched_entry_id: RecordId::new(
+                            "atelier_handler_version_matrix",
+                            SurrealUuid::from(entry.entry_id),
+                        ),
+                        matrix_snapshot_id: matrix_snapshot_id.into(),
+                        resolution_reason: reason.to_owned(),
+                    },
+                    SOURCING_BINDING_DECIDED,
+                    "atelier_sourcing_binding_decision",
+                    &decision_id.to_string(),
+                    serde_json::json!({
+                    "sourcing_spec_id": spec.sourcing_spec_id,
+                    "spec_hash": spec.spec_hash,
+                    "resolved_handler_version": entry.handler_version,
+                    "matched_entry_id": entry.entry_id,
+                    "matrix_snapshot_id": matrix_snapshot_id,
                     "bound": true,
-                }),
-            )
-            .await?;
-            return Ok(decision);
+                    }),
+                )
+                .await?;
+            return row.map(decision_from_row).ok_or_else(|| {
+                AtelierError::Internal("binding decision create returned no row".to_string())
+            });
         }
 
         // No bindable entry: classify the rejection reason deterministically.
@@ -1223,45 +1413,37 @@ impl AtelierStore {
         capability_satisfied: bool,
         detail: &str,
     ) -> AtelierResult<BindingDecision> {
-        let mut tx = self.pool().begin().await?;
-
-        let decision_row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_sourcing_binding_decision
-                 (sourcing_spec_id, spec_hash, handler_family, handler_version_pin, bound,
-                  resolved_handler_version, matched_entry_id, matrix_snapshot_id,
-                  capability_satisfied, resolution_reason)
-               VALUES ($1, $2, $3, $4, FALSE, NULL, NULL, $5, $6, $7)
-               RETURNING {DECISION_COLUMNS}"#
-        ))
-        .bind(&spec.sourcing_spec_id)
-        .bind(&spec.spec_hash)
-        .bind(&spec.handler_family)
-        .bind(&spec.handler_version_pin)
-        .bind(matrix_snapshot_id)
-        .bind(capability_satisfied)
-        .bind(detail)
-        .fetch_one(&mut *tx)
-        .await?;
-        let decision = decision_from_row(&decision_row);
-
-        let evaluated_json = serde_json::json!(evaluated_versions);
-        sqlx::query(
-            r#"INSERT INTO atelier_version_mismatch_receipt
-                 (decision_id, sourcing_spec_id, spec_hash, requested_pin, evaluated_versions,
-                  matrix_snapshot_id, reason)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
-        )
-        .bind(decision.decision_id)
-        .bind(&spec.sourcing_spec_id)
-        .bind(&spec.spec_hash)
-        .bind(&spec.handler_version_pin)
-        .bind(&evaluated_json)
-        .bind(matrix_snapshot_id)
-        .bind(reason.as_token())
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
+        let decision_id = Uuid::now_v7();
+        let receipt_id = Uuid::now_v7();
+        let bindings = RejectionWriteBindings {
+            decision_record: RecordId::new(
+                "atelier_sourcing_binding_decision",
+                SurrealUuid::from(decision_id),
+            ),
+            decision_id: decision_id.into(),
+            receipt_record: RecordId::new(
+                "atelier_version_mismatch_receipt",
+                SurrealUuid::from(receipt_id),
+            ),
+            receipt_id: receipt_id.into(),
+            sourcing_spec_id: spec.sourcing_spec_id.clone(),
+            spec_hash: spec.spec_hash.clone(),
+            handler_family: spec.handler_family.clone(),
+            handler_version_pin: spec.handler_version_pin.clone(),
+            matrix_snapshot_id: matrix_snapshot_id.into(),
+            capability_satisfied,
+            resolution_reason: detail.to_owned(),
+            evaluated_versions: evaluated_versions.to_vec(),
+            mismatch_reason: reason.as_token().to_owned(),
+        };
+        let decision_row: Option<DecisionRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(CREATE_REJECTION_STATEMENT, bindings).await })
+            })
+            .await?;
+        let decision = decision_row.map(decision_from_row).ok_or_else(|| {
+            AtelierError::Internal("binding rejection create returned no row".to_string())
+        })?;
 
         self.record_event(
             SOURCING_BINDING_DECIDED,
@@ -1294,14 +1476,20 @@ impl AtelierStore {
 
     /// Fetch a binding decision by id.
     pub async fn get_binding_decision(&self, decision_id: Uuid) -> AtelierResult<BindingDecision> {
-        let row = sqlx::query(&format!(
-            "SELECT {DECISION_COLUMNS} FROM atelier_sourcing_binding_decision WHERE decision_id = $1"
-        ))
-        .bind(decision_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("binding decision {decision_id}")))?;
-        Ok(decision_from_row(&row))
+        let record_uuid = decision_id.into();
+        let row: Option<DecisionRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT decision_id, sourcing_spec_id, spec_hash, handler_family, handler_version_pin, bound, resolved_handler_version, record::id(matched_entry_id) AS matched_entry_id, matrix_snapshot_id, capability_satisfied, resolution_reason, created_at_utc FROM atelier_sourcing_binding_decision WHERE decision_id = $record_uuid LIMIT 1;",
+                        SourcingUuidBinding { record_uuid },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(decision_from_row)
+            .ok_or_else(|| AtelierError::NotFound(format!("binding decision {decision_id}")))
     }
 
     /// Fetch the version-mismatch receipt for a (non-binding) decision, if any.
@@ -1309,18 +1497,26 @@ impl AtelierStore {
         &self,
         decision_id: Uuid,
     ) -> AtelierResult<Option<VersionMismatchReceipt>> {
-        let row = sqlx::query(
-            r#"SELECT receipt_id, decision_id, sourcing_spec_id, spec_hash, requested_pin,
-                      evaluated_versions, matrix_snapshot_id, reason, created_at_utc
-               FROM atelier_version_mismatch_receipt WHERE decision_id = $1"#,
-        )
-        .bind(decision_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(mismatch_from_row(&r)?)),
-            None => Ok(None),
+        let decision_record = RecordId::new(
+            "atelier_sourcing_binding_decision",
+            SurrealUuid::from(decision_id),
+        );
+        #[derive(Clone, SurrealValue)]
+        struct DecisionRecordBinding {
+            decision_record: RecordId,
         }
+        let row: Option<MismatchRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT receipt_id, record::id(decision_id) AS decision_id, sourcing_spec_id, spec_hash, requested_pin, evaluated_versions, matrix_snapshot_id, reason, created_at_utc FROM atelier_version_mismatch_receipt WHERE decision_id = $decision_record LIMIT 1;",
+                        DecisionRecordBinding { decision_record },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(mismatch_from_row).transpose()
     }
 
     /// Record an idempotent ingestion receipt for a successful binding decision
@@ -1387,44 +1583,44 @@ impl AtelierStore {
             return Ok(deduped);
         }
 
-        let refs_json = serde_json::json!(artifact_manifest_refs);
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_sourcing_ingestion_receipt
-                 (decision_id, ingestion_key, handler_family, handler_version, spec_hash,
-                  artifact_manifest_refs, outcome, completed_count, pending_count)
-               VALUES ($1, $2, $3, $4, $5, $6, 'fresh', $7, $8)
-               ON CONFLICT (ingestion_key) DO UPDATE SET ingestion_key = EXCLUDED.ingestion_key
-               RETURNING receipt_id, decision_id, ingestion_key, handler_family, handler_version,
-                         spec_hash, artifact_manifest_refs, outcome, completed_count,
-                         pending_count, created_at_utc"#,
-        )
-        .bind(decision_id)
-        .bind(&ingestion_key)
-        .bind(&decision.handler_family)
-        .bind(&handler_version)
-        .bind(&decision.spec_hash)
-        .bind(&refs_json)
-        .bind(completed_count)
-        .bind(pending_count)
-        .fetch_one(self.pool())
-        .await?;
-        let receipt = ingestion_from_row(&row)?;
-
-        self.record_event(
-            SOURCING_INGESTION_RECEIPTED,
-            "atelier_sourcing_ingestion_receipt",
-            &receipt.receipt_id.to_string(),
-            serde_json::json!({
-                "decision_id": receipt.decision_id,
-                "ingestion_key": receipt.ingestion_key,
-                "outcome": receipt.outcome.as_token(),
-                "completed_count": receipt.completed_count,
-                "pending_count": receipt.pending_count,
-                "artifact_manifest_refs": receipt.artifact_manifest_refs,
-            }),
-        )
-        .await?;
-        Ok(receipt)
+        let receipt_id = Uuid::now_v7();
+        let row: Option<IngestionRow> = self
+            .write_with_event(
+                CREATE_INGESTION_STATEMENT,
+                IngestionWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_sourcing_ingestion_receipt",
+                        SurrealUuid::from(receipt_id),
+                    ),
+                    receipt_id: receipt_id.into(),
+                    decision_id: RecordId::new(
+                        "atelier_sourcing_binding_decision",
+                        SurrealUuid::from(decision_id),
+                    ),
+                    ingestion_key: ingestion_key.clone(),
+                    handler_family: decision.handler_family.clone(),
+                    handler_version: handler_version.clone(),
+                    spec_hash: decision.spec_hash.clone(),
+                    artifact_manifest_refs: artifact_manifest_refs.to_vec(),
+                    completed_count,
+                    pending_count,
+                },
+                SOURCING_INGESTION_RECEIPTED,
+                "atelier_sourcing_ingestion_receipt",
+                &receipt_id.to_string(),
+                serde_json::json!({
+                    "decision_id": decision_id,
+                    "ingestion_key": ingestion_key,
+                    "outcome": IngestionOutcome::Fresh.as_token(),
+                    "completed_count": completed_count,
+                    "pending_count": pending_count,
+                    "artifact_manifest_refs": artifact_manifest_refs,
+                }),
+            )
+            .await?;
+        row.map(ingestion_from_row).transpose()?.ok_or_else(|| {
+            AtelierError::Internal("ingestion receipt create returned no row".to_string())
+        })
     }
 
     /// Fetch an ingestion receipt by its effective ingestion identity key.
@@ -1432,18 +1628,18 @@ impl AtelierStore {
         &self,
         ingestion_key: &str,
     ) -> AtelierResult<Option<IngestionReceipt>> {
-        let row = sqlx::query(
-            r#"SELECT receipt_id, decision_id, ingestion_key, handler_family, handler_version,
-                      spec_hash, artifact_manifest_refs, outcome, completed_count,
-                      pending_count, created_at_utc
-               FROM atelier_sourcing_ingestion_receipt WHERE ingestion_key = $1"#,
-        )
-        .bind(ingestion_key)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(ingestion_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let ingestion_key = ingestion_key.to_owned();
+        let row: Option<IngestionRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT receipt_id, record::id(decision_id) AS decision_id, ingestion_key, handler_family, handler_version, spec_hash, artifact_manifest_refs, outcome, completed_count, pending_count, created_at_utc FROM atelier_sourcing_ingestion_receipt WHERE ingestion_key = $ingestion_key LIMIT 1;",
+                        IngestionKeyBinding { ingestion_key },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(ingestion_from_row).transpose()
     }
 }

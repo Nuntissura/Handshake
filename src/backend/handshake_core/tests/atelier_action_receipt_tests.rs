@@ -4,37 +4,16 @@
 //! actor/session/timing/status/refs, then mirror the receipt through the
 //! canonical Atelier EventLedger family.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
+use atelier_surreal_support::AtelierSurrealHarness;
 use chrono::Utc;
-use handshake_core::atelier::AtelierStore;
 use handshake_core::atelier::action_receipt::{
-    ActionReceiptStatus, NewActionReceipt, action_receipt_event_family,
+    action_receipt_event_family, ActionReceiptStatus, NewActionReceipt,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{Database, postgres::PostgresDatabase};
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
-use std::sync::Arc;
 use uuid::Uuid;
-
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
-}
 
 fn valid_receipt() -> NewActionReceipt {
     NewActionReceipt {
@@ -59,13 +38,9 @@ fn valid_receipt() -> NewActionReceipt {
 
 #[tokio::test]
 async fn action_receipt_records_model_visible_operation_without_raw_params() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP action_receipt_records_model_visible_operation_without_raw_params: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let harness = AtelierSurrealHarness::create().await;
+    let store = &harness.atelier;
+    let database = &harness.database;
 
     let receipt = store
         .record_action_receipt(&valid_receipt())
@@ -113,17 +88,14 @@ async fn action_receipt_records_model_visible_operation_without_raw_params() {
         !event.payload.to_string().contains("super-secret-raw-param"),
         "EventLedger payload must not leak raw action params"
     );
+
+    harness.shutdown().await;
 }
 
 #[tokio::test]
 async fn action_receipt_rejects_unknown_action_and_incomplete_failure_receipt() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP action_receipt_rejects_unknown_action_and_incomplete_failure_receipt: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let harness = AtelierSurrealHarness::create().await;
+    let store = &harness.atelier;
 
     let mut unknown_action = valid_receipt();
     unknown_action.action_id = "kernel.not_in_catalog".to_string();
@@ -146,4 +118,6 @@ async fn action_receipt_rejects_unknown_action_and_incomplete_failure_receipt() 
         err.to_string().contains("recovery_hint"),
         "failed receipt rejection must name recovery_hint: {err}"
     );
+
+    harness.shutdown().await;
 }

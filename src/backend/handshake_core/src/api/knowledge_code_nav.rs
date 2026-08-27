@@ -14,10 +14,8 @@
 //! `storage::knowledge::KnowledgeStore` — single-store + EventLedger authority
 //! only, no SQLite, no re-parsing.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): `KnowledgeStore` has no live
-//! implementor and this module still names the deleted relational handle, so it
-//! does not compile and serves no request today. Handshake's only database is
-//! the embedded SurrealDB store.
+//! All knowledge reads use the embedded SurrealDB `KnowledgeStore`
+//! implementation; no secondary relational authority participates.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every nav endpoint therefore
@@ -69,7 +67,7 @@ use crate::storage::knowledge::{
     KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind,
     KnowledgeSpanKind, KnowledgeStore,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, LocalCloudAttribution,
@@ -113,13 +111,9 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
-/// WP-KERNEL-012 TRAIT-SURFACE GAP: the reads below are typed against
-/// `storage::knowledge::KnowledgeStore`, which has no live implementor after
-/// PostgreSQL removal (`SurrealDatabase` implements `storage::Database` only)
-/// and `AppState` carries no `Arc<dyn KnowledgeStore>`. The gap is confined to
-/// this one constructor.
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+/// Build the knowledge facade over the single embedded SurrealDB authority.
+fn db_for(state: &AppState) -> SurrealDatabase {
+    SurrealDatabase::new(state.surreal.clone())
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -266,8 +260,7 @@ async fn record_quiet_nav_receipt(
         },
     )
     .map_err(|err| bad_request(format!("invalid navigation quiet lane: {err}")))?;
-    let store =
-        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let store = ParallelSwarmStateRecoveryStore::new(state.surreal.clone());
     let record = store
         .record_quiet_background_work(QuietBackgroundWorkRequest {
             lane,
@@ -332,7 +325,7 @@ struct LensParams {
 /// This guarantees a stale/failed symbol is FLAGGED rather than served as
 /// authoritative. The flag is intentionally conservative: anything not provably
 /// fresh is surfaced as not-fresh so a consumer never mistakes it for current.
-async fn served_staleness(db: &PostgresDatabase, source_id: Option<&str>) -> Value {
+async fn served_staleness(db: &SurrealDatabase, source_id: Option<&str>) -> Value {
     let Some(source_id) = source_id else {
         return json!({"state": "unindexed", "fresh": false,
             "detail": "symbol has no primary source"});
@@ -362,7 +355,7 @@ async fn served_staleness(db: &PostgresDatabase, source_id: Option<&str>) -> Val
 }
 
 /// The JSON projection of a symbol entity + its definition span + staleness.
-async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Value {
+async fn symbol_to_json(db: &SurrealDatabase, symbol: &KnowledgeEntity) -> Value {
     let symbol_kind = symbol
         .detection_provenance
         .get("symbol_kind")
@@ -437,22 +430,17 @@ async fn lookup_symbols(
     }
     let limit = params.limit.unwrap_or(LIST_CAP).clamp(1, LIST_CAP);
 
-    // DB-side path/name pushdown (MT-106 DoS fix): SQL cuts the candidate set to
-    // the matching path segment / name suffix instead of loading every symbol in
-    // the workspace. We over-fetch (limit*4, capped) because the SQL name-suffix
-    // LIKE (`%name`) is broader than the exact simple-name match, then refine to
-    // exactness in Rust on the small candidate set.
+    // Push the exact predicates and bound into the embedded Surreal store. The
+    // storage query uses the workspace/kind index and applies LIMIT only after
+    // all predicates, so a large workspace cannot force this endpoint to load
+    // its complete symbol population into API memory.
     let candidates = db
-        .lookup_code_symbols(
-            &params.workspace_id,
-            name,
-            path,
-            prefix,
-            (limit.saturating_mul(4)).clamp(limit, 10_000),
-        )
+        .lookup_knowledge_code_symbols(&params.workspace_id, name, prefix, path, limit)
         .await
         .map_err(storage_error)?;
 
+    // Retain the established Rust predicate as a defense-in-depth equivalence
+    // check around the query projection. It operates on at most `limit` rows.
     let mut matched: Vec<&KnowledgeEntity> = candidates
         .iter()
         .filter(|s| {

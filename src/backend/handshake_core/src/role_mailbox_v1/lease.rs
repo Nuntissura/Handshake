@@ -70,8 +70,7 @@ pub enum LeaseError {
 
 /// In-process lease manager for unit tests + offline workflows. Production
 /// uses `crate::role_mailbox_v1::repo::RoleMailboxRepository::acquire_lease`
-/// which executes the same algorithm inside a Postgres `SELECT ... FOR UPDATE`
-/// transaction.
+/// which executes the same algorithm with guarded embedded-SurrealDB updates.
 #[derive(Default)]
 pub struct LeaseManager {
     leases: Arc<Mutex<HashMap<Uuid, RoleMailboxClaimLeaseV1>>>,

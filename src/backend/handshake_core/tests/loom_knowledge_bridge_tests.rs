@@ -79,7 +79,13 @@ async fn bridge_binds_loom_block_to_knowledge_entity_and_event_ledger() {
     let ws = pg.create_workspace().await;
     let ctx = WriteContext::human(None);
 
-    let block_id = make_block(&pg.db, &ws, Some("Design Notes"), LoomBlockContentType::Note).await;
+    let block_id = make_block(
+        &pg.db,
+        &ws,
+        Some("Design Notes"),
+        LoomBlockContentType::Note,
+    )
+    .await;
 
     let bridge = pg
         .db
@@ -89,7 +95,10 @@ async fn bridge_binds_loom_block_to_knowledge_entity_and_event_ledger() {
 
     assert_eq!(bridge.block_id, block_id);
     assert_eq!(bridge.workspace_id, ws);
-    assert!(bridge.entity_id.starts_with("KEN-"), "entity id is a KEN id");
+    assert!(
+        bridge.entity_id.starts_with("KEN-"),
+        "entity id is a KEN id"
+    );
     assert!(!bridge.index_event_id.is_empty(), "receipt id present");
 
     // The ProjectKnowledgeIndex entity exists with the stable natural identity
@@ -275,14 +284,25 @@ async fn get_and_list_bridge_read_back_authority_binding() {
 }
 
 #[tokio::test]
-async fn authority_backend_is_postgres_event_ledger() {
+async fn authority_backend_is_surreal_event_ledger() {
     let pg = pg_or_skip!();
-    // §10.12 #9.1.1: the only Loom authority is Postgres + EventLedger.
+    // §10.12 #9.1.1: the only Loom authority is SurrealDB + EventLedger.
     assert_eq!(
         pg.db.loom_authority_backend(),
-        LoomAuthorityBackend::PostgresEventLedger
+        LoomAuthorityBackend::SurrealEventLedger
     );
     assert!(pg.db.loom_authority_backend().is_authority());
+    let wire = serde_json::to_string(&pg.db.loom_authority_backend())
+        .expect("Loom authority backend must serialize");
+    assert_eq!(wire, "\"surreal_event_ledger\"");
+    assert!(!wire.contains("postgres"));
+    let legacy_read: LoomAuthorityBackend = serde_json::from_str("\"postgres_event_ledger\"")
+        .expect("legacy Loom authority wire remains readable");
+    assert_eq!(legacy_read, LoomAuthorityBackend::SurrealEventLedger);
+    assert_eq!(
+        serde_json::to_string(&legacy_read).expect("canonical Loom authority reserialization"),
+        "\"surreal_event_ledger\""
+    );
 }
 
 /// MT-177 SQLite-removal guard (no DB needed): proves SQLite is unreachable
@@ -295,10 +315,14 @@ fn sqlite_is_unreachable_from_the_loom_runtime_path() {
 
     // 1. The storage module graph declares NO `sqlite` / `locus_sqlite` module,
     //    so no SQLite code is compiled into the crate.
-    let storage_mod =
-        std::fs::read_to_string(format!("{crate_dir}/src/storage/mod.rs")).expect("read storage/mod.rs");
-    for forbidden in ["mod sqlite;", "mod locus_sqlite;", "pub mod sqlite;", "pub mod locus_sqlite;"]
-    {
+    let storage_mod = std::fs::read_to_string(format!("{crate_dir}/src/storage/mod.rs"))
+        .expect("read storage/mod.rs");
+    for forbidden in [
+        "mod sqlite;",
+        "mod locus_sqlite;",
+        "pub mod sqlite;",
+        "pub mod locus_sqlite;",
+    ] {
         assert!(
             !storage_mod.contains(forbidden),
             "storage/mod.rs must not declare a SQLite module ({forbidden})"
@@ -306,10 +330,7 @@ fn sqlite_is_unreachable_from_the_loom_runtime_path() {
     }
 
     // 2. The dead SQLite orphan source files are removed (MT-177 REMOVE path).
-    for orphan in [
-        "src/storage/sqlite.rs",
-        "src/storage/locus_sqlite.rs",
-    ] {
+    for orphan in ["src/storage/sqlite.rs", "src/storage/locus_sqlite.rs"] {
         assert!(
             !std::path::Path::new(&format!("{crate_dir}/{orphan}")).exists(),
             "SQLite orphan file {orphan} must be removed"

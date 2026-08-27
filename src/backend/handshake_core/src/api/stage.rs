@@ -729,7 +729,10 @@ fn generated_denial_correlation(
         ]
         .concat(),
     ));
-    format!("stage-denial:{}", deterministic_uuid("authenticated-denial", &digest))
+    format!(
+        "stage-denial:{}",
+        deterministic_uuid("authenticated-denial", &digest)
+    )
 }
 
 fn rate_denial_correlation(ctx: &CaptureContext, workspace_id: &str) -> String {
@@ -942,9 +945,7 @@ async fn record_pre_workspace_denial(
     // state itself is capped at PRE_AUTH_DENIAL_BUCKET_COUNT entries.
     let (bucket, window, aggregate_count, receipt_scope) =
         match pre_auth_denial_admission(&fingerprint) {
-            PreAuthDenialAdmission::Detail { bucket, window } => {
-                (bucket, window, None, "detail")
-            }
+            PreAuthDenialAdmission::Detail { bucket, window } => (bucket, window, None, "detail"),
             PreAuthDenialAdmission::Aggregate {
                 bucket,
                 window,
@@ -1147,7 +1148,7 @@ async fn create_stage_artifact(
         "content_base64": body.content_base64,
         "size_bytes": content_bytes.len(),
     });
-    let inserted = StageArtifactStore::new(state.postgres_pool.clone())
+    let inserted = StageArtifactStore::new(state.surreal.clone())
         .insert_stage_artifact(NewStageCaptureArtifact {
             workspace_id: workspace_id.clone(),
             content_kind: body.content_kind.as_str().to_owned(),
@@ -1234,7 +1235,7 @@ async fn get_stage_artifact(
         return Err(bad_request("HSK-400-STAGE-ARTIFACT-ID"));
     }
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let artifact = StageArtifactStore::new(state.postgres_pool.clone())
+    let artifact = StageArtifactStore::new(state.surreal.clone())
         .get_stage_artifact(&workspace_id, &artifact_id)
         .await
         .map_err(map_storage_error)?
@@ -1286,7 +1287,7 @@ async fn get_stage_artifact_content(
         return Err(bad_request("HSK-400-STAGE-ARTIFACT-ID"));
     }
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let artifact = StageArtifactStore::new(state.postgres_pool.clone())
+    let artifact = StageArtifactStore::new(state.surreal.clone())
         .get_stage_artifact(&workspace_id, &artifact_id)
         .await
         .map_err(map_storage_error)?
@@ -1387,8 +1388,7 @@ mod tests {
             let _ = pre_auth_denial_admission(&distinct);
         }
         assert!(
-            PRE_AUTH_DENIAL_RATE.lock().unwrap().len()
-                <= usize::from(PRE_AUTH_DENIAL_BUCKET_COUNT)
+            PRE_AUTH_DENIAL_RATE.lock().unwrap().len() <= usize::from(PRE_AUTH_DENIAL_BUCKET_COUNT)
         );
     }
 

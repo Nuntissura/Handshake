@@ -5,7 +5,7 @@
 //!   the REAL `WorkspaceEditPreview::from_lsp` (so the preview model is the live one) + the panel's
 //!   apply-on-Apply path (nothing mutates until apply_rename_preview).
 //!
-//! Provable WITHOUT a live PostgreSQL / a language server: the preview is built from a synthetic
+//! Provable WITHOUT a live SurrealDB / a language server: the preview is built from a synthetic
 //! `lsp_types::WorkspaceEdit` (the shape a server returns) over in-memory buffer text + a temp-dir disk
 //! file, and the apply target is the in-memory `TextBuffer`.
 

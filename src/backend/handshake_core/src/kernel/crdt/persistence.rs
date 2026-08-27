@@ -7,12 +7,17 @@ use super::identity::CrdtWorkspaceIdentityV1;
 
 pub const CRDT_UPDATE_RECORD_SCHEMA_ID: &str = "hsk.kernel.crdt_update_record@1";
 pub const CRDT_REPLAY_PLAN_SCHEMA_ID: &str = "hsk.kernel.crdt_replay_plan@1";
-pub const CRDT_POSTGRES_UPDATE_LOG_CONTRACT_SCHEMA_ID: &str =
-    "hsk.kernel.crdt_postgres_update_log_contract@1";
+pub const CRDT_SURREAL_UPDATE_LOG_CONTRACT_SCHEMA_ID: &str =
+    "hsk.kernel.crdt_surreal_update_log_contract@1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrdtStorageAuthorityPosture {
-    PostgresEventLedger,
+    #[serde(
+        rename = "surreal_event_ledger",
+        alias = "PostgresEventLedger",
+        alias = "postgres_event_ledger"
+    )]
+    SurrealEventLedger,
     FileSystemAuthority,
     MemoryOnly,
 }
@@ -88,7 +93,7 @@ pub struct CrdtReplayPlanV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CrdtPostgresUpdateLogContractV1 {
+pub struct CrdtSurrealUpdateLogContractV1 {
     pub schema_id: String,
     pub table_name: &'static str,
     pub storage_authority: CrdtStorageAuthorityPosture,
@@ -151,7 +156,7 @@ pub fn new_crdt_update_record(input: CrdtUpdateRecordInputV1<'_>) -> CrdtUpdateR
             .event_ledger_stream_id
             .clone(),
         event_ledger_event_id: input.event_ledger_event_id.to_string(),
-        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        storage_authority: CrdtStorageAuthorityPosture::SurrealEventLedger,
     }
 }
 
@@ -161,11 +166,11 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-pub fn kernel_crdt_postgres_update_log_contract() -> CrdtPostgresUpdateLogContractV1 {
-    CrdtPostgresUpdateLogContractV1 {
-        schema_id: CRDT_POSTGRES_UPDATE_LOG_CONTRACT_SCHEMA_ID.to_string(),
+pub fn kernel_crdt_surreal_update_log_contract() -> CrdtSurrealUpdateLogContractV1 {
+    CrdtSurrealUpdateLogContractV1 {
+        schema_id: CRDT_SURREAL_UPDATE_LOG_CONTRACT_SCHEMA_ID.to_string(),
         table_name: "kernel_crdt_updates",
-        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        storage_authority: CrdtStorageAuthorityPosture::SurrealEventLedger,
         required_columns: vec![
             "workspace_id",
             "document_id",
@@ -268,16 +273,16 @@ pub fn validate_crdt_update_record(
             message: "value must be a 64-character sha256 hex digest",
         });
     }
-    if !record.update_bytes_ref.starts_with("postgres://") {
+    if !record.update_bytes_ref.starts_with("surreal://") {
         errors.push(CrdtUpdateRecordValidationError {
             field: "update_bytes_ref",
-            message: "CRDT update bytes must be referenced from Postgres storage",
+            message: "CRDT update bytes must be referenced from SurrealDB storage",
         });
     }
-    if record.storage_authority != CrdtStorageAuthorityPosture::PostgresEventLedger {
+    if record.storage_authority != CrdtStorageAuthorityPosture::SurrealEventLedger {
         errors.push(CrdtUpdateRecordValidationError {
             field: "storage_authority",
-            message: "CRDT update authority must be Postgres plus EventLedger",
+            message: "CRDT update authority must be SurrealDB plus EventLedger",
         });
     }
 
@@ -353,7 +358,7 @@ pub fn build_crdt_replay_plan(
         workspace_id: first.workspace_id.clone(),
         document_id: first.document_id.clone(),
         crdt_document_id: first.crdt_document_id.clone(),
-        source_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        source_authority: CrdtStorageAuthorityPosture::SurrealEventLedger,
         ordered_updates: ordered.into_iter().map(replay_step).collect(),
         final_state_vector,
     })

@@ -20,13 +20,8 @@
 //!   approved proposal and atomically writes the canonical `MemoryItem`, `MemoryCommitReport`,
 //!   strict `MemoryPack`, and EventLedger commit receipt; FR-EVT-MEM-003 is projected from it.
 //!
-//! All durable writes go through the FEMS store (`fems_memory_*` tables) plus a durable
+//! All durable writes go through the embedded SurrealDB FEMS store plus a durable
 //! kernel EventLedger receipt; review decisions are mirrored to Flight Recorder. No SQLite.
-//!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): `storage::fems_memory` still
-//! binds `sqlx` against the deleted relational backend, so these routes do not
-//! compile and serve no request today. Handshake's only database is the
-//! embedded SurrealDB store.
 
 use axum::{
     extract::Request,
@@ -52,7 +47,7 @@ use crate::flight_recorder::{
 };
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{KnowledgeSourceKind, KnowledgeStore};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{fems_memory, StorageError};
 use crate::AppState;
 
@@ -281,7 +276,7 @@ async fn project_lifecycle_event(
 ) -> Result<(), ApiError> {
     if let Err(error) = record_review_event_idempotent(state, event.clone()).await {
         fems_memory::record_memory_lifecycle_event_failure(
-            &state.postgres_pool,
+            &state.surreal,
             workspace_id,
             event.event_id,
             &format!("{error:?}"),
@@ -291,13 +286,9 @@ async fn project_lifecycle_event(
         .map_err(storage_error)?;
         return Err(error);
     }
-    fems_memory::mark_memory_lifecycle_event_published(
-        &state.postgres_pool,
-        workspace_id,
-        event.event_id,
-    )
-    .await
-    .map_err(storage_error)
+    fems_memory::mark_memory_lifecycle_event_published(&state.surreal, workspace_id, event.event_id)
+        .await
+        .map_err(storage_error)
 }
 
 async fn project_commit_event(
@@ -307,7 +298,7 @@ async fn project_commit_event(
 ) -> Result<(), ApiError> {
     if let Err(error) = record_review_event_idempotent(state, event.clone()).await {
         fems_memory::record_memory_commit_event_failure(
-            &state.postgres_pool,
+            &state.surreal,
             workspace_id,
             event.event_id,
             &format!("{error:?}"),
@@ -317,28 +308,23 @@ async fn project_commit_event(
         .map_err(storage_error)?;
         return Err(error);
     }
-    fems_memory::mark_memory_commit_event_published(
-        &state.postgres_pool,
-        workspace_id,
-        event.event_id,
-    )
-    .await
-    .map_err(storage_error)
+    fems_memory::mark_memory_commit_event_published(&state.surreal, workspace_id, event.event_id)
+        .await
+        .map_err(storage_error)
 }
 
 async fn reconcile_all_memory_commit_events(state: &AppState) -> Result<(), ApiError> {
-    fems_memory::recover_missing_memory_lifecycle_outbox_events(&state.postgres_pool)
+    fems_memory::recover_missing_memory_lifecycle_outbox_events(&state.surreal)
         .await
         .map_err(storage_error)?;
-    fems_memory::recover_missing_memory_commit_outbox_events(&state.postgres_pool)
+    fems_memory::recover_missing_memory_commit_outbox_events(&state.surreal)
         .await
         .map_err(storage_error)?;
     let mut first_error = None;
     for _ in 0..MAX_MEMORY_OUTBOX_RECONCILIATION_PASSES {
-        let lifecycle =
-            fems_memory::list_all_pending_memory_lifecycle_events(&state.postgres_pool, 200)
-                .await
-                .map_err(storage_error)?;
+        let lifecycle = fems_memory::list_all_pending_memory_lifecycle_events(&state.surreal, 200)
+            .await
+            .map_err(storage_error)?;
         let lifecycle_len = lifecycle.len();
         for (workspace_id, event) in lifecycle {
             if let Err(error) = project_lifecycle_event(state, &workspace_id, event).await {
@@ -351,7 +337,7 @@ async fn reconcile_all_memory_commit_events(state: &AppState) -> Result<(), ApiE
                 first_error.get_or_insert(error);
             }
         }
-        let pending = fems_memory::list_all_pending_memory_commit_events(&state.postgres_pool, 200)
+        let pending = fems_memory::list_all_pending_memory_commit_events(&state.surreal, 200)
             .await
             .map_err(storage_error)?;
         if pending.is_empty() && lifecycle_len == 0 {
@@ -382,13 +368,10 @@ async fn reconcile_workspace_memory_commit_events(
 ) -> Result<(), ApiError> {
     let mut first_error = None;
     for _ in 0..MAX_MEMORY_OUTBOX_RECONCILIATION_PASSES {
-        let lifecycle = fems_memory::list_pending_memory_lifecycle_events(
-            &state.postgres_pool,
-            workspace_id,
-            200,
-        )
-        .await
-        .map_err(storage_error)?;
+        let lifecycle =
+            fems_memory::list_pending_memory_lifecycle_events(&state.surreal, workspace_id, 200)
+                .await
+                .map_err(storage_error)?;
         let lifecycle_len = lifecycle.len();
         for event in lifecycle {
             if let Err(error) = project_lifecycle_event(state, workspace_id, event).await {
@@ -396,7 +379,7 @@ async fn reconcile_workspace_memory_commit_events(
             }
         }
         let pending =
-            fems_memory::list_pending_memory_commit_events(&state.postgres_pool, workspace_id, 200)
+            fems_memory::list_pending_memory_commit_events(&state.surreal, workspace_id, 200)
                 .await
                 .map_err(storage_error)?;
         let pending_len = pending.len();
@@ -417,7 +400,7 @@ async fn require_published_proposal_event(
     workspace_id: &str,
     proposal_id: &str,
 ) -> Result<(), ApiError> {
-    let proposal = fems_memory::get_memory_proposal(&state.postgres_pool, proposal_id)
+    let proposal = fems_memory::get_memory_proposal(&state.surreal, proposal_id)
         .await
         .map_err(storage_error)?
         .ok_or_else(|| storage_error(StorageError::NotFound("memory proposal")))?;
@@ -426,7 +409,7 @@ async fn require_published_proposal_event(
     }
     reconcile_workspace_memory_commit_events(state, workspace_id).await?;
     match fems_memory::memory_lifecycle_publication_state(
-        &state.postgres_pool,
+        &state.surreal,
         proposal_id,
         "FR-EVT-MEM-001",
     )
@@ -474,10 +457,9 @@ async fn list_memory_proposals(
     }
     reconcile_workspace_memory_commit_events(&state, &workspace_id).await?;
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let proposals =
-        fems_memory::list_memory_proposals(&state.postgres_pool, &workspace_id, limit as i64)
-            .await
-            .map_err(storage_error)?;
+    let proposals = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, limit as i64)
+        .await
+        .map_err(storage_error)?;
     Ok(Json(proposals))
 }
 
@@ -485,13 +467,10 @@ async fn get_memory_commit_report(
     State(state): State<AppState>,
     Path((workspace_id, commit_id)): Path<(String, String)>,
 ) -> Result<Json<MemoryCommitReport>, ApiError> {
-    let report =
-        fems_memory::get_memory_commit_report(&state.postgres_pool, &workspace_id, &commit_id)
-            .await
-            .map_err(storage_error)?
-            .ok_or_else(|| {
-                storage_error(StorageError::NotFound("memory commit report artifact"))
-            })?;
+    let report = fems_memory::get_memory_commit_report(&state.surreal, &workspace_id, &commit_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| storage_error(StorageError::NotFound("memory commit report artifact")))?;
     Ok(Json(report))
 }
 
@@ -508,7 +487,7 @@ async fn get_committed_memory_count(
     {
         return Err(storage_error(StorageError::NotFound("workspace")));
     }
-    let count = fems_memory::count_memory_items(&state.postgres_pool, &workspace_id)
+    let count = fems_memory::count_memory_items(&state.surreal, &workspace_id)
         .await
         .map_err(storage_error)?;
     Ok(Json(CommittedMemoryCount {
@@ -521,7 +500,7 @@ async fn get_memory_proposal(
     State(state): State<AppState>,
     Path((workspace_id, proposal_id)): Path<(String, String)>,
 ) -> Result<Json<fems_memory::StoredMemoryProposal>, ApiError> {
-    let proposal = fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_id)
+    let proposal = fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
         .await
         .map_err(storage_error)?
         .ok_or_else(|| storage_error(StorageError::NotFound("memory proposal")))?;
@@ -537,7 +516,7 @@ async fn get_memory_proposal_artifact(
     State(state): State<AppState>,
     Path((workspace_id, proposal_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, ApiError> {
-    let proposal = fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_id)
+    let proposal = fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
         .await
         .map_err(storage_error)?
         .filter(|proposal| proposal.workspace_id == workspace_id)
@@ -718,7 +697,7 @@ async fn get_memory_pack(
         .map_err(storage_error)?
         .ok_or_else(|| storage_error(StorageError::NotFound("workspace")))?;
 
-    let pack = fems_memory::get_latest_memory_pack(&state.postgres_pool, &workspace_id, scope)
+    let pack = fems_memory::get_latest_memory_pack(&state.surreal, &workspace_id, scope)
         .await
         .map_err(storage_error)?;
     if let Some(mut pack) = pack {
@@ -747,7 +726,7 @@ async fn get_memory_pack(
 
     // Return one deterministic empty projection without persisting it. Repeated reads and restarts
     // derive the same value from the canonical workspace identity, while attacker-chosen contexts
-    // cannot amplify PostgreSQL rows through a GET.
+    // cannot amplify embedded-store rows through a GET.
     let scope_key = scope
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -976,16 +955,16 @@ struct ProposalCommitAck {
 /// canonical-code branch rejects any proposal where
 /// `sha256_hex(source_document_content) != source.document_content_hash`, and the
 /// rich-document and Loom-reference branches reject a proposal that carries either
-/// field, leaving both components "". Migration 0345 hashed `document_content_hash`
+/// field, leaving both components "". The declarative schema contract hashes
+/// `document_content_hash`
 /// twice for exactly this reason - a stored proposal row never persists
 /// `source_document_content`, so `document_content_hash` is the only SQL-derivable
 /// expression of component 11. That second occurrence is load-bearing and is retained;
 /// only the extra `actor_id` component was dropped when 0365 superseded 0345.
 ///
-/// SQL parity lives in `migrations/0365_fems_proposal_request_id_canonical_identity.sql`
-/// as the shipped `fems_proposal_request_id(...)` function. Do NOT hand-copy this
-/// expression into a third site: the Rust/SQL split MT-112 repairs was introduced by
-/// exactly that.
+/// The canonical identity contract lives with this Rust implementation and the
+/// matching fields in `storage/surreal/schema.surql`. Do NOT hand-copy this expression
+/// into a third site.
 fn stable_proposal_request_id(
     workspace_id: &str,
     request: &ProposalRequest,
@@ -1125,7 +1104,7 @@ async fn create_memory_proposal(
             "proposal content_hash does not match the canonical JSON-string SHA-256 of content",
         ));
     }
-    let db = PostgresDatabase::new(state.postgres_pool.clone());
+    let db = SurrealDatabase::new(state.surreal.clone());
     let document = db
         .get_knowledge_rich_document(document_id)
         .await
@@ -1297,7 +1276,7 @@ async fn create_memory_proposal(
     // pending review and never trusts a client flag to bypass the gate.
     let review_gated = true;
 
-    // PostgreSQL timestamptz persists microseconds. Normalize before hashing/storing so the
+    // The embedded store persists microseconds. Normalize before hashing/storing so the
     // content-addressed proposal artifact and durable proposal row retain one byte-identical instant.
     let created_at = chrono::DateTime::from_timestamp_micros(chrono::Utc::now().timestamp_micros())
         .ok_or_else(|| {
@@ -1396,7 +1375,7 @@ async fn create_memory_proposal(
         proposal: proposal_payload.clone(),
     };
 
-    // Durable EventLedger receipt (PostgreSQL/EventLedger authority path). A review-gated
+    // Durable EventLedger receipt (embedded SurrealDB authority path). A review-gated
     // proposal is an ARTIFACT_PROPOSED event — it is explicitly NOT a commit.
     let correlation_id = format!("fems-memory-proposal:{proposal_id}");
     let receipt = NewKernelEvent::builder(
@@ -1430,14 +1409,13 @@ async fn create_memory_proposal(
         )
     })?;
 
-    let stored =
-        fems_memory::insert_memory_proposal_with_receipt(&state.postgres_pool, &stored, receipt)
-            .await
-            .map_err(storage_error)?;
+    let stored = fems_memory::insert_memory_proposal_with_receipt(&state.surreal, &stored, receipt)
+        .await
+        .map_err(storage_error)?;
     // An identical user retry is the explicit recovery signal for a quarantined projection. The
     // immutable proposal/outbox identity remains unchanged; only its bounded delivery attempts reset.
     fems_memory::requeue_quarantined_memory_lifecycle_event(
-        &state.postgres_pool,
+        &state.surreal,
         &stored.proposal_id,
         "FR-EVT-MEM-001",
     )
@@ -1445,7 +1423,7 @@ async fn create_memory_proposal(
     .map_err(storage_error)?;
     reconcile_workspace_memory_commit_events(&state, &workspace_id).await?;
     match fems_memory::memory_lifecycle_publication_state(
-        &state.postgres_pool,
+        &state.surreal,
         &stored.proposal_id,
         "FR-EVT-MEM-001",
     )
@@ -1548,7 +1526,7 @@ async fn review_memory_proposal(
         correlation_id: correlation_id.clone(),
     };
     let transition = fems_memory::review_memory_proposal_with_receipt(
-        &state.postgres_pool,
+        &state.surreal,
         &workspace_id,
         &proposal_id,
         &review,
@@ -1606,7 +1584,7 @@ async fn commit_memory_proposal(
         )
     })?;
     let committed = fems_memory::commit_memory_proposal_with_receipt(
-        &state.postgres_pool,
+        &state.surreal,
         &workspace_id,
         &proposal_id,
         receipt,
@@ -1626,7 +1604,7 @@ async fn commit_memory_proposal(
     let event_id = committed.flight_recorder_event.event_id;
     let committed_at = committed.flight_recorder_event.timestamp;
     // A successful response means the durable outbox has been projected. If Flight Recorder is
-    // unavailable, the authoritative PostgreSQL commit remains recoverable and this request fails
+    // unavailable, the authoritative SurrealDB commit remains recoverable and this request fails
     // honestly; the startup projector retries it after process restart.
     reconcile_workspace_memory_commit_events(&state, &workspace_id).await?;
 
@@ -1657,7 +1635,7 @@ fn deterministic_uuid_from_seed(seed: &str) -> Uuid {
 fn same_review_event(left: &FlightRecorderEvent, right: &FlightRecorderEvent) -> bool {
     left.event_id == right.event_id
         && left.trace_id == right.trace_id
-        // PostgreSQL/DuckDB persist TIMESTAMPTZ at microsecond precision. Compare the exact persisted
+        // SurrealDB/DuckDB persist timestamps at microsecond precision. Compare the exact persisted
         // instant rather than chrono's unused sub-microsecond component so a read-back retry is stable.
         && left.timestamp.timestamp_micros() == right.timestamp.timestamp_micros()
         && left.actor == right.actor
@@ -1748,7 +1726,7 @@ mod tests {
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
     };
     use crate::storage::knowledge::NewKnowledgeRichDocument;
-    use crate::storage::tests::optional_postgres_backend_with_pool_from_env;
+    use crate::storage::tests::embedded_test_backend;
     use crate::storage::{
         LoomBlockContentType, LoomBlockDerived, NewLoomBlock, NewWorkspace, WriteContext,
     };
@@ -1757,7 +1735,83 @@ mod tests {
         atomic::{AtomicBool, Ordering},
         Arc,
     };
+    use surrealdb::types::{Datetime, RecordId, SurrealValue};
     use uuid::Uuid;
+
+    #[derive(Clone, Default, SurrealValue)]
+    struct MemoryTestBindings {
+        workspace: Option<RecordId>,
+        proposal: Option<RecordId>,
+        value: Option<String>,
+        other: Option<String>,
+        hash: Option<String>,
+        values: Vec<String>,
+        at: Option<Datetime>,
+    }
+
+    #[derive(SurrealValue)]
+    struct MemoryTestCountRow {
+        count: i64,
+    }
+
+    #[derive(SurrealValue)]
+    struct MemoryTestBoolRow {
+        value: bool,
+    }
+
+    #[derive(SurrealValue)]
+    struct MemoryTestStringRow {
+        value: String,
+    }
+
+    async fn memory_test_query_first<R: SurrealValue + 'static>(
+        state: &AppState,
+        statement: &'static str,
+        bindings: MemoryTestBindings,
+    ) -> Result<Option<R>, Box<dyn std::error::Error>> {
+        Ok(state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_first(statement, bindings).await })
+            })
+            .await?)
+    }
+
+    async fn memory_test_count(
+        state: &AppState,
+        statement: &'static str,
+        bindings: MemoryTestBindings,
+    ) -> Result<i64, Box<dyn std::error::Error>> {
+        Ok(
+            memory_test_query_first::<MemoryTestCountRow>(state, statement, bindings)
+                .await?
+                .map_or(0, |row| row.count),
+        )
+    }
+
+    async fn memory_test_execute(
+        state: &AppState,
+        statement: &'static str,
+        bindings: MemoryTestBindings,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        Ok(state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.execute_returning(statement, bindings).await })
+            })
+            .await?)
+    }
+
+    async fn memory_test_ledger_event(
+        state: &AppState,
+        idempotency_key: &str,
+    ) -> Result<Option<crate::kernel::KernelEvent>, Box<dyn std::error::Error>> {
+        Ok(crate::storage::surreal::event_ledger::get_by_idempotency(
+            &state.surreal,
+            idempotency_key,
+        )
+        .await?)
+    }
 
     // One shared guard for the process-global test binding env var: `api::flight_recorder`'s
     // authorization suite installs the same binding, and two suites racing on it would
@@ -1905,13 +1959,11 @@ mod tests {
     }
 
     async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
-        let backend = optional_postgres_backend_with_pool_from_env()
-            .await?
-            .expect("managed postgres backend");
+        let backend = embedded_test_backend().await?;
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
         Ok(AppState {
             storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+            surreal: backend.storage,
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: Arc::new(TestLlmClient::new()),
@@ -1998,7 +2050,7 @@ mod tests {
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         let ack: ProposalAck = response.json().await?;
-        let stored = fems_memory::get_memory_proposal(&state.postgres_pool, &ack.proposal_id)
+        let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
             .await?
             .expect("authenticated proposal stored");
         let actor_id = stored.proposal["actor_id"]
@@ -2079,19 +2131,10 @@ mod tests {
             .0;
         assert_ne!(commit_a.memory_id, commit_b.memory_id);
 
-        let latest_pack_text: String = sqlx::query_scalar(
-            r#"
-            SELECT pack::text
-            FROM fems_memory_packs
-            WHERE workspace_id = $1
-            ORDER BY generated_at DESC, pack_id DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        let latest_pack: MemoryPack = serde_json::from_str(&latest_pack_text)?;
+        let latest_pack =
+            fems_memory::get_latest_memory_pack(&state.surreal, &workspace_id, Some("workspace"))
+                .await?
+                .expect("latest concurrent pack");
         let ids = latest_pack
             .items
             .iter()
@@ -2100,7 +2143,7 @@ mod tests {
         assert!(ids.contains(commit_a.memory_id.as_str()));
         assert!(ids.contains(commit_b.memory_id.as_str()));
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?,
+            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
             2
         );
         Ok(())
@@ -2181,7 +2224,7 @@ mod tests {
         content: &str,
     ) -> Result<ProposalSource, StorageError> {
         let document_text = format!("xxx{content}");
-        let db = PostgresDatabase::new(state.postgres_pool.clone());
+        let db = SurrealDatabase::new(state.surreal.clone());
         let document = db
             .create_knowledge_rich_document(NewKnowledgeRichDocument {
                 workspace_id: workspace_id.to_owned(),
@@ -2272,433 +2315,98 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn migration_0345_old_schema_identity_and_down_up_retry_converge(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn surreal_identity_and_exact_retry_converge() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
-        let schema = format!("fems_0345_test_{}", Uuid::now_v7().simple());
-        let mut tx = state.postgres_pool.begin().await?;
-        sqlx::query(&format!("CREATE SCHEMA {schema}"))
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query(&format!("SET LOCAL search_path TO {schema}, public"))
-            .execute(&mut *tx)
-            .await?;
-        sqlx::raw_sql(
-            r#"
-            CREATE TABLE workspaces (id TEXT PRIMARY KEY);
-            CREATE TABLE fems_memory_proposals (
-                proposal_id TEXT PRIMARY KEY,
-                workspace_id TEXT NOT NULL,
-                document_id TEXT NOT NULL,
-                selection_start BIGINT NOT NULL,
-                selection_end BIGINT NOT NULL,
-                content_hash TEXT NOT NULL,
-                memory_class TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending_review',
-                review_gated BOOLEAN NOT NULL DEFAULT TRUE,
-                proposal JSONB NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            );
-            "#,
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        let workspace_id = "WS-MIGRATION-0345";
-        sqlx::query("INSERT INTO workspaces (id) VALUES ($1)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        let content = "legacy unicode identity";
-        let mut source = valid_source(workspace_id, "doc-legacy-trim", content);
-        source.pane_id = Some("\t\u{2003}pane-legacy\u{3000}\r".to_owned());
-        let source_document_content = format!("xxx{content}");
-        source.document_content_hash = Some(hex::encode(Sha256::digest(
-            source_document_content.as_bytes(),
-        )));
+        let workspace_id = create_test_workspace(&state, "surreal-identity-retry").await?;
+        let content = "unicode identity\u{2003}";
+        let source =
+            create_test_rich_source(&state, &workspace_id, "surreal-identity-source", content)
+                .await?;
         let request = ProposalRequest {
             request_id: None,
             class: ProposalClass::Semantic,
             content: content.to_owned(),
-            source: source.clone(),
-            source_document_content: Some(source_document_content),
+            source,
+            source_document_content: None,
             review_gated: Some(true),
-            actor_id: Some("\u{00a0}\tactor-legacy\u{205f}\n".to_owned()),
+            actor_id: Some("identity-actor".to_owned()),
         };
         let expected_request_id =
-            stable_proposal_request_id(workspace_id, &request).expect("stable request identity");
-        let old_proposal_id = "PROP-OLD-SCHEMA-0345";
-        let old_payload = json!({
-            "proposal_id": old_proposal_id,
-            "workspace_id": workspace_id,
-            "class": request.class.wire(),
-            "content": request.content,
-            "source": source,
-            "review_gated": true,
-            "status": PROPOSAL_STATUS_PENDING_REVIEW,
-            "actor_id": request.actor_id,
-        });
-        sqlx::query(
-            r#"
-            INSERT INTO fems_memory_proposals (
-                proposal_id, workspace_id, document_id, selection_start, selection_end,
-                content_hash, memory_class, status, review_gated, proposal
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            "#,
-        )
-        .bind(old_proposal_id)
-        .bind(workspace_id)
-        .bind("doc-legacy-trim")
-        .bind(
-            i64::try_from(source.selection_start).expect("selection_start fits PostgreSQL BIGINT"),
-        )
-        .bind(i64::try_from(source.selection_end).expect("selection_end fits PostgreSQL BIGINT"))
-        .bind(canonical_content_hash(content).expect("canonical content hash"))
-        .bind("semantic")
-        .bind(PROPOSAL_STATUS_PENDING_REVIEW)
-        .bind(true)
-        .bind(old_payload)
-        .execute(&mut *tx)
-        .await?;
+            stable_proposal_request_id(&workspace_id, &request).expect("stable request identity");
 
-        let up = include_str!("../../migrations/0345_fems_memory_workspace_authority.sql");
-        let down = include_str!("../../migrations/0345_fems_memory_workspace_authority.down.sql");
-        // AC-112-2: 0345 is already applied in the field and its checksum is immutable, so
-        // convergence ships as the superseding 0365 instead of an edit to 0345. The deployed
-        // chain is 0345 THEN 0365 and this proof now runs the real files in that real order.
-        // Every assertion below is unchanged and still demands a byte-for-byte match with the
-        // Rust derivation.
-        let up_0365 =
-            include_str!("../../migrations/0365_fems_proposal_request_id_canonical_identity.sql");
-        let down_0365 = include_str!(
-            "../../migrations/0365_fems_proposal_request_id_canonical_identity.down.sql"
-        );
-        sqlx::raw_sql(up).execute(&mut *tx).await?;
-        let request_id_before_0365: String = sqlx::query_scalar(
-            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
+        let Json(first) = create_memory_proposal(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            HeaderMap::new(),
+            Json(request.clone()),
         )
-        .bind(old_proposal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        assert_ne!(
-            request_id_before_0365, expected_request_id,
-            "0345 alone must still produce its own twelve-component identity; if this ever \
-             matches, 0345 was edited in place and AC-112-2 was violated"
-        );
-        sqlx::raw_sql(up_0365).execute(&mut *tx).await?;
-        let migrated_request_id: String = sqlx::query_scalar(
-            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
+        .await
+        .map_err(|(status, body)| format!("first proposal failed: {status} {body:?}"))?;
+        let Json(retry) = create_memory_proposal(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            HeaderMap::new(),
+            Json(request),
         )
-        .bind(old_proposal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        assert_eq!(
-            migrated_request_id, expected_request_id,
-            "the actual old-schema migration must match Rust Unicode trimming byte-for-byte"
-        );
+        .await
+        .map_err(|(status, body)| format!("proposal retry failed: {status} {body:?}"))?;
 
-        let explicit_request_id = "explicit-retry-0345";
-        let explicit_proposal_id = stable_proposal_id(workspace_id, explicit_request_id);
-        let explicit_source = valid_source(workspace_id, "doc-explicit", content);
-        let explicit_payload = json!({
-            "proposal_id": explicit_proposal_id,
-            "request_id": explicit_request_id,
-            "workspace_id": workspace_id,
-            "class": "semantic",
-            "content": content,
-            "source": explicit_source,
-            "review_gated": true,
-            "status": PROPOSAL_STATUS_PENDING_REVIEW,
-            "actor_id": "actor-explicit",
-        });
-        sqlx::query(
-            r#"
-            INSERT INTO fems_memory_proposals (
-                proposal_id, request_id, workspace_id, document_id, selection_start,
-                selection_end, content_hash, memory_class, status, review_gated, proposal
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            "#,
-        )
-        .bind(&explicit_proposal_id)
-        .bind(explicit_request_id)
-        .bind(workspace_id)
-        .bind("doc-explicit")
-        .bind(i64::try_from(explicit_source.selection_start).expect("selection_start fits BIGINT"))
-        .bind(i64::try_from(explicit_source.selection_end).expect("selection_end fits BIGINT"))
-        .bind(canonical_content_hash(content).expect("canonical content hash"))
-        .bind("semantic")
-        .bind(PROPOSAL_STATUS_PENDING_REVIEW)
-        .bind(true)
-        .bind(&explicit_payload)
-        .execute(&mut *tx)
-        .await?;
-
-        // Reverse deployment order: 0365 rolls back before 0345.
-        sqlx::raw_sql(down_0365).execute(&mut *tx).await?;
-        let rolled_back_request_id: String = sqlx::query_scalar(
-            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
-        )
-        .bind(old_proposal_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        assert_eq!(retry, first, "an exact SurrealDB retry must converge");
+        let stored = fems_memory::get_memory_proposal(&state.surreal, &first.proposal_id)
+            .await?
+            .expect("proposal stored");
+        assert_eq!(stored.request_id, expected_request_id);
         assert_eq!(
-            rolled_back_request_id, request_id_before_0365,
-            "the 0365 down path must restore the exact pre-0365 identity from its journal"
+            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                .await?
+                .len(),
+            1,
+            "exact retries must not duplicate the durable proposal"
         );
-        sqlx::raw_sql(down).execute(&mut *tx).await?;
-        let preserved_json_request_id: String = sqlx::query_scalar(
-            "SELECT proposal ->> 'request_id' FROM fems_memory_proposals WHERE proposal_id = $1",
-        )
-        .bind(&explicit_proposal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        assert_eq!(preserved_json_request_id, explicit_request_id);
-        sqlx::raw_sql(up).execute(&mut *tx).await?;
-        sqlx::raw_sql(up_0365).execute(&mut *tx).await?;
-        let restored_request_id: String = sqlx::query_scalar(
-            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
-        )
-        .bind(&explicit_proposal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        assert_eq!(restored_request_id, explicit_request_id);
-        // PT-112-3: the canonical identity survives the full up/down/up round trip.
-        let reconverged_request_id: String = sqlx::query_scalar(
-            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
-        )
-        .bind(old_proposal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        assert_eq!(
-            reconverged_request_id, expected_request_id,
-            "the canonical identity must survive a full 0345/0365 up-down-up round trip"
-        );
-        let rows_after_round_trip: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM fems_memory_proposals")
-                .fetch_one(&mut *tx)
-                .await?;
-        assert_eq!(
-            rows_after_round_trip, 2,
-            "AC-112-6: re-keying must not lose, duplicate, or orphan a proposal row"
-        );
-
-        let retry = sqlx::query(
-            r#"
-            INSERT INTO fems_memory_proposals (
-                proposal_id, request_id, workspace_id, document_id, selection_start,
-                selection_end, content_hash, memory_class, status, review_gated, proposal
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (workspace_id, request_id) DO NOTHING
-            "#,
-        )
-        .bind(&explicit_proposal_id)
-        .bind(explicit_request_id)
-        .bind(workspace_id)
-        .bind("doc-explicit")
-        .bind(i64::try_from(explicit_source.selection_start).expect("selection_start fits BIGINT"))
-        .bind(i64::try_from(explicit_source.selection_end).expect("selection_end fits BIGINT"))
-        .bind(canonical_content_hash(content).expect("canonical content hash"))
-        .bind("semantic")
-        .bind(PROPOSAL_STATUS_PENDING_REVIEW)
-        .bind(true)
-        .bind(explicit_payload)
-        .execute(&mut *tx)
-        .await?;
-        assert_eq!(
-            retry.rows_affected(),
-            0,
-            "retry must converge after down/up"
-        );
-        tx.rollback().await?;
         Ok(())
     }
-
-    /// PT-112-2 differential proof. The Rust derivation and the SHIPPED SQL derivation
-    /// (`fems_proposal_request_id`, created by migration 0365) must agree byte-for-byte
-    /// across the `actor_id` and content-hash edge cases, the superseded migration-0345
-    /// twelve-component expression must be shown to DISAGREE so this proof cannot pass
-    /// vacuously, and two callers that differ only by `actor_id` must converge on one
-    /// identity because that is what the retry contract in `same_logical_proposal`
-    /// requires.
     #[tokio::test]
-    async fn canonical_request_identity_matches_shipped_sql_across_actor_and_hash_edges(
+    async fn canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
         let workspace_id = format!("WS-MT112-{}", Uuid::now_v7());
         let content = "identity edge content";
-
-        let code_document = format!("xxx{content}");
-        let code_document_hash = hex::encode(Sha256::digest(code_document.as_bytes()));
-
-        let mut whitespace_source = valid_source(&workspace_id, "  doc-mt112-ws\u{3000}", content);
-        whitespace_source.pane_id = Some("\t\u{2003}pane-ws\u{3000}\r".to_owned());
-        let mut code_source = valid_source(&workspace_id, "KSRC-mt112", content);
-        code_source.document_content_hash = Some(code_document_hash);
-        let mut bare_source = valid_source(&workspace_id, "doc-mt112-bare", content);
-        bare_source.pane_id = None;
-        bare_source.workspace_id = None;
-
-        let fixtures: Vec<(&str, ProposalRequest)> = vec![
-            (
-                "actor_id absent",
-                ProposalRequest {
-                    request_id: None,
-                    class: ProposalClass::Semantic,
-                    content: content.to_owned(),
-                    source: valid_source(&workspace_id, "doc-mt112", content),
-                    source_document_content: None,
-                    review_gated: Some(true),
-                    actor_id: None,
-                },
-            ),
-            (
-                "actor_id present (differs from the previous fixture ONLY by actor_id)",
-                ProposalRequest {
-                    request_id: None,
-                    class: ProposalClass::Semantic,
-                    content: content.to_owned(),
-                    source: valid_source(&workspace_id, "doc-mt112", content),
-                    source_document_content: None,
-                    review_gated: Some(true),
-                    actor_id: Some("actor-plain".to_owned()),
-                },
-            ),
-            (
-                "actor_id, document_id and pane_id padded with Unicode whitespace",
-                ProposalRequest {
-                    request_id: None,
-                    class: ProposalClass::Episodic,
-                    content: content.to_owned(),
-                    source: whitespace_source,
-                    source_document_content: None,
-                    review_gated: Some(true),
-                    actor_id: Some("\u{00a0}\tactor-ws\u{205f}\n".to_owned()),
-                },
-            ),
-            (
-                "canonical code snapshot: components 8 and 11 carry the same hash",
-                ProposalRequest {
-                    request_id: None,
-                    class: ProposalClass::Procedural,
-                    content: content.to_owned(),
-                    source: code_source,
-                    source_document_content: Some(code_document),
-                    review_gated: Some(true),
-                    actor_id: Some("actor-code".to_owned()),
-                },
-            ),
-            (
-                "every optional provenance field absent",
-                ProposalRequest {
-                    request_id: None,
-                    class: ProposalClass::Semantic,
-                    content: content.to_owned(),
-                    source: bare_source,
-                    source_document_content: None,
-                    review_gated: Some(true),
-                    actor_id: None,
-                },
-            ),
-        ];
-
-        for (label, request) in &fixtures {
-            let rust_id = stable_proposal_request_id(&workspace_id, request)
-                .expect("canonical Rust request identity");
-            let document_content_hash =
-                normalized_optional(request.source.document_content_hash.as_deref());
-            let source_document_hash = request
-                .source_document_content
-                .as_deref()
-                .map(|content| hex::encode(Sha256::digest(content.as_bytes())))
-                .unwrap_or_default();
-            // AC-112-3: canonical components 8 and 11 are provably the same value for
-            // every proposal intake can accept, which is why migration 0345 could hash
-            // `document_content_hash` twice and why that second occurrence is retained.
-            assert_eq!(
-                document_content_hash,
-                source_document_hash.as_str(),
-                "fixture `{label}` violates the components 8 == 11 intake invariant"
-            );
-
-            let sql_id: String = sqlx::query_scalar(
-                "SELECT fems_proposal_request_id($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-            )
-            .bind(&workspace_id)
-            .bind(request.class.wire())
-            .bind(&request.content)
-            .bind(request.source.document_id.trim())
-            .bind(request.source.selection_start.to_string())
-            .bind(request.source.selection_end.to_string())
-            .bind(request.source.content_hash.trim())
-            .bind(document_content_hash)
-            .bind(normalized_optional(request.source.pane_id.as_deref()))
-            .bind(normalized_optional(request.source.workspace_id.as_deref()))
-            .bind(source_document_hash.as_str())
-            .fetch_one(&state.postgres_pool)
-            .await?;
-            assert_eq!(
-                sql_id, rust_id,
-                "Rust and shipped-SQL identity diverge for fixture `{label}`"
-            );
-
-            // The superseded migration-0345 twelve-component expression, reproduced here
-            // ONLY as a negative control. It must still disagree with the canonical
-            // identity for EVERY fixture, including the ones carrying no actor_id at all:
-            // the framing is length-prefixed, so even a zero-length extra component
-            // changes the digest.
-            let legacy_0345_id: String = sqlx::query_scalar(
-                r#"
-                SELECT 'derived-sha256:' || encode(digest(
-                    convert_to('fems-memory-proposal-request-v2', 'UTF8') || decode('00', 'hex') ||
-                    int8send(octet_length($1::text)::bigint) || convert_to($1, 'UTF8') ||
-                    int8send(octet_length($2::text)::bigint) || convert_to($2, 'UTF8') ||
-                    int8send(octet_length($3::text)::bigint) || convert_to($3, 'UTF8') ||
-                    int8send(octet_length($4::text)::bigint) || convert_to($4, 'UTF8') ||
-                    int8send(octet_length($5::text)::bigint) || convert_to($5, 'UTF8') ||
-                    int8send(octet_length($6::text)::bigint) || convert_to($6, 'UTF8') ||
-                    int8send(octet_length($7::text)::bigint) || convert_to($7, 'UTF8') ||
-                    int8send(octet_length($8::text)::bigint) || convert_to($8, 'UTF8') ||
-                    int8send(octet_length($9::text)::bigint) || convert_to($9, 'UTF8') ||
-                    int8send(octet_length($10::text)::bigint) || convert_to($10, 'UTF8') ||
-                    int8send(octet_length($11::text)::bigint) || convert_to($11, 'UTF8') ||
-                    int8send(octet_length($12::text)::bigint) || convert_to($12, 'UTF8'),
-                    'sha256'), 'hex')
-                "#,
-            )
-            .bind(&workspace_id)
-            .bind(request.class.wire())
-            .bind(&request.content)
-            .bind(request.source.document_id.trim())
-            .bind(request.source.selection_start.to_string())
-            .bind(request.source.selection_end.to_string())
-            .bind(request.source.content_hash.trim())
-            .bind(document_content_hash)
-            .bind(normalized_optional(request.source.pane_id.as_deref()))
-            .bind(normalized_optional(request.source.workspace_id.as_deref()))
-            .bind(normalized_optional(request.actor_id.as_deref()))
-            .bind(document_content_hash)
-            .fetch_one(&state.postgres_pool)
-            .await?;
-            assert_ne!(
-                legacy_0345_id, rust_id,
-                "fixture `{label}` cannot prove convergence: the superseded 0345 expression \
-                 already agreed with the canonical identity, so this proof would be vacuous"
-            );
-        }
-
-        // The retry contract: `same_logical_proposal` strips actor_id from intake replay
-        // equality, so two callers whose requests differ ONLY by actor_id must land on one
-        // identity and therefore one row. This is the concrete reason actor_id is excluded
-        // from the canonical component list (AC-112-1).
-        let without_actor = stable_proposal_request_id(&workspace_id, &fixtures[0].1)
-            .expect("identity without actor_id");
-        let with_actor = stable_proposal_request_id(&workspace_id, &fixtures[1].1)
-            .expect("identity with actor_id");
+        let mut without_actor = ProposalRequest {
+            request_id: None,
+            class: ProposalClass::Semantic,
+            content: content.to_owned(),
+            source: valid_source(&workspace_id, "doc-mt112", content),
+            source_document_content: None,
+            review_gated: Some(true),
+            actor_id: None,
+        };
+        let first = stable_proposal_request_id(&workspace_id, &without_actor)
+            .expect("canonical identity without actor");
+        without_actor.actor_id = Some("different-authenticated-session".to_owned());
+        let actor_retry = stable_proposal_request_id(&workspace_id, &without_actor)
+            .expect("canonical identity with actor");
         assert_eq!(
-            without_actor, with_actor,
-            "an exact retry from a later authenticated session must converge on one identity"
+            actor_retry, first,
+            "authenticated actor changes must not fork an otherwise exact retry"
         );
 
+        without_actor.content.push('!');
+        without_actor.source.content_hash =
+            canonical_content_hash(&without_actor.content).expect("changed content hash");
+        let changed = stable_proposal_request_id(&workspace_id, &without_actor)
+            .expect("changed-content identity");
+        assert_ne!(
+            changed, first,
+            "a changed durable proposal payload must not collide with the exact-retry identity"
+        );
+
+        let explicit = ProposalRequest {
+            request_id: Some("explicit-retry-id".to_owned()),
+            ..without_actor
+        };
+        assert_eq!(
+            stable_proposal_request_id(&workspace_id, &explicit)?,
+            "explicit-retry-id"
+        );
         Ok(())
     }
 
@@ -2709,7 +2417,7 @@ mod tests {
         let state = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "pack").await?;
         let pack = seeded_pack(&workspace_id);
-        fems_memory::upsert_memory_pack(&state.postgres_pool, &workspace_id, "", &pack).await?;
+        fems_memory::upsert_memory_pack(&state.surreal, &workspace_id, "", &pack).await?;
 
         let Json(got) = get_memory_pack(
             State(state.clone()),
@@ -2721,7 +2429,7 @@ mod tests {
 
         assert_eq!(
             got, pack,
-            "the PostgreSQL route must return every MemoryPack field unchanged"
+            "the SurrealDB route must return every MemoryPack field unchanged"
         );
         assert_eq!(
             serde_json::to_value(&got)?,
@@ -2786,7 +2494,7 @@ mod tests {
         );
         assert_eq!(
             fems_memory::get_latest_memory_pack(
-                &state.postgres_pool,
+                &state.surreal,
                 &workspace_id,
                 Some("mounted-editor-context")
             )
@@ -2795,11 +2503,18 @@ mod tests {
             "a GET miss must not persist an empty projection"
         );
 
-        let before_rows: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM fems_memory_packs WHERE workspace_id = $1")
-                .bind(&workspace_id)
-                .fetch_one(&state.postgres_pool)
-                .await?;
+        let count_pack_rows = || {
+            memory_test_count(
+                &state,
+                "SELECT count() AS count FROM fems_memory_packs \
+                 WHERE workspace_id = $workspace GROUP ALL;",
+                MemoryTestBindings {
+                    workspace: Some(RecordId::new("workspaces", &workspace_id)),
+                    ..MemoryTestBindings::default()
+                },
+            )
+        };
+        let before_rows = count_pack_rows().await?;
         for index in 0..2_000_u32 {
             let Json(pack) = get_memory_pack(
                 State(state.clone()),
@@ -2813,11 +2528,7 @@ mod tests {
             .map_err(|(code, body)| format!("amplification read failed: {code} {body:?}"))?;
             assert!(pack.items.is_empty());
         }
-        let after_rows: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM fems_memory_packs WHERE workspace_id = $1")
-                .bind(&workspace_id)
-                .fetch_one(&state.postgres_pool)
-                .await?;
+        let after_rows = count_pack_rows().await?;
         assert_eq!(
             after_rows, before_rows,
             "caller-controlled GET contexts must not create or update memory-pack rows"
@@ -2854,11 +2565,10 @@ mod tests {
         let intruder = create_test_workspace(&state, "memory-id-intruder").await?;
 
         let pack = seeded_pack(&owner);
-        fems_memory::upsert_memory_pack(&state.postgres_pool, &owner, "", &pack).await?;
-        let pack_error =
-            fems_memory::upsert_memory_pack(&state.postgres_pool, &intruder, "", &pack)
-                .await
-                .expect_err("a pack id cannot move to another workspace");
+        fems_memory::upsert_memory_pack(&state.surreal, &owner, "", &pack).await?;
+        let pack_error = fems_memory::upsert_memory_pack(&state.surreal, &intruder, "", &pack)
+            .await
+            .expect_err("a pack id cannot move to another workspace");
         assert!(matches!(pack_error, StorageError::Conflict(_)));
 
         let memory_id = Uuid::now_v7().to_string();
@@ -2871,18 +2581,18 @@ mod tests {
             "source_refs": [],
             "status": "active"
         });
-        fems_memory::upsert_memory_item(&state.postgres_pool, &owner, &memory_id, &item).await?;
+        fems_memory::upsert_memory_item(&state.surreal, &owner, &memory_id, &item).await?;
         let item_error =
-            fems_memory::upsert_memory_item(&state.postgres_pool, &intruder, &memory_id, &item)
+            fems_memory::upsert_memory_item(&state.surreal, &intruder, &memory_id, &item)
                 .await
                 .expect_err("a memory item id cannot move to another workspace");
         assert!(matches!(item_error, StorageError::Conflict(_)));
         assert_eq!(
-            fems_memory::get_memory_item(&state.postgres_pool, &owner, &memory_id).await?,
+            fems_memory::get_memory_item(&state.surreal, &owner, &memory_id).await?,
             Some(item)
         );
         assert_eq!(
-            fems_memory::get_memory_item(&state.postgres_pool, &intruder, &memory_id).await?,
+            fems_memory::get_memory_item(&state.surreal, &intruder, &memory_id).await?,
             None
         );
         Ok(())
@@ -2928,7 +2638,7 @@ mod tests {
         );
 
         // The proposal is durably stored as pending_review with its provenance.
-        let stored = fems_memory::get_memory_proposal(&state.postgres_pool, &ack.proposal_id)
+        let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
             .await?
             .expect("proposal stored");
         assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
@@ -2955,25 +2665,15 @@ mod tests {
         assert_eq!(wrong_workspace.0, StatusCode::NOT_FOUND);
 
         // A durable ARTIFACT_PROPOSED EventLedger receipt was appended.
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
-        )
-        .bind(format!("fems-memory-proposal:{}", ack.proposal_id))
-        .bind(KernelEventType::ArtifactProposed.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        assert_eq!(receipt_count, 1, "exactly one durable proposal receipt");
-        let receipt_payload: Value = sqlx::query_scalar(
-            "SELECT payload FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
-        )
-        .bind(format!("fems-memory-proposal:{}", ack.proposal_id))
-        .bind(KernelEventType::ArtifactProposed.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        assert_eq!(receipt_payload["document_id"], source_document_id);
-        assert_eq!(receipt_payload["selection_start"], expected_selection_start);
-        assert_eq!(receipt_payload["selection_end"], expected_selection_end);
-        assert_eq!(receipt_payload["content_hash"], content_hash);
+        let receipt =
+            memory_test_ledger_event(&state, &format!("fems-memory-proposal:{}", ack.proposal_id))
+                .await?
+                .expect("exactly one durable proposal receipt");
+        assert_eq!(receipt.event_type, KernelEventType::ArtifactProposed);
+        assert_eq!(receipt.payload["document_id"], source_document_id);
+        assert_eq!(receipt.payload["selection_start"], expected_selection_start);
+        assert_eq!(receipt.payload["selection_end"], expected_selection_end);
+        assert_eq!(receipt.payload["content_hash"], content_hash);
 
         let events = state
             .flight_recorder
@@ -3025,12 +2725,18 @@ mod tests {
                 event.payload["proposal_hash"].as_str().unwrap()
             )
         );
-        let published: bool = sqlx::query_scalar(
-            "SELECT published_at IS NOT NULL FROM fems_memory_lifecycle_fr_outbox WHERE proposal_id = $1 AND event_code = 'FR-EVT-MEM-001'",
+        let published = memory_test_query_first::<MemoryTestBoolRow>(
+            &state,
+            "SELECT published_at != NONE AS value FROM fems_memory_lifecycle_fr_outbox \
+             WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' LIMIT 1;",
+            MemoryTestBindings {
+                proposal: Some(RecordId::new("fems_memory_proposals", &ack.proposal_id)),
+                ..MemoryTestBindings::default()
+            },
         )
-        .bind(&ack.proposal_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        .await?
+        .expect("proposal outbox row")
+        .value;
         assert!(
             published,
             "API acknowledgement follows durable FR projection"
@@ -3087,13 +2793,28 @@ mod tests {
             .map_err(|(code, body)| format!("control proposal failed: {code} {body:?}"))?
             .0;
 
-        sqlx::query(
-            "UPDATE fems_memory_proposals SET created_at = CASE proposal_id WHEN $1 THEN now() - interval '1 minute' ELSE now() END WHERE proposal_id IN ($1, $2)",
-        )
-        .bind(&first.proposal_id)
-        .bind(&second.proposal_id)
-        .execute(&state.postgres_pool)
-        .await?;
+        for (proposal_id, created_at) in [
+            (
+                &first.proposal_id,
+                chrono::Utc::now() - chrono::Duration::minutes(1),
+            ),
+            (&second.proposal_id, chrono::Utc::now()),
+        ] {
+            assert_eq!(
+                memory_test_execute(
+                    &state,
+                    "UPDATE fems_memory_proposals SET created_at = $at \
+                     WHERE id = $proposal RETURN AFTER;",
+                    MemoryTestBindings {
+                        proposal: Some(RecordId::new("fems_memory_proposals", proposal_id)),
+                        at: Some(Datetime::from(created_at)),
+                        ..MemoryTestBindings::default()
+                    },
+                )
+                .await?,
+                1
+            );
+        }
 
         let Json(all) = list_memory_proposals(
             State(state.clone()),
@@ -3113,10 +2834,19 @@ mod tests {
             .iter()
             .any(|proposal| proposal.proposal_id == control_ack.proposal_id));
 
-        sqlx::query("UPDATE fems_memory_proposals SET status = 'approved' WHERE proposal_id = $1")
-            .bind(&first.proposal_id)
-            .execute(&state.postgres_pool)
-            .await?;
+        assert_eq!(
+            memory_test_execute(
+                &state,
+                "UPDATE fems_memory_proposals SET status = 'approved' \
+                 WHERE id = $proposal RETURN AFTER;",
+                MemoryTestBindings {
+                    proposal: Some(RecordId::new("fems_memory_proposals", &first.proposal_id)),
+                    ..MemoryTestBindings::default()
+                },
+            )
+            .await?,
+            1
+        );
         let Json(actionable_after_review) = list_memory_proposals(
             State(state.clone()),
             Path(target.clone()),
@@ -3195,20 +2925,20 @@ mod tests {
         assert_eq!(replay.proposal_id, first.proposal_id);
         assert_eq!(replay.status, first.status);
 
-        let proposal_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1 AND request_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(&request_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let proposal_count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+            .await?
+            .into_iter()
+            .filter(|proposal| proposal.request_id == request_id)
+            .count();
         assert_eq!(proposal_count, 1, "retry must not duplicate proposal rows");
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-proposal:{}", first.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{}", first.proposal_id),
+            )
+            .await?
+            .is_some(),
+        );
         assert_eq!(
             receipt_count, 1,
             "retry must not duplicate canonical receipts"
@@ -3247,7 +2977,7 @@ mod tests {
         let workspace_id = create_test_workspace(&state, "rich-snapshot-boundary").await?;
         let content = "rich replay selection";
         let document_text = format!("xxx{content}");
-        let db = PostgresDatabase::new(state.postgres_pool.clone());
+        let db = SurrealDatabase::new(state.surreal.clone());
         let document = db
             .create_knowledge_rich_document(NewKnowledgeRichDocument {
                 workspace_id: workspace_id.clone(),
@@ -3311,20 +3041,20 @@ mod tests {
         .expect_err("rich replay must reject code-only document_content_hash");
         assert_eq!(hash_error.0, StatusCode::BAD_REQUEST);
 
-        let proposal_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1 AND request_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(&request_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let proposal_count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+            .await?
+            .into_iter()
+            .filter(|proposal| proposal.request_id == request_id)
+            .count();
         assert_eq!(proposal_count, 1, "rejected rich drift must add no row");
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-proposal:{}", first.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{}", first.proposal_id),
+            )
+            .await?
+            .is_some(),
+        );
         assert_eq!(receipt_count, 1, "rejected rich drift must add no receipt");
         Ok(())
     }
@@ -3365,17 +3095,23 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
         let receipt_key = format!("fems-memory-proposal:{}", first.proposal_id);
-        let canonical_hash: String = sqlx::query_scalar(
-            "SELECT payload_hash FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(&receipt_key)
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        sqlx::query("UPDATE kernel_event_ledger SET payload_hash = $1 WHERE idempotency_key = $2")
-            .bind("0".repeat(64))
-            .bind(&receipt_key)
-            .execute(&state.postgres_pool)
-            .await?;
+        let canonical_hash = memory_test_ledger_event(&state, &receipt_key)
+            .await?
+            .expect("proposal receipt")
+            .payload_hash;
+        let mutate_receipt_hash = |hash: String| {
+            memory_test_execute(
+                &state,
+                "UPDATE kernel_event_ledger SET payload_hash = $hash \
+                 WHERE idempotency_key = $value RETURN AFTER;",
+                MemoryTestBindings {
+                    value: Some(receipt_key.clone()),
+                    hash: Some(hash),
+                    ..MemoryTestBindings::default()
+                },
+            )
+        };
+        assert_eq!(mutate_receipt_hash("0".repeat(64)).await?, 1);
 
         let mut retry_headers = HeaderMap::new();
         retry_headers.insert(HSK_HEADER_ACTOR_KIND, "system".parse()?);
@@ -3391,11 +3127,7 @@ mod tests {
         .await
         .err()
         .map(|error| error.0);
-        sqlx::query("UPDATE kernel_event_ledger SET payload_hash = $1 WHERE idempotency_key = $2")
-            .bind(canonical_hash)
-            .bind(&receipt_key)
-            .execute(&state.postgres_pool)
-            .await?;
+        assert_eq!(mutate_receipt_hash(canonical_hash).await?, 1);
         assert_eq!(
             corrupt_status,
             Some(StatusCode::CONFLICT),
@@ -3454,20 +3186,20 @@ mod tests {
             .0;
         assert_eq!(first.proposal_id, second.proposal_id);
 
-        let proposal_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1 AND request_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(request.request_id.as_deref().expect("request id"))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let proposal_count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+            .await?
+            .into_iter()
+            .filter(|proposal| proposal.request_id == request.request_id.as_deref().unwrap())
+            .count();
         assert_eq!(proposal_count, 1);
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-proposal:{}", first.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{}", first.proposal_id),
+            )
+            .await?
+            .is_some(),
+        );
         assert_eq!(receipt_count, 1);
         Ok(())
     }
@@ -3492,40 +3224,6 @@ mod tests {
         let derived_request_id =
             stable_proposal_request_id(&workspace_id, &request).expect("derived request identity");
 
-        // MT-112: derive through the SHIPPED SQL definition of the canonical identity
-        // instead of a hand-copied mirror. The hand-copy this replaces is exactly how the
-        // Rust/SQL identity split arose - it silently drifted from the migration it claimed
-        // to mirror (it hashed `sha256(source_document_content)` at position 12 while
-        // migration 0345 hashed `document_content_hash` there), so it could not catch the
-        // drift it existed to catch. `fems_proposal_request_id` is created by migration
-        // 0365 and is the same function the migration derives with, so any Rust/SQL
-        // divergence now fails this deployment-convergence proof for real.
-        let sql_request_id: String = sqlx::query_scalar(
-            "SELECT fems_proposal_request_id($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-        )
-        .bind(&workspace_id)
-        .bind(request.class.wire())
-        .bind(&request.content)
-        .bind(request.source.document_id.trim())
-        .bind(request.source.selection_start.to_string())
-        .bind(request.source.selection_end.to_string())
-        .bind(request.source.content_hash.trim())
-        .bind(normalized_optional(
-            request.source.document_content_hash.as_deref(),
-        ))
-        .bind(normalized_optional(request.source.pane_id.as_deref()))
-        .bind(normalized_optional(request.source.workspace_id.as_deref()))
-        .bind(
-            request
-                .source_document_content
-                .as_deref()
-                .map(|content| hex::encode(Sha256::digest(content.as_bytes())))
-                .unwrap_or_default(),
-        )
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        assert_eq!(sql_request_id, derived_request_id);
-
         let legacy_proposal_id = format!("PROP-LEGACY-{}", Uuid::now_v7());
         let proposal_payload = json!({
             "proposal_id": legacy_proposal_id,
@@ -3544,9 +3242,9 @@ mod tests {
             workspace_id: workspace_id.clone(),
             document_id: request.source.document_id.clone(),
             selection_start: i64::try_from(request.source.selection_start)
-                .expect("legacy fixture selection_start fits PostgreSQL BIGINT"),
+                .expect("legacy fixture selection_start fits i64"),
             selection_end: i64::try_from(request.source.selection_end)
-                .expect("legacy fixture selection_end fits PostgreSQL BIGINT"),
+                .expect("legacy fixture selection_end fits i64"),
             content_hash: canonical_content_hash(content).expect("canonical hash"),
             memory_class: "episodic".to_owned(),
             status: PROPOSAL_STATUS_PENDING_REVIEW.to_owned(),
@@ -3554,35 +3252,56 @@ mod tests {
             created_at: chrono::Utc::now(),
             proposal: proposal_payload,
         };
-        sqlx::query(
-            r#"
-            INSERT INTO fems_memory_proposals (
-                proposal_id, request_id, workspace_id, document_id, selection_start,
-                selection_end, content_hash, memory_class, status, review_gated, proposal
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            "#,
-        )
-        .bind(&legacy.proposal_id)
-        .bind(&legacy.request_id)
-        .bind(&legacy.workspace_id)
-        .bind(&legacy.document_id)
-        .bind(legacy.selection_start)
-        .bind(legacy.selection_end)
-        .bind(&legacy.content_hash)
-        .bind(&legacy.memory_class)
-        .bind(&legacy.status)
-        .bind(legacy.review_gated)
-        .bind(&legacy.proposal)
-        .execute(&state.postgres_pool)
-        .await?;
+        #[derive(SurrealValue)]
+        struct LegacyProposalContent {
+            proposal_id: String,
+            request_id: String,
+            workspace_id: RecordId,
+            document_id: String,
+            selection_start: i64,
+            selection_end: i64,
+            content_hash: String,
+            memory_class: String,
+            status: String,
+            review_gated: bool,
+            proposal: Value,
+            created_at: Datetime,
+        }
+        let legacy_id = legacy.proposal_id.clone();
+        let legacy_content = LegacyProposalContent {
+            proposal_id: legacy.proposal_id.clone(),
+            request_id: legacy.request_id.clone(),
+            workspace_id: RecordId::new("workspaces", &legacy.workspace_id),
+            document_id: legacy.document_id.clone(),
+            selection_start: legacy.selection_start,
+            selection_end: legacy.selection_end,
+            content_hash: legacy.content_hash.clone(),
+            memory_class: legacy.memory_class.clone(),
+            status: legacy.status.clone(),
+            review_gated: legacy.review_gated,
+            proposal: legacy.proposal.clone(),
+            created_at: Datetime::from(legacy.created_at),
+        };
+        let inserted: Option<Value> = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .create_if_absent("fems_memory_proposals", &legacy_id, legacy_content)
+                        .await
+                })
+            })
+            .await?;
+        assert!(
+            inserted.is_some(),
+            "legacy proposal fixture must be inserted"
+        );
         let receipt_key = format!("fems-memory-proposal:{legacy_proposal_id}");
-        let before: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(&receipt_key)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let before = usize::from(
+            memory_test_ledger_event(&state, &receipt_key)
+                .await?
+                .is_some(),
+        );
         assert_eq!(before, 0, "fixture must model the pre-upgrade crash window");
 
         let mut first_headers = HeaderMap::new();
@@ -3616,37 +3335,27 @@ mod tests {
             .0;
         assert_eq!(first.proposal_id, legacy_proposal_id);
         assert_eq!(second.proposal_id, legacy_proposal_id);
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1 AND request_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(&derived_request_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+            .await?
+            .into_iter()
+            .filter(|proposal| proposal.request_id == derived_request_id)
+            .count();
         assert_eq!(count, 1);
-        let receipt_rows: Vec<(String, Value, String, String, String, String)> = sqlx::query_as(
-            "SELECT aggregate_id, payload, kernel_task_run_id, session_run_id, actor_kind, actor_id FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(&receipt_key)
-        .fetch_all(&state.postgres_pool)
-        .await?;
+        let receipt = memory_test_ledger_event(&state, &receipt_key)
+            .await?
+            .expect("concurrent healing appends exactly once");
+        assert_eq!(receipt.aggregate_id, legacy_proposal_id);
         assert_eq!(
-            receipt_rows.len(),
-            1,
-            "concurrent healing appends exactly once"
-        );
-        assert_eq!(receipt_rows[0].0, legacy_proposal_id);
-        assert_eq!(
-            receipt_rows[0].1["proposal_id"],
+            receipt.payload["proposal_id"],
             Value::String(legacy_proposal_id)
         );
         assert_eq!(
-            receipt_rows[0].2,
+            receipt.kernel_task_run_id,
             format!("native-editor-fems-propose-{workspace_id}")
         );
-        assert_eq!(receipt_rows[0].3, "native-editor-session");
-        assert_eq!(receipt_rows[0].4, "operator");
-        assert_eq!(receipt_rows[0].5, "legacy-actor");
+        assert_eq!(receipt.session_run_id, "native-editor-session");
+        assert_eq!(receipt.actor.actor_kind(), "operator");
+        assert_eq!(receipt.actor.actor_id(), "legacy-actor");
         Ok(())
     }
 
@@ -3710,9 +3419,9 @@ mod tests {
             workspace_id: workspace_id.clone(),
             document_id: request.source.document_id.clone(),
             selection_start: i64::try_from(request.source.selection_start)
-                .expect("tripwire fixture selection_start fits PostgreSQL BIGINT"),
+                .expect("tripwire fixture selection_start fits i64"),
             selection_end: i64::try_from(request.source.selection_end)
-                .expect("tripwire fixture selection_end fits PostgreSQL BIGINT"),
+                .expect("tripwire fixture selection_end fits i64"),
             content_hash: canonical_content_hash(content).expect("canonical hash"),
             memory_class: "episodic".to_owned(),
             status: PROPOSAL_STATUS_PENDING_REVIEW.to_owned(),
@@ -3748,30 +3457,53 @@ mod tests {
             .as_object_mut()
             .expect("fixture payload is an object")
             .insert("_canonical_artifact".to_owned(), healed.value.clone());
-        sqlx::query(
-            r#"
-            INSERT INTO fems_memory_proposals (
-                proposal_id, request_id, workspace_id, document_id, selection_start,
-                selection_end, content_hash, memory_class, status, review_gated, created_at,
-                proposal
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            "#,
-        )
-        .bind(&legacy.proposal_id)
-        .bind(&legacy.request_id)
-        .bind(&legacy.workspace_id)
-        .bind(&legacy.document_id)
-        .bind(legacy.selection_start)
-        .bind(legacy.selection_end)
-        .bind(&legacy.content_hash)
-        .bind(&legacy.memory_class)
-        .bind(&legacy.status)
-        .bind(legacy.review_gated)
-        .bind(legacy.created_at)
-        .bind(&persisted_payload)
-        .execute(&state.postgres_pool)
-        .await?;
+        #[derive(SurrealValue)]
+        struct PersistedProposalContent {
+            proposal_id: String,
+            request_id: String,
+            workspace_id: RecordId,
+            document_id: String,
+            selection_start: i64,
+            selection_end: i64,
+            content_hash: String,
+            memory_class: String,
+            status: String,
+            review_gated: bool,
+            created_at: Datetime,
+            proposal: Value,
+        }
+        let persisted_id = legacy.proposal_id.clone();
+        let inserted: Option<Value> = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .create_if_absent(
+                            "fems_memory_proposals",
+                            &persisted_id,
+                            PersistedProposalContent {
+                                proposal_id: legacy.proposal_id,
+                                request_id: legacy.request_id,
+                                workspace_id: RecordId::new("workspaces", legacy.workspace_id),
+                                document_id: legacy.document_id,
+                                selection_start: legacy.selection_start,
+                                selection_end: legacy.selection_end,
+                                content_hash: legacy.content_hash,
+                                memory_class: legacy.memory_class,
+                                status: legacy.status,
+                                review_gated: legacy.review_gated,
+                                created_at: Datetime::from(legacy.created_at),
+                                proposal: persisted_payload,
+                            },
+                        )
+                        .await
+                })
+            })
+            .await?;
+        assert!(
+            inserted.is_some(),
+            "persisted tripwire fixture must be inserted"
+        );
 
         let mut headers = HeaderMap::new();
         headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
@@ -3795,12 +3527,11 @@ mod tests {
             "the ONLY thing wrong with this artifact is its non-UUID proposal_id"
         );
         let receipt_key = format!("fems-memory-proposal:{legacy_proposal_id}");
-        let receipts: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(&receipt_key)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipts = usize::from(
+            memory_test_ledger_event(&state, &receipt_key)
+                .await?
+                .is_some(),
+        );
         assert_eq!(receipts, 0, "the rejected retry must append no receipt");
 
         // CASE 2: the heal cannot be MINTED. A first-time insert with no `_canonical_artifact`
@@ -3840,31 +3571,33 @@ mod tests {
         .source_component("fems_memory_proposal_intake")
         .payload(json!({"proposal_id": &minted_proposal_id}))
         .build()?;
-        let error = fems_memory::insert_memory_proposal_with_receipt(
-            &state.postgres_pool,
-            &minted,
-            receipt,
-        )
-        .await
-        .expect_err("a first-time insert with no canonical artifact must fail closed");
+        let error =
+            fems_memory::insert_memory_proposal_with_receipt(&state.surreal, &minted, receipt)
+                .await
+                .expect_err("a first-time insert with no canonical artifact must fail closed");
         assert!(
             matches!(&error, StorageError::Serialization(detail)
                 if detail == "memory proposal artifact is not hsk.memory_write_proposal@0.1: missing field `schema_version`"),
             "the mint path must keep failing with the exact pre-MT-118 error, got {error:?}"
         );
         assert!(
-            fems_memory::get_memory_proposal(&state.postgres_pool, &minted_proposal_id)
+            fems_memory::get_memory_proposal(&state.surreal, &minted_proposal_id)
                 .await?
                 .is_none(),
             "the rejected mint must leave no durable proposal row"
         );
-        let minted_receipts: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-proposal:{minted_proposal_id}"))
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        assert_eq!(minted_receipts, 0, "the rejected mint must append no receipt");
+        let minted_receipts = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{minted_proposal_id}"),
+            )
+            .await?
+            .is_some(),
+        );
+        assert_eq!(
+            minted_receipts, 0,
+            "the rejected mint must append no receipt"
+        );
         Ok(())
     }
 
@@ -3904,24 +3637,23 @@ mod tests {
         .build()?;
 
         fems_memory::insert_memory_proposal_with_receipt_forced_failure(
-            &state.postgres_pool,
+            &state.surreal,
             &proposal,
             receipt,
         )
         .await
         .expect_err("forced receipt-phase failure must surface");
         assert!(
-            fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_id)
+            fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
                 .await?
                 .is_none(),
             "partial proposal insert must roll back"
         );
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-proposal:{proposal_id}"))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = usize::from(
+            memory_test_ledger_event(&state, &format!("fems-memory-proposal:{proposal_id}"))
+                .await?
+                .is_some(),
+        );
         assert_eq!(
             receipt_count, 0,
             "failed transaction must append no receipt"
@@ -3942,9 +3674,9 @@ mod tests {
             "memory_class": "semantic",
             "content": "committed truth",
         });
-        fems_memory::upsert_memory_item(&state.postgres_pool, &workspace_id, memory_id, &committed)
+        fems_memory::upsert_memory_item(&state.surreal, &workspace_id, memory_id, &committed)
             .await?;
-        let before = fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?;
+        let before = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
         assert_eq!(before, 1);
         let Json(before_exact) =
             get_committed_memory_count(State(state.clone()), Path(workspace_id.clone()))
@@ -3954,7 +3686,7 @@ mod tests {
 
         let other_workspace = create_test_workspace(&state, "negative-control").await?;
         fems_memory::upsert_memory_item(
-            &state.postgres_pool,
+            &state.surreal,
             &other_workspace,
             "MEM-OTHER-WORKSPACE",
             &json!({"content": "must not leak into target count"}),
@@ -3984,17 +3716,16 @@ mod tests {
         .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
         // The committed item is byte-for-byte unchanged.
-        let after_item =
-            fems_memory::get_memory_item(&state.postgres_pool, &workspace_id, memory_id)
-                .await?
-                .expect("committed item still present");
+        let after_item = fems_memory::get_memory_item(&state.surreal, &workspace_id, memory_id)
+            .await?
+            .expect("committed item still present");
         assert_eq!(
             after_item, committed,
             "proposal must not mutate committed memory"
         );
 
         // No new committed item was created; the count is unchanged.
-        let after = fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?;
+        let after = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
         assert_eq!(after, 1, "proposal must not create a committed memory item");
         let Json(after_exact) =
             get_committed_memory_count(State(state.clone()), Path(workspace_id.clone()))
@@ -4007,7 +3738,7 @@ mod tests {
         assert_eq!(after_exact.workspace_id, workspace_id);
 
         // The proposal itself is only pending_review.
-        let stored = fems_memory::get_memory_proposal(&state.postgres_pool, &ack.proposal_id)
+        let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
             .await?
             .expect("proposal stored");
         assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
@@ -4023,19 +3754,18 @@ mod tests {
         let target = create_test_workspace(&state, "cleanup-target").await?;
         let control = create_test_workspace(&state, "cleanup-control").await?;
 
-        fems_memory::upsert_memory_pack(&state.postgres_pool, &target, "", &seeded_pack(&target))
-            .await?;
-        fems_memory::upsert_memory_pack(&state.postgres_pool, &control, "", &seeded_pack(&control))
+        fems_memory::upsert_memory_pack(&state.surreal, &target, "", &seeded_pack(&target)).await?;
+        fems_memory::upsert_memory_pack(&state.surreal, &control, "", &seeded_pack(&control))
             .await?;
         fems_memory::upsert_memory_item(
-            &state.postgres_pool,
+            &state.surreal,
             &target,
             &format!("MEM-TARGET-{}", Uuid::now_v7()),
             &json!({"content": "target"}),
         )
         .await?;
         fems_memory::upsert_memory_item(
-            &state.postgres_pool,
+            &state.surreal,
             &control,
             &format!("MEM-CONTROL-{}", Uuid::now_v7()),
             &json!({"content": "control"}),
@@ -4094,40 +3824,42 @@ mod tests {
             .await?;
 
         assert!(
-            fems_memory::get_latest_memory_pack(&state.postgres_pool, &target, None)
+            fems_memory::get_latest_memory_pack(&state.surreal, &target, None)
                 .await?
                 .is_none()
         );
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &target).await?,
+            fems_memory::count_memory_items(&state.surreal, &target).await?,
             0
         );
         assert!(
-            fems_memory::get_memory_proposal(&state.postgres_pool, &target_ack.proposal_id)
+            fems_memory::get_memory_proposal(&state.surreal, &target_ack.proposal_id)
                 .await?
                 .is_none()
         );
 
         assert!(
-            fems_memory::get_latest_memory_pack(&state.postgres_pool, &control, None)
+            fems_memory::get_latest_memory_pack(&state.surreal, &control, None)
                 .await?
                 .is_some()
         );
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &control).await?,
+            fems_memory::count_memory_items(&state.surreal, &control).await?,
             1
         );
         assert!(
-            fems_memory::get_memory_proposal(&state.postgres_pool, &control_ack.proposal_id)
+            fems_memory::get_memory_proposal(&state.surreal, &control_ack.proposal_id)
                 .await?
                 .is_some()
         );
-        let target_receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-proposal:{}", target_ack.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let target_receipt_count = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{}", target_ack.proposal_id),
+            )
+            .await?
+            .is_some(),
+        );
         assert_eq!(
             target_receipt_count, 1,
             "cleanup must preserve EventLedger receipt"
@@ -4168,11 +3900,15 @@ mod tests {
         }
 
         assert!(state.storage.get_workspace(&workspace_id).await?.is_none());
-        let orphan_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1",
+        let orphan_count = memory_test_count(
+            &state,
+            "SELECT count() AS count FROM fems_memory_proposals \
+             WHERE workspace_id = $workspace GROUP ALL;",
+            MemoryTestBindings {
+                workspace: Some(RecordId::new("workspaces", &workspace_id)),
+                ..MemoryTestBindings::default()
+            },
         )
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
         .await?;
         assert_eq!(orphan_count, 0, "workspace deletion must cascade proposals");
 
@@ -4305,7 +4041,7 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("valid UTF-8 byte range failed: {code} {body:?}"))?;
         let unicode_stored =
-            fems_memory::get_memory_proposal(&state.postgres_pool, &unicode_ack.proposal_id)
+            fems_memory::get_memory_proposal(&state.surreal, &unicode_ack.proposal_id)
                 .await?
                 .expect("valid UTF-8 proposal persisted");
         assert_eq!(
@@ -4346,7 +4082,7 @@ mod tests {
             Json(overflowed_selection),
         )
         .await
-        .expect_err("selection offsets beyond PostgreSQL BIGINT must be rejected");
+        .expect_err("selection offsets beyond i64 must be rejected");
         assert_eq!(err.0, StatusCode::BAD_REQUEST);
 
         let mut wrong_canonical_hash = valid;
@@ -4383,30 +4119,23 @@ mod tests {
 
         // Exactly the valid Unicode byte-range control was stored. Every rejected request above must
         // leave no proposal or EventLedger residue.
-        fems_memory::ensure_fems_memory_schema(&state.postgres_pool).await?;
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1",
-        )
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        fems_memory::ensure_fems_memory_schema(&state.surreal).await?;
+        let stored = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200).await?;
+        let count = stored.len();
         assert_eq!(
             count, 1,
             "only the valid Unicode byte-range control may be stored"
         );
-        let stored_ids: Vec<String> = sqlx::query_scalar(
-            "SELECT proposal_id FROM fems_memory_proposals WHERE workspace_id = $1",
-        )
-        .bind(&workspace_id)
-        .fetch_all(&state.postgres_pool)
-        .await?;
+        let stored_ids: Vec<String> = stored
+            .into_iter()
+            .map(|proposal| proposal.proposal_id)
+            .collect();
         assert_eq!(stored_ids, vec![unicode_ack.proposal_id.clone()]);
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'fems_memory_proposal' AND aggregate_id = $1",
-        )
-        .bind(&unicode_ack.proposal_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = state
+            .storage
+            .list_kernel_events_for_aggregate("fems_memory_proposal", &unicode_ack.proposal_id)
+            .await?
+            .len();
         assert_eq!(receipt_count, 1, "only the valid control emits a receipt");
         Ok(())
     }
@@ -4542,19 +4271,23 @@ mod tests {
             "review_gated": true,
             "actor_id": "strict-route-actor"
         });
-        let before_proposals: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1",
-        )
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        let before_ledger: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE event_type = $1 AND payload->>'workspace_id' = $2",
-        )
-        .bind(KernelEventType::ArtifactProposed.as_str())
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let before_proposals =
+            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                .await?
+                .len();
+        let count_workspace_receipts = || {
+            memory_test_count(
+                &state,
+                "SELECT count() AS count FROM kernel_event_ledger \
+                 WHERE event_type = $other AND payload.workspace_id = $value GROUP ALL;",
+                MemoryTestBindings {
+                    value: Some(workspace_id.clone()),
+                    other: Some(KernelEventType::ArtifactProposed.as_str().to_owned()),
+                    ..MemoryTestBindings::default()
+                },
+            )
+        };
+        let before_ledger = count_workspace_receipts().await?;
         let before_flight_recorder = state
             .flight_recorder
             .list_events(EventFilter {
@@ -4585,12 +4318,10 @@ mod tests {
             response.status()
         );
 
-        let after_proposals: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = $1",
-        )
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let after_proposals =
+            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                .await?
+                .len();
         let after_flight_recorder = state
             .flight_recorder
             .list_events(EventFilter {
@@ -4600,13 +4331,7 @@ mod tests {
             })
             .await?
             .len();
-        let after_ledger: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE event_type = $1 AND payload->>'workspace_id' = $2",
-        )
-        .bind(KernelEventType::ArtifactProposed.as_str())
-        .bind(&workspace_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let after_ledger = count_workspace_receipts().await?;
         assert_eq!(
             after_proposals, before_proposals,
             "rejected bodies must persist no proposal"
@@ -4646,8 +4371,6 @@ mod tests {
     #[tokio::test]
     async fn proposal_review_transitions_are_audited_idempotent_and_conflict_safe(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use sqlx::Row;
-
         let state = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "proposal-review").await?;
         let content = "review this durable fact";
@@ -4673,28 +4396,24 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
-        let pending =
-            fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_ack.proposal_id)
-                .await?
-                .expect("proposal stored");
+        let pending = fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
+            .await?
+            .expect("proposal stored");
         assert_eq!(pending.proposal["actor_id"], "canonical-proposer");
         assert!(pending.created_at <= chrono::Utc::now());
         assert!(
             serde_json::to_value(&pending)?["created_at"].is_string(),
-            "proposal read APIs expose the authoritative PostgreSQL creation timestamp"
+            "proposal read APIs expose the authoritative SurrealDB creation timestamp"
         );
-        let proposal_receipt = sqlx::query(
-            "SELECT actor_id, correlation_id FROM kernel_event_ledger WHERE idempotency_key = $1",
+        let proposal_receipt = memory_test_ledger_event(
+            &state,
+            &format!("fems-memory-proposal:{}", proposal_ack.proposal_id),
         )
-        .bind(format!("fems-memory-proposal:{}", proposal_ack.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        .await?
+        .expect("proposal receipt");
+        assert_eq!(proposal_receipt.actor.actor_id(), "canonical-proposer");
         assert_eq!(
-            proposal_receipt.try_get::<String, _>("actor_id")?,
-            "canonical-proposer"
-        );
-        assert_eq!(
-            proposal_receipt.try_get::<Option<String>, _>("correlation_id")?,
+            proposal_receipt.correlation_id,
             Some(format!("fems-memory-proposal:{}", proposal_ack.proposal_id))
         );
 
@@ -4715,37 +4434,31 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("review failed: {code} {body:?}"))?;
         assert_eq!(first.status, "approved");
-        let approved =
-            fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_ack.proposal_id)
-                .await?
-                .expect("reviewed proposal stored");
+        let approved = fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
+            .await?
+            .expect("reviewed proposal stored");
         assert_eq!(approved.status, "approved");
         assert_eq!(approved.proposal["review"]["actor_id"], "reviewer-1");
         assert_eq!(approved.proposal["review"]["decision"], "approved");
 
-        let review_receipt = sqlx::query(
-            "SELECT event_type, actor_id, correlation_id, payload::text AS payload FROM kernel_event_ledger WHERE idempotency_key = $1",
+        let review_receipt = memory_test_ledger_event(
+            &state,
+            &format!("fems-memory-proposal-review:{}", proposal_ack.proposal_id),
         )
-        .bind(format!("fems-memory-proposal-review:{}", proposal_ack.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        .await?
+        .expect("review receipt");
         assert_eq!(
-            review_receipt.try_get::<String, _>("event_type")?,
-            "PROMOTION_ACCEPTED"
+            review_receipt.event_type,
+            KernelEventType::PromotionAccepted
         );
+        assert_eq!(review_receipt.actor.actor_id(), "reviewer-1");
         assert_eq!(
-            review_receipt.try_get::<String, _>("actor_id")?,
-            "reviewer-1"
-        );
-        assert_eq!(
-            review_receipt.try_get::<Option<String>, _>("correlation_id")?,
+            review_receipt.correlation_id,
             Some(first.correlation_id.clone())
         );
-        let receipt_payload: Value =
-            serde_json::from_str(&review_receipt.try_get::<String, _>("payload")?)?;
-        assert_eq!(receipt_payload["content_hash"], pending.content_hash);
-        assert_eq!(receipt_payload["reason_present"], true);
-        assert!(receipt_payload.get("content").is_none());
+        assert_eq!(review_receipt.payload["content_hash"], pending.content_hash);
+        assert_eq!(review_receipt.payload["reason_present"], true);
+        assert!(review_receipt.payload.get("content").is_none());
 
         let events = state
             .flight_recorder
@@ -4775,15 +4488,14 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("review replay failed: {code} {body:?}"))?;
         assert_eq!(replay, first, "exact review retry must converge");
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!(
-            "fems-memory-proposal-review:{}",
-            proposal_ack.proposal_id
-        ))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal-review:{}", proposal_ack.proposal_id),
+            )
+            .await?
+            .is_some(),
+        );
         assert_eq!(receipt_count, 1);
 
         let opposite = review_memory_proposal(
@@ -4800,7 +4512,7 @@ mod tests {
         .expect_err("opposite decision must conflict");
         assert_eq!(opposite.0, StatusCode::CONFLICT);
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?,
+            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
             0,
             "review transition alone must not silently commit memory"
         );
@@ -4845,16 +4557,19 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("reject review failed: {code} {body:?}"))?;
         assert_eq!(rejected.status, "rejected");
-        let rejected_event_type: String = sqlx::query_scalar(
-            "SELECT event_type FROM kernel_event_ledger WHERE idempotency_key = $1",
+        let rejected_event = memory_test_ledger_event(
+            &state,
+            &format!(
+                "fems-memory-proposal-review:{}",
+                rejected_proposal.proposal_id
+            ),
         )
-        .bind(format!(
-            "fems-memory-proposal-review:{}",
-            rejected_proposal.proposal_id
-        ))
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        assert_eq!(rejected_event_type, "PROMOTION_REJECTED");
+        .await?
+        .expect("rejected review receipt");
+        assert_eq!(
+            rejected_event.event_type,
+            KernelEventType::PromotionRejected
+        );
         let rejected_events = state
             .flight_recorder
             .list_events(EventFilter {
@@ -4867,7 +4582,7 @@ mod tests {
         assert_eq!(rejected_events[0].actor_id, "policy-reviewer");
         assert_eq!(rejected_events[0].payload["decision"], "rejected");
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?,
+            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
             0
         );
         Ok(())
@@ -4916,7 +4631,7 @@ mod tests {
         .build()
         .map_err(|error| format!("crash receipt build failed: {error}"))?;
         fems_memory::commit_memory_proposal_with_receipt(
-            &state.postgres_pool,
+            &state.surreal,
             &workspace_id,
             &proposal_a.proposal_id,
             crash_receipt,
@@ -4924,21 +4639,18 @@ mod tests {
         .await
         .map_err(|error| format!("crash-window storage commit failed: {error}"))?;
 
-        let committed_status: String = sqlx::query_scalar(
-            "SELECT status FROM fems_memory_proposals WHERE workspace_id = $1 AND proposal_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(&proposal_a.proposal_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let committed_status =
+            fems_memory::get_memory_proposal(&state.surreal, &proposal_a.proposal_id)
+                .await?
+                .expect("committed proposal")
+                .status;
         assert_eq!(committed_status, "committed");
-        let pending_outbox: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_commit_fr_outbox WHERE workspace_id = $1 AND proposal_id = $2 AND published_at IS NULL AND quarantined_at IS NULL",
-        )
-        .bind(&workspace_id)
-        .bind(&proposal_a.proposal_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let pending_outbox =
+            fems_memory::list_pending_memory_commit_events(&state.surreal, &workspace_id, 200)
+                .await?
+                .into_iter()
+                .filter(|event| event.payload["proposal_id"] == proposal_a.proposal_id)
+                .count();
         assert_eq!(
             pending_outbox, 2,
             "crash leaves the commit (FR-EVT-MEM-003) and pack-built (FR-EVT-MEM-004) events durably un-published and non-quarantined"
@@ -4964,7 +4676,7 @@ mod tests {
             llm_client: state.llm_client.clone(),
             capability_registry: state.capability_registry.clone(),
             session_registry: state.session_registry.clone(),
-            postgres_pool: state.postgres_pool.clone(),
+            surreal: state.surreal.clone(),
         };
         let _startup_routes = routes(restarted_state.clone());
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -4975,12 +4687,21 @@ mod tests {
                     ..EventFilter::default()
                 })
                 .await?;
-            let published: bool = sqlx::query_scalar(
-                "SELECT published_at IS NOT NULL FROM fems_memory_commit_fr_outbox WHERE proposal_id = $1 AND event_code = 'FR-EVT-MEM-003'",
+            let published = memory_test_query_first::<MemoryTestBoolRow>(
+                &state,
+                "SELECT published_at != NONE AS value FROM fems_memory_commit_fr_outbox \
+                 WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-003' LIMIT 1;",
+                MemoryTestBindings {
+                    proposal: Some(RecordId::new(
+                        "fems_memory_proposals",
+                        &proposal_a.proposal_id,
+                    )),
+                    ..MemoryTestBindings::default()
+                },
             )
-            .bind(&proposal_a.proposal_id)
-            .fetch_one(&state.postgres_pool)
-            .await?;
+            .await?
+            .expect("commit outbox row")
+            .value;
             if let (Some(event), true) = (events.into_iter().next(), published) {
                 break event;
             }
@@ -5056,12 +4777,14 @@ mod tests {
             first_a_retry.memory_pack_id, commit_b.memory_pack_id,
             "B advances the workspace pack without rewriting A's original pack evidence"
         );
-        let receipt_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!("fems-memory-commit:{}", proposal_a.proposal_id))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let receipt_count = usize::from(
+            memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-commit:{}", proposal_a.proposal_id),
+            )
+            .await?
+            .is_some(),
+        );
         assert_eq!(receipt_count, 1, "A retries keep one EventLedger receipt");
         Ok(())
     }
@@ -5103,17 +4826,17 @@ mod tests {
         .expect_err("injected recorder failure must fail the response honestly");
         assert_eq!(failed.0, StatusCode::INTERNAL_SERVER_ERROR);
         assert!(
-            fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_id)
+            fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
                 .await?
                 .is_some(),
             "proposal transaction remains authoritative after projection failure"
         );
-        let pending: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_lifecycle_fr_outbox WHERE proposal_id = $1 AND event_code = 'FR-EVT-MEM-001' AND published_at IS NULL",
-        )
-        .bind(&proposal_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let pending =
+            fems_memory::list_pending_memory_lifecycle_events(&state.surreal, &workspace_id, 200)
+                .await?
+                .into_iter()
+                .filter(|event| event.payload["proposal_id"] == proposal_id)
+                .count();
         assert_eq!(
             pending, 0,
             "the bounded reconciler retries the transient first failure in the same call"
@@ -5195,17 +4918,21 @@ mod tests {
         .map_err(|(status, body)| format!("canonical proposal setup failed: {status} {body:?}"))?;
         assert_eq!(initial_ack.proposal_id, proposal_id);
 
-        let updated = sqlx::query(
-            "UPDATE fems_memory_lifecycle_fr_outbox SET published_at = NULL, attempt_count = 3, last_error = 'injected persistent projection failure', last_error_at = now(), quarantined_at = now() WHERE proposal_id = $1 AND event_code = 'FR-EVT-MEM-001'",
+        let now = Datetime::from(chrono::Utc::now());
+        let updated = memory_test_execute(
+            &state,
+            "UPDATE fems_memory_lifecycle_fr_outbox SET published_at = NONE, \
+             attempt_count = 3, last_error = 'injected persistent projection failure', \
+             last_error_at = $at, quarantined_at = $at \
+             WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' RETURN AFTER;",
+            MemoryTestBindings {
+                proposal: Some(RecordId::new("fems_memory_proposals", &proposal_id)),
+                at: Some(now),
+                ..MemoryTestBindings::default()
+            },
         )
-        .bind(&proposal_id)
-        .execute(&state.postgres_pool)
         .await?;
-        assert_eq!(
-            updated.rows_affected(),
-            1,
-            "the exact proposed-event row is quarantined"
-        );
+        assert_eq!(updated, 1, "the exact proposed-event row is quarantined");
         state
             .flight_recorder
             .delete_workspace_events(&workspace_id)
@@ -5238,12 +4965,12 @@ mod tests {
         .expect_err("commit must fail closed while FR-EVT-MEM-001 is quarantined");
         assert_eq!(commit.0, StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(commit.1["error"], "proposal_event_not_published");
-        let still_pending = fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_id)
+        let still_pending = fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
             .await?
             .expect("quarantined proposal remains authoritative");
         assert_eq!(still_pending.status, PROPOSAL_STATUS_PENDING_REVIEW);
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?,
+            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
             0,
             "neither review nor commit mutates memory behind an unpublished proposal event"
         );
@@ -5288,7 +5015,7 @@ mod tests {
         );
 
         let publication_state = fems_memory::memory_lifecycle_publication_state(
-            &state.postgres_pool,
+            &state.surreal,
             &proposal_id,
             "FR-EVT-MEM-001",
         )
@@ -5315,7 +5042,7 @@ mod tests {
         assert_eq!(recovered.proposal_id, proposal_id);
         assert_eq!(
             fems_memory::memory_lifecycle_publication_state(
-                &state.postgres_pool,
+                &state.surreal,
                 &proposal_id,
                 "FR-EVT-MEM-001",
             )

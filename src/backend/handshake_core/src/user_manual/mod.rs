@@ -9,7 +9,7 @@
 //!   used.
 //! * 2.3.13.11 `UserManualRecord` — a no-context operator/model manual entry
 //!   tied to real product commands, routes, IPC channels, schemas, recovery
-//!   paths, and visual-debug anchors. PostgreSQL + EventLedger is authority.
+//!   paths, and visual-debug anchors. Embedded SurrealDB + EventLedger is authority.
 //! * 12.7 `PRIM-UserManual` — UserManual coverage is required for every new
 //!   ProjectKnowledgeIndex route, rich editor command, backend navigation
 //!   action, retrieval trace view, graph view, visual-debug action, and
@@ -29,11 +29,11 @@
 //!   surfaces can never silently diverge (no split-brain docs).
 //! * The static [`crate::model_manual::MODEL_MANUAL`] manifest is the SEED
 //!   SOURCE for the legacy tool catalog: [`seed`] imports it into
-//!   `user_manual_tool_entries` rows so PostgreSQL holds the single canonical
+//!   `user_manual_tool_entries` rows so embedded SurrealDB holds the single canonical
 //!   manual; the in-binary manifest is a deterministic projection input, not
 //!   a second authority.
 //!
-//! Authority: PostgreSQL (`user_manual_*` tables, migration 0310) +
+//! Authority: embedded SurrealDB (`user_manual_*` tables, migration 0310) +
 //! EventLedger (`KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` receipts). Rendered
 //! markdown/HTML are projections only.
 
@@ -58,7 +58,7 @@ pub use store::{
 
 /// Canonical UserManual corpus version. Independent from the legacy
 /// `model_manual::MANUAL_VERSION` (1.x line): the 2.x line marks the
-/// UserManual era where PostgreSQL rows are authority. Bump on any seed
+/// UserManual era where embedded SurrealDB rows are authority. Bump on any seed
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.

@@ -658,7 +658,7 @@ fn wiki_page_panel_screenshot() {
     assert_no_local_artifact_dir();
 }
 
-// ── LIVE-PG (integration-gated, non-ignored): isolated self-seeded production round trip ─────────────
+// ── LIVE-SURREALDB (integration-gated, non-ignored): isolated self-seeded production round trip ─────────────
 
 #[cfg(feature = "integration")]
 struct LiveWikiFixture {
@@ -862,7 +862,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.live.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         for _ in 0..100 {
             if self.live.workspace_absent_fresh(&self.workspace_id) {
@@ -872,7 +872,7 @@ impl LiveWorkspaceCleanup<'_> {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         panic!(
-            "managed-PG workspace {} remained present in fresh GET /workspaces after cleanup",
+            "managed-SurrealDB workspace {} remained present in fresh GET /workspaces after cleanup",
             self.workspace_id
         );
     }
@@ -1047,7 +1047,7 @@ fn prepare_live_receipt_dir(run_id: &str) -> std::path::PathBuf {
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("");
-        if name == "managed-pg-current.json" || name.ends_with("-managed-pg-receipt.json") {
+        if name == "managed-store-current.json" || name.ends_with("-managed-store-receipt.json") {
             let retired = archive.join(format!("retired-{run_id}-{name}"));
             std::fs::rename(&path, &retired).unwrap_or_else(|error| {
                 panic!(
@@ -1063,19 +1063,19 @@ fn prepare_live_receipt_dir(run_id: &str) -> std::path::PathBuf {
 
 #[cfg(feature = "integration")]
 fn write_live_receipt(receipt: &serde_json::Value, dir: &std::path::Path) -> std::path::PathBuf {
-    let path = dir.join("managed-pg-current.json");
+    let path = dir.join("managed-store-current.json");
     let mut encoded = serde_json::to_string_pretty(receipt).expect("encode live receipt");
     encoded.push('\n');
     std::fs::write(&path, encoded).expect("write external live receipt after successful cleanup");
     path
 }
 
-/// AC1-AC8 and PROOF2-5 against the real Handshake-managed PostgreSQL/backend. This is deliberately one
+/// AC1-AC8 and PROOF2-5 against the real Handshake-managed SurrealDB/backend. This is deliberately one
 /// integration-gated, NON-ignored closure proof: it owns its workspace, source Loom blocks, compiled
 /// projection, persisted overlay, source mutation, regenerate, cleanup, and current-run receipt.
 #[test]
 #[cfg(feature = "integration")]
-fn wiki_page_panel_live_pg_self_seeded_round_trip() {
+fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     use handshake_native::backend_client::WikiProjectionCell;
 
     let mut live = LiveWikiFixture::new();
@@ -1099,7 +1099,7 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
                 "type": "doc",
                 "content": [
                     {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Typed wiki proof"}]},
-                    {"type": "paragraph", "content": [{"type": "text", "text": "Managed PostgreSQL typed page source."}]}
+                    {"type": "paragraph", "content": [{"type": "text", "text": "Managed SurrealDB typed page source."}]}
                 ]
             }
         }),
@@ -1535,7 +1535,7 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
     }
     host.run_steps(2);
 
-    // A fresh product client reload proves the projection came from PostgreSQL, not the mounted panel's
+    // A fresh product client reload proves the projection came from SurrealDB, not the mounted panel's
     // copy; the derived content stays unchanged because the edit is an independent overlay authority row.
     let fresh_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone());
     let reload_cell: WikiProjectionCell = Arc::new(Mutex::new(None));
@@ -1800,7 +1800,7 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
     let backend_binding = live.backend.owned_backend_binding_receipt();
     live.backend.assert_cleanup();
     let receipt = serde_json::json!({
-        "schema_id": "hsk.mt025.managed_pg_proof_receipt@2",
+        "schema_id": "hsk.mt025.managed_store_proof_receipt@2",
         "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
         "mt_id": "MT-025",
         "run_id": live.run_id.clone(),
@@ -1840,11 +1840,11 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
         "owned_backend_binding": backend_binding,
         "owned_backend_reaped_before_receipt": true,
         "canonical_current_receipt": true,
-        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_wiki_page_panel wiki_page_panel_live_pg_self_seeded_round_trip -- --nocapture"
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_wiki_page_panel wiki_page_panel_live_surrealdb_self_seeded_round_trip -- --nocapture"
     });
     let receipt_path = write_live_receipt(&receipt, &receipt_dir);
     println!(
-        "MT-025 LIVE MANAGED-PG PASS run_id={} workspace_id={} projection_id={} overlay_id={} cleanup={} receipt={}",
+        "MT-025 LIVE MANAGED-SURREALDB PASS run_id={} workspace_id={} projection_id={} overlay_id={} cleanup={} receipt={}",
         live.run_id,
         receipt["workspace_id"],
         receipt["projection_id"],

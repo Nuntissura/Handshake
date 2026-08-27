@@ -11,7 +11,7 @@
 //!     `canvas.placement.p-002` => `CanvasEvent::SemanticEdge{source,target block_ids}` (AC7).
 //!   - PROOF5: remove — clicking `canvas.placement.p-001.remove` fires `CanvasEvent::RemovePlacement`;
 //!     after the host applies + refreshes, `canvas.placement.p-001` is absent (AC8). The source-block-kept
-//!     assertion is repeated by the isolated managed-PG proof (getLoom(source) still 200).
+//!     assertion is repeated by the isolated managed-SurrealDB proof (getLoom(source) still 200).
 //!   - PROOF6: screenshot of a non-white canvas with at least one rounded card shape.
 //!   - AC2/AC3: pan/zoom buttons mutate pan/zoom + fire `ViewportChanged`; zoom label reads "1.00x".
 //!   - AC5: '+ Text card' fires `CanvasEvent::AddCard` with a timestamp title.
@@ -22,8 +22,8 @@
 //! ## Backend reality (Spec-Realism Gate / MT-008/021-025 pattern)
 //!
 //! AC1 and the live mutation/reload paths are covered by one NON-ignored `integration`-gated proof that
-//! creates and tears down its own isolated workspace on the reachable Handshake-managed PostgreSQL
-//! backend. It never depends on operator-seeded ids and never fakes PG. The request builders are proven
+//! creates and tears down its own isolated workspace on the reachable Handshake-managed SurrealDB
+//! backend. It never depends on operator-seeded ids and never fakes SurrealDB. The request builders are proven
 //! without a backend below, while transform / hit-test / edge-mode / empty-board behavior is also proven
 //! standalone here and in the lib unit tests.
 //!
@@ -1333,7 +1333,7 @@ fn canvas_error_exposes_stable_retry_event() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE-PG: isolated, self-seeded, mounted, non-ignored. Never fakes PostgreSQL.
+// LIVE-SURREALDB: isolated, self-seeded, mounted, non-ignored. Never fakes SurrealDB.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[cfg(feature = "integration")]
@@ -1349,7 +1349,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         let workspaces = self.backend.get_json("/workspaces");
         let rows = workspaces
@@ -1513,19 +1513,19 @@ fn click_mounted_canvas_control(
     drive_canvas_host_until(host, events, board, condition, proof);
 }
 
-/// AC1-AC10 against the real Canvas client, mounted Canvas pane, and Handshake-managed PostgreSQL.
+/// AC1-AC10 against the real Canvas client, mounted Canvas pane, and Handshake-managed SurrealDB.
 /// This proof creates every fixture it consumes, exercises a typed failure followed by the stable
 /// `canvas.retry` control, verifies fresh-client persistence, and removes its workspace before writing
 /// the external success receipt. It is deliberately NOT ignored.
 #[test]
 #[cfg(feature = "integration")]
-fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
+fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
     use handshake_native::app::{HandshakeApp, HealthDisplayState};
     use handshake_native::backend_client::{HealthInfo, LiveBlockCell};
     use handshake_native::graph::canvas_sections::section_author_id;
 
     let receipt_dir = external_artifact_dir("wp-kernel-012-mt-026");
-    let receipt_path = receipt_dir.join("MT-026-live-pg-self-seeded.json");
+    let receipt_path = receipt_dir.join("MT-026-live-surrealdb-self-seeded.json");
     match std::fs::remove_file(&receipt_path) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -1630,7 +1630,7 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
         &app_events,
         &app_board,
         |board| board.placements.is_empty() && !board.loading && board.error.is_none(),
-        "initial empty PostgreSQL board",
+        "initial empty SurrealDB board",
     );
 
     app_board.lock().unwrap().place_block_input = source_one.clone();
@@ -1755,7 +1755,7 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
         "host undo removes original text-card placement",
     );
     let after_first_undo = fetch_canvas(&client, &workspace_id, &canvas_id)
-        .expect("fresh PG reload after first host undo");
+        .expect("fresh SurrealDB reload after first host undo");
     assert!(after_first_undo
         .placements
         .iter()
@@ -1789,7 +1789,7 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
         .expect("first redone text placement exists");
     assert_ne!(first_replacement_id, original_text_placement_id);
     let after_first_redo =
-        fetch_canvas(&client, &workspace_id, &canvas_id).expect("fresh PG reload after host redo");
+        fetch_canvas(&client, &workspace_id, &canvas_id).expect("fresh SurrealDB reload after host redo");
     assert!(after_first_redo.placements.iter().any(|placement| {
         placement.placed_block_id == text_block_id && placement.placement_id == first_replacement_id
     }));
@@ -1816,7 +1816,7 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
         "second host undo targets replacement placement identity",
     );
     let after_second_undo = fetch_canvas(&client, &workspace_id, &canvas_id)
-        .expect("fresh PG reload after second host undo");
+        .expect("fresh SurrealDB reload after second host undo");
     assert!(after_second_undo
         .placements
         .iter()
@@ -2213,17 +2213,17 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
     assert_eq!(
         label_for(&pane, &placement_author_id(&first.placement_id)).as_deref(),
         Some(source_one_title.as_str()),
-        "real-PG first placement AccessKit label is its exact resolved source title"
+        "real-SurrealDB first placement AccessKit label is its exact resolved source title"
     );
     assert_eq!(
         label_for(&pane, &placement_author_id(&second.placement_id)).as_deref(),
         Some(source_two_title.as_str()),
-        "real-PG second placement AccessKit label is its exact resolved source title"
+        "real-SurrealDB second placement AccessKit label is its exact resolved source title"
     );
     assert_eq!(
         label_for(&pane, &placement_author_id(&text_card.placement_id)).as_deref(),
         Some(text_card_title.as_str()),
-        "real-PG text-card AccessKit label is its exact persisted title"
+        "real-SurrealDB text-card AccessKit label is its exact persisted title"
     );
 
     // A malformed HTTP 200 must fail closed instead of becoming an empty/default board. Surface that
@@ -2305,7 +2305,7 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
     assert_no_local_artifact_dir();
     std::fs::create_dir_all(&receipt_dir).expect("create external MT-026 receipt directory");
     let receipt = serde_json::json!({
-        "schema_id": "hsk.wp_kernel_012.mt_026.live_pg_receipt@3",
+        "schema_id": "hsk.wp_kernel_012.mt_026.live_surrealdb_receipt@3",
         "workspace_id": workspace_id,
         "canvas_block_id": canvas_id,
         "source_block_ids": [source_one, source_two],
@@ -2315,10 +2315,10 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
         "semantic_edge_backlink_verified": true,
         "visual_edge_count": 1,
         "move_resize_persisted": true,
-        "live_pg_mutations_routed_through_mounted_host": ["viewport", "group", "move", "resize", "semantic_edge", "visual_edge", "remove"],
+        "live_surrealdb_mutations_routed_through_mounted_host": ["viewport", "group", "move", "resize", "semantic_edge", "visual_edge", "remove"],
         "all_operator_visible_mutations_produced_by_mounted_widget": false,
         "producer_and_persistence_proof_are_split": true,
-        "mounted_host_events_injected_for_live_pg_persistence": ["move", "resize", "semantic_edge", "visual_edge"],
+        "mounted_host_events_injected_for_live_surrealdb_persistence": ["move", "resize", "semantic_edge", "visual_edge"],
         "widget_producer_proofs": ["test_canvas_board::canvas_semantic_edge", "test_canvas_board::canvas_visual_edge_mode", "test_canvas_sections_resize::canvas_drop_into_section_assigns_then_clears", "test_canvas_sections_resize::canvas_resize_handle_fires_one_debounced_patch", "test_canvas_sections_resize::canvas_pan_drag_applies_each_frame_delta_exactly_once"],
         "host_undo_redo_replacement_identity_verified": true,
         "mounted_accesskit_verified": true,
@@ -2334,7 +2334,7 @@ fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
     )
     .expect("write external MT-026 live receipt");
     println!(
-        "MT-026 LIVE PG PASS canvas={} placements=3 viewport/group/edges/move/resize/retry/remove \
+        "MT-026 LIVE SURREALDB PASS canvas={} placements=3 viewport/group/edges/move/resize/retry/remove \
          fresh_reload=true cleanup_verified=true receipt={}",
         receipt["canvas_block_id"],
         receipt_path.display()

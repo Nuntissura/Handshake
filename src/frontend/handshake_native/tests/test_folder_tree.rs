@@ -14,7 +14,7 @@
 //! `PATCH /loom/folders/{id}` body `{ "color": "#rrggbb" }` (a true merge-patch: `LoomFolderUpdate.color`
 //! is `Option<Option<String>>`, so a recolor never clobbers name/sort/parent — RISK-2/MC-2).
 //!
-//! AC1/AC2/AC4 against a LIVE Handshake-managed PostgreSQL are covered by one isolated, self-seeding
+//! AC1/AC2/AC4 against a LIVE Handshake-managed SurrealDB are covered by one isolated, self-seeding
 //! integration proof. It creates two real folder rows plus three real Loom child blocks,
 //! drives the production `LoomFolderClient` GET/PATCH paths, refetches the persisted color, renders
 //! and clicks the live leaf, writes the seed identifiers to the external artifact root, then cleans up
@@ -38,8 +38,8 @@ mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 #[cfg(feature = "integration")]
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 use handshake_native::graph::folder_tree::{
     build_tree, color_author_id, color_to_hex, move_target_author_id, node_author_id,
@@ -842,7 +842,7 @@ fn folder_list_request_hits_verified_route() {
     println!("verified: folder-list + folder-blocks GET routes match the real backend");
 }
 
-// ── LIVE-PG (gated): self-seeding, production-client round trip ─────────────────────────────────────
+// ── LIVE-SURREALDB (gated): self-seeding, production-client round trip ─────────────────────────────────────
 
 #[cfg(feature = "integration")]
 fn wait_for_live_cell<T>(cell: &Arc<Mutex<Option<T>>>, operation: &str) -> T {
@@ -853,7 +853,7 @@ fn wait_for_live_cell<T>(cell: &Arc<Mutex<Option<T>>>, operation: &str) -> T {
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "requires_pg: {operation} did not complete within 5 seconds"
+            "requires_surrealdb: {operation} did not complete within 5 seconds"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
@@ -868,7 +868,7 @@ fn wait_for_live_queue<T>(cell: &Arc<Mutex<std::collections::VecDeque<T>>>, oper
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "requires_pg: {operation} did not deliver within 10 seconds"
+            "requires_surrealdb: {operation} did not deliver within 10 seconds"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
@@ -889,7 +889,7 @@ fn identified_folder_result<T>(
 }
 
 /// Test-local managed-backend handle. Every operation has a hard deadline; a backend that becomes
-/// unhealthy after `/health` therefore fails the proof with a typed `requires_pg` message instead of
+/// unhealthy after `/health` therefore fails the proof with a typed `requires_surrealdb` message instead of
 /// hanging the governed run or its cleanup.
 #[cfg(feature = "integration")]
 struct LiveFolderBackend {
@@ -897,9 +897,9 @@ struct LiveFolderBackend {
     workspace_id: String,
     client: reqwest::Client,
     runtime: tokio::runtime::Runtime,
-    /// Owns the ephemeral current-source backend, isolated PostgreSQL workspace, runtime roots, and
+    /// Owns the ephemeral current-source backend, isolated SurrealDB workspace, runtime roots, and
     /// fixture lock. Its Drop performs bounded process/workspace/runtime cleanup after this wrapper.
-    _managed_backend: pg_proof_support::LiveBackend,
+    _managed_backend: backend_proof_support::LiveBackend,
 }
 
 #[cfg(feature = "integration")]
@@ -911,9 +911,9 @@ impl LiveFolderBackend {
 
     fn identity(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         request
-            .header("x-hsk-actor-id", "mt022-live-pg")
-            .header("x-hsk-kernel-task-run-id", "mt022-live-pg-run")
-            .header("x-hsk-session-run-id", "mt022-live-pg-session")
+            .header("x-hsk-actor-id", "mt022-live-surrealdb")
+            .header("x-hsk-kernel-task-run-id", "mt022-live-surrealdb-run")
+            .header("x-hsk-session-run-id", "mt022-live-surrealdb-session")
             .header("x-hsk-actor-kind", "operator")
             .timeout(std::time::Duration::from_secs(5))
     }
@@ -946,17 +946,17 @@ impl LiveFolderBackend {
             let response = request
                 .send()
                 .await
-                .unwrap_or_else(|error| panic!("requires_pg: {method} {url} failed: {error}"));
+                .unwrap_or_else(|error| panic!("requires_surrealdb: {method} {url} failed: {error}"));
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             (status, text)
         });
         assert!(
             status.is_success(),
-            "requires_pg: {method} {path} -> {status}: {text}"
+            "requires_surrealdb: {method} {path} -> {status}: {text}"
         );
         serde_json::from_str(&text).unwrap_or_else(|error| {
-            panic!("requires_pg: {method} {path} response not JSON ({error}): {text}")
+            panic!("requires_surrealdb: {method} {path} response not JSON ({error}): {text}")
         })
     }
 
@@ -1009,7 +1009,7 @@ impl LiveFolderBackend {
 
 #[cfg(feature = "integration")]
 fn require_live_folder_backend() -> LiveFolderBackend {
-    let managed_backend = pg_proof_support::require_live_backend();
+    let managed_backend = backend_proof_support::require_live_backend();
     let base = managed_backend.base.clone();
     let workspace_id = managed_backend.workspace_id.clone();
     assert!(!workspace_id.trim().is_empty(), "managed fixture workspace");
@@ -1033,7 +1033,7 @@ fn require_live_folder_backend() -> LiveFolderBackend {
     });
     assert!(
         healthy,
-        "requires_pg: managed handshake_core is not healthy at {base}/health"
+        "requires_surrealdb: managed handshake_core is not healthy at {base}/health"
     );
     LiveFolderBackend {
         base,
@@ -1044,7 +1044,7 @@ fn require_live_folder_backend() -> LiveFolderBackend {
     }
 }
 
-/// Removes only this proof's real PostgreSQL fixture rows. Explicit end-of-test cleanup is verified
+/// Removes only this proof's real SurrealDB fixture rows. Explicit end-of-test cleanup is verified
 /// and fails the proof if any bounded delete fails; `Drop` is a second bounded recovery attempt for
 /// earlier assertion failures. IDs are unique and block deletion precedes folder deletion, so shared
 /// workspace data is never selected or modified.
@@ -1157,7 +1157,7 @@ fn required_json_id(value: &serde_json::Value, field: &str, operation: &str) -> 
         .and_then(serde_json::Value::as_str)
         .filter(|id| !id.is_empty())
         .unwrap_or_else(|| {
-            panic!("requires_pg: {operation} response missing non-empty {field}: {value}")
+            panic!("requires_surrealdb: {operation} response missing non-empty {field}: {value}")
         })
         .to_owned()
 }
@@ -1317,14 +1317,14 @@ fn failed_recolor_and_failed_refetch_keep_prior_swatch_in_mounted_host() {
     assert!(requests[2].starts_with("GET "));
 }
 
-/// AC1-AC6 and PROOF2-5 against a REAL Handshake-managed PostgreSQL. The fixture is self-contained:
-/// `pg_proof_support::require_live_backend` owns an ephemeral backend runtime and workspace, and this
+/// AC1-AC6 and PROOF2-5 against a REAL Handshake-managed SurrealDB. The fixture is self-contained:
+/// `backend_proof_support::require_live_backend` owns an ephemeral backend runtime and workspace, and this
 /// test owns its folder/block seed plus verified cleanup inside that workspace.
 /// Run with `cargo test -p handshake-native --features integration --test test_folder_tree
-/// folder_tree_live_pg_self_seeded_round_trip -- --nocapture`.
+/// folder_tree_live_surrealdb_self_seeded_round_trip -- --nocapture`.
 #[test]
 #[cfg(feature = "integration")]
-fn folder_tree_live_pg_self_seeded_round_trip() {
+fn folder_tree_live_surrealdb_self_seeded_round_trip() {
     use handshake_native::backend_client::{
         FolderChildrenCell, FolderListCell, FolderWriteCell, LoomFolderClient,
     };
@@ -1455,7 +1455,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     let primary_block_id = block_ids[0].clone();
 
     // Drive the same off-thread production client used by the native host. This is not a repository
-    // double: every result below comes from handshake_core backed by the managed PostgreSQL workspace.
+    // double: every result below comes from handshake_core backed by the managed SurrealDB workspace.
     let folders_cell: FolderListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     client.fetch_folders(
         &backend.workspace_id,
@@ -1469,7 +1469,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         live_epoch,
         5,
     )
-    .expect("requires_pg: production folder-list GET must succeed");
+    .expect("requires_surrealdb: production folder-list GET must succeed");
     let secondary_position = rows
         .iter()
         .position(|row| row.folder_id == secondary_id)
@@ -1645,13 +1645,13 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         "descendant cycles fail closed"
     );
 
-    // Drive the disclosure action from a real PostgreSQL folder row before dispatching its production
+    // Drive the disclosure action from a real SurrealDB folder row before dispatching its production
     // child request. Isolating the primary row makes the triangle target deterministic even when the
     // operator's workspace already contains unrelated folders.
     let primary_row = rows
         .iter()
         .find(|row| row.folder_id == primary_id)
-        .expect("AC2 live: primary PostgreSQL row remains available")
+        .expect("AC2 live: primary SurrealDB row remains available")
         .clone();
     let mut expansion_tree = LoomFolderTree::new(backend.workspace_id.clone());
     expansion_tree.set_folders(&[primary_row]);
@@ -1671,7 +1671,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
                 event,
                 FolderTreeEvent::ExpandFolder { folder_id } if folder_id == &primary_id
             )),
-        "AC2 live: expanding the PostgreSQL-backed folder dispatches its exact folder id"
+        "AC2 live: expanding the SurrealDB-backed folder dispatches its exact folder id"
     );
 
     let children_cell: FolderChildrenCell = Arc::new(Mutex::new(None));
@@ -1693,7 +1693,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
             11
         )
     );
-    let leaves = leaves.expect("requires_pg: production folder-children GET must succeed");
+    let leaves = leaves.expect("requires_surrealdb: production folder-children GET must succeed");
     assert_eq!(
         leaves.len(),
         3,
@@ -1746,7 +1746,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         }
         assert!(
             std::time::Instant::now() < initial_deadline,
-            "requires_pg: mounted app host did not load the seeded folder within 10 seconds"
+            "requires_surrealdb: mounted app host did not load the seeded folder within 10 seconds"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
@@ -1931,7 +1931,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         }
         assert!(
             std::time::Instant::now() < expand_deadline,
-            "requires_pg: mounted app host did not expand/load all three child blocks within 10 seconds"
+            "requires_surrealdb: mounted app host did not expand/load all three child blocks within 10 seconds"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
@@ -1961,7 +1961,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         }
         assert!(
             std::time::Instant::now() < recolor_deadline,
-            "requires_pg: mounted app host did not persist/apply the recolor within 10 seconds"
+            "requires_surrealdb: mounted app host did not persist/apply the recolor within 10 seconds"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
@@ -1979,7 +1979,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         live_epoch,
         12,
     )
-    .expect("requires_pg: recolor refetch must succeed");
+    .expect("requires_surrealdb: recolor refetch must succeed");
     let refreshed_primary = refreshed_rows
         .iter()
         .find(|row| row.folder_id == primary_id)
@@ -1987,7 +1987,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     assert_eq!(
         refreshed_primary.color.as_deref(),
         Some("#ff0000"),
-        "AC4 live: color-only PATCH persists in PostgreSQL and refetches as red"
+        "AC4 live: color-only PATCH persists in SurrealDB and refetches as red"
     );
 
     // Feed the refetched persisted row and live-loaded leaf back into the real widget. This proves the
@@ -2012,7 +2012,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     let live_ids = author_ids(&live_harness);
     assert!(
         live_ids.contains(&node_author_id(&primary_block_id)),
-        "AC2/AC6 live: expanded folder renders the PostgreSQL-loaded child as a TreeItem"
+        "AC2/AC6 live: expanded folder renders the SurrealDB-loaded child as a TreeItem"
     );
     live_harness.get_by_label_contains(&leaf_titles[0]).click();
     live_harness.run();
@@ -2020,7 +2020,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         live_events.lock().unwrap_or_else(|p| p.into_inner()).iter().any(
             |event| matches!(event, FolderTreeEvent::OpenBlock { block_id: opened } if opened == &primary_block_id)
         ),
-        "AC5 live: clicking the PostgreSQL-loaded leaf dispatches its exact block id"
+        "AC5 live: clicking the SurrealDB-loaded leaf dispatches its exact block id"
     );
 
     // Negative path through the SAME mounted host: install a synthetic missing row, let the real PATCH
@@ -2072,13 +2072,13 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         }
         assert!(
             std::time::Instant::now() < rollback_deadline,
-            "requires_pg: failed recolor did not visibly error and rollback/refetch within 10 seconds"
+            "requires_surrealdb: failed recolor did not visibly error and rollback/refetch within 10 seconds"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
 
     // Drive the real mounted UI event with both optional move fields absent. The production request
-    // builder serializes that UI intent as explicit JSON null/null so PostgreSQL clears parent and order.
+    // builder serializes that UI intent as explicit JSON null/null so SurrealDB clears parent and order.
     mounted_events
         .lock()
         .unwrap_or_else(|p| p.into_inner())
@@ -2104,7 +2104,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         });
         if persisted.is_some_and(|row| {
             // LoomFolder skips serializing None fields, so omission is the canonical response shape for
-            // a PostgreSQL NULL (an explicit JSON null remains accepted for compatible servers).
+            // a SurrealDB NULL (an explicit JSON null remains accepted for compatible servers).
             row.get("parent_folder_id")
                 .map_or(true, serde_json::Value::is_null)
                 && row
@@ -2115,7 +2115,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         }
         assert!(
             std::time::Instant::now() < null_move_deadline,
-            "requires_pg: mounted UI null/null move did not persist within 10 seconds: {raw_rows}"
+            "requires_surrealdb: mounted UI null/null move did not persist within 10 seconds: {raw_rows}"
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
@@ -2226,9 +2226,9 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     // hidden/mock state.
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-022");
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-022 artifact directory");
-    let receipt_path = artifact_dir.join("MT-022-live-pg-seed.json");
+    let receipt_path = artifact_dir.join("MT-022-live-surrealdb-seed.json");
     let receipt = serde_json::json!({
-        "schema_id": "hsk.mt022.live_pg_proof@1",
+        "schema_id": "hsk.mt022.live_surrealdb_proof@1",
         "backend_base": proof_backend_base,
         "workspace_id": proof_workspace_id,
         "seed_ids": {
@@ -2248,14 +2248,14 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
             "cleanup_verified": true
         }
     });
-    let encoded = serde_json::to_vec_pretty(&receipt).expect("encode live PG seed receipt");
-    assert!(!encoded.is_empty(), "live PG proof output must be non-zero");
-    std::fs::write(&receipt_path, encoded).expect("write external live PG seed receipt");
+    let encoded = serde_json::to_vec_pretty(&receipt).expect("encode live SurrealDB seed receipt");
+    assert!(!encoded.is_empty(), "live SurrealDB proof output must be non-zero");
+    std::fs::write(&receipt_path, encoded).expect("write external live SurrealDB seed receipt");
     assert!(
         std::fs::metadata(&receipt_path)
             .map(|metadata| metadata.len() > 0)
             .unwrap_or(false),
-        "live PG seed receipt must exist and be non-zero"
+        "live SurrealDB seed receipt must exist and be non-zero"
     );
     assert_no_local_artifact_dir();
 }

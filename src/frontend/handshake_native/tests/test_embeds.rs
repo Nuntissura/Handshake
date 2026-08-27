@@ -25,11 +25,11 @@ mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 // MT-014 remediation (FAIL_V2): the hermetic real-backend seeded-asset proof needs the shared
-// managed-PostgreSQL fixture. This is the SAME fixture the other native live proofs use; it seeds
+// managed-SurrealDB fixture. This is the SAME fixture the other native live proofs use; it seeds
 // its own workspace + asset through production HTTP, so the real-asset test depends on no
 // developer-machine files.
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
 use handshake_native::rich_editor::embeds::asset_resolver::SequenceItem;
@@ -1369,7 +1369,7 @@ fn real_image_resolve_against_live_backend() {
 // `integration`-gated and driven by developer-supplied `HANDSHAKE_TEST_WORKSPACE_ID/ASSET_ID`, so
 // it never ran in the ordinary suite — the exact gap validation_v1/validation_v2 flagged ("the
 // live test remains ignored/resource-gated"). This test is NOT ignored: it SEEDS its own workspace
-// and assets through the production import route on the shared managed-PostgreSQL fixture (the same
+// and assets through the production import route on the shared managed-SurrealDB fixture (the same
 // fixture every other native live proof uses), so it depends on no developer-machine files and runs
 // whenever the managed backend is up. It drives the REAL `ReqwestAssetFetcher` + production
 // `EmbedRuntime` against real bytes and proves decode, aspect ratio, missing-asset, and
@@ -1379,7 +1379,7 @@ fn real_image_resolve_against_live_backend() {
 /// backend-assigned `asset_id`. This is the real asset route the embed resolver reads back — not a
 /// stub or a hardcoded id.
 fn seed_asset(
-    backend: &pg_proof_support::LiveBackend,
+    backend: &backend_proof_support::LiveBackend,
     workspace_id: &str,
     bytes: &[u8],
     filename: &str,
@@ -1406,7 +1406,7 @@ fn mt014_seeded_asset_real_backend_decode_aspect_missing_corrupt() {
     use handshake_native::rich_editor::embeds::asset_resolver::{resolve_one, ReqwestAssetFetcher};
 
     let _gui_guard = embed_gui_test_guard();
-    let mut backend = pg_proof_support::require_live_backend();
+    let mut backend = backend_proof_support::require_live_backend();
     let workspace_id = backend.workspace_id.clone();
     let base = backend.base.trim_end_matches('/').to_owned();
 

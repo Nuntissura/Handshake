@@ -5,8 +5,8 @@
 //!
 //! ## What it does (RISK-3 / CTRL-3: manifest write-back is mandatory)
 //!
-//! Each passing proof function calls [`mark_pass`] (frontend E1) or [`mark_requires_pg`] (the gated
-//! E2/E3/E4 proofs, when run with a live PG) with its `feature_id`. The helper rewrites the
+//! Each passing proof function calls [`mark_pass`] (frontend E1) or [`mark_requires_surrealdb`] (the gated
+//! E2/E3/E4 proofs, when run with a live SurrealDB) with its `feature_id`. The helper rewrites the
 //! `status` field of that entry in `tests/parity_manifest.json` to the given value, so after a full run
 //! a no-context model can read the manifest and know each feature's state. The manifest path is
 //! resolved from `CARGO_MANIFEST_DIR` so it is deterministic from any working directory (impl note).
@@ -33,11 +33,11 @@ pub fn mark_pass(feature_id: &str) {
     set_status(feature_id, "PASS");
 }
 
-/// Rewrite the manifest entry for `feature_id` to `status: "REQUIRES_PG"`. The default (non-live) E2/
+/// Rewrite the manifest entry for `feature_id` to `status: "REQUIRES_SURREALDB"`. The default (non-live) E2/
 /// E3/E4 proofs already carry this status in the committed manifest; the gated `*_live` proofs upgrade
-/// it to PASS via [`mark_pass`] when run against a managed PostgreSQL.
-pub fn mark_requires_pg(feature_id: &str) {
-    set_status(feature_id, "REQUIRES_PG");
+/// it to PASS via [`mark_pass`] when run against a managed SurrealDB.
+pub fn mark_requires_surrealdb(feature_id: &str) {
+    set_status(feature_id, "REQUIRES_SURREALDB");
 }
 
 /// The deterministic manifest path under the crate root, independent of the test's working directory.

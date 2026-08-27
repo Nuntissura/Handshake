@@ -3,16 +3,14 @@
 //! This module preserves the legacy health-check intent as read-only
 //! diagnostics over governed durable state. It records health snapshots and
 //! findings, but it never resyncs, deletes, repairs, or creates media rows.
-//!
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use std::fs;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, AtelierError, AtelierResult, AtelierStore};
 use crate::storage::artifacts::{
     artifact_root_rel, artifact_store_root, read_artifact_manifest, resolve_workspace_root,
     validate_artifact_content_hash, ArtifactLayer,
@@ -100,27 +98,54 @@ struct PendingFilesystemHealthFinding {
     details: serde_json::Value,
 }
 
-fn check_from_row(row: &sqlx::postgres::PgRow) -> FilesystemHealthCheck {
-    FilesystemHealthCheck {
-        check_id: row.get("check_id"),
-        requested_by: row.get("requested_by"),
-        scope_label: row.get("scope_label"),
-        summary: row.get("summary"),
-        created_at_utc: row.get("created_at_utc"),
+/// One `atelier_filesystem_health_check` row as the store returns it.
+#[derive(SurrealValue)]
+struct HealthCheckRow {
+    check_id: SurrealUuid,
+    requested_by: String,
+    scope_label: Option<String>,
+    summary: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+impl From<HealthCheckRow> for FilesystemHealthCheck {
+    fn from(row: HealthCheckRow) -> Self {
+        FilesystemHealthCheck {
+            check_id: row.check_id.into(),
+            requested_by: row.requested_by,
+            scope_label: row.scope_label,
+            summary: row.summary,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn finding_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<FilesystemHealthFinding> {
-    let finding_kind: String = row.get("finding_kind");
-    Ok(FilesystemHealthFinding {
-        finding_id: row.get("finding_id"),
-        check_id: row.get("check_id"),
-        finding_kind: FilesystemHealthFindingKind::from_token(&finding_kind)?,
-        target_type: row.get("target_type"),
-        target_id: row.get("target_id"),
-        details: row.get("details"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+/// One `atelier_filesystem_health_finding` row as the store returns it.
+#[derive(SurrealValue)]
+struct HealthFindingRow {
+    finding_id: SurrealUuid,
+    check_id: SurrealUuid,
+    finding_kind: String,
+    target_type: String,
+    target_id: String,
+    details: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<HealthFindingRow> for FilesystemHealthFinding {
+    type Error = AtelierError;
+
+    fn try_from(row: HealthFindingRow) -> AtelierResult<Self> {
+        Ok(FilesystemHealthFinding {
+            finding_id: row.finding_id.into(),
+            check_id: row.check_id.into(),
+            finding_kind: FilesystemHealthFindingKind::from_token(&row.finding_kind)?,
+            target_type: row.target_type,
+            target_id: row.target_id,
+            details: row.details,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
 fn require_requested_by(requested_by: &str) -> AtelierResult<&str> {
@@ -257,6 +282,198 @@ fn artifact_payload_health_issue(
     None
 }
 
+/// One finding travelling to [`RECORD_HEALTH_CHECK_STATEMENT`].
+#[derive(Clone, SurrealValue)]
+struct HealthFindingInsert {
+    finding_id: SurrealUuid,
+    finding_kind: String,
+    target_type: String,
+    target_id: String,
+    details: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordHealthCheckBindings {
+    check_rid: RecordId,
+    check_id: SurrealUuid,
+    requested_by: String,
+    scope_label: Option<String>,
+    summary: serde_json::Value,
+    findings: Vec<HealthFindingInsert>,
+}
+
+/// The check row, every finding row, and the recorded event commit together
+/// in one atomic statement (the former single transaction).
+const RECORD_HEALTH_CHECK_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = $domain.check_rid; ",
+    atelier_event_sql!(),
+    " CREATE $rid CONTENT { \
+         check_id: $domain.check_id, \
+         requested_by: $domain.requested_by, \
+         scope_label: $domain.scope_label, \
+         summary: $domain.summary \
+       }; \
+       FOR $f IN $domain.findings { \
+         CREATE type::record('atelier_filesystem_health_finding', $f.finding_id) CONTENT { \
+           finding_id: $f.finding_id, \
+           check_id: $rid, \
+           finding_kind: $f.finding_kind, \
+           target_type: $f.target_type, \
+           target_id: $f.target_id, \
+           details: $f.details \
+         }; \
+       }; \
+       RETURN { \
+         check: (SELECT check_id, requested_by, scope_label, summary, created_at_utc FROM $rid), \
+         findings: (SELECT finding_id, record::id(check_id) AS check_id, finding_kind, \
+                           target_type, target_id, details, created_at_utc \
+                    FROM atelier_filesystem_health_finding WHERE check_id = $rid \
+                    ORDER BY finding_kind ASC, target_type ASC, target_id ASC, finding_id ASC) \
+       }; };"
+);
+
+/// The outcome object [`RECORD_HEALTH_CHECK_STATEMENT`] returns.
+#[derive(SurrealValue)]
+struct RecordHealthCheckOutcome {
+    check: Vec<HealthCheckRow>,
+    findings: Vec<HealthFindingRow>,
+}
+
+#[derive(SurrealValue)]
+struct CheckRefBinding {
+    check_ref: RecordId,
+}
+
+const LIST_HEALTH_FINDINGS_STATEMENT: &str =
+    "SELECT finding_id, record::id(check_id) AS check_id, finding_kind, target_type, \
+            target_id, details, created_at_utc \
+     FROM atelier_filesystem_health_finding \
+     WHERE check_id = $check_ref \
+     ORDER BY finding_kind ASC, target_type ASC, target_id ASC, finding_id ASC;";
+
+#[derive(SurrealValue)]
+struct NoBindings {}
+
+const COUNT_SIDECARS_STATEMENT: &str = "RETURN count(SELECT id FROM atelier_media_sidecar);";
+
+/// Media-asset fields the missing-original sweep reads. The manifest
+/// validation state is projected out of the flexible manifest object.
+#[derive(SurrealValue)]
+struct MissingOriginalRow {
+    asset_id: SurrealUuid,
+    content_hash: String,
+    mime: String,
+    byte_len: i64,
+    artifact_ref: String,
+    validation_state: Option<String>,
+}
+
+const MISSING_ORIGINALS_STATEMENT: &str =
+    "SELECT asset_id, content_hash, mime, byte_len, artifact_ref, \
+            artifact_manifest.validation_state AS validation_state \
+     FROM atelier_media_asset;";
+
+#[derive(SurrealValue)]
+struct AssetHashRow {
+    asset_id: SurrealUuid,
+    content_hash: String,
+}
+
+/// Assets with neither a hiding sidecar nor a generated thumbnail.
+const ASSETS_MISSING_THUMBNAIL_STATEMENT: &str =
+    "SELECT asset_id, content_hash FROM atelier_media_asset \
+     WHERE (SELECT VALUE id FROM atelier_media_sidecar \
+            WHERE sidecar_asset_id = $parent.id AND hidden_from_gallery = true) = [] \
+       AND (SELECT VALUE id FROM atelier_media_derivative \
+            WHERE asset_id = $parent.id AND derivative_kind = 'thumbnail' \
+              AND status = 'generated' AND artifact_ref != NONE) = [];";
+
+#[derive(SurrealValue)]
+struct GeneratedThumbnailRow {
+    derivative_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    derivative_kind: String,
+    artifact_ref: Option<String>,
+    artifact_manifest_ref: Option<String>,
+    mime: Option<String>,
+    byte_len: Option<i64>,
+    content_hash: String,
+}
+
+/// Generated thumbnails joined to their parent asset's content hash via the
+/// record link.
+const GENERATED_THUMBNAILS_STATEMENT: &str =
+    "SELECT derivative_id, record::id(asset_id) AS asset_id, derivative_kind, artifact_ref, \
+            artifact_manifest_ref, mime, byte_len, asset_id.content_hash AS content_hash \
+     FROM atelier_media_derivative \
+     WHERE derivative_kind = 'thumbnail' AND status = 'generated' AND artifact_ref != NONE;";
+
+#[derive(SurrealValue)]
+struct IntakeItemRow {
+    item_id: SurrealUuid,
+    batch_id: SurrealUuid,
+    source_path: String,
+    file_name: String,
+    lane: String,
+}
+
+const INBOX_PENDING_STATEMENT: &str =
+    "SELECT item_id, record::id(batch_id) AS batch_id, source_path, file_name, lane \
+     FROM atelier_intake_item WHERE lane IN ['pending', 'deferred'];";
+
+#[derive(SurrealValue)]
+struct UntrackedIntakeItemRow {
+    item_id: SurrealUuid,
+    batch_id: SurrealUuid,
+    source_path: String,
+    file_name: String,
+    content_hash: Option<String>,
+}
+
+/// Intake items whose content hash never materialised into a media asset.
+const UNTRACKED_ORIGINALS_STATEMENT: &str =
+    "SELECT item_id, record::id(batch_id) AS batch_id, source_path, file_name, content_hash \
+     FROM atelier_intake_item \
+     WHERE content_hash = NONE \
+        OR (SELECT VALUE id FROM atelier_media_asset \
+            WHERE content_hash = string::replace(string::lowercase($parent.content_hash ?? ''), 'sha256:', '')) = [];";
+
+#[derive(SurrealValue)]
+struct TrackedPayloadBindings {
+    artifact_ref: String,
+    content_hash: String,
+    artifact_manifest_ref: String,
+}
+
+const PAYLOAD_TRACKED_STATEMENT: &str =
+    "RETURN count(SELECT id FROM atelier_media_asset \
+              WHERE artifact_ref = $artifact_ref \
+                 OR string::lowercase(string::replace(content_hash, 'sha256:', '')) = $content_hash) > 0 \
+        OR count(SELECT id FROM atelier_intake_item \
+              WHERE source_path = $artifact_ref \
+                 OR string::lowercase(string::replace(content_hash ?? '', 'sha256:', '')) = $content_hash) > 0 \
+        OR count(SELECT id FROM atelier_media_derivative \
+              WHERE artifact_ref = $artifact_ref \
+                 OR artifact_manifest_ref = $artifact_manifest_ref) > 0;";
+
+#[derive(SurrealValue)]
+struct SidecarAnomalyRow {
+    sidecar_id: SurrealUuid,
+    parent_asset_id: SurrealUuid,
+    sidecar_asset_id: SurrealUuid,
+    relation_kind: String,
+    hidden_from_gallery: bool,
+    searchable_by_relation: bool,
+}
+
+const SIDECAR_ANOMALIES_STATEMENT: &str =
+    "SELECT sidecar_id, record::id(parent_asset_id) AS parent_asset_id, \
+            record::id(sidecar_asset_id) AS sidecar_asset_id, relation_kind, \
+            hidden_from_gallery, searchable_by_relation \
+     FROM atelier_media_sidecar \
+     WHERE hidden_from_gallery != true OR searchable_by_relation != true;";
+
 impl AtelierStore {
     pub async fn run_filesystem_health_check(
         &self,
@@ -271,64 +488,76 @@ impl AtelierStore {
         collect_inbox_pending(self, &mut pending).await?;
         collect_untracked_originals(self, &mut pending).await?;
         collect_sidecar_visibility_anomalies(self, &mut pending).await?;
-        let sidecars_checked: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM atelier_media_sidecar")
-                .fetch_one(self.pool())
-                .await?;
+        let sidecars_checked: i64 = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(COUNT_SIDECARS_STATEMENT, NoBindings {})
+                        .await
+                })
+            })
+            .await?
+            .unwrap_or_default();
 
         let summary = filesystem_health_summary(&pending, sidecars_checked);
         let check_id = Uuid::now_v7();
-        let mut tx = self.pool().begin().await?;
-        let check_row = sqlx::query(
-            r#"INSERT INTO atelier_filesystem_health_check
-                 (check_id, requested_by, scope_label, summary)
-               VALUES ($1, $2, $3, $4)
-               RETURNING check_id, requested_by, scope_label, summary, created_at_utc"#,
-        )
-        .bind(check_id)
-        .bind(requested_by)
-        .bind(&scope_label)
-        .bind(&summary)
-        .fetch_one(&mut *tx)
-        .await?;
-        let check = check_from_row(&check_row);
-
-        let mut findings = Vec::with_capacity(pending.len());
-        for finding in pending {
-            let finding_id = Uuid::now_v7();
-            let row = sqlx::query(
-                r#"INSERT INTO atelier_filesystem_health_finding
-                     (finding_id, check_id, finding_kind, target_type, target_id, details)
-                   VALUES ($1, $2, $3, $4, $5, $6)
-                   RETURNING finding_id, check_id, finding_kind, target_type,
-                             target_id, details, created_at_utc"#,
+        let finding_inserts: Vec<HealthFindingInsert> = pending
+            .iter()
+            .map(|finding| HealthFindingInsert {
+                finding_id: SurrealUuid::from(Uuid::now_v7()),
+                finding_kind: finding.finding_kind.as_token().to_owned(),
+                target_type: finding.target_type.to_owned(),
+                target_id: finding.target_id.clone(),
+                details: finding.details.clone(),
+            })
+            .collect();
+        let bindings = RecordHealthCheckBindings {
+            check_rid: RecordId::new(
+                "atelier_filesystem_health_check",
+                SurrealUuid::from(check_id),
+            ),
+            check_id: SurrealUuid::from(check_id),
+            requested_by: requested_by.to_owned(),
+            scope_label: scope_label.clone(),
+            summary: summary.clone(),
+            findings: finding_inserts,
+        };
+        let outcome: Option<RecordHealthCheckOutcome> = self
+            .write_with_event(
+                RECORD_HEALTH_CHECK_STATEMENT,
+                bindings,
+                filesystem_health_event_family::CHECK_RECORDED,
+                "atelier_filesystem_health_check",
+                &check_id.to_string(),
+                serde_json::json!({
+                    "check_id": check_id,
+                    "requested_by": requested_by,
+                    "scope_label": scope_label,
+                    "summary": summary,
+                    "finding_count": pending.len(),
+                }),
             )
-            .bind(finding_id)
-            .bind(check.check_id)
-            .bind(finding.finding_kind.as_token())
-            .bind(finding.target_type)
-            .bind(&finding.target_id)
-            .bind(&finding.details)
-            .fetch_one(&mut *tx)
             .await?;
-            findings.push(finding_from_row(&row)?);
-        }
-
-        self.record_event_in_tx(
-            &mut tx,
-            filesystem_health_event_family::CHECK_RECORDED,
-            "atelier_filesystem_health_check",
-            &check.check_id.to_string(),
-            serde_json::json!({
-                "check_id": check.check_id,
-                "requested_by": requested_by,
-                "scope_label": scope_label,
-                "summary": check.summary,
-                "finding_count": findings.len(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
+        let outcome = outcome.ok_or_else(|| {
+            AtelierError::Internal(
+                "recording a filesystem health check returned no outcome".to_owned(),
+            )
+        })?;
+        let check: FilesystemHealthCheck = outcome
+            .check
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                AtelierError::Internal(
+                    "recording a filesystem health check returned no check row".to_owned(),
+                )
+            })?
+            .into();
+        let findings = outcome
+            .findings
+            .into_iter()
+            .map(FilesystemHealthFinding::try_from)
+            .collect::<AtelierResult<Vec<_>>>()?;
         Ok(FilesystemHealthReport { check, findings })
     }
 
@@ -336,17 +565,24 @@ impl AtelierStore {
         &self,
         check_id: Uuid,
     ) -> AtelierResult<Vec<FilesystemHealthFinding>> {
-        let rows = sqlx::query(
-            r#"SELECT finding_id, check_id, finding_kind, target_type,
-                      target_id, details, created_at_utc
-               FROM atelier_filesystem_health_finding
-               WHERE check_id = $1
-               ORDER BY finding_kind, target_type, target_id, finding_id"#,
-        )
-        .bind(check_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(finding_from_row).collect()
+        let bindings = CheckRefBinding {
+            check_ref: RecordId::new(
+                "atelier_filesystem_health_check",
+                SurrealUuid::from(check_id),
+            ),
+        };
+        let rows: Vec<HealthFindingRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_HEALTH_FINDINGS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(FilesystemHealthFinding::try_from)
+            .collect()
     }
 }
 
@@ -354,30 +590,28 @@ async fn collect_missing_originals(
     store: &AtelierStore,
     findings: &mut Vec<PendingFilesystemHealthFinding>,
 ) -> AtelierResult<()> {
-    let rows = sqlx::query(
-        r#"SELECT asset_id, content_hash, mime, byte_len, artifact_ref,
-                  artifact_manifest->>'validation_state' AS validation_state
-           FROM atelier_media_asset"#,
-    )
-    .fetch_all(store.pool())
-    .await?;
+    let rows: Vec<MissingOriginalRow> = store
+        .store()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(MISSING_ORIGINALS_STATEMENT, NoBindings {})
+                    .await
+            })
+        })
+        .await?;
     for row in rows {
-        let asset_id: Uuid = row.get("asset_id");
-        let artifact_ref: String = row.get("artifact_ref");
-        let content_hash: String = row.get("content_hash");
-        let mime: String = row.get("mime");
-        let byte_len: i64 = row.get("byte_len");
-        let validation_state = row.get::<Option<String>, _>("validation_state");
-        let issue = validation_state
+        let asset_id: Uuid = row.asset_id.into();
+        let issue = row
+            .validation_state
             .as_deref()
             .filter(|state| *state == "invalid_legacy_artifact_ref")
             .map(|state| format!("artifact_manifest validation_state={state}"))
             .or_else(|| {
                 artifact_payload_health_issue(
-                    &artifact_ref,
-                    Some(&content_hash),
-                    Some(byte_len),
-                    Some(&mime),
+                    &row.artifact_ref,
+                    Some(&row.content_hash),
+                    Some(row.byte_len),
+                    Some(&row.mime),
                     None,
                 )
             });
@@ -390,9 +624,9 @@ async fn collect_missing_originals(
             target_id: asset_id.to_string(),
             details: serde_json::json!({
                 "asset_id": asset_id,
-                "content_hash": content_hash,
-                "artifact_ref": artifact_ref,
-                "validation_state": validation_state,
+                "content_hash": row.content_hash,
+                "artifact_ref": row.artifact_ref,
+                "validation_state": row.validation_state,
                 "artifact_issue": issue,
             }),
         });
@@ -404,67 +638,53 @@ async fn collect_missing_thumbnails(
     store: &AtelierStore,
     findings: &mut Vec<PendingFilesystemHealthFinding>,
 ) -> AtelierResult<()> {
-    let rows = sqlx::query(
-        r#"SELECT a.asset_id, a.content_hash
-           FROM atelier_media_asset a
-           WHERE NOT EXISTS (
-               SELECT 1
-               FROM atelier_media_sidecar s
-               WHERE s.sidecar_asset_id = a.asset_id
-                 AND s.hidden_from_gallery
-           )
-             AND NOT EXISTS (
-               SELECT 1
-               FROM atelier_media_derivative d
-               WHERE d.asset_id = a.asset_id
-                 AND d.derivative_kind = 'thumbnail'
-                 AND d.status = 'generated'
-                 AND d.artifact_ref IS NOT NULL
-           )"#,
-    )
-    .fetch_all(store.pool())
-    .await?;
+    let rows: Vec<AssetHashRow> = store
+        .store()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(ASSETS_MISSING_THUMBNAIL_STATEMENT, NoBindings {})
+                    .await
+            })
+        })
+        .await?;
     for row in rows {
-        let asset_id: Uuid = row.get("asset_id");
+        let asset_id: Uuid = row.asset_id.into();
         findings.push(PendingFilesystemHealthFinding {
             finding_kind: FilesystemHealthFindingKind::MissingThumbnail,
             target_type: "atelier_media_asset",
             target_id: asset_id.to_string(),
             details: serde_json::json!({
                 "asset_id": asset_id,
-                "content_hash": row.get::<String, _>("content_hash"),
+                "content_hash": row.content_hash,
                 "required_derivative_kind": "thumbnail",
             }),
         });
     }
-    let rows = sqlx::query(
-        r#"SELECT d.derivative_id, d.asset_id, d.derivative_kind, d.artifact_ref,
-                  d.artifact_manifest_ref, d.mime, d.byte_len, a.content_hash
-           FROM atelier_media_derivative d
-           JOIN atelier_media_asset a ON a.asset_id = d.asset_id
-           WHERE d.derivative_kind = 'thumbnail'
-             AND d.status = 'generated'
-             AND d.artifact_ref IS NOT NULL"#,
-    )
-    .fetch_all(store.pool())
-    .await?;
+    let rows: Vec<GeneratedThumbnailRow> = store
+        .store()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(GENERATED_THUMBNAILS_STATEMENT, NoBindings {})
+                    .await
+            })
+        })
+        .await?;
     for row in rows {
-        let artifact_ref: String = row.get("artifact_ref");
-        let artifact_manifest_ref: Option<String> = row.get("artifact_manifest_ref");
-        let mime: Option<String> = row.get("mime");
-        let byte_len: Option<i64> = row.get("byte_len");
+        let Some(artifact_ref) = row.artifact_ref.clone() else {
+            continue;
+        };
         let issue = artifact_payload_health_issue(
             &artifact_ref,
             None,
-            byte_len,
-            mime.as_deref(),
-            artifact_manifest_ref.as_deref(),
+            row.byte_len,
+            row.mime.as_deref(),
+            row.artifact_manifest_ref.as_deref(),
         );
         let Some(issue) = issue else {
             continue;
         };
-        let derivative_id: Uuid = row.get("derivative_id");
-        let asset_id: Uuid = row.get("asset_id");
+        let derivative_id: Uuid = row.derivative_id.into();
+        let asset_id: Uuid = row.asset_id.into();
         findings.push(PendingFilesystemHealthFinding {
             finding_kind: FilesystemHealthFindingKind::MissingThumbnail,
             target_type: "atelier_media_derivative",
@@ -472,12 +692,12 @@ async fn collect_missing_thumbnails(
             details: serde_json::json!({
                 "derivative_id": derivative_id,
                 "asset_id": asset_id,
-                "content_hash": row.get::<String, _>("content_hash"),
-                "derivative_kind": row.get::<String, _>("derivative_kind"),
+                "content_hash": row.content_hash,
+                "derivative_kind": row.derivative_kind,
                 "artifact_ref": artifact_ref,
-                "artifact_manifest_ref": artifact_manifest_ref,
-                "mime": mime,
-                "byte_len": byte_len,
+                "artifact_manifest_ref": row.artifact_manifest_ref,
+                "mime": row.mime,
+                "byte_len": row.byte_len,
                 "artifact_issue": issue,
             }),
         });
@@ -489,25 +709,28 @@ async fn collect_inbox_pending(
     store: &AtelierStore,
     findings: &mut Vec<PendingFilesystemHealthFinding>,
 ) -> AtelierResult<()> {
-    let rows = sqlx::query(
-        r#"SELECT item_id, batch_id, source_path, file_name, lane
-           FROM atelier_intake_item
-           WHERE lane IN ('new', 'deferred')"#,
-    )
-    .fetch_all(store.pool())
-    .await?;
+    let rows: Vec<IntakeItemRow> = store
+        .store()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(INBOX_PENDING_STATEMENT, NoBindings {})
+                    .await
+            })
+        })
+        .await?;
     for row in rows {
-        let item_id: Uuid = row.get("item_id");
+        let item_id: Uuid = row.item_id.into();
+        let batch_id: Uuid = row.batch_id.into();
         findings.push(PendingFilesystemHealthFinding {
             finding_kind: FilesystemHealthFindingKind::InboxPending,
             target_type: "atelier_intake_item",
             target_id: item_id.to_string(),
             details: serde_json::json!({
                 "item_id": item_id,
-                "batch_id": row.get::<Uuid, _>("batch_id"),
-                "source_path": row.get::<String, _>("source_path"),
-                "file_name": row.get::<String, _>("file_name"),
-                "lane": row.get::<String, _>("lane"),
+                "batch_id": batch_id,
+                "source_path": row.source_path,
+                "file_name": row.file_name,
+                "lane": row.lane,
             }),
         });
     }
@@ -518,30 +741,28 @@ async fn collect_untracked_originals(
     store: &AtelierStore,
     findings: &mut Vec<PendingFilesystemHealthFinding>,
 ) -> AtelierResult<()> {
-    let rows = sqlx::query(
-        r#"SELECT i.item_id, i.batch_id, i.source_path, i.file_name, i.content_hash
-           FROM atelier_intake_item i
-           WHERE i.content_hash IS NULL
-              OR NOT EXISTS (
-                SELECT 1
-                FROM atelier_media_asset a
-                WHERE a.content_hash = regexp_replace(lower(i.content_hash), '^sha256:', '')
-              )"#,
-    )
-    .fetch_all(store.pool())
-    .await?;
+    let rows: Vec<UntrackedIntakeItemRow> = store
+        .store()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(UNTRACKED_ORIGINALS_STATEMENT, NoBindings {})
+                    .await
+            })
+        })
+        .await?;
     for row in rows {
-        let item_id: Uuid = row.get("item_id");
+        let item_id: Uuid = row.item_id.into();
+        let batch_id: Uuid = row.batch_id.into();
         findings.push(PendingFilesystemHealthFinding {
             finding_kind: FilesystemHealthFindingKind::UntrackedOriginal,
             target_type: "atelier_intake_item",
             target_id: item_id.to_string(),
             details: serde_json::json!({
                 "item_id": item_id,
-                "batch_id": row.get::<Uuid, _>("batch_id"),
-                "source_path": row.get::<String, _>("source_path"),
-                "file_name": row.get::<String, _>("file_name"),
-                "content_hash": row.get::<Option<String>, _>("content_hash"),
+                "batch_id": batch_id,
+                "source_path": row.source_path,
+                "file_name": row.file_name,
+                "content_hash": row.content_hash,
             }),
         });
     }
@@ -616,33 +837,20 @@ async fn collect_untracked_artifactstore_payloads(
                 "artifact://{}/artifact.json",
                 artifact_root_rel(layer, artifact_id)
             );
-            let tracked: bool = sqlx::query_scalar(
-                r#"SELECT
-                       EXISTS (
-                           SELECT 1
-                           FROM atelier_media_asset
-                           WHERE artifact_ref = $1
-                              OR lower(regexp_replace(content_hash, '^sha256:', '')) = $2
-                       )
-                       OR EXISTS (
-                           SELECT 1
-                           FROM atelier_intake_item
-                           WHERE source_path = $1
-                              OR lower(regexp_replace(COALESCE(content_hash, ''), '^sha256:', '')) = $2
-                       )
-                       OR EXISTS (
-                           SELECT 1
-                           FROM atelier_media_derivative
-                           WHERE artifact_ref = $1
-                              OR artifact_manifest_ref = $3
-                       )"#,
-            )
-            .bind(&artifact_ref)
-            .bind(&content_hash)
-            .bind(&artifact_manifest_ref)
-            .fetch_one(store.pool())
-            .await?;
-            if tracked {
+            let bindings = TrackedPayloadBindings {
+                artifact_ref: artifact_ref.clone(),
+                content_hash: content_hash.clone(),
+                artifact_manifest_ref,
+            };
+            let tracked: Option<bool> = store
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(
+                        async move { ctx.query_first(PAYLOAD_TRACKED_STATEMENT, bindings).await },
+                    )
+                })
+                .await?;
+            if tracked.unwrap_or(false) {
                 continue;
             }
             findings.push(PendingFilesystemHealthFinding {
@@ -669,28 +877,30 @@ async fn collect_sidecar_visibility_anomalies(
     store: &AtelierStore,
     findings: &mut Vec<PendingFilesystemHealthFinding>,
 ) -> AtelierResult<()> {
-    let rows = sqlx::query(
-        r#"SELECT sidecar_id, parent_asset_id, sidecar_asset_id, relation_kind,
-                  hidden_from_gallery, searchable_by_relation
-           FROM atelier_media_sidecar
-           WHERE hidden_from_gallery IS DISTINCT FROM TRUE
-              OR searchable_by_relation IS DISTINCT FROM TRUE"#,
-    )
-    .fetch_all(store.pool())
-    .await?;
+    let rows: Vec<SidecarAnomalyRow> = store
+        .store()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(SIDECAR_ANOMALIES_STATEMENT, NoBindings {})
+                    .await
+            })
+        })
+        .await?;
     for row in rows {
-        let sidecar_id: Uuid = row.get("sidecar_id");
+        let sidecar_id: Uuid = row.sidecar_id.into();
+        let parent_asset_id: Uuid = row.parent_asset_id.into();
+        let sidecar_asset_id: Uuid = row.sidecar_asset_id.into();
         findings.push(PendingFilesystemHealthFinding {
             finding_kind: FilesystemHealthFindingKind::SidecarVisibilityAnomaly,
             target_type: "atelier_media_sidecar",
             target_id: sidecar_id.to_string(),
             details: serde_json::json!({
                 "sidecar_id": sidecar_id,
-                "parent_asset_id": row.get::<Uuid, _>("parent_asset_id"),
-                "sidecar_asset_id": row.get::<Uuid, _>("sidecar_asset_id"),
-                "relation_kind": row.get::<String, _>("relation_kind"),
-                "hidden_from_gallery": row.get::<bool, _>("hidden_from_gallery"),
-                "searchable_by_relation": row.get::<bool, _>("searchable_by_relation"),
+                "parent_asset_id": parent_asset_id,
+                "sidecar_asset_id": sidecar_asset_id,
+                "relation_kind": row.relation_kind,
+                "hidden_from_gallery": row.hidden_from_gallery,
+                "searchable_by_relation": row.searchable_by_relation,
             }),
         });
     }

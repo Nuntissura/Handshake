@@ -23,8 +23,9 @@ use super::{
 };
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, BindSpec, Command, ExecResult, NetPolicy,
-    ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    Signal, WINDOWS_NATIVE_JAIL_ADAPTER_ID, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
+    ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits, RestartCleanupOutcome,
+    SandboxAdapter, SandboxAdapterError, Signal, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
+    WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
 };
 
 const FILE_GENERIC_EXECUTE_MASK: u32 = 1_179_808;
@@ -339,6 +340,24 @@ impl SandboxAdapter for WindowsNativeJailAdapter {
             self.ensure_handle(handle)?;
             Err(self.backend_unavailable())
         }
+    }
+
+    async fn cleanup_after_restart(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<RestartCleanupOutcome, SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        if !handle.sandbox_internal_id.starts_with("handshake.mt046.") {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        // Native-jail children are assigned to Job Objects configured with
+        // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (see `job_limits`). This handle is
+        // from a prior backend boot, so Windows has closed the prior boot's last
+        // job handle and terminated its child. No ephemeral process table is
+        // consulted after restart.
+        Ok(RestartCleanupOutcome::AlreadyAbsent)
     }
 
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {

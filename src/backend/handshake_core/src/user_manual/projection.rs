@@ -2,7 +2,7 @@
 //! STABLE selectors so manual pages are provably readable, navigable, and
 //! linkable from product surfaces.
 //!
-//! Two formats (projections only — PostgreSQL rows stay authority):
+//! Two formats (projections only — embedded SurrealDB rows stay authority):
 //! * HTML — semantic structure with `data-hs-manual-*` attributes on every
 //!   addressable element (visual-debug law: stable element identifiers).
 //!   Section bodies are markdown ESCAPED into the HTML (this crate bundles no
@@ -103,7 +103,7 @@ pub fn render_page_markdown(
     out.push_str("---\n\n");
     out.push_str(&format!("# {}\n\n", page.title));
     out.push_str(
-        "This is an on-demand projection. The PostgreSQL UserManual rows remain canonical.\n\n",
+        "This is an on-demand projection. The embedded SurrealDB UserManual rows remain canonical.\n\n",
     );
     for section in sections {
         out.push_str(&format!(

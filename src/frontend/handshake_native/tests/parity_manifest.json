@@ -88,7 +88,7 @@
     "status": "PASS"
   },
   {
-    "backend_api": "N/A (in-process LSP stub, no PG)",
+    "backend_api": "N/A (in-process LSP stub, no SurrealDB)",
     "cluster": "E1",
     "description": "LSP round-trip: send a completion request via the in-process LSP transport stub, receive >= 1 CompletionItem.",
     "feature_id": "E1-09",
@@ -112,7 +112,7 @@
   {
     "backend_api": "POST /knowledge/documents (workspace_id in body), GET /knowledge/documents/{doc_id}",
     "cluster": "E2",
-    "description": "Block document model: create a doc with heading/paragraph/list/table/code-block nodes, serialize to JSON, reload, verify node count + types. (PG-binding via knowledge_documents create/load.)",
+    "description": "Block document model: create a doc with heading/paragraph/list/table/code-block nodes, serialize to JSON, reload, verify node count + types. (SurrealDB-binding via knowledge_documents create/load.)",
     "feature_id": "E2-11",
     "native_impl_fn": "to_content_json_value + from_json_value (BlockNode round-trip) + POST/GET /knowledge/documents",
     "native_impl_module": "handshake_native::rich_editor::document_model",
@@ -145,7 +145,7 @@
   {
     "backend_api": "GET /workspaces/{id}/assets/{asset_id}/content (asset bytes; bare /assets/{id} is metadata JSON)",
     "cluster": "E2",
-    "description": "Embed image: insert an [[HS_images:assetId]] node pointing to a real PG-stored asset; verify embed resolves (GET assets/{asset_id}/content).",
+    "description": "Embed image: insert an [[HS_images:assetId]] node pointing to a real SurrealDB-stored asset; verify embed resolves (GET assets/{asset_id}/content).",
     "feature_id": "E2-14",
     "native_impl_fn": "HsLinkNode (HS_images) + save::export::asset_content_url + GET /assets/{asset_id}/content",
     "native_impl_module": "handshake_native::rich_editor::document_model::node",
@@ -173,7 +173,7 @@
     "native_impl_module": "handshake_native::rich_editor::document_model::node",
     "proof_fn": "parity_transclusion_read_through",
     "react_ref": "app/src/components/LoomTransclusionView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "POST /knowledge/documents, PUT /knowledge/documents/{doc_id}/save (expected_version+content_json)",
@@ -228,7 +228,7 @@
     "native_impl_module": "handshake_native::rich_editor::save::export",
     "proof_fn": "parity_save_to_html",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "PUT /knowledge/documents/{doc_id}/draft (base_doc_version+base_content_sha256+content_json), GET /knowledge/documents/{doc_id}/draft",
@@ -239,7 +239,7 @@
     "native_impl_module": "handshake_native::rich_editor::save::draft_manager",
     "proof_fn": "parity_draft_recovery",
     "react_ref": "app/src/components/DocumentView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/graph/local?start_block_id={id}&max_depth=2",
@@ -283,7 +283,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomFolderClient",
     "proof_fn": "parity_color_labels",
     "react_ref": "app/src/components/LoomWikiPagePanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "POST/GET /workspaces/{id}/loom/blocks (tag edges) + tag hub",
@@ -294,7 +294,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomTagClient",
     "proof_fn": "parity_tags_and_hubs",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "PUT /workspaces/{id}/loom/blocks/{block_id}/pin-order, GET /workspaces/{id}/loom/views/pins",
@@ -305,7 +305,7 @@
     "native_impl_module": "handshake_native::backend_client::DrawerActionClient + LoomSidebarClient",
     "proof_fn": "parity_pins",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/blocks/{block_id}/backlinks",
@@ -338,7 +338,7 @@
     "native_impl_module": "handshake_native::graph::sidebar_panel::LoomSidebarPanel",
     "proof_fn": "parity_breadcrumbs",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "GET /workspaces/{id}/loom/wiki/{projection_id} (rendered_content)",
@@ -382,7 +382,7 @@
     "native_impl_module": "handshake_native::backend_client::BlockViewClient",
     "proof_fn": "parity_block_collection_kanban",
     "react_ref": "app/src/components/BlockCollectionView.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/views/definitions/{block_id}/results",
@@ -426,7 +426,7 @@
     "native_impl_module": "handshake_native::loom_search_v2::LoomSearchV2PanelState",
     "proof_fn": "parity_semantic_search",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/search-v2",
@@ -437,7 +437,7 @@
     "native_impl_module": "handshake_native::backend_client::LoomSearchV2Client + loom_search_v2",
     "proof_fn": "parity_faceted_filter",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "POST /workspaces/{id}/loom/views/definitions",
@@ -459,7 +459,7 @@
     "native_impl_module": "handshake_native::find_in_files",
     "proof_fn": "parity_find_in_files",
     "react_ref": "app/src/components/FindReplacePanel.tsx",
-    "status": "REQUIRES_PG"
+    "status": "REQUIRES_SURREALDB"
   },
   {
     "backend_api": "POST/GET /workspaces/{id}/loom/quick-switcher/recents",

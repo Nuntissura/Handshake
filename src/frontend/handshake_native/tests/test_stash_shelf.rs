@@ -11,7 +11,7 @@
 //!
 //! The headless shell has no tokio runtime, so the cards stay in their pre-fetch state (badge 0) — these
 //! tests prove rendering / ids / roles / click routing, NOT live backend data. Live backend data is
-//! PROOF-023-3 (an `#[ignore]` integration test enabled with a real PG URL).
+//! PROOF-023-3 (an `#[ignore]` integration test enabled with a real SurrealDB URL).
 
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;

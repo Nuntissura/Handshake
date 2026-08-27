@@ -203,7 +203,7 @@ fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
     let workspace = build_workspace();
 
     // ---- Pre-restart store: build the full chain ----
-    let mut pre_store = InMemoryKb003Storage::new_postgres_primary();
+    let mut pre_store = InMemoryKb003Storage::new_surreal_primary();
     let (run, policy, _vr, _dec, _receipt) = build_chain_in_storage(&mut pre_store, &workspace);
     let policy_version_id = policy.version_id();
     let run_id = run.run_id.0.clone();
@@ -219,7 +219,7 @@ fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
     let snapshot_receipts = pre_store.promotion_receipts.clone();
 
     // ---- "Restart": move the snapshots into a brand-new store ----
-    let mut post_store = InMemoryKb003Storage::new_postgres_primary();
+    let mut post_store = InMemoryKb003Storage::new_surreal_primary();
     post_store.sandbox_runs = snapshot_runs;
     post_store.policies = snapshot_policies;
     post_store.validation_runs = snapshot_validations;
@@ -271,7 +271,7 @@ fn replay_uses_only_durable_rows_no_session_state() {
     // be reconstructed purely from the durable row vectors. This guards
     // MT-016's "no provider chat / terminal scrollback / transient log" rule.
     let workspace = build_workspace();
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let (run, policy, _vr, _dec, _receipt) = build_chain_in_storage(&mut store, &workspace);
     let run_id = run.run_id.0.clone();
     let policy_version_id = policy.version_id();
@@ -285,7 +285,7 @@ fn replay_uses_only_durable_rows_no_session_state() {
     drop(store);
 
     // Rebuild a fresh store from the snapshots only.
-    let mut fresh = InMemoryKb003Storage::new_postgres_primary();
+    let mut fresh = InMemoryKb003Storage::new_surreal_primary();
     fresh.sandbox_runs = runs;
     fresh.policies = policies;
     fresh.validation_runs = validations;

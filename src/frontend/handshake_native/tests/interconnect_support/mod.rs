@@ -11,7 +11,7 @@
 //! - [`require_reachable_backend`] / [`require_live_backend`] / [`LiveBackend`] — managed product-backend
 //!   fixture. It attaches to a healthy root-managed process or starts an already-built executable, then
 //!   creates/deletes an owned workspace through production HTTP. It never invokes Cargo, accepts no
-//!   operator-preseeded ids, uses no SQLite/mock substitute, and only stops a process it started.
+//!   operator-preseeded ids, uses no alternate local store/mock substitute, and only stops a process it started.
 //! - [`assert_no_local_artifact_dir`] — CX-212E hygiene guard (checks `test_output/` AND
 //!   `tests/screenshots/`); a tracked artifact under `src/` is a hygiene FAILURE.
 //! - [`author_ids`] / [`author_node_value`] — AccessKit tree readers for the in-process substrate proofs.
@@ -325,7 +325,7 @@ fn write_entry(
 
 /// Supervisor-declared identity of the embedded SurrealDB store this canonical run is bound to.
 ///
-/// This REPLACES `HSK_MT046_POSTGRES_IDENTITY`: there is no DSN any more, so the supervisor declares
+/// This REPLACES `HSK_MT046_SURREALDB_IDENTITY`: there is no external database connection string, so the supervisor declares
 /// the store root it allocated for the run and the scenario receipts bind to that instead. The
 /// matching `provenance.store.identity` key in the supervisor-owned `current-run.json` moves with it.
 const MT046_STORE_IDENTITY_ENV: &str = "HSK_MT046_STORE_IDENTITY";
@@ -714,30 +714,30 @@ pub fn author_node_value<S>(harness: &Harness<'_, S>, author_id: &str) -> Option
 
 // ── Real managed backend fixture (shared with parity/performance proofs) ────────────────────────────
 
-#[path = "../pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "../backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 #[allow(unused_imports)]
 // Each integration test crate consumes a different fixture entrypoint.
-pub use pg_proof_support::DEFAULT_BASE;
+pub use backend_proof_support::DEFAULT_BASE;
 
 /// WP-KERNEL-012 MT-115: the canonical MT-111 Flight Recorder credential helpers, re-exported so a
 /// suite that consumes this fixture through `interconnect_support` presents the SAME genuine
-/// native-MCP binding as `pg_proof_support`'s direct consumers. MT-109 made the whole flight-recorder
+/// native-MCP binding as `backend_proof_support`'s direct consumers. MT-109 made the whole flight-recorder
 /// route group fail-closed (`401 HSK-401-FR-SESSION`), and a 401 is indistinguishable from "the
 /// recorder is empty", so there must be exactly one credential mechanism, never a second one.
 #[allow(unused_imports)]
-pub use pg_proof_support::{
+pub use backend_proof_support::{
     live_flight_recorder_session_token, RealNativeMcpBinding, NATIVE_BINDING_APP_DATA_ENV,
 };
 
 pub struct LiveBackend {
-    inner: pg_proof_support::LiveBackend,
+    inner: backend_proof_support::LiveBackend,
     cleanup_complete: bool,
 }
 
 impl std::ops::Deref for LiveBackend {
-    type Target = pg_proof_support::LiveBackend;
+    type Target = backend_proof_support::LiveBackend;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -804,7 +804,7 @@ impl Drop for LiveBackend {
 /// ownership receipt while the child is live. The supervisor independently binds this receipt to the
 /// exact test process, backend binary, embedded-store identity, and retained runtime diagnostics.
 pub fn require_live_backend() -> LiveBackend {
-    let backend = pg_proof_support::require_live_backend();
+    let backend = backend_proof_support::require_live_backend();
     publish_owned_backend_binding_receipt(&backend);
     LiveBackend {
         inner: backend,
@@ -813,7 +813,7 @@ pub fn require_live_backend() -> LiveBackend {
 }
 
 pub fn require_reachable_backend() -> LiveBackend {
-    let backend = pg_proof_support::require_reachable_backend();
+    let backend = backend_proof_support::require_reachable_backend();
     publish_owned_backend_binding_receipt(&backend);
     LiveBackend {
         inner: backend,
@@ -821,7 +821,7 @@ pub fn require_reachable_backend() -> LiveBackend {
     }
 }
 
-fn publish_owned_backend_binding_receipt(backend: &pg_proof_support::LiveBackend) {
+fn publish_owned_backend_binding_receipt(backend: &backend_proof_support::LiveBackend) {
     if std::env::var("HSK_MT046_CANONICAL").as_deref() != Ok("1") {
         return;
     }
@@ -1034,21 +1034,11 @@ pub fn event_ledger_payload(
 /// (`api::loom::list_loom_ai_suggestions`, which returns `Vec<LoomAiSuggestionRow>`).
 ///
 /// * `suggestion_rows` is the exact number of Loom AI suggestion rows the product reports for the
-///   workspace — the direct replacement for `SELECT COUNT(*) FROM loom_ai_suggestions`.
-/// * `recorded_event_rows` counts those rows that carry a non-empty `recorded_event_id`, i.e. rows
-///   bound to an `AI_EDIT_PROPOSAL_RECORDED` EventLedger append. This is WEAKER than the SQL join it
-///   replaces: it proves the suggestion claims a recorded event, not that the ledger row exists,
-///   because the only EventLedger read route is aggregate-scoped and this residue check has no
-///   aggregate id to name. Recorded as a known gap, not silently equated to the old join.
-///
-/// GAP — NO HTTP ROUTE: the PostgreSQL version also counted, across the WHOLE ledger,
-/// `AI_EDIT_PROPOSAL_RECORDED` rows emitted by `source_component = 'loom_ai_job'` for
-/// `session_run_id = 'wp-kernel-012-native-proof-session'` (`fixture_session_recorded_events`). That
-/// caught an ORPHAN append: an event written without a suggestion row, which no workspace-scoped
-/// route can see. The backend exposes no route that lists kernel events by event_type,
-/// source_component, or session_run_id, so the check CANNOT be performed over HTTP. The field is
-/// removed rather than stubbed, so every caller fails to compile instead of silently losing the
-/// assertion. Restoring it requires a backend read surface for session-scoped kernel events.
+///   workspace — the direct replacement for the former authority-table count predicate.
+/// * `recorded_event_rows` counts only rows whose non-empty `recorded_event_id` resolves through the
+///   product's aggregate-event route under that exact `loom_ai_suggestion/{suggestion_id}` identity
+///   and carries the `AI_EDIT_PROPOSAL_RECORDED` type. This preserves the former join strength without
+///   direct store access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoomAiResidueCounts {
     pub suggestion_rows: i64,
@@ -1071,9 +1061,30 @@ pub fn loom_ai_residue_counts(backend: &LiveBackend, workspace_id: &str) -> Loom
     let recorded_event_rows = rows
         .iter()
         .filter(|row| {
-            row.get("recorded_event_id")
+            let Some(suggestion_id) = row
+                .get("suggestion_id")
                 .and_then(serde_json::Value::as_str)
-                .is_some_and(|id| !id.trim().is_empty())
+                .filter(|id| !id.trim().is_empty())
+            else {
+                return false;
+            };
+            let Some(event_id) = row
+                .get("recorded_event_id")
+                .and_then(serde_json::Value::as_str)
+                .filter(|id| !id.trim().is_empty())
+            else {
+                return false;
+            };
+            let event = event_ledger_payload(
+                backend,
+                "loom_ai_suggestion",
+                suggestion_id,
+                event_id,
+            );
+            event.get("_event_type").and_then(serde_json::Value::as_str)
+                == Some("AI_EDIT_PROPOSAL_RECORDED")
+                && event.get("_aggregate_id").and_then(serde_json::Value::as_str)
+                    == Some(suggestion_id)
         })
         .count();
     LoomAiResidueCounts {
@@ -1081,4 +1092,25 @@ pub fn loom_ai_residue_counts(backend: &LiveBackend, workspace_id: &str) -> Loom
         recorded_event_rows: i64::try_from(recorded_event_rows)
             .expect("recorded event row count fits i64"),
     }
+}
+
+/// The typed no-model response is containment-safe only while every model call completes before the
+/// second pass can append a kernel event. This source guard complements the live zero-suggestion read:
+/// a future refactor that moves an append into the model pass fails this proof before it can reintroduce
+/// an orphan ledger write that has no workspace-scoped suggestion row.
+pub fn assert_loom_ai_no_model_write_containment() {
+    let source = include_str!("../../../../backend/handshake_core/src/loom_ai/mod.rs");
+    let no_model_return = source
+        .find("return Err(LoomAiJobError::NoModel")
+        .expect("Loom AI flow retains its typed no-model return");
+    let second_pass = source
+        .find("Second pass: persist each suggestion + its recorded event")
+        .expect("Loom AI flow retains its post-model persistence pass");
+    let append = source
+        .find(".append_kernel_event(event)")
+        .expect("Loom AI persistence pass retains its typed event append");
+    assert!(
+        no_model_return < second_pass && second_pass < append,
+        "typed no-model return must precede the second-pass kernel event append"
+    );
 }

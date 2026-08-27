@@ -14,7 +14,7 @@
 //!   REAL AccessKit subtree is present (NOT a placeholder node), and saves a wgpu screenshot of the mounted
 //!   secondary panes to the EXTERNAL artifact root.
 //! - PT-080-B / AC-080-2: `canvas_resize_event_routes_to_host` enqueues a `CanvasEvent::ResizePlacement` on
-//!   the SAME mounted board and asserts the host drains it (the event->host PATCH path fires; the live PG
+//!   the SAME mounted board and asserts the host drains it (the event->host PATCH path fires; the live SurrealDB
 //!   round-trip is gated NEEDS_MANAGED_RESOURCE_PROOF).
 //! - PT-080-B / AC-080-3: `graph_depth_changed_requeries_with_new_backlink_depth` proves the depth-
 //!   parameterized graph-search builder carries the new backlink_depth, and that a `DepthChanged` enqueued
@@ -317,7 +317,7 @@ fn canvas_resize_event_routes_to_host() {
     // Enqueue a ResizePlacement the way a resize drag-stop would, on the SAME mounted board's outbound
     // queue, then run a live frame: the shell drains it (drive_secondary_mounts -> route_canvas_events)
     // and maps it to the EXISTING CanvasBoardClient PATCH + board re-fetch. After the frame the queue is
-    // empty (drained) — the event reached the host path (the live PG round-trip is gated).
+    // empty (drained) — the event reached the host path (the live SurrealDB round-trip is gated).
     canvas_events
         .lock()
         .unwrap()
@@ -2534,7 +2534,7 @@ fn canvas_clear_group_sends_backend_accepted_clear_body() {
 /// assertion alone cannot distinguish "routed to a real dispatch" from "swallowed by the catch-all",
 /// which is exactly the defect this proof pins. The RemoveEdge split is proven on the SAME mounted
 /// board the host reads: a seeded board-local visual-edge id routes to the visual-edge DELETE, an
-/// unknown id to the semantic loom-edge DELETE (both dispatch — 2 cells). The live PG round-trips stay
+/// unknown id to the semantic loom-edge DELETE (both dispatch — 2 cells). The live SurrealDB round-trips stay
 /// NEEDS_MANAGED_RESOURCE_PROOF; the URL/body shapes are pinned by the `test_canvas_board` builder
 /// proofs the host routes through.
 #[test]
@@ -3960,7 +3960,7 @@ fn loom_block_and_kernel_dcc_navigation_is_not_hijacked() {
 /// authoritative refreshed pin absence OR terminal typed failure plus the original pin preserved;
 /// target disappearance alone must never count as success". The success branch is proven by
 /// `test_sidebar_panel_argus::mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve` against
-/// real PostgreSQL. This proof owns the FAILING branch: a real backend write failure must
+/// real SurrealDB. This proof owns the FAILING branch: a real backend write failure must
 ///   * roll the optimistically removed pin back into the mounted list (the original pin preserved),
 ///   * leave the exact `sidebar.pin.{id}.remove` control mounted, and
 ///   * publish a TERMINAL typed `failed` completion carrying the same authoritative operation-receipt

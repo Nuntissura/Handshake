@@ -65,7 +65,7 @@ impl TraceProjection {
         Ok(Self {
             kernel_task_run_id,
             session_run_id,
-            authority_source: "postgres_event_ledger".to_string(),
+            authority_source: super::SURREAL_EVENT_LEDGER_AUTHORITY_SOURCE.to_string(),
             event_count: events.len(),
             events,
         })

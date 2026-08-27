@@ -1,9 +1,9 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{collections::HashSet, net::SocketAddr, sync::Arc};
 
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use handshake_core::{
@@ -11,18 +11,18 @@ use handshake_core::{
     capabilities::CapabilityRegistry,
     flight_recorder::duckdb::DuckDbFlightRecorder,
     llm::DisabledLlmClient,
-    managed_postgres::{ManagedPostgres, ManagedPostgresConfig, ManagedPostgresError},
     storage::{
-        postgres::PostgresDatabase, Database, LoomBlockContentType, LoomBlockDerived, NewLoomBlock,
-        NewWorkspace, WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID,
+        surreal::SurrealDatabase,
+        tests::{embedded_test_backend, EmbeddedTestBackend},
+        Database, LoomBlockContentType, LoomBlockDerived, NewLoomBlock, NewWorkspace, WriteContext,
+        LOOM_CANVAS_BOARD_SCHEMA_ID,
     },
     workflows::{SessionRegistry, SessionSchedulerConfig},
     AppState,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{Connection, Row};
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::watch};
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
@@ -59,6 +59,12 @@ struct ProofResponse {
     board_has_event_receipt: bool,
 }
 
+#[derive(Clone)]
+struct FixtureState {
+    app: AppState,
+    workspace_id: String,
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(error) = run().await {
@@ -68,17 +74,40 @@ async fn main() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(base_url) = base_database_url().await? else {
-        println!("MT261_FIXTURE_SKIP PostgreSQL binaries not found");
-        return Ok(());
-    };
-    let schema_url = isolated_schema_url(&base_url).await?;
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
+    let backend = embedded_test_backend().await?;
+    let body_result = run_server(&backend).await;
+    let cleanup_result = backend.close_and_remove().await;
+
+    match (body_result, cleanup_result) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(body_error), Ok(())) => Err(body_error),
+        (Ok(()), Err(cleanup_error)) => Err(Box::new(cleanup_error)),
+        (Err(body_error), Err(cleanup_error)) => Err(std::io::Error::other(format!(
+            "fixture body failed: {body_error}; embedded-store cleanup also failed: {cleanup_error}"
+        ))
+        .into()),
+    }
+}
+
+async fn run_server(backend: &EmbeddedTestBackend) -> Result<(), Box<dyn std::error::Error>> {
+    let db = SurrealDatabase::new(backend.storage.clone());
 
     let (workspace_id, canvas_block_id, blocks) = seed_fixture(&db).await?;
-    let state = app_state_for(&schema_url).await?;
-    let app = app_router(state);
+    let state = app_state_for(backend)?;
+    let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
+    let app = app_router(FixtureState {
+        app: state,
+        workspace_id: workspace_id.clone(),
+    })
+    .route(
+        "/__fixture/shutdown",
+        post(move || {
+            let shutdown_tx = shutdown_tx.clone();
+            async move {
+                let _ = shutdown_tx.send(true);
+            }
+        }),
+    );
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await?;
     let addr = listener.local_addr()?;
 
@@ -90,62 +119,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     println!("MT261_FIXTURE_READY {}", serde_json::to_string(&ready)?);
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            loop {
+                if *shutdown_rx.borrow_and_update() {
+                    break;
+                }
+                if shutdown_rx.changed().await.is_err() {
+                    break;
+                }
+            }
+        })
+        .await?;
     Ok(())
 }
 
-async fn base_database_url() -> Result<Option<String>, Box<dyn std::error::Error>> {
-    for var in ["POSTGRES_TEST_URL", "DATABASE_URL"] {
-        if let Some(url) = std::env::var(var)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-        {
-            return Ok(Some(url));
-        }
-    }
-    match ManagedPostgres::ensure_running(ManagedPostgresConfig::from_env()).await {
-        Ok(managed) => Ok(Some(managed.database_url())),
-        Err(ManagedPostgresError::BinariesNotFound(detail)) => {
-            eprintln!("SKIP MT-261 fixture: PostgreSQL binaries not found ({detail})");
-            Ok(None)
-        }
-        Err(error) => Err(Box::new(error)),
-    }
-}
-
-async fn isolated_schema_url(base_url: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let schema = format!("mt261_loom_canvas_{}", Uuid::now_v7().simple());
-    let mut conn = sqlx::PgConnection::connect(base_url).await?;
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    sqlx::query("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public")
-        .execute(&mut conn)
-        .await?;
-    for shim in [
-        format!(
-            r#"
-            CREATE OR REPLACE FUNCTION {schema}.digest(input text, algorithm text)
-            RETURNS bytea LANGUAGE SQL IMMUTABLE PARALLEL SAFE
-            AS $$ SELECT public.digest(input::bytea, algorithm) $$
-            "#
-        ),
-        format!(
-            r#"
-            CREATE OR REPLACE FUNCTION {schema}.digest(input bytea, algorithm text)
-            RETURNS bytea LANGUAGE SQL IMMUTABLE PARALLEL SAFE
-            AS $$ SELECT public.digest(input, algorithm) $$
-            "#
-        ),
-    ] {
-        sqlx::query(&shim).execute(&mut conn).await?;
-    }
-    let sep = if base_url.contains('?') { "&" } else { "?" };
-    Ok(format!("{base_url}{sep}options=-csearch_path%3D{schema}"))
-}
-
 async fn seed_fixture(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
 ) -> Result<(String, String, Vec<SeedBlock>), Box<dyn std::error::Error>> {
     let ctx = WriteContext::human(None);
     let workspace = db
@@ -226,15 +216,11 @@ async fn seed_fixture(
     Ok((workspace_id, canvas.block_id, blocks))
 }
 
-async fn app_state_for(schema_url: &str) -> Result<AppState, Box<dyn std::error::Error>> {
-    let storage = PostgresDatabase::connect(schema_url, 5).await?.into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await?;
+fn app_state_for(backend: &EmbeddedTestBackend) -> Result<AppState, Box<dyn std::error::Error>> {
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     Ok(AppState {
-        storage,
+        storage: backend.database.clone(),
+        surreal: backend.storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(DisabledLlmClient::new(
@@ -243,16 +229,15 @@ async fn app_state_for(schema_url: &str) -> Result<AppState, Box<dyn std::error:
         )),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     })
 }
 
-fn app_router(state: AppState) -> Router {
+fn app_router(state: FixtureState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
-    let api_routes = api::routes(state.clone());
+    let api_routes = api::routes(state.app.clone());
     Router::new()
         .route("/health", get(|| async { Json(json!({"status": "ok"})) }))
         .route("/mt261-fixture/proof", get(fixture_proof))
@@ -263,82 +248,64 @@ fn app_router(state: AppState) -> Router {
 }
 
 async fn fixture_proof(
-    State(state): State<AppState>,
+    State(state): State<FixtureState>,
     Query(query): Query<ProofQuery>,
 ) -> Result<Json<ProofResponse>, (StatusCode, String)> {
-    let pool = state.postgres_pool.clone();
     let canvas_id = query.canvas_block_id;
-
-    let canvas_content_type: String = sqlx::query(
-        "SELECT content_type FROM loom_blocks WHERE block_id = $1",
-    )
-    .bind(&canvas_id)
-    .fetch_one(&pool)
-    .await
-    .map_err(internal)?
-    .get("content_type");
-
-    let placed_rows = sqlx::query(
-        r#"
-        SELECT p.placed_block_id
-        FROM loom_canvas_placements p
-        JOIN loom_blocks b ON b.block_id = p.placed_block_id
-        WHERE p.canvas_block_id = $1
-        ORDER BY p.created_at ASC
-        "#,
-    )
-    .bind(&canvas_id)
-    .fetch_all(&pool)
-    .await
-    .map_err(internal)?;
-    let placed_blocks_present = placed_rows
+    let block = state
+        .app
+        .storage
+        .get_loom_block(&state.workspace_id, &canvas_id)
+        .await
+        .map_err(internal)?;
+    let board = state
+        .app
+        .storage
+        .get_canvas_board(&state.workspace_id, &canvas_id)
+        .await
+        .map_err(internal)?;
+    let placed_ids = board
+        .placements
         .iter()
-        .map(|r| r.get::<String, _>("placed_block_id"))
-        .collect();
-
-    // Semantic edges connecting two blocks that are both placed on this canvas.
-    let semantic_edge_count: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM loom_edges e
-        WHERE e.source_block_id IN (
-                SELECT placed_block_id FROM loom_canvas_placements WHERE canvas_block_id = $1)
-          AND e.target_block_id IN (
-                SELECT placed_block_id FROM loom_canvas_placements WHERE canvas_block_id = $1)
-        "#,
-    )
-    .bind(&canvas_id)
-    .fetch_one(&pool)
-    .await
-    .map_err(internal)?;
-
-    let visual_edge_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_canvas_visual_edges WHERE canvas_block_id = $1",
-    )
-    .bind(&canvas_id)
-    .fetch_one(&pool)
-    .await
-    .map_err(internal)?;
-
-    let board_has_event_receipt: bool = sqlx::query_scalar(
-        r#"
-        SELECT EXISTS (
-            SELECT 1 FROM loom_canvas_boards b
-            JOIN kernel_event_ledger k ON k.event_id = b.event_ledger_event_id
-            WHERE b.block_id = $1
-        )
-        "#,
-    )
-    .bind(&canvas_id)
-    .fetch_one(&pool)
-    .await
-    .map_err(internal)?;
+        .map(|placement| placement.placed_block_id.as_str())
+        .collect::<HashSet<_>>();
+    let mut placed_blocks_present = Vec::with_capacity(board.placements.len());
+    let mut semantic_edge_count = 0i64;
+    for placement in &board.placements {
+        state
+            .app
+            .storage
+            .get_loom_block(&state.workspace_id, &placement.placed_block_id)
+            .await
+            .map_err(internal)?;
+        placed_blocks_present.push(placement.placed_block_id.clone());
+    }
+    for placed_block_id in &placed_ids {
+        semantic_edge_count += state
+            .app
+            .storage
+            .get_outgoing_edges(&state.workspace_id, placed_block_id)
+            .await
+            .map_err(internal)?
+            .into_iter()
+            .filter(|edge| placed_ids.contains(edge.target_block_id.as_str()))
+            .count() as i64;
+    }
+    let receipt_events = state
+        .app
+        .storage
+        .list_kernel_events_for_aggregate("loom_canvas_board", &canvas_id)
+        .await
+        .map_err(internal)?;
+    let board_has_event_receipt = receipt_events
+        .iter()
+        .any(|event| event.event_id == board.board.event_ledger_event_id);
 
     Ok(Json(ProofResponse {
-        canvas_content_type,
+        canvas_content_type: block.content_type.as_str().to_owned(),
         placed_blocks_present,
         semantic_edge_count,
-        visual_edge_count,
+        visual_edge_count: board.visual_edges.len() as i64,
         board_has_event_receipt,
     }))
 }

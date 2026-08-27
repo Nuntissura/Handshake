@@ -5,7 +5,7 @@
 //! FEMS read route SHIPPED in MT-109 (`GET /workspaces/{id}/memory/pack`, returning the real
 //! `ace::MemoryPack`, or a 200 EMPTY pack when none is stored), so a successful decode is the production
 //! primary path and the 404 typed-blocker is a genuine fallback. The end-to-end fetch against the LIVE
-//! managed-PG MT-109 route is `NEEDS_MANAGED_RESOURCE_PROOF` and not asserted here (no backend started).
+//! managed-SurrealDB MT-109 route is `NEEDS_MANAGED_RESOURCE_PROOF` and not asserted here (no backend started).
 //!
 //! INTEROP PROOF: `golden_backend_ace_pack_decodes_with_live_provenance` loads the backend's OWN FEMS
 //! item serialization (`src/backend/.../fixtures/memory_capsule_e2e/sample_fems_items.json`,
@@ -711,7 +711,7 @@ fn read_only_no_write_verbs() {
         src.contains(".client"),
         "RISK-006/MC-005: the GET must go through the struct's shared reqwest client field"
     );
-    // No direct store access (no sqlx / postgres / sqlite handle in the consumer).
+    // No direct store access. The literals below are deliberate dependency-detector tripwires.
     for store in [
         "sqlx::",
         "PgPool",

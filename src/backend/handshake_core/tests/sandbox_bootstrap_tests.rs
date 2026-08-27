@@ -2,11 +2,12 @@ use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use handshake_core::sandbox::{
-    build_registry_from_adapters, AdapterCapabilities, AdapterId, BindMode, Command, ExecResult,
-    GpuPassthrough, IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec,
-    ProcessStatus, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
-    WindowsNativeJailAdapter, DOCKER_ADAPTER_ID, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
-    WSL2_PODMAN_ADAPTER_ID,
+    build_registry_from_adapters, build_startup_recovery_registry_from_adapters,
+    AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
+    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, WindowsNativeJailAdapter,
+    CLOUD_HYPERVISOR_ADAPTER_ID, DOCKER_ADAPTER_ID, GVISOR_ADAPTER_ID,
+    WINDOWS_NATIVE_JAIL_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
 };
 
 #[derive(Debug, Clone)]
@@ -178,12 +179,9 @@ fn sandbox_bootstrap_tests_zero_adapters_boot_empty_and_fail_closed_on_selection
     // longer hard-fails bootstrap. Fail-closed moves to the selection boundary:
     // the registry boots empty and resolving the default adapter yields None,
     // so any sandbox job selection fails closed.
-    let registry = build_registry_from_adapters(
-        AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
-        Vec::new(),
-        false,
-    )
-    .expect("zero adapters must not block app startup (no outside-app dependency)");
+    let registry =
+        build_registry_from_adapters(AdapterId::new(WSL2_PODMAN_ADAPTER_ID), Vec::new(), false)
+            .expect("zero adapters must not block app startup (no outside-app dependency)");
 
     assert!(registry.list().is_empty());
     assert_eq!(
@@ -193,6 +191,92 @@ fn sandbox_bootstrap_tests_zero_adapters_boot_empty_and_fail_closed_on_selection
     assert!(
         registry.get(registry.default_adapter_id()).is_none(),
         "selecting the default adapter from an empty registry must fail closed"
+    );
+}
+
+#[test]
+fn startup_recovery_registry_accepts_docker_only_for_exact_lookup() {
+    assert_explicit_only_recovery_registry(docker_caps());
+}
+
+#[test]
+fn startup_recovery_registry_accepts_windows_native_only_for_exact_lookup() {
+    assert_explicit_only_recovery_registry(windows_native_jail_caps());
+}
+
+#[test]
+fn startup_recovery_registry_accepts_gvisor_only_for_exact_lookup() {
+    assert_explicit_only_recovery_registry(explicit_only_caps(
+        GVISOR_ADAPTER_ID,
+        IsolationTier::Tier2Syscall,
+    ));
+}
+
+#[test]
+fn startup_recovery_registry_accepts_cloud_hypervisor_only_for_exact_lookup() {
+    assert_explicit_only_recovery_registry(explicit_only_caps(
+        CLOUD_HYPERVISOR_ADAPTER_ID,
+        IsolationTier::Tier3Microvm,
+    ));
+}
+
+#[test]
+fn ordinary_bootstrap_still_refuses_isolation_tier_only_default_fallbacks() {
+    for capabilities in [
+        explicit_only_caps(GVISOR_ADAPTER_ID, IsolationTier::Tier2Syscall),
+        explicit_only_caps(CLOUD_HYPERVISOR_ADAPTER_ID, IsolationTier::Tier3Microvm),
+    ] {
+        let explicit_only_id = capabilities.adapter_id.clone();
+        let error = match build_registry_from_adapters(
+            AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+            vec![adapter(capabilities)],
+            false,
+        ) {
+            Ok(registry) => panic!(
+                "{explicit_only_id} must not become execution default, selected {}",
+                registry.default_adapter_id()
+            ),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(
+                &error,
+                SandboxAdapterError::AdapterUnavailable { reason, .. }
+                    if reason.contains("no implicit default sandbox adapter")
+            ),
+            "unexpected {explicit_only_id} bootstrap result: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn startup_recovery_registry_accepts_empty_available_adapter_set() {
+    let registry = build_startup_recovery_registry_from_adapters(Vec::new(), false);
+
+    assert!(registry.list().is_empty());
+    assert_eq!(
+        registry.default_adapter_id(),
+        &AdapterId::new(WSL2_PODMAN_ADAPTER_ID)
+    );
+    assert!(registry.get(registry.default_adapter_id()).is_none());
+}
+
+fn assert_explicit_only_recovery_registry(capabilities: AdapterCapabilities) {
+    let expected_id = capabilities.adapter_id.clone();
+    let registry =
+        build_startup_recovery_registry_from_adapters(vec![adapter(capabilities)], false);
+
+    assert_eq!(registry.list().len(), 1);
+    assert_eq!(registry.list()[0].adapter_id, expected_id);
+    assert!(
+        registry.get(&expected_id).is_some(),
+        "recovery must retain exact lookup for {expected_id}"
+    );
+    assert_eq!(
+        registry.default_adapter_id(),
+        &AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+        "recovery lookup must not promote {expected_id} to execution default"
     );
 }
 
@@ -240,4 +324,23 @@ fn docker_caps() -> AdapterCapabilities {
 
 fn windows_native_jail_caps() -> AdapterCapabilities {
     WindowsNativeJailAdapter::target_capability_contract()
+}
+
+fn explicit_only_caps(adapter_id: &str, isolation_tier: IsolationTier) -> AdapterCapabilities {
+    AdapterCapabilities {
+        adapter_id: AdapterId::new(adapter_id),
+        runtime_available: true,
+        filesystem_isolation_strength: IsolationStrength::Strong,
+        network_isolation_strength: IsolationStrength::Strong,
+        gpu_passthrough: GpuPassthrough::None,
+        stdio_throughput_class: ThroughputClass::High,
+        win32_native_fidelity: false,
+        cross_machine_portable: true,
+        isolation_tier,
+        requires_nested_virt: matches!(isolation_tier, IsolationTier::Tier3Microvm),
+        supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
+    }
 }

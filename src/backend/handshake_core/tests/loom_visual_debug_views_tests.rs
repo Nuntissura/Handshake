@@ -166,7 +166,7 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
 
     assert_eq!(snapshot.schema_id, LOOM_VISUAL_DEBUG_SCHEMA_ID);
     assert_eq!(snapshot.authority_class, "projection");
-    assert_eq!(snapshot.authority_backend.as_str(), "postgres_event_ledger");
+    assert_eq!(snapshot.authority_backend.as_str(), "surreal_event_ledger");
     assert_eq!(snapshot.start_block_id, start_block_id);
     assert_eq!(snapshot.search.query, "VisualDebugAlpha");
 

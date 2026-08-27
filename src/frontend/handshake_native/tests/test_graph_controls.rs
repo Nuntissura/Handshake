@@ -16,7 +16,7 @@
 //!   `graph.orphan.toggle`, `graph.size.degree`, `graph.controls.toggle`, and >=1 `graph.group.{key}`.
 //! - PROOF5 (AC7/AC8): a request-log harness performs search + enable-group + toggle-orphans +
 //!   toggle-size and asserts ZERO HTTP requests across all four (only DepthChanged would touch the
-//!   backend). The whole MT adds NO new route string and NO SQLite (asserted by an in-crate grep test too).
+//!   backend). The whole MT adds NO new route string and NO alternate local store (asserted by an in-crate grep test too).
 //! - AC2 LIVE: toggle orphans OFF and assert a degree-0 node is removed from the canvas (no AccessKit
 //!   node) AND is NOT selectable (a click at its position fires no OpenNode).
 //! - AC5 LIVE: enable size-by-degree and screenshot the hub-vs-orphan radius difference.

@@ -12,10 +12,9 @@
 //! [`RouteStep`]s. The catalog is authoritative and queryable — the bridge reads
 //! it, it does not invent routing from prompt text.
 
-use sqlx::PgPool;
-
 use crate::knowledge_retrieval::plan::{RetrievalStore, RouteStep};
 use crate::storage::knowledge_retrieval::{resolve_semantic_catalog_entry, SemanticCatalogEntry};
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::StorageResult;
 
 /// Map a catalog route string (spec route vocabulary) to a plan
@@ -66,7 +65,7 @@ pub struct CatalogRouting {
 /// when the catalog has no active contract for the name — the planner then falls
 /// back to its default routing (spec 2.6.6.7.14.6 C default policy).
 pub async fn routing_for(
-    pool: &PgPool,
+    pool: &SurrealStorage,
     workspace_id: &str,
     name: &str,
     max_candidates: u32,

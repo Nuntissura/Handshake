@@ -100,6 +100,7 @@ pub static FEATURE_GROUPS: &[ManualFeatureGroup] = &[
         commands: &[
             "atelier_materialize_media_asset",
             "atelier_open_intake_batch",
+            "atelier_add_intake_item",
             "atelier_list_intake_batch_items",
             "atelier_apply_intake_classification",
             "atelier_bulk_update_media_review_metadata",
@@ -344,7 +345,7 @@ pub static FEATURE_GROUPS: &[ManualFeatureGroup] = &[
     ManualFeatureGroup {
         id: "knowledge_rich_documents",
         title: "Rich Document Authority (Editor Backend)",
-        description: "The RichDocument authority model behind the editor/Loom: create, load (with the typed block tree), and optimistic-concurrency save of a structured ProseMirror document against knowledge_rich_documents (PostgreSQL + EventLedger, never the legacy documents/blocks surface, never a markdown vault). Plus revision history, markdown/HTML/text/wiki-Loom/context-bundle projections (regenerable, never authority), typed embed references + the broken-embed repair queue, and document backlinks with stable relationship ids. Every write is gated by the server-enforced permission boundary and leaves a save receipt. (MT-145..MT-160)",
+        description: "The RichDocument authority model behind the editor/Loom: create, load (with the typed block tree), and optimistic-concurrency save of a structured ProseMirror document against knowledge_rich_documents (embedded SurrealDB + EventLedger, never the legacy documents/blocks surface, never a markdown vault). Plus revision history, markdown/HTML/text/wiki-Loom/context-bundle projections (regenerable, never authority), typed embed references + the broken-embed repair queue, and document backlinks with stable relationship ids. Every write is gated by the server-enforced permission boundary and leaves a save receipt. (MT-145..MT-160)",
         commands: &[
             "knowledge_document_create",
             "knowledge_document_load",
@@ -517,16 +518,16 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
         cli_flag: None,
         description: "Append START and STOP process lifecycle events through the bounded ProcessOwnershipLedger writer.",
         expected_input: "Typed ProcessStart and ProcessStop records from model engines, sandbox containers, workers, plugins, or helper subprocesses.",
-        expected_output: "Postgres kernel_process_lifecycle rows with UUID v7 process_uuid values and matched lifecycle timestamps.",
+        expected_output: "Embedded SurrealDB kernel_process_lifecycle rows with UUID v7 process_uuid values and matched lifecycle timestamps.",
         common_errors: &[
             "Writer channel saturated",
             "STOP arrives after START overflow",
-            "Postgres lifecycle migration missing",
+            "Embedded lifecycle schema missing",
         ],
         recovery_steps: &[
             "Inspect FR_EVT_LEDGER_OVERFLOW events",
             "Use the STOP upsert path to preserve termination evidence",
-            "Apply migration 0021_kernel_process_lifecycle.sql",
+            "Verify the embedded SurrealDB lifecycle schema bootstrap",
         ],
     },
     CommandReference {
@@ -573,16 +574,16 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
         cli_flag: None,
         description: "Reclaim open process lifecycle rows on session close, failure, staleness, or operator cancel.",
         expected_input: "A session id and ReclaimTrigger value: close, failure, stale, or operator_cancel.",
-        expected_output: "ReclaimReport with every reclaimed process, kill result, and queued STOP evidence using exit_code -1.",
+        expected_output: "ReclaimReport only after every owned process cleanup succeeds and each exact SurrealDB STOP is durably persisted with exit_code -1; otherwise reclaim fails loud and leaves any surviving process non-terminal for retry.",
         common_errors: &[
             "SandboxKill binding missing",
-            "kill returns an error",
-            "STOP writer channel saturated",
+            "external cleanup failed and the owned process survived",
+            "durable cleanup marker or exact STOP persistence failed",
         ],
         recovery_steps: &[
-            "Treat kill errors as report data, not as permission to skip STOP",
-            "Verify the STOP writer accepted ProcessStop rows",
-            "Inspect kernel_process_lifecycle open rows with the reclaim FOR UPDATE query",
+            "Treat every kill error as failed reclaim; fix the sandbox adapter or external process state before retrying",
+            "Verify a surviving process remains non-terminal and its exact reclaim claim was released",
+            "Inspect the owner-qualified reclaim marker and await the direct SurrealDB STOP write before accepting success",
         ],
     },
     CommandReference {
@@ -1221,12 +1222,12 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
         expected_input: "No input.",
         expected_output: "CalibrationSnapshot with six typed signal values, thresholds, timestamps, details, and per-signal source errors.",
         common_errors: &[
-            "Postgres memory calibration state unavailable",
+            "Embedded SurrealDB memory calibration state unavailable",
             "invalid calibration threshold",
             "calibration source IO failed",
         ],
         recovery_steps: &[
-            "Check DATABASE_URL and Postgres availability",
+            "Check HANDSHAKE_DATA_DIR and embedded SurrealDB availability",
             "Inspect signal_errors to identify which collector failed",
             "Run calibration_tests for threshold and snapshot-shape regression coverage",
         ],
@@ -1423,6 +1424,36 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
         recovery_steps: &[
             "Send a supported mode/profile_mode token",
             "Reuse the same idempotency_key to resume instead of duplicating",
+        ],
+    },
+    CommandReference {
+        id: "atelier_add_intake_item",
+        name: "AtelierStore::add_intake_item",
+        status: CommandStatus::Wired,
+        ipc_channel: Some("/atelier/intake/batches/:batch_id/items"),
+        tauri_command: None,
+        schema_fields: &[
+            "source_path",
+            "file_name",
+            "byte_len",
+            "content_hash",
+            "item_id",
+            "lane",
+        ],
+        cli_flag: None,
+        description: "Register one source item through the typed Atelier intake route; replaying the same batch and source_path returns the canonical item without changing its lane.",
+        expected_input: "POST /atelier/intake/batches/:batch_id/items with x-hsk-actor-id plus source_path, file_name, non-negative byte_len, and optional content_hash.",
+        expected_output: "The canonical pending IntakeItem JSON row with loom_block_id null until a projection is linked.",
+        common_errors: &[
+            "missing_actor",
+            "unknown or malformed batch_id",
+            "blank source_path or file_name",
+            "negative byte_len",
+        ],
+        recovery_steps: &[
+            "List intake batches to find a valid batch_id",
+            "Provide x-hsk-actor-id and a logical source reference",
+            "Replay the same source_path to recover after an ambiguous response",
         ],
     },
     CommandReference {
@@ -2364,7 +2395,7 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
             "manifest_ref",
         ],
         cli_flag: None,
-        description: "Record a normalized 512x512 identity crop artifact (with crop_box + landmarks) bound to the current profile version; the profile version is read from PostgreSQL and pinned on the crop record.",
+        description: "Record a normalized 512x512 identity crop artifact (with crop_box + landmarks) bound to the current profile version; the profile version is read from embedded SurrealDB and pinned on the crop record.",
         expected_input: "A NewIdentityCropArtifact with a crop_box, landmarks inside the 512x512 crop, an artifact:// ref + matching manifest_ref, content_hash, and image/png mime.",
         expected_output: "An IdentityCropArtifact (manifest schema hsk.atelier.identity_crop_artifact_manifest@1) pinned to the profile version at capture.",
         common_errors: &[
@@ -2700,7 +2731,7 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
         ],
         recovery_steps: &[
             "Use a supported DiagnosticSource value",
-            "Confirm the DiagnosticsStore implementation is bound to PostgreSQL storage",
+            "Confirm the DiagnosticsStore implementation is bound to embedded SurrealDB storage",
         ],
     },
     // MT-135: no-context manual structure.
@@ -3004,7 +3035,7 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
         tauri_command: None,
         schema_fields: &["document", "tree", "code_nodes"],
         cli_flag: None,
-        description: "Load a RichDocument and its typed block tree (stable block ids + Raw/Derived/Display) plus its Monaco code nodes. Deterministic load from PostgreSQL authority. (MT-146/147/148/149)",
+        description: "Load a RichDocument and its typed block tree (stable block ids + Raw/Derived/Display) plus its Monaco code nodes. Deterministic load from embedded SurrealDB authority. (MT-146/147/148/149)",
         expected_input: "GET /knowledge/documents/:document_id with identity headers.",
         expected_output: "{document, tree:{schema_version, schema_matches, block_ids, blocks}, code_nodes}.",
         common_errors: &[
@@ -3246,7 +3277,7 @@ pub static WORKFLOWS: &[ManualWorkflow] = &[
     ManualWorkflow {
         id: "atelier_character_identity_and_sheet",
         title: "Atelier Character Identity And Sheet Editing (MT-052)",
-        prerequisites: &["Atelier PostgreSQL store reachable"],
+        prerequisites: &["Atelier embedded SurrealDB store reachable"],
         steps: &[
             "Create a character with create_character; use its public_id for operator-facing references.",
             "Append an initial sheet version with append_sheet_version.",
@@ -3435,7 +3466,7 @@ pub static WORKFLOWS: &[ManualWorkflow] = &[
         id: "atelier_pose_context_and_rig",
         title: "Atelier Pose Context And Rig (MT-122)",
         prerequisites: &[
-            "Atelier PostgreSQL store reachable",
+            "Atelier embedded SurrealDB store reachable",
             "Detection runs out-of-module as a capability-gated Workflow-Engine job",
         ],
         steps: &[
@@ -3444,7 +3475,7 @@ pub static WORKFLOWS: &[ManualWorkflow] = &[
             "Read rigs with list_pose_rigs and inspect keypoints with get_pose_rig.",
             "Record calibration with set_pose_calibration; preserve it as unresolved/BLOCKED with a block_reason rather than faking values, and read it back with get_calibration.",
         ],
-        expected_outcome: "Pose context, rigs, and BLOCKED-by-default calibration are governed in PostgreSQL with no in-module detector execution.",
+        expected_outcome: "Pose context, rigs, and BLOCKED-by-default calibration are governed in embedded SurrealDB with no in-module detector execution.",
         failure_modes: &[
             "keypoint cardinality mismatch",
             "unresolved calibration missing a block_reason",

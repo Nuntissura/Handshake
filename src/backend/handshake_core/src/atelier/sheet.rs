@@ -5,12 +5,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
 use std::collections::{HashMap, HashSet};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    event_family, reject_legacy_runtime_ref, AtelierResult, AtelierStore, BulkOperationReceipt,
+    atelier_event_sql, event_family, reject_legacy_runtime_ref, AtelierError, AtelierResult,
+    AtelierStore, BulkOperationReceipt, RecordEventBindings, RecordedLedgerRow,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -211,16 +212,28 @@ pub enum ParsedSheetFieldType {
     },
 }
 
-fn version_from_row(row: &sqlx::postgres::PgRow) -> SheetVersion {
+#[derive(SurrealValue)]
+struct SheetVersionRow {
+    version_id: SurrealUuid,
+    character_internal_id: SurrealUuid,
+    parent_version_id: Option<SurrealUuid>,
+    seq: i64,
+    raw_text: String,
+    author: String,
+    tool: Option<String>,
+    created_at_utc: Datetime,
+}
+
+fn version_from_row(row: SheetVersionRow) -> SheetVersion {
     SheetVersion {
-        version_id: row.get("version_id"),
-        character_internal_id: row.get("character_internal_id"),
-        parent_version_id: row.get("parent_version_id"),
-        seq: row.get("seq"),
-        raw_text: row.get("raw_text"),
-        author: row.get("author"),
-        tool: row.get("tool"),
-        created_at_utc: row.get("created_at_utc"),
+        version_id: row.version_id.into(),
+        character_internal_id: row.character_internal_id.into(),
+        parent_version_id: row.parent_version_id.map(Into::into),
+        seq: row.seq,
+        raw_text: row.raw_text,
+        author: row.author,
+        tool: row.tool,
+        created_at_utc: row.created_at_utc.into(),
     }
 }
 
@@ -1702,6 +1715,121 @@ fn parse_sheet_template_ast(
     })
 }
 
+#[derive(Clone, SurrealValue)]
+struct CharacterSheetBinding {
+    character: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SheetVersionBinding {
+    version_id: SurrealUuid,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SheetAppendBindings {
+    character: RecordId,
+    version_record: RecordId,
+    version_id: SurrealUuid,
+    expected_head: Option<RecordId>,
+    enforce_head: bool,
+    raw_text: String,
+    author: String,
+    tool: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ParseLookupBindings {
+    version: RecordId,
+    template_id: String,
+    template_hash: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ParseWriteBindings {
+    record: RecordId,
+    parse_id: SurrealUuid,
+    version: RecordId,
+    template_id: String,
+    source_path: Option<String>,
+    template_version: Option<String>,
+    template_hash: String,
+    ast: serde_json::Value,
+    unmapped_lines: serde_json::Value,
+}
+
+#[derive(SurrealValue)]
+struct ParseSnapshotRow {
+    parse_id: SurrealUuid,
+    created_at_utc: Datetime,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BulkSheetAppendRow {
+    character: RecordId,
+    expected_head: RecordId,
+    version_record: RecordId,
+    version_id: SurrealUuid,
+    seq: i64,
+    raw_text: String,
+    author: String,
+    tool: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BulkSheetAppendBindings {
+    rows: Vec<BulkSheetAppendRow>,
+    version_ids: Vec<SurrealUuid>,
+    receipt_record: RecordId,
+    receipt_id: SurrealUuid,
+    operation: String,
+    requested_by: String,
+    target_count: i64,
+    mutation_count: i64,
+    receipt_payload: serde_json::Value,
+    events: Vec<RecordEventBindings>,
+    event_idempotency_keys: Vec<String>,
+}
+
+#[derive(SurrealValue)]
+struct BulkSheetReceiptRow {
+    receipt_id: SurrealUuid,
+    operation: String,
+    requested_by: String,
+    target_count: i64,
+    mutation_count: i64,
+    status: String,
+    payload: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct BulkSheetLedgerRow {
+    idempotency_key: String,
+    event_id: String,
+    event_sequence: i64,
+}
+
+#[derive(SurrealValue)]
+struct BulkSheetCommitRow {
+    versions: Vec<SheetVersionRow>,
+    receipt: BulkSheetReceiptRow,
+    ledgers: Vec<BulkSheetLedgerRow>,
+}
+
+const APPEND_SHEET_STATEMENT: &str = concat!(
+    "RETURN { LET $head = (SELECT id, seq FROM atelier_sheet_version WHERE character_internal_id = $domain.character ORDER BY seq DESC LIMIT 1)[0]; LET $head_id = IF $head = NONE { NONE } ELSE { $head.id }; IF $domain.enforce_head AND $head_id != $domain.expected_head { THROW 'HSK-SHEET-STALE-HEAD'; }; LET $next_seq = IF $head = NONE { 1 } ELSE { $head.seq + 1 }; CREATE $domain.version_record CONTENT { version_id: $domain.version_id, character_internal_id: $domain.character, parent_version_id: $head_id, seq: $next_seq, raw_text: $domain.raw_text, author: $domain.author, tool: $domain.tool } RETURN NONE; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM $domain.version_record)[0]; };"
+);
+
+const WRITE_PARSE_SNAPSHOT_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (UPSERT $domain.record CONTENT { parse_id: $domain.parse_id, version_id: $domain.version, template_id: $domain.template_id, source_path: $domain.source_path, template_version: $domain.template_version, template_hash: $domain.template_hash, ast: $domain.ast, unmapped_lines: $domain.unmapped_lines } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const BULK_APPEND_SHEETS_STATEMENT: &str = "BEGIN TRANSACTION; RETURN { FOR $item IN $rows { LET $head = (SELECT VALUE id FROM atelier_sheet_version WHERE character_internal_id = $item.character ORDER BY seq DESC LIMIT 1)[0]; IF $head != $item.expected_head { THROW 'HSK-SHEET-BULK-STALE-HEAD'; }; }; FOR $item IN $rows { CREATE $item.version_record CONTENT { version_id: $item.version_id, character_internal_id: $item.character, parent_version_id: $item.expected_head, seq: $item.seq, raw_text: $item.raw_text, author: $item.author, tool: $item.tool } RETURN NONE; }; FOR $event IN $events { LET $existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; IF $existing IS NONE { CREATE $event.ledger_id CONTENT { event_id: $event.kernel_event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.ledger_payload, created_at: $event.created_at } RETURN NONE; }; LET $ledger = (SELECT event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; CREATE $event.atelier_id CONTENT { event_id: $event.atelier_event_uuid, event_family: $event.event_family, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, kernel_event_id: $ledger.event_id, kernel_event_sequence: $ledger.event_sequence, payload: $event.atelier_payload } RETURN NONE; }; CREATE $receipt_record CONTENT { receipt_id: $receipt_id, operation: $operation, requested_by: $requested_by, target_count: $target_count, mutation_count: $mutation_count, status: 'applied', payload: $receipt_payload } RETURN NONE; RETURN { versions: (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id IN $version_ids), receipt: (SELECT receipt_id, operation, requested_by, target_count, mutation_count, status, payload, created_at_utc FROM $receipt_record)[0], ledgers: (SELECT idempotency_key, event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key IN $event_idempotency_keys) }; }; COMMIT TRANSACTION;";
+
 impl AtelierStore {
     async fn record_sheet_field_edit_rejection(
         &self,
@@ -1762,64 +1890,37 @@ impl AtelierStore {
     /// Append a new sheet version. Computes the next sequence number and links
     /// to the previous head as parent; never overwrites an existing version.
     pub async fn append_sheet_version(&self, new: &NewSheetVersion) -> AtelierResult<SheetVersion> {
-        let mut tx = self.pool().begin().await?;
-        let seq_lock_key = format!("atelier_sheet_version_seq:{}", new.character_internal_id);
-        sqlx::query(
-            "SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)",
-        )
-        .bind(&seq_lock_key)
-        .execute(&mut *tx)
-        .await?;
-
-        let next_seq: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_sheet_version WHERE character_internal_id = $1",
-        )
-        .bind(new.character_internal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let parent_version_id: Option<Uuid> = sqlx::query_scalar(
-            "SELECT version_id FROM atelier_sheet_version WHERE character_internal_id = $1 ORDER BY seq DESC LIMIT 1",
-        )
-        .bind(new.character_internal_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_sheet_version
-                 (character_internal_id, parent_version_id, seq, raw_text, author, tool)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               RETURNING version_id, character_internal_id, parent_version_id, seq,
-                         raw_text, author, tool, created_at_utc"#,
-        )
-        .bind(new.character_internal_id)
-        .bind(parent_version_id)
-        .bind(next_seq)
-        .bind(&new.raw_text)
-        .bind(&new.author)
-        .bind(&new.tool)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let version = version_from_row(&row);
-        if let Err(err) = self
-            .record_event_in_tx(
-                &mut tx,
+        let version_id = Uuid::now_v7();
+        let row: Option<SheetVersionRow> = self
+            .write_with_event(
+                APPEND_SHEET_STATEMENT,
+                SheetAppendBindings {
+                    character: RecordId::new(
+                        "atelier_character",
+                        SurrealUuid::from(new.character_internal_id),
+                    ),
+                    version_record: RecordId::new(
+                        "atelier_sheet_version",
+                        SurrealUuid::from(version_id),
+                    ),
+                    version_id: version_id.into(),
+                    expected_head: None,
+                    enforce_head: false,
+                    raw_text: new.raw_text.clone(),
+                    author: new.author.clone(),
+                    tool: new.tool.clone(),
+                },
                 event_family::SHEET_VERSION_APPENDED,
                 "atelier_sheet_version",
-                &version.version_id.to_string(),
+                &version_id.to_string(),
                 serde_json::json!({
-                    "version_id": version.version_id,
-                    "seq": version.seq,
+                    "version_id": version_id,
                 }),
             )
-            .await
-        {
-            tx.rollback().await?;
-            return Err(err);
-        }
-        tx.commit().await?;
-        Ok(version)
+            .await?;
+        row.map(version_from_row).ok_or_else(|| {
+            AtelierError::Internal("sheet version append returned no row".to_owned())
+        })
     }
 
     /// The current (highest-seq) sheet version for a character, if any.
@@ -1827,17 +1928,16 @@ impl AtelierStore {
         &self,
         character_internal_id: Uuid,
     ) -> AtelierResult<Option<SheetVersion>> {
-        let row = sqlx::query(
-            r#"SELECT version_id, character_internal_id, parent_version_id, seq,
-                      raw_text, author, tool, created_at_utc
-               FROM atelier_sheet_version
-               WHERE character_internal_id = $1
-               ORDER BY seq DESC LIMIT 1"#,
-        )
-        .bind(character_internal_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(version_from_row))
+        let character = RecordId::new(
+            "atelier_character",
+            SurrealUuid::from(character_internal_id),
+        );
+        let row: Option<SheetVersionRow> = self
+            .with_data(move |ctx| Box::pin(async move {
+                ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE character_internal_id = $character ORDER BY seq DESC LIMIT 1;", CharacterSheetBinding { character }).await
+            }))
+            .await?;
+        Ok(row.map(version_from_row))
     }
 
     /// Full append-only version history (ascending sequence).
@@ -1845,17 +1945,16 @@ impl AtelierStore {
         &self,
         character_internal_id: Uuid,
     ) -> AtelierResult<Vec<SheetVersion>> {
-        let rows = sqlx::query(
-            r#"SELECT version_id, character_internal_id, parent_version_id, seq,
-                      raw_text, author, tool, created_at_utc
-               FROM atelier_sheet_version
-               WHERE character_internal_id = $1
-               ORDER BY seq ASC"#,
-        )
-        .bind(character_internal_id)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(version_from_row).collect())
+        let character = RecordId::new(
+            "atelier_character",
+            SurrealUuid::from(character_internal_id),
+        );
+        let rows: Vec<SheetVersionRow> = self
+            .with_data(move |ctx| Box::pin(async move {
+                ctx.query_values("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE character_internal_id = $character ORDER BY seq ASC;", CharacterSheetBinding { character }).await
+            }))
+            .await?;
+        Ok(rows.into_iter().map(version_from_row).collect())
     }
 
     /// Parse one append-only sheet version into a typed template AST snapshot.
@@ -1872,74 +1971,50 @@ impl AtelierStore {
         if let Some(source_path) = source_path {
             reject_legacy_runtime_ref("source_path", source_path)?;
         }
-        let raw_text: String =
-            sqlx::query_scalar("SELECT raw_text FROM atelier_sheet_version WHERE version_id = $1")
-                .bind(version_id)
-                .fetch_optional(self.pool())
-                .await?
-                .ok_or_else(|| {
-                    super::AtelierError::NotFound(format!(
-                        "sheet version not found for parse: {version_id}"
-                    ))
-                })?;
+        let source: Option<SheetVersionRow> = self
+            .with_data(move |ctx| Box::pin(async move {
+                ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await
+            }))
+            .await?;
+        let raw_text = source
+            .map(version_from_row)
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("sheet version not found for parse: {version_id}"))
+            })?
+            .raw_text;
         let ast = parse_sheet_template_ast(&raw_text, template_id, source_path)?;
         let ast_json = serde_json::to_value(&ast)
             .map_err(|err| super::AtelierError::Validation(err.to_string()))?;
         let unmapped_json = serde_json::to_value(&ast.unmapped_lines)
             .map_err(|err| super::AtelierError::Validation(err.to_string()))?;
 
-        let mut tx = self.pool().begin().await?;
-        let parse_lock_key = format!(
-            "atelier_sheet_parse_snapshot:{version_id}:{template_id}:{}",
-            ast.template_hash
-        );
-        sqlx::query(
-            "SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)",
-        )
-        .bind(&parse_lock_key)
-        .execute(&mut *tx)
-        .await?;
-
-        let existing_row = sqlx::query(
-            r#"SELECT parse_id, created_at_utc
-               FROM atelier_sheet_parse_snapshot
-               WHERE version_id = $1
-                 AND template_id = $2
-                 AND template_hash = $3"#,
-        )
-        .bind(version_id)
-        .bind(template_id)
-        .bind(&ast.template_hash)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let row = match existing_row {
-            Some(row) => row,
-            None => {
-                sqlx::query(
-                    r#"INSERT INTO atelier_sheet_parse_snapshot
-                           (parse_id, version_id, template_id, source_path, template_version,
-                            template_hash, ast, unmapped_lines)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                       RETURNING parse_id, created_at_utc"#,
-                )
-                .bind(Uuid::now_v7())
-                .bind(version_id)
-                .bind(template_id)
-                .bind(source_path)
-                .bind(&ast.template_version)
-                .bind(&ast.template_hash)
-                .bind(ast_json)
-                .bind(unmapped_json)
-                .fetch_one(&mut *tx)
-                .await?
-            }
+        let lookup = ParseLookupBindings {
+            version: RecordId::new("atelier_sheet_version", SurrealUuid::from(version_id)),
+            template_id: template_id.to_owned(),
+            template_hash: ast.template_hash.clone(),
         };
-        let parse_id: Uuid = row.get("parse_id");
-        let created_at_utc: DateTime<Utc> = row.get("created_at_utc");
-
-        let event_result = self
-            .record_event_in_tx(
-                &mut tx,
+        let existing: Option<ParseSnapshotRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT parse_id, created_at_utc FROM atelier_sheet_parse_snapshot WHERE version_id = $version AND template_id = $template_id AND template_hash = $template_hash LIMIT 1;", lookup).await })).await?;
+        let parse_id: Uuid = existing
+            .as_ref()
+            .map(|row| Uuid::from(row.parse_id.clone()))
+            .unwrap_or_else(Uuid::now_v7);
+        let row: Option<ParseSnapshotRow> = self
+            .write_with_event(
+                WRITE_PARSE_SNAPSHOT_STATEMENT,
+                ParseWriteBindings {
+                    record: RecordId::new(
+                        "atelier_sheet_parse_snapshot",
+                        SurrealUuid::from(parse_id),
+                    ),
+                    parse_id: parse_id.into(),
+                    version: RecordId::new("atelier_sheet_version", SurrealUuid::from(version_id)),
+                    template_id: template_id.to_owned(),
+                    source_path: source_path.map(ToOwned::to_owned),
+                    template_version: ast.template_version.clone(),
+                    template_hash: ast.template_hash.clone(),
+                    ast: ast_json,
+                    unmapped_lines: unmapped_json,
+                },
                 event_family::SHEET_TEMPLATE_PARSED,
                 "atelier_sheet_version",
                 &version_id.to_string(),
@@ -1956,12 +2031,13 @@ impl AtelierStore {
                     "unmapped_count": ast.unmapped_lines.len(),
                 }),
             )
-            .await;
-        if let Err(err) = event_result {
-            let _ = tx.rollback().await;
-            return Err(err);
-        }
-        tx.commit().await?;
+            .await?;
+        let created_at_utc: DateTime<Utc> = row
+            .ok_or_else(|| {
+                AtelierError::Internal("sheet parse snapshot write returned no row".to_owned())
+            })?
+            .created_at_utc
+            .into();
 
         Ok(ParsedSheetTemplate {
             parse_id,
@@ -1981,22 +2057,16 @@ impl AtelierStore {
         &self,
         request: &SheetFieldEditRequest,
     ) -> AtelierResult<SheetFieldEditResult> {
-        let source_row = sqlx::query(
-            r#"SELECT version_id, character_internal_id, parent_version_id, seq,
-                      raw_text, author, tool, created_at_utc
-               FROM atelier_sheet_version
-               WHERE version_id = $1"#,
-        )
-        .bind(request.version_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| {
+        let source_row: Option<SheetVersionRow> = self
+            .with_data({ let version_id = request.version_id; move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await }) })
+            .await?;
+        let source_row = source_row.ok_or_else(|| {
             super::AtelierError::NotFound(format!(
                 "source sheet version not found for selective apply: {}",
                 request.version_id
             ))
         })?;
-        let source = version_from_row(&source_row);
+        let source = version_from_row(source_row);
         if let Some(source_path) = request.source_path.as_deref() {
             reject_legacy_runtime_ref("source_path", source_path)?;
         }
@@ -2036,23 +2106,17 @@ impl AtelierStore {
                 Err(err) => return Err(err),
             };
 
-        let mut tx = self.pool().begin().await?;
-        let seq_lock_key = format!("atelier_sheet_version_seq:{}", source.character_internal_id);
-        sqlx::query(
-            "SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)",
-        )
-        .bind(&seq_lock_key)
-        .execute(&mut *tx)
-        .await?;
-
-        let current_head_version_id: Uuid = sqlx::query_scalar(
-            "SELECT version_id FROM atelier_sheet_version WHERE character_internal_id = $1 ORDER BY seq DESC LIMIT 1",
-        )
-        .bind(source.character_internal_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let current_head_version_id = self
+            .latest_sheet_version(source.character_internal_id)
+            .await?
+            .map(|row| row.version_id)
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!(
+                    "sheet head for character {}",
+                    source.character_internal_id
+                ))
+            })?;
         if current_head_version_id != source.version_id {
-            tx.rollback().await?;
             let denial = deny_sheet_field_edit(
                 "stale_selection",
                 None,
@@ -2067,39 +2131,34 @@ impl AtelierStore {
             return Err(super::AtelierError::Validation(message));
         }
 
-        let next_seq: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_sheet_version WHERE character_internal_id = $1",
-        )
-        .bind(source.character_internal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_sheet_version
-                 (version_id, character_internal_id, parent_version_id, seq, raw_text, author, tool)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING version_id, character_internal_id, parent_version_id, seq,
-                         raw_text, author, tool, created_at_utc"#,
-        )
-        .bind(Uuid::now_v7())
-        .bind(source.character_internal_id)
-        .bind(source.version_id)
-        .bind(next_seq)
-        .bind(&updated_raw_text)
-        .bind(&request.author)
-        .bind(&request.tool)
-        .fetch_one(&mut *tx)
-        .await?;
-        let version = version_from_row(&row);
-
-        let event_result = self
-            .record_event_in_tx(
-                &mut tx,
+        let version_id = Uuid::now_v7();
+        let row: Option<SheetVersionRow> = self
+            .write_with_event(
+                APPEND_SHEET_STATEMENT,
+                SheetAppendBindings {
+                    character: RecordId::new(
+                        "atelier_character",
+                        SurrealUuid::from(source.character_internal_id),
+                    ),
+                    version_record: RecordId::new(
+                        "atelier_sheet_version",
+                        SurrealUuid::from(version_id),
+                    ),
+                    version_id: version_id.into(),
+                    expected_head: Some(RecordId::new(
+                        "atelier_sheet_version",
+                        SurrealUuid::from(source.version_id),
+                    )),
+                    enforce_head: true,
+                    raw_text: updated_raw_text,
+                    author: request.author.clone(),
+                    tool: request.tool.clone(),
+                },
                 event_family::SHEET_FIELD_EDITS_APPLIED,
                 "atelier_sheet_version",
-                &version.version_id.to_string(),
+                &version_id.to_string(),
                 serde_json::json!({
-                    "new_version_id": version.version_id,
+                    "new_version_id": version_id,
                     "source_version_id": source.version_id,
                     "template_id": &request.template_id,
                     "template_hash": &ast.template_hash,
@@ -2108,12 +2167,10 @@ impl AtelierStore {
                     "preserved_unmapped_count": ast.unmapped_lines.len(),
                 }),
             )
-            .await;
-        if let Err(err) = event_result {
-            let _ = tx.rollback().await;
-            return Err(err);
-        }
-        tx.commit().await?;
+            .await?;
+        let version = row.map(version_from_row).ok_or_else(|| {
+            AtelierError::Internal("sheet field edit append returned no row".to_owned())
+        })?;
 
         Ok(SheetFieldEditResult {
             version,
@@ -2156,22 +2213,17 @@ impl AtelierStore {
 
         let mut plans = Vec::with_capacity(requests.len());
         for request in requests {
-            let source_row = sqlx::query(
-                r#"SELECT version_id, character_internal_id, parent_version_id, seq,
-                          raw_text, author, tool, created_at_utc
-                   FROM atelier_sheet_version
-                   WHERE version_id = $1"#,
-            )
-            .bind(request.version_id)
-            .fetch_optional(self.pool())
-            .await?
-            .ok_or_else(|| {
+            let version_id = request.version_id;
+            let source_row: Option<SheetVersionRow> = self
+                .with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await }))
+                .await?;
+            let source_row = source_row.ok_or_else(|| {
                 super::AtelierError::NotFound(format!(
                     "source sheet version not found for bulk selective apply: {}",
                     request.version_id
                 ))
             })?;
-            let source = version_from_row(&source_row);
+            let source = version_from_row(source_row);
             if let Some(source_path) = request.source_path.as_deref() {
                 reject_legacy_runtime_ref("source_path", source_path)?;
             }
@@ -2209,7 +2261,6 @@ impl AtelierStore {
             });
         }
 
-        let mut tx = self.pool().begin().await?;
         let mut character_ids: Vec<Uuid> = plans
             .iter()
             .map(|plan| plan.source.character_internal_id)
@@ -2217,16 +2268,6 @@ impl AtelierStore {
             .into_iter()
             .collect();
         character_ids.sort();
-        for character_id in &character_ids {
-            let seq_lock_key = format!("atelier_sheet_version_seq:{character_id}");
-            sqlx::query(
-                "SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)",
-            )
-            .bind(&seq_lock_key)
-            .execute(&mut *tx)
-            .await?;
-        }
-
         let mut seen_bulk_characters = HashSet::new();
         for plan in &plans {
             if !seen_bulk_characters.insert(plan.source.character_internal_id) {
@@ -2236,12 +2277,16 @@ impl AtelierStore {
                 )));
             }
 
-            let current_head_version_id: Uuid = sqlx::query_scalar(
-                "SELECT version_id FROM atelier_sheet_version WHERE character_internal_id = $1 ORDER BY seq DESC LIMIT 1",
-            )
-            .bind(plan.source.character_internal_id)
-            .fetch_one(&mut *tx)
-            .await?;
+            let current_head_version_id = self
+                .latest_sheet_version(plan.source.character_internal_id)
+                .await?
+                .map(|row| row.version_id)
+                .ok_or_else(|| {
+                    AtelierError::NotFound(format!(
+                        "sheet head for character {}",
+                        plan.source.character_internal_id
+                    ))
+                })?;
             if current_head_version_id != plan.source.version_id {
                 return Err(super::AtelierError::Validation(format!(
                     "stale_selection: source version {} is not the current head {}",
@@ -2249,40 +2294,47 @@ impl AtelierStore {
                 )));
             }
         }
-
-        let mut results = Vec::with_capacity(plans.len());
-        for plan in plans {
-            let next_seq: i64 = sqlx::query_scalar(
-                "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_sheet_version WHERE character_internal_id = $1",
-            )
-            .bind(plan.source.character_internal_id)
-            .fetch_one(&mut *tx)
-            .await?;
-
-            let row = sqlx::query(
-                r#"INSERT INTO atelier_sheet_version
-                     (version_id, character_internal_id, parent_version_id, seq, raw_text, author, tool)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7)
-                   RETURNING version_id, character_internal_id, parent_version_id, seq,
-                             raw_text, author, tool, created_at_utc"#,
-            )
-            .bind(Uuid::now_v7())
-            .bind(plan.source.character_internal_id)
-            .bind(plan.source.version_id)
-            .bind(next_seq)
-            .bind(&plan.updated_raw_text)
-            .bind(&plan.request.author)
-            .bind(&plan.request.tool)
-            .fetch_one(&mut *tx)
-            .await?;
-            let version = version_from_row(&row);
-            self.record_event_in_tx(
-                &mut tx,
+        let new_version_ids = (0..plans.len()).map(|_| Uuid::now_v7()).collect::<Vec<_>>();
+        let rows = plans
+            .iter()
+            .zip(&new_version_ids)
+            .map(|(plan, version_id)| BulkSheetAppendRow {
+                character: RecordId::new(
+                    "atelier_character",
+                    SurrealUuid::from(plan.source.character_internal_id),
+                ),
+                expected_head: RecordId::new(
+                    "atelier_sheet_version",
+                    SurrealUuid::from(plan.source.version_id),
+                ),
+                version_record: RecordId::new(
+                    "atelier_sheet_version",
+                    SurrealUuid::from(*version_id),
+                ),
+                version_id: (*version_id).into(),
+                seq: plan.source.seq + 1,
+                raw_text: plan.updated_raw_text.clone(),
+                author: plan.request.author.clone(),
+                tool: plan.request.tool.clone(),
+            })
+            .collect::<Vec<_>>();
+        let receipt_id = Uuid::now_v7();
+        let receipt_payload = serde_json::json!({
+            "source_version_ids": plans
+                .iter()
+                .map(|plan| plan.source.version_id)
+                .collect::<Vec<_>>(),
+            "new_version_ids": &new_version_ids,
+            "character_count": character_ids.len(),
+        });
+        let mut prepared_events = Vec::with_capacity(plans.len() + 1);
+        for (plan, version_id) in plans.iter().zip(&new_version_ids) {
+            prepared_events.push(self.prepare_event(
                 event_family::SHEET_FIELD_EDITS_APPLIED,
                 "atelier_sheet_version",
-                &version.version_id.to_string(),
+                &version_id.to_string(),
                 serde_json::json!({
-                    "new_version_id": version.version_id,
+                    "new_version_id": version_id,
                     "source_version_id": plan.source.version_id,
                     "template_id": &plan.request.template_id,
                     "template_hash": &plan.template_hash,
@@ -2291,9 +2343,84 @@ impl AtelierStore {
                     "preserved_unmapped_count": plan.preserved_unmapped_lines.len(),
                     "bulk": true,
                 }),
-            )
-            .await?;
+            )?);
+        }
+        prepared_events.push(self.prepare_event(
+            event_family::BULK_OPERATION_APPLIED,
+            "atelier_bulk_operation_receipt",
+            &receipt_id.to_string(),
+            serde_json::json!({
+                "receipt_id": receipt_id,
+                "operation": "bulk_apply_sheet_field_edits",
+                "requested_by": requested_by,
+                "target_count": requests.len(),
+                "mutation_count": plans.len(),
+                "status": "applied",
+                "receipt_payload": &receipt_payload,
+            }),
+        )?);
+        let bindings = BulkSheetAppendBindings {
+            rows,
+            version_ids: new_version_ids.iter().copied().map(Into::into).collect(),
+            receipt_record: RecordId::new(
+                "atelier_bulk_operation_receipt",
+                SurrealUuid::from(receipt_id),
+            ),
+            receipt_id: receipt_id.into(),
+            operation: "bulk_apply_sheet_field_edits".to_owned(),
+            requested_by: requested_by.to_owned(),
+            target_count: requests.len() as i64,
+            mutation_count: plans.len() as i64,
+            receipt_payload: receipt_payload.clone(),
+            events: prepared_events
+                .iter()
+                .map(|event| event.bindings.clone())
+                .collect(),
+            event_idempotency_keys: prepared_events
+                .iter()
+                .map(|event| event.bindings.idempotency_key.clone())
+                .collect(),
+        };
+        let committed: BulkSheetCommitRow = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values_at(BULK_APPEND_SHEETS_STATEMENT, bindings, 1)
+                        .await
+                        .map(|rows: Vec<BulkSheetCommitRow>| rows.into_iter().next())
+                })
+            })
+            .await?
+            .ok_or_else(|| {
+                AtelierError::Internal("bulk sheet transaction returned no commit row".to_owned())
+            })?;
+        let mut recorded_by_key = committed
+            .ledgers
+            .into_iter()
+            .map(|row| (row.idempotency_key.clone(), row))
+            .collect::<HashMap<_, _>>();
+        for prepared in prepared_events {
+            let recorded = recorded_by_key
+                .remove(&prepared.bindings.idempotency_key)
+                .map(|row| RecordedLedgerRow {
+                    event_id: row.event_id,
+                    event_sequence: row.event_sequence,
+                });
+            self.finish_event(prepared, recorded).await?;
+        }
 
+        let mut by_id = committed
+            .versions
+            .into_iter()
+            .map(version_from_row)
+            .map(|version| (version.version_id, version))
+            .collect::<HashMap<_, _>>();
+        let mut results = Vec::with_capacity(plans.len());
+        for (plan, version_id) in plans.into_iter().zip(new_version_ids) {
+            let version = by_id.remove(&version_id).ok_or_else(|| {
+                AtelierError::Internal(format!(
+                    "bulk sheet append returned no row for {version_id}"
+                ))
+            })?;
             results.push(SheetFieldEditResult {
                 version,
                 source_version_id: plan.source.version_id,
@@ -2301,28 +2428,17 @@ impl AtelierStore {
                 preserved_unmapped_lines: plan.preserved_unmapped_lines,
             });
         }
-
-        let receipt = self
-            .record_bulk_operation_receipt_in_tx(
-                &mut tx,
-                "bulk_apply_sheet_field_edits",
-                requested_by,
-                requests.len() as i64,
-                results.len() as i64,
-                serde_json::json!({
-                    "source_version_ids": results
-                        .iter()
-                        .map(|result| result.source_version_id)
-                        .collect::<Vec<_>>(),
-                    "new_version_ids": results
-                        .iter()
-                        .map(|result| result.version.version_id)
-                        .collect::<Vec<_>>(),
-                    "character_count": character_ids.len(),
-                }),
-            )
-            .await?;
-        tx.commit().await?;
+        let receipt_row = committed.receipt;
+        let receipt = BulkOperationReceipt {
+            receipt_id: receipt_row.receipt_id.into(),
+            operation: receipt_row.operation,
+            requested_by: receipt_row.requested_by,
+            target_count: receipt_row.target_count,
+            mutation_count: receipt_row.mutation_count,
+            status: receipt_row.status,
+            payload: receipt_row.payload,
+            created_at_utc: receipt_row.created_at_utc.into(),
+        };
 
         Ok(BulkSheetFieldEditResult { receipt, results })
     }
@@ -2337,49 +2453,28 @@ impl AtelierStore {
         if let Some(source_path) = request.source_path.as_deref() {
             reject_legacy_runtime_ref("source_path", source_path)?;
         }
-        let mut tx = self.pool().begin().await?;
-        let seq_lock_key = format!(
-            "atelier_sheet_version_seq:{}",
-            request.character_internal_id
-        );
-        sqlx::query(
-            "SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)",
-        )
-        .bind(&seq_lock_key)
-        .execute(&mut *tx)
-        .await?;
-
-        let target_row = sqlx::query(
-            r#"SELECT version_id, character_internal_id, parent_version_id, seq,
-                      raw_text, author, tool, created_at_utc
-               FROM atelier_sheet_version
-               WHERE version_id = $1
-                 AND character_internal_id = $2"#,
-        )
-        .bind(request.target_version_id)
-        .bind(request.character_internal_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| {
-            super::AtelierError::NotFound(format!(
-                "target sheet version not found for revert: {}",
-                request.target_version_id
-            ))
-        })?;
-        let target = version_from_row(&target_row);
-
-        let previous_head_row = sqlx::query(
-            r#"SELECT version_id, character_internal_id, parent_version_id, seq,
-                      raw_text, author, tool, created_at_utc
-               FROM atelier_sheet_version
-               WHERE character_internal_id = $1
-               ORDER BY seq DESC
-               LIMIT 1"#,
-        )
-        .bind(request.character_internal_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        let previous_head = version_from_row(&previous_head_row);
+        let target_version_id = request.target_version_id;
+        let target_row: Option<SheetVersionRow> = self
+            .with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: target_version_id.into() }).await }))
+            .await?;
+        let target = target_row
+            .map(version_from_row)
+            .filter(|row| row.character_internal_id == request.character_internal_id)
+            .ok_or_else(|| {
+                super::AtelierError::NotFound(format!(
+                    "target sheet version not found for revert: {}",
+                    request.target_version_id
+                ))
+            })?;
+        let previous_head = self
+            .latest_sheet_version(request.character_internal_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!(
+                    "sheet head for character {}",
+                    request.character_internal_id
+                ))
+            })?;
         let previous_head_version_id = previous_head.version_id;
 
         let current_ast = parse_sheet_template_ast(
@@ -2403,7 +2498,6 @@ impl AtelierStore {
             request,
             &guarded_revert_field_ids,
         ) {
-            let _ = tx.rollback().await;
             self.record_sheet_revert_rejection(
                 previous_head_version_id,
                 &current_ast,
@@ -2414,13 +2508,6 @@ impl AtelierStore {
             .await?;
             return Err(super::AtelierError::Validation(denial.message));
         }
-
-        let next_seq: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_sheet_version WHERE character_internal_id = $1",
-        )
-        .bind(request.character_internal_id)
-        .fetch_one(&mut *tx)
-        .await?;
 
         let (reverted_raw_text, reverted_field_ids, revert_scope) =
             if request.field_selectors.is_empty() {
@@ -2434,46 +2521,46 @@ impl AtelierStore {
                 (raw_text, field_ids, "selected_fields")
             };
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_sheet_version
-                 (version_id, character_internal_id, parent_version_id, seq, raw_text, author, tool)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING version_id, character_internal_id, parent_version_id, seq,
-                         raw_text, author, tool, created_at_utc"#,
-        )
-        .bind(Uuid::now_v7())
-        .bind(request.character_internal_id)
-        .bind(previous_head_version_id)
-        .bind(next_seq)
-        .bind(&reverted_raw_text)
-        .bind(&request.author)
-        .bind(&request.tool)
-        .fetch_one(&mut *tx)
-        .await?;
-        let version = version_from_row(&row);
-
-        let event_result = self
-            .record_event_in_tx(
-                &mut tx,
+        let version_id = Uuid::now_v7();
+        let row: Option<SheetVersionRow> = self
+            .write_with_event(
+                APPEND_SHEET_STATEMENT,
+                SheetAppendBindings {
+                    character: RecordId::new(
+                        "atelier_character",
+                        SurrealUuid::from(request.character_internal_id),
+                    ),
+                    version_record: RecordId::new(
+                        "atelier_sheet_version",
+                        SurrealUuid::from(version_id),
+                    ),
+                    version_id: version_id.into(),
+                    expected_head: Some(RecordId::new(
+                        "atelier_sheet_version",
+                        SurrealUuid::from(previous_head_version_id),
+                    )),
+                    enforce_head: true,
+                    raw_text: reverted_raw_text,
+                    author: request.author.clone(),
+                    tool: request.tool.clone(),
+                },
                 event_family::SHEET_VERSION_REVERTED,
                 "atelier_sheet_version",
-                &version.version_id.to_string(),
+                &version_id.to_string(),
                 serde_json::json!({
-                    "new_version_id": version.version_id,
+                    "new_version_id": version_id,
                     "previous_head_version_id": previous_head_version_id,
                     "reverted_to_version_id": target.version_id,
                     "revert_scope": revert_scope,
                     "reverted_field_ids": &reverted_field_ids,
                     "target_seq": target.seq,
-                    "new_seq": version.seq,
+                    "new_seq": previous_head.seq + 1,
                 }),
             )
-            .await;
-        if let Err(err) = event_result {
-            let _ = tx.rollback().await;
-            return Err(err);
-        }
-        tx.commit().await?;
+            .await?;
+        let version = row.map(version_from_row).ok_or_else(|| {
+            AtelierError::Internal("sheet revert append returned no row".to_owned())
+        })?;
 
         Ok(SheetVersionRevertResult {
             version,

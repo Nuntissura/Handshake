@@ -3,7 +3,7 @@
 //! These egui_kittest tests drive the panel's REAL public completion/hover/staleness API and inspect
 //! the LIVE AccessKit tree + rendered state — the same nodes a swarm agent reads out-of-process and the
 //! same pixels an operator sees. Standalone tests isolate rendering and interaction semantics. With
-//! `--features integration`, strict live tests consume the managed-PostgreSQL fixture values from
+//! `--features integration`, strict live tests consume the managed-SurrealDB fixture values from
 //! `HANDSHAKE_TEST_DB_URL` and `HANDSHAKE_TEST_WORKSPACE_ID`, drive the real async CodeNavClient path,
 //! and require populated backend data to reach the AccessKit popup/tooltip and stale gutter marker.
 //!

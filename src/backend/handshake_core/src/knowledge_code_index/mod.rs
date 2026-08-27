@@ -6,7 +6,7 @@
 //! (MT-081..MT-096) already registered as `KnowledgeSource` rows into precise,
 //! navigable graph records: typed `KnowledgeEntity` symbols, `ast`-kind
 //! `KnowledgeSpan` anchors, and `KnowledgeEdge` call/import/test/doc
-//! relationships — all PostgreSQL + EventLedger authority, never prose.
+//! relationships — all canonical SurrealDB + EventLedger authority, never prose.
 //!
 //! # Model manual (no-context quick start)
 //!
@@ -105,7 +105,7 @@ pub enum CodeIndexError {
     /// (it returns a tree with `root_has_error = true`).
     #[error("{0}")]
     Parse(#[from] CodeParseError),
-    /// Underlying storage layer error (PostgreSQL/EventLedger).
+    /// Underlying canonical SurrealDB/EventLedger storage error.
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
     /// Kernel EventLedger construction error.

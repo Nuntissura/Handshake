@@ -7,8 +7,7 @@
 //! `classifyIntakeBatch`, `_normalizeIntakeStatus`) and `app/backend/db.js`
 //! (`IntakeBatch` / `IntakeBatchItem` tables). Schema/behavior INTENT only;
 //! the SQLite originals are not copied. Storage authority is the single
-//! Handshake store. PENDING the SurrealDB port — see the `atelier` module
-//! header (MT-138).
+//! embedded SurrealDB Handshake store, with no legacy database fallback.
 //!
 //! Translated contract (the load-bearing invariants from legacy source):
 //!   * Persistent batches: a scan produces a durable `atelier_intake_batch`
@@ -27,16 +26,43 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, Row, Transaction};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    collections::collections_event_family, event_ref_for_text,
-    media::MEDIA_ORIGINAL_RETENTION_CLASS, reject_legacy_runtime_ref, AtelierError, AtelierResult,
-    AtelierStore,
+    atelier_event_sql, event_ref_for_text, media::MEDIA_ORIGINAL_RETENTION_CLASS,
+    reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
 };
+
+struct IntakeRow(serde_json::Map<String, serde_json::Value>);
+
+impl IntakeRow {
+    fn get<T, I>(&self, field: I) -> T
+    where
+        T: serde::de::DeserializeOwned,
+        I: AsRef<str>,
+    {
+        let field = field.as_ref();
+        serde_json::from_value(
+            self.0
+                .get(field)
+                .unwrap_or_else(|| panic!("missing persisted intake field {field}"))
+                .clone(),
+        )
+        .unwrap_or_else(|err| panic!("invalid persisted intake field {field}: {err}"))
+    }
+}
+
+fn intake_row(value: serde_json::Value) -> AtelierResult<IntakeRow> {
+    value
+        .as_object()
+        .cloned()
+        .map(IntakeRow)
+        .ok_or_else(|| AtelierError::Internal("intake query returned a non-object row".to_owned()))
+}
 
 pub const ORPHAN_MANIFEST_SCHEMA_ID: &str = "hsk.atelier.orphan_manifest@1";
 
@@ -694,6 +720,47 @@ fn validate_intake_batch_reopen_contract(
     )))
 }
 
+fn is_surreal_unique_index_conflict(error: &AtelierError, index_name: &str) -> bool {
+    let text = error.to_string();
+    text.contains("Database index")
+        && text.contains(index_name)
+        && text.contains("already contains")
+}
+
+const SURREAL_TRANSACTION_MAX_ATTEMPTS: usize = 10;
+const SURREAL_TRANSACTION_BACKOFF_CAP_MS: u64 = 32;
+
+fn is_surreal_retryable_transaction_conflict(error: &AtelierError) -> bool {
+    matches!(
+        error,
+        AtelierError::Database(crate::storage::surreal::SurrealStorageError::Database(source))
+            if source
+                .to_string()
+                .contains("Transaction conflict: Resource busy. This transaction can be retried")
+    )
+}
+
+fn surreal_transaction_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
+    let exponential_cap = 1_u64
+        .checked_shl(failed_attempt.min(5) as u32)
+        .unwrap_or(SURREAL_TRANSACTION_BACKOFF_CAP_MS)
+        .min(SURREAL_TRANSACTION_BACKOFF_CAP_MS);
+    let seed = seed.as_u128();
+    let mut mixed = (seed as u64)
+        ^ ((seed >> 64) as u64)
+        ^ (failed_attempt as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    mixed ^= mixed >> 30;
+    mixed = mixed.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    mixed ^= mixed >> 27;
+    mixed = mixed.wrapping_mul(0x94d0_49bb_1331_11eb);
+    mixed ^= mixed >> 31;
+    Duration::from_millis(mixed % (exponential_cap + 1))
+}
+
+async fn wait_before_surreal_transaction_retry(seed: Uuid, failed_attempt: usize) {
+    tokio::time::sleep(surreal_transaction_retry_delay(seed, failed_attempt)).await;
+}
+
 fn enumerate_inbox_folder(
     request: &InboxFolderScanRequest,
     effective_max_files: usize,
@@ -790,7 +857,7 @@ fn enumerate_inbox_folder(
     })
 }
 
-fn batch_from_row(row: &sqlx::postgres::PgRow) -> IntakeBatch {
+fn batch_from_row(row: &IntakeRow) -> IntakeBatch {
     let status: String = row.get("status");
     let mode: String = row.get("mode");
     let profile_mode: String = row.get("profile_mode");
@@ -813,7 +880,7 @@ fn batch_from_row(row: &sqlx::postgres::PgRow) -> IntakeBatch {
     }
 }
 
-fn item_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<IntakeItem> {
+fn item_from_row(row: &IntakeRow) -> AtelierResult<IntakeItem> {
     let lane: String = row.get("lane");
     Ok(IntakeItem {
         item_id: row.get("item_id"),
@@ -829,9 +896,7 @@ fn item_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<IntakeItem> {
     })
 }
 
-fn rejection_audit_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<IntakeItemRejectionAudit> {
+fn rejection_audit_from_row(row: &IntakeRow) -> AtelierResult<IntakeItemRejectionAudit> {
     let lane: String = row.get("lane");
     Ok(IntakeItemRejectionAudit {
         audit_id: row.get("audit_id"),
@@ -844,7 +909,7 @@ fn rejection_audit_from_row(
     })
 }
 
-fn reset_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<AtelierResetRecord> {
+fn reset_from_row(row: &IntakeRow) -> AtelierResult<AtelierResetRecord> {
     let mode: String = row.get("mode");
     Ok(AtelierResetRecord {
         reset_id: row.get("reset_id"),
@@ -858,7 +923,7 @@ fn reset_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<AtelierResetReco
     })
 }
 
-fn orphan_manifest_item_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<OrphanManifestItem> {
+fn orphan_manifest_item_from_row(row: &IntakeRow) -> AtelierResult<OrphanManifestItem> {
     let adoption_status: String = row.get("adoption_status");
     Ok(OrphanManifestItem {
         manifest_item_id: row.get("manifest_item_id"),
@@ -889,6 +954,404 @@ fn orphan_intake_file_name(content_hash: &str, mime: &str) -> String {
     format!("orphan-original-{short_hash}.{extension}")
 }
 
+#[derive(SurrealValue)]
+struct NoBindings {}
+
+#[derive(SurrealValue)]
+struct IdempotencyKeyBinding {
+    idempotency_key: String,
+}
+
+#[derive(SurrealValue)]
+struct BatchRefBinding {
+    batch_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct BatchListBinding {
+    batch_ref: RecordId,
+    lane: Option<String>,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct ItemRefBinding {
+    item_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ItemLookupBinding {
+    batch_ref: RecordId,
+    source_path: String,
+}
+
+#[derive(SurrealValue)]
+struct ManifestRefBinding {
+    manifest_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct OrphanItemRefBinding {
+    manifest_item_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ContentHashBinding {
+    content_hash: String,
+}
+
+#[derive(SurrealValue)]
+struct LoomBlockBinding {
+    loom_block_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ProjectionRefBinding {
+    projection_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct AuditLookupBinding {
+    item_ref: RecordId,
+    lane: String,
+    reason: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct LoomProjectionBindings {
+    projection_ref: RecordId,
+    item_ref: RecordId,
+    loom_block_ref: RecordId,
+    workspace_ref: RecordId,
+    linked_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BatchWriteBindings {
+    batch_ref: RecordId,
+    batch_id: SurrealUuid,
+    idempotency_key: String,
+    source_label: String,
+    source_ref: String,
+    mode: String,
+    profile_mode: String,
+    character_internal_id: Option<RecordId>,
+    target_character_id: Option<RecordId>,
+    target_sheet_version_id: Option<RecordId>,
+    target_collection_id: Option<RecordId>,
+    resume_cursor: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BatchResumeBindings {
+    batch_ref: RecordId,
+    resume_cursor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ItemWriteBindings {
+    item_ref: RecordId,
+    item_id: SurrealUuid,
+    batch_ref: RecordId,
+    source_path: String,
+    file_name: String,
+    byte_len: i64,
+    content_hash: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ItemClassificationBindings {
+    item_ref: RecordId,
+    batch_ref: RecordId,
+    lane: String,
+    lane_reason: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RejectionAuditBindings {
+    audit_ref: RecordId,
+    audit_id: SurrealUuid,
+    item_ref: RecordId,
+    batch_ref: RecordId,
+    lane: String,
+    reason: String,
+    source_path_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct OrphanAdoptionBindings {
+    manifest_item_ref: RecordId,
+    batch_ref: RecordId,
+    item_ref: RecordId,
+    adopted_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ResetBindings {
+    reset_ref: RecordId,
+    reset_id: SurrealUuid,
+    mode: String,
+    requested_by: String,
+    reason: String,
+    preserve_original_media: bool,
+    manifest_ref: RecordId,
+    manifest_id: SurrealUuid,
+    manifest_json: serde_json::Value,
+    preferences_deleted_count: i64,
+    original_media_preserved_count: i64,
+    media_items: Vec<ResetMediaInput>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ResetMediaInput {
+    manifest_item_ref: RecordId,
+    manifest_item_id: SurrealUuid,
+    asset_ref: RecordId,
+    content_hash: String,
+    artifact_ref: String,
+    mime: String,
+    byte_len: i64,
+    retention_class: String,
+}
+
+macro_rules! batch_columns {
+    () => {
+        "batch_id, idempotency_key, source_label, source_ref, mode, profile_mode, \
+         IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, \
+         IF target_character_id = NONE { NONE } ELSE { record::id(target_character_id) } AS target_character_id, \
+         IF target_sheet_version_id = NONE { NONE } ELSE { record::id(target_sheet_version_id) } AS target_sheet_version_id, \
+         IF target_collection_id = NONE { NONE } ELSE { record::id(target_collection_id) } AS target_collection_id, status, resume_cursor, \
+         resumed_at_utc, created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! item_columns {
+    () => {
+        "item_id, record::id(batch_id) AS batch_id, source_path, file_name, byte_len, \
+         content_hash, lane, lane_reason, created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! audit_columns {
+    () => {
+        "audit_id, record::id(item_id) AS item_id, record::id(batch_id) AS batch_id, lane, \
+         reason, source_path_ref, created_at_utc"
+    };
+}
+
+macro_rules! orphan_item_columns {
+    () => {
+        "manifest_item_id, record::id(manifest_id) AS manifest_id, record::id(asset_id) AS asset_id, \
+         content_hash, artifact_ref, mime, byte_len, retention_class, adoption_status, \
+         IF adopted_batch_id = NONE { NONE } ELSE { record::id(adopted_batch_id) } AS adopted_batch_id, \
+         IF adopted_item_id = NONE { NONE } ELSE { record::id(adopted_item_id) } AS adopted_item_id, \
+         adopted_by, adopted_at_utc, created_at_utc"
+    };
+}
+
+const GET_BATCH_BY_KEY_STATEMENT: &str = concat!(
+    "SELECT ",
+    batch_columns!(),
+    " FROM atelier_intake_batch WHERE idempotency_key = $idempotency_key LIMIT 1;"
+);
+const GET_BATCH_STATEMENT: &str = concat!("SELECT ", batch_columns!(), " FROM $batch_ref LIMIT 1;");
+const LIST_BATCHES_STATEMENT: &str = concat!(
+    "SELECT ",
+    batch_columns!(),
+    " FROM atelier_intake_batch ORDER BY updated_at_utc DESC;"
+);
+const WRITE_BATCH_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.batch_ref; \
+       CREATE $rid CONTENT { batch_id: $domain.batch_id, idempotency_key: $domain.idempotency_key, \
+         source_label: $domain.source_label, source_ref: $domain.source_ref, mode: $domain.mode, \
+         profile_mode: $domain.profile_mode, character_internal_id: $domain.character_internal_id, \
+         target_character_id: $domain.target_character_id, \
+         target_sheet_version_id: $domain.target_sheet_version_id, \
+         target_collection_id: $domain.target_collection_id, status: 'open', \
+         resume_cursor: $domain.resume_cursor }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    batch_columns!(),
+    " FROM $rid)[0]; };"
+);
+const RESUME_BATCH_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.batch_ref; \
+       IF (SELECT VALUE status FROM $rid LIMIT 1)[0] IN [NONE, 'closed'] { \
+         THROW 'open intake batch not found'; }; \
+       UPDATE $rid SET status = 'in_progress', resume_cursor = $domain.resume_cursor, \
+         resumed_at_utc = time::now(), updated_at_utc = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    batch_columns!(),
+    " FROM $rid)[0]; };"
+);
+const CLOSE_BATCH_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.batch_ref; \
+       IF !record::exists($rid) { THROW 'intake batch not found'; }; \
+       UPDATE $rid SET status = 'closed', updated_at_utc = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    batch_columns!(),
+    " FROM $rid)[0]; };"
+);
+
+const GET_ITEM_STATEMENT: &str = concat!(
+    "SELECT ",
+    item_columns!(),
+    " FROM atelier_intake_item WHERE batch_id = $batch_ref AND source_path = $source_path LIMIT 1;"
+);
+const GET_ITEM_BY_REF_STATEMENT: &str =
+    concat!("SELECT ", item_columns!(), " FROM $item_ref LIMIT 1;");
+const LIST_ITEMS_STATEMENT: &str = concat!(
+    "SELECT ",
+    item_columns!(),
+    " FROM atelier_intake_item WHERE batch_id = $batch_ref ORDER BY created_at_utc ASC;"
+);
+const LIST_ITEMS_LIMITED_STATEMENT: &str = concat!(
+    "SELECT ",
+    item_columns!(),
+    " FROM atelier_intake_item WHERE batch_id = $batch_ref \
+     AND ($lane = NONE OR lane = $lane) \
+     ORDER BY created_at_utc ASC LIMIT $limit;"
+);
+const WRITE_ITEM_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.item_ref; \
+       IF !record::exists($domain.batch_ref) { THROW 'intake batch not found'; }; \
+       CREATE $rid CONTENT { item_id: $domain.item_id, batch_id: $domain.batch_ref, \
+         source_path: $domain.source_path, file_name: $domain.file_name, byte_len: $domain.byte_len, \
+         content_hash: $domain.content_hash, lane: 'pending' }; \
+       UPDATE $domain.batch_ref SET updated_at_utc = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    item_columns!(),
+    " FROM $rid)[0]; };"
+);
+const CLASSIFY_ITEM_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.item_ref; \
+       IF !record::exists($rid) { THROW 'intake item not found'; }; \
+       UPDATE $rid SET lane = $domain.lane, lane_reason = $domain.lane_reason, \
+         updated_at_utc = time::now(); \
+       UPDATE $domain.batch_ref SET updated_at_utc = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    item_columns!(),
+    " FROM $rid)[0]; };"
+);
+
+const LIST_AUDITS_STATEMENT: &str = concat!(
+    "SELECT ",
+    audit_columns!(),
+    " FROM atelier_intake_item_rejection_audit WHERE batch_id = $batch_ref \
+       ORDER BY created_at_utc ASC, audit_id ASC;"
+);
+const FIND_AUDIT_STATEMENT: &str = concat!(
+    "SELECT ",
+    audit_columns!(),
+    " FROM atelier_intake_item_rejection_audit WHERE item_id = $item_ref \
+       AND lane = $lane AND reason = $reason LIMIT 1;"
+);
+const WRITE_AUDIT_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.audit_ref; \
+       CREATE $rid CONTENT { audit_id: $domain.audit_id, item_id: $domain.item_ref, \
+         batch_id: $domain.batch_ref, lane: $domain.lane, reason: $domain.reason, \
+         source_path_ref: $domain.source_path_ref }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    audit_columns!(),
+    " FROM $rid)[0]; };"
+);
+
+const GET_ORPHAN_ITEM_STATEMENT: &str = concat!(
+    "SELECT ",
+    orphan_item_columns!(),
+    " FROM $manifest_item_ref LIMIT 1;"
+);
+const LIST_ORPHAN_ITEMS_STATEMENT: &str = concat!(
+    "SELECT ",
+    orphan_item_columns!(),
+    " FROM atelier_orphan_manifest_item WHERE manifest_id = $manifest_ref \
+       ORDER BY created_at_utc ASC, manifest_item_id ASC;"
+);
+const ADOPT_ORPHAN_ITEM_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.manifest_item_ref; \
+       IF (SELECT VALUE adoption_status FROM $rid LIMIT 1)[0] != 'orphaned' { \
+         THROW 'orphan manifest item is no longer orphaned'; }; \
+       UPDATE $rid SET adoption_status = 'adopted', adopted_batch_id = $domain.batch_ref, \
+         adopted_item_id = $domain.item_ref, adopted_by = $domain.adopted_by, \
+         adopted_at_utc = time::now(); ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ",
+    orphan_item_columns!(),
+    " FROM $rid)[0]; };"
+);
+
+const GET_LOOM_BLOCK_STATEMENT: &str =
+    "SELECT workspace_id AS workspace_ref, record::id(workspace_id) AS workspace_id, \
+            (document_id != NONE OR asset_id != NONE) AS has_source \
+     FROM $loom_block_ref LIMIT 1;";
+const GET_LOOM_PROJECTION_STATEMENT: &str =
+    "SELECT record::id(item_id) AS item_id, record::id(loom_block_id) AS loom_block_id, \
+            record::id(workspace_id) AS workspace_id, linked_by, linked_at_utc \
+     FROM $projection_ref LIMIT 1;";
+const FIND_LOOM_PROJECTION_BY_BLOCK_STATEMENT: &str =
+    "SELECT record::id(item_id) AS item_id FROM atelier_intake_item_loom_projection \
+     WHERE loom_block_id = $loom_block_ref LIMIT 1;";
+const WRITE_LOOM_PROJECTION_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.projection_ref; \
+       CREATE $rid CONTENT { item_id: $domain.item_ref, loom_block_id: $domain.loom_block_ref, \
+         workspace_id: $domain.workspace_ref, linked_by: $domain.linked_by }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT record::id(item_id) AS item_id, \
+       record::id(loom_block_id) AS loom_block_id, record::id(workspace_id) AS workspace_id, \
+       linked_by, linked_at_utc FROM $rid)[0]; };"
+);
+
+const COUNT_PREFERENCES_STATEMENT: &str =
+    "RETURN array::len((SELECT VALUE id FROM atelier_preference));";
+const LIST_ORIGINAL_MEDIA_STATEMENT: &str =
+    "SELECT id AS asset_ref, content_hash, artifact_ref, mime, byte_len, retention_class \
+     FROM atelier_media_asset WHERE retention_class = $retention_class \
+       AND string::trim(content_hash) = content_hash AND content_hash != '' \
+       AND string::trim(artifact_ref) = artifact_ref AND artifact_ref != '' \
+       AND string::trim(mime) = mime AND mime != '' AND byte_len > 0 \
+       AND string::trim(retention_class) = retention_class AND retention_class != '' \
+     ORDER BY created_at_utc ASC, asset_id ASC;";
+
+#[derive(SurrealValue)]
+struct RetentionClassBinding {
+    retention_class: String,
+}
+
+macro_rules! reset_columns {
+    () => {
+        "reset_id, mode, requested_by, reason, preferences_deleted_count, \
+         original_media_preserved_count, orphan_manifest_id, created_at_utc"
+    };
+}
+
+const WRITE_RESET_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.reset_ref; \
+       DELETE atelier_preference; \
+       CREATE $rid CONTENT { reset_id: $domain.reset_id, mode: $domain.mode, \
+         requested_by: $domain.requested_by, reason: $domain.reason, \
+         preferences_deleted_count: $domain.preferences_deleted_count, \
+         original_media_preserved_count: $domain.original_media_preserved_count, \
+         orphan_manifest_id: IF $domain.preserve_original_media { $domain.manifest_id } \
+           ELSE { NONE } END }; \
+       IF $domain.preserve_original_media { \
+         CREATE $domain.manifest_ref CONTENT { manifest_id: $domain.manifest_id, reset_id: $rid, \
+           manifest_json: $domain.manifest_json, item_count: $domain.original_media_preserved_count }; \
+         FOR $item IN $domain.media_items { \
+           CREATE $item.manifest_item_ref CONTENT { manifest_item_id: $item.manifest_item_id, \
+             manifest_id: $domain.manifest_ref, asset_id: $item.asset_ref, \
+             content_hash: $item.content_hash, artifact_ref: $item.artifact_ref, mime: $item.mime, \
+             byte_len: $item.byte_len, retention_class: $item.retention_class }; \
+         }; \
+       }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT ", reset_columns!(), " FROM $rid)[0]; };"
+);
+
 impl AtelierStore {
     /// Persist the authoritative Atelier item -> Loom block relation.
     ///
@@ -906,108 +1369,131 @@ impl AtelierStore {
         reject_legacy_runtime_ref("loom_block_id", loom_block_id)?;
         reject_legacy_runtime_ref("linked_by", linked_by)?;
 
-        let mut tx = self.pool().begin().await?;
-        let item_exists = sqlx::query_scalar::<_, Uuid>(
-            "SELECT item_id FROM atelier_intake_item WHERE item_id = $1 FOR UPDATE",
-        )
-        .bind(item_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .is_some();
-        if !item_exists {
-            tx.rollback().await?;
+        let item_ref = RecordId::new("atelier_intake_item", SurrealUuid::from(item_id));
+        let item: Option<serde_json::Value> = self
+            .with_data({
+                let item_ref = item_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(GET_ITEM_BY_REF_STATEMENT, ItemRefBinding { item_ref })
+                            .await
+                    })
+                }
+            })
+            .await?;
+        if item.is_none() {
             return Err(AtelierError::NotFound(format!("intake item {item_id}")));
         }
 
-        let block = sqlx::query(
-            r#"SELECT workspace_id, document_id, asset_id
-               FROM loom_blocks
-               WHERE block_id = $1
-               FOR SHARE"#,
-        )
-        .bind(loom_block_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("Loom block {loom_block_id}")))?;
-        let workspace_id: String = block.get("workspace_id");
-        let document_id: Option<String> = block.get("document_id");
-        let asset_id: Option<String> = block.get("asset_id");
-        if document_id.is_none() && asset_id.is_none() {
-            tx.rollback().await?;
+        let loom_block_ref = RecordId::new("loom_blocks", loom_block_id.to_owned());
+        let block: Option<serde_json::Value> = self
+            .with_data({
+                let loom_block_ref = loom_block_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            GET_LOOM_BLOCK_STATEMENT,
+                            LoomBlockBinding { loom_block_ref },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        let block = intake_row(
+            block.ok_or_else(|| AtelierError::NotFound(format!("Loom block {loom_block_id}")))?,
+        )?;
+        if !block.get::<bool, _>("has_source") {
             return Err(AtelierError::Validation(format!(
                 "Loom block {loom_block_id} has no source document or asset"
             )));
         }
-
-        if let Some(row) = sqlx::query(
-            r#"SELECT item_id, loom_block_id, workspace_id, linked_by, linked_at_utc
-               FROM atelier_intake_item_loom_projection
-               WHERE item_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(item_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        {
+        let workspace_ref: RecordId = block.get("workspace_ref");
+        let workspace_id: String = block.get("workspace_id");
+        let projection_ref = RecordId::new(
+            "atelier_intake_item_loom_projection",
+            SurrealUuid::from(item_id),
+        );
+        let existing: Option<serde_json::Value> = self
+            .with_data({
+                let projection_ref = projection_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            GET_LOOM_PROJECTION_STATEMENT,
+                            ProjectionRefBinding { projection_ref },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        if let Some(existing) = existing {
+            let row = intake_row(existing)?;
             let existing_block_id: String = row.get("loom_block_id");
             if existing_block_id != loom_block_id {
-                tx.rollback().await?;
                 return Err(AtelierError::Conflict(format!(
                     "intake item {item_id} is already linked to Loom block {existing_block_id}"
                 )));
             }
-            let projection = IntakeItemLoomProjection {
+            return Ok(IntakeItemLoomProjection {
                 item_id: row.get("item_id"),
                 loom_block_id: existing_block_id,
                 workspace_id: row.get("workspace_id"),
                 linked_by: row.get("linked_by"),
                 linked_at_utc: row.get("linked_at_utc"),
-            };
-            tx.commit().await?;
-            return Ok(projection);
+            });
         }
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_intake_item_loom_projection
-                  (item_id, loom_block_id, workspace_id, linked_by)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT DO NOTHING
-               RETURNING item_id, loom_block_id, workspace_id, linked_by, linked_at_utc"#,
-        )
-        .bind(item_id)
-        .bind(loom_block_id)
-        .bind(&workspace_id)
-        .bind(linked_by)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(row) = row else {
-            tx.rollback().await?;
+        let occupied: Option<serde_json::Value> = self
+            .with_data({
+                let loom_block_ref = loom_block_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            FIND_LOOM_PROJECTION_BY_BLOCK_STATEMENT,
+                            LoomBlockBinding { loom_block_ref },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        if occupied.is_some() {
             return Err(AtelierError::Conflict(format!(
                 "Loom block {loom_block_id} already has a canonical Atelier intake item"
             )));
+        }
+        let bindings = LoomProjectionBindings {
+            projection_ref,
+            item_ref,
+            loom_block_ref,
+            workspace_ref,
+            linked_by: linked_by.to_owned(),
         };
-        let projection = IntakeItemLoomProjection {
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_LOOM_PROJECTION_STATEMENT,
+                bindings,
+                intake_event_family::INTAKE_ITEM_LOOM_PROJECTION_LINKED,
+                "atelier_intake_item",
+                &item_id.to_string(),
+                serde_json::json!({
+                    "loom_block_id": loom_block_id,
+                    "workspace_id": workspace_id,
+                    "linked_by": linked_by,
+                }),
+            )
+            .await?;
+        let row = intake_row(row.ok_or_else(|| {
+            AtelierError::Internal("linking an intake Loom projection returned no row".to_owned())
+        })?)?;
+        Ok(IntakeItemLoomProjection {
             item_id: row.get("item_id"),
             loom_block_id: row.get("loom_block_id"),
             workspace_id: row.get("workspace_id"),
             linked_by: row.get("linked_by"),
             linked_at_utc: row.get("linked_at_utc"),
-        };
-
-        self.record_event_in_tx(
-            &mut tx,
-            intake_event_family::INTAKE_ITEM_LOOM_PROJECTION_LINKED,
-            "atelier_intake_item",
-            &item_id.to_string(),
-            serde_json::json!({
-                "loom_block_id": &projection.loom_block_id,
-                "workspace_id": &projection.workspace_id,
-                "linked_by": &projection.linked_by,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(projection)
+        })
     }
 
     /// Scan a configured inbox directory and register direct child image files
@@ -1038,41 +1524,22 @@ impl AtelierStore {
         let effective_max_files = request.max_files;
         let effective_max_files_i64 = checked_usize_to_i64("max_files", effective_max_files)?;
         let enumeration = enumerate_inbox_folder(request, effective_max_files)?;
-        let mut tx = self.pool().begin().await?;
-        let result = self
-            .scan_inbox_folder_import_in_tx(
-                request,
-                enumeration,
-                requested_max_files,
-                effective_max_files_i64,
-                &mut tx,
-            )
-            .await;
-        match result {
-            Ok(result) => {
-                tx.commit().await?;
-                Ok(result)
-            }
-            Err(err) => {
-                tx.rollback().await?;
-                Err(err)
-            }
-        }
+        self.scan_inbox_folder_import_embedded(
+            request,
+            enumeration,
+            requested_max_files,
+            effective_max_files_i64,
+        )
+        .await
     }
 
-    async fn scan_inbox_folder_import_in_tx(
+    async fn scan_inbox_folder_import_embedded(
         &self,
         request: &InboxFolderScanRequest,
         enumeration: InboxFolderEnumeration,
         requested_max_files: i64,
         effective_max_files: i64,
-        tx: &mut Transaction<'_, Postgres>,
     ) -> AtelierResult<InboxFolderScanResult> {
-        sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(advisory_lock_key(&request.idempotency_key))
-            .execute(&mut **tx)
-            .await?;
-
         let scan_profile_mode = if request.character_internal_id.is_some() {
             IntakeProfileMode::CharacterLinked
         } else {
@@ -1083,21 +1550,18 @@ impl AtelierStore {
             sha256_hex(request.idempotency_key.as_bytes())
         );
         let (batch, batch_inserted) = self
-            .open_intake_batch_in_tx(
-                tx,
-                &NewIntakeBatch {
-                    idempotency_key: request.idempotency_key.clone(),
-                    source_label: request.source_label.clone(),
-                    source_ref: Some(enumeration.root_path_ref.clone()),
-                    mode: IntakeBatchMode::FolderScan,
-                    profile_mode: scan_profile_mode,
-                    character_internal_id: request.character_internal_id,
-                    target_character_id: request.character_internal_id,
-                    target_sheet_version_id: None,
-                    target_collection_id: None,
-                    resume_cursor: Some(scan_resume_cursor),
-                },
-            )
+            .open_intake_batch_inner(&NewIntakeBatch {
+                idempotency_key: request.idempotency_key.clone(),
+                source_label: request.source_label.clone(),
+                source_ref: Some(enumeration.root_path_ref.clone()),
+                mode: IntakeBatchMode::FolderScan,
+                profile_mode: scan_profile_mode,
+                character_internal_id: request.character_internal_id,
+                target_character_id: request.character_internal_id,
+                target_sheet_version_id: None,
+                target_collection_id: None,
+                resume_cursor: Some(scan_resume_cursor),
+            })
             .await?;
         if !batch_inserted {
             if batch.source_ref != enumeration.root_path_ref
@@ -1128,54 +1592,12 @@ impl AtelierStore {
             }
         }
 
-        let previous_root_ref: Option<String> = sqlx::query_scalar(
-            r#"SELECT payload->>'root_path_ref'
-               FROM atelier_event
-               WHERE event_family = $1
-                 AND aggregate_type = 'atelier_intake_batch'
-                 AND aggregate_id = $2
-               ORDER BY created_at_utc ASC
-               LIMIT 1"#,
-        )
-        .bind(intake_event_family::INTAKE_FOLDER_SCAN_COMPLETED)
-        .bind(batch.batch_id.to_string())
-        .fetch_optional(&mut **tx)
-        .await?;
-        if let Some(previous_root_ref) = previous_root_ref {
-            if previous_root_ref != enumeration.root_path_ref {
-                return Err(AtelierError::Validation(
-                    "inbox_root does not match the previous folder scan for this idempotency_key"
-                        .into(),
-                ));
-            }
-        }
-
-        if batch_inserted {
-            self.record_event_in_tx(
-                tx,
-                intake_event_family::INTAKE_BATCH_CREATED,
-                "atelier_intake_batch",
-                &batch.batch_id.to_string(),
-                serde_json::json!({
-                    "batch_id": batch.batch_id,
-                    "idempotency_key": batch.idempotency_key,
-                    "source_label": batch.source_label,
-                    "source_ref": batch.source_ref,
-                    "mode": batch.mode,
-                    "resume_cursor": batch.resume_cursor,
-                    "character_scoped": batch.character_internal_id.is_some(),
-                }),
-            )
-            .await?;
-        }
-
         let mut imported_count = 0_i64;
         let mut duplicate_skipped_count = 0_i64;
         let mut items = Vec::new();
         for file in enumeration.files {
             let (item, inserted) = self
-                .insert_intake_item_in_tx(
-                    tx,
+                .insert_intake_item_inner(
                     batch.batch_id,
                     &NewIntakeItem {
                         source_path: file.source_path,
@@ -1187,19 +1609,6 @@ impl AtelierStore {
                 .await?;
             if inserted {
                 imported_count += 1;
-                self.record_event_in_tx(
-                    tx,
-                    intake_event_family::INTAKE_ITEM_ADDED,
-                    "atelier_intake_item",
-                    &item.item_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": item.batch_id,
-                        "source_path_ref": event_ref_for_text(&item.source_path),
-                        "file_name_ref": event_ref_for_text(&item.file_name),
-                        "byte_len": item.byte_len,
-                    }),
-                )
-                .await?;
             } else {
                 duplicate_skipped_count += 1;
             }
@@ -1223,8 +1632,7 @@ impl AtelierStore {
             skipped_special_count: enumeration.skipped_special_count,
         };
 
-        self.record_event_in_tx(
-            tx,
+        self.record_event(
             intake_event_family::INTAKE_FOLDER_SCAN_COMPLETED,
             "atelier_intake_batch",
             &result.batch.batch_id.to_string(),
@@ -1249,141 +1657,183 @@ impl AtelierStore {
         Ok(result)
     }
 
-    async fn open_intake_batch_in_tx(
+    async fn open_intake_batch_inner(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
         new: &NewIntakeBatch,
     ) -> AtelierResult<(IntakeBatch, bool)> {
         let (explicit_source_ref, source_ref) = normalize_batch_source_refs(new)?;
         let resume_cursor = normalize_optional_batch_ref("resume_cursor", &new.resume_cursor)?;
         let targets = normalize_batch_targets(new)?;
-        sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(advisory_lock_key(&format!(
-                "atelier-intake-batch:{}",
-                new.idempotency_key
-            )))
-            .execute(&mut **tx)
-            .await?;
-
-        let row = sqlx::query(
-            r#"WITH inserted AS (
-                 INSERT INTO atelier_intake_batch
-                   (idempotency_key, source_label, source_ref, mode,
-                    profile_mode, character_internal_id, target_character_id,
-                    target_sheet_version_id, target_collection_id, status, resume_cursor)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'open', $10)
-                 ON CONFLICT (idempotency_key) DO NOTHING
-                 RETURNING batch_id, idempotency_key, source_label,
-                           source_ref, mode, profile_mode, character_internal_id,
-                           target_character_id, target_sheet_version_id,
-                           target_collection_id, status, resume_cursor,
-                           resumed_at_utc, created_at_utc, updated_at_utc
-               )
-               SELECT TRUE AS inserted, batch_id, idempotency_key, source_label,
-                      source_ref, mode, profile_mode, character_internal_id,
-                      target_character_id, target_sheet_version_id,
-                      target_collection_id, status, resume_cursor,
-                      resumed_at_utc, created_at_utc, updated_at_utc
-               FROM inserted
-               UNION ALL
-               SELECT FALSE AS inserted, batch_id, idempotency_key, source_label,
-                      source_ref, mode, profile_mode, character_internal_id,
-                      target_character_id, target_sheet_version_id,
-                      target_collection_id, status, resume_cursor,
-                      resumed_at_utc, created_at_utc, updated_at_utc
-               FROM atelier_intake_batch
-               WHERE idempotency_key = $1
-               LIMIT 1"#,
-        )
-        .bind(&new.idempotency_key)
-        .bind(&new.source_label)
-        .bind(&source_ref)
-        .bind(new.mode.as_str())
-        .bind(new.profile_mode.as_str())
-        .bind(targets.character_internal_id)
-        .bind(targets.target_character_id)
-        .bind(targets.target_sheet_version_id)
-        .bind(targets.target_collection_id)
-        .bind(&resume_cursor)
-        .fetch_one(&mut **tx)
-        .await?;
-        let inserted: bool = row.get("inserted");
-        let batch = batch_from_row(&row);
-        if !inserted {
+        if let Some(batch) = self.get_intake_batch_by_key(&new.idempotency_key).await? {
             validate_intake_batch_reopen_contract(
                 &batch,
                 new,
                 explicit_source_ref.as_deref(),
                 targets,
             )?;
+            return Ok((batch, false));
         }
-        Ok((batch, inserted))
+        let batch_id = Uuid::now_v7();
+        let record_ref = |table: &'static str, value: Option<Uuid>| {
+            value.map(|id| RecordId::new(table, SurrealUuid::from(id)))
+        };
+        let bindings = BatchWriteBindings {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+            batch_id: SurrealUuid::from(batch_id),
+            idempotency_key: new.idempotency_key.clone(),
+            source_label: new.source_label.clone(),
+            source_ref: source_ref.clone(),
+            mode: new.mode.as_str().to_owned(),
+            profile_mode: new.profile_mode.as_str().to_owned(),
+            character_internal_id: record_ref("atelier_character", targets.character_internal_id),
+            target_character_id: record_ref("atelier_character", targets.target_character_id),
+            target_sheet_version_id: record_ref(
+                "atelier_sheet_version",
+                targets.target_sheet_version_id,
+            ),
+            target_collection_id: record_ref("atelier_collection", targets.target_collection_id),
+            resume_cursor: resume_cursor.clone(),
+        };
+        let payload = serde_json::json!({
+            "batch_id": batch_id,
+            "idempotency_key": new.idempotency_key,
+            "source_label": new.source_label,
+            "source_ref": source_ref,
+            "mode": new.mode,
+            "profile_mode": new.profile_mode,
+            "resume_cursor": resume_cursor,
+            "character_scoped": targets.character_internal_id.is_some(),
+        });
+        let aggregate_id = batch_id.to_string();
+        let mut attempt = 1;
+        let row = loop {
+            let row_result: AtelierResult<Option<serde_json::Value>> = self
+                .write_with_event(
+                    WRITE_BATCH_STATEMENT,
+                    bindings.clone(),
+                    intake_event_family::INTAKE_BATCH_CREATED,
+                    "atelier_intake_batch",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+                .await;
+            match row_result {
+                Ok(Some(row)) => break row,
+                Ok(None) => {
+                    return Err(AtelierError::Internal(
+                        "opening an intake batch returned no row".to_owned(),
+                    ));
+                }
+                Err(error)
+                    if is_surreal_unique_index_conflict(&error, "uq_atelier_intake_batch_1")
+                        || is_surreal_retryable_transaction_conflict(&error) =>
+                {
+                    match self.get_intake_batch_by_key(&new.idempotency_key).await {
+                        Ok(Some(batch)) => {
+                            validate_intake_batch_reopen_contract(
+                                &batch,
+                                new,
+                                explicit_source_ref.as_deref(),
+                                targets,
+                            )?;
+                            return Ok((batch, false));
+                        }
+                        Ok(None) => {}
+                        Err(read_error)
+                            if is_surreal_retryable_transaction_conflict(&read_error) => {}
+                        Err(read_error) => {
+                            return Err(AtelierError::Internal(format!(
+                                "opening an intake batch failed: {error}; canonical idempotency reread also failed: {read_error}"
+                            )));
+                        }
+                    }
+                    if attempt >= SURREAL_TRANSACTION_MAX_ATTEMPTS {
+                        return Err(error);
+                    }
+                    wait_before_surreal_transaction_retry(batch_id, attempt).await;
+                    attempt += 1;
+                }
+                Err(error) => return Err(error),
+            }
+        };
+        let row = intake_row(row)?;
+        Ok((batch_from_row(&row), true))
     }
 
-    async fn insert_intake_item_in_tx(
+    async fn insert_intake_item_inner(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
         batch_id: Uuid,
         new: &NewIntakeItem,
     ) -> AtelierResult<(IntakeItem, bool)> {
-        sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(advisory_lock_key(&format!(
-                "atelier-intake-item:{batch_id}:{}",
-                new.source_path
-            )))
-            .execute(&mut **tx)
-            .await?;
-
-        let batch_exists: Option<Uuid> =
-            sqlx::query_scalar("SELECT batch_id FROM atelier_intake_batch WHERE batch_id = $1")
-                .bind(batch_id)
-                .fetch_optional(&mut **tx)
-                .await?;
-        if batch_exists.is_none() {
-            return Err(AtelierError::NotFound(format!("intake batch {batch_id}")));
+        if let Some(existing) = self.get_intake_item(batch_id, &new.source_path).await? {
+            return Ok((existing, false));
         }
-
-        let row = sqlx::query(
-            r#"WITH inserted AS (
-                 INSERT INTO atelier_intake_item
-                   (batch_id, source_path, file_name, byte_len, content_hash, lane)
-                 VALUES ($1, $2, $3, $4, $5, 'pending')
-                 ON CONFLICT (batch_id, source_path) DO NOTHING
-                 RETURNING item_id, batch_id, source_path, file_name, byte_len,
-                           content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               )
-               SELECT TRUE AS inserted, item_id, batch_id, source_path, file_name, byte_len,
-                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               FROM inserted
-               UNION ALL
-               SELECT FALSE AS inserted, item_id, batch_id, source_path, file_name, byte_len,
-                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               FROM atelier_intake_item
-               WHERE batch_id = $1 AND source_path = $2
-               LIMIT 1"#,
-        )
-        .bind(batch_id)
-        .bind(&new.source_path)
-        .bind(&new.file_name)
-        .bind(new.byte_len)
-        .bind(&new.content_hash)
-        .fetch_one(&mut **tx)
-        .await?;
-        let inserted: bool = row.get("inserted");
-        if inserted {
-            sqlx::query(
-                "UPDATE atelier_intake_batch SET updated_at_utc = NOW() WHERE batch_id = $1",
-            )
-            .bind(batch_id)
-            .execute(&mut **tx)
-            .await?;
-        }
-        Ok((item_from_row(&row)?, inserted))
+        let item_id = Uuid::now_v7();
+        let bindings = ItemWriteBindings {
+            item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(item_id)),
+            item_id: SurrealUuid::from(item_id),
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+            source_path: new.source_path.clone(),
+            file_name: new.file_name.clone(),
+            byte_len: new.byte_len,
+            content_hash: new.content_hash.clone(),
+        };
+        let payload = serde_json::json!({
+            "batch_id": batch_id,
+            "source_path_ref": event_ref_for_text(&new.source_path),
+            "file_name_ref": event_ref_for_text(&new.file_name),
+            "byte_len": new.byte_len,
+        });
+        let aggregate_id = item_id.to_string();
+        let mut attempt = 1;
+        let row = loop {
+            let row_result: AtelierResult<Option<serde_json::Value>> = self
+                .write_with_event(
+                    WRITE_ITEM_STATEMENT,
+                    bindings.clone(),
+                    intake_event_family::INTAKE_ITEM_ADDED,
+                    "atelier_intake_item",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+                .await;
+            match row_result {
+                Ok(Some(row)) => break row,
+                Ok(None) => {
+                    return Err(AtelierError::Internal(
+                        "adding an intake item returned no row".to_owned(),
+                    ));
+                }
+                Err(error)
+                    if is_surreal_unique_index_conflict(&error, "uq_atelier_intake_item_1")
+                        || is_surreal_retryable_transaction_conflict(&error) =>
+                {
+                    match self.get_intake_item(batch_id, &new.source_path).await {
+                        Ok(Some(existing)) => return Ok((existing, false)),
+                        Ok(None) => {}
+                        Err(read_error)
+                            if is_surreal_retryable_transaction_conflict(&read_error) => {}
+                        Err(read_error) => {
+                            return Err(AtelierError::Internal(format!(
+                                "adding an intake item failed: {error}; canonical idempotency reread also failed: {read_error}"
+                            )));
+                        }
+                    }
+                    if attempt >= SURREAL_TRANSACTION_MAX_ATTEMPTS {
+                        return Err(error);
+                    }
+                    wait_before_surreal_transaction_retry(item_id, attempt).await;
+                    attempt += 1;
+                }
+                Err(error) => return Err(error),
+            }
+        };
+        let row = intake_row(row)?;
+        Ok((item_from_row(&row)?, true))
     }
 
-    async fn insert_rejection_audit_in_tx(
+    async fn insert_rejection_audit(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
         item: &IntakeItem,
     ) -> AtelierResult<Option<(IntakeItemRejectionAudit, bool)>> {
         if !item.lane.requires_rejection_audit() {
@@ -1396,34 +1846,119 @@ impl AtelierStore {
             ))
         })?;
         let source_path_ref = event_ref_for_text(&item.source_path);
-        let row = sqlx::query(
-            r#"WITH inserted AS (
-                 INSERT INTO atelier_intake_item_rejection_audit
-                   (item_id, batch_id, lane, reason, source_path_ref)
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (item_id, lane, reason) DO NOTHING
-                 RETURNING audit_id, item_id, batch_id, lane, reason,
-                           source_path_ref, created_at_utc
-               )
-               SELECT TRUE AS inserted, audit_id, item_id, batch_id, lane, reason,
-                      source_path_ref, created_at_utc
-               FROM inserted
-               UNION ALL
-               SELECT FALSE AS inserted, audit_id, item_id, batch_id, lane, reason,
-                      source_path_ref, created_at_utc
-               FROM atelier_intake_item_rejection_audit
-               WHERE item_id = $1 AND lane = $3 AND reason = $4
-               LIMIT 1"#,
-        )
-        .bind(item.item_id)
-        .bind(item.batch_id)
-        .bind(item.lane.as_str())
-        .bind(reason)
-        .bind(&source_path_ref)
-        .fetch_one(&mut **tx)
-        .await?;
-        let inserted: bool = row.get("inserted");
-        Ok(Some((rejection_audit_from_row(&row)?, inserted)))
+        let item_ref = RecordId::new("atelier_intake_item", SurrealUuid::from(item.item_id));
+        let lookup = AuditLookupBinding {
+            item_ref: item_ref.clone(),
+            lane: item.lane.as_str().to_owned(),
+            reason: reason.to_owned(),
+        };
+        let existing: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(FIND_AUDIT_STATEMENT, lookup).await })
+            })
+            .await?;
+        if let Some(existing) = existing {
+            return Ok(Some((
+                rejection_audit_from_row(&intake_row(existing)?)?,
+                false,
+            )));
+        }
+        let audit_id = Uuid::now_v7();
+        let bindings = RejectionAuditBindings {
+            audit_ref: RecordId::new(
+                "atelier_intake_item_rejection_audit",
+                SurrealUuid::from(audit_id),
+            ),
+            audit_id: SurrealUuid::from(audit_id),
+            item_ref,
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(item.batch_id)),
+            lane: item.lane.as_str().to_owned(),
+            reason: reason.to_owned(),
+            source_path_ref: source_path_ref.clone(),
+        };
+        let payload = serde_json::json!({
+            "audit_id": audit_id,
+            "batch_id": item.batch_id,
+            "lane": item.lane,
+            "reason_ref": event_ref_for_text(reason),
+            "source_path_ref": source_path_ref,
+        });
+        let aggregate_id = item.item_id.to_string();
+        let mut attempt = 1;
+        let row = loop {
+            let row_result: AtelierResult<Option<serde_json::Value>> = self
+                .write_with_event(
+                    WRITE_AUDIT_STATEMENT,
+                    bindings.clone(),
+                    intake_event_family::INTAKE_ITEM_REJECTION_AUDITED,
+                    "atelier_intake_item",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+                .await;
+            match row_result {
+                Ok(Some(row)) => break row,
+                Ok(None) => {
+                    return Err(AtelierError::Internal(
+                        "recording an intake rejection audit returned no row".to_owned(),
+                    ));
+                }
+                Err(error)
+                    if is_surreal_unique_index_conflict(
+                        &error,
+                        "uq_atelier_intake_item_rejection_audit_1",
+                    ) || is_surreal_retryable_transaction_conflict(&error) =>
+                {
+                    let lookup = AuditLookupBinding {
+                        item_ref: RecordId::new(
+                            "atelier_intake_item",
+                            SurrealUuid::from(item.item_id),
+                        ),
+                        lane: item.lane.as_str().to_owned(),
+                        reason: reason.to_owned(),
+                    };
+                    let existing: AtelierResult<Option<serde_json::Value>> = self
+                        .with_data(move |ctx| {
+                            Box::pin(
+                                async move { ctx.query_first(FIND_AUDIT_STATEMENT, lookup).await },
+                            )
+                        })
+                        .await;
+                    match existing {
+                        Ok(Some(existing)) => {
+                            return Ok(Some((
+                                rejection_audit_from_row(&intake_row(existing)?)?,
+                                false,
+                            )));
+                        }
+                        Ok(None) => {}
+                        Err(read_error)
+                            if is_surreal_retryable_transaction_conflict(&read_error) => {}
+                        Err(read_error) => {
+                            return Err(AtelierError::Internal(format!(
+                                "recording an intake rejection audit failed: {error}; canonical idempotency reread also failed: {read_error}"
+                            )));
+                        }
+                    }
+                    if attempt >= SURREAL_TRANSACTION_MAX_ATTEMPTS {
+                        return Err(error);
+                    }
+                    wait_before_surreal_transaction_retry(audit_id, attempt).await;
+                    attempt += 1;
+                }
+                Err(error) => return Err(error),
+            }
+        };
+        let row = intake_row(row)?;
+        Ok(Some((rejection_audit_from_row(&row)?, true)))
+    }
+
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub(crate) async fn mt136_insert_rejection_audit_for_proof(
+        &self,
+        item: &IntakeItem,
+    ) -> AtelierResult<Option<(IntakeItemRejectionAudit, bool)>> {
+        self.insert_rejection_audit(item).await
     }
 
     /// Open a persistent intake batch, or return the existing one for the same
@@ -1439,65 +1974,9 @@ impl AtelierStore {
         }
         require_scan_text("source_label", &new.source_label)?;
         reject_legacy_runtime_ref("source_label", &new.source_label)?;
-        let (explicit_source_ref, source_ref) = normalize_batch_source_refs(new)?;
-        let resume_cursor = normalize_optional_batch_ref("resume_cursor", &new.resume_cursor)?;
-        let targets = normalize_batch_targets(new)?;
-
-        // Idempotent fast path: an existing batch with this key wins.
-        if let Some(existing) = self.get_intake_batch_by_key(&new.idempotency_key).await? {
-            validate_intake_batch_reopen_contract(
-                &existing,
-                new,
-                explicit_source_ref.as_deref(),
-                targets,
-            )?;
-            return Ok(existing);
-        }
-
-        let mut tx = self.pool().begin().await?;
-        let result = async {
-            let (batch, inserted) = self.open_intake_batch_in_tx(&mut tx, new).await?;
-            if inserted {
-                self.record_event_in_tx(
-                    &mut tx,
-                    intake_event_family::INTAKE_BATCH_CREATED,
-                    "atelier_intake_batch",
-                    &batch.batch_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": batch.batch_id,
-                        "idempotency_key": batch.idempotency_key,
-                        "source_label": batch.source_label,
-                        "source_ref": source_ref,
-                        "mode": batch.mode,
-                        "profile_mode": batch.profile_mode,
-                        "resume_cursor": resume_cursor,
-                        "character_scoped": batch.character_internal_id.is_some(),
-                        "target_character_ref": batch
-                            .target_character_id
-                            .map(|id| event_ref_for_text(&id.to_string())),
-                        "target_sheet_version_ref": batch
-                            .target_sheet_version_id
-                            .map(|id| event_ref_for_text(&id.to_string())),
-                        "target_collection_ref": batch
-                            .target_collection_id
-                            .map(|id| event_ref_for_text(&id.to_string())),
-                    }),
-                )
-                .await?;
-            }
-            Ok(batch)
-        }
-        .await;
-        match result {
-            Ok(batch) => {
-                tx.commit().await?;
-                Ok(batch)
-            }
-            Err(err) => {
-                tx.rollback().await?;
-                Err(err)
-            }
-        }
+        self.open_intake_batch_inner(new)
+            .await
+            .map(|(batch, _)| batch)
     }
 
     /// Fetch a batch by its stable idempotency key.
@@ -1505,18 +1984,31 @@ impl AtelierStore {
         &self,
         idempotency_key: &str,
     ) -> AtelierResult<Option<IntakeBatch>> {
-        let row = sqlx::query(
-            r#"SELECT batch_id, idempotency_key, source_label, character_internal_id,
-                      source_ref, mode, profile_mode, target_character_id,
-                      target_sheet_version_id, target_collection_id,
-                      status, resume_cursor, resumed_at_utc,
-                      created_at_utc, updated_at_utc
-               FROM atelier_intake_batch WHERE idempotency_key = $1"#,
-        )
-        .bind(idempotency_key)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(batch_from_row))
+        let binding = IdempotencyKeyBinding {
+            idempotency_key: idempotency_key.to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_BATCH_BY_KEY_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(intake_row)
+            .transpose()
+            .map(|row| row.as_ref().map(batch_from_row))
+    }
+
+    async fn get_intake_batch_by_id(&self, batch_id: Uuid) -> AtelierResult<Option<IntakeBatch>> {
+        let binding = BatchRefBinding {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_BATCH_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(intake_row)
+            .transpose()
+            .map(|row| row.as_ref().map(batch_from_row))
     }
 
     /// List batches, newest first, optionally filtered by status.
@@ -1526,22 +2018,25 @@ impl AtelierStore {
         limit: i64,
     ) -> AtelierResult<Vec<IntakeBatch>> {
         let capped = limit.clamp(1, 1000);
-        let rows = sqlx::query(
-            r#"SELECT batch_id, idempotency_key, source_label, character_internal_id,
-                      source_ref, mode, profile_mode, target_character_id,
-                      target_sheet_version_id, target_collection_id,
-                      status, resume_cursor, resumed_at_utc,
-                      created_at_utc, updated_at_utc
-               FROM atelier_intake_batch
-               WHERE ($1::TEXT IS NULL OR status = $1)
-               ORDER BY updated_at_utc DESC
-               LIMIT $2"#,
-        )
-        .bind(status.map(|s| s.as_str()))
-        .bind(capped)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(batch_from_row).collect())
+        let rows: Vec<serde_json::Value> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_BATCHES_STATEMENT, NoBindings {})
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(intake_row)
+            .map(|row| row.map(|row| batch_from_row(&row)))
+            .filter(|result| {
+                result
+                    .as_ref()
+                    .map(|batch| status.map(|wanted| batch.status == wanted).unwrap_or(true))
+                    .unwrap_or(true)
+            })
+            .take(capped as usize)
+            .collect()
     }
 
     /// List batches by profile linkage mode, newest first. `None` returns all
@@ -1552,22 +2047,29 @@ impl AtelierStore {
         limit: i64,
     ) -> AtelierResult<Vec<IntakeBatch>> {
         let capped = limit.clamp(1, 1000);
-        let rows = sqlx::query(
-            r#"SELECT batch_id, idempotency_key, source_label, character_internal_id,
-                      source_ref, mode, profile_mode, target_character_id,
-                      target_sheet_version_id, target_collection_id,
-                      status, resume_cursor, resumed_at_utc,
-                      created_at_utc, updated_at_utc
-               FROM atelier_intake_batch
-               WHERE ($1::TEXT IS NULL OR profile_mode = $1)
-               ORDER BY updated_at_utc DESC
-               LIMIT $2"#,
-        )
-        .bind(profile_mode.map(|mode| mode.as_str()))
-        .bind(capped)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(batch_from_row).collect())
+        let rows: Vec<serde_json::Value> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_BATCHES_STATEMENT, NoBindings {})
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(intake_row)
+            .map(|row| row.map(|row| batch_from_row(&row)))
+            .filter(|result| {
+                result
+                    .as_ref()
+                    .map(|batch| {
+                        profile_mode
+                            .map(|wanted| batch.profile_mode == wanted)
+                            .unwrap_or(true)
+                    })
+                    .unwrap_or(true)
+            })
+            .take(capped as usize)
+            .collect()
     }
 
     /// Mark a persistent intake batch as actively resumed and store the cursor
@@ -1584,42 +2086,41 @@ impl AtelierStore {
         let requested_by = require_scan_text("requested_by", requested_by)?;
         reject_legacy_runtime_ref("requested_by", requested_by)?;
 
-        let row = sqlx::query(
-            r#"UPDATE atelier_intake_batch
-               SET status = 'in_progress',
-                   resume_cursor = $2,
-                   resumed_at_utc = NOW(),
-                   updated_at_utc = NOW()
-               WHERE batch_id = $1
-                 AND status <> 'closed'
-               RETURNING batch_id, idempotency_key, source_label, source_ref,
-                         mode, profile_mode, character_internal_id,
-                         target_character_id, target_sheet_version_id,
-                         target_collection_id, status, resume_cursor,
-                         resumed_at_utc, created_at_utc, updated_at_utc"#,
-        )
-        .bind(batch_id)
-        .bind(&cursor)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("open intake batch {batch_id}")))?;
-        let batch = batch_from_row(&row);
-
-        self.record_event(
-            intake_event_family::INTAKE_BATCH_RESUMED,
-            "atelier_intake_batch",
-            &batch.batch_id.to_string(),
-            serde_json::json!({
-                "batch_id": batch.batch_id,
-                "source_ref": batch.source_ref,
-                "mode": batch.mode,
-                "status": batch.status,
-                "resume_cursor": batch.resume_cursor,
-                "requested_by": requested_by,
-            }),
-        )
-        .await?;
-        Ok(batch)
+        let existing = self.get_intake_batch_by_id(batch_id).await?;
+        if existing
+            .as_ref()
+            .map(|batch| batch.status == BatchStatus::Closed)
+            .unwrap_or(true)
+        {
+            return Err(AtelierError::NotFound(format!(
+                "open intake batch {batch_id}"
+            )));
+        }
+        let bindings = BatchResumeBindings {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+            resume_cursor: cursor.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                RESUME_BATCH_STATEMENT,
+                bindings,
+                intake_event_family::INTAKE_BATCH_RESUMED,
+                "atelier_intake_batch",
+                &batch_id.to_string(),
+                serde_json::json!({
+                    "batch_id": batch_id,
+                    "source_ref": existing.as_ref().map(|batch| &batch.source_ref),
+                    "mode": existing.as_ref().map(|batch| batch.mode),
+                    "status": BatchStatus::InProgress,
+                    "resume_cursor": cursor,
+                    "requested_by": requested_by,
+                }),
+            )
+            .await?;
+        let row = intake_row(row.ok_or_else(|| {
+            AtelierError::Internal("resuming an intake batch returned no row".to_owned())
+        })?)?;
+        Ok(batch_from_row(&row))
     }
 
     /// Register a source file in a batch, idempotently. Re-adding the same
@@ -1631,50 +2132,30 @@ impl AtelierStore {
         batch_id: Uuid,
         new: &NewIntakeItem,
     ) -> AtelierResult<IntakeItem> {
+        if self.get_intake_batch_by_id(batch_id).await?.is_none() {
+            return Err(AtelierError::NotFound(format!(
+                "intake batch {batch_id}"
+            )));
+        }
         if new.source_path.trim().is_empty() {
             return Err(AtelierError::Validation(
                 "source_path must not be empty".into(),
             ));
         }
+        if new.file_name.trim().is_empty() {
+            return Err(AtelierError::Validation(
+                "file_name must not be empty".into(),
+            ));
+        }
+        if new.byte_len < 0 {
+            return Err(AtelierError::Validation(
+                "byte_len must not be negative".into(),
+            ));
+        }
         reject_legacy_runtime_ref("source_path", &new.source_path)?;
-        // Idempotent fast path: existing item for this source in this batch.
-        if let Some(existing) = self.get_intake_item(batch_id, &new.source_path).await? {
-            return Ok(existing);
-        }
-
-        let mut tx = self.pool().begin().await?;
-        let result = async {
-            let (item, inserted) = self
-                .insert_intake_item_in_tx(&mut tx, batch_id, new)
-                .await?;
-            if inserted {
-                self.record_event_in_tx(
-                    &mut tx,
-                    intake_event_family::INTAKE_ITEM_ADDED,
-                    "atelier_intake_item",
-                    &item.item_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": item.batch_id,
-                        "source_path_ref": event_ref_for_text(&item.source_path),
-                        "file_name_ref": event_ref_for_text(&item.file_name),
-                        "byte_len": item.byte_len,
-                    }),
-                )
-                .await?;
-            }
-            Ok(item)
-        }
-        .await;
-        match result {
-            Ok(item) => {
-                tx.commit().await?;
-                Ok(item)
-            }
-            Err(err) => {
-                tx.rollback().await?;
-                Err(err)
-            }
-        }
+        self.insert_intake_item_inner(batch_id, new)
+            .await
+            .map(|(item, _)| item)
     }
 
     /// Fetch a single item by its preserved source path within a batch.
@@ -1683,20 +2164,34 @@ impl AtelierStore {
         batch_id: Uuid,
         source_path: &str,
     ) -> AtelierResult<Option<IntakeItem>> {
-        let row = sqlx::query(
-            r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
-                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               FROM atelier_intake_item
-               WHERE batch_id = $1 AND source_path = $2"#,
-        )
-        .bind(batch_id)
-        .bind(source_path)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(item_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let binding = ItemLookupBinding {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+            source_path: source_path.to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_ITEM_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(intake_row)
+            .transpose()?
+            .map(|row| item_from_row(&row))
+            .transpose()
+    }
+
+    async fn get_intake_item_by_id(&self, item_id: Uuid) -> AtelierResult<Option<IntakeItem>> {
+        let binding = ItemRefBinding {
+            item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(item_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_ITEM_BY_REF_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(intake_row)
+            .transpose()?
+            .map(|row| item_from_row(&row))
+            .transpose()
     }
 
     /// List the items in a batch (creation order), optionally filtered to a lane.
@@ -1705,18 +2200,54 @@ impl AtelierStore {
         batch_id: Uuid,
         lane: Option<IntakeLane>,
     ) -> AtelierResult<Vec<IntakeItem>> {
-        let rows = sqlx::query(
-            r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
-                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               FROM atelier_intake_item
-               WHERE batch_id = $1 AND ($2::TEXT IS NULL OR lane = $2)
-               ORDER BY created_at_utc ASC"#,
-        )
-        .bind(batch_id)
-        .bind(lane.map(|l| l.as_str()))
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(item_from_row).collect()
+        let binding = BatchRefBinding {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_ITEMS_STATEMENT, binding).await })
+            })
+            .await?;
+        rows.into_iter()
+            .map(intake_row)
+            .map(|row| row.and_then(|row| item_from_row(&row)))
+            .filter(|result| {
+                result
+                    .as_ref()
+                    .map(|item| lane.map(|wanted| item.lane == wanted).unwrap_or(true))
+                    .unwrap_or(true)
+            })
+            .collect()
+    }
+
+    /// List at most `limit` items without materializing the rest of the batch.
+    /// The lane predicate and cap both execute inside SurrealDB.
+    pub async fn list_intake_items_limited(
+        &self,
+        batch_id: Uuid,
+        lane: Option<IntakeLane>,
+        limit: i64,
+    ) -> AtelierResult<Vec<IntakeItem>> {
+        if limit <= 0 {
+            return Ok(Vec::new());
+        }
+        let binding = BatchListBinding {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+            lane: lane.map(|value| value.as_str().to_owned()),
+            limit,
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_ITEMS_LIMITED_STATEMENT, binding)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(intake_row)
+            .map(|row| row.and_then(|row| item_from_row(&row)))
+            .collect()
     }
 
     /// List durable negative-lifecycle audit rows for a batch.
@@ -1724,17 +2255,18 @@ impl AtelierStore {
         &self,
         batch_id: Uuid,
     ) -> AtelierResult<Vec<IntakeItemRejectionAudit>> {
-        let rows = sqlx::query(
-            r#"SELECT audit_id, item_id, batch_id, lane, reason,
-                      source_path_ref, created_at_utc
-               FROM atelier_intake_item_rejection_audit
-               WHERE batch_id = $1
-               ORDER BY created_at_utc ASC, audit_id ASC"#,
-        )
-        .bind(batch_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(rejection_audit_from_row).collect()
+        let binding = BatchRefBinding {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_AUDITS_STATEMENT, binding).await })
+            })
+            .await?;
+        rows.into_iter()
+            .map(intake_row)
+            .map(|row| row.and_then(|row| rejection_audit_from_row(&row)))
+            .collect()
     }
 
     pub async fn record_atelier_reset(
@@ -1747,172 +2279,131 @@ impl AtelierStore {
         reject_legacy_runtime_ref("reason", reason)?;
 
         let reset_id = Uuid::now_v7();
-        let mut tx = self.pool().begin().await?;
-        let result = async {
-            sqlx::query(
-                r#"INSERT INTO atelier_reset_operation
-                   (reset_id, mode, requested_by, reason)
-                   VALUES ($1, $2, $3, $4)"#,
-            )
-            .bind(reset_id)
-            .bind(request.mode.as_str())
-            .bind(requested_by)
-            .bind(reason)
-            .execute(&mut *tx)
+        let preferences_deleted_count: Option<i64> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_first(COUNT_PREFERENCES_STATEMENT, NoBindings {})
+                        .await
+                })
+            })
             .await?;
-
-            let preference_rows =
-                sqlx::query("DELETE FROM atelier_preference RETURNING preference_id")
-                    .fetch_all(&mut *tx)
-                    .await?;
-            let preferences_deleted_count =
-                checked_usize_to_i64("preferences_deleted_count", preference_rows.len())?;
-
-            let mut original_media_preserved_count = 0_i64;
-            let mut orphan_manifest_id = None;
-            if request.mode == AtelierResetMode::FullPreserveOriginalMedia {
-                let manifest_id = Uuid::now_v7();
-                let media_rows = sqlx::query(
-                    r#"SELECT asset_id, content_hash, artifact_ref, mime, byte_len, retention_class
-                       FROM atelier_media_asset
-                       WHERE retention_class = $1
-                         AND btrim(content_hash) = content_hash
-                         AND btrim(content_hash) <> ''
-                         AND btrim(artifact_ref) = artifact_ref
-                         AND btrim(artifact_ref) <> ''
-                         AND btrim(mime) = mime
-                         AND btrim(mime) <> ''
-                         AND byte_len > 0
-                         AND btrim(retention_class) = retention_class
-                         AND btrim(retention_class) <> ''
-                       ORDER BY created_at_utc ASC, asset_id ASC"#,
-                )
-                .bind(MEDIA_ORIGINAL_RETENTION_CLASS)
-                .fetch_all(&mut *tx)
-                .await?;
-                original_media_preserved_count =
-                    checked_usize_to_i64("original_media_preserved_count", media_rows.len())?;
-                let manifest_json = serde_json::json!({
-                    "schema_id": ORPHAN_MANIFEST_SCHEMA_ID,
-                    "reset_id": reset_id,
-                    "reset_mode": request.mode.as_str(),
-                    "item_count": original_media_preserved_count,
-                    "retention_class": MEDIA_ORIGINAL_RETENTION_CLASS,
-                });
-                sqlx::query(
-                    r#"INSERT INTO atelier_orphan_manifest
-                       (manifest_id, reset_id, manifest_json, item_count)
-                       VALUES ($1, $2, $3, $4)"#,
-                )
-                .bind(manifest_id)
-                .bind(reset_id)
-                .bind(manifest_json)
-                .bind(original_media_preserved_count)
-                .execute(&mut *tx)
-                .await?;
-
-                for row in &media_rows {
-                    sqlx::query(
-                        r#"INSERT INTO atelier_orphan_manifest_item
-                           (manifest_item_id, manifest_id, asset_id, content_hash,
-                            artifact_ref, mime, byte_len, retention_class)
-                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                           ON CONFLICT (manifest_id, asset_id) DO NOTHING"#,
+        let preferences_deleted_count = preferences_deleted_count.unwrap_or(0);
+        let preserve_original_media = request.mode == AtelierResetMode::FullPreserveOriginalMedia;
+        let media_rows: Vec<serde_json::Value> = if preserve_original_media {
+            self.with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        LIST_ORIGINAL_MEDIA_STATEMENT,
+                        RetentionClassBinding {
+                            retention_class: MEDIA_ORIGINAL_RETENTION_CLASS.to_owned(),
+                        },
                     )
-                    .bind(Uuid::now_v7())
-                    .bind(manifest_id)
-                    .bind(row.get::<Uuid, _>("asset_id"))
-                    .bind(row.get::<String, _>("content_hash"))
-                    .bind(row.get::<String, _>("artifact_ref"))
-                    .bind(row.get::<String, _>("mime"))
-                    .bind(row.get::<i64, _>("byte_len"))
-                    .bind(row.get::<String, _>("retention_class"))
-                    .execute(&mut *tx)
-                    .await?;
-                }
-
-                self.record_event_in_tx(
-                    &mut tx,
-                    intake_event_family::ORPHAN_MANIFEST_RECORDED,
-                    "atelier_orphan_manifest",
-                    &manifest_id.to_string(),
-                    serde_json::json!({
-                        "reset_id": reset_id,
-                        "schema_id": ORPHAN_MANIFEST_SCHEMA_ID,
-                        "item_count": original_media_preserved_count,
-                        "retention_class": MEDIA_ORIGINAL_RETENTION_CLASS,
-                    }),
-                )
-                .await?;
-                orphan_manifest_id = Some(manifest_id);
-            }
-
-            let row = sqlx::query(
-                r#"UPDATE atelier_reset_operation
-                   SET preferences_deleted_count = $2,
-                       original_media_preserved_count = $3,
-                       orphan_manifest_id = $4
-                   WHERE reset_id = $1
-                   RETURNING reset_id, mode, requested_by, reason,
-                             preferences_deleted_count,
-                             original_media_preserved_count,
-                             orphan_manifest_id, created_at_utc"#,
-            )
-            .bind(reset_id)
-            .bind(preferences_deleted_count)
-            .bind(original_media_preserved_count)
-            .bind(orphan_manifest_id)
-            .fetch_one(&mut *tx)
-            .await?;
-            let reset = reset_from_row(&row)?;
-
-            self.record_event_in_tx(
-                &mut tx,
+                    .await
+                })
+            })
+            .await?
+        } else {
+            Vec::new()
+        };
+        let original_media_preserved_count =
+            checked_usize_to_i64("original_media_preserved_count", media_rows.len())?;
+        let manifest_id = Uuid::now_v7();
+        let mut media_items = Vec::with_capacity(media_rows.len());
+        for row in media_rows {
+            let row = intake_row(row)?;
+            let manifest_item_id = Uuid::now_v7();
+            media_items.push(ResetMediaInput {
+                manifest_item_ref: RecordId::new(
+                    "atelier_orphan_manifest_item",
+                    SurrealUuid::from(manifest_item_id),
+                ),
+                manifest_item_id: SurrealUuid::from(manifest_item_id),
+                asset_ref: row.get("asset_ref"),
+                content_hash: row.get("content_hash"),
+                artifact_ref: row.get("artifact_ref"),
+                mime: row.get("mime"),
+                byte_len: row.get("byte_len"),
+                retention_class: row.get("retention_class"),
+            });
+        }
+        let orphan_manifest_id = preserve_original_media.then_some(manifest_id);
+        let manifest_json = serde_json::json!({
+            "schema_id": ORPHAN_MANIFEST_SCHEMA_ID,
+            "reset_id": reset_id,
+            "reset_mode": request.mode.as_str(),
+            "item_count": original_media_preserved_count,
+            "retention_class": MEDIA_ORIGINAL_RETENTION_CLASS,
+        });
+        let bindings = ResetBindings {
+            reset_ref: RecordId::new("atelier_reset_operation", SurrealUuid::from(reset_id)),
+            reset_id: SurrealUuid::from(reset_id),
+            mode: request.mode.as_str().to_owned(),
+            requested_by: requested_by.to_owned(),
+            reason: reason.to_owned(),
+            preserve_original_media,
+            manifest_ref: RecordId::new("atelier_orphan_manifest", SurrealUuid::from(manifest_id)),
+            manifest_id: SurrealUuid::from(manifest_id),
+            manifest_json,
+            preferences_deleted_count,
+            original_media_preserved_count,
+            media_items,
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                WRITE_RESET_STATEMENT,
+                bindings,
                 intake_event_family::RESET_RECORDED,
                 "atelier_reset_operation",
-                &reset.reset_id.to_string(),
+                &reset_id.to_string(),
                 serde_json::json!({
-                    "mode": reset.mode.as_str(),
-                    "requested_by": reset.requested_by,
-                    "reason_ref": event_ref_for_text(&reset.reason),
-                    "preferences_deleted_count": reset.preferences_deleted_count,
-                    "original_media_preserved_count": reset.original_media_preserved_count,
-                    "orphan_manifest_id": reset.orphan_manifest_id,
+                    "mode": request.mode.as_str(),
+                    "requested_by": requested_by,
+                    "reason_ref": event_ref_for_text(reason),
+                    "preferences_deleted_count": preferences_deleted_count,
+                    "original_media_preserved_count": original_media_preserved_count,
+                    "orphan_manifest_id": orphan_manifest_id,
                 }),
             )
             .await?;
-            Ok(reset)
+        let row = intake_row(row.ok_or_else(|| {
+            AtelierError::Internal("recording an Atelier reset returned no row".to_owned())
+        })?)?;
+        let reset = reset_from_row(&row)?;
+        if preserve_original_media {
+            self.record_event(
+                intake_event_family::ORPHAN_MANIFEST_RECORDED,
+                "atelier_orphan_manifest",
+                &manifest_id.to_string(),
+                serde_json::json!({
+                    "reset_id": reset_id,
+                    "schema_id": ORPHAN_MANIFEST_SCHEMA_ID,
+                    "item_count": original_media_preserved_count,
+                    "retention_class": MEDIA_ORIGINAL_RETENTION_CLASS,
+                }),
+            )
+            .await?;
         }
-        .await;
-        match result {
-            Ok(reset) => {
-                tx.commit().await?;
-                Ok(reset)
-            }
-            Err(err) => {
-                tx.rollback().await?;
-                Err(err)
-            }
-        }
+        Ok(reset)
     }
 
     pub async fn list_orphan_manifest_items(
         &self,
         manifest_id: Uuid,
     ) -> AtelierResult<Vec<OrphanManifestItem>> {
-        let rows = sqlx::query(
-            r#"SELECT manifest_item_id, manifest_id, asset_id, content_hash,
-                      artifact_ref, mime, byte_len, retention_class,
-                      adoption_status, adopted_batch_id, adopted_item_id,
-                      adopted_by, adopted_at_utc, created_at_utc
-               FROM atelier_orphan_manifest_item
-               WHERE manifest_id = $1
-               ORDER BY created_at_utc ASC, manifest_item_id ASC"#,
-        )
-        .bind(manifest_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(orphan_manifest_item_from_row).collect()
+        let binding = ManifestRefBinding {
+            manifest_ref: RecordId::new("atelier_orphan_manifest", SurrealUuid::from(manifest_id)),
+        };
+        let rows: Vec<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(
+                    async move { ctx.query_values(LIST_ORPHAN_ITEMS_STATEMENT, binding).await },
+                )
+            })
+            .await?;
+        rows.into_iter()
+            .map(intake_row)
+            .map(|row| row.and_then(|row| orphan_manifest_item_from_row(&row)))
+            .collect()
     }
 
     pub async fn adopt_orphan_manifest_item(
@@ -1921,184 +2412,108 @@ impl AtelierStore {
     ) -> AtelierResult<OrphanAdoptionResult> {
         let requested_by = require_scan_text("requested_by", &request.requested_by)?;
         reject_legacy_runtime_ref("requested_by", requested_by)?;
-
-        let mut tx = self.pool().begin().await?;
-        let result = async {
-            let row = sqlx::query(
-                r#"SELECT manifest_item_id, manifest_id, asset_id, content_hash,
-                          artifact_ref, mime, byte_len, retention_class,
-                          adoption_status, adopted_batch_id, adopted_item_id,
-                          adopted_by, adopted_at_utc, created_at_utc
-                   FROM atelier_orphan_manifest_item
-                   WHERE manifest_item_id = $1
-                   FOR UPDATE"#,
-            )
-            .bind(request.manifest_item_id)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or_else(|| {
-                AtelierError::NotFound(format!("orphan manifest item {}", request.manifest_item_id))
-            })?;
-            let manifest_item = orphan_manifest_item_from_row(&row)?;
-
-            if manifest_item.adoption_status == OrphanAdoptionStatus::Adopted {
-                let batch_id = manifest_item.adopted_batch_id.ok_or_else(|| {
-                    AtelierError::Validation(
-                        "adopted orphan manifest item is missing adopted_batch_id".into(),
-                    )
-                })?;
-                let item_id = manifest_item.adopted_item_id.ok_or_else(|| {
-                    AtelierError::Validation(
-                        "adopted orphan manifest item is missing adopted_item_id".into(),
-                    )
-                })?;
-                let batch_row = sqlx::query(
-                    r#"SELECT batch_id, idempotency_key, source_label, source_ref,
-                              mode, profile_mode, character_internal_id,
-                              target_character_id, target_sheet_version_id,
-                              target_collection_id, status, resume_cursor,
-                              resumed_at_utc, created_at_utc, updated_at_utc
-                       FROM atelier_intake_batch
-                       WHERE batch_id = $1"#,
-                )
-                .bind(batch_id)
-                .fetch_one(&mut *tx)
-                .await?;
-                let item_row = sqlx::query(
-                    r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
-                              content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-                       FROM atelier_intake_item
-                       WHERE item_id = $1"#,
-                )
-                .bind(item_id)
-                .fetch_one(&mut *tx)
-                .await?;
-                return Ok(OrphanAdoptionResult {
-                    manifest_item,
-                    batch: batch_from_row(&batch_row),
-                    item: item_from_row(&item_row)?,
-                });
-            }
-
-            reject_legacy_runtime_ref("artifact_ref", &manifest_item.artifact_ref)?;
-            let batch_request = NewIntakeBatch {
-                idempotency_key: format!("orphan-adoption:{}", manifest_item.manifest_id),
-                source_label: format!("orphan-adoption:{}", manifest_item.manifest_id),
-                source_ref: Some(format!("orphan-manifest://{}", manifest_item.manifest_id)),
-                mode: IntakeBatchMode::Manual,
-                profile_mode: IntakeProfileMode::LooseProfile,
-                character_internal_id: None,
-                target_character_id: None,
-                target_sheet_version_id: None,
-                target_collection_id: None,
-                resume_cursor: None,
-            };
-            let (batch, batch_inserted) = self
-                .open_intake_batch_in_tx(&mut tx, &batch_request)
-                .await?;
-            if batch_inserted {
-                self.record_event_in_tx(
-                    &mut tx,
-                    intake_event_family::INTAKE_BATCH_CREATED,
-                    "atelier_intake_batch",
-                    &batch.batch_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": batch.batch_id,
-                        "idempotency_key": batch.idempotency_key,
-                        "source_label": batch.source_label,
-                        "source_ref": batch.source_ref,
-                        "mode": batch.mode,
-                        "profile_mode": batch.profile_mode,
-                        "orphan_manifest_id": manifest_item.manifest_id,
-                    }),
-                )
-                .await?;
-            }
-
-            let item_request = NewIntakeItem {
-                source_path: manifest_item.artifact_ref.clone(),
-                file_name: orphan_intake_file_name(
-                    &manifest_item.content_hash,
-                    &manifest_item.mime,
-                ),
-                byte_len: manifest_item.byte_len,
-                content_hash: Some(manifest_item.content_hash.clone()),
-            };
-            let (item, item_inserted) = self
-                .insert_intake_item_in_tx(&mut tx, batch.batch_id, &item_request)
-                .await?;
-            if item_inserted {
-                self.record_event_in_tx(
-                    &mut tx,
-                    intake_event_family::INTAKE_ITEM_ADDED,
-                    "atelier_intake_item",
-                    &item.item_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": item.batch_id,
-                        "source_path_ref": event_ref_for_text(&item.source_path),
-                        "file_name_ref": event_ref_for_text(&item.file_name),
-                        "byte_len": item.byte_len,
-                        "orphan_manifest_item_id": manifest_item.manifest_item_id,
-                    }),
-                )
-                .await?;
-            }
-
-            let updated_row = sqlx::query(
-                r#"UPDATE atelier_orphan_manifest_item
-                   SET adoption_status = $2,
-                       adopted_batch_id = $3,
-                       adopted_item_id = $4,
-                       adopted_by = $5,
-                       adopted_at_utc = NOW()
-                   WHERE manifest_item_id = $1
-                   RETURNING manifest_item_id, manifest_id, asset_id, content_hash,
-                             artifact_ref, mime, byte_len, retention_class,
-                             adoption_status, adopted_batch_id, adopted_item_id,
-                             adopted_by, adopted_at_utc, created_at_utc"#,
-            )
-            .bind(manifest_item.manifest_item_id)
-            .bind(OrphanAdoptionStatus::Adopted.as_str())
-            .bind(batch.batch_id)
-            .bind(item.item_id)
-            .bind(requested_by)
-            .fetch_one(&mut *tx)
+        let manifest_item_ref = RecordId::new(
+            "atelier_orphan_manifest_item",
+            SurrealUuid::from(request.manifest_item_id),
+        );
+        let row: Option<serde_json::Value> = self
+            .with_data({
+                let manifest_item_ref = manifest_item_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            GET_ORPHAN_ITEM_STATEMENT,
+                            OrphanItemRefBinding { manifest_item_ref },
+                        )
+                        .await
+                    })
+                }
+            })
             .await?;
-            let updated_manifest_item = orphan_manifest_item_from_row(&updated_row)?;
+        let manifest_item = orphan_manifest_item_from_row(&intake_row(row.ok_or_else(|| {
+            AtelierError::NotFound(format!("orphan manifest item {}", request.manifest_item_id))
+        })?)?)?;
+        if manifest_item.adoption_status == OrphanAdoptionStatus::Adopted {
+            let batch_id = manifest_item.adopted_batch_id.ok_or_else(|| {
+                AtelierError::Validation(
+                    "adopted orphan manifest item is missing adopted_batch_id".into(),
+                )
+            })?;
+            let item_id = manifest_item.adopted_item_id.ok_or_else(|| {
+                AtelierError::Validation(
+                    "adopted orphan manifest item is missing adopted_item_id".into(),
+                )
+            })?;
+            let batch = self
+                .get_intake_batch_by_id(batch_id)
+                .await?
+                .ok_or_else(|| AtelierError::NotFound(format!("intake batch {batch_id}")))?;
+            let item = self
+                .get_intake_item_by_id(item_id)
+                .await?
+                .ok_or_else(|| AtelierError::NotFound(format!("intake item {item_id}")))?;
+            return Ok(OrphanAdoptionResult {
+                manifest_item,
+                batch,
+                item,
+            });
+        }
 
-            self.record_event_in_tx(
-                &mut tx,
+        reject_legacy_runtime_ref("artifact_ref", &manifest_item.artifact_ref)?;
+        let batch_request = NewIntakeBatch {
+            idempotency_key: format!("orphan-adoption:{}", manifest_item.manifest_id),
+            source_label: format!("orphan-adoption:{}", manifest_item.manifest_id),
+            source_ref: Some(format!("orphan-manifest://{}", manifest_item.manifest_id)),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        };
+        let (batch, _) = self.open_intake_batch_inner(&batch_request).await?;
+        let item_request = NewIntakeItem {
+            source_path: manifest_item.artifact_ref.clone(),
+            file_name: orphan_intake_file_name(&manifest_item.content_hash, &manifest_item.mime),
+            byte_len: manifest_item.byte_len,
+            content_hash: Some(manifest_item.content_hash.clone()),
+        };
+        let (item, _) = self
+            .insert_intake_item_inner(batch.batch_id, &item_request)
+            .await?;
+        let bindings = OrphanAdoptionBindings {
+            manifest_item_ref,
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch.batch_id)),
+            item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(item.item_id)),
+            adopted_by: requested_by.to_owned(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                ADOPT_ORPHAN_ITEM_STATEMENT,
+                bindings,
                 intake_event_family::ORPHAN_MANIFEST_ITEM_ADOPTED,
                 "atelier_orphan_manifest_item",
-                &updated_manifest_item.manifest_item_id.to_string(),
+                &manifest_item.manifest_item_id.to_string(),
                 serde_json::json!({
-                    "manifest_id": updated_manifest_item.manifest_id,
-                    "asset_id": updated_manifest_item.asset_id,
-                    "content_hash": updated_manifest_item.content_hash,
+                    "manifest_id": manifest_item.manifest_id,
+                    "asset_id": manifest_item.asset_id,
+                    "content_hash": manifest_item.content_hash,
                     "adopted_batch_id": batch.batch_id,
                     "adopted_item_id": item.item_id,
                     "requested_by": requested_by,
                 }),
             )
             .await?;
-
-            Ok(OrphanAdoptionResult {
-                manifest_item: updated_manifest_item,
-                batch,
-                item,
-            })
-        }
-        .await;
-        match result {
-            Ok(adoption) => {
-                tx.commit().await?;
-                Ok(adoption)
-            }
-            Err(err) => {
-                tx.rollback().await?;
-                Err(err)
-            }
-        }
+        let updated_manifest_item =
+            orphan_manifest_item_from_row(&intake_row(row.ok_or_else(|| {
+                AtelierError::Internal("adopting an orphan item returned no row".to_owned())
+            })?)?)?;
+        Ok(OrphanAdoptionResult {
+            manifest_item: updated_manifest_item,
+            batch,
+            item,
+        })
     }
 
     /// Move an item into a lifecycle lane. This is the only state change
@@ -2112,81 +2527,38 @@ impl AtelierStore {
         reason: Option<&str>,
     ) -> AtelierResult<IntakeItem> {
         let normalized_reason = normalize_lane_reason(lane, reason)?;
-        let mut tx = self.pool().begin().await?;
-
-        let existing_row = sqlx::query(
-            r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
-                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               FROM atelier_intake_item
-               WHERE item_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(item_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("intake item {item_id}")))?;
-        let existing = item_from_row(&existing_row)?;
+        let existing = self
+            .get_intake_item_by_id(item_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake item {item_id}")))?;
         if existing.lane == lane && existing.lane_reason == normalized_reason {
-            tx.commit().await?;
             return Ok(existing);
         }
-
-        let row = sqlx::query(
-            r#"UPDATE atelier_intake_item
-               SET lane = $2, lane_reason = $3, updated_at_utc = NOW()
-               WHERE item_id = $1
-               RETURNING item_id, batch_id, source_path, file_name, byte_len,
-                         content_hash, lane, lane_reason, created_at_utc, updated_at_utc"#,
-        )
-        .bind(item_id)
-        .bind(lane.as_str())
-        .bind(normalized_reason.as_deref())
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("intake item {item_id}")))?;
-
-        let item = item_from_row(&row)?;
-        let audit = self.insert_rejection_audit_in_tx(&mut tx, &item).await?;
-
-        sqlx::query("UPDATE atelier_intake_batch SET updated_at_utc = NOW() WHERE batch_id = $1")
-            .bind(item.batch_id)
-            .execute(&mut *tx)
+        let bindings = ItemClassificationBindings {
+            item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(item_id)),
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(existing.batch_id)),
+            lane: lane.as_str().to_owned(),
+            lane_reason: normalized_reason.clone(),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                CLASSIFY_ITEM_STATEMENT,
+                bindings,
+                intake_event_family::INTAKE_ITEM_CLASSIFIED,
+                "atelier_intake_item",
+                &item_id.to_string(),
+                serde_json::json!({
+                    "batch_id": existing.batch_id,
+                    "lane": lane,
+                    "reason": normalized_reason,
+                    "source_path_ref": event_ref_for_text(&existing.source_path),
+                }),
+            )
             .await?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            intake_event_family::INTAKE_ITEM_CLASSIFIED,
-            "atelier_intake_item",
-            &item.item_id.to_string(),
-            serde_json::json!({
-                "batch_id": item.batch_id,
-                "lane": item.lane,
-                "reason": item.lane_reason,
-                "source_path_ref": event_ref_for_text(&item.source_path),
-            }),
-        )
-        .await?;
-
-        if let Some((audit, inserted)) = audit {
-            if inserted {
-                self.record_event_in_tx(
-                    &mut tx,
-                    intake_event_family::INTAKE_ITEM_REJECTION_AUDITED,
-                    "atelier_intake_item",
-                    &item.item_id.to_string(),
-                    serde_json::json!({
-                        "audit_id": audit.audit_id,
-                        "batch_id": audit.batch_id,
-                        "lane": audit.lane,
-                        "reason_ref": event_ref_for_text(&audit.reason),
-                        "source_path_ref": audit.source_path_ref,
-                    }),
-                )
-                .await?;
-            }
-        }
-
-        tx.commit().await?;
+        let item = item_from_row(&intake_row(row.ok_or_else(|| {
+            AtelierError::Internal("classifying an intake item returned no row".to_owned())
+        })?)?)?;
+        self.insert_rejection_audit(&item).await?;
         Ok(item)
     }
 
@@ -2199,32 +2571,14 @@ impl AtelierStore {
         request: &ApplyIntakeClassificationRequest,
     ) -> AtelierResult<IntakeClassificationApplyResult> {
         let normalized_reason = normalize_lane_reason(request.lane, request.reason.as_deref())?;
-        let mut tx = self.pool().begin().await?;
-
-        let existing_row = sqlx::query(
-            r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
-                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
-               FROM atelier_intake_item
-               WHERE item_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(request.item_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
-        let existing = item_from_row(&existing_row)?;
-
-        let batch_row = sqlx::query(
-            r#"SELECT batch_id, target_collection_id
-               FROM atelier_intake_batch
-               WHERE batch_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(existing.batch_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", existing.batch_id)))?;
-        let target_collection_id: Option<Uuid> = batch_row.get("target_collection_id");
+        let existing = self
+            .get_intake_item_by_id(request.item_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
+        let batch = self
+            .get_intake_batch_by_id(existing.batch_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", existing.batch_id)))?;
 
         let mut asset_id = None;
         let mut collection_id = None;
@@ -2235,13 +2589,22 @@ impl AtelierStore {
                     "accepted intake item requires target media asset content_hash".into(),
                 )
             })?;
-            let resolved_asset_id: Uuid = sqlx::query_scalar(
-                "SELECT asset_id FROM atelier_media_asset WHERE content_hash = $1",
-            )
-            .bind(content_hash)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or_else(|| {
+            let resolved_asset_id: Option<Uuid> = self
+                .with_data({
+                    let content_hash = content_hash.to_owned();
+                    move |ctx| {
+                        Box::pin(async move {
+                            ctx.query_first(
+                                "SELECT VALUE asset_id FROM atelier_media_asset \
+                                 WHERE content_hash = $content_hash LIMIT 1;",
+                                ContentHashBinding { content_hash },
+                            )
+                            .await
+                        })
+                    }
+                })
+                .await?;
+            let resolved_asset_id = resolved_asset_id.ok_or_else(|| {
                 AtelierError::NotFound(format!(
                     "target media asset for intake item {}",
                     existing.item_id
@@ -2249,127 +2612,50 @@ impl AtelierStore {
             })?;
             asset_id = Some(resolved_asset_id);
 
-            if let Some(target_collection_id) = target_collection_id {
-                let collection_exists: bool = sqlx::query_scalar(
-                    "SELECT EXISTS (SELECT 1 FROM atelier_collection WHERE collection_id = $1)",
-                )
-                .bind(target_collection_id)
-                .fetch_one(&mut *tx)
-                .await?;
-                if !collection_exists {
-                    return Err(AtelierError::NotFound(format!(
-                        "target collection {target_collection_id}"
-                    )));
-                }
-
-                let next_order: i64 = sqlx::query_scalar(
-                    "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM atelier_collection_item WHERE collection_id = $1",
-                )
-                .bind(target_collection_id)
-                .fetch_one(&mut *tx)
-                .await?;
-                let inserted = sqlx::query(
-                    r#"INSERT INTO atelier_collection_item (collection_id, asset_id, sort_order)
-                       VALUES ($1, $2, $3)
-                       ON CONFLICT (collection_id, asset_id) DO NOTHING"#,
-                )
-                .bind(target_collection_id)
-                .bind(resolved_asset_id)
-                .bind(next_order)
-                .execute(&mut *tx)
-                .await?
-                .rows_affected()
-                    > 0;
+            if let Some(target_collection_id) = batch.target_collection_id {
+                let inserted = self
+                    .add_images_to_collection(target_collection_id, &[resolved_asset_id])
+                    .await?;
                 collection_id = Some(target_collection_id);
-                collection_inserted = inserted;
-                if inserted {
-                    sqlx::query(
-                        "UPDATE atelier_collection SET updated_at_utc = NOW() WHERE collection_id = $1",
-                    )
-                    .bind(target_collection_id)
-                    .execute(&mut *tx)
-                    .await?;
-                    self.record_event_in_tx(
-                        &mut tx,
-                        collections_event_family::COLLECTION_IMAGES_ADDED,
-                        "atelier_collection",
-                        &target_collection_id.to_string(),
-                        serde_json::json!({
-                            "requested": 1,
-                            "inserted": 1,
-                            "asset_id": resolved_asset_id,
-                            "intake_item_id": existing.item_id,
-                        }),
-                    )
-                    .await?;
-                }
+                collection_inserted = inserted > 0;
             }
         }
 
         let mut item = existing.clone();
         let changed = existing.lane != request.lane || existing.lane_reason != normalized_reason;
         if changed {
-            let row = sqlx::query(
-                r#"UPDATE atelier_intake_item
-                   SET lane = $2, lane_reason = $3, updated_at_utc = NOW()
-                   WHERE item_id = $1
-                   RETURNING item_id, batch_id, source_path, file_name, byte_len,
-                             content_hash, lane, lane_reason, created_at_utc, updated_at_utc"#,
-            )
-            .bind(request.item_id)
-            .bind(request.lane.as_str())
-            .bind(normalized_reason.as_deref())
-            .fetch_one(&mut *tx)
-            .await?;
-
-            item = item_from_row(&row)?;
-            let audit = self.insert_rejection_audit_in_tx(&mut tx, &item).await?;
-
-            sqlx::query(
-                "UPDATE atelier_intake_batch SET updated_at_utc = NOW() WHERE batch_id = $1",
-            )
-            .bind(item.batch_id)
-            .execute(&mut *tx)
-            .await?;
-
-            self.record_event_in_tx(
-                &mut tx,
-                intake_event_family::INTAKE_ITEM_CLASSIFIED,
-                "atelier_intake_item",
-                &item.item_id.to_string(),
-                serde_json::json!({
-                    "batch_id": item.batch_id,
-                    "lane": item.lane,
-                    "reason": item.lane_reason,
-                    "source_path_ref": event_ref_for_text(&item.source_path),
-                    "asset_id": asset_id,
-                    "collection_id": collection_id,
-                    "apply_workflow": true,
-                }),
-            )
-            .await?;
-
-            if let Some((audit, inserted)) = audit {
-                if inserted {
-                    self.record_event_in_tx(
-                        &mut tx,
-                        intake_event_family::INTAKE_ITEM_REJECTION_AUDITED,
-                        "atelier_intake_item",
-                        &item.item_id.to_string(),
-                        serde_json::json!({
-                            "audit_id": audit.audit_id,
-                            "batch_id": audit.batch_id,
-                            "lane": audit.lane,
-                            "reason_ref": event_ref_for_text(&audit.reason),
-                            "source_path_ref": audit.source_path_ref,
-                        }),
-                    )
-                    .await?;
-                }
-            }
+            let bindings = ItemClassificationBindings {
+                item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(request.item_id)),
+                batch_ref: RecordId::new(
+                    "atelier_intake_batch",
+                    SurrealUuid::from(existing.batch_id),
+                ),
+                lane: request.lane.as_str().to_owned(),
+                lane_reason: normalized_reason.clone(),
+            };
+            let row: Option<serde_json::Value> = self
+                .write_with_event(
+                    CLASSIFY_ITEM_STATEMENT,
+                    bindings,
+                    intake_event_family::INTAKE_ITEM_CLASSIFIED,
+                    "atelier_intake_item",
+                    &request.item_id.to_string(),
+                    serde_json::json!({
+                        "batch_id": existing.batch_id,
+                        "lane": request.lane,
+                        "reason": normalized_reason,
+                        "source_path_ref": event_ref_for_text(&existing.source_path),
+                        "asset_id": asset_id,
+                        "collection_id": collection_id,
+                        "apply_workflow": true,
+                    }),
+                )
+                .await?;
+            item = item_from_row(&intake_row(row.ok_or_else(|| {
+                AtelierError::Internal("applying intake classification returned no row".to_owned())
+            })?)?)?;
+            self.insert_rejection_audit(&item).await?;
         }
-
-        tx.commit().await?;
         Ok(IntakeClassificationApplyResult {
             item,
             asset_id,
@@ -2380,27 +2666,15 @@ impl AtelierStore {
 
     /// Per-lane counts for the sorter header.
     pub async fn intake_lane_counts(&self, batch_id: Uuid) -> AtelierResult<IntakeLaneCounts> {
-        let rows = sqlx::query(
-            r#"SELECT lane, COUNT(*) AS n
-               FROM atelier_intake_item
-               WHERE batch_id = $1
-               GROUP BY lane"#,
-        )
-        .bind(batch_id)
-        .fetch_all(self.pool())
-        .await?;
-
         let mut counts = IntakeLaneCounts::default();
-        for row in &rows {
-            let lane: String = row.get("lane");
-            let n: i64 = row.get("n");
-            match IntakeLane::parse(&lane)? {
-                IntakeLane::Pending => counts.pending = n,
-                IntakeLane::Accepted => counts.accepted = n,
-                IntakeLane::Rejected => counts.rejected = n,
-                IntakeLane::Deferred => counts.deferred = n,
-                IntakeLane::Skipped => counts.skipped = n,
-                IntakeLane::Failed => counts.failed = n,
+        for item in self.list_intake_items(batch_id, None).await? {
+            match item.lane {
+                IntakeLane::Pending => counts.pending += 1,
+                IntakeLane::Accepted => counts.accepted += 1,
+                IntakeLane::Rejected => counts.rejected += 1,
+                IntakeLane::Deferred => counts.deferred += 1,
+                IntakeLane::Skipped => counts.skipped += 1,
+                IntakeLane::Failed => counts.failed += 1,
             }
         }
         Ok(counts)
@@ -2418,36 +2692,32 @@ impl AtelierStore {
             )));
         }
 
-        let row = sqlx::query(
-            r#"UPDATE atelier_intake_batch
-               SET status = 'closed', updated_at_utc = NOW()
-               WHERE batch_id = $1
-               RETURNING batch_id, idempotency_key, source_label, source_ref,
-                         mode, profile_mode, character_internal_id,
-                         target_character_id, target_sheet_version_id,
-                         target_collection_id, status, resume_cursor,
-                         resumed_at_utc, created_at_utc, updated_at_utc"#,
-        )
-        .bind(batch_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("intake batch {batch_id}")))?;
-        let batch = batch_from_row(&row);
-
-        self.record_event(
-            intake_event_family::INTAKE_BATCH_CLOSED,
-            "atelier_intake_batch",
-            &batch.batch_id.to_string(),
-            serde_json::json!({
-                "batch_id": batch.batch_id,
-                "accepted": counts.accepted,
-                "rejected": counts.rejected,
-                "deferred": counts.deferred,
-                "skipped": counts.skipped,
-                "failed": counts.failed,
-            }),
-        )
-        .await?;
-        Ok(batch)
+        if self.get_intake_batch_by_id(batch_id).await?.is_none() {
+            return Err(AtelierError::NotFound(format!("intake batch {batch_id}")));
+        }
+        let bindings = BatchRefBinding {
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .write_with_event(
+                CLOSE_BATCH_STATEMENT,
+                bindings,
+                intake_event_family::INTAKE_BATCH_CLOSED,
+                "atelier_intake_batch",
+                &batch_id.to_string(),
+                serde_json::json!({
+                    "batch_id": batch_id,
+                    "accepted": counts.accepted,
+                    "rejected": counts.rejected,
+                    "deferred": counts.deferred,
+                    "skipped": counts.skipped,
+                    "failed": counts.failed,
+                }),
+            )
+            .await?;
+        let row = intake_row(row.ok_or_else(|| {
+            AtelierError::Internal("closing an intake batch returned no row".to_owned())
+        })?)?;
+        Ok(batch_from_row(&row))
     }
 }

@@ -5,21 +5,21 @@
 //!
 //! Each E2 feature has TWO proofs:
 //!
-//!  1. `parity_<feature>_native` — a NON-ignored proof that runs IN-PROCESS (no PostgreSQL). It builds
+//!  1. `parity_<feature>_native` — a NON-ignored proof that runs IN-PROCESS (no SurrealDB). It builds
 //!     the feature's structure THROUGH the native editor model / impl it names
 //!     (`handshake_native::rich_editor::*`), then asserts on the NATIVE output (the typed structure the
 //!     native editor produces/consumes) and, where a reload is proven, DESERIALIZES back through the
 //!     native `document_model` (not a `serde_json` string-contains). This is the load-bearing parity
 //!     proof and it PASSES today with no backend.
-//!  2. `parity_<feature>` — the `#[ignore = "requires_pg"]` live round-trip. It BUILDS its wire payload
+//!  2. `parity_<feature>` — the `#[ignore = "requires_surrealdb"]` live round-trip. It BUILDS its wire payload
 //!     with the SAME native impl (so it, too, calls the real native code — CTRL-2 for the manifest
 //!     `proof_fn`), then POSTs/GETs the REAL handshake_core route and DESERIALIZES the reload back
-//!     through the native `document_model`. It is gated `requires_pg` because the managed-PG run is a
-//!     separate live-PG batch; with no env + no backend it panics with a descriptive `requires_pg`
+//!     through the native `document_model`. It is gated `requires_surrealdb` because the managed-SurrealDB run is a
+//!     separate live-SurrealDB batch; with no env + no backend it panics with a descriptive `requires_surrealdb`
 //!     message (the no-silent-no-op rule), never fake-passes.
 //!
-//! There is NO sqlite, NO in-process backend substitute, and NO hard-coded result anywhere here: the
-//! native half runs the ported editor code, and the live half runs real PostgreSQL behind
+//! There is NO alternate_local_store, NO in-process backend substitute, and NO hard-coded result anywhere here: the
+//! native half runs the ported editor code, and the live half runs real SurrealDB behind
 //! handshake_core.
 //!
 //! ## Honest native scope notes (parity vs the manifest's aspirational text)
@@ -38,16 +38,16 @@
 //! /knowledge/documents/{id}/draft`. The create response wraps the row under `"document"` whose id
 //! field is `rich_document_id`; load returns `{ document, tree, code_nodes }`; projection returns
 //! `{ rich_document_id, projection }`. Per Spec-Realism Sub-rule 3 the "REAL route" claim is
-//! re-asserted only after a managed-PG run actually exercises them; until then the live half is the
+//! re-asserted only after a managed-SurrealDB run actually exercises them; until then the live half is the
 //! verified-by-static-audit backlog.
 
 mod parity_manifest_support;
-mod pg_proof_support;
+mod backend_proof_support;
 
 use std::time::Instant;
 
 use parity_manifest_support::mark_pass;
-use pg_proof_support::{require_live_backend, LiveBackend};
+use backend_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::rich_editor::document_model::node::TransclusionNode;
 use handshake_native::rich_editor::document_model::{
@@ -108,11 +108,11 @@ fn parity_block_document_model_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL on 127.0.0.1:37501 + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB on 127.0.0.1:37501 + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
 fn parity_block_document_model() {
     let be: LiveBackend = require_live_backend();
     // POST the NATIVE serialization (document_model::to_content_json_value), GET it back, and DESERIALIZE
-    // the reloaded content_json THROUGH the native model — asserting node types survive real PostgreSQL.
+    // the reloaded content_json THROUGH the native model — asserting node types survive real SurrealDB.
     let content_json = to_content_json_value(&e2_11_doc());
     let created = be.post_json(
         "/knowledge/documents",
@@ -129,7 +129,7 @@ fn parity_block_document_model() {
         "E2-11: the reloaded doc must carry >= 4 native nodes (got {node_count})"
     );
     println!(
-        "E2-11 PASS: block document model round-tripped {node_count} native nodes through real PG"
+        "E2-11 PASS: block document model round-tripped {node_count} native nodes through real SurrealDB"
     );
     mark_pass("E2-11");
 }
@@ -174,7 +174,7 @@ fn parity_wysiwyg_heading_render_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /knowledge/documents/{id})"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (GET /knowledge/documents/{id})"]
 fn parity_wysiwyg_heading_render() {
     let be = require_live_backend();
     let content_json = to_content_json_value(&e2_12_doc());
@@ -192,7 +192,7 @@ fn parity_wysiwyg_heading_render() {
         vec![1, 2, 3],
         "E2-12: H1-H3 (3 distinct native heading levels) must persist (got {levels:?})"
     );
-    println!("E2-12 PASS: 3 distinct native heading levels {levels:?} render at distinct sizes through real PG");
+    println!("E2-12 PASS: 3 distinct native heading levels {levels:?} render at distinct sizes through real SurrealDB");
     mark_pass("E2-12");
 }
 
@@ -253,7 +253,7 @@ fn parity_table_insert_cell_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
 fn parity_table_insert_cell() {
     let be = require_live_backend();
     let marker = "parity-e2-13-cell-1-1";
@@ -270,7 +270,7 @@ fn parity_table_insert_cell() {
         native_all_text(&reloaded).contains(marker),
         "E2-13: cell (1,1) text '{marker}' must read back through the native model from the persisted table"
     );
-    println!("E2-13 PASS: 3x3 table cell (1,1) round-tripped through real PG + native model");
+    println!("E2-13 PASS: 3x3 table cell (1,1) round-tripped through real SurrealDB + native model");
     mark_pass("E2-13");
 }
 
@@ -324,11 +324,11 @@ fn parity_embed_image_resolve_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_ASSET_ID (GET /workspaces/{id}/assets/{asset_id}/content)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_ASSET_ID (GET /workspaces/{id}/assets/{asset_id}/content)"]
 fn parity_embed_image_resolve() {
     let be = require_live_backend();
     let asset_id = std::env::var("HSK_TEST_ASSET_ID")
-        .expect("E2-14 requires_pg: set HSK_TEST_ASSET_ID to a real PG-stored asset id");
+        .expect("E2-14 requires_surrealdb: set HSK_TEST_ASSET_ID to a real SurrealDB-stored asset id");
     // The native embed (HsLinkNode HS_images) resolves by GETting the asset BYTES through the native
     // `save::export::asset_content_url` builder (base stripped for the shared client path).
     let full = handshake_native::rich_editor::save::export::asset_content_url(
@@ -343,7 +343,7 @@ fn parity_embed_image_resolve() {
         "E2-14: the embedded asset must resolve to non-empty bytes"
     );
     println!(
-        "E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real PG",
+        "E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real SurrealDB",
         bytes.len()
     );
     mark_pass("E2-14");
@@ -390,11 +390,11 @@ fn parity_wikilink_persisted_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id})"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id})"]
 fn parity_wikilink_persisted() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
-    // Build the wikilink through the native model, then prove its target resolves against real PG.
+    // Build the wikilink through the native model, then prove its target resolves against real SurrealDB.
     let doc = e2_15_doc(&block_id);
     let restored_ref = to_content_json_value(&doc)["content"][0]["content"][1]["attrs"]["refValue"]
         .as_str()
@@ -459,7 +459,7 @@ fn parity_transclusion_read_through_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/transclusion)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/transclusion)"]
 fn parity_transclusion_read_through() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -553,7 +553,7 @@ fn parity_slash_command_heading_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id}/save)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id}/save)"]
 fn parity_slash_command_heading() {
     let be = require_live_backend();
     let created = be.post_json(
@@ -618,7 +618,7 @@ fn parity_properties_panel_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
 fn parity_properties_panel() {
     let be = require_live_backend();
     let content_json = to_content_json_value(&e2_18_doc());
@@ -678,7 +678,7 @@ fn parity_rich_find_replace_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id}/save + GET)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id}/save + GET)"]
 fn parity_rich_find_replace() {
     let be = require_live_backend();
     let created = be.post_json(
@@ -702,7 +702,7 @@ fn parity_rich_find_replace() {
         text.contains("bar here") && !text.contains("foo here"),
         "E2-19: native find/replace must persist"
     );
-    println!("E2-19 PASS: native rich-doc find 'foo' -> replace 'bar' persisted through real PG");
+    println!("E2-19 PASS: native rich-doc find 'foo' -> replace 'bar' persisted through real SurrealDB");
     mark_pass("E2-19");
 }
 
@@ -735,7 +735,7 @@ fn parity_daily_note_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /loom/journals/{date})"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (PUT /loom/journals/{date})"]
 fn parity_daily_note() {
     let be = require_live_backend();
     let date = "2026-06-26";
@@ -799,7 +799,7 @@ fn parity_save_to_html_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /knowledge/documents/{id}/projection)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (GET /knowledge/documents/{id}/projection)"]
 fn parity_save_to_html() {
     let be = require_live_backend();
     let content_json =
@@ -896,10 +896,10 @@ fn parity_draft_recovery_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT/GET /knowledge/documents/{id}/draft)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (PUT/GET /knowledge/documents/{id}/draft)"]
 fn parity_draft_recovery() {
     let be = require_live_backend();
-    // Anchor a real document, then drive the draft write + reload against the REAL PG-backed draft route.
+    // Anchor a real document, then drive the draft write + reload against the REAL SurrealDB-backed draft route.
     let content_json = to_content_json_value(&BlockNode::doc(vec![BlockNode::paragraph("saved")]));
     let created = be.post_json(
         "/knowledge/documents",
@@ -915,7 +915,7 @@ fn parity_draft_recovery() {
         &format!("/knowledge/documents/{doc_id}/draft"),
         &serde_json::json!({ "base_doc_version": base_version, "base_content_sha256": base_sha, "content_json": draft_content }),
     );
-    // Simulate the crash: a fresh GET must restore the draft from PG, and it must deserialize through the
+    // Simulate the crash: a fresh GET must restore the draft from SurrealDB, and it must deserialize through the
     // native RichDocumentDraftLoad model.
     let restored: RichDocumentDraftLoad =
         serde_json::from_value(be.get_json(&format!("/knowledge/documents/{doc_id}/draft")))
@@ -934,7 +934,7 @@ fn parity_draft_recovery() {
             .contains("parity-e2-22-draft-content"),
         "E2-22: the draft content must be restored after a simulated crash (got {body})"
     );
-    println!("E2-22 PASS: draft recovered after a simulated crash (PG-backed draft store + native model)");
+    println!("E2-22 PASS: draft recovered after a simulated crash (SurrealDB-backed draft store + native model)");
     mark_pass("E2-22");
 }
 

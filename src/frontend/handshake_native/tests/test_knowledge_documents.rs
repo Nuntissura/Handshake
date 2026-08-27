@@ -3,7 +3,7 @@
 //!
 //! ## Mock-server fixture provenance (SPEC-REALISM GATE — the load-bearing rule)
 //!
-//! This MT is fully provable WITHOUT a live PostgreSQL/handshake_core: every AC runs against an
+//! This MT is fully provable WITHOUT a live SurrealDB/handshake_core: every AC runs against an
 //! in-process mock HTTP server (the PROVEN MT-020/021 `std::net::TcpListener` capture pattern — NO new
 //! dependency). The mock JSON RESPONSES below are REAL backend response shapes — they are
 //! field-verified BYTE-FOR-BYTE against the handshake_core handler bodies in

@@ -148,7 +148,7 @@ fn sample_update(
         update_id,
         update_seq,
         update_bytes: format!("update-{update_seq}").as_bytes(),
-        update_bytes_ref: &format!("postgres://kernel_crdt_updates/{update_id}/update_bytes"),
+        update_bytes_ref: &format!("surreal://kernel_crdt_updates/{update_id}/update_bytes"),
         session_id,
         trace_id: &format!("trace-{update_id}"),
         state_vector_before: &format!("sv-{}", update_seq - 1),

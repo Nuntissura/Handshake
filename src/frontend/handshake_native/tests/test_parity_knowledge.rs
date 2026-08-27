@@ -5,19 +5,19 @@
 //!
 //! Each E3 feature has TWO proofs:
 //!
-//!  1. `parity_<feature>_native` — a NON-ignored proof that runs IN-PROCESS (no PostgreSQL). It drives
+//!  1. `parity_<feature>_native` — a NON-ignored proof that runs IN-PROCESS (no SurrealDB). It drives
 //!     the REAL native request-construction path — the `handshake_native::backend_client::*Client`
 //!     `*_request` builders the production spawn paths route through — and asserts on the NATIVE output
 //!     (the exact typed `(method, url, query|body)` the native client emits), or, for the breadcrumb
 //!     trail, the native `graph::sidebar_panel::LoomSidebarPanel` history. These PASS today with no
 //!     backend and are the load-bearing parity proof that the native editor produces the correct request.
-//!  2. `parity_<feature>` — the `#[ignore = "requires_pg"]` live round-trip. It calls the SAME native
+//!  2. `parity_<feature>` — the `#[ignore = "requires_surrealdb"]` live round-trip. It calls the SAME native
 //!     builder (CTRL-2 for the manifest `proof_fn`), then exercises the seeded handshake_core route and
-//!     asserts on the response. Gated `requires_pg` (the managed-PG run is a separate live-PG batch);
-//!     with no env + no backend it panics with a `requires_pg` message, never fake-passes.
+//!     asserts on the response. Gated `requires_surrealdb` (the managed-SurrealDB run is a separate live-SurrealDB batch);
+//!     with no env + no backend it panics with a `requires_surrealdb` message, never fake-passes.
 //!
-//! There is NO sqlite, NO in-process backend substitute, and NO hard-coded result: the native half runs
-//! the ported client code and the live half runs real PostgreSQL behind handshake_core.
+//! There is NO alternate_local_store, NO in-process backend substitute, and NO hard-coded result: the native half runs
+//! the ported client code and the live half runs real SurrealDB behind handshake_core.
 //!
 //! ## Native route note (verified against the running backend)
 //!
@@ -25,13 +25,13 @@
 //! surfaces (`backend_client::LoomGraphClient`, verified read-only against the running backend). The
 //! live round-trips below additionally exercise the `/loom/graph/local` + `/loom/graph/global` routes
 //! named in the 2026-06-26 knowledge_documents route audit; both are recorded as verified-by-audit until
-//! a managed-PG run exercises them (Spec-Realism Sub-rule 3).
+//! a managed-SurrealDB run exercises them (Spec-Realism Sub-rule 3).
 
 mod parity_manifest_support;
-mod pg_proof_support;
+mod backend_proof_support;
 
 use parity_manifest_support::mark_pass;
-use pg_proof_support::{require_live_backend, LiveBackend};
+use backend_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::backend_client::{
     BlockViewClient, CanvasBoardClient, DrawerActionClient, GetRequestSpec, HttpMethod,
@@ -75,7 +75,7 @@ fn parity_local_graph_native() {
     // MT-021 settled this route DELIBERATELY, and this assertion had not caught up. backend_client.rs
     // :2196-2211 records the verified decision: LOCAL is
     // GET /workspaces/:ws/loom/graph/local?start_block_id&max_depth&node_limit -> LoomGraph, the
-    // authoritative undirected PostgreSQL neighbourhood, and graph-search "is a heterogeneous
+    // authoritative undirected SurrealDB neighbourhood, and graph-search "is a heterogeneous
     // retrieval/search surface, NOT a graph projection, and MUST NOT be used to fabricate star edges
     // for this view". Asserting graph-search here demanded exactly the surface MT-021 forbids.
     //
@@ -103,7 +103,7 @@ fn parity_local_graph_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (GET /loom/graph/local)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (GET /loom/graph/local)"]
 fn parity_local_graph() {
     let be: LiveBackend = require_live_backend();
     let block_id = be.require_block_id();
@@ -153,7 +153,7 @@ fn parity_global_graph_native() {
     // Same MT-021 correction as E3-23. GLOBAL is
     // GET /workspaces/:ws/loom/graph/global?node_limit=5000&hub_degree_threshold=0 -> LoomGraph
     // (backend_client.rs:2196-2211, backend route api/loom.rs:296). views/all is a real route but a
-    // DIFFERENT one - MT-021 keeps it as "the independent count oracle used by the managed-PG proof",
+    // DIFFERENT one - MT-021 keeps it as "the independent count oracle used by the managed-SurrealDB proof",
     // not a graph projection. This files own live sibling parity_global_graph already fetches
     // /loom/graph/global.
     assert!(
@@ -172,7 +172,7 @@ fn parity_global_graph_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /loom/graph/global)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (GET /loom/graph/global)"]
 fn parity_global_graph() {
     let be = require_live_backend();
     let spec = e3_24_global_spec(&be.workspace_id);
@@ -222,7 +222,7 @@ fn parity_folder_tree_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /loom/folders)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (GET /loom/folders)"]
 fn parity_folder_tree() {
     let be = require_live_backend();
     let spec = e3_25_folders_spec(&be.workspace_id);
@@ -247,7 +247,7 @@ fn parity_folder_tree() {
         count >= 1,
         "E3-25: the folder tree must list >= 1 folder (got {count})"
     );
-    println!("E3-25 PASS: native folder-list request surfaced {count} folder(s) from real PG");
+    println!("E3-25 PASS: native folder-list request surfaced {count} folder(s) from real SurrealDB");
     mark_pass("E3-25");
 }
 
@@ -290,11 +290,11 @@ fn parity_color_labels_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_FOLDER_ID (PUT/GET /loom/folders)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_FOLDER_ID (PUT/GET /loom/folders)"]
 fn parity_color_labels() {
     let be = require_live_backend();
     let folder_id = std::env::var("HSK_TEST_FOLDER_ID")
-        .expect("E3-26 requires_pg: set HSK_TEST_FOLDER_ID to a real folder id");
+        .expect("E3-26 requires_surrealdb: set HSK_TEST_FOLDER_ID to a real folder id");
     // CTRL-2: the native merge-PATCH recolor request the production spawn path would send.
     let spec = e3_26_recolor_spec(&be.workspace_id, &folder_id, "#ff8800");
     assert_eq!(
@@ -355,7 +355,7 @@ fn parity_tags_and_hubs_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (tag edge + tag hub query)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (tag edge + tag hub query)"]
 fn parity_tags_and_hubs() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -422,7 +422,7 @@ fn parity_pins_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (PUT /loom/blocks/{id}/pin-order + GET /loom/views/pins)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (PUT /loom/blocks/{id}/pin-order + GET /loom/views/pins)"]
 fn parity_pins() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -477,7 +477,7 @@ fn parity_backlinks_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/backlinks)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/backlinks)"]
 fn parity_backlinks() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -503,7 +503,7 @@ fn parity_backlinks() {
         "E3-29: the backlinks of {block_id} must include >= 1 referencing block"
     );
     println!(
-        "E3-29 PASS: native backlinks request -> {block_id} has {count} backlink(s) from real PG"
+        "E3-29 PASS: native backlinks request -> {block_id} has {count} backlink(s) from real SurrealDB"
     );
     mark_pass("E3-29");
 }
@@ -534,7 +534,7 @@ fn parity_unlinked_mentions_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/unlinked-mentions)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/unlinked-mentions)"]
 fn parity_unlinked_mentions() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -598,7 +598,7 @@ fn parity_breadcrumbs_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/breadcrumbs)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BLOCK_ID (GET /loom/blocks/{id}/breadcrumbs)"]
 fn parity_breadcrumbs() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
@@ -657,11 +657,11 @@ fn parity_wiki_page_projection_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WIKI_PROJECTION_ID (GET /loom/wiki/{projection_id})"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WIKI_PROJECTION_ID (GET /loom/wiki/{projection_id})"]
 fn parity_wiki_page_projection() {
     let be = require_live_backend();
     let projection_id = std::env::var("HSK_TEST_WIKI_PROJECTION_ID").expect(
-        "E3-32 requires_pg: set HSK_TEST_WIKI_PROJECTION_ID to a real compiled wiki page id",
+        "E3-32 requires_surrealdb: set HSK_TEST_WIKI_PROJECTION_ID to a real compiled wiki page id",
     );
     let spec = e3_32_wiki_spec(&be.workspace_id, &projection_id);
     let path = spec
@@ -716,12 +716,12 @@ fn parity_canvas_board_placement_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BOARD_ID + HSK_TEST_BLOCK_ID (POST /canvas-boards/{id}/placements)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_BOARD_ID + HSK_TEST_BLOCK_ID (POST /canvas-boards/{id}/placements)"]
 fn parity_canvas_board_placement() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
     let board_id = std::env::var("HSK_TEST_BOARD_ID")
-        .expect("E3-33 requires_pg: set HSK_TEST_BOARD_ID to a real canvas board id");
+        .expect("E3-33 requires_surrealdb: set HSK_TEST_BOARD_ID to a real canvas board id");
     // CTRL-2: build + send the native placement request.
     let spec = e3_33_place_spec(&be.workspace_id, &board_id, &block_id);
     let path = spec
@@ -798,7 +798,7 @@ fn parity_block_collection_table_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST /loom/views/definitions + /results)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_WORKSPACE_ID (POST /loom/views/definitions + /results)"]
 fn parity_block_collection_table() {
     let be = require_live_backend();
     // CTRL-2: build + send the native create-view request.
@@ -885,12 +885,12 @@ fn parity_block_collection_kanban_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_VIEW_ID + HSK_TEST_BLOCK_ID (Kanban move + re-query)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_VIEW_ID + HSK_TEST_BLOCK_ID (Kanban move + re-query)"]
 fn parity_block_collection_kanban() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
     let view_id = std::env::var("HSK_TEST_VIEW_ID")
-        .expect("E3-35 requires_pg: set HSK_TEST_VIEW_ID to a real Kanban view_def id");
+        .expect("E3-35 requires_surrealdb: set HSK_TEST_VIEW_ID to a real Kanban view_def id");
     let target_column = "parity-e3-35-done".to_string();
     // CTRL-2: build + send the native card-move (add the target lane's tag).
     let spec = e3_35_card_move_spec(
@@ -950,11 +950,11 @@ fn parity_block_collection_calendar_native() {
 }
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_VIEW_ID (calendar view query for today)"]
+#[ignore = "requires_surrealdb: live handshake_core + SurrealDB + HSK_TEST_VIEW_ID (calendar view query for today)"]
 fn parity_block_collection_calendar() {
     let be = require_live_backend();
     let view_id = std::env::var("HSK_TEST_VIEW_ID")
-        .expect("E3-36 requires_pg: set HSK_TEST_VIEW_ID to a real calendar view_def id");
+        .expect("E3-36 requires_surrealdb: set HSK_TEST_VIEW_ID to a real calendar view_def id");
     let today = "2026-06-26";
     // CTRL-2: build + send the native calendar results request.
     let results = e3_34_results_spec(&be.workspace_id, &view_id);

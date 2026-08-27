@@ -12,10 +12,9 @@
 //! `knowledge_ingestion::store::KnowledgeIngestionStore` over the shared
 //! shared storage handle — single-store + EventLedger authority only, no SQLite.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the ingestion store and
-//! `KnowledgeStore` still name the deleted relational backend, so this module
-//! does not compile and serves no request today. Handshake's only database is
-//! the embedded SurrealDB store.
+//! The ingestion store and `KnowledgeStore` share the application's embedded
+//! SurrealDB handle, so API reads, ingestion writes, and EventLedger receipts
+//! all use the same durable authority.
 //!
 //! Backend-navigation law (spec 2.3.13.11): every MUTATION must carry actor,
 //! session, and correlation identity into its EventLedger receipts. Mutating
@@ -68,7 +67,7 @@ use crate::knowledge_ingestion::engine::{
 use crate::knowledge_ingestion::repair::RepairState;
 use crate::knowledge_ingestion::IngestionError;
 use crate::storage::knowledge::{KnowledgeRootKind, KnowledgeStore};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageError;
 use crate::AppState;
 
@@ -112,8 +111,7 @@ pub fn routes(state: AppState) -> Router {
 type ApiError = (StatusCode, Json<Value>);
 
 fn engine_for(state: &AppState) -> IngestionEngine {
-    // The shared pool is Arc-backed: this wraps it, it does NOT reconnect.
-    IngestionEngine::from_database(Arc::new(PostgresDatabase::new(state.postgres_pool.clone())))
+    IngestionEngine::from_database(Arc::new(SurrealDatabase::new(state.surreal.clone())))
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {

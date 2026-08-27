@@ -6,21 +6,18 @@
 //! one corpus item inside that world). This module supplies the production
 //! implementations the evaluator previously stubbed:
 //!
-//! - [`PgSelfImproveSandbox`] materialises the snapshot's candidate `after`
+//! - [`LiveSelfImproveSandbox`] materialises the snapshot's candidate `after`
 //!   value into a real per-run sandbox workspace directory and persists the
-//!   provisioning run to `atelier_self_improve_sandbox_run` (migration
-//!   0118), mirrored through the Atelier EventLedger.
+//!   provisioning run to `atelier_self_improve_sandbox_run`, mirrored
+//!   through the Atelier EventLedger.
 //! - [`HbrFirstPassRunner`] executes the real HBR handoff gate
 //!   ([`HandoffGate::evaluate`]) against the corpus item's acceptance-matrix
 //!   fixture, appending the canonical `HBR_HANDOFF_GATE` EventLedger row,
 //!   and persists every first-pass execution to
 //!   `atelier_validator_first_pass_run` linked to the sandbox run.
 //!
-//! Both traits are synchronous, so database access goes through the shared
-//! Tokio bridge (`memory::persistence_postgres::block_on`); callers inside a
-//! runtime must use a multi-thread runtime.
-//!
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
+//! Both traits are synchronous, so store access goes through a local Tokio
+//! bridge; callers inside a runtime must use a multi-thread runtime.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -29,7 +26,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use crate::hbr::handoff_gate::{
@@ -37,14 +34,29 @@ use crate::hbr::handoff_gate::{
     HbrAcceptanceMatrix, HbrMatrixRow, HbrNotApplicableRow, HbrPacket,
 };
 use crate::kernel::{KernelEvent, NewKernelEvent};
-use crate::memory::persistence_postgres::block_on;
 use crate::self_improve::corpus::{CorpusItem, ValidatorVerdict};
 use crate::self_improve::editable_surface::EditableSurfaceSnapshot;
 use crate::self_improve::evaluator::{EvalError, ValidatorRun, ValidatorRunner};
 use crate::self_improve::loop_core::{LoopSandbox, LoopSandboxError, SandboxRunResult};
 use crate::storage::Database;
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, uuid_from_record_link, AtelierError, AtelierResult, AtelierStore};
+
+/// Bridge the synchronous sandbox/runner traits to the async store. Callers
+/// inside a runtime must use a multi-thread runtime
+/// (`#[tokio::test(flavor = "multi_thread")]`).
+fn block_on<F: std::future::Future>(future: F) -> F::Output {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => tokio::task::block_in_place(|| handle.block_on(future)),
+        Err(_) => {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio current-thread runtime must build");
+            runtime.block_on(future)
+        }
+    }
+}
 
 pub mod validator_first_pass_event_family {
     pub const SANDBOX_RUN_PROVISIONED: &str = "atelier.self_improve.sandbox_run_provisioned";
@@ -151,52 +163,227 @@ pub struct ValidatorFirstPassRunRecord {
     pub created_at_utc: DateTime<Utc>,
 }
 
+/// One `atelier_self_improve_sandbox_run` row as the store returns it.
+#[derive(SurrealValue)]
+struct SandboxRunRow {
+    sandbox_run_id: SurrealUuid,
+    surface_kind: String,
+    snapshot_sha256: String,
+    workspace_ref: String,
+    status: String,
+    started_at_utc: Datetime,
+    completed_at_utc: Datetime,
+    created_at_utc: Datetime,
+}
+
+impl From<SandboxRunRow> for SelfImproveSandboxRunRecord {
+    fn from(row: SandboxRunRow) -> Self {
+        SelfImproveSandboxRunRecord {
+            sandbox_run_id: row.sandbox_run_id.into(),
+            surface_kind: row.surface_kind,
+            snapshot_sha256: row.snapshot_sha256,
+            workspace_ref: row.workspace_ref,
+            status: row.status,
+            started_at_utc: row.started_at_utc.into(),
+            completed_at_utc: row.completed_at_utc.into(),
+            created_at_utc: row.created_at_utc.into(),
+        }
+    }
+}
+
+/// One `atelier_validator_first_pass_run` row as the store returns it.
+#[derive(SurrealValue)]
+struct FirstPassRunRow {
+    first_pass_run_id: SurrealUuid,
+    sandbox_run_id: Option<RecordId>,
+    corpus_item_id: SurrealUuid,
+    hbr_rule_id: String,
+    packet_under_test: String,
+    transition: String,
+    verdict: String,
+    failing_rule_count: i32,
+    latency_ms: i64,
+    capsule_bytes: i64,
+    gate_event_id: Option<SurrealUuid>,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<FirstPassRunRow> for ValidatorFirstPassRunRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: FirstPassRunRow) -> AtelierResult<Self> {
+        let sandbox_run_id = row
+            .sandbox_run_id
+            .as_ref()
+            .map(|link| uuid_from_record_link("sandbox_run_id", link))
+            .transpose()?;
+        Ok(ValidatorFirstPassRunRecord {
+            first_pass_run_id: row.first_pass_run_id.into(),
+            sandbox_run_id,
+            corpus_item_id: row.corpus_item_id.into(),
+            hbr_rule_id: row.hbr_rule_id,
+            packet_under_test: row.packet_under_test,
+            transition: row.transition,
+            verdict: verdict_from_token(&row.verdict)?,
+            failing_rule_count: row.failing_rule_count,
+            latency_ms: row.latency_ms,
+            capsule_bytes: row.capsule_bytes,
+            gate_event_id: row.gate_event_id.map(Into::into),
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordSandboxRunBindings {
+    record_id: RecordId,
+    sandbox_run_id: SurrealUuid,
+    surface_kind: String,
+    snapshot_sha256: String,
+    workspace_ref: String,
+    status: String,
+    started_at_utc: Datetime,
+    completed_at_utc: Datetime,
+}
+
+const RECORD_SANDBOX_RUN_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $rid CONTENT { \
+         sandbox_run_id: $domain.sandbox_run_id, \
+         surface_kind: $domain.surface_kind, \
+         snapshot_sha256: $domain.snapshot_sha256, \
+         workspace_ref: $domain.workspace_ref, \
+         status: $domain.status, \
+         started_at_utc: $domain.started_at_utc, \
+         completed_at_utc: $domain.completed_at_utc \
+       }); };"
+);
+
+#[derive(SurrealValue)]
+struct SandboxRunIdBinding {
+    sandbox_run_id: SurrealUuid,
+}
+
+const GET_SANDBOX_RUN_STATEMENT: &str =
+    "SELECT sandbox_run_id, surface_kind, snapshot_sha256, workspace_ref, status, \
+            started_at_utc, completed_at_utc, created_at_utc \
+     FROM atelier_self_improve_sandbox_run WHERE sandbox_run_id = $sandbox_run_id LIMIT 1;";
+
+#[derive(Clone, SurrealValue)]
+struct RecordFirstPassRunBindings {
+    record_id: RecordId,
+    first_pass_run_id: SurrealUuid,
+    sandbox_run_ref: Option<RecordId>,
+    corpus_item_id: SurrealUuid,
+    hbr_rule_id: String,
+    packet_under_test: String,
+    transition: String,
+    verdict: String,
+    failing_rule_count: i32,
+    latency_ms: i64,
+    capsule_bytes: i64,
+    gate_event_id: Option<SurrealUuid>,
+}
+
+const FIRST_PASS_RUN_SELECT: &str =
+    "first_pass_run_id, sandbox_run_id, corpus_item_id, hbr_rule_id, packet_under_test, \
+     transition, verdict, failing_rule_count, latency_ms, capsule_bytes, gate_event_id, \
+     created_at_utc";
+
+const RECORD_FIRST_PASS_RUN_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $rid CONTENT { \
+         first_pass_run_id: $domain.first_pass_run_id, \
+         sandbox_run_id: $domain.sandbox_run_ref, \
+         corpus_item_id: $domain.corpus_item_id, \
+         hbr_rule_id: $domain.hbr_rule_id, \
+         packet_under_test: $domain.packet_under_test, \
+         transition: $domain.transition, \
+         verdict: $domain.verdict, \
+         failing_rule_count: $domain.failing_rule_count, \
+         latency_ms: $domain.latency_ms, \
+         capsule_bytes: $domain.capsule_bytes, \
+         gate_event_id: $domain.gate_event_id \
+       }); };"
+);
+
+#[derive(SurrealValue)]
+struct FirstPassRunIdBinding {
+    first_pass_run_id: SurrealUuid,
+}
+
+const GET_FIRST_PASS_RUN_STATEMENT: &str = concat!(
+    "SELECT ",
+    "first_pass_run_id, sandbox_run_id, corpus_item_id, hbr_rule_id, packet_under_test, \
+     transition, verdict, failing_rule_count, latency_ms, capsule_bytes, gate_event_id, \
+     created_at_utc",
+    " FROM atelier_validator_first_pass_run \
+     WHERE first_pass_run_id = $first_pass_run_id LIMIT 1;"
+);
+
+#[derive(SurrealValue)]
+struct SandboxRunRefBinding {
+    sandbox_run_ref: RecordId,
+}
+
+const LIST_FIRST_PASS_RUNS_STATEMENT: &str = concat!(
+    "SELECT ",
+    "first_pass_run_id, sandbox_run_id, corpus_item_id, hbr_rule_id, packet_under_test, \
+     transition, verdict, failing_rule_count, latency_ms, capsule_bytes, gate_event_id, \
+     created_at_utc",
+    " FROM atelier_validator_first_pass_run \
+     WHERE sandbox_run_id = $sandbox_run_ref \
+     ORDER BY created_at_utc ASC, first_pass_run_id ASC;"
+);
+
 impl AtelierStore {
     /// Persist a sandbox provisioning run and mirror it through the
-    /// EventLedger.
+    /// EventLedger, in one atomic statement.
     pub async fn record_self_improve_sandbox_run(
         &self,
         run: &NewSelfImproveSandboxRun,
     ) -> AtelierResult<SelfImproveSandboxRunRecord> {
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_self_improve_sandbox_run (
-                   sandbox_run_id, surface_kind, snapshot_sha256,
-                   workspace_ref, status, started_at_utc, completed_at_utc
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING sandbox_run_id, surface_kind, snapshot_sha256,
-                         workspace_ref, status, started_at_utc,
-                         completed_at_utc, created_at_utc"#,
-        )
-        .bind(run.sandbox_run_id)
-        .bind(&run.surface_kind)
-        .bind(&run.snapshot_sha256)
-        .bind(&run.workspace_ref)
-        .bind(&run.status)
-        .bind(run.started_at_utc)
-        .bind(run.completed_at_utc)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = sandbox_run_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            validator_first_pass_event_family::SANDBOX_RUN_PROVISIONED,
-            "atelier_self_improve_sandbox_run",
-            &record.sandbox_run_id.to_string(),
-            serde_json::json!({
-                "sandbox_run_id": record.sandbox_run_id,
-                "surface_kind": record.surface_kind,
-                "snapshot_sha256": record.snapshot_sha256,
-                "workspace_ref": record.workspace_ref,
-                "status": record.status,
-                "schema": "hsk.atelier.self_improve_sandbox_run@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let bindings = RecordSandboxRunBindings {
+            record_id: RecordId::new(
+                "atelier_self_improve_sandbox_run",
+                SurrealUuid::from(run.sandbox_run_id),
+            ),
+            sandbox_run_id: SurrealUuid::from(run.sandbox_run_id),
+            surface_kind: run.surface_kind.clone(),
+            snapshot_sha256: run.snapshot_sha256.clone(),
+            workspace_ref: run.workspace_ref.clone(),
+            status: run.status.clone(),
+            started_at_utc: Datetime::from(run.started_at_utc),
+            completed_at_utc: Datetime::from(run.completed_at_utc),
+        };
+        let row: Option<SandboxRunRow> = self
+            .write_with_event(
+                RECORD_SANDBOX_RUN_STATEMENT,
+                bindings,
+                validator_first_pass_event_family::SANDBOX_RUN_PROVISIONED,
+                "atelier_self_improve_sandbox_run",
+                &run.sandbox_run_id.to_string(),
+                serde_json::json!({
+                    "sandbox_run_id": run.sandbox_run_id,
+                    "surface_kind": run.surface_kind,
+                    "snapshot_sha256": run.snapshot_sha256,
+                    "workspace_ref": run.workspace_ref,
+                    "status": run.status,
+                    "schema": "hsk.atelier.self_improve_sandbox_run@1",
+                }),
+            )
+            .await?;
+        Ok(row
+            .ok_or_else(|| {
+                AtelierError::Internal(
+                    "recording a self-improve sandbox run returned no row".to_owned(),
+                )
+            })?
+            .into())
     }
 
     /// Re-read a sandbox provisioning run.
@@ -204,18 +391,17 @@ impl AtelierStore {
         &self,
         sandbox_run_id: Uuid,
     ) -> AtelierResult<SelfImproveSandboxRunRecord> {
-        let row = sqlx::query(
-            r#"SELECT sandbox_run_id, surface_kind, snapshot_sha256,
-                      workspace_ref, status, started_at_utc,
-                      completed_at_utc, created_at_utc
-               FROM atelier_self_improve_sandbox_run
-               WHERE sandbox_run_id = $1"#,
-        )
-        .bind(sandbox_run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let bindings = SandboxRunIdBinding {
+            sandbox_run_id: SurrealUuid::from(sandbox_run_id),
+        };
+        let row: Option<SandboxRunRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_SANDBOX_RUN_STATEMENT, bindings).await })
+            })
+            .await?;
         match row {
-            Some(row) => Ok(sandbox_run_from_row(&row)),
+            Some(row) => Ok(row.into()),
             None => Err(AtelierError::NotFound(format!(
                 "self-improve sandbox run sandbox_run_id={sandbox_run_id}"
             ))),
@@ -223,64 +409,60 @@ impl AtelierStore {
     }
 
     /// Persist one validator first-pass execution and mirror it through
-    /// the EventLedger.
+    /// the EventLedger, in one atomic statement.
     pub async fn record_validator_first_pass_run(
         &self,
         run: &NewValidatorFirstPassRun,
     ) -> AtelierResult<ValidatorFirstPassRunRecord> {
         let first_pass_run_id = Uuid::now_v7();
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_validator_first_pass_run (
-                   first_pass_run_id, sandbox_run_id, corpus_item_id,
-                   hbr_rule_id, packet_under_test, transition, verdict,
-                   failing_rule_count, latency_ms, capsule_bytes,
-                   gate_event_id
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-               RETURNING first_pass_run_id, sandbox_run_id, corpus_item_id,
-                         hbr_rule_id, packet_under_test, transition,
-                         verdict, failing_rule_count, latency_ms,
-                         capsule_bytes, gate_event_id, created_at_utc"#,
-        )
-        .bind(first_pass_run_id)
-        .bind(run.sandbox_run_id)
-        .bind(run.corpus_item_id)
-        .bind(&run.hbr_rule_id)
-        .bind(&run.packet_under_test)
-        .bind(&run.transition)
-        .bind(verdict_token(run.verdict))
-        .bind(run.failing_rule_count)
-        .bind(run.latency_ms)
-        .bind(run.capsule_bytes)
-        .bind(run.gate_event_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = first_pass_run_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            validator_first_pass_event_family::VALIDATOR_FIRST_PASS_RECORDED,
-            "atelier_validator_first_pass_run",
-            &record.first_pass_run_id.to_string(),
-            serde_json::json!({
-                "first_pass_run_id": record.first_pass_run_id,
-                "sandbox_run_id": record.sandbox_run_id,
-                "corpus_item_id": record.corpus_item_id,
-                "hbr_rule_id": record.hbr_rule_id,
-                "packet_under_test": record.packet_under_test,
-                "transition": record.transition,
-                "verdict": verdict_token(record.verdict),
-                "failing_rule_count": record.failing_rule_count,
-                "latency_ms": record.latency_ms,
-                "capsule_bytes": record.capsule_bytes,
-                "gate_event_id": record.gate_event_id,
-                "schema": "hsk.atelier.validator_first_pass_run@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let bindings = RecordFirstPassRunBindings {
+            record_id: RecordId::new(
+                "atelier_validator_first_pass_run",
+                SurrealUuid::from(first_pass_run_id),
+            ),
+            first_pass_run_id: SurrealUuid::from(first_pass_run_id),
+            sandbox_run_ref: run
+                .sandbox_run_id
+                .map(|id| RecordId::new("atelier_self_improve_sandbox_run", SurrealUuid::from(id))),
+            corpus_item_id: SurrealUuid::from(run.corpus_item_id),
+            hbr_rule_id: run.hbr_rule_id.clone(),
+            packet_under_test: run.packet_under_test.clone(),
+            transition: run.transition.clone(),
+            verdict: verdict_token(run.verdict).to_owned(),
+            failing_rule_count: run.failing_rule_count,
+            latency_ms: run.latency_ms,
+            capsule_bytes: run.capsule_bytes,
+            gate_event_id: run.gate_event_id.map(SurrealUuid::from),
+        };
+        let row: Option<FirstPassRunRow> = self
+            .write_with_event(
+                RECORD_FIRST_PASS_RUN_STATEMENT,
+                bindings,
+                validator_first_pass_event_family::VALIDATOR_FIRST_PASS_RECORDED,
+                "atelier_validator_first_pass_run",
+                &first_pass_run_id.to_string(),
+                serde_json::json!({
+                    "first_pass_run_id": first_pass_run_id,
+                    "sandbox_run_id": run.sandbox_run_id,
+                    "corpus_item_id": run.corpus_item_id,
+                    "hbr_rule_id": run.hbr_rule_id,
+                    "packet_under_test": run.packet_under_test,
+                    "transition": run.transition,
+                    "verdict": verdict_token(run.verdict),
+                    "failing_rule_count": run.failing_rule_count,
+                    "latency_ms": run.latency_ms,
+                    "capsule_bytes": run.capsule_bytes,
+                    "gate_event_id": run.gate_event_id,
+                    "schema": "hsk.atelier.validator_first_pass_run@1",
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal(
+                "recording a validator first-pass run returned no row".to_owned(),
+            )
+        })?
+        .try_into()
     }
 
     /// Re-read one validator first-pass execution.
@@ -288,19 +470,20 @@ impl AtelierStore {
         &self,
         first_pass_run_id: Uuid,
     ) -> AtelierResult<ValidatorFirstPassRunRecord> {
-        let row = sqlx::query(
-            r#"SELECT first_pass_run_id, sandbox_run_id, corpus_item_id,
-                      hbr_rule_id, packet_under_test, transition, verdict,
-                      failing_rule_count, latency_ms, capsule_bytes,
-                      gate_event_id, created_at_utc
-               FROM atelier_validator_first_pass_run
-               WHERE first_pass_run_id = $1"#,
-        )
-        .bind(first_pass_run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let bindings = FirstPassRunIdBinding {
+            first_pass_run_id: SurrealUuid::from(first_pass_run_id),
+        };
+        let row: Option<FirstPassRunRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_FIRST_PASS_RUN_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
         match row {
-            Some(row) => first_pass_run_from_row(&row),
+            Some(row) => row.try_into(),
             None => Err(AtelierError::NotFound(format!(
                 "validator first-pass run first_pass_run_id={first_pass_run_id}"
             ))),
@@ -312,71 +495,43 @@ impl AtelierStore {
         &self,
         sandbox_run_id: Uuid,
     ) -> AtelierResult<Vec<ValidatorFirstPassRunRecord>> {
-        let rows = sqlx::query(
-            r#"SELECT first_pass_run_id, sandbox_run_id, corpus_item_id,
-                      hbr_rule_id, packet_under_test, transition, verdict,
-                      failing_rule_count, latency_ms, capsule_bytes,
-                      gate_event_id, created_at_utc
-               FROM atelier_validator_first_pass_run
-               WHERE sandbox_run_id = $1
-               ORDER BY created_at_utc ASC, first_pass_run_id ASC"#,
-        )
-        .bind(sandbox_run_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(first_pass_run_from_row).collect()
+        let bindings = SandboxRunRefBinding {
+            sandbox_run_ref: RecordId::new(
+                "atelier_self_improve_sandbox_run",
+                SurrealUuid::from(sandbox_run_id),
+            ),
+        };
+        let rows: Vec<FirstPassRunRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_FIRST_PASS_RUNS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(ValidatorFirstPassRunRecord::try_from)
+            .collect()
     }
-}
-
-fn sandbox_run_from_row(row: &sqlx::postgres::PgRow) -> SelfImproveSandboxRunRecord {
-    SelfImproveSandboxRunRecord {
-        sandbox_run_id: row.get("sandbox_run_id"),
-        surface_kind: row.get("surface_kind"),
-        snapshot_sha256: row.get("snapshot_sha256"),
-        workspace_ref: row.get("workspace_ref"),
-        status: row.get("status"),
-        started_at_utc: row.get("started_at_utc"),
-        completed_at_utc: row.get("completed_at_utc"),
-        created_at_utc: row.get("created_at_utc"),
-    }
-}
-
-fn first_pass_run_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<ValidatorFirstPassRunRecord> {
-    let verdict: String = row.get("verdict");
-    Ok(ValidatorFirstPassRunRecord {
-        first_pass_run_id: row.get("first_pass_run_id"),
-        sandbox_run_id: row.get("sandbox_run_id"),
-        corpus_item_id: row.get("corpus_item_id"),
-        hbr_rule_id: row.get("hbr_rule_id"),
-        packet_under_test: row.get("packet_under_test"),
-        transition: row.get("transition"),
-        verdict: verdict_from_token(&verdict)?,
-        failing_rule_count: row.get("failing_rule_count"),
-        latency_ms: row.get("latency_ms"),
-        capsule_bytes: row.get("capsule_bytes"),
-        gate_event_id: row.get("gate_event_id"),
-        created_at_utc: row.get("created_at_utc"),
-    })
 }
 
 /// Shared slot linking the sandbox provisioning run to the first-pass
-/// executions the evaluator performs inside it. [`PgSelfImproveSandbox`]
+/// executions the evaluator performs inside it. [`LiveSelfImproveSandbox`]
 /// writes its persisted run id here; [`HbrFirstPassRunner`] reads it so
-/// every `atelier_validator_first_pass_run` row carries the FK.
+/// every `atelier_validator_first_pass_run` row carries the link.
 pub type SharedSandboxRunSlot = Arc<Mutex<Option<Uuid>>>;
 
 /// Production [`LoopSandbox`]: provisions a real per-run sandbox workspace
 /// directory carrying the candidate snapshot value, persists the run to
 /// the durable store, and mirrors it through the EventLedger.
-pub struct PgSelfImproveSandbox {
+pub struct LiveSelfImproveSandbox {
     store: AtelierStore,
     sandbox_root: PathBuf,
     run_slot: SharedSandboxRunSlot,
 }
 
-impl PgSelfImproveSandbox {
+impl LiveSelfImproveSandbox {
     pub fn new(store: AtelierStore, sandbox_root: PathBuf) -> Self {
         Self {
             store,
@@ -392,7 +547,7 @@ impl PgSelfImproveSandbox {
     }
 }
 
-impl LoopSandbox for PgSelfImproveSandbox {
+impl LoopSandbox for LiveSelfImproveSandbox {
     fn run(
         &self,
         snapshot: &EditableSurfaceSnapshot,

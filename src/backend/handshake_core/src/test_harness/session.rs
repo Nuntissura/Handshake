@@ -426,6 +426,20 @@ impl ReclaimProcessStore for EmptyReclaimStore {
     ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
         Ok(Vec::new())
     }
+
+    async fn mark_cleanup_completed(
+        &self,
+        _process: &crate::process_ledger::ReclaimableProcess,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn abandon(
+        &self,
+        _processes: &[crate::process_ledger::ReclaimableProcess],
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
 }
 
 struct NoopSandboxKill;
@@ -438,8 +452,9 @@ impl SandboxKill for NoopSandboxKill {
 
 struct NoopReclaimStopWriter;
 
+#[async_trait]
 impl ReclaimStopWriter for NoopReclaimStopWriter {
-    fn append_reclaim_stop(&self, _stop: ProcessStop) -> Result<(), ProcessLedgerError> {
+    async fn append_reclaim_stop(&self, _stop: ProcessStop) -> Result<(), ProcessLedgerError> {
         Ok(())
     }
 }

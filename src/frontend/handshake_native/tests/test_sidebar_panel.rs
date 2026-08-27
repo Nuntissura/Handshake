@@ -31,7 +31,7 @@
 //! corrected to the dedicated per-block MT-178 routes that carry the field-correct AC4/AC5 data — see the
 //! backend_client + widget module comments for the disclosed corrections.
 //!
-//! AC1-AC9 also run through one isolated, self-seeding, non-ignored managed-PostgreSQL proof behind the
+//! AC1-AC9 also run through one isolated, self-seeding, non-ignored managed-SurrealDB proof behind the
 //! `integration` feature. It creates and tears down its own workspace, mounts real client results into
 //! the widget, inspects AccessKit, performs both mutations, reopens through a fresh client, and records
 //! the exact fixture ids under the external artifact root. An unreachable backend fails loudly.
@@ -47,7 +47,7 @@
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
 
-// `Path`/`PathBuf` are used by external screenshot and managed-PG receipt helpers.
+// `Path`/`PathBuf` are used by external screenshot and managed-SurrealDB receipt helpers.
 #[cfg(any(feature = "wgpu_screenshots", feature = "integration"))]
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -740,7 +740,7 @@ fn sidebar_panel_screenshot() {
     assert_no_local_artifact_dir();
 }
 
-// ── LIVE-PG: one isolated, self-seeded, non-ignored round trip ──────────────────────────────────────
+// ── LIVE-SURREALDB: one isolated, self-seeded, non-ignored round trip ──────────────────────────────────────
 
 #[cfg(feature = "integration")]
 struct LiveWorkspaceCleanup<'a> {
@@ -755,7 +755,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         assert_eq!(
             self.backend.get_status(&format!(
@@ -876,9 +876,9 @@ fn live_patch_json(
     let (status, text) = runtime.block_on(async {
         let response = client
             .patch(&url)
-            .header("x-hsk-actor-id", "mt024-live-pg")
-            .header("x-hsk-kernel-task-run-id", "mt024-live-pg-run")
-            .header("x-hsk-session-run-id", "mt024-live-pg-session")
+            .header("x-hsk-actor-id", "mt024-live-surrealdb")
+            .header("x-hsk-kernel-task-run-id", "mt024-live-surrealdb-run")
+            .header("x-hsk-session-run-id", "mt024-live-surrealdb-session")
             .header("x-hsk-actor-kind", "operator")
             .json(body)
             .timeout(std::time::Duration::from_secs(5))
@@ -892,11 +892,11 @@ fn live_patch_json(
         .unwrap_or_else(|error| panic!("PATCH {path} response is not JSON ({error}): {text}"))
 }
 
-/// AC1-AC9 / PROOF2-5 through real Handshake APIs, managed PostgreSQL, mounted egui/AccessKit, and a
+/// AC1-AC9 / PROOF2-5 through real Handshake APIs, managed SurrealDB, mounted egui/AccessKit, and a
 /// fresh product client. This test owns its fixtures and teardown and is deliberately NOT ignored.
 #[test]
 #[cfg(feature = "integration")]
-fn sidebar_live_pg_self_seeds_mounted_round_trip() {
+fn sidebar_live_surrealdb_self_seeds_mounted_round_trip() {
     use handshake_native::backend_client::{
         LoomSidebarClient, SidebarBacklinksCell, SidebarBlockListCell, SidebarUnlinkedCell,
     };
@@ -1258,9 +1258,9 @@ fn sidebar_live_pg_self_seeds_mounted_round_trip() {
     assert_no_local_artifact_dir();
     let receipt_dir = external_artifact_dir("wp-kernel-012-mt-024");
     std::fs::create_dir_all(&receipt_dir).expect("create external MT-024 receipt directory");
-    let receipt_path = receipt_dir.join("MT-024-live-pg-seed.json");
+    let receipt_path = receipt_dir.join("MT-024-live-surrealdb-seed.json");
     let receipt = serde_json::json!({
-        "schema_id": "hsk.wp_kernel_012.mt_024.live_pg_receipt@1",
+        "schema_id": "hsk.wp_kernel_012.mt_024.live_surrealdb_receipt@1",
         "workspace_id": workspace_id,
         "pin_block_ids": [pin_one, pin_two],
         "favorite_block_id": favorite,
@@ -1282,7 +1282,7 @@ fn sidebar_live_pg_self_seeds_mounted_round_trip() {
     )
     .expect("write external MT-024 live receipt");
     println!(
-        "MT-024 LIVE PG PASS workspace={workspace_id} pins=2 favorites=1 backlinks={} unlinked={} \
+        "MT-024 LIVE SURREALDB PASS workspace={workspace_id} pins=2 favorites=1 backlinks={} unlinked={} \
          edge={edge_id} receipt={} cleanup_verified=true",
         persisted_backlinks.len(),
         persisted_unlinked.len(),

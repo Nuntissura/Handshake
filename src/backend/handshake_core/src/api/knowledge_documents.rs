@@ -2,10 +2,8 @@
 //! for the RichDocument authority model, wiring the editor to single-store +
 //! EventLedger authority (NO mocks, no SQLite).
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): `KnowledgeStore` has no live
-//! implementor and this module still names the deleted relational handle, so it
-//! does not compile and serves no request today. Handshake's only database is
-//! the embedded SurrealDB store.
+//! WP-KERNEL-012 MT-136: the HTTP surface is backed by `SurrealDatabase` over
+//! Handshake's embedded SurrealDB store. There is no relational fallback.
 //!
 //! This is the keystone API for the group:
 //!   * MT-145 identity + MT-149 save/load: create / load / save a RichDocument
@@ -61,7 +59,7 @@ use crate::storage::knowledge::{
     NewKnowledgeSource, UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
     UpsertKnowledgeRichDocumentDraft,
 };
-use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
 
@@ -146,13 +144,8 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
-/// WP-KERNEL-012 TRAIT-SURFACE GAP: the reads below are typed against
-/// `storage::knowledge::KnowledgeStore`, which has no live implementor after
-/// PostgreSQL removal (`SurrealDatabase` implements `storage::Database` only)
-/// and `AppState` carries no `Arc<dyn KnowledgeStore>`. The gap is confined to
-/// this one constructor.
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+fn db_for(state: &AppState) -> SurrealDatabase {
+    SurrealDatabase::new(state.surreal.clone())
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -966,96 +959,12 @@ async fn delete_document(
 ) -> Result<Json<Value>, ApiError> {
     let ctx = doc_context(&headers)?;
     ctx.require(DocumentAction::Write)?;
-
-    // Tombstone, receipt, stale-source mark, backlink cleanup, canvas
-    // placement cleanup, and Loom projection removal are one PostgreSQL
-    // transaction. Lock/re-read the document before deriving its receipt so a
-    // concurrent save cannot leave the deletion event describing stale state.
-    let mut tx = state
-        .postgres_pool
-        .begin()
+    let db = db_for(&state);
+    let document = db
+        .get_knowledge_rich_document(&document_id)
         .await
-        .map_err(|err| storage_error(StorageError::from(err)))?;
-    // Rebuilds acquire transaction-scoped advisory locks for the source and
-    // every resolved target before taking document row locks. Delete must join
-    // that same stable lock order before tombstoning its target; otherwise a
-    // delete-first row lock can deadlock a concurrent rebuild that already
-    // owns the advisory set and is waiting to inspect this target.
-    let delete_identity: Option<(String, String)> = sqlx::query_as(
-        "SELECT workspace_id, title FROM knowledge_rich_documents \
-         WHERE rich_document_id = $1 AND deleted_at IS NULL",
-    )
-    .bind(&document_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    let (delete_workspace_id, delete_title) =
-        delete_identity.ok_or_else(|| not_found("knowledge rich document"))?;
-    let mut delete_lock_ids: Vec<String> = sqlx::query_scalar(
-        "SELECT DISTINCT source_document_id FROM knowledge_document_backlinks \
-         WHERE workspace_id = $1 AND (target = $2 OR target = $3)",
-    )
-    .bind(&delete_workspace_id)
-    .bind(&document_id)
-    .bind(&delete_title)
-    .fetch_all(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    delete_lock_ids.push(document_id.clone());
-    delete_lock_ids.sort();
-    delete_lock_ids.dedup();
-    for lock_id in delete_lock_ids {
-        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 32032::bigint))")
-            .bind(lock_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| storage_error(StorageError::from(err)))?;
-    }
-    let document = PostgresDatabase::lock_live_knowledge_rich_document_tx(&mut tx, &document_id)
-        .await
-        .map_err(storage_error)?;
-    let loom_identity = sqlx::query_as::<_, (String, String)>(
-        r#"
-        SELECT workspace_id, content_type
-        FROM loom_blocks
-        WHERE block_id = $1
-        FOR UPDATE
-        "#,
-    )
-    .bind(&document.block_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    if !matches!(
-        loom_identity.as_ref(),
-        Some((workspace_id, content_type))
-            if workspace_id == &document.workspace_id && content_type == "note"
-    ) {
-        return Err(storage_error(StorageError::Conflict(
-            "rich document LoomBlock projection identity mismatch",
-        )));
-    }
-    let search_identity = sqlx::query_as::<_, (String, String)>(
-        r#"
-        SELECT workspace_id, content_type
-        FROM loom_block_search_index
-        WHERE block_id = $1
-        FOR UPDATE
-        "#,
-    )
-    .bind(&document.block_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    if matches!(
-        search_identity.as_ref(),
-        Some((workspace_id, content_type))
-            if workspace_id != &document.workspace_id || content_type != "note"
-    ) {
-        return Err(storage_error(StorageError::Conflict(
-            "rich document LoomBlock search projection identity mismatch",
-        )));
-    }
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
     let event = build_receipt_event(
         &ctx,
         KernelEventType::KnowledgeRichDocumentDeleted,
@@ -1067,142 +976,18 @@ async fn delete_document(
             "title": document.title.clone(),
         }),
     )?;
-    let stored_event = append_kernel_event_with_executor(&mut *tx, event)
+    let outcome = db
+        .delete_knowledge_rich_document_atomic(&document, event)
         .await
         .map_err(storage_error)?;
-    let receipt = stored_event.event_id;
-    let live_same_title_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_documents \
-         WHERE workspace_id = $1 AND title = $2 AND deleted_at IS NULL",
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.title)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    let tombstone = sqlx::query(
-        r#"
-        UPDATE knowledge_rich_documents
-        SET deleted_at = NOW(),
-            deleted_receipt_event_id = $2,
-            updated_at = NOW()
-        WHERE rich_document_id = $1 AND deleted_at IS NULL
-        "#,
-    )
-    .bind(&document.rich_document_id)
-    .bind(&receipt)
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    if tombstone.rows_affected() != 1 {
-        return Err(not_found("knowledge rich document"));
-    }
-
-    let source_marked_stale = sqlx::query(
-        r#"
-        UPDATE knowledge_sources
-        SET stale = TRUE, updated_at = NOW()
-        WHERE workspace_id = $1
-          AND source_kind = 'rich_document'
-          AND provenance->>'rich_document_id' = $2
-        "#,
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.rich_document_id)
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?
-    .rows_affected()
-        > 0;
-
-    // Backlinks and LoomBlock are projections of the tombstoned RichDocument.
-    // Remove them deterministically so integration fixtures and real deletes
-    // cannot leave an addressable ghost block or inbound/outbound rows.
-    let backlinks_deleted = sqlx::query(
-        "DELETE FROM knowledge_document_backlinks \
-         WHERE workspace_id = $1 \
-           AND (source_document_id = $2 OR target = $2 OR ($4 AND target = $3))",
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.rich_document_id)
-    .bind(&document.title)
-    .bind(live_same_title_count == 1)
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?
-    .rows_affected();
-    sqlx::query("DELETE FROM knowledge_rich_document_drafts WHERE rich_document_id = $1")
-        .bind(&document.rich_document_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|err| storage_error(StorageError::from(err)))?;
-    let affected_block_ids: Vec<String> = sqlx::query_scalar(
-        r#"
-        SELECT DISTINCT CASE
-            WHEN source_block_id = $2 THEN target_block_id
-            ELSE source_block_id
-        END
-        FROM loom_edges
-        WHERE workspace_id = $1
-          AND (source_block_id = $2 OR target_block_id = $2)
-          AND source_block_id <> target_block_id
-        "#,
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.block_id)
-    .fetch_all(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    sqlx::query(
-        "DELETE FROM loom_canvas_placements WHERE workspace_id = $1 AND placed_block_id = $2",
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.block_id)
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
-    let loom_block_deleted = sqlx::query(
-        "DELETE FROM loom_blocks \
-         WHERE workspace_id = $1 AND block_id = $2 AND content_type = 'note'",
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.block_id)
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?
-    .rows_affected();
-    if loom_block_deleted != 1 {
-        return Err(storage_error(StorageError::Conflict(
-            "rich document LoomBlock projection identity mismatch",
-        )));
-    }
-    for affected_block_id in affected_block_ids {
-        sqlx::query(
-            r#"
-            UPDATE loom_blocks
-            SET mention_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
-                tag_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
-                backlink_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
-            WHERE workspace_id = $1 AND block_id = $2
-            "#,
-        )
-        .bind(&document.workspace_id)
-        .bind(affected_block_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|err| storage_error(StorageError::from(err)))?;
-    }
-    tx.commit()
-        .await
-        .map_err(|err| storage_error(StorageError::from(err)))?;
 
     Ok(Json(json!({
         "deleted": true,
         "rich_document_id": document.rich_document_id,
-        "deleted_receipt_event_id": receipt,
-        "source_marked_stale": source_marked_stale,
-        "backlinks_deleted": backlinks_deleted,
-        "loom_block_deleted": true,
+        "deleted_receipt_event_id": outcome.receipt_event_id,
+        "source_marked_stale": outcome.source_marked_stale,
+        "backlinks_deleted": outcome.backlinks_deleted,
+        "loom_block_deleted": outcome.loom_block_deleted,
     })))
 }
 
@@ -1835,15 +1620,13 @@ async fn list_backlinks(
     // Wikilinks authored as `[[Title]]` store their human title as the
     // target, while structured hsLink nodes store the stable document id.
     // Both forms are inbound references to this document.
-    let same_title_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_documents \
-         WHERE workspace_id = $1 AND title = $2 AND deleted_at IS NULL",
-    )
-    .bind(&document.workspace_id)
-    .bind(&document.title)
-    .fetch_one(&state.postgres_pool)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
+    let same_title_count = db
+        .list_knowledge_rich_documents(&document.workspace_id, None, None)
+        .await
+        .map_err(storage_error)?
+        .into_iter()
+        .filter(|candidate| candidate.title == document.title)
+        .count();
     if same_title_count == 1 && document.title != document.rich_document_id {
         let title_backlinks = db
             .list_knowledge_document_backlinks_to(

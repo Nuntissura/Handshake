@@ -1,5 +1,5 @@
 //! WP-KERNEL-012 MT-111 — the frontend Flight Recorder client against the MT-109 authorization
-//! boundary, proven end-to-end on a real `handshake_core` + real PostgreSQL.
+//! boundary, proven end-to-end on a real `handshake_core` + real SurrealDB.
 //!
 //! MT-109 put fail-closed capability middleware over the WHOLE flight-recorder route group, removed the
 //! unauthenticated unscoped ingestion routes, and made `actor_id` / `actor_kind` / `workspace_id`
@@ -10,11 +10,11 @@
 //!
 //! | Acceptance criterion | Proof |
 //! |---|---|
-//! | AC-111-1 (scoped ingest path) | `mt111_flight_recorder_authorization_boundary_real_pg` step 6 posts through the production emitter to `POST /api/workspaces/{id}/flight_recorder/native_editor_event` and the row lands. |
+//! | AC-111-1 (scoped ingest path) | `mt111_flight_recorder_authorization_boundary_real_surrealdb` step 6 posts through the production emitter to `POST /api/workspaces/{id}/flight_recorder/native_editor_event` and the row lands. |
 //! | AC-111-2 (genuine credential + typed absence) | step 1 (401 without the header), step 7 (`EmitError::MissingSessionBinding` when the binding is gone — surfaced in the operator-visible error ring, never a silent drop). |
 //! | AC-111-3 (no client-authored identity) | step 2 (`403 HSK-403-FR-ACTOR-SPOOF` and NO durable row), step 3 (`403 HSK-403-FR-WORKSPACE` and NO durable row), step 6 (the persisted row carries SERVER-derived attribution). |
 //! | AC-111-4 (scoped read) | step 4 (unscoped read with a valid credential is `403 HSK-403-FR-CAPABILITY`), step 5 (scoped read without a credential is `401`). |
-//! | AC-111-5 (live runtime proof) | the whole test: real backend, real PostgreSQL, real workspace, production emitter. |
+//! | AC-111-5 (live runtime proof) | the whole test: real backend, real SurrealDB, real workspace, production emitter. |
 //! | AC-111-7 (honest harness) | every read here uses [`live_binding_session_token`], read from the REAL published binding. |
 //!
 //! ## Running it
@@ -31,13 +31,13 @@
 //! cargo test --test test_flight_recorder_authz -- --nocapture
 //! ```
 //!
-//! `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is mandatory: it both forces `pg_proof_support` to own its
+//! `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is mandatory: it both forces `backend_proof_support` to own its
 //! backend child and gives this proof a private app-data root. The child inherits the redirected
 //! `%LOCALAPPDATA%`, so BOTH processes resolve the SAME `swarm_mcp_binding.json` — which is what makes
 //! the credential real rather than mocked.
 
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 use handshake_native::event_emitter::{
     EmitError, NativeEditorEvent, NativeEditorEventEmitter, UndoScope, HSK_HEADER_SESSION_TOKEN,
@@ -46,7 +46,7 @@ use handshake_native::event_emitter::{
 
 /// AC-111-7: read the token from the REAL published binding, exactly as the mounted native client
 /// does. This never weakens the gate - a missing, forged, or stale binding still fails closed.
-use pg_proof_support::{live_flight_recorder_session_token as live_binding_session_token, RealNativeMcpBinding, NATIVE_BINDING_APP_DATA_ENV as APP_DATA_ENV};
+use backend_proof_support::{live_flight_recorder_session_token as live_binding_session_token, RealNativeMcpBinding, NATIVE_BINDING_APP_DATA_ENV as APP_DATA_ENV};
 
 fn native_editor_body(event_id: &str, extra: serde_json::Value) -> serde_json::Value {
     let mut body = serde_json::json!({
@@ -71,11 +71,11 @@ fn native_editor_body(event_id: &str, extra: serde_json::Value) -> serde_json::V
 /// One live test so the shared managed-backend fixture lock is taken exactly once. Every step is a
 /// distinct MT-111 acceptance obligation and is labelled as such.
 #[test]
-fn mt111_flight_recorder_authorization_boundary_real_pg() {
+fn mt111_flight_recorder_authorization_boundary_real_surrealdb() {
     // The app-data redirect must be installed BEFORE the backend child is spawned so the child
     // inherits it and both processes resolve the same binding file.
     let binding = RealNativeMcpBinding::publish();
-    let mut backend = pg_proof_support::require_reachable_backend();
+    let mut backend = backend_proof_support::require_reachable_backend();
     let base = backend.base.clone();
     let workspace = backend.create_workspace(&format!("mt111-fr-authz-{}", uuid::Uuid::new_v4()));
     let workspace_id = workspace
@@ -99,7 +99,6 @@ fn mt111_flight_recorder_authorization_boundary_real_pg() {
     let ingest_url =
         format!("{base}/api/workspaces/{workspace_id}/flight_recorder/native_editor_event");
 
-    let mut emitted_event_ids: Vec<String> = Vec::new();
 
     // ── Step 1 (AC-111-2 negative): no credential -> 401 HSK-401-FR-SESSION, no durable write ──────
     let unauthenticated_event_id = uuid::Uuid::new_v4().to_string();
@@ -223,7 +222,6 @@ fn mt111_flight_recorder_authorization_boundary_real_pg() {
              emit failed: {error}"
         )
     });
-    emitted_event_ids.push(persisted.event_id.clone());
 
     let row = poll_scoped_recorder_row(&runtime, &http, &base, &workspace_id, &persisted.event_id);
     let server_actor_id = row["actor_id"]
@@ -328,26 +326,8 @@ fn mt111_flight_recorder_authorization_boundary_real_pg() {
          FlightRecorderPane renders"
     );
 
-    // ── Cleanup: the durable rows this proof minted, then the workspace. ──────────────────────────
-    if !emitted_event_ids.is_empty() {
-        let keys = emitted_event_ids
-            .iter()
-            .flat_map(|event_id| {
-                [
-                    format!("native-editor-fr-pending:{workspace_id}:{event_id}"),
-                    format!("native-editor-fr-complete:{workspace_id}:{event_id}"),
-                    format!("native-editor-fr-pending:{event_id}"),
-                    format!("native-editor-fr-complete:{event_id}"),
-                ]
-            })
-            .map(|key| format!("'{}'", key.replace('\'', "''")))
-            .collect::<Vec<_>>()
-            .join(", ");
-        backend.run_fixture_sql(
-            "mt111-native-fr-ledger-cleanup",
-            &format!("DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({keys});"),
-        );
-    }
+    // Product workspace deletion owns scoped projection cleanup. The fixture then reaps its isolated
+    // embedded SurrealDB root, so no out-of-band EventLedger mutation is needed or permitted.
     let delete_status = backend.delete_workspace(&workspace_id);
     assert!(
         (200..300).contains(&delete_status) || delete_status == 404,

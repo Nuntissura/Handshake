@@ -162,9 +162,8 @@ static GITHUB_FINE_GRAINED_PAT: Lazy<Regex> = Lazy::new(|| {
 static SLACK_TOKEN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b").expect("slack token regex"));
 // Slack app-level token: `xapp-` + version digit + `-` + alnum/`-` body.
-static SLACK_APP_TOKEN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\bxapp-[0-9]-[0-9A-Za-z-]{10,}\b").expect("slack app token regex")
-});
+static SLACK_APP_TOKEN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\bxapp-[0-9]-[0-9A-Za-z-]{10,}\b").expect("slack app token regex"));
 // Alternately-labelled key block: any PEM-armored `BEGIN ... KEY` block whose
 // label is NOT a standard PRIVATE KEY label already covered by PRIVATE_KEY
 // (e.g. `OPENSSH PRIVATE KEY` without the explicit prefix-form, vendor key

@@ -11,7 +11,7 @@
 //!   builders produce the correct StageRoutePayload shape (workspace_id, source variant, correlation_id).
 //! - PT-002 / AC-002: `route_to_stage_prebuilds_fr_receipt_and_stages_content` — the bus
 //!   route prebuilds the MT-036 `route_to_stage` receipt AND stages the content the Stage pane shows;
-//!   `live_route_round_trip_real_pg` is the managed-PG mounted round-trip.
+//!   `live_route_round_trip_real_surrealdb` is the managed-SurrealDB mounted round-trip.
 //! - PT-003 / AC-003: `embed_back_inserts_mt014_nodeview_with_provenance` — a fetched artifact becomes an
 //!   MT-014 `hsLink` embed atom carrying the SHA-256 manifest provenance descriptor.
 //! - PT-004 / AC-004: `embed_back_endpoint_absent_404` + `embed_back_endpoint_absent_501` — the missing
@@ -22,7 +22,7 @@
 //!   with the correct roles + nesting; saves a screenshot to the EXTERNAL artifact root.
 //! - AC-005: `single_route_command_id_plus_embed_command` — exactly one route-to-stage command id (extends
 //!   MT-033) + the added embed-stage-capture command id (grep gate over the catalog + the bus descriptors).
-//! - AC-007: `no_sqlite_and_shared_backend_client` — PostgreSQL authority and one shared HTTP client;
+//! - AC-007: `product_api_only_and_shared_backend_client` — SurrealDB authority and one shared HTTP client;
 //!   `assert_no_local_artifact_dir` guards artifact hygiene (CX-212E).
 
 use std::io::{Read, Write};
@@ -597,11 +597,9 @@ impl LiveWorkspaceGuard<'_> {
     }
 
     fn cleanup_native_fr_ledger(&mut self) {
-        // Discovering event ids over HTTP needs the MT-109 session; the SQL residue cleanup that
-        // follows does not. During `Drop` recovery the mounted app may already be gone, taking its
-        // published binding with it, so in that case skip only the authorized discovery step rather
-        // than abandoning cleanup entirely. The strict `finish_and_assert_zero` path always has a
-        // live binding and therefore always performs the read.
+        // The fixture owns an isolated embedded SurrealDB root. Observe the scoped product read while
+        // the workspace exists, then let the product workspace DELETE and owned-root reap establish
+        // containment; never mutate the EventLedger out of band.
         let rows = match try_live_binding_session_token() {
             Ok(session_token) => self.backend.get_json_with_session_token(
                 &format!("/api/flight_recorder?wsid={}", self.workspace_id),
@@ -610,7 +608,7 @@ impl LiveWorkspaceGuard<'_> {
             Err(reason) if std::thread::panicking() => {
                 eprintln!(
                     "MT-066 cleanup skipped authorized Flight Recorder discovery during unwinding \
-                     ({reason}); scoped SQL residue cleanup still runs."
+                     ({reason}); product workspace deletion still runs."
                 );
                 serde_json::Value::Array(Vec::new())
             }
@@ -626,192 +624,17 @@ impl LiveWorkspaceGuard<'_> {
                 self.track_native_fr(row);
             }
         }
-        if self.native_fr_event_ids.is_empty() {
-            return;
-        }
-        let keys = self
-            .native_fr_event_ids
-            .iter()
-            .flat_map(|event_id| {
-                // MT-111: MT-109 partitioned the native-editor EventLedger idempotency keys by
-                // workspace (`native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`).
-                // Both spellings are named so this fixture cleans up rows minted before and after that
-                // change; every key is still scoped to THIS proof's own event ids.
-                [
-                    format!("native-editor-fr-pending:{event_id}"),
-                    format!("native-editor-fr-complete:{event_id}"),
-                    format!(
-                        "native-editor-fr-pending:{}:{event_id}",
-                        self.workspace_id
-                    ),
-                    format!(
-                        "native-editor-fr-complete:{}:{event_id}",
-                        self.workspace_id
-                    ),
-                ]
-            })
-            .map(|key| format!("'{}'", key.replace('\'', "''")))
-            .collect::<Vec<_>>()
-            .join(", ");
-        self.backend.run_fixture_sql(
-            "mt066-native-fr-ledger-cleanup",
-            &format!(
-                "BEGIN; DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({keys}); \
-                 DO $native_fr_cleanup$ BEGIN IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                 WHERE idempotency_key IN ({keys})) THEN RAISE EXCEPTION \
-                 'MT-066 native FR EventLedger cleanup left fixture rows'; END IF; \
-                 END $native_fr_cleanup$; COMMIT;"
-            ),
-        );
         self.native_fr_event_ids.clear();
     }
 
-    fn sql_text_array(values: &[String]) -> String {
-        if values.is_empty() {
-            return "ARRAY[]::text[]".to_owned();
-        }
-        format!(
-            "ARRAY[{}]::text[]",
-            values
-                .iter()
-                .map(|value| format!("'{}'", value.replace('\'', "''")))
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    }
-
     fn cleanup_stage_side_effects_and_assert_zero(&mut self) {
-        let workspace = self.workspace_id.replace('\'', "''");
-        let artifacts = Self::sql_text_array(&self.stage_artifact_ids);
-        let jobs = Self::sql_text_array(&self.stage_job_ids);
-        let events = Self::sql_text_array(&self.stage_event_ids);
-        // The native-editor Flight Recorder EventLedger rows are matched by their MT-109
-        // workspace-partitioned idempotency keys as well. A live run proved this is load-bearing: the
-        // mounted app emits MORE native-editor events than the two receipts this proof tracks by id
-        // (the occupied-route blocker is one), and those rows carry no top-level
-        // `payload.workspace_id` — so neither the tracked-id path nor the payload-workspace path
-        // reached them and they survived a "zero residue" run. The key prefix is exact and carries
-        // this run's own generated workspace id, so the scope stays this workspace only.
-        let detach_ledger_references = Self::DETACH_LEDGER_REFERENCES_SQL;
-        self.backend.run_fixture_sql(
-            "mt066-stage-side-effect-cleanup",
-            &format!(
-                "BEGIN; \
-                 CREATE TEMP TABLE mt066_stage_cleanup_artifacts ON COMMIT DROP AS \
-                 SELECT artifact_id, job_id, event_ledger_event_id \
-                 FROM stage_capture_artifacts \
-                 WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}'; \
-                 CREATE TEMP TABLE mt066_stage_cleanup_events ON COMMIT DROP AS \
-                 SELECT event_id FROM kernel_event_ledger \
-                 WHERE event_id = ANY({events}) \
-                    OR payload->>'workspace_id' = '{workspace}' \
-                    OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
-                    OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
-                    OR idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
-                    OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%' \
-                    OR (source_component = 'stage_capture_api' \
-                        AND payload->>'workspace_id' = '{workspace}') \
-                 UNION SELECT event_ledger_event_id FROM mt066_stage_cleanup_artifacts \
-                       WHERE event_ledger_event_id IS NOT NULL \
-                 UNION SELECT payload->>'decision_event_id' FROM kernel_event_ledger \
-                       WHERE event_id = ANY({events}) \
-                          OR event_id IN (SELECT event_ledger_event_id \
-                                          FROM mt066_stage_cleanup_artifacts \
-                                          WHERE event_ledger_event_id IS NOT NULL); \
-                 {detach_ledger_references} \
-                 DELETE FROM stage_capture_artifacts \
-                 WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}'; \
-                 DELETE FROM kernel_event_ledger \
-                 WHERE event_id IN (SELECT event_id FROM mt066_stage_cleanup_events \
-                                    WHERE event_id IS NOT NULL); \
-                 DELETE FROM ai_jobs \
-                 WHERE id = ANY({jobs}) \
-                    OR id IN (SELECT job_id FROM mt066_stage_cleanup_artifacts \
-                              WHERE job_id IS NOT NULL) \
-                    OR (job_inputs::jsonb->>'workspace_id' = '{workspace}'); \
-                 DO $stage_zero$ BEGIN \
-                 IF EXISTS (SELECT 1 FROM stage_capture_artifacts \
-                            WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}') \
-                 THEN RAISE EXCEPTION 'MT-066 Stage artifact cleanup left residue'; END IF; \
-                 IF EXISTS (SELECT 1 FROM ai_jobs \
-                            WHERE id = ANY({jobs}) \
-                               OR job_inputs::jsonb->>'workspace_id' = '{workspace}') \
-                 THEN RAISE EXCEPTION 'MT-066 Stage job cleanup left residue'; END IF; \
-                 IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                            WHERE event_id IN (SELECT event_id \
-                                               FROM mt066_stage_cleanup_events \
-                                               WHERE event_id IS NOT NULL) \
-                               OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
-                               OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
-                               OR idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
-                               OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%' \
-                               OR payload->>'workspace_id' = '{workspace}' \
-                               OR (source_component = 'stage_capture_api' \
-                                   AND payload->>'workspace_id' = '{workspace}')) \
-                 THEN RAISE EXCEPTION 'MT-066 Stage EventLedger cleanup left residue'; END IF; \
-                 END $stage_zero$; COMMIT;"
-            ),
-        );
+        // Stage always uses a fixture-owned backend and data directory. Product workspace deletion
+        // is the canonical cascade; process reap then makes the complete embedded store unreachable.
+        // Retire only the local tracking state here—never edit the ledger or store behind the API.
         self.stage_artifact_ids.clear();
         self.stage_job_ids.clear();
         self.stage_event_ids.clear();
     }
-
-    /// MT-066 V4 remediation item 2: detach EVERY row that references the ledger events we are
-    /// about to delete, derived DYNAMICALLY from `pg_constraint` rather than from a hard-coded list.
-    ///
-    /// The V3 failure deleted `kernel_event_ledger` rows while workspace-owned rows still pointed at
-    /// them, so the delete tripped a foreign-key constraint. The validator explicitly warned against
-    /// hard-coding only the two constraints observed in those runs
-    /// (`loom_canvas_boards.event_ledger_event_id` and `loom_block_knowledge_bridge.index_event_id`).
-    /// That warning is well founded: a live schema inspection during this remediation found
-    /// **68** foreign keys targeting `kernel_event_ledger`, of which 53 are `RESTRICT` and 14 are
-    /// `NO ACTION` — i.e. 67 of them can block a ledger delete. Any literal list would therefore be
-    /// incomplete the day it is written and would silently rot as new tables are added.
-    ///
-    /// This walks `pg_constraint` at runtime, nulls every nullable referencing column, and deletes
-    /// rows whose referencing column is NOT NULL (they cannot survive without their event). It stays
-    /// scoped to the exact set of events this cleanup is about to remove — never a TRUNCATE, never a
-    /// broad source-component delete — because parallel work-packet agents share this PostgreSQL
-    /// server.
-    ///
-    /// Two properties are load-bearing and were BOTH wrong in the first V4 draft:
-    ///
-    /// 1. `kernel_event_ledger.event_id` is `text`, not `uuid`, and its live values are typed
-    ///    `KE-<uuid>` strings. Every one of the 68 referencing columns is therefore also `text`.
-    ///    Casting the scoped id array to `uuid[]` made PostgreSQL reject the statement outright with
-    ///    `operator does not exist: text = uuid`, and a real `KE-…` id additionally fails
-    ///    `invalid input syntax for type uuid`. The comparison must stay in `text`.
-    /// 2. The detached set must be the SAME set the delete removes. Scoping the detach to only the
-    ///    explicitly tracked ids while the delete also removes workspace-matched and
-    ///    idempotency-key-matched events would leave exactly the RESTRICT window the V3 run tripped
-    ///    over. It therefore drives `mt066_stage_cleanup_events`, the temp table built immediately
-    ///    above it inside the same transaction.
-    const DETACH_LEDGER_REFERENCES_SQL: &'static str = "DO $mt066_detach$ \
-         DECLARE r RECORD; \
-         BEGIN \
-           FOR r IN \
-             SELECT c.conrelid::regclass::text AS tbl, \
-                    a.attname               AS col, \
-                    a.attnotnull            AS notnull \
-             FROM pg_constraint c \
-             JOIN LATERAL unnest(c.conkey) AS k(attnum) ON true \
-             JOIN pg_attribute a \
-               ON a.attrelid = c.conrelid AND a.attnum = k.attnum \
-             WHERE c.contype = 'f' \
-               AND c.confrelid = 'kernel_event_ledger'::regclass \
-           LOOP \
-             IF r.notnull THEN \
-               EXECUTE format('DELETE FROM %s WHERE %I IN (SELECT event_id FROM \
-                               mt066_stage_cleanup_events WHERE event_id IS NOT NULL)', \
-                              r.tbl, r.col); \
-             ELSE \
-               EXECUTE format('UPDATE %s SET %I = NULL WHERE %I IN (SELECT event_id FROM \
-                               mt066_stage_cleanup_events WHERE event_id IS NOT NULL)', \
-                              r.tbl, r.col, r.col); \
-             END IF; \
-           END LOOP; \
-         END $mt066_detach$;";
 
     fn cleanup_all_and_assert_zero(&mut self) {
         if !self.native_fr_cleanup_done {
@@ -862,7 +685,7 @@ impl LiveWorkspaceGuard<'_> {
     /// the read-only zero assertions.
     ///
     /// The V3 ordering ran the explicit SQL residue cleanup before the workspace DELETE, so it tried
-    /// to remove `kernel_event_ledger` rows while workspace-owned rows (Canvas boards, knowledge
+    /// to remove Flight Recorder entries while workspace-owned rows (Canvas boards, knowledge
     /// bridge rows, and 65 other referencing columns) still pointed at them under RESTRICT. The
     /// product's own workspace DELETE API is the authoritative cascade boundary, so it goes first and
     /// is allowed to own everything it owns; only the residue the API does NOT own is then removed
@@ -1028,7 +851,7 @@ const MT066_RELEVANT_SOURCE_PATHS: &[&str] = &[
     "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
     "src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs",
     "src/frontend/handshake_native/tests/native_gui_support/screenshot_marker.rs",
-    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/test_manual_content.rs",
     "src/frontend/handshake_native/tests/test_stage_interop.rs",
 ];
@@ -1427,10 +1250,10 @@ fn route_to_stage_prebuilds_fr_receipt_and_stages_content() {
     println!("PT-002 FR-shape + route wiring OK: receipt shape proven, content staged + received");
 }
 
-/// AC-002/003 LIVE round-trip against the managed PostgreSQL/EventLedger authority. The fixture creates
+/// AC-002/003 LIVE round-trip against the managed SurrealDB/EventLedger authority. The fixture creates
 /// and removes its own workspace, so this proof has no operator-seeded workspace or `#[ignore]` gate.
 #[test]
-fn live_route_round_trip_real_pg() {
+fn live_route_round_trip_real_surrealdb() {
     let _binding_env_guard = BINDING_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -2084,7 +1907,7 @@ fn live_route_round_trip_real_pg() {
         &evidence_path,
         serde_json::to_vec_pretty(&serde_json::json!({
             "schema_id": "handshake.mt066-stage-canonical-argus-proof.v1",
-            "test": "live_route_round_trip_real_pg",
+            "test": "live_route_round_trip_real_surrealdb",
             "status": "PASS",
             "recorded_at": chrono::Utc::now().to_rfc3339(),
             "source": {
@@ -2187,11 +2010,11 @@ fn live_route_round_trip_real_pg() {
     );
 }
 
-/// Managed-PG proof for the real Canvas origin/target. The route starts on the shared Canvas bus, the
+/// Managed-SurrealDB proof for the real Canvas origin/target. The route starts on the shared Canvas bus, the
 /// mounted Stage button performs capture + embed, a fresh backend read validates the structured card and
 /// dereferenced exact bytes, and a repeated embed converges on the same single placement.
 #[test]
-fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
+fn mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent() {
     let _binding_env_guard = BINDING_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -2548,41 +2371,22 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         1,
         "simultaneous model actions converge on one canonical placement"
     );
-    let workspace_sql = workspace_id.replace('\'', "''");
-    let canvas_sql = parallel_canvas_id.replace('\'', "''");
-    cleanup.backend.run_fixture_sql(
-        "mt066-cross-client-stage-provenance-uniqueness",
-        &format!(
-            "DO $stage_race$ DECLARE placements bigint; documents bigint; blocks bigint; bridges bigint; BEGIN \
-             SELECT COUNT(*) INTO placements FROM loom_canvas_placements \
-             WHERE workspace_id = '{workspace_sql}' AND canvas_block_id = '{canvas_sql}' \
-               AND stage_provenance_key IS NOT NULL; \
-             SELECT COUNT(*) INTO documents FROM knowledge_rich_documents document \
-             JOIN loom_canvas_placements placement \
-               ON placement.placed_block_id = document.rich_document_id \
-              AND placement.workspace_id = document.workspace_id \
-             WHERE placement.workspace_id = '{workspace_sql}' \
-               AND placement.canvas_block_id = '{canvas_sql}' \
-               AND placement.stage_provenance_key IS NOT NULL; \
-             SELECT COUNT(*) INTO blocks FROM loom_blocks block \
-             JOIN loom_canvas_placements placement \
-               ON placement.placed_block_id = block.block_id \
-              AND placement.workspace_id = block.workspace_id \
-             WHERE placement.workspace_id = '{workspace_sql}' \
-               AND placement.canvas_block_id = '{canvas_sql}' \
-               AND placement.stage_provenance_key IS NOT NULL; \
-             SELECT COUNT(*) INTO bridges FROM loom_block_knowledge_bridge bridge \
-             JOIN loom_canvas_placements placement \
-               ON placement.placed_block_id = bridge.block_id \
-              AND placement.workspace_id = bridge.workspace_id \
-             WHERE placement.workspace_id = '{workspace_sql}' \
-               AND placement.canvas_block_id = '{canvas_sql}' \
-               AND placement.stage_provenance_key IS NOT NULL; \
-             IF placements <> 1 OR documents <> 1 OR blocks <> 1 OR bridges <> 1 THEN \
-               RAISE EXCEPTION 'Stage race residue placements=%, documents=%, blocks=%, bridges=%', \
-                 placements, documents, blocks, bridges; \
-             END IF; END $stage_race$;"
-        ),
+    let canonical_parallel = runtime
+        .block_on(canvas_client.find_stage_capture_card_now(
+            &workspace_id,
+            &parallel_canvas_id,
+            &artifact_id,
+            &artifact.sha256,
+            &artifact.manifest.manifest_ref,
+            &artifact.correlation_id,
+        ))
+        .expect("fresh canonical Stage-card read")
+        .expect("one canonical Stage card exists");
+    assert_eq!(canonical_parallel.placement_id, parallel_a.placement_id);
+    assert_eq!(
+        canonical_parallel.placed_block_id,
+        parallel_board.placements[0].placed_block_id,
+        "the sole placement resolves through the product block/document/provenance read path"
     );
 
     stage.lock().unwrap().last_embed_back = None;
@@ -3071,13 +2875,13 @@ fn single_route_command_id_plus_embed_command() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-007 — PostgreSQL authority and one shared HTTP stack.
+// AC-007 — SurrealDB authority and one shared HTTP stack.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn no_sqlite_and_shared_backend_client() {
-    // The MT-066 production sources must not touch SQLite/rusqlite; PostgreSQL/EventLedger remains the
-    // durable authority.
+fn product_api_only_and_shared_backend_client() {
+    // The MT-066 production sources must not carry an alternate-store client; SurrealDB/EventLedger is
+    // the durable authority. The array below is the deliberate detector tripwire.
     let sources: [(&str, &str); 2] = [
         (
             "stage_interop.rs",
@@ -3089,7 +2893,7 @@ fn no_sqlite_and_shared_backend_client() {
         for store in ["sqlite", "rusqlite", "Sqlite", "SQLite"] {
             assert!(
                 !src.contains(store),
-                "AC-007: {name} must not reference '{store}' (PostgreSQL/EventLedger only)"
+                "AC-007: {name} must not reference alternate store '{store}' (SurrealDB/EventLedger only)"
             );
         }
         for verb in [".put(", ".delete(", ".patch("] {
@@ -3117,7 +2921,7 @@ fn no_sqlite_and_shared_backend_client() {
         "AC-007: the Stage client must implement capture and retrieval through the shared client"
     );
     println!(
-        "AC-007 gate OK: no sqlite/rusqlite; shared client performs Stage capture and retrieval"
+        "AC-007 gate OK: product API only; shared client performs Stage capture and retrieval"
     );
 }
 
@@ -3300,124 +3104,106 @@ fn author_under(root: &egui_kittest::Node<'_>, child_author: &str, ancestor_auth
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// MT-066 V4 remediation item 6: focused regression fixtures for BOTH reproduced foreign-key paths.
-//
-// The V3 failure was a foreign-key violation while deleting `kernel_event_ledger` rows that
-// workspace-owned rows still referenced. The validator named two concrete constraints and warned
-// against hard-coding only those two. A live schema inspection during this remediation found 68
-// foreign keys targeting `kernel_event_ledger` (53 RESTRICT, 14 NO ACTION), so `detach_ledger_references`
-// derives the referencing set DYNAMICALLY from `pg_constraint`.
-//
-// These two fixtures pin the exact paths the validator reproduced. Each seeds a real referencing row
-// against a real tracked ledger event, then requires cleanup to finish with ZERO scoped rows and NO
-// constraint failure.
+// MT-140: the former relational-constraint fixtures now exercise the real product aggregates and the
+// embedded-store containment boundary. Canvas creation and Stage-card creation each mint their own
+// canonical evidence; product workspace deletion must remove their scoped projections, and the owned
+// backend reap makes the complete SurrealDB root unreachable without an out-of-band store mutation.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-/// Seeds a Canvas board whose `event_ledger_event_id` references a tracked event (the first
-/// constraint the validator hit), then proves cleanup completes with zero residue.
 #[test]
-fn mt066_canvas_board_event_ledger_reference_does_not_block_cleanup() {
+fn mt066_canvas_board_evidence_does_not_block_product_cleanup() {
+    mt066_product_cleanup_regression(false, "mt066-canvas-board-cleanup");
+}
+
+#[test]
+fn mt066_stage_card_bridge_evidence_does_not_block_product_cleanup() {
+    mt066_product_cleanup_regression(true, "mt066-stage-card-cleanup");
+}
+
+fn mt066_product_cleanup_regression(create_stage_card: bool, label: &str) {
     let _binding_env_guard = BINDING_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    mt066_ledger_reference_regression(
-        "loom_canvas_boards",
-        "event_ledger_event_id",
-        "mt066-canvas-board-fk",
-    );
-}
-
-/// Seeds a `loom_block_knowledge_bridge` row whose `index_event_id` references a tracked event (the
-/// second constraint the validator hit), then proves cleanup completes with zero residue.
-#[test]
-fn mt066_knowledge_bridge_index_event_reference_does_not_block_cleanup() {
-    let _binding_env_guard = BINDING_ENV_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    mt066_ledger_reference_regression(
-        "loom_block_knowledge_bridge",
-        "index_event_id",
-        "mt066-knowledge-bridge-fk",
-    );
-}
-
-/// Shared body for the two regression fixtures.
-///
-/// Deliberately parameterised by (table, column) rather than duplicated, because the DEFECT class is
-/// "some row references a tracked ledger event", not "these two tables specifically". Adding a third
-/// path is one call, and the dynamic detach already covers the other 66 constraints.
-fn mt066_ledger_reference_regression(table: &str, column: &str, label: &str) {
-    // MT-109 made the Flight Recorder route group fail-closed, and this fixture's cleanup reads
-    // `GET /api/flight_recorder`. Publish a REAL native-MCP binding for this exact process (real
-    // pid, real OS-issued process-birth identity) BEFORE the owned backend is selected, so the child
-    // inherits the same isolated app-data root and authenticates the genuine credential.
     let session_token = format!(
         "{}{}",
         uuid::Uuid::new_v4().simple(),
         uuid::Uuid::new_v4().simple()
     );
     let _binding = stage_binding_proof::StageBindingGuard::install(&session_token, label);
-
     let mut backend = interconnect_support::require_reachable_backend();
     let workspace = backend.create_workspace(&format!("{label}-{}", uuid::Uuid::new_v4().simple()));
     let workspace_id = workspace["id"]
         .as_str()
         .expect("workspace create returns id")
         .to_owned();
-
-    // A REAL ledger identity: `kernel_event_ledger.event_id` is `text` carrying `KE-<uuid>` values,
-    // not a `uuid` column. Seeding a bare UUID here would have hidden the `::uuid[]` cast defect the
-    // detach originally shipped with, so the fixture uses the production id shape on purpose.
-    let event_id = format!("KE-{}", uuid::Uuid::new_v4());
-    let block_id = format!("LB-{}", uuid::Uuid::new_v4().simple());
-    let entity_id = format!("KEN-{}", uuid::Uuid::new_v4().simple());
-    let ws_sql = workspace_id.replace('\'', "''");
-
-    // The referencing row the validator actually hit. `loom_canvas_boards.event_ledger_event_id` and
-    // `loom_block_knowledge_bridge.index_event_id` are both NOT NULL RESTRICT foreign keys, so the
-    // row cannot exist without its event and the ledger delete cannot proceed while it does.
-    let reference_sql = match table {
-        "loom_canvas_boards" => format!(
-            "INSERT INTO loom_canvas_boards \
-               (block_id, workspace_id, board_state, event_ledger_event_id) \
-             VALUES ('{block_id}', '{ws_sql}', \
-                     jsonb_build_object('schema_id', 'hsk.loom_canvas_board@1'), '{event_id}'); "
-        ),
-        "loom_block_knowledge_bridge" => format!(
-            "INSERT INTO knowledge_entities \
-               (entity_id, workspace_id, entity_kind, entity_key, display_name) \
-             VALUES ('{entity_id}', '{ws_sql}', 'loom_block', '{block_id}', \
-                     'MT-066 regression entity'); \
-             INSERT INTO loom_block_knowledge_bridge \
-               (block_id, workspace_id, entity_id, index_event_id) \
-             VALUES ('{block_id}', '{ws_sql}', '{entity_id}', '{event_id}'); "
-        ),
-        other => panic!("MT-066 regression fixture has no seed for referencing table {other}"),
-    };
-
-    // Seed the real ledger event, its owning Loom block, and the real referencing row in ONE
-    // transaction. Every NOT NULL ledger column is populated: the first V4 draft omitted nine of
-    // them and the seed died on `null value in column "event_version"`, which meant the fixture
-    // could never reach the behaviour it claimed to prove.
-    backend.run_fixture_sql(
-        &format!("{label}-seed"),
-        &format!(
-            "BEGIN; \
-             INSERT INTO kernel_event_ledger \
-               (event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, \
-                aggregate_id, idempotency_key, event_type, actor_kind, actor_id, payload_hash, \
-                source_component, payload) \
-             VALUES ('{event_id}', '1', 'mt066-fk-regression-task', 'mt066-fk-regression-session', \
-                     'stage_capture', '{ws_sql}', 'stage-capture:{ws_sql}:{label}', \
-                     'stage.capture.recorded', 'operator', 'mt066-fk-regression', \
-                     'mt066-fk-regression-payload-hash', 'stage_capture_api', \
-                     jsonb_build_object('workspace_id', '{ws_sql}', 'kind', '{label}')); \
-             INSERT INTO loom_blocks (block_id, workspace_id, content_type, title) \
-             VALUES ('{block_id}', '{ws_sql}', 'note', 'MT-066 regression block'); \
-             {reference_sql} \
-             COMMIT;"
-        ),
+    let canvas = backend.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({"title": label}),
     );
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas create returns block_id")
+        .to_owned();
+
+    if create_stage_card {
+        let runtime = rt();
+        let client = handshake_native::backend_client::CanvasBoardClient::with_http_client(
+            backend.base.clone(),
+            runtime.handle().clone(),
+            handshake_native::backend_client::build_backend_client(),
+        );
+        let causal_action_id = uuid::Uuid::new_v4().to_string();
+        let capture_request = handshake_native::interop::StageCaptureRequest::from_routed_content(
+            &handshake_native::stage_pane::StageContent::Selection(
+                "MT-140 Stage cleanup authority".to_owned(),
+                format!("note://{workspace_id}/mt140-stage-cleanup"),
+            ),
+            &causal_action_id,
+        )
+        .expect("build typed Stage capture request");
+        let artifact = runtime
+            .block_on(
+                StageClient::with_base_url(backend.base.clone())
+                    .with_session_token(session_token.clone())
+                    .create_stage_capture(&workspace_id, &capture_request),
+            )
+            .expect("create authoritative Stage capture through product API");
+        let created = runtime
+            .block_on(client.ensure_stage_capture_card_now(
+                &workspace_id,
+                &canvas_id,
+                &artifact.artifact_id,
+                &artifact.sha256,
+                &artifact.manifest.manifest_ref,
+                &causal_action_id,
+                10.0,
+                10.0,
+                240.0,
+                140.0,
+            ))
+            .expect("create Stage card through product API");
+        let fresh = runtime
+            .block_on(client.find_stage_capture_card_now(
+                &workspace_id,
+                &canvas_id,
+                &artifact.artifact_id,
+                &artifact.sha256,
+                &artifact.manifest.manifest_ref,
+                &causal_action_id,
+            ))
+            .expect("fresh Stage card read")
+            .expect("Stage card remains canonical");
+        assert_eq!(fresh.placement_id, created.placement_id);
+        assert_eq!(fresh.placed_block_id, created.placed_block_id);
+    } else {
+        let board = backend.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+        ));
+        assert_eq!(
+            board["board"]["block_id"].as_str(),
+            Some(canvas_id.as_str())
+        );
+    }
 
     let mut cleanup = LiveWorkspaceGuard {
         backend: &mut backend,
@@ -3425,61 +3211,17 @@ fn mt066_ledger_reference_regression(table: &str, column: &str, label: &str) {
         native_fr_event_ids: Vec::new(),
         stage_artifact_ids: Vec::new(),
         stage_job_ids: Vec::new(),
-        stage_event_ids: vec![event_id.clone()],
+        stage_event_ids: Vec::new(),
         workspace_deleted: false,
         native_fr_cleanup_done: false,
         stage_side_effect_cleanup_done: false,
     };
-
-    // Prove the referencing constraint exists and points where the validator said it does. If the
-    // schema ever drops it, this fixture must fail loudly rather than silently proving nothing.
-    cleanup.backend.run_fixture_sql(
-        &format!("{label}-assert-constraint-exists"),
-        &format!(
-            "DO $mt066_assert_fk$ BEGIN \
-               IF NOT EXISTS ( \
-                 SELECT 1 FROM pg_constraint c \
-                 JOIN LATERAL unnest(c.conkey) AS k(attnum) ON true \
-                 JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum \
-                 WHERE c.contype = 'f' \
-                   AND c.confrelid = 'kernel_event_ledger'::regclass \
-                   AND c.conrelid = '{table}'::regclass \
-                   AND a.attname = '{column}') \
-               THEN RAISE EXCEPTION \
-                 'MT-066 regression fixture is vacuous: {table}.{column} no longer references kernel_event_ledger'; \
-               END IF; \
-               IF NOT EXISTS (SELECT 1 FROM {table} WHERE {column} = '{event_id}') \
-               THEN RAISE EXCEPTION \
-                 'MT-066 regression fixture is vacuous: no {table}.{column} row references the tracked event'; \
-               END IF; \
-             END $mt066_assert_fk$;"
-        ),
-    );
-
-    // The actual regression, in the EXACT order the V3 run failed: remove the Stage/Flight-Recorder
-    // residue (which deletes `kernel_event_ledger` rows) while the workspace-owned referencing row is
-    // still present. Without the dynamic detach this raises
-    // "update or delete on table kernel_event_ledger violates foreign key constraint".
-    cleanup.cleanup_all_and_assert_zero();
-    // Then the canonical finish path. The completion flags make the residue phases idempotent, so
-    // this performs the product-owned workspace DELETE and re-asserts absence.
     cleanup.finish_and_assert_zero();
-
-    // Independent read-only confirmation that both the tracked event and its referencing row are
-    // gone. `event_id` is text, so no cast: a `::uuid` cast here would reject a real `KE-…` id.
-    cleanup.backend.run_fixture_sql(
-        &format!("{label}-assert-zero"),
-        &format!(
-            "DO $mt066_zero$ BEGIN \
-               IF EXISTS (SELECT 1 FROM kernel_event_ledger WHERE event_id = '{event_id}') \
-               THEN RAISE EXCEPTION 'MT-066 {label}: tracked ledger event survived cleanup'; END IF; \
-               IF EXISTS (SELECT 1 FROM {table} WHERE {column} = '{event_id}') \
-               THEN RAISE EXCEPTION 'MT-066 {label}: referencing {table} row survived cleanup'; END IF; \
-               IF EXISTS (SELECT 1 FROM loom_blocks WHERE block_id = '{block_id}') \
-               THEN RAISE EXCEPTION 'MT-066 {label}: scoped Loom block survived cleanup'; END IF; \
-             END $mt066_zero$;"
-        ),
+    let workspaces = cleanup.backend.get_json("/workspaces");
+    assert!(
+        workspaces.as_array().is_some_and(|rows| rows
+            .iter()
+            .all(|row| row["id"].as_str() != Some(workspace_id.as_str()))),
+        "fresh canonical product list confirms workspace absence: {workspaces}"
     );
-
-    println!("MT-066 regression OK: {table}.{column} reference did not block scoped cleanup");
 }

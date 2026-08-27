@@ -15,14 +15,14 @@
 //! (ontology terms/aliases, facts) — they do not re-extract or re-parse.
 
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use surrealdb::types::{RecordId, SurrealValue, Value};
 
 use crate::storage::knowledge::{KnowledgeClaimState, KnowledgeMemoryPassage, KnowledgeStore};
 use crate::storage::knowledge_memory::{
     list_memory_facts, list_memory_ontology_aliases, list_memory_ontology_terms, MemoryFact,
     MemoryOntologyAlias, MemoryOntologyLifecycle, MemoryOntologyTerm,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 use super::passage::load_passages_for_workspace;
@@ -66,19 +66,20 @@ pub struct OntologyGraphProjection {
 /// Build the ontology graph projection. `stable_only` restricts to terms that
 /// have been promoted to stable retrieval ontology.
 pub async fn build_ontology_graph(
-    pool: &PgPool,
+    db: &SurrealDatabase,
     workspace_id: &str,
     stable_only: bool,
     limit: i64,
 ) -> StorageResult<OntologyGraphProjection> {
     let lifecycle_filter = stable_only.then_some(MemoryOntologyLifecycle::Stable);
     let terms =
-        list_memory_ontology_terms(pool, workspace_id, None, lifecycle_filter, limit).await?;
+        list_memory_ontology_terms(db.storage(), workspace_id, None, lifecycle_filter, limit)
+            .await?;
 
     let mut nodes = Vec::with_capacity(terms.len());
     let mut edges = Vec::new();
     for term in &terms {
-        let aliases: Vec<String> = list_memory_ontology_aliases(pool, &term.term_id)
+        let aliases: Vec<String> = list_memory_ontology_aliases(db.storage(), &term.term_id)
             .await?
             .into_iter()
             .map(|alias: MemoryOntologyAlias| alias.alias_surface)
@@ -158,13 +159,12 @@ pub struct FactGraphProjection {
 /// superseded, unsupported, bare model-suggested, proposed, and conflicted
 /// facts are excluded from the stable fact graph.
 pub async fn build_fact_graph(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
     workspace_id: &str,
     trusted_only: bool,
     limit: i64,
 ) -> StorageResult<FactGraphProjection> {
-    let facts = list_memory_facts(pool, workspace_id, limit).await?;
+    let facts = list_memory_facts(db.storage(), workspace_id, limit).await?;
 
     let mut nodes: Vec<FactGraphNode> = Vec::new();
     let mut seen_entities = std::collections::HashSet::new();
@@ -181,7 +181,7 @@ pub async fn build_fact_graph(
             if claim.lifecycle_state != KnowledgeClaimState::Accepted {
                 continue;
             }
-            if claim_has_unresolved_conflict(pool, &fact.claim_id).await? {
+            if claim_has_unresolved_conflict(db, &fact.claim_id).await? {
                 continue;
             }
         }
@@ -198,7 +198,7 @@ pub async fn build_fact_graph(
 }
 
 async fn push_entity_node(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     fact: &MemoryFact,
     nodes: &mut Vec<FactGraphNode>,
     seen: &mut std::collections::HashSet<String>,
@@ -234,21 +234,34 @@ fn fact_edge(fact: &MemoryFact) -> FactGraphEdge {
     }
 }
 
-async fn claim_has_unresolved_conflict(pool: &PgPool, claim_id: &str) -> StorageResult<bool> {
-    let unresolved: bool = sqlx::query_scalar(
-        r#"
-        SELECT EXISTS (
-            SELECT 1
-            FROM knowledge_claim_conflicts
-            WHERE resolved_at IS NULL
-              AND (claim_id = $1 OR conflicting_claim_id = $1)
-        )
-        "#,
-    )
-    .bind(claim_id)
-    .fetch_one(pool)
-    .await?;
-    Ok(unresolved)
+#[derive(SurrealValue)]
+struct ClaimConflictBindings {
+    claim: RecordId,
+}
+
+async fn claim_has_unresolved_conflict(
+    db: &SurrealDatabase,
+    claim_id: &str,
+) -> StorageResult<bool> {
+    let bindings = ClaimConflictBindings {
+        claim: RecordId::new("knowledge_claims", claim_id),
+    };
+    let count: Option<i64> = db
+        .storage()
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_first(
+                        "SELECT VALUE count() FROM knowledge_claim_conflicts \
+                         WHERE resolved_at = NONE \
+                         AND (claim_id = $claim OR conflicting_claim_id = $claim) GROUP ALL;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await?;
+    Ok(count.unwrap_or(0) > 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -288,12 +301,11 @@ pub struct PassageEvidenceGraphProjection {
 /// and its derivation lineage (source/claim/span refs). Reuses the committed
 /// passage evidence store.
 pub async fn build_passage_evidence_graph(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<PassageEvidenceGraphProjection> {
-    let passages = load_passages_for_workspace(pool, workspace_id, limit).await?;
+    let passages = load_passages_for_workspace(db, workspace_id, limit).await?;
 
     let mut nodes = Vec::with_capacity(passages.len());
     let mut edges = Vec::new();

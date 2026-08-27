@@ -19,7 +19,7 @@
 //! RetrievalTrace. The V1 bundle is persisted exactly (no reshaping), preserving
 //! kernel compatibility.
 //!
-//! Authority: PostgreSQL/EventLedger. The compiled JSON bundle is a projection.
+//! Authority: embedded SurrealDB/EventLedger. The compiled JSON bundle is a projection.
 
 use serde_json::{json, Value};
 
@@ -36,7 +36,7 @@ use crate::storage::knowledge::{
     NewKnowledgeContextBundle, NewKnowledgeContextBundleItem,
 };
 use crate::storage::knowledge_retrieval::record_retrieval_trace;
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError, StorageResult};
 
 /// What a bundle is being compiled FOR (spec MT-136 target list). The kind is
@@ -102,11 +102,11 @@ pub struct CompiledBundle {
 
 /// The bundle compiler.
 pub struct ContextBundleCompilerV2<'a> {
-    db: &'a PostgresDatabase,
+    db: &'a SurrealDatabase,
 }
 
 impl<'a> ContextBundleCompilerV2<'a> {
-    pub fn new(db: &'a PostgresDatabase) -> Self {
+    pub fn new(db: &'a SurrealDatabase) -> Self {
         Self { db }
     }
 
@@ -300,6 +300,8 @@ impl<'a> ContextBundleCompilerV2<'a> {
 
         let stored_trace = record_retrieval_trace(
             self.db,
+            self.db,
+            self.db.storage(),
             workspace_id,
             plan,
             trace,

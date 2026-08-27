@@ -4,7 +4,7 @@
 //! states a no-context model (or a visual-debug demo, or a validator) needs to
 //! see exercised — contradictions, stale facts, fragmented subgraphs, false
 //! bridge edges, unsupported claims, and a successful promotion. Each builder
-//! seeds REAL authority rows on PostgreSQL through the committed substrate plus
+//! seeds REAL authority rows on SurrealDB through the committed substrate plus
 //! the MemoryGraph storage; none of them mock or stub.
 //!
 //! These are product fixtures (callable from product code and tests), not test
@@ -17,8 +17,6 @@
 //! Every backing claim carries the REQUIRED evidence span, so the claim
 //! evidence/lifecycle/conflict machinery holds for every fixture fact.
 
-use sqlx::PgPool;
-
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
     KnowledgeClaimKind, KnowledgeClaimRetirement, KnowledgeClaimRetirementReason,
@@ -30,7 +28,7 @@ use crate::storage::knowledge_memory::{
     MemoryFactObject, MemoryOntologyTerm, MemoryOntologyTermKind, NewMemoryFact,
     NewMemoryOntologyTerm,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::{SurrealDatabase, SurrealStorage};
 use crate::storage::{Database, StorageResult};
 
 use super::conflict::run_symbolic_conflict_detection;
@@ -53,7 +51,7 @@ impl FixtureContext {
 
 /// Create an evidence-backed proposed claim citing the fixture span.
 async fn seed_claim(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     ctx: &FixtureContext,
     text: &str,
 ) -> StorageResult<String> {
@@ -84,8 +82,8 @@ pub struct ContradictionFixture {
 }
 
 pub async fn contradiction(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
     subject_entity_id: &str,
 ) -> StorageResult<ContradictionFixture> {
@@ -126,8 +124,8 @@ pub async fn contradiction(
 /// STALE FACT fixture: an accepted fact whose backing claim is then retired as
 /// `stale` (a fact that was true but no longer is). Returns the retired claim id.
 pub async fn stale_fact(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
     subject_entity_id: &str,
 ) -> StorageResult<(MemoryFact, String)> {
@@ -171,8 +169,8 @@ pub async fn stale_fact(
 /// NO edge between them (disconnected components). Returns the two entity ids the
 /// caller passed back, plus a fact on each so each is a real graph participant.
 pub async fn fragmented_subgraph(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
     entity_a: &str,
     entity_b: &str,
@@ -209,8 +207,8 @@ pub async fn fragmented_subgraph(
 /// UNSUPPORTED CLAIM fixture: a fact labelled `unsupported` (no surviving
 /// evidence basis) — the kind that must be excluded from the stable fact graph.
 pub async fn unsupported_claim(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
     subject_entity_id: &str,
 ) -> StorageResult<MemoryFact> {
@@ -232,8 +230,8 @@ pub async fn unsupported_claim(
 /// SUCCESSFUL PROMOTION fixture: an operator-approved ontology term promoted to
 /// `stable` with a receipt. Returns the promoted (stable) term.
 pub async fn successful_promotion(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
 ) -> StorageResult<MemoryOntologyTerm> {
     let term = upsert_memory_ontology_term(
@@ -265,8 +263,8 @@ pub async fn successful_promotion(
 /// that a false bridge is recorded and removable (the edge lifecycle supports
 /// `retired`); the bridge-decision log + the edge both reflect the false bridge.
 pub async fn false_bridge_edge(
-    db: &PostgresDatabase,
-    _pool: &PgPool,
+    db: &SurrealDatabase,
+    _pool: &SurrealStorage,
     ctx: &FixtureContext,
     entity_a: &str,
     entity_b: &str,
@@ -298,8 +296,8 @@ pub async fn false_bridge_edge(
 /// Resolve a contradiction fixture's conflict with a discard outcome + receipt,
 /// so a consumer can stand up the "conflict then resolved" end-state.
 pub async fn resolve_contradiction(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
     conflict_id: &str,
     kept_claim_id: &str,
@@ -344,7 +342,7 @@ pub async fn resolve_contradiction(
 // --- shared helpers --------------------------------------------------------
 
 async fn make_fact(
-    pool: &PgPool,
+    pool: &SurrealStorage,
     ctx: &FixtureContext,
     claim_id: &str,
     subject_entity_id: &str,
@@ -373,7 +371,7 @@ async fn make_fact(
 /// Append a real EventLedger receipt the fixtures use for receipt-backed
 /// acceptances/resolutions/promotions.
 async fn seed_receipt(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     ctx: &FixtureContext,
     kind: &str,
 ) -> StorageResult<String> {
@@ -381,7 +379,7 @@ async fn seed_receipt(
 }
 
 async fn seed_receipt_for_aggregate(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     kind: &str,
     aggregate_type: &str,
     aggregate_id: &str,

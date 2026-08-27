@@ -870,8 +870,9 @@ impl SemanticCatalogRecord {
             )?,
             entry_kind: SemanticCatalogKind::from_db(self.entry_kind.as_str())?,
             name: self.name,
-            version: i32::try_from(self.version)
-                .map_err(|_| StorageError::Validation("semantic catalog version is out of range"))?,
+            version: i32::try_from(self.version).map_err(|_| {
+                StorageError::Validation("semantic catalog version is out of range")
+            })?,
             description: self.description,
             query_routes: self.query_routes,
             supported_selectors: self.supported_selectors,
@@ -947,7 +948,7 @@ pub async fn upsert_semantic_catalog_entry(
                         "IF array::len((SELECT VALUE entry_id FROM \
                          knowledge_semantic_catalog_entries WHERE workspace_id = $workspace \
                          AND name = $name AND version = $version)) = 0 { \
-                           CREATE type::thing('knowledge_semantic_catalog_entries', $entry_id) \
+                           CREATE type::record('knowledge_semantic_catalog_entries', $entry_id) \
                            CONTENT { entry_id: $entry_id, workspace_id: $workspace, \
                              entry_kind: $entry_kind, name: $name, version: $version, \
                              description: $description, query_routes: $query_routes, \

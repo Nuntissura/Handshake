@@ -69,7 +69,7 @@ function Test-Mt027ExcludableRow {
     $relative = $Path.Substring($mt027TestsDirPrefix.Length)
     if ($relative.Contains('/')) {
         # A shared helper module directory (native_gui_support/, interconnect_support/,
-        # pg_proof_support/, fixtures/, ...) IS compiled/consumed by this binary. Stay gated.
+        # backend_proof_support/, fixtures/, ...) IS compiled/consumed by this binary. Stay gated.
         return $false
     }
     if (-not $relative.EndsWith('.rs', [StringComparison]::OrdinalIgnoreCase)) {
@@ -215,10 +215,10 @@ $runDir = Join-Path $proofRoot $RunId
 if (Test-Path -LiteralPath $runDir) {
     throw "RunId '$RunId' is not fresh: '$runDir' already exists"
 }
-$fixedManagedPgReceipt = Join-Path (
-    [IO.Directory]::GetParent($proofRoot).FullName) 'managed-pg-receipt.json'
-if (Test-Path -LiteralPath $fixedManagedPgReceipt) {
-    throw "Fresh MT-027 proof requires the prior fixed receipt to be cleaned first: '$fixedManagedPgReceipt'"
+$fixedManagedStoreReceipt = Join-Path (
+    [IO.Directory]::GetParent($proofRoot).FullName) 'managed-store-receipt.json'
+if (Test-Path -LiteralPath $fixedManagedStoreReceipt) {
+    throw "Fresh MT-027 proof requires the prior fixed receipt to be cleaned first: '$fixedManagedStoreReceipt'"
 }
 New-Item -ItemType Directory -Force -Path $proofRoot | Out-Null
 New-Item -ItemType Directory -Path $runDir | Out-Null
@@ -398,7 +398,7 @@ $cargoArguments = @(
     'test',
     '--features', 'integration',
     '--test', 'test_block_collection_view',
-    'block_collection_views_live_pg_self_seed_full_round_trip',
+    'block_collection_views_live_surrealdb_self_seed_full_round_trip',
     '-j', '6',
     '--',
     '--exact',
@@ -438,7 +438,7 @@ $primaryFailure = $null
 $process = $null
 $rootIdentity = $null
 $owned = @()
-$managedReceiptDestination = Join-Path $runDir 'managed-pg-receipt.json'
+$managedReceiptDestination = Join-Path $runDir 'managed-store-receipt.json'
 
 try {
     $env:CARGO_TARGET_DIR = $cargoTarget
@@ -638,8 +638,8 @@ $backendIdentity = $backendIdentities[0]
 if (-not (Test-Path -LiteralPath $tracePath -PathType Leaf)) {
     throw "Canonical Argus trace is missing: '$tracePath'"
 }
-if (-not (Test-Path -LiteralPath $fixedManagedPgReceipt -PathType Leaf)) {
-    throw "Managed-PostgreSQL receipt is missing: '$fixedManagedPgReceipt'"
+if (-not (Test-Path -LiteralPath $fixedManagedStoreReceipt -PathType Leaf)) {
+    throw "Managed-SurrealDB receipt is missing: '$fixedManagedStoreReceipt'"
 }
 
 $traceRows = @(Get-Content -LiteralPath $tracePath -Encoding UTF8 | Where-Object {
@@ -1163,13 +1163,13 @@ if ([string]::IsNullOrWhiteSpace([string]$movePayload.block_id) -or
     throw 'Canonical Argus Kanban move payload is not the required untagged-to-tag authority mutation'
 }
 
-$managedReceipt = Get-Content -LiteralPath $fixedManagedPgReceipt -Raw | ConvertFrom-Json
+$managedReceipt = Get-Content -LiteralPath $fixedManagedStoreReceipt -Raw | ConvertFrom-Json
 $receiptBackendBinary = Get-ComparableWindowsPath (
     [string]$managedReceipt.backend_binding.backend_binary)
 $observedBackendExecutable = Get-ComparableWindowsPath (
     [string]$backendIdentity.executable)
 $expectedBackendBinary = Get-ComparableWindowsPath $backendBinary
-if ($managedReceipt.schema_id -ne 'hsk.mt027_managed_pg_proof@1' -or
+if ($managedReceipt.schema_id -ne 'hsk.mt027_managed_store_proof@1' -or
     -not [bool]$managedReceipt.backend_binding.owned -or
     [int]$managedReceipt.backend_binding.backend_pid -ne [int]$backendIdentity.pid -or
     -not $observedBackendExecutable.Equals(
@@ -1223,7 +1223,7 @@ $currentStoreIdentity = [pscustomobject]@{
     scope = $storeScopeName
 }
 
-Move-Item -LiteralPath $fixedManagedPgReceipt `
+Move-Item -LiteralPath $fixedManagedStoreReceipt `
     -Destination $managedReceiptDestination
 $traceArtifact = [ordered]@{
     path = $tracePath
@@ -1295,7 +1295,7 @@ $receipt = [ordered]@{
     trace_methods = $methods
     trace_receipt_count = @($receiptIds | Sort-Object -Unique).Count
     trace_artifact = $traceArtifact
-    managed_pg_receipt_artifact = $managedReceiptArtifact
+    managed_store_receipt_artifact = $managedReceiptArtifact
     artifact_root = $artifactSibling
     cargo_target_dir = $cargoTarget
     trace_receipt_statuses = @(0..($traceRows.Count - 1) | ForEach-Object {
@@ -1326,7 +1326,7 @@ $receipt = [ordered]@{
             'src/frontend/handshake_native/tests/test_block_collection_view.rs',
             'src/frontend/handshake_native/tests/native_gui_support/**',
             'src/frontend/handshake_native/tests/interconnect_support/**',
-            'src/frontend/handshake_native/tests/pg_proof_support/**',
+            'src/frontend/handshake_native/tests/backend_proof_support/**',
             'src/frontend/handshake_native/tests/fixtures/**',
             'src/frontend/handshake_native/Cargo.toml',
             'src/frontend/handshake_native/Cargo.lock',
@@ -1459,11 +1459,11 @@ Write-Output "MT-027 canonical Argus proof complete; run_id=$RunId; source_sha=$
     }
     if (-not $proofAccepted) {
         try {
-            if (-not (Test-Path -LiteralPath $fixedManagedPgReceipt -PathType Leaf)) {
+            if (-not (Test-Path -LiteralPath $fixedManagedStoreReceipt -PathType Leaf)) {
                 throw [IO.FileNotFoundException]::new(
-                    "No fixed managed receipt exists at '$fixedManagedPgReceipt'")
+                    "No fixed managed receipt exists at '$fixedManagedStoreReceipt'")
             }
-            Remove-Item -LiteralPath $fixedManagedPgReceipt -Force
+            Remove-Item -LiteralPath $fixedManagedStoreReceipt -Force
         } catch [IO.FileNotFoundException] {
             # No receipt was published before failure; nothing to remove.
         } catch {

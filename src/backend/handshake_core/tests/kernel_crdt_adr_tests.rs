@@ -61,7 +61,7 @@ fn kernel002_crdt_adr_defines_storage_sync_schema_and_validation_plan() {
 
     assert_eq!(
         adr.storage_model,
-        KernelCrdtStorageModel::PostgresEventLedgerUpdateLog
+        KernelCrdtStorageModel::SurrealEventLedgerUpdateLog
     );
     assert_eq!(
         adr.runtime_boundary,

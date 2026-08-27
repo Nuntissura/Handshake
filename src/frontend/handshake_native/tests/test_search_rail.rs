@@ -16,7 +16,7 @@
 //! - the clear `x` button empties the input + resets the scope + writes `None` into the slot (AC-022-6);
 //! - the shared slot is observable off the same lock by a concurrent reader (HBR-SWARM).
 //!
-//! No live backend, no transport, no PostgreSQL: the rail performs no I/O, so these tests need none.
+//! No live backend, no transport, no SurrealDB: the rail performs no I/O, so these tests need none.
 
 use std::time::{Duration, Instant};
 

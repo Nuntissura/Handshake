@@ -1,14 +1,14 @@
 //! WP-KERNEL-012 MT-034 (E5 — code<->note cross-references) proof suite.
 //!
 //! Maps each MT-034 acceptance criterion to a real runtime proof:
-//!   - AC-1 (unit + gated live-PG): a `code` cross-ref is the EXISTING `hsLink` atom (ref_kind="code",
+//!   - AC-1 (unit + gated live-SurrealDB): a `code` cross-ref is the EXISTING `hsLink` atom (ref_kind="code",
 //!     ref_value=symbol_entity_id). It ROUND-TRIPS the backend `content_json` with the symbol id intact
-//!     — proven structurally by a content_json save/reload here, and end-to-end against real PG in the
+//!     — proven structurally by a content_json save/reload here, and end-to-end against real SurrealDB in the
 //!     `--features integration` test (createRichDocument -> loadRichDocument).
-//!   - AC-2 (kittest + gated live-PG): clicking a `code-ref-chip-{id}` in the rich-text pane dispatches
+//!   - AC-2 (kittest + gated live-SurrealDB): clicking a `code-ref-chip-{id}` in the rich-text pane dispatches
 //!     `open-code-symbol`, resolves the real symbol, opens the mounted code pane, and lands on the exact
 //!     definition line.
-//!   - AC-3 (kittest + gated live-PG): the mounted NoteRefsPanel lists the persisted rich document that
+//!   - AC-3 (kittest + gated live-SurrealDB): the mounted NoteRefsPanel lists the persisted rich document that
 //!     references the focused real symbol; clicking a row routes its document id through `open-document`.
 //!   - AC-4 (unit): an UNRESOLVED code ref (symbol deleted -> resolved=false / a 404) renders a greyed
 //!     `unresolved` chip and does NOT crash or panic.
@@ -2569,7 +2569,7 @@ fn negative_backend_loss_is_typed_for_both_cross_ref_directions() {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // LIVE-BACKEND (--features integration): self-seeds a real code index + RichDocument in an
-// isolated managed-PostgreSQL workspace, drives the mounted product paths, and canonically cleans it.
+// isolated managed-SurrealDB workspace, drives the mounted product paths, and canonically cleans it.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[cfg(feature = "integration")]
@@ -2609,7 +2609,7 @@ mod live_backend {
 
     const SYMBOL_NAME: &str = "Mt034ExactSymbol";
     const SOURCE_FILE: &str = "mt034_exact_symbol.rs";
-    const SOURCE: &str = "// MT-034 managed PostgreSQL fixture\n\npub struct Mt034ExactSymbol {\n    pub value: i32,\n}\n\nimpl Mt034ExactSymbol {\n    pub fn new(value: i32) -> Self { Self { value } }\n}\n";
+    const SOURCE: &str = "// MT-034 managed SurrealDB fixture\n\npub struct Mt034ExactSymbol {\n    pub value: i32,\n}\n\nimpl Mt034ExactSymbol {\n    pub fn new(value: i32) -> Self { Self { value } }\n}\n";
 
     fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> {
         let mut ids = std::collections::HashSet::new();
@@ -2697,7 +2697,7 @@ mod live_backend {
     }
 
     #[test]
-    fn v2_self_seeded_postgres_code_ref_round_trip_navigation_and_note_refs() {
+    fn v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs() {
         crate::interconnect_support::assert_no_local_artifact_dir();
         let backend = crate::interconnect_support::require_reachable_backend();
         let unique = format!(
@@ -3058,7 +3058,7 @@ mod live_backend {
             "NoteRefs must return the referencing rich document: {notes:?}"
         );
 
-        // Restart the exact fixture-owned current-source backend while retaining PostgreSQL authority.
+        // Restart the exact fixture-owned current-source backend while retaining SurrealDB authority.
         // Fresh clients must read back the same document, symbol, and reverse-reference row afterwards.
         let binding_before_restart = live.owned_backend_binding_receipt();
         let old_backend_pid = binding_before_restart["backend_pid"]
@@ -3397,7 +3397,7 @@ mod live_backend {
         std::fs::write(
             &receipt_path,
             serde_json::to_vec_pretty(&serde_json::json!({
-                "schema_id": "hsk.mt034-live-postgresql-proof@1",
+                "schema_id": "hsk.mt034-live-surrealdb-proof@1",
                 "microtask": "MT-034",
                 "remediation_version": "V4",
                 "workspace_id": workspace_id,

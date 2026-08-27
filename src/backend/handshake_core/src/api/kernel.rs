@@ -233,8 +233,7 @@ pub async fn parallel_swarm_dashboard_projection(
         },
     )
     .map_err(map_state_recovery_error)?;
-    let store =
-        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let store = ParallelSwarmStateRecoveryStore::new(state.surreal.clone());
     let projection = store
         .project_swarm_dashboard(SwarmDashboardProjectionRequest {
             lane,

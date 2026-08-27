@@ -402,7 +402,7 @@ mod mt_072_state_vector {
                 update_seq: seq,
                 update_bytes: b"x",
                 update_bytes_ref: &format!(
-                    "postgres://kernel_crdt_updates/{}/u{seq}/update_bytes",
+                    "surreal://kernel_crdt_updates/{}/u{seq}/update_bytes",
                     identity.crdt_document_id
                 ),
                 session_id: "sr-mt072",
@@ -510,7 +510,7 @@ mod mt_072_state_vector {
                 update_seq: seq,
                 update_bytes: &bytes,
                 update_bytes_ref: &format!(
-                    "postgres://kernel_crdt_updates/{crdt_document_id}/mt072-u{seq}/update_bytes"
+                    "surreal://kernel_crdt_updates/{crdt_document_id}/mt072-u{seq}/update_bytes"
                 ),
                 session_id: &format!("SR-MT072-{suffix}"),
                 trace_id: &format!("trace-mt072-{suffix}"),
@@ -743,7 +743,7 @@ mod mt_065_actor_site {
             update_seq: 1,
             update_bytes: &update_bytes,
             update_bytes_ref: &format!(
-                "postgres://kernel_crdt_updates/{}/mt065-update-1/update_bytes",
+                "surreal://kernel_crdt_updates/{}/mt065-update-1/update_bytes",
                 identity.crdt_document_id
             ),
             session_id: &format!("SR-MT065-{suffix}"),

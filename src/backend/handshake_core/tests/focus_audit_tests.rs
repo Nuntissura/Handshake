@@ -12,8 +12,7 @@ use handshake_core::{
     },
     process_ledger::{
         ProcessEngineKind, ProcessStart, ProcessStop, ReclaimableProcess,
-        POSTGRES_ACTIVE_RECLAIM_QUERY_SQL, PROCESS_LEDGER_MIGRATION_SQL, PROCESS_START_INSERT_SQL,
-        PROCESS_STOP_UPSERT_SQL,
+        PROCESS_LEDGER_TABLE_NAME, SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY,
     },
 };
 use serde_json::Value;
@@ -113,13 +112,19 @@ fn focus_audit_report_flags_current_and_owned_process_pids_only() {
 }
 
 #[test]
-fn process_ownership_ledger_exposes_optional_postgres_os_pid_for_focus_correlation() {
-    let migration = PROCESS_LEDGER_MIGRATION_SQL;
-    assert!(migration.contains("os_pid BIGINT"));
-    assert!(migration.contains("idx_kernel_process_lifecycle_os_pid"));
-    assert!(PROCESS_START_INSERT_SQL.contains("os_pid"));
-    assert!(PROCESS_STOP_UPSERT_SQL.contains("os_pid"));
-    assert!(POSTGRES_ACTIVE_RECLAIM_QUERY_SQL.contains("os_pid"));
+fn process_ownership_ledger_exposes_optional_surreal_os_pid_for_focus_correlation() {
+    assert_eq!(PROCESS_LEDGER_TABLE_NAME, "kernel_process_lifecycle");
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let schema = fs::read_to_string(manifest.join("src/storage/surreal/schema.surql"))
+        .expect("read authoritative SurrealDB schema");
+    assert!(schema.contains(
+        "DEFINE FIELD OVERWRITE os_pid ON TABLE kernel_process_lifecycle TYPE option<int>"
+    ));
+    assert!(schema.contains(
+        "DEFINE INDEX OVERWRITE idx_kernel_process_lifecycle_os_pid ON TABLE kernel_process_lifecycle FIELDS os_pid"
+    ));
+    assert!(SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY.contains("kernel_process_lifecycle"));
+    assert!(SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY.contains("RETURN BEFORE"));
 
     let start = ProcessStart::new(
         ProcessEngineKind::HelperSubprocess,
@@ -149,6 +154,10 @@ fn process_ownership_ledger_exposes_optional_postgres_os_pid_for_focus_correlati
         mt_id: Some("MT-053".to_string()),
         sandbox_capabilities_snapshot: serde_json::json!({"adapter_id": "sandbox-adapter-test"}),
         metadata_jsonb: serde_json::json!({}),
+        reclaim_claimed_at: Utc::now(),
+        reclaim_expected_reason: "reclaim_claimed:focus-audit-fixture".to_owned(),
+        reclaim_expected_killed_reason: "reclaim_killed:focus-audit-fixture".to_owned(),
+        reclaim_cleanup_completed: false,
     };
     assert_eq!(reclaimable.reclaim_stop(-1).os_pid, Some(6540));
 }

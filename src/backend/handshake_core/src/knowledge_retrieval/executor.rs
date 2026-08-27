@@ -16,7 +16,7 @@
 //!                  -> compile + persist bundle + replayable trace (MT-136/138)
 //! ```
 //!
-//! Everything reads/writes the committed PostgreSQL substrate; the produced
+//! Everything reads/writes the committed SurrealDB substrate; the produced
 //! bundle and trace rows are the durable authority (spec 2.3.13.11). When the
 //! graph result is missing/stale/low-confidence the fallback fires: the plan
 //! is revised to the `PassageFallback` posture (persisted as `hybrid_rag` in
@@ -24,8 +24,6 @@
 //! `mode_reason` + trace warnings/decisions record WHY.
 
 use std::collections::BTreeSet;
-
-use sqlx::PgPool;
 
 use crate::knowledge_memory::passage::load_passages_for_workspace;
 use crate::knowledge_retrieval::budget::PriorityTier;
@@ -44,7 +42,7 @@ use crate::knowledge_retrieval::ranking::{rank_candidates, CandidateFeatures, Ra
 use crate::knowledge_retrieval::snippet::{assemble_span_snippet, EvidenceSnippet};
 use crate::memory::retrieval_mode::{NonHybridReason, QueryRetrievalMode};
 use crate::storage::knowledge::{KnowledgePassageEvidenceRef, KnowledgeStore};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::{SurrealDatabase, SurrealStorage};
 use crate::storage::StorageResult;
 
 /// Documented feature defaults for axes the substrate does not surface
@@ -79,7 +77,7 @@ pub struct ExecutedRetrieval {
     pub compiled: CompiledBundle,
 }
 
-/// Execute one full retrieval against real PostgreSQL: plan, narrow, traverse,
+/// Execute one full retrieval against real embedded SurrealDB: plan, narrow, traverse,
 /// fall back when the graph cannot answer, rank, cite, compile, persist.
 ///
 /// `graph_seeds` are the caller's known traversal anchors (e.g. the Loom block
@@ -87,8 +85,8 @@ pub struct ExecutedRetrieval {
 /// filter's in-scope entities and a confirmed entity handle are merged in.
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_retrieval(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     kernel_task_run_id: &str,
     session_run_id: &str,
     target_kind: BundleTargetKind,
@@ -140,7 +138,7 @@ pub async fn execute_retrieval(
     // 4. Passage-fallback decision (MT-133): missing/stale/low-confidence
     //    graphs fall back to the workspace's committed passages.
     let available_passages =
-        load_passages_for_workspace(pool, &request.workspace_id, FALLBACK_PASSAGE_LIMIT).await?;
+        load_passages_for_workspace(db, &request.workspace_id, FALLBACK_PASSAGE_LIMIT).await?;
     let signals = GraphCandidateSignals {
         any_contradicted: false,
         freshness_uncertain: request.freshness_uncertain,
@@ -217,13 +215,11 @@ pub async fn execute_retrieval(
             });
             // The edge's first evidence span (junction table
             // knowledge_edge_spans) backs its citation (MT-135).
-            let span: Option<String> = sqlx::query_scalar(
-                "SELECT span_id FROM knowledge_edge_spans
-                 WHERE edge_id = $1 ORDER BY span_id LIMIT 1",
-            )
-            .bind(&edge.edge_id)
-            .fetch_optional(pool)
-            .await?;
+            let span = db
+                .list_knowledge_edge_span_ids(&edge.edge_id)
+                .await?
+                .into_iter()
+                .min();
             snippet_span_by_candidate.push((edge.relationship_id.clone(), span, None));
         }
     }

@@ -438,6 +438,10 @@ fn manual_covers_atelier_core_data_surfaces() {
     for (command_id, route) in [
         ("atelier_open_intake_batch", "/atelier/intake/batches"),
         (
+            "atelier_add_intake_item",
+            "/atelier/intake/batches/:batch_id/items",
+        ),
+        (
             "atelier_list_intake_batch_items",
             "/atelier/intake/batches/:batch_id/items",
         ),

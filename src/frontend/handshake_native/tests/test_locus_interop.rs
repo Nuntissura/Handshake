@@ -1,12 +1,12 @@
 //! Editors <-> Locus (Pillar 6, structured work tracking) interop proofs — WP-KERNEL-012 MT-068 (cluster E10).
 //!
-//! Maps each MT-068 acceptance criterion + proof target to real runtime proof through managed PostgreSQL,
+//! Maps each MT-068 acceptance criterion + proof target to real runtime proof through managed SurrealDB,
 //! the bound backend, a counted MT-034-search mock, an in-process negative-path server, and egui_kittest.
 //!
 //! ## VERIFIED BACKEND REALITY
 //!
 //! handshake_core exposes read-only Locus routes backed by the canonical `work_packets` and `micro_tasks`
-//! PostgreSQL tables. `resolve_locus_ref` distinguishes a live missing record from an unavailable route. The
+//! SurrealDB records. `resolve_locus_ref` distinguishes a live missing record from an unavailable route. The
 //! live proof seeds canonical rows, resolves them through those routes, and independently proves persisted
 //! document attributes and reverse lookup.
 //!
@@ -27,8 +27,7 @@
 //!   `open-locus-ref` via the existing command/nav seam, AccessKit ids via the WP-011 registry; no duplicates.
 //! - AC-008: kittest AccessKit dump — `locus-ref-chip-{kind}-{id}` (Button) + `locus-refby-{document_id}`
 //!   (ListItem) present with correct roles + no duplicate author_id.
-//! - AC-009: diff/dependency gate — frontend resolution is GET-only, backend routes are read-only PostgreSQL,
-//!   and no SQLite authority is introduced.
+//! - AC-009: diff/dependency gate — frontend resolution is GET-only and backend routes read SurrealDB.
 //! - AC-010: `cargo test -p handshake-native test_locus_interop` passes with no panics (this file).
 
 use std::io::{Read, Write};
@@ -76,10 +75,10 @@ use handshake_native::rich_editor::wikilinks::parser::parse_wikilink;
 use handshake_native::tab_bar::TabState;
 use handshake_native::theme::HsTheme;
 
-// Shared managed-PostgreSQL fixture. The default live proofs attach to a healthy root-managed backend or
+// Shared managed-SurrealDB fixture. The default live proofs attach to a healthy root-managed backend or
 // start an already-built product executable, create an isolated workspace, and never invoke Cargo.
-mod pg_proof_support;
-use pg_proof_support::{
+mod backend_proof_support;
+use backend_proof_support::{
     live_flight_recorder_session_token, require_live_backend, LiveBackend, RealNativeMcpBinding,
 };
 
@@ -120,7 +119,7 @@ const MT068_RELEVANT_SOURCE_PATHS: &[&str] = &[
     "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
     "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
     "src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs",
-    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/run_mt068_locus_proof.ps1",
     "src/frontend/handshake_native/tests/test_locus_interop.rs",
     "src/frontend/handshake_native/tests/test_manual_content.rs",
@@ -236,7 +235,7 @@ fn assert_no_local_artifact_dir() {
 /// Isolate the native-MCP discovery binding under the external proof root for the WHOLE proof.
 ///
 /// This must be installed BEFORE the managed backend is selected: setting
-/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is what makes `pg_proof_support` OWN its backend child, and the
+/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is what makes `backend_proof_support` OWN its backend child, and the
 /// child must inherit the redirected app-data root so BOTH processes resolve the SAME
 /// `swarm_mcp_binding.json`. Without it the mounted app's MT-109 capability-gated Flight Recorder
 /// writes and this proof's recorder reads would both fail closed at the middleware.
@@ -316,7 +315,7 @@ fn doc_with_locus_ref(locus_uri: &str, label: &str, resolved: bool) -> BlockNode
 }
 
 /// A counted in-memory MT-034-search mock (NO backend): returns the seeded hits per query so the reverse
-/// lookup drives the REAL `find_notes_with` pipeline without a live PG, and counts calls.
+/// lookup drives the REAL `find_notes_with` pipeline without a live SurrealDB, and counts calls.
 struct CountingReverseLookup {
     hits: Vec<LoomSearchV2Hit>,
     contents: std::collections::HashMap<String, serde_json::Value>,
@@ -540,77 +539,6 @@ fn no_reverse_lookup() -> Arc<dyn FindNotesSearch> {
     Arc::new(CountingReverseLookup::new(vec![]))
 }
 
-fn sql_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-fn managed_pg_url() -> String {
-    std::env::var("HANDSHAKE_TEST_PG_DSN")
-        .or_else(|_| std::env::var("HSK_PROOF_DATABASE_URL"))
-        .or_else(|_| std::env::var("POSTGRES_TEST_URL"))
-        .or_else(|_| std::env::var("DATABASE_URL"))
-        .unwrap_or_else(|_| "postgres://postgres@127.0.0.1:5544/handshake".to_owned())
-}
-
-fn psql_executable() -> PathBuf {
-    if let Ok(explicit) = std::env::var("HSK_PSQL_BIN") {
-        let path = PathBuf::from(explicit);
-        assert!(
-            path.is_file(),
-            "HSK_PSQL_BIN does not name psql: {}",
-            path.display()
-        );
-        return path;
-    }
-    if std::process::Command::new("psql")
-        .arg("--version")
-        .output()
-        .is_ok_and(|output| output.status.success())
-    {
-        return PathBuf::from("psql");
-    }
-    #[cfg(windows)]
-    if let Some(program_files) = std::env::var_os("ProgramFiles") {
-        let root = PathBuf::from(program_files).join("PostgreSQL");
-        if let Ok(versions) = std::fs::read_dir(root) {
-            let mut candidates = versions
-                .filter_map(Result::ok)
-                .map(|entry| entry.path().join("bin").join("psql.exe"))
-                .filter(|path| path.is_file())
-                .collect::<Vec<_>>();
-            candidates.sort();
-            if let Some(path) = candidates.pop() {
-                return path;
-            }
-        }
-    }
-    panic!("managed-PG fixture requires psql");
-}
-
-fn locus_sql_output(sql: &str) -> Result<std::process::Output, String> {
-    let mut command = std::process::Command::new(psql_executable());
-    command
-        .args(["-X", "-v", "ON_ERROR_STOP=1", "-q", "--dbname"])
-        .arg(managed_pg_url())
-        .arg("-c")
-        .arg(sql);
-    let output = bounded_command_output(command, std::time::Duration::from_secs(15))
-        .map_err(|error| format!("bounded psql execution failed: {error}"))?;
-    if output.status.success() {
-        Ok(output)
-    } else {
-        Err(format!(
-            "psql exited {}: {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr)
-        ))
-    }
-}
-
-fn run_locus_sql(sql: &str) {
-    locus_sql_output(sql).expect("MT-068 canonical Locus fixture SQL");
-}
-
 /// Poll the durable native-editor Flight Recorder rows while the mounted app keeps rendering.
 ///
 /// WP-KERNEL-012 MT-109 made the WHOLE flight-recorder route group fail-closed, so this presents the
@@ -683,88 +611,6 @@ fn assert_causal_fr_order(first: &serde_json::Value, second: &serde_json::Value,
     );
 }
 
-fn bounded_command_output(
-    mut command: std::process::Command,
-    timeout: std::time::Duration,
-) -> std::io::Result<std::process::Output> {
-    command
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    let mut child = command.spawn()?;
-    let deadline = std::time::Instant::now() + timeout;
-    loop {
-        match child.try_wait()? {
-            Some(_) => return child.wait_with_output(),
-            None if std::time::Instant::now() < deadline => {
-                std::thread::sleep(std::time::Duration::from_millis(25));
-            }
-            None => {
-                child.kill()?;
-                child.wait()?;
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    format!("child process exceeded {} seconds", timeout.as_secs()),
-                ));
-            }
-        }
-    }
-}
-
-fn seed_locus_records(wp_id: &str, mt_id: &str) {
-    run_locus_sql(&format!(
-        "BEGIN; \
-         INSERT INTO work_packets \
-           (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
-            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata) \
-         VALUES ({wp}, 1, 'MT-068 live work packet', 'canonical persisted Locus resolution proof', \
-                 'in_progress', 1, 'implementation', 'native-editors', '', 'in_progress', NULL, \
-                 'mt068-proof', '2026-07-16T00:00:00Z', '2026-07-16T00:00:00Z', '{{}}', '{{}}'); \
-         INSERT INTO micro_tasks (mt_id, wp_id, name, status, current_iteration, escalation_level, metadata) \
-         VALUES ({mt}, {wp}, 'MT-068 live microtask', 'in_progress', 1, 0, '{{}}'); \
-         COMMIT;",
-        wp = sql_literal(wp_id),
-        mt = sql_literal(mt_id),
-    ));
-}
-
-fn cleanup_locus_records(wp_id: &str) {
-    let sql = format!(
-        "DELETE FROM work_packets WHERE wp_id = {};",
-        sql_literal(wp_id)
-    );
-    run_locus_sql(&sql);
-}
-
-struct LocusRecordCleanup {
-    wp_id: String,
-    active: bool,
-}
-
-impl LocusRecordCleanup {
-    fn assert_cleanup(&mut self) {
-        cleanup_locus_records(&self.wp_id);
-        self.active = false;
-    }
-}
-
-impl Drop for LocusRecordCleanup {
-    fn drop(&mut self) {
-        if self.active {
-            let sql = format!(
-                "DELETE FROM work_packets WHERE wp_id = {};",
-                sql_literal(&self.wp_id)
-            );
-            if let Err(error) = locus_sql_output(&sql) {
-                eprintln!(
-                    "MT-068 best-effort cleanup failed for {}: {error}",
-                    self.wp_id
-                );
-            }
-            self.active = false;
-        }
-    }
-}
-
 fn created_doc_id(created: &serde_json::Value) -> String {
     created
         .pointer("/document/rich_document_id")
@@ -788,6 +634,111 @@ fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
         .or_else(|| loaded.get("content_json"))
         .cloned()
         .expect("loaded rich document carries content_json")
+}
+
+/// Execute one Locus mutation through the public job API and wait for its canonical result.
+fn run_locus_job(
+    backend: &LiveBackend,
+    protocol_id: &str,
+    job_inputs: serde_json::Value,
+) -> serde_json::Value {
+    let submitted = backend.post_json(
+        "/jobs",
+        &serde_json::json!({
+            "job_kind": "locus_operation",
+            "protocol_id": protocol_id,
+            "job_inputs": job_inputs,
+        }),
+    );
+    let job_id = submitted["job_id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{protocol_id} response lacks job_id: {submitted}"));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let job = backend.get_json(&format!("/jobs/{job_id}"));
+        match job["state"].as_str() {
+            Some("completed") => return job["job_outputs"].clone(),
+            Some("failed") | Some("denied") => {
+                panic!("{protocol_id} did not complete successfully: {job}")
+            }
+            _ => {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "{protocol_id} did not complete within fifteen seconds: {job}"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+        }
+    }
+}
+
+fn create_locus_records(backend: &LiveBackend, wp_id: &str, mt_id: &str) {
+    let created = run_locus_job(
+        backend,
+        "locus_create_wp_v1",
+        serde_json::json!({
+            "wp_id": wp_id,
+            "title": "MT-068 native editor Locus proof",
+            "description": "Fixture-owned Locus record authored through the product job API",
+            "priority": 1,
+            "type": "test",
+            "phase": "1",
+            "routing": "GOV_LIGHT",
+            "reporter": "wp-kernel-012-native-proof"
+        }),
+    );
+    assert_eq!(created["wp_id"].as_str(), Some(wp_id));
+
+    let registered = run_locus_job(
+        backend,
+        "locus_register_mts_v1",
+        serde_json::json!({
+            "wp_id": wp_id,
+            "micro_tasks": [{
+                "mt_id": mt_id,
+                "wp_id": wp_id,
+                "name": "MT-068 live Locus reference proof",
+                "scope": "Prove native editor Locus interop through typed product APIs",
+                "files": {"read": [], "modify": [], "create": []},
+                "done_criteria": ["WP and MT records resolve through the public Locus API"],
+                "status": "pending",
+                "current_iteration": 0,
+                "max_iterations": 1,
+                "escalation": {
+                    "current_level": 0,
+                    "escalation_chain": [],
+                    "escalations_count": 0,
+                    "drop_backs_count": 0
+                },
+                "depends_on": [],
+                "metadata": {"fixture_owner": "test_locus_interop"}
+            }]
+        }),
+    );
+    assert_eq!(registered["wp_id"].as_str(), Some(wp_id));
+}
+
+fn delete_locus_records(backend: &LiveBackend, workspace_id: &str, wp_id: &str, mt_id: &str) {
+    let deleted = run_locus_job(
+        backend,
+        "locus_delete_wp_v1",
+        serde_json::json!({"wp_id": wp_id}),
+    );
+    assert_eq!(deleted["wp_id"].as_str(), Some(wp_id));
+    assert_eq!(
+        backend.get_status(&format!(
+            "/workspaces/{workspace_id}/locus/work-packets/{wp_id}"
+        )),
+        404,
+        "deleted fixture work packet must be absent through the canonical read API"
+    );
+    assert_eq!(
+        backend.get_status(&format!(
+            "/workspaces/{workspace_id}/locus/microtasks/{mt_id}"
+        )),
+        404,
+        "deleting the fixture work packet must remove its microtask through the canonical product workflow"
+    );
 }
 
 fn doc_with_wp_mt_and_missing_refs(wp_uri: &str, mt_uri: &str, missing_uri: &str) -> BlockNode {
@@ -970,13 +921,13 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
 // AC-002 / PT-002 (LIVE) — default managed-runtime integration against the real Locus routes.
 //
 // The contract's bound READ APIs (GET /workspaces/{ws}/locus/work-packets/{id} + /locus/microtasks/{id})
-// resolve canonical PostgreSQL records. This test proves non-empty WP/MT records, saved rich-document attrs,
+// resolve canonical SurrealDB records. This test proves non-empty WP/MT records, saved rich-document attrs,
 // and persisted reverse lookup against the live route. It never fabricates a record.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[ignore = "MT-108 runner-only material Locus proof: requires managed PostgreSQL and bounded external supervisor"]
-fn resolve_locus_ref_against_real_pg_live() {
+#[ignore = "MT-108 runner-only material Locus proof: requires the managed SurrealDB backend and bounded external supervisor"]
+fn resolve_locus_ref_against_real_surrealdb_live() {
     let source_sha = current_source_sha();
     let runtime_source_tree = current_runtime_source_tree();
     let proof_source_blobs = current_proof_source_blobs();
@@ -988,7 +939,7 @@ fn resolve_locus_ref_against_real_pg_live() {
     std::fs::create_dir_all(&artifact_dir)
         .expect("create MT-068 canonical Argus artifact directory");
 
-    // Order matters. The isolated binding root forces `pg_proof_support` to own its backend child, so
+    // Order matters. The isolated binding root forces `backend_proof_support` to own its backend child, so
     // the child inherits this app-data root and both processes resolve the SAME native-MCP binding.
     // The first published binding covers the window before the first canonical Argus server binds.
     let _binding_root = ScopedLocusBindingRoot::install();
@@ -1006,17 +957,13 @@ fn resolve_locus_ref_against_real_pg_live() {
     let mut be: LiveBackend = require_live_backend();
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
-    // Deliberately MIXED CASE work-unit ids. Locus ids are case-sensitive PostgreSQL strings while the
+    // Deliberately MIXED CASE work-unit ids. Locus ids are case-sensitive SurrealDB strings while the
     // reverse-lookup key is the LOWERCASED normalized `locus://` form, so authoring `Mt068` here makes
     // the canonical RichDocument lookup case-robustness a property of THIS proof rather than only of
     // the separate ordinary reverse-lookup test.
     let wp_id = format!("WP-Mt068-{suffix}");
     let mt_id = format!("MT-Mt068-{suffix}");
-    seed_locus_records(&wp_id, &mt_id);
-    let mut records_cleanup = LocusRecordCleanup {
-        wp_id: wp_id.clone(),
-        active: true,
-    };
+    create_locus_records(&be, &wp_id, &mt_id);
 
     let wp_uri = format!("locus://wp/{wp_id}");
     let mt_uri = format!("locus://mt/{mt_id}");
@@ -1049,27 +996,17 @@ fn resolve_locus_ref_against_real_pg_live() {
         !save_receipt_event_id.is_empty(),
         "AC-006 LIVE: the rich-document save returns an authentic receipt"
     );
-    // Adversarial real-boundary fixture: a legacy Loom alias is permitted to point at the same
-    // source document. Its title deliberately matches both normalized Locus queries, while the
-    // production transclusion route returns the complete shared RichDocument. Reverse lookup must
-    // retain only the canonical native projection (`block_id == rich_document_id`), never this alias.
-    let legacy_document_id = format!("DOC-MT068-{suffix}");
+    // Adversarial real-boundary fixture: a Loom alias points at the same source document. Its title
+    // deliberately matches both normalized Locus queries, while the production transclusion route
+    // returns the complete shared RichDocument. Reverse lookup must retain only the canonical native
+    // projection (`block_id == rich_document_id`), never this alias.
     let alias_block_id = format!("BLK-MT068-ALIAS-{suffix}");
-    run_locus_sql(&format!(
-        "BEGIN; \
-         INSERT INTO documents (id, workspace_id, title) VALUES ({legacy}, {workspace}, 'MT-068 legacy alias source'); \
-         UPDATE knowledge_rich_documents SET document_id = {legacy} WHERE rich_document_id = {rich}; \
-         COMMIT;",
-        legacy = sql_literal(&legacy_document_id),
-        workspace = sql_literal(&ws),
-        rich = sql_literal(&document_id),
-    ));
     let alias_block = be.post_json(
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({
             "block_id": alias_block_id,
             "content_type": "note",
-            "document_id": legacy_document_id,
+            "document_id": document_id,
             "title": format!(
                 "plain-text alias {} {}",
                 wp_uri.to_ascii_lowercase(),
@@ -1082,9 +1019,6 @@ fn resolve_locus_ref_against_real_pg_live() {
         Some(alias_block_id.as_str()),
         "real backend created the same-document alias candidate"
     );
-    let alias_eventledger_event_id = alias_block["event_ledger_event_id"]
-        .as_str()
-        .map(str::to_owned);
     let (old_backend_base, new_backend_base) = be.restart_owned();
     let loaded = be.get_json(&format!("/knowledge/documents/{document_id}"));
     let loaded_content = loaded_content_json(&loaded);
@@ -1585,74 +1519,49 @@ fn resolve_locus_ref_against_real_pg_live() {
             ]
         })
         .collect::<Vec<_>>();
-    let eventledger_key_sql = eventledger_keys
-        .iter()
-        .map(|key| sql_literal(key))
-        .collect::<Vec<_>>()
-        .join(", ");
     let expected_eventledger_rows = eventledger_keys.len();
-    // Remediation item 7: EXACT pending/complete mirror rows. Counting rows alone would accept one key
-    // mirrored twice while another never landed, so the DISTINCT key count is checked against the same
-    // expected total. Both must equal the number of declared keys.
-    run_locus_sql(&format!(
-        "DO $mt068_eventledger_proof$ \
-         DECLARE total INT; distinct_keys INT; \
-         BEGIN \
-         SELECT COUNT(*), COUNT(DISTINCT idempotency_key) INTO total, distinct_keys \
-           FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql}); \
-         IF total <> {expected_eventledger_rows} OR distinct_keys <> {expected_eventledger_rows} \
-         THEN RAISE EXCEPTION 'MT-068 expected {expected_eventledger_rows} distinct native FR EventLedger mirror rows, got total=% distinct=%', total, distinct_keys; \
-         END IF; END $mt068_eventledger_proof$;"
-    ));
+    // Remediation item 7: prove the exact pending/complete mirror keys through the public aggregate
+    // read API. Counting rows alone would accept one duplicated key while another never landed.
+    let mut observed_eventledger_keys = std::collections::HashSet::new();
+    for durable_event_id in &native_fr_durable_event_ids {
+        let aggregate = be.get_json(&format!(
+            "/kernel/events/aggregates/native_editor_event/{durable_event_id}"
+        ));
+        let rows = aggregate
+            .as_array()
+            .unwrap_or_else(|| panic!("native-editor aggregate must be an array: {aggregate}"));
+        assert_eq!(
+            rows.len(),
+            2,
+            "each native-editor aggregate must contain exactly pending and complete rows: {aggregate}"
+        );
+        for row in rows {
+            let key = row["idempotency_key"]
+                .as_str()
+                .unwrap_or_else(|| panic!("aggregate row lacks idempotency_key: {row}"));
+            assert!(
+                observed_eventledger_keys.insert(key.to_owned()),
+                "duplicate native-editor idempotency key returned by product aggregate API: {key}"
+            );
+        }
+    }
+    assert_eq!(
+        observed_eventledger_keys,
+        eventledger_keys.iter().cloned().collect(),
+        "product aggregate reads must expose the exact pending/complete key set"
+    );
 
     let alias_cleanup = be.delete(&format!("/workspaces/{ws}/loom/blocks/{alias_block_id}"));
     assert!(matches!(alias_cleanup, 200 | 202 | 204 | 404));
-    run_locus_sql(&format!(
-        "UPDATE knowledge_rich_documents SET document_id = NULL WHERE rich_document_id = {rich}; \
-         DELETE FROM documents WHERE id = {legacy};",
-        rich = sql_literal(&document_id),
-        legacy = sql_literal(&legacy_document_id),
-    ));
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
-    records_cleanup.assert_cleanup();
-    drop(records_cleanup);
-    let alias_event_sql = alias_eventledger_event_id
-        .as_deref()
-        .map(sql_literal)
-        .unwrap_or_else(|| "NULL".to_owned());
-    // The mounted app legitimately emits MORE native-editor Flight Recorder events than the four this
-    // proof tracks by id, and those rows carry no top-level `payload.workspace_id` — a tracked-id-only
-    // cleanup therefore leaves real residue behind while still reporting zero (the MT-066 finding). The
-    // MT-109 key prefix is exact and carries THIS run's own generated workspace id, so the sweep stays
-    // scoped to this workspace and can never touch another owner's rows.
-    let workspace_pending_like = sql_literal(&format!("native-editor-fr-pending:{ws}:%"));
-    let workspace_complete_like = sql_literal(&format!("native-editor-fr-complete:{ws}:%"));
-    run_locus_sql(&format!(
-        "DELETE FROM kernel_event_ledger \
-           WHERE idempotency_key IN ({eventledger_key_sql}) \
-              OR idempotency_key LIKE {workspace_pending_like} \
-              OR idempotency_key LIKE {workspace_complete_like}; \
-         DELETE FROM kernel_event_ledger WHERE event_id = {alias_event}; \
-         DO $mt068_eventledger_cleanup$ BEGIN \
-         IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                    WHERE idempotency_key IN ({eventledger_key_sql}) \
-                       OR idempotency_key LIKE {workspace_pending_like} \
-                       OR idempotency_key LIKE {workspace_complete_like}) \
-         THEN RAISE EXCEPTION 'MT-068 native FR EventLedger mirror residue remains'; \
-         END IF; END $mt068_eventledger_cleanup$;",
-        alias_event = alias_event_sql,
-    ));
+    assert_eq!(
+        be.get_status(&format!("/knowledge/documents/{document_id}")),
+        404,
+        "deleted rich document must be absent through the product read API"
+    );
+    delete_locus_records(&be, &ws, &wp_id, &mt_id);
     be.assert_cleanup();
-    locus_sql_output(&format!(
-        "DO $$ BEGIN \
-         IF EXISTS (SELECT 1 FROM work_packets WHERE wp_id = {wp}) \
-            OR EXISTS (SELECT 1 FROM micro_tasks WHERE wp_id = {wp}) \
-         THEN RAISE EXCEPTION 'MT-068 fixture residue remains'; END IF; \
-         END $$;",
-        wp = sql_literal(&wp_id)
-    ))
-    .expect("MT-068 exact Locus rows are absent after cleanup");
     assert_no_local_artifact_dir();
 
     let evidence_path = artifact_dir.join("mt068-locus-canonical-argus.json");
@@ -1660,7 +1569,7 @@ fn resolve_locus_ref_against_real_pg_live() {
         &evidence_path,
         serde_json::to_vec_pretty(&serde_json::json!({
             "schema_id": "handshake.mt068-locus-canonical-argus-proof.v1",
-            "test": "resolve_locus_ref_against_real_pg_live",
+            "test": "resolve_locus_ref_against_real_surrealdb_live",
             "status": "PASS",
             "recorded_at": chrono::Utc::now().to_rfc3339(),
             "source": {
@@ -1676,7 +1585,7 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "known_unrelated_dirty_paths": ["AGENTS.md", "CLAUDE.md"],
             },
             "backend": {
-                "postgresql_eventledger": true,
+                "surrealdb_eventledger": true,
                 "old_base": old_backend_base,
                 "new_base": new_backend_base,
                 "same_listener_after_restart": old_backend_base == new_backend_base,
@@ -1716,7 +1625,7 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "duplicate_document_block_pairs": 0,
             },
             "reverse_lookup_alias_boundary": {
-                "legacy_document_id": legacy_document_id,
+                "source_document_id": document_id,
                 "alias_block_id": alias_block_id,
                 "real_search_candidate_seen_for_wp": true,
                 "real_search_candidate_seen_for_mt": true,
@@ -1734,7 +1643,7 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "causal_order_verified": true,
             },
             "eventledger": {
-                "mirror": "PostgreSQL kernel_event_ledger",
+                "mirror": "SurrealDB EventLedger",
                 "idempotency_key_shape": "native-editor-fr-{pending|complete}:{workspace_id}:{event_id}",
                 "idempotency_keys": eventledger_keys,
                 "pre_cleanup_rows": expected_eventledger_rows,
@@ -1761,6 +1670,7 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "work_packet_rows_zero": true,
                 "microtask_rows_zero": true,
                 "eventledger_mirror_rows_zero": true,
+                "flight_recorder_rows_zero": true,
                 "runtime_quiescent": true,
             }
         }))
@@ -2647,11 +2557,11 @@ fn locus_chip_author_id_round_trips_to_its_exact_ref() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-009 — editor interop remains READ-only: GET-only, no SQLite, no Locus mutation.
+// AC-009 — editor interop remains READ-only: GET-only and no Locus mutation.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn ac009_read_only_no_sqlite_no_mutation() {
+fn ac009_read_only_no_legacy_store_mutation() {
     // Strip line-comments so the gate checks ACTUAL CODE, not the doc comments that explain the rules.
     fn code_only(src: &str) -> String {
         src.lines()
@@ -2664,11 +2574,11 @@ fn ac009_read_only_no_sqlite_no_mutation() {
     }
     let interop_code = code_only(include_str!("../src/interop/locus_interop.rs"));
 
-    // No DB-driver usage (PostgreSQL/EventLedger is the only durable authority — AC-009 / RISK-006).
+    // No embedded-store driver usage: the frontend is confined to the typed HTTP API.
     for store in ["sqlite", "rusqlite", "diesel", "Sqlite", "SQLite", "sqlx"] {
         assert!(
             !interop_code.contains(store),
-            "AC-009: locus_interop code must not reference '{store}' (PostgreSQL/EventLedger only, no SQLite)"
+            "AC-009: locus_interop code must not reference the legacy store driver '{store}'"
         );
     }
     // The Locus reads are GET-only — no write verbs in code (READ + REFERENCE ONLY, no mutation/transition).
@@ -2688,7 +2598,7 @@ fn ac009_read_only_no_sqlite_no_mutation() {
         interop_src.contains(".get(&url)"),
         "AC-009: the Locus record read must issue a GET via the reqwest builder"
     );
-    println!("AC-009 OK: GET-only editor interop, no sqlite/rusqlite/diesel, shared client reused, no Locus mutation");
+    println!("AC-009 OK: GET-only editor interop, shared client reused, no Locus mutation");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2820,14 +2730,14 @@ fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
 // NORMALIZED `locus://mt/mt-034` and de-dups — but its `CountingReverseLookup` returns the seeded hits
 // REGARDLESS of the query string, so it can NOT prove that a document STORING the authored-case
 // `locus://mt/MT-034` actually matches when the lookup keys on the lowercased `locus://mt/mt-034`. That
-// case-robustness is a LIVE-PG claim. This proof creates a real RichDocument whose compact chip label is
+// case-robustness is a LIVE-SurrealDB claim. This proof creates a real RichDocument whose compact chip label is
 // only `MT` while its structured refValue carries mixed-case `locus://mt/MT-034`. The synchronous Loom
 // projection must make that refValue searchable, and exact readback must verify the persisted hsLink before
 // returning the document. This prevents a label-only or plain-text false-positive proof.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn ac004_reverse_lookup_case_robust_against_real_pg_live() {
+fn ac004_reverse_lookup_case_robust_against_real_backend_live() {
     let mut be: LiveBackend = require_live_backend();
     let ws = be.workspace_id.clone();
     let authored = doc_with_locus_ref("locus://mt/MT-034", "MT", false);

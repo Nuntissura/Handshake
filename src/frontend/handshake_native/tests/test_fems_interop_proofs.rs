@@ -20,10 +20,10 @@
 //!
 //! The contract command `cargo test -p handshake-native --test test_fems_interop_proofs -- --nocapture`
 //! executes all four FEMS proofs. None is ignored, feature-hidden, or replaced by a fixture-only green.
-//! The suite requires `HANDSHAKE_TEST_PG_DSN`, binds the HTTP product path through `HSK_TEST_BASE`
-//! (default `http://127.0.0.1:37501`), verifies `/health` reports a live PostgreSQL migration, and fails
-//! loudly when the managed backend/DSN is absent. No SQLite, in-memory, ignored-test, or mock fallback
-//! is accepted.
+//! The suite binds the HTTP product path through `HSK_TEST_BASE` (default
+//! `http://127.0.0.1:37501`), verifies `/health` reports a live SurrealDB authority, and fails loudly
+//! when the managed backend is absent. No direct database client, in-memory, ignored-test, or mock
+//! fallback is accepted.
 //!
 //! ## Additional non-live invariants
 //!
@@ -34,15 +34,15 @@
 //!     author_ids by an out-of-process-agent code path (no direct widget calls, no synthetic key events,
 //!     no screen-scraping). Assert every targeted id is DETERMINISTIC (no random segment) and STABLE
 //!     across two frame re-queries, and dispatch the propose-confirm via an AccessKit Click action.
-//!   - `proof_fems_no_sqlite_anywhere` (RISK-065-01 / CTRL-065-01): a static gate over this suite + the
-//!     two FEMS production modules proves there is no SQLite token anywhere in the suite or its config.
+//!   - `proof_fems_uses_product_api_only` (RISK-065-01 / CTRL-065-01): a static gate over this suite +
+//!     the two FEMS production modules proves tests do not bypass the product API with legacy database
+//!     clients or query languages.
 //!   - `proof_fems_required_capability_contract` pins the four live route/action identities and retains
 //!     typed compatibility failures for older/capability-restricted backends.
 //!
 //! The four named `proof_fems_0*` functions below are the live managed-resource proof surface.
 
 use std::collections::HashSet;
-use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::NodeT;
@@ -93,8 +93,8 @@ use handshake_native::tab_bar::tab_author_id_for;
 mod canonical_argus_driver;
 use canonical_argus_driver::{json_has_author_id, ArgusObservation, CanonicalArgusDriver};
 
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT-RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -222,12 +222,9 @@ const FEMS_REQUIRED_CAPABILITIES: [&str; 4] = [
 ];
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// Live-resource config resolution (IN-065-01, HARD): PostgreSQL/EventLedger only — never SQLite, never a
-// mock, never an in-memory fallback.
+// Live-resource config resolution (IN-065-01, HARD): product API backed by SurrealDB/EventLedger only —
+// never a direct database client, mock, or in-memory fallback.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// The standard integration-test env key for the live PostgreSQL DSN (the FEMS interop backing store).
-const LIVE_PG_DSN_ENV: &str = "HANDSHAKE_TEST_PG_DSN";
 
 /// Serializes this binary's managed mutations without changing process-global environment variables.
 static LIVE_PROOF_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -293,141 +290,17 @@ impl Drop for ScopedLocalAppData {
     }
 }
 
-/// Resolve the live PostgreSQL DSN from the standard integration-test config, asserting it is PostgreSQL.
-///
-/// IN-065-01 (HARD): if NO live PostgreSQL DSN is configured, this PANICS with the mandated message — it
-/// NEVER constructs or accepts a SQLite path, NEVER falls back to an in-memory / mock store, and NEVER
-/// passes green on an absent backend (RISK-065-01, CTRL-065-01). A configured DSN whose scheme is not
-/// `postgres://`/`postgresql://` is also rejected (a SQLite or other non-PG store is refused).
-///
-/// Called by every canonical live proof; absent or non-PostgreSQL configuration fails the proof.
-fn resolve_live_pg_dsn() -> String {
-    let candidate = std::env::var(LIVE_PG_DSN_ENV)
-        .ok()
-        .filter(|s| !s.trim().is_empty());
-
-    let dsn = match candidate {
-        Some(dsn) => dsn,
-        None => panic!(
-            "live PostgreSQL DSN not configured for FEMS interop proof; refusing to run against a fake \
-             backend (set {LIVE_PG_DSN_ENV} to a postgres:// DSN)"
-        ),
-    };
-
-    // The store MUST be PostgreSQL — never SQLite (RISK-065-01 / CTRL-065-01). A `sqlite:`/`file:` DSN or
-    // anything that is not a postgres scheme is refused outright.
-    let lowered = dsn.to_ascii_lowercase();
-    assert!(
-        lowered.starts_with("postgres://") || lowered.starts_with("postgresql://"),
-        "CTRL-065-01: the FEMS interop store must be PostgreSQL (postgres:// DSN); refusing a non-PG / \
-         SQLite store. Got a DSN with an unexpected scheme."
-    );
-    assert!(
-        !lowered.contains("sqlite") && !lowered.starts_with("file:"),
-        "CTRL-065-01: a SQLite DSN is never acceptable for the FEMS interop proof"
-    );
-    dsn
-}
-
-fn psql_program() -> PathBuf {
-    for var in ["HANDSHAKE_MANAGED_PG_BIN", "PGBIN"] {
-        if let Some(dir) = std::env::var_os(var).filter(|value| !value.is_empty()) {
-            let candidate =
-                PathBuf::from(dir).join(if cfg!(windows) { "psql.exe" } else { "psql" });
-            if candidate.is_file() {
-                return candidate;
-            }
-        }
-    }
-    if cfg!(windows) {
-        for root_var in ["ProgramFiles", "ProgramFiles(x86)"] {
-            let Some(root) = std::env::var_os(root_var) else {
-                continue;
-            };
-            let postgres = PathBuf::from(root).join("PostgreSQL");
-            let Ok(entries) = std::fs::read_dir(postgres) else {
-                continue;
-            };
-            let mut candidates = entries
-                .filter_map(Result::ok)
-                .map(|entry| entry.path().join("bin").join("psql.exe"))
-                .filter(|path| path.is_file())
-                .collect::<Vec<_>>();
-            candidates.sort();
-            if let Some(candidate) = candidates.pop() {
-                return candidate;
-            }
-        }
-    }
-    PathBuf::from(if cfg!(windows) { "psql.exe" } else { "psql" })
-}
-
-fn run_psql(dsn: &str, sql: &str) -> String {
-    let mut command = std::process::Command::new(psql_program());
-    command
-        .arg("--dbname")
-        .arg(dsn)
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--no-align")
-        .arg("--tuples-only")
-        .arg("--command")
-        .arg(sql);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt as _;
-        command.creation_flags(0x0800_0000);
-    }
-    command
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    let mut child = command.spawn().expect("launch managed PostgreSQL psql");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll managed PostgreSQL psql") {
-            break status;
-        }
-        if std::time::Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            panic!("managed PostgreSQL SQL timed out after 8 seconds");
-        }
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    };
-    let mut stdout = Vec::new();
-    let mut stderr = Vec::new();
-    child
-        .stdout
-        .take()
-        .expect("capture psql stdout")
-        .read_to_end(&mut stdout)
-        .expect("read psql stdout");
-    child
-        .stderr
-        .take()
-        .expect("capture psql stderr")
-        .read_to_end(&mut stderr)
-        .expect("read psql stderr");
-    assert!(
-        status.success(),
-        "managed PostgreSQL SQL failed: {}",
-        String::from_utf8_lossy(&stderr)
-    );
-    String::from_utf8(stdout).expect("psql emits UTF-8")
-}
 
 struct LiveBackend {
     base: String,
-    dsn: String,
     session_token: String,
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
-    _managed_backend: pg_proof_support::LiveBackend,
+    _managed_backend: backend_proof_support::LiveBackend,
 }
 
 fn require_live_backend(session_token: &str) -> LiveBackend {
-    let dsn = resolve_live_pg_dsn();
-    let managed_backend = pg_proof_support::require_reachable_backend();
+    let managed_backend = backend_proof_support::require_reachable_backend();
     let base = managed_backend.base.clone();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -446,39 +319,33 @@ fn require_live_backend(session_token: &str) -> LiveBackend {
             .send()
             .await
             .unwrap_or_else(|error| {
-                panic!("requires_pg: handshake_core is unreachable at {base}/health: {error}")
+                panic!("requires_backend: handshake_core is unreachable at {base}/health: {error}")
             });
         assert!(
             response.status().is_success(),
-            "requires_pg: GET {base}/health returned {}",
+            "requires_backend: GET {base}/health returned {}",
             response.status()
         );
         response
             .json::<serde_json::Value>()
             .await
-            .expect("requires_pg: /health returns JSON")
+            .expect("requires_backend: /health returns JSON")
     });
     assert_eq!(health["status"], "ok", "managed backend must be healthy");
     assert_eq!(
         health["db_status"], "ok",
-        "HSK_TEST_BASE must front a live PostgreSQL-backed handshake_core"
+        "HSK_TEST_BASE must front a live SurrealDB-backed handshake_core"
     );
     assert!(
         health["migration_version"].as_i64().is_some(),
-        "live backend must expose a PostgreSQL migration version"
-    );
-    assert_eq!(
-        run_psql(&dsn, "SELECT 1").trim(),
-        "1",
-        "configured PostgreSQL DSN must execute a real query"
+        "live backend must expose its SurrealDB schema migration version"
     );
     println!(
-        "MT-065 backend/DSN binding: base={base}; dsn_scheme=postgres; db_status=ok; migration_version={}",
+        "MT-065 product-backend binding: base={base}; database=surrealdb; db_status=ok; migration_version={}",
         health["migration_version"]
     );
     LiveBackend {
         base,
-        dsn,
         session_token: session_token.to_owned(),
         client,
         rt,
@@ -565,7 +432,7 @@ impl LiveBackend {
     /// binding this live proof session published, never from a test-local copy or a stub, so an
     /// unauthenticated 401 can never be mistaken for "the recorder is empty".
     fn flight_recorder_ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        let token = pg_proof_support::live_flight_recorder_session_token();
+        let token = backend_proof_support::live_flight_recorder_session_token();
         assert_eq!(
             token, self.session_token,
             "the Flight Recorder credential must be the genuine published native-MCP session binding"
@@ -679,18 +546,6 @@ impl LiveBackend {
             point_get["symbol"]["symbol_entity_id"], symbol_entity_id,
             "indexed lookup identity must be immediately resolvable through the production point-get route"
         );
-        let quoted_symbol_id = symbol_entity_id.replace('\'', "''");
-        assert_eq!(
-            run_psql(
-                &self.dsn,
-                &format!(
-                    "SELECT count(*) FROM knowledge_entities WHERE entity_id = '{quoted_symbol_id}'"
-                ),
-            )
-            .trim(),
-            "1",
-            "indexed lookup identity must exist in the canonical knowledge_entities authority"
-        );
         let source_id = symbol["definition"]["source_id"]
             .as_str()
             .expect("symbol definition carries canonical KSRC id")
@@ -771,19 +626,21 @@ impl LiveBackend {
     }
 
     fn canonical_fems_mutation_counts(&self, workspace_id: &str) -> (u64, u64) {
-        let count = |table: &str| {
-            run_psql(
-                &self.dsn,
-                &format!(
-                    "SELECT COUNT(*) FROM {table} WHERE workspace_id = {}",
-                    sql_literal(workspace_id)
-                ),
-            )
-            .trim()
-            .parse::<u64>()
-            .unwrap_or_else(|error| panic!("parse canonical {table} count: {error}"))
-        };
-        (count("fems_memory_proposals"), count("fems_memory_items"))
+        let proposals = self.get_json(&format!(
+            "/workspaces/{workspace_id}/memory/proposals?limit=200"
+        ));
+        let committed = self.get_json(&format!(
+            "/workspaces/{workspace_id}/memory/items/count"
+        ));
+        (
+            proposals
+                .as_array()
+                .expect("memory proposal projection is an array")
+                .len() as u64,
+            committed["count"]
+                .as_u64()
+                .expect("committed-memory projection returns a non-negative count"),
+        )
     }
 
     fn create_workspace(&self, name: &str) -> String {
@@ -810,18 +667,15 @@ impl LiveBackend {
                 .expect("workspace create returns id")
                 .to_owned()
         });
-        let quoted_id = workspace_id.replace('\'', "''");
-        let bound_id = run_psql(
-            &self.dsn,
-            &format!("SELECT id FROM workspaces WHERE id = '{quoted_id}'"),
-        );
-        assert_eq!(
-            bound_id.trim(),
-            workspace_id,
-            "HSK_TEST_BASE and HANDSHAKE_TEST_PG_DSN must address the same PostgreSQL workspace authority"
+        let workspaces = self.get_json("/workspaces");
+        assert!(
+            workspaces.as_array().into_iter().flatten().any(|workspace| {
+                workspace["id"] == workspace_id && workspace["name"] == name
+            }),
+            "the created workspace must be immediately visible through the product list projection"
         );
         println!(
-            "MT-065 HTTP/DSN identity bound: workspace_id={workspace_id} observed through backend and direct PostgreSQL query"
+            "MT-065 product identity bound: workspace_id={workspace_id} observed through create and list APIs backed by SurrealDB"
         );
         workspace_id
     }
@@ -1184,28 +1038,32 @@ fn unique_name(prefix: &str) -> String {
     )
 }
 
-fn sql_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
+fn ledger_row_by_aggregate_and_key(
+    live: &LiveBackend,
+    aggregate_type: &str,
+    aggregate_id: &str,
+    key: &str,
+) -> serde_json::Value {
+    let events = live.get_json(&format!(
+        "/kernel/events/aggregates/{aggregate_type}/{aggregate_id}"
+    ));
+    let rows = events
+        .as_array()
+        .expect("EventLedger aggregate projection is an array")
+        .iter()
+        .filter(|event| event["idempotency_key"] == key)
+        .collect::<Vec<_>>();
+    assert_eq!(rows.len(), 1, "exactly one EventLedger row for {key}");
+    rows[0].clone()
 }
 
 fn ledger_row_by_key(live: &LiveBackend, key: &str) -> serde_json::Value {
-    let json = run_psql(
-        &live.dsn,
-        &format!(
-            "SELECT row_to_json(row)::text FROM (\
-             SELECT event_id::text, event_type, aggregate_type, aggregate_id, idempotency_key, \
-                    correlation_id, causation_id::text, source_component, payload \
-             FROM kernel_event_ledger WHERE idempotency_key = {}\
-             ) row",
-            sql_literal(key)
-        ),
-    );
-    let rows = json
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .collect::<Vec<_>>();
-    assert_eq!(rows.len(), 1, "exactly one EventLedger row for {key}");
-    serde_json::from_str(rows[0]).expect("EventLedger row_to_json is valid JSON")
+    let proposal_id = key
+        .rsplit_once(':')
+        .map(|(_, proposal_id)| proposal_id)
+        .filter(|proposal_id| !proposal_id.is_empty())
+        .expect("FEMS EventLedger idempotency key carries a proposal id");
+    ledger_row_by_aggregate_and_key(live, "fems_memory_proposal", proposal_id, key)
 }
 
 fn assert_exact_proposal_and_canonical_fr_ledger(
@@ -1405,8 +1263,20 @@ impl WorkspaceCleanup<'_> {
     }
 
     fn clean_and_verify(&mut self) {
+        assert!(
+            self.pack_ids.iter().all(|id| !id.is_empty())
+                && self.item_ids.iter().all(|id| !id.is_empty()),
+            "captured FEMS identities must be non-empty before teardown"
+        );
         let status = self.live.delete_workspace(&self.workspace_id);
         assert_eq!(status, 204, "delete owned MT-065 workspace");
+        let workspaces = self.live.get_json("/workspaces");
+        assert!(
+            workspaces.as_array().into_iter().flatten().all(|workspace| {
+                workspace["id"] != self.workspace_id
+            }),
+            "workspace teardown removes the owned workspace from the product projection"
+        );
         for proposal_id in &self.proposal_ids {
             assert_eq!(
                 self.live.get_status(&format!(
@@ -1416,76 +1286,18 @@ impl WorkspaceCleanup<'_> {
                 404,
                 "workspace teardown removes only captured mutable proposal data"
             );
-            assert_eq!(
-                run_psql(
-                    &self.live.dsn,
-                    &format!(
-                        "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = {} AND proposal_id = {}",
-                        sql_literal(&self.workspace_id),
-                        sql_literal(proposal_id)
-                    )
-                )
-                .trim(),
-                "0",
-                "exact captured proposal row is removed"
-            );
         }
-        for pack_id in &self.pack_ids {
-            assert_eq!(
-                run_psql(
-                    &self.live.dsn,
-                    &format!(
-                        "SELECT COUNT(*) FROM fems_memory_packs WHERE workspace_id = {} AND pack_id = {}",
-                        sql_literal(&self.workspace_id),
-                        sql_literal(pack_id)
-                    )
-                )
-                .trim(),
-                "0",
-                "exact captured MemoryPack row is removed"
-            );
-        }
-        for item_id in &self.item_ids {
-            assert_eq!(
-                run_psql(
-                    &self.live.dsn,
-                    &format!(
-                        "SELECT COUNT(*) FROM fems_memory_items WHERE workspace_id = {} AND memory_id = {}",
-                        sql_literal(&self.workspace_id),
-                        sql_literal(item_id)
-                    )
-                )
-                .trim(),
-                "0",
-                "exact captured MemoryItem row is removed"
-            );
-        }
-        for table in [
-            "fems_memory_proposals",
-            "fems_memory_packs",
-            "fems_memory_items",
+        for path in [
+            format!("/workspaces/{}/memory/proposals?limit=200", self.workspace_id),
+            format!("/workspaces/{}/memory/pack", self.workspace_id),
+            format!("/workspaces/{}/memory/items/count", self.workspace_id),
         ] {
             assert_eq!(
-                run_psql(
-                    &self.live.dsn,
-                    &format!(
-                        "SELECT COUNT(*) FROM {table} WHERE workspace_id = {}",
-                        sql_literal(&self.workspace_id)
-                    )
-                )
-                .trim(),
-                "0",
-                "workspace teardown leaves no mutable FEMS rows in {table}"
+                self.live.get_status(&path),
+                404,
+                "deleted workspace has no FEMS product projection at {path}"
             );
         }
-        assert_eq!(
-            self.live.get_status(&format!(
-                "/workspaces/{}/memory/items/count",
-                self.workspace_id
-            )),
-            404,
-            "deleted workspace has no committed-memory projection"
-        );
         self.cleaned = true;
     }
 }
@@ -1858,7 +1670,7 @@ fn assert_same_rfc3339_instant(left: &str, right: &str) {
     assert_eq!(
         left.timestamp_micros(),
         right.timestamp_micros(),
-        "timestamps must identify the same PostgreSQL-precision instant"
+        "timestamps must identify the same canonical backend instant"
     );
 }
 
@@ -1952,29 +1764,48 @@ fn drive_propose_command_via_accesskit(
     cancel_guard: Option<(&LiveBackend, &str)>,
 ) -> String {
     let mut dispatch_order = Vec::new();
-    let open_dialog = |harness: &mut Harness<'_, HandshakeApp>| {
+    let open_dialog =
+        |harness: &mut Harness<'_, HandshakeApp>, dispatch_order: &mut Vec<String>| {
+        dispatch_order.extend(
+            [
+                "menu-go",
+                "menu.go.command-palette",
+                FEMS_PALETTE_ROW_AUTHOR_ID,
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        );
         click_author_id(harness, "menu-go");
         click_author_id(harness, "menu.go.command-palette");
         let row = click_author_id(harness, FEMS_PALETTE_ROW_AUTHOR_ID);
         assert_eq!(row.role, "ListBoxOption");
-        let status = find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID);
-        assert!(
-            find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some(),
-            "palette AccessKit dispatch opens the real app proposal dialog; status={status:?}"
-        );
+        find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some()
     };
+    let open_dialog_after_queue_settles =
+        |harness: &mut Harness<'_, HandshakeApp>, dispatch_order: &mut Vec<String>| {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                if open_dialog(harness, dispatch_order) {
+                    break;
+                }
+                let status = find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID);
+                assert!(
+                    status.as_ref().and_then(|node| node.value.as_deref()).is_some_and(|value| {
+                        structured_field(value, "outcome") == Some("reentry_blocked")
+                    }),
+                    "palette AccessKit dispatch must open the proposal dialog or report the canonical queue-settlement guard; status={status:?}"
+                );
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "canonical FEMS review queue did not settle before proposal reentry; status={status:?}"
+                );
+                harness.run_steps(1);
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        };
     let cancel_counts_before =
         cancel_guard.map(|(live, workspace_id)| live.canonical_fems_mutation_counts(workspace_id));
-    dispatch_order.extend(
-        [
-            "menu-go",
-            "menu.go.command-palette",
-            FEMS_PALETTE_ROW_AUTHOR_ID,
-        ]
-        .into_iter()
-        .map(str::to_owned),
-    );
-    open_dialog(harness);
+    open_dialog_after_queue_settles(harness, &mut dispatch_order);
     if exercise_cancel {
         dispatch_order.push(FEMS_PROPOSE_CANCEL_AUTHOR_ID.to_owned());
         click_author_id(harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
@@ -2002,16 +1833,7 @@ fn drive_propose_command_via_accesskit(
                 "cancel must leave canonical proposal rows and committed-memory rows unchanged after a bounded UI/worker drain"
             );
         }
-        dispatch_order.extend(
-            [
-                "menu-go",
-                "menu.go.command-palette",
-                FEMS_PALETTE_ROW_AUTHOR_ID,
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        );
-        open_dialog(harness);
+        open_dialog_after_queue_settles(harness, &mut dispatch_order);
     }
     dispatch_order.push(fems_class_author_id(class));
     click_author_id(harness, &fems_class_author_id(class));
@@ -2570,45 +2392,42 @@ fn proof_fems_03_swarm_id_stability() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — RISK-065-01 / CTRL-065-01: a static gate proving there is NO SQLite token
-// anywhere in this suite or the FEMS production modules it consumes. PostgreSQL/EventLedger is the only
-// durable authority (zero SQLite anywhere).
+// PROOF (NON-IGNORED) — RISK-065-01 / CTRL-065-01: product API / SurrealDB authority only.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn proof_fems_no_sqlite_anywhere() {
+fn proof_fems_uses_product_api_only() {
+    let suite_src = include_str!("test_fems_interop_proofs.rs");
     let client_src = include_str!("../src/fems/memory_client.rs");
     let proposal_src = include_str!("../src/fems/memory_proposal.rs");
-
-    // The forbidden SQLite dependency/handle tokens. The check targets the two FEMS PRODUCTION modules
-    // (the consumer reaches the store only through the HTTP API, so neither may carry a SQLite token).
-    // The suite file itself is intentionally NOT scanned for these literals here — it legitimately names
-    // the tokens in this assertion + the live-DSN refusal text — and is covered instead by the
-    // lowercase-`sqlite` production-module gate below + the explicit DSN-refusal assertion.
-    let lowered_sqlite = concat!("sql", "ite"); // split so this literal does not self-match a suite scan
     for (name, src) in [
+        ("interop_suite", suite_src),
         ("memory_client", client_src),
         ("memory_proposal", proposal_src),
     ] {
-        assert!(
-            !src.to_ascii_lowercase().contains(lowered_sqlite),
-            "RISK-065-01/CTRL-065-01: the FEMS production module {name} must contain no SQLite token"
-        );
-        // No file-scheme DSN / local-db handle either.
-        for token in ["file:///", "connect_lazy_sqlite"] {
+        let lowered = src.to_ascii_lowercase();
+        for token in [
+            concat!("post", "gres"),
+            concat!("p", "sql"),
+            concat!("sql", "ite"),
+            concat!("plpg", "sql"),
+            concat!("run_fixture_", "sql"),
+            concat!("handshake_test_pg_", "dsn"),
+            concat!("select", " count"),
+            concat!("select", " row_to_json"),
+            concat!("insert", " into"),
+            concat!("update", " knowledge_"),
+            concat!("delete", " from"),
+        ] {
             assert!(
-                !src.contains(token),
-                "RISK-065-01: no local-store handle may appear in {name} (found '{token}')"
+                !lowered.contains(token),
+                "RISK-065-01/CTRL-065-01: {name} must not contain legacy database token '{token}'"
             );
         }
     }
-    // And the suite's live-DSN resolver explicitly refuses a SQLite/file scheme (the runtime guard).
-    let suite_src = include_str!("test_fems_interop_proofs.rs");
-    assert!(
-        suite_src.contains("a ") && suite_src.contains(" DSN is never acceptable"),
-        "CTRL-065-01: the suite must explicitly refuse a SQLite DSN at the live-DSN resolver"
+    println!(
+        "FEMS database containment OK: all reads and mutations use typed product APIs backed by SurrealDB"
     );
-    println!("no-SQLite OK (RISK-065-01/CTRL-065-01): zero SQLite token in the suite or the FEMS modules; PostgreSQL/EventLedger is the only authority");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2713,10 +2532,10 @@ fn proof_fems_04_review_gate_invariant_fixture_half() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE PROOFS — managed PostgreSQL + backend required by the canonical default proof command.
+// LIVE PROOFS — managed SurrealDB-backed product API required by the canonical default proof command.
 //
-// They resolve the live DSN/endpoint from integration config, refuse non-PG stores, and fail if the
-// managed resource or any composed route is unavailable.
+// They resolve the live endpoint from integration config and fail if the managed resource or any
+// composed route is unavailable.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -2857,7 +2676,12 @@ fn proof_fems_01_memorypack_render() {
         mem_source_author_id(&item_id),
         accesskit_author_dump(&harness.root())
     );
-    let commit = ledger_row_by_key(&live, &format!("fems-memory-commit:{proposal_id}"));
+    let commit = ledger_row_by_aggregate_and_key(
+        &live,
+        "fems_memory_commit",
+        &typed_commit.commit_id,
+        &format!("fems-memory-commit:{proposal_id}"),
+    );
     assert_eq!(commit["event_type"], "ARTIFACT_STORED");
     assert_eq!(commit["payload"]["memory_id"], item_id);
     assert_eq!(commit["payload"]["memory_pack_id"], pack_id);
@@ -2877,7 +2701,7 @@ fn proof_fems_01_memorypack_render() {
     cleanup.clean_and_verify();
 }
 
-/// FEMS-02 / AC-065-03: invoking 'Propose to Memory' creates a new proposal row in live PostgreSQL
+/// FEMS-02 / AC-065-03: invoking 'Propose to Memory' creates a new proposal in live SurrealDB
 /// (visible via GET .../memory/proposals) AND emits an FR-EVT-MEM-001 event into the live EventLedger
 /// (visible via GET /api/flight_recorder), both referencing the SAME proposal identity (CTRL-065-03).
 /// It also freezes provenance at dialog-open: after opening from a canonical indexed buffer/selection,
@@ -3116,7 +2940,7 @@ fn proof_fems_duplicate_submission_replays_one_proposal_and_one_event() {
 }
 
 /// V1 remediation: prove both terminal review decisions against the real FEMS review route, live
-/// PostgreSQL, EventLedger, and Flight Recorder. The proposals themselves are created through the
+/// SurrealDB, EventLedger, and Flight Recorder. The proposals themselves are created through the
 /// mounted native editor's production AccessKit flow. Approval performs the separate explicit commit;
 /// rejection never commits. Exact terminal retries must return the original immutable receipts.
 #[test]
@@ -3215,7 +3039,12 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         structured_field(&approved_ack, "event_ledger_event_id")
             .expect("mounted approval status carries commit EventLedger id")
     );
-    let commit_ledger = ledger_row_by_key(&live, &format!("fems-memory-commit:{approved_id}"));
+    let commit_ledger = ledger_row_by_aggregate_and_key(
+        &live,
+        "fems_memory_commit",
+        &approved_commit_id,
+        &format!("fems-memory-commit:{approved_id}"),
+    );
     assert_eq!(
         commit_ledger["event_id"],
         approved_retry_commit.event_ledger_event_id
@@ -3357,28 +3186,15 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
             .expect("rejection FR timestamp"),
         &rejected_retry.reviewed_at,
     );
-    let rejected_counts = run_psql(
-        &live.dsn,
-        &format!(
-            "SELECT json_build_object(\
-             'commit_reports', (SELECT COUNT(*) FROM fems_memory_commit_reports WHERE proposal_id = {proposal}),\
-             'commit_outbox', (SELECT COUNT(*) FROM fems_memory_commit_fr_outbox WHERE proposal_id = {proposal}),\
-             'commit_ledger', (SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = {commit_key})\
-             )::text",
-            proposal = sql_literal(&rejected_id),
-            commit_key = sql_literal(&format!("fems-memory-commit:{rejected_id}")),
-        ),
-    );
-    let rejected_counts: serde_json::Value = serde_json::from_str(rejected_counts.trim())
-        .expect("rejection side-effect counts are JSON");
-    assert_eq!(
-        rejected_counts,
-        serde_json::json!({
-            "commit_reports": 0,
-            "commit_outbox": 0,
-            "commit_ledger": 0,
-        }),
-        "rejection creates no commit report, FR-003/004 outbox row, or commit EventLedger receipt"
+    let rejected_events = live.get_json(&format!(
+        "/kernel/events/aggregates/fems_memory_proposal/{rejected_id}"
+    ));
+    assert!(
+        rejected_events.as_array().is_some_and(|events| events.iter().all(|event| {
+            event["idempotency_key"] != format!("fems-memory-commit:{rejected_id}")
+                && event["event_type"] != "ARTIFACT_STORED"
+        })),
+        "rejection creates no product-visible commit EventLedger receipt: {rejected_events}"
     );
     let rejected_commit_status = live.rt.block_on(async {
         live.workspace_ident(
@@ -3848,6 +3664,7 @@ fn proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc() {
         .as_str()
         .expect("valid multibyte proposal returns proposal_id")
         .to_owned();
+    cleanup_a.capture_proposal(unicode_proposal_id.clone());
     assert_eq!(unicode_ack["status"], "pending_review");
     let unicode_ledger = ledger_row_by_key(
         &live,
@@ -3884,12 +3701,15 @@ fn proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc() {
         "split-codepoint rejection must expose the precise UTF-8 range failure: {response}"
     );
 
-    run_psql(
-        &live.dsn,
-        &format!(
-            "UPDATE knowledge_sources SET stale = TRUE WHERE source_id = {}",
-            sql_literal(&fixture.source_id)
-        ),
+    std::fs::remove_file(&fixture.target_path)
+        .expect("remove indexed target before product-driven stale-source re-index");
+    let stale_reindex = live.post_json(
+        &format!("/workspaces/{workspace_a}/code-nav/index"),
+        &serde_json::json!({"root_path": fixture.root.to_string_lossy()}),
+    );
+    assert_eq!(
+        stale_reindex["files_failed"], 0,
+        "product re-index marks the removed target source stale without an indexing failure"
     );
     let (status, response) = live.post_json_status(
         &format!("/workspaces/{workspace_a}/memory/proposals"),
@@ -3897,17 +3717,14 @@ fn proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc() {
     );
     assert_eq!(status, 400, "stale KSRC must fail closed: {response}");
     assert_eq!(
-        run_psql(
-            &live.dsn,
-            &format!(
-                "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id IN ({}, {})",
-                sql_literal(&workspace_a),
-                sql_literal(&workspace_b)
-            )
-        )
-        .trim(),
-        "1",
+        live.canonical_fems_mutation_counts(&workspace_a),
+        (1, 0),
         "only the valid multibyte proposal is durable; all negative probes fail before insert"
+    );
+    assert_eq!(
+        live.canonical_fems_mutation_counts(&workspace_b),
+        (0, 0),
+        "the cross-workspace negative probe leaves the target workspace unchanged"
     );
     cleanup_a.clean_and_verify();
     assert_eq!(
@@ -4353,7 +4170,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
 }
 
 /// A procedural proposal created through the mounted native controls remains review-gated in canonical
-/// PostgreSQL state and does not mutate the committed-memory store. This live path does not claim an
+/// SurrealDB state and does not mutate the committed-memory store. This live path does not claim an
 /// async workspace-generation proof; stale submit delivery is tested independently at the app boundary.
 #[test]
 fn proof_fems_04_procedural_proposal_stays_review_gated() {

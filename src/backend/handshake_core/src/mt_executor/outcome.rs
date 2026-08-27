@@ -10,7 +10,7 @@
 //! Pure compute via [`MtOutcomeRecorder::record`] (no I/O — used by the
 //! MicroTaskExecutor's inner loop), and durable persistence via
 //! [`MtOutcomeRecorder::persist`] which writes the row to the
-//! `kernel_mt_outcome` table created by `0023_micro_task_job_queue.sql`.
+//! `kernel_mt_outcome` table defined in `storage/surreal/schema.surql`.
 //! Persistence is gated to refuse forged outcomes (session id must match the
 //! job's `claimed_by_session` column) per the MT-188 contract red-team brief.
 //!
@@ -42,7 +42,7 @@
 //!    does not match the supplied `session_id`. Returns
 //!    [`MtOutcomeError::ForgedSession`].
 //! 2. **Duplicate outcome on same job/iteration** — DB-level
-//!    `UNIQUE(job_id, iteration_n)` index (migration `0027_...sql`) refuses
+//!    `idx_kernel_mt_outcome_unique_job_iteration` UNIQUE index refuses
 //!    the second insert; Rust returns [`MtOutcomeError::DuplicateOutcome`].
 //! 3. **HardGate as terminal** — `EscalationRouter::route` returns
 //!    `EscalationDecision::HardGate` only when the prior tier was `T32B`
@@ -62,8 +62,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
+use surrealdb::types::{RecordId, SurrealValue};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -82,6 +82,11 @@ use super::job::{
     CompletionSignal, EscalationTier, MicroTaskJob, MicroTaskJobId, RunLedgerPointer,
 };
 use super::loop_control::MtLoopControlBudget;
+use super::queue::job_record;
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
+
+const OUTCOME_TABLE: &str = "kernel_mt_outcome";
+const CANDIDATE_TABLE: &str = "kernel_distillation_candidate";
 
 // ============================================================================
 // MtOutcome / MtOutcomeKind / MtOutcomeRecord
@@ -111,7 +116,7 @@ impl MtOutcomeKind {
     }
 
     /// Reverse lookup: column string -> typed variant. Used by the
-    /// Postgres-gated query path in [`MtOutcomeRecorder::list_for_job`].
+    /// store-gated query path in [`MtOutcomeRecorder::list_for_job`].
     pub fn from_str_id(s: &str) -> Option<Self> {
         match s {
             "success" => Some(Self::Success),
@@ -284,16 +289,17 @@ pub enum MtOutcomeError {
         actual: Option<Uuid>,
     },
     /// Duplicate outcome row for the same `(job_id, iteration_n)`. The
-    /// DB-level unique index `idx_kernel_mt_outcome_unique_job_iteration`
-    /// (migration `0027_...sql`) refuses the second insert; this error
-    /// surfaces the conflict to the caller without panicking.
+    /// in-transaction existence check (backstopped by the DB-level unique
+    /// index `idx_kernel_mt_outcome_unique_job_iteration`) refuses the second
+    /// insert; this error surfaces the conflict to the caller without
+    /// panicking.
     #[error("duplicate outcome for job {job_id} at iteration {iteration_n}")]
     DuplicateOutcome {
         job_id: MicroTaskJobId,
         iteration_n: u32,
     },
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("storage error: {0}")]
+    Storage(#[from] SurrealStorageError),
     #[error("serde error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error("job not found: {0}")]
@@ -485,10 +491,10 @@ impl MtOutcomeRecorder {
         Ok(event)
     }
 
-    /// Persist the outcome row + optional candidate row to Postgres in a
-    /// single transaction. Performs the forged-session check before insert
-    /// (red_team minimum_control: only the session that owns the job may
-    /// record its outcome).
+    /// Persist the outcome row + optional candidate row to the embedded
+    /// SurrealDB store in a single transaction. Performs the forged-session
+    /// check before insert (red_team minimum_control: only the session that
+    /// owns the job may record its outcome).
     ///
     /// Returns the persisted [`MtOutcomeRecord`] (with the same outcome_id
     /// that was used for the insert) and the optional persisted
@@ -499,18 +505,17 @@ impl MtOutcomeRecorder {
     ///   the given job_id.
     /// * [`MtOutcomeError::ForgedSession`] — session_id does not match the
     ///   job's `claimed_by_session`.
-    /// * [`MtOutcomeError::DuplicateOutcome`] — the DB-level unique index
-    ///   refused the insert because a row already exists for
+    /// * [`MtOutcomeError::DuplicateOutcome`] — a row already exists for
     ///   `(job_id, iteration_n)`.
-    /// * [`MtOutcomeError::Sqlx`] — any other DB error.
+    /// * [`MtOutcomeError::Storage`] — any other store error.
     pub async fn persist(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         job: &MicroTaskJob,
         outcome: MtOutcome,
         session_id: Uuid,
     ) -> Result<(MtOutcomeRecord, Option<DistillationCandidate>), MtOutcomeError> {
         Self::persist_with_threshold(
-            pool,
+            storage,
             job,
             outcome,
             session_id,
@@ -520,116 +525,115 @@ impl MtOutcomeRecorder {
     }
 
     /// Variant of [`persist`] that takes a custom emission threshold.
+    ///
+    /// The previous PostgreSQL version held the job row under `FOR UPDATE`
+    /// while checking ownership and inserting. Here the ownership check, the
+    /// duplicate check and both inserts run inside one
+    /// `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` statement, so a
+    /// concurrent reclaim or duplicate recorder still cannot race past the
+    /// checks. The statement returns a discriminator string mapped to the
+    /// same typed errors; the `ForgedSession.actual` detail is recovered by a
+    /// follow-up diagnostic read (correctness never depends on it).
     pub async fn persist_with_threshold(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         job: &MicroTaskJob,
         outcome: MtOutcome,
         session_id: Uuid,
         threshold: DistillationThreshold,
     ) -> Result<(MtOutcomeRecord, Option<DistillationCandidate>), MtOutcomeError> {
-        let mut tx = pool.begin().await?;
-
-        // Verify the session that's recording the outcome actually owns the
-        // job. Reads claimed_by_session FOR UPDATE so a concurrent reclaim
-        // cannot race past this check.
-        let row: Option<(Option<Uuid>,)> = sqlx::query_as(
-            r#"SELECT claimed_by_session FROM kernel_micro_task_job
-               WHERE job_id = $1 FOR UPDATE"#,
-        )
-        .bind(job.job_id.as_uuid())
-        .fetch_optional(&mut *tx)
-        .await?;
-        let claimed = match row {
-            None => return Err(MtOutcomeError::JobNotFound(job.job_id)),
-            Some((c,)) => c,
-        };
-        if claimed != Some(session_id) {
-            return Err(MtOutcomeError::ForgedSession {
-                job_id: job.job_id,
-                supplied: session_id,
-                actual: claimed,
-            });
-        }
-
         // Compute the record + candidate first (pure), then write.
         let (record, candidate) = Self::record_with_threshold(job, outcome, session_id, threshold);
 
-        // Insert the candidate first (the outcome row references it via FK).
-        if let Some(c) = &candidate {
-            sqlx::query(
-                r#"INSERT INTO kernel_distillation_candidate
-                   (candidate_id, job_id, summary, prompt_response_trace,
-                    tier_at_completion, created_at_utc, status)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7)"#,
-            )
-            .bind(c.candidate_id)
-            .bind(c.job_id.as_uuid())
-            .bind(&c.summary)
-            .bind(serde_json::to_value(&c.prompt_response_trace)?)
-            .bind(c.tier_at_completion.as_str())
-            .bind(c.created_at_utc)
-            .bind(c.status.as_str())
-            .execute(&mut *tx)
+        let bindings = PersistOutcomeBindings {
+            job: job_record(job.job_id.as_uuid()),
+            session_id,
+            iteration_n: i64::from(record.iteration_n),
+            candidate_record: candidate.as_ref().map(|c| candidate_record(c.candidate_id)),
+            candidate_row: match candidate.as_ref() {
+                Some(c) => candidate_row(c)?.into_value(),
+                None => surrealdb::types::Value::None,
+            },
+            outcome_record: outcome_record(record.outcome_id),
+            outcome_row: outcome_row(&record)?.into_value(),
+        };
+        let verdict: Option<String> = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            // Guards use count(), which is truthiness-based
+                            // (NONE and [] both count as 0), so each check is
+                            // independent of whether the subquery yields a
+                            // scalar or a one-element array.
+                            "BEGIN TRANSACTION; \
+                             IF count((SELECT VALUE id FROM $job)) = 0 { \
+                                 RETURN 'job_not_found'; \
+                             } ELSE IF count((SELECT VALUE id FROM $job \
+                                 WHERE claimed_by_session = $session_id)) = 0 { \
+                                 RETURN 'forged_session'; \
+                             } ELSE IF count((SELECT VALUE outcome_id FROM kernel_mt_outcome \
+                                 WHERE job_id = $job AND iteration_n = $iteration_n LIMIT 1)) > 0 { \
+                                 RETURN 'duplicate_outcome'; \
+                             } ELSE { \
+                                 IF $candidate_record != NONE { \
+                                     CREATE $candidate_record CONTENT $candidate_row; \
+                                 }; \
+                                 CREATE $outcome_record CONTENT $outcome_row; \
+                                 RETURN 'ok'; \
+                             }; \
+                             COMMIT TRANSACTION;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
             .await?;
-        }
 
-        // Insert the outcome row. Surface unique-violation as a typed error.
-        let insert_result = sqlx::query(
-            r#"INSERT INTO kernel_mt_outcome
-               (outcome_id, job_id, iteration_n, outcome_kind, completion_signal,
-                run_ledger_ref, evidence_pointers, distillation_candidate_id,
-                recorded_at_utc, recorded_by_session)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)"#,
-        )
-        .bind(record.outcome_id)
-        .bind(record.job_id.as_uuid())
-        .bind(record.iteration_n as i64)
-        .bind(record.outcome_kind.as_str())
-        .bind(
-            record
-                .completion_signal
-                .as_ref()
-                .map(serde_json::to_value)
-                .transpose()?,
-        )
-        .bind(
-            record
-                .run_ledger_ref
-                .as_ref()
-                .map(serde_json::to_value)
-                .transpose()?,
-        )
-        .bind(serde_json::to_value(&record.evidence_pointers)?)
-        .bind(record.distillation_candidate_id)
-        .bind(record.recorded_at_utc)
-        .bind(record.recorded_by_session)
-        .execute(&mut *tx)
-        .await;
-
-        match insert_result {
-            Ok(_) => {
-                tx.commit().await?;
-                Ok((record, candidate))
-            }
-            Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
-                // Unique-violation on idx_kernel_mt_outcome_unique_job_iteration.
-                // Postgres SQLSTATE 23505. Return a typed dedup error so the
-                // caller can distinguish from transient DB failures.
-                Err(MtOutcomeError::DuplicateOutcome {
-                    job_id: record.job_id,
-                    iteration_n: record.iteration_n,
+        match verdict.as_deref() {
+            Some("ok") => Ok((record, candidate)),
+            Some("job_not_found") => Err(MtOutcomeError::JobNotFound(job.job_id)),
+            Some("forged_session") => {
+                // Diagnostic-only follow-up read to recover the actual owner
+                // for the error detail; the refusal itself already happened
+                // atomically above.
+                let actual: Option<Uuid> = storage
+                    .with_data_operation({
+                        let job = job_record(job.job_id.as_uuid());
+                        move |database| {
+                            Box::pin(async move {
+                                database
+                                    .query_first(
+                                        "SELECT VALUE claimed_by_session FROM $job;",
+                                        JobRecordBinding { job },
+                                    )
+                                    .await
+                            })
+                        }
+                    })
+                    .await
+                    .unwrap_or(None);
+                Err(MtOutcomeError::ForgedSession {
+                    job_id: job.job_id,
+                    supplied: session_id,
+                    actual,
                 })
             }
-            Err(e) => Err(MtOutcomeError::Sqlx(e)),
+            Some("duplicate_outcome") => Err(MtOutcomeError::DuplicateOutcome {
+                job_id: record.job_id,
+                iteration_n: record.iteration_n,
+            }),
+            other => Err(MtOutcomeError::Validation(format!(
+                "unexpected persist verdict: {other:?}"
+            ))),
         }
     }
 
     /// Persist the outcome and, when a `DistillationCandidate` is created,
-    /// emit FR-EVT-MT-015 immediately after the DB transaction commits. The
-    /// Postgres row remains the canonical durable artifact; the event is the
+    /// emit FR-EVT-MT-015 immediately after the store transaction commits.
+    /// The store row remains the canonical durable artifact; the event is the
     /// searchable audit surface for Flight Recorder consumers.
     pub async fn persist_with_flight_recorder<R: FlightRecorder + ?Sized>(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         recorder: &R,
         job: &MicroTaskJob,
         outcome: MtOutcome,
@@ -645,7 +649,7 @@ impl MtOutcomeRecorder {
         MtOutcomeError,
     > {
         Self::persist_with_threshold_and_flight_recorder(
-            pool,
+            storage,
             recorder,
             job,
             outcome,
@@ -660,7 +664,7 @@ impl MtOutcomeRecorder {
     /// Threshold-aware durable variant of
     /// [`persist_with_flight_recorder`](Self::persist_with_flight_recorder).
     pub async fn persist_with_threshold_and_flight_recorder<R: FlightRecorder + ?Sized>(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         recorder: &R,
         job: &MicroTaskJob,
         outcome: MtOutcome,
@@ -677,7 +681,7 @@ impl MtOutcomeRecorder {
         MtOutcomeError,
     > {
         let (record, candidate) =
-            Self::persist_with_threshold(pool, job, outcome, session_id, threshold).await?;
+            Self::persist_with_threshold(storage, job, outcome, session_id, threshold).await?;
         let event = match candidate.as_ref() {
             Some(candidate) => Some(
                 Self::emit_distillation_candidate_event(
@@ -698,168 +702,91 @@ impl MtOutcomeRecorder {
     /// MT-189 orchestrator and by validator tooling to inspect the audit
     /// trail.
     pub async fn list_for_job(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         job_id: MicroTaskJobId,
     ) -> Result<Vec<MtOutcomeRecord>, MtOutcomeError> {
-        let rows: Vec<(
-            Uuid,
-            Uuid,
-            i64,
-            String,
-            Option<serde_json::Value>,
-            Option<serde_json::Value>,
-            serde_json::Value,
-            Option<Uuid>,
-            DateTime<Utc>,
-            Uuid,
-        )> = sqlx::query_as(
-            r#"SELECT outcome_id, job_id, iteration_n, outcome_kind,
-                      completion_signal, run_ledger_ref, evidence_pointers,
-                      distillation_candidate_id, recorded_at_utc, recorded_by_session
-               FROM kernel_mt_outcome
-               WHERE job_id = $1
-               ORDER BY recorded_at_utc ASC, iteration_n ASC"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_all(pool)
-        .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for r in rows {
-            let kind = MtOutcomeKind::from_str_id(&r.3).ok_or_else(|| {
-                MtOutcomeError::Validation(format!("unknown outcome_kind in DB: {}", r.3))
-            })?;
-            let signal: Option<CompletionSignal> = match r.4 {
-                Some(v) => Some(serde_json::from_value(v)?),
-                None => None,
-            };
-            let ledger: Option<RunLedgerPointer> = match r.5 {
-                Some(v) => Some(serde_json::from_value(v)?),
-                None => None,
-            };
-            let evidence: Vec<String> = serde_json::from_value(r.6)?;
-            out.push(MtOutcomeRecord {
-                outcome_id: r.0,
-                job_id: MicroTaskJobId(r.1),
-                iteration_n: r.2 as u32,
-                outcome_kind: kind,
-                completion_signal: signal,
-                run_ledger_ref: ledger,
-                evidence_pointers: evidence,
-                distillation_candidate_id: r.7,
-                recorded_at_utc: r.8,
-                recorded_by_session: r.9,
-            });
-        }
-        Ok(out)
+        let rows: Vec<OutcomeRow> = storage
+            .with_data_operation({
+                let job = job_record(job_id.as_uuid());
+                move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_values(
+                                "SELECT outcome_id, job_id, iteration_n, outcome_kind, \
+                                 completion_signal, run_ledger_ref, evidence_pointers, \
+                                 distillation_candidate_id, recorded_at_utc, recorded_by_session \
+                                 FROM kernel_mt_outcome WHERE job_id = $job \
+                                 ORDER BY recorded_at_utc ASC, iteration_n ASC;",
+                                JobRecordBinding { job },
+                            )
+                            .await
+                    })
+                }
+            })
+            .await?;
+        rows.into_iter().map(OutcomeRow::into_record).collect()
     }
 
     /// Read all distillation candidates for a job, oldest first. Used by
     /// validator tooling to confirm Phase-1 emission and by the cluster C
     /// pipeline to discover candidates pending promotion.
     pub async fn list_candidates_for_job(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         job_id: MicroTaskJobId,
     ) -> Result<Vec<DistillationCandidate>, MtOutcomeError> {
-        let rows: Vec<(
-            Uuid,
-            Uuid,
-            String,
-            serde_json::Value,
-            String,
-            DateTime<Utc>,
-            String,
-        )> = sqlx::query_as(
-            r#"SELECT candidate_id, job_id, summary, prompt_response_trace,
-                          tier_at_completion, created_at_utc, status
-                   FROM kernel_distillation_candidate
-                   WHERE job_id = $1
-                   ORDER BY created_at_utc ASC"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_all(pool)
-        .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for r in rows {
-            let tier: EscalationTier = serde_json::from_value(serde_json::Value::String(r.4))?;
-            let trace: Vec<serde_json::Value> = serde_json::from_value(r.3)?;
-            let status = DistillationCandidateStatus::from_str_id(&r.6).ok_or_else(|| {
-                MtOutcomeError::Validation(format!("unknown candidate status in DB: {}", r.6))
-            })?;
-            out.push(DistillationCandidate {
-                candidate_id: r.0,
-                job_id: MicroTaskJobId(r.1),
-                summary: r.2,
-                prompt_response_trace: trace,
-                tier_at_completion: tier,
-                created_at_utc: r.5,
-                status,
-            });
-        }
-        Ok(out)
-    }
-
-    /// Ensure the MT-188 column additions are applied (idempotent).
-    /// Production callers run sqlx::migrate!() instead; this helper exists for
-    /// integration tests that bring up a fresh pool without the migrator.
-    pub async fn ensure_schema(pool: &PgPool) -> Result<(), MtOutcomeError> {
-        sqlx::raw_sql(SCHEMA_SQL).execute(pool).await?;
-        Ok(())
+        let rows: Vec<CandidateRow> = storage
+            .with_data_operation({
+                let job = job_record(job_id.as_uuid());
+                move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_values(
+                                "SELECT candidate_id, job_id, summary, prompt_response_trace, \
+                                 tier_at_completion, created_at_utc, status \
+                                 FROM kernel_distillation_candidate WHERE job_id = $job \
+                                 ORDER BY created_at_utc ASC;",
+                                JobRecordBinding { job },
+                            )
+                            .await
+                    })
+                }
+            })
+            .await?;
+        rows.into_iter().map(CandidateRow::into_candidate).collect()
     }
 
     /// Convenience helper for the MT-189 orchestrator: read all candidate
     /// rows that are still in `LOGGING_ONLY_PHASE_1` status (i.e. eligible
-    /// for cluster C promotion). Mirrors the index added by
-    /// `0027_mt_outcome_distillation_status.sql`.
+    /// for cluster C promotion). Served by the
+    /// `idx_kernel_distillation_candidate_status_tier` index.
     pub async fn list_phase1_candidates(
-        pool: &PgPool,
+        storage: &SurrealStorage,
         limit: i64,
     ) -> Result<Vec<DistillationCandidate>, MtOutcomeError> {
-        let rows: Vec<(
-            Uuid,
-            Uuid,
-            String,
-            serde_json::Value,
-            String,
-            DateTime<Utc>,
-            String,
-        )> = sqlx::query_as(
-            r#"SELECT candidate_id, job_id, summary, prompt_response_trace,
-                          tier_at_completion, created_at_utc, status
-                   FROM kernel_distillation_candidate
-                   WHERE status = 'LOGGING_ONLY_PHASE_1'
-                   ORDER BY created_at_utc ASC
-                   LIMIT $1"#,
-        )
-        .bind(limit)
-        .fetch_all(pool)
-        .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for r in rows {
-            let tier: EscalationTier = serde_json::from_value(serde_json::Value::String(r.4))?;
-            let trace: Vec<serde_json::Value> = serde_json::from_value(r.3)?;
-            let status = DistillationCandidateStatus::from_str_id(&r.6).ok_or_else(|| {
-                MtOutcomeError::Validation(format!("unknown candidate status in DB: {}", r.6))
-            })?;
-            out.push(DistillationCandidate {
-                candidate_id: r.0,
-                job_id: MicroTaskJobId(r.1),
-                summary: r.2,
-                prompt_response_trace: trace,
-                tier_at_completion: tier,
-                created_at_utc: r.5,
-                status,
-            });
+        #[derive(SurrealValue)]
+        struct LimitBinding {
+            limit: i64,
         }
-        Ok(out)
+
+        let rows: Vec<CandidateRow> = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(
+                            "SELECT candidate_id, job_id, summary, prompt_response_trace, \
+                             tier_at_completion, created_at_utc, status \
+                             FROM kernel_distillation_candidate \
+                             WHERE status = 'LOGGING_ONLY_PHASE_1' \
+                             ORDER BY created_at_utc ASC LIMIT $limit;",
+                            LimitBinding { limit },
+                        )
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(CandidateRow::into_candidate).collect()
     }
 }
-
-/// Embedded MT-188 schema additions; idempotent (`IF NOT EXISTS` on every DDL).
-/// In production, `sqlx::migrate!("./migrations")` runs both `0023_` and
-/// `0027_` in order; this constant is exposed so integration tests can ensure
-/// the column + index additions without binding to the migrator.
-pub const SCHEMA_SQL: &str =
-    include_str!("../../migrations/0027_mt_outcome_distillation_status.sql");
 
 // ============================================================================
 // EscalationDecision / EscalationRouter
@@ -1024,7 +951,7 @@ impl EscalationRouter {
 
 // ============================================================================
 // MailboxPoster — abstract surface for posting micro_task_escalation +
-// decision_request messages. The MT-189 orchestrator binds a Postgres-backed
+// decision_request messages. The MT-189 orchestrator binds a store-backed
 // implementation against `role_mailbox_v1::repo::RoleMailboxRepository`; tests
 // bind a Mutex<Vec<...>> capture.
 // ============================================================================
@@ -1110,9 +1037,9 @@ pub async fn enact_decision<P: EscalationMailboxPoster + ?Sized>(
     }
 }
 
-/// Postgres-backed RoleMailbox implementation of [`EscalationMailboxPoster`].
-/// HardGate posts a `decision_request` to the operator role; non-terminal
-/// tier escalation posts a typed `micro_task_escalation` message.
+/// RoleMailbox implementation of [`EscalationMailboxPoster`] backed by the
+/// embedded store. HardGate posts a `decision_request` to the operator role;
+/// non-terminal tier escalation posts a typed `micro_task_escalation` message.
 pub struct RoleMailboxEscalationPoster<'a> {
     repo: &'a RoleMailboxRepository,
     from_role: RoleId,
@@ -1253,33 +1180,195 @@ fn to_mailbox_tier(tier: EscalationTier) -> FamilyEscalationTier {
 }
 
 // ============================================================================
-// Postgres-side wiring helpers — used by MT-189 + tests.
+// Store-side wiring helpers — used by MT-189 + tests.
 // ============================================================================
 
 /// Persist a DistillationCandidate row in isolation (no outcome row). Used by
 /// the cluster C promotion pipeline when re-emitting a candidate against a
 /// historical job. The recorder's `persist` writes both rows atomically; this
-/// helper exists for the cluster-C-only path.
+/// helper exists for the cluster-C-only path. The single `CREATE` runs in its
+/// own transaction and fails (as the original INSERT did) if the candidate id
+/// already exists.
 pub async fn insert_distillation_candidate(
-    tx: &mut Transaction<'_, Postgres>,
+    storage: &SurrealStorage,
     c: &DistillationCandidate,
 ) -> Result<(), MtOutcomeError> {
-    sqlx::query(
-        r#"INSERT INTO kernel_distillation_candidate
-           (candidate_id, job_id, summary, prompt_response_trace,
-            tier_at_completion, created_at_utc, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)"#,
-    )
-    .bind(c.candidate_id)
-    .bind(c.job_id.as_uuid())
-    .bind(&c.summary)
-    .bind(serde_json::to_value(&c.prompt_response_trace)?)
-    .bind(c.tier_at_completion.as_str())
-    .bind(c.created_at_utc)
-    .bind(c.status.as_str())
-    .execute(&mut **tx)
-    .await?;
+    #[derive(SurrealValue)]
+    struct CreateCandidateBindings {
+        record: RecordId,
+        content: surrealdb::types::Value,
+    }
+
+    let bindings = CreateCandidateBindings {
+        record: candidate_record(c.candidate_id),
+        content: candidate_row(c)?.into_value(),
+    };
+    let _: Vec<surrealdb::types::Value> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values("CREATE $record CONTENT $content RETURN AFTER;", bindings)
+                    .await
+            })
+        })
+        .await?;
     Ok(())
+}
+
+// ── record shapes + bindings (embedded store) ───────────────────────────────
+
+#[derive(SurrealValue)]
+struct JobRecordBinding {
+    job: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct PersistOutcomeBindings {
+    job: RecordId,
+    session_id: Uuid,
+    iteration_n: i64,
+    candidate_record: Option<RecordId>,
+    candidate_row: surrealdb::types::Value,
+    outcome_record: RecordId,
+    outcome_row: surrealdb::types::Value,
+}
+
+/// One `kernel_mt_outcome` record. `job_id` is a
+/// `record<kernel_micro_task_job>` REFERENCE, so an outcome can never be
+/// written against a job that does not exist — the foreign key the PostgreSQL
+/// version relied on is preserved by the schema rather than by this code.
+#[derive(Debug, Clone, SurrealValue)]
+struct OutcomeRow {
+    outcome_id: Uuid,
+    job_id: RecordId,
+    iteration_n: i64,
+    outcome_kind: String,
+    completion_signal: Option<serde_json::Value>,
+    run_ledger_ref: Option<serde_json::Value>,
+    evidence_pointers: Vec<String>,
+    distillation_candidate_id: Option<Uuid>,
+    recorded_at_utc: DateTime<Utc>,
+    recorded_by_session: Uuid,
+}
+
+impl OutcomeRow {
+    fn into_record(self) -> Result<MtOutcomeRecord, MtOutcomeError> {
+        let kind = MtOutcomeKind::from_str_id(&self.outcome_kind).ok_or_else(|| {
+            MtOutcomeError::Validation(format!(
+                "unknown outcome_kind in store: {}",
+                self.outcome_kind
+            ))
+        })?;
+        let signal: Option<CompletionSignal> = self
+            .completion_signal
+            .map(serde_json::from_value)
+            .transpose()?;
+        let ledger: Option<RunLedgerPointer> = self
+            .run_ledger_ref
+            .map(serde_json::from_value)
+            .transpose()?;
+        Ok(MtOutcomeRecord {
+            outcome_id: self.outcome_id,
+            job_id: MicroTaskJobId(job_key_uuid(&self.job_id)?),
+            iteration_n: u32::try_from(self.iteration_n).unwrap_or(u32::MAX),
+            outcome_kind: kind,
+            completion_signal: signal,
+            run_ledger_ref: ledger,
+            evidence_pointers: self.evidence_pointers,
+            distillation_candidate_id: self.distillation_candidate_id,
+            recorded_at_utc: self.recorded_at_utc,
+            recorded_by_session: self.recorded_by_session,
+        })
+    }
+}
+
+/// One `kernel_distillation_candidate` record.
+#[derive(Debug, Clone, SurrealValue)]
+struct CandidateRow {
+    candidate_id: Uuid,
+    job_id: RecordId,
+    summary: String,
+    prompt_response_trace: Vec<serde_json::Value>,
+    tier_at_completion: String,
+    created_at_utc: DateTime<Utc>,
+    status: String,
+}
+
+impl CandidateRow {
+    fn into_candidate(self) -> Result<DistillationCandidate, MtOutcomeError> {
+        let tier: EscalationTier =
+            serde_json::from_value(serde_json::Value::String(self.tier_at_completion))?;
+        let status = DistillationCandidateStatus::from_str_id(&self.status).ok_or_else(|| {
+            MtOutcomeError::Validation(format!(
+                "unknown candidate status in store: {}",
+                self.status
+            ))
+        })?;
+        Ok(DistillationCandidate {
+            candidate_id: self.candidate_id,
+            job_id: MicroTaskJobId(job_key_uuid(&self.job_id)?),
+            summary: self.summary,
+            prompt_response_trace: self.prompt_response_trace,
+            tier_at_completion: tier,
+            created_at_utc: self.created_at_utc,
+            status,
+        })
+    }
+}
+
+fn outcome_row(record: &MtOutcomeRecord) -> Result<OutcomeRow, MtOutcomeError> {
+    Ok(OutcomeRow {
+        outcome_id: record.outcome_id,
+        job_id: job_record(record.job_id.as_uuid()),
+        iteration_n: i64::from(record.iteration_n),
+        outcome_kind: record.outcome_kind.as_str().to_string(),
+        completion_signal: record
+            .completion_signal
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()?,
+        run_ledger_ref: record
+            .run_ledger_ref
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()?,
+        evidence_pointers: record.evidence_pointers.clone(),
+        distillation_candidate_id: record.distillation_candidate_id,
+        recorded_at_utc: record.recorded_at_utc,
+        recorded_by_session: record.recorded_by_session,
+    })
+}
+
+fn candidate_row(candidate: &DistillationCandidate) -> Result<CandidateRow, MtOutcomeError> {
+    Ok(CandidateRow {
+        candidate_id: candidate.candidate_id,
+        job_id: job_record(candidate.job_id.as_uuid()),
+        summary: candidate.summary.clone(),
+        prompt_response_trace: candidate.prompt_response_trace.clone(),
+        tier_at_completion: candidate.tier_at_completion.as_str().to_string(),
+        created_at_utc: candidate.created_at_utc,
+        status: candidate.status.as_str().to_string(),
+    })
+}
+
+fn outcome_record(id: Uuid) -> RecordId {
+    RecordId::new(OUTCOME_TABLE, surrealdb::types::Uuid::from(id))
+}
+
+fn candidate_record(id: Uuid) -> RecordId {
+    RecordId::new(CANDIDATE_TABLE, surrealdb::types::Uuid::from(id))
+}
+
+/// Job record keys are always UUID keys (`job_id = record::id($this.id)` is
+/// asserted by the schema), so a non-UUID key is a corrupt link rather than a
+/// case to tolerate.
+fn job_key_uuid(record: &RecordId) -> Result<Uuid, MtOutcomeError> {
+    match &record.key {
+        surrealdb::types::RecordIdKey::Uuid(value) => Ok(value.into_inner()),
+        other => Err(MtOutcomeError::Validation(format!(
+            "job record id key is not a uuid: {other:?}"
+        ))),
+    }
 }
 
 #[cfg(test)]

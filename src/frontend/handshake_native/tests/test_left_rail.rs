@@ -488,22 +488,22 @@ fn canvas_and_bookmark_deleted_events_remove_rows() {
     assert!(app.left_rail().project_tree.bookmarks().is_empty());
 }
 
-// ── FIX-C: live-PostgreSQL integration test (proof_target #6) ────────────────────────────────────────
+// ── FIX-C: live-SurrealDB integration test (proof_target #6) ────────────────────────────────────────
 //
-// Mirrors the MT-009 `live_backend_layout_round_trips_through_postgres` pattern. Loads the rail's
+// Mirrors the MT-009 `live_backend_layout_round_trips_through_surrealdb` pattern. Loads the rail's
 // project content (documents + canvases + bookmarks) against a RUNNING handshake_core + managed
-// PostgreSQL on 127.0.0.1:37501 and asserts the fetched document titles match the backend response,
+// SurrealDB on 127.0.0.1:37501 and asserts the fetched document titles match the backend response,
 // then asserts clicking a document row opens a tab carrying the expected content_id on the active pane.
 //
 // Gated behind the `integration_tests` feature (NOT part of the default `cargo test`) because it needs
 // out-of-process infrastructure. Run with:
 //   cargo test --features integration_tests --test test_left_rail live_backend_ -- --ignored --nocapture
 //
-// Prerequisites: handshake_core started with managed PostgreSQL listening on 127.0.0.1:37501, and the
+// Prerequisites: handshake_core started with managed SurrealDB listening on 127.0.0.1:37501, and the
 // workspace id in HSK_LIVE_WORKSPACE_ID having at least one document.
 #[cfg(feature = "integration_tests")]
 #[test]
-#[ignore = "needs managed-postgres + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
+#[ignore = "needs managed-surrealdb + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
 fn live_backend_project_tree_loads_and_opens_document() {
     use handshake_native::backend_client::BACKEND_BASE_URL;
     use handshake_native::project_tree::load_project_content;
@@ -518,7 +518,7 @@ fn live_backend_project_tree_loads_and_opens_document() {
         .build()
         .expect("runtime");
 
-    // 1) Load the real project content over the live HTTP API + PostgreSQL.
+    // 1) Load the real project content over the live HTTP API + SurrealDB.
     let (documents, _canvases, _bookmarks) = rt
         .block_on(load_project_content(BACKEND_BASE_URL, &workspace_id))
         .expect("load project content from the live backend");

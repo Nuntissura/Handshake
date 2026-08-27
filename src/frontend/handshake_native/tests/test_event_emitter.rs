@@ -28,8 +28,8 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::kittest::NodeT;
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
@@ -1924,8 +1924,8 @@ fn event_emitter_native_editor_round_trip() {
     // BEFORE the backend is selected so an owned child inherits the same app-data root and both
     // processes resolve the same `swarm_mcp_binding.json`. Nothing about the authorization is
     // weakened: a missing, forged, or stale binding still fails closed with HSK-401-FR-SESSION.
-    let native_binding = pg_proof_support::RealNativeMcpBinding::publish();
-    let mut managed_backend = pg_proof_support::require_reachable_backend();
+    let native_binding = backend_proof_support::RealNativeMcpBinding::publish();
+    let mut managed_backend = backend_proof_support::require_reachable_backend();
     let backend_binding = managed_backend.owned_backend_binding_receipt();
     let backend_pid = managed_backend.owned_process_id();
     let base = managed_backend.base.clone();
@@ -2044,7 +2044,7 @@ fn event_emitter_native_editor_round_trip() {
     app.set_active_project_id_for_test(workspace.clone());
     assert!(
         app.open_document(&document_id).opened(),
-        "real shell opens the PostgreSQL-backed document in the mounted Notes pane"
+        "real shell opens the SurrealDB-backed document in the mounted Notes pane"
     );
     let canvas_board = app.mounted_canvas_board();
     let canvas_events = app.mounted_canvas_events();
@@ -2116,7 +2116,7 @@ fn event_emitter_native_editor_round_trip() {
     .expect("production shell installed the native-editor emitter");
     assert_eq!(emitter.workspace_id(), workspace);
 
-    // Save the real PostgreSQL document through the mounted HandshakeApp Notes pane and the production
+    // Save the real SurrealDB document through the mounted HandshakeApp Notes pane and the production
     // File > Save dispatcher. The mounted widget drains the SaveManager completion and emits the receipt.
     // Re-open the already-mounted document through the real ShellNavigator first: mounting Canvas above
     // intentionally made Canvas active, and Save must never target an inactive editor by accident.

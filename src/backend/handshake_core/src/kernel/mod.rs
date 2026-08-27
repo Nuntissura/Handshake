@@ -18,7 +18,7 @@
 //!
 //! Rejected: container-only or microVM-only MVP (host portability + Windows
 //! constraints from reset brief §6.5); raw shell adapter without ToolGate
-//! (KB002 conflict register); non-Postgres authority backends (CX-503R).
+//! (KB002 conflict register); non-SurrealDB authority backends (CX-503R).
 //!
 //! ## Module topology (MT-006 placement decision)
 //!
@@ -29,9 +29,9 @@
 //! - `kernel/validation/` — `ValidationRun*`, descriptors, deterministic checks (MT-030+).
 //! - `kernel/promotion/` — `PromotionGate`, `PromotionDecision`, receipts (MT-040+).
 //!
-//! Storage extensions land in `storage/postgres.rs` (rows + migrations for
+//! Storage extensions land in `storage/surreal/` (rows + schema for
 //! SandboxRunV1, SandboxArtifactBundleV1, ValidationRunV1, PromotionDecisionV1,
-//! PromotionReceiptV1). No non-Postgres authority paths (CX-503R, reset brief §4.1).
+//! PromotionReceiptV1). No non-SurrealDB authority paths (CX-503R, reset brief §4.1).
 //!
 //! EventLedger consumption stays through the existing `KernelActor` →
 //! `EventLedger` path; KB003 adds new typed event names, not a new ledger.
@@ -154,11 +154,13 @@ pub use session_broker::*;
 #[cfg(feature = "runtime-full")]
 pub use trace_projection::*;
 
+pub const SURREAL_EVENT_LEDGER_AUTHORITY_SOURCE: &str = "surreal_event_ledger";
+
 #[derive(Debug, Error)]
 pub enum KernelError {
     #[cfg(feature = "runtime-full")]
-    #[error("Kernel V1 authority requires PostgresPrimary storage mode, got {mode}")]
-    NonPostgresAuthority { mode: ControlPlaneStorageMode },
+    #[error("Kernel V1 authority requires SurrealEmbedded storage mode, got {mode}")]
+    NonSurrealAuthority { mode: ControlPlaneStorageMode },
     #[error("invalid kernel event: {0}")]
     InvalidEvent(&'static str),
     #[error("invalid kernel event type: {0}")]
@@ -196,7 +198,7 @@ pub fn assert_kernel_authority_storage_mode(mode: ControlPlaneStorageMode) -> Ke
     if mode.is_control_plane_authority() {
         Ok(())
     } else {
-        Err(KernelError::NonPostgresAuthority { mode })
+        Err(KernelError::NonSurrealAuthority { mode })
     }
 }
 
@@ -286,7 +288,7 @@ pub enum KernelEventType {
     // WP-KERNEL-012 E3 (MT-022/MT-023) durable Loom-surface mutation receipts.
     // Spec 2.3.13.11: Loom mutations MUST leave EventLedger receipts. Folder
     // tree (MT-181) and tag-edge (MT-182) mutations are appended atomically in
-    // the same PostgreSQL transaction as the domain write so a committed
+    // the same embedded SurrealDB transaction as the domain write so a committed
     // mutation can never lack durable evidence.
     KnowledgeLoomFolderMutated,
     KnowledgeLoomTagMutated,
@@ -296,7 +298,7 @@ pub enum KernelEventType {
     // write WITHOUT a transactional EventLedger append, so a committed mutation
     // (or a two-call pin removal that partially applied) could lack durable
     // evidence and reliable recovery. These receipts are appended atomically in
-    // the same PostgreSQL transaction as the domain write.
+    // the same embedded SurrealDB transaction as the domain write.
     KnowledgeLoomBlockMutated,
     KnowledgeLoomWikiMutated,
     // WP-KERNEL-012 MT-072 (Settings & Preferences domain, Master Spec §10.17 SET-EVT-001):
@@ -743,7 +745,7 @@ pub fn flight_recorder_mirror_event(
         Uuid::now_v7(),
         json!({
             "diagnostic_id": "kernel_event_mirror",
-            "authority_source": "postgres_event_ledger",
+            "authority_source": SURREAL_EVENT_LEDGER_AUTHORITY_SOURCE,
             "projection_only": true,
             "kernel_event_id": event.event_id,
             "kernel_event_sequence": event.event_sequence,

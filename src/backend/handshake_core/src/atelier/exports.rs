@@ -11,7 +11,7 @@
 //! request -> result -> manifest-entry graph in the durable store, where
 //! rendered bytes live in the ArtifactStore (`artifact_ref`) and are never
 //! written to random filesystem paths or `.GOV`. SQLite is forbidden (MT-004).
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
+//! Persistence uses the single embedded Handshake SurrealDB store.
 //!
 //! Data contract (MT-199):
 //!   * `atelier_export_request`  - an operator/model ask to export a character,
@@ -29,12 +29,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
 use std::{cmp::Ordering, collections::HashSet};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
+    AtelierStore,
 };
 
 /// Atelier export event families (MT-199). Defined here, surfaced to MT-005
@@ -542,102 +543,207 @@ pub struct ExportIntakeLink {
     pub created_at_utc: DateTime<Utc>,
 }
 
-fn request_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ExportRequest> {
-    let format_token: String = row.get("format");
-    let status_token: String = row.get("status");
-    Ok(ExportRequest {
-        export_id: row.get("export_id"),
-        character_internal_id: row.get("character_internal_id"),
-        sheet_version_id: row.get("sheet_version_id"),
-        format: ExportFormat::from_token(&format_token)?,
-        status: ExportStatus::from_token(&status_token)?,
-        label: row.get("label"),
-        requested_by: row.get("requested_by"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct ExportRequestRow {
+    export_id: SurrealUuid,
+    character_internal_id: SurrealUuid,
+    sheet_version_id: SurrealUuid,
+    format: String,
+    status: String,
+    label: Option<String>,
+    requested_by: String,
+    created_at_utc: Datetime,
 }
 
-fn result_from_row(row: &sqlx::postgres::PgRow) -> ExportResult {
-    ExportResult {
-        result_id: row.get("result_id"),
-        export_id: row.get("export_id"),
-        artifact_ref: row.get("artifact_ref"),
-        content_hash: row.get("content_hash"),
-        byte_len: row.get("byte_len"),
-        created_at_utc: row.get("created_at_utc"),
+impl TryFrom<ExportRequestRow> for ExportRequest {
+    type Error = AtelierError;
+
+    fn try_from(row: ExportRequestRow) -> AtelierResult<Self> {
+        Ok(Self {
+            export_id: row.export_id.into(),
+            character_internal_id: row.character_internal_id.into(),
+            sheet_version_id: row.sheet_version_id.into(),
+            format: ExportFormat::from_token(&row.format)?,
+            status: ExportStatus::from_token(&row.status)?,
+            label: row.label,
+            requested_by: row.requested_by,
+            created_at_utc: row.created_at_utc.into(),
+        })
     }
 }
 
-fn entry_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ManifestEntry> {
-    let kind_token: String = row.get("kind");
-    Ok(ManifestEntry {
-        entry_id: row.get("entry_id"),
-        export_id: row.get("export_id"),
-        seq: row.get("seq"),
-        kind: ManifestItemKind::from_token(&kind_token)?,
-        artifact_ref: row.get("artifact_ref"),
-        pack_path: row.get("pack_path"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct ExportResultRow {
+    result_id: SurrealUuid,
+    export_id: SurrealUuid,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    created_at_utc: Datetime,
 }
 
-fn web_portfolio_request_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<WebPortfolioExportRequest> {
-    let status_token: String = row.get("status");
-    Ok(WebPortfolioExportRequest {
-        portfolio_export_id: row.get("portfolio_export_id"),
-        source_collection_id: row.get("source_collection_id"),
-        slug: row.get("slug"),
-        title: row.get("title"),
-        status: ExportStatus::from_token(&status_token)?,
-        requested_by: row.get("requested_by"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
-    })
-}
-
-fn web_portfolio_result_from_row(row: &sqlx::postgres::PgRow) -> WebPortfolioExportResult {
-    WebPortfolioExportResult {
-        result_id: row.get("result_id"),
-        portfolio_export_id: row.get("portfolio_export_id"),
-        artifact_ref: row.get("artifact_ref"),
-        content_hash: row.get("content_hash"),
-        byte_len: row.get("byte_len"),
-        manifest_json: row.get("manifest_json"),
-        created_at_utc: row.get("created_at_utc"),
+impl From<ExportResultRow> for ExportResult {
+    fn from(row: ExportResultRow) -> Self {
+        Self {
+            result_id: row.result_id.into(),
+            export_id: row.export_id.into(),
+            artifact_ref: row.artifact_ref,
+            content_hash: row.content_hash,
+            byte_len: row.byte_len,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn backup_manifest_from_row(row: &sqlx::postgres::PgRow) -> BackupManifestRecord {
-    BackupManifestRecord {
-        backup_id: row.get("backup_id"),
-        app_version: row.get("app_version"),
-        spec_version: row.get("spec_version"),
-        schema_version: row.get("schema_version"),
-        artifact_ref: row.get("artifact_ref"),
-        content_hash: row.get("content_hash"),
-        byte_len: row.get("byte_len"),
-        manifest_hash: row.get("manifest_hash"),
-        manifest_json: row.get("manifest_json"),
-        created_by: row.get("created_by"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct ManifestEntryRow {
+    entry_id: SurrealUuid,
+    export_id: SurrealUuid,
+    seq: i64,
+    kind: String,
+    artifact_ref: String,
+    pack_path: String,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<ManifestEntryRow> for ManifestEntry {
+    type Error = AtelierError;
+
+    fn try_from(row: ManifestEntryRow) -> AtelierResult<Self> {
+        Ok(Self {
+            entry_id: row.entry_id.into(),
+            export_id: row.export_id.into(),
+            seq: row.seq,
+            kind: ManifestItemKind::from_token(&row.kind)?,
+            artifact_ref: row.artifact_ref,
+            pack_path: row.pack_path,
+            created_at_utc: row.created_at_utc.into(),
+        })
     }
 }
 
-fn backup_preflight_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BackupRestorePreflight> {
-    let status_token: String = row.get("status");
-    Ok(BackupRestorePreflight {
-        preflight_id: row.get("preflight_id"),
-        backup_id: row.get("backup_id"),
-        current_app_version: row.get("current_app_version"),
-        current_spec_version: row.get("current_spec_version"),
-        current_schema_version: row.get("current_schema_version"),
-        status: BackupRestorePreflightStatus::from_token(&status_token)?,
-        refusal_reason: row.get("refusal_reason"),
-        requested_by: row.get("requested_by"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct WebPortfolioRequestRow {
+    portfolio_export_id: SurrealUuid,
+    source_collection_id: SurrealUuid,
+    slug: String,
+    title: String,
+    status: String,
+    requested_by: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+impl TryFrom<WebPortfolioRequestRow> for WebPortfolioExportRequest {
+    type Error = AtelierError;
+
+    fn try_from(row: WebPortfolioRequestRow) -> AtelierResult<Self> {
+        Ok(Self {
+            portfolio_export_id: row.portfolio_export_id.into(),
+            source_collection_id: row.source_collection_id.into(),
+            slug: row.slug,
+            title: row.title,
+            status: ExportStatus::from_token(&row.status)?,
+            requested_by: row.requested_by,
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct WebPortfolioResultRow {
+    result_id: SurrealUuid,
+    portfolio_export_id: SurrealUuid,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    manifest_json: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+impl From<WebPortfolioResultRow> for WebPortfolioExportResult {
+    fn from(row: WebPortfolioResultRow) -> Self {
+        Self {
+            result_id: row.result_id.into(),
+            portfolio_export_id: row.portfolio_export_id.into(),
+            artifact_ref: row.artifact_ref,
+            content_hash: row.content_hash,
+            byte_len: row.byte_len,
+            manifest_json: row.manifest_json,
+            created_at_utc: row.created_at_utc.into(),
+        }
+    }
+}
+
+#[derive(SurrealValue)]
+struct BackupManifestRow {
+    backup_id: SurrealUuid,
+    app_version: String,
+    spec_version: String,
+    schema_version: i64,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    manifest_hash: String,
+    manifest_json: serde_json::Value,
+    created_by: String,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<BackupManifestRow> for BackupManifestRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: BackupManifestRow) -> AtelierResult<Self> {
+        Ok(Self {
+            backup_id: row.backup_id.into(),
+            app_version: row.app_version,
+            spec_version: row.spec_version,
+            schema_version: i32::try_from(row.schema_version).map_err(|_| {
+                AtelierError::Internal("persisted backup schema version exceeds i32".into())
+            })?,
+            artifact_ref: row.artifact_ref,
+            content_hash: row.content_hash,
+            byte_len: row.byte_len,
+            manifest_hash: row.manifest_hash,
+            manifest_json: row.manifest_json,
+            created_by: row.created_by,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct BackupPreflightRow {
+    preflight_id: SurrealUuid,
+    backup_id: SurrealUuid,
+    current_app_version: String,
+    current_spec_version: String,
+    current_schema_version: i64,
+    status: String,
+    refusal_reason: Option<String>,
+    requested_by: String,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<BackupPreflightRow> for BackupRestorePreflight {
+    type Error = AtelierError;
+
+    fn try_from(row: BackupPreflightRow) -> AtelierResult<Self> {
+        Ok(Self {
+            preflight_id: row.preflight_id.into(),
+            backup_id: row.backup_id.into(),
+            current_app_version: row.current_app_version,
+            current_spec_version: row.current_spec_version,
+            current_schema_version: i32::try_from(row.current_schema_version).map_err(|_| {
+                AtelierError::Internal("persisted current schema version exceeds i32".into())
+            })?,
+            status: BackupRestorePreflightStatus::from_token(&row.status)?,
+            refusal_reason: row.refusal_reason,
+            requested_by: row.requested_by,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
 fn normalize_web_portfolio_slug(raw: &str) -> AtelierResult<String> {
@@ -1115,35 +1221,431 @@ fn backup_restore_refusal_reason(
     None
 }
 
-fn intake_link_from_row(row: &sqlx::postgres::PgRow) -> ExportIntakeLink {
-    ExportIntakeLink {
-        link_id: row.get("link_id"),
-        export_id: row.get("export_id"),
-        batch_id: row.get("batch_id"),
-        item_id: row.get("item_id"),
-        target_character_id: row.get("target_character_id"),
-        target_sheet_version_id: row.get("target_sheet_version_id"),
-        target_collection_id: row.get("target_collection_id"),
-        version_agnostic: row.get("version_agnostic"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct ExportIntakeLinkRow {
+    link_id: SurrealUuid,
+    export_id: SurrealUuid,
+    batch_id: SurrealUuid,
+    item_id: SurrealUuid,
+    target_character_id: Option<SurrealUuid>,
+    target_sheet_version_id: Option<SurrealUuid>,
+    target_collection_id: Option<SurrealUuid>,
+    version_agnostic: bool,
+    created_at_utc: Datetime,
+}
+
+impl From<ExportIntakeLinkRow> for ExportIntakeLink {
+    fn from(row: ExportIntakeLinkRow) -> Self {
+        Self {
+            link_id: row.link_id.into(),
+            export_id: row.export_id.into(),
+            batch_id: row.batch_id.into(),
+            item_id: row.item_id.into(),
+            target_character_id: row.target_character_id.map(Into::into),
+            target_sheet_version_id: row.target_sheet_version_id.map(Into::into),
+            target_collection_id: row.target_collection_id.map(Into::into),
+            version_agnostic: row.version_agnostic,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn raster_export_plan_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<ContactSheetRasterExportPlan> {
-    let format_token: String = row.get("format");
-    let status_token: String = row.get("status");
-    Ok(ContactSheetRasterExportPlan {
-        plan_id: row.get("plan_id"),
-        sheet_id: row.get("sheet_id"),
-        format: ContactSheetRasterExportFormat::from_token(&format_token)?,
-        status: ContactSheetRasterExportStatus::from_token(&status_token)?,
-        reason: row.get("reason"),
-        requested_by: row.get("requested_by"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct RasterExportPlanRow {
+    plan_id: SurrealUuid,
+    sheet_id: SurrealUuid,
+    format: String,
+    status: String,
+    reason: String,
+    requested_by: String,
+    created_at_utc: Datetime,
 }
+
+impl TryFrom<RasterExportPlanRow> for ContactSheetRasterExportPlan {
+    type Error = AtelierError;
+
+    fn try_from(row: RasterExportPlanRow) -> AtelierResult<Self> {
+        Ok(Self {
+            plan_id: row.plan_id.into(),
+            sheet_id: row.sheet_id.into(),
+            format: ContactSheetRasterExportFormat::from_token(&row.format)?,
+            status: ContactSheetRasterExportStatus::from_token(&row.status)?,
+            reason: row.reason,
+            requested_by: row.requested_by,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct SheetVersionOwnerRow {
+    character_internal_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct SharePackMediaRow {
+    asset_id: SurrealUuid,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    mime: String,
+}
+
+#[derive(SurrealValue)]
+struct IntakeBatchTargetRow {
+    character_internal_id: Option<SurrealUuid>,
+    target_character_id: Option<SurrealUuid>,
+    target_sheet_version_id: Option<SurrealUuid>,
+    target_collection_id: Option<SurrealUuid>,
+}
+
+#[derive(SurrealValue)]
+struct IntakeItemOwnerRow {
+    batch_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct CollectionTargetRow {
+    character_internal_id: Option<SurrealUuid>,
+    sheet_version_id: Option<SurrealUuid>,
+}
+
+macro_rules! export_request_select {
+    () => {
+        "export_id, record::id(character_internal_id) AS character_internal_id, \
+         record::id(sheet_version_id) AS sheet_version_id, format, status, label, requested_by, \
+         created_at_utc"
+    };
+}
+
+macro_rules! export_result_select {
+    () => {
+        "result_id, record::id(export_id) AS export_id, artifact_ref, content_hash, byte_len, \
+         created_at_utc"
+    };
+}
+
+macro_rules! manifest_entry_select {
+    () => {
+        "entry_id, record::id(export_id) AS export_id, seq, kind, artifact_ref, pack_path, \
+         created_at_utc"
+    };
+}
+
+macro_rules! web_portfolio_request_select {
+    () => {
+        "portfolio_export_id, record::id(source_collection_id) AS source_collection_id, slug, \
+         title, status, requested_by, created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! web_portfolio_result_select {
+    () => {
+        "result_id, record::id(portfolio_export_id) AS portfolio_export_id, artifact_ref, \
+         content_hash, byte_len, manifest_json, created_at_utc"
+    };
+}
+
+macro_rules! backup_manifest_select {
+    () => {
+        "backup_id, app_version, spec_version, schema_version, artifact_ref, content_hash, \
+         byte_len, manifest_hash, manifest_json, created_by, created_at_utc"
+    };
+}
+
+macro_rules! backup_preflight_select {
+    () => {
+        "preflight_id, record::id(backup_id) AS backup_id, current_app_version, \
+         current_spec_version, current_schema_version, status, refusal_reason, requested_by, \
+         created_at_utc"
+    };
+}
+
+macro_rules! intake_link_select {
+    () => {
+        "link_id, record::id(export_id) AS export_id, record::id(batch_id) AS batch_id, \
+         record::id(item_id) AS item_id, record::id(target_character_id) AS target_character_id, \
+         record::id(target_sheet_version_id) AS target_sheet_version_id, \
+         record::id(target_collection_id) AS target_collection_id, version_agnostic, \
+         created_at_utc"
+    };
+}
+
+macro_rules! raster_export_plan_select {
+    () => {
+        "plan_id, record::id(sheet_id) AS sheet_id, format, status, reason, requested_by, \
+         created_at_utc"
+    };
+}
+
+#[derive(SurrealValue)]
+struct RecordBinding {
+    record_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ExportIdBinding {
+    export_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct PortfolioExportIdBinding {
+    portfolio_export_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct BackupIdBinding {
+    backup_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct SheetIdBinding {
+    sheet_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct AssetIdBinding {
+    asset_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct IntakeItemBinding {
+    item_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct IntakeLinkKeyBinding {
+    export_ref: RecordId,
+    batch_ref: RecordId,
+    item_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct RasterPlanKeyBinding {
+    sheet_ref: RecordId,
+    format: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RequestExportBindings {
+    export_rid: RecordId,
+    export_id: SurrealUuid,
+    character_ref: RecordId,
+    sheet_version_ref: RecordId,
+    format: String,
+    label: Option<String>,
+    requested_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordExportResultBindings {
+    result_rid: RecordId,
+    result_id: SurrealUuid,
+    export_ref: RecordId,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AddManifestEntryBindings {
+    entry_rid: RecordId,
+    entry_id: SurrealUuid,
+    export_ref: RecordId,
+    kind: String,
+    artifact_ref: String,
+    pack_path: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RequestPortfolioBindings {
+    request_rid: RecordId,
+    portfolio_export_id: SurrealUuid,
+    collection_ref: RecordId,
+    slug: String,
+    title: String,
+    requested_by: String,
+}
+
+#[derive(SurrealValue)]
+struct PortfolioAssetBinding {
+    collection_ref: RecordId,
+    asset_ref: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordPortfolioResultBindings {
+    result_rid: RecordId,
+    result_id: SurrealUuid,
+    request_ref: RecordId,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    manifest_json: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordBackupBindings {
+    backup_rid: RecordId,
+    backup_id: SurrealUuid,
+    app_version: String,
+    spec_version: String,
+    schema_version: i64,
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    manifest_hash: String,
+    manifest_json: serde_json::Value,
+    created_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordPreflightBindings {
+    preflight_rid: RecordId,
+    preflight_id: SurrealUuid,
+    backup_ref: RecordId,
+    current_app_version: String,
+    current_spec_version: String,
+    current_schema_version: i64,
+    status: String,
+    refusal_reason: Option<String>,
+    requested_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AttachIntakeLinkBindings {
+    link_rid: RecordId,
+    link_id: SurrealUuid,
+    export_ref: RecordId,
+    batch_ref: RecordId,
+    item_ref: RecordId,
+    target_character_ref: Option<RecordId>,
+    target_sheet_version_ref: Option<RecordId>,
+    target_collection_ref: Option<RecordId>,
+    version_agnostic: bool,
+}
+
+#[derive(Clone, SurrealValue)]
+struct PlanRasterExportBindings {
+    plan_rid: RecordId,
+    plan_id: SurrealUuid,
+    sheet_ref: RecordId,
+    format: String,
+    reason: String,
+    requested_by: String,
+}
+
+const REQUEST_EXPORT_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.export_rid CONTENT { export_id: $domain.export_id, \
+       character_internal_id: $domain.character_ref, sheet_version_id: $domain.sheet_version_ref, \
+       format: $domain.format, status: 'pending', label: $domain.label, \
+       requested_by: $domain.requested_by }; RETURN (SELECT ",
+    export_request_select!(),
+    " FROM $domain.export_rid); };"
+);
+
+const RECORD_EXPORT_RESULT_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_export_result \
+       WHERE export_id = $domain.export_ref AND content_hash = $domain.content_hash LIMIT 1)[0]; \
+     LET $rid = $existing ?? $domain.result_rid; ",
+    atelier_event_sql!(),
+    " IF $existing IS NONE { CREATE $domain.result_rid CONTENT { result_id: $domain.result_id, \
+       export_id: $domain.export_ref, artifact_ref: $domain.artifact_ref, \
+       content_hash: $domain.content_hash, byte_len: $domain.byte_len }; \
+     } ELSE { UPDATE $existing SET artifact_ref = $domain.artifact_ref; }; \
+     UPDATE $domain.export_ref SET status = 'rendered'; RETURN (SELECT ",
+    export_result_select!(),
+    " FROM $rid); };"
+);
+
+const ADD_MANIFEST_ENTRY_STATEMENT: &str = concat!(
+    "RETURN { LET $next_seq = array::max((SELECT VALUE seq FROM atelier_export_manifest_entry \
+       WHERE export_id = $domain.export_ref)) ?? 0; ",
+    atelier_event_sql!(),
+    " CREATE $domain.entry_rid CONTENT { entry_id: $domain.entry_id, \
+       export_id: $domain.export_ref, seq: $next_seq + 1, kind: $domain.kind, \
+       artifact_ref: $domain.artifact_ref, pack_path: $domain.pack_path }; RETURN (SELECT ",
+    manifest_entry_select!(),
+    " FROM $domain.entry_rid); };"
+);
+
+const REQUEST_PORTFOLIO_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.request_rid CONTENT { portfolio_export_id: $domain.portfolio_export_id, \
+       source_collection_id: $domain.collection_ref, slug: $domain.slug, title: $domain.title, \
+       status: 'pending', requested_by: $domain.requested_by }; RETURN (SELECT ",
+    web_portfolio_request_select!(),
+    " FROM $domain.request_rid); };"
+);
+
+const RECORD_PORTFOLIO_RESULT_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_web_portfolio_export_result \
+       WHERE portfolio_export_id = $domain.request_ref \
+         AND content_hash = $domain.content_hash LIMIT 1)[0]; \
+     LET $rid = $existing ?? $domain.result_rid; ",
+    atelier_event_sql!(),
+    " IF $existing IS NONE { CREATE $domain.result_rid CONTENT { result_id: $domain.result_id, \
+       portfolio_export_id: $domain.request_ref, artifact_ref: $domain.artifact_ref, \
+       content_hash: $domain.content_hash, byte_len: $domain.byte_len, \
+       manifest_json: $domain.manifest_json }; } ELSE { UPDATE $existing SET \
+       artifact_ref = $domain.artifact_ref, byte_len = $domain.byte_len, \
+       manifest_json = $domain.manifest_json; }; UPDATE $domain.request_ref SET \
+       status = 'rendered', updated_at_utc = time::now(); RETURN (SELECT ",
+    web_portfolio_result_select!(),
+    " FROM $rid); };"
+);
+
+const RECORD_BACKUP_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.backup_rid CONTENT { backup_id: $domain.backup_id, \
+       app_version: $domain.app_version, spec_version: $domain.spec_version, \
+       schema_version: $domain.schema_version, artifact_ref: $domain.artifact_ref, \
+       content_hash: $domain.content_hash, byte_len: $domain.byte_len, \
+       manifest_hash: $domain.manifest_hash, manifest_json: $domain.manifest_json, \
+       created_by: $domain.created_by }; RETURN (SELECT ",
+    backup_manifest_select!(),
+    " FROM $domain.backup_rid); };"
+);
+
+const RECORD_PREFLIGHT_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.preflight_rid CONTENT { preflight_id: $domain.preflight_id, \
+       backup_id: $domain.backup_ref, current_app_version: $domain.current_app_version, \
+       current_spec_version: $domain.current_spec_version, \
+       current_schema_version: $domain.current_schema_version, status: $domain.status, \
+       refusal_reason: $domain.refusal_reason, requested_by: $domain.requested_by }; \
+     RETURN (SELECT ",
+    backup_preflight_select!(),
+    " FROM $domain.preflight_rid); };"
+);
+
+const ATTACH_INTAKE_LINK_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.link_rid CONTENT { link_id: $domain.link_id, export_id: $domain.export_ref, \
+       batch_id: $domain.batch_ref, item_id: $domain.item_ref, \
+       target_character_id: $domain.target_character_ref, \
+       target_sheet_version_id: $domain.target_sheet_version_ref, \
+       target_collection_id: $domain.target_collection_ref, \
+       version_agnostic: $domain.version_agnostic }; RETURN (SELECT ",
+    intake_link_select!(),
+    " FROM $domain.link_rid); };"
+);
+
+const PLAN_RASTER_EXPORT_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.plan_rid CONTENT { plan_id: $domain.plan_id, sheet_id: $domain.sheet_ref, \
+       format: $domain.format, status: 'planned', reason: $domain.reason, \
+       requested_by: $domain.requested_by }; RETURN (SELECT ",
+    raster_export_plan_select!(),
+    " FROM $domain.plan_rid); };"
+);
 
 impl AtelierStore {
     /// Open an export request pinned to a specific sheet version (MT-199).
@@ -1164,13 +1666,27 @@ impl AtelierStore {
 
         // Pin validation: the sheet version must exist and belong to the
         // character being exported.
-        let owner: Option<Uuid> = sqlx::query_scalar(
-            "SELECT character_internal_id FROM atelier_sheet_version WHERE version_id = $1",
-        )
-        .bind(new.sheet_version_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match owner {
+        let sheet_version_ref = RecordId::new(
+            "atelier_sheet_version",
+            SurrealUuid::from(new.sheet_version_id),
+        );
+        let owner: Option<SheetVersionOwnerRow> = self
+            .store()
+            .with_data_operation({
+                let record_ref = sheet_version_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT record::id(character_internal_id) AS character_internal_id \
+                             FROM $record_ref;",
+                            RecordBinding { record_ref },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        match owner.map(|row| Uuid::from(row.character_internal_id)) {
             None => {
                 return Err(AtelierError::NotFound(format!(
                     "sheet version_id={}",
@@ -1186,48 +1702,56 @@ impl AtelierStore {
             Some(_) => {}
         }
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_export_request
-                 (character_internal_id, sheet_version_id, format, status, label, requested_by)
-               VALUES ($1, $2, $3, 'pending', $4, $5)
-               RETURNING export_id, character_internal_id, sheet_version_id, format,
-                         status, label, requested_by, created_at_utc"#,
-        )
-        .bind(new.character_internal_id)
-        .bind(new.sheet_version_id)
-        .bind(new.format.as_token())
-        .bind(&new.label)
-        .bind(&new.requested_by)
-        .fetch_one(self.pool())
-        .await?;
-        let request = request_from_row(&row)?;
-
-        self.record_event(
-            EXPORT_REQUESTED,
-            "atelier_export_request",
-            &request.export_id.to_string(),
-            serde_json::json!({
-                "sheet_version_id": request.sheet_version_id,
-                "format": request.format.as_token(),
-                "requested_by": request.requested_by,
-            }),
-        )
-        .await?;
-        Ok(request)
+        let export_id = Uuid::new_v4();
+        let row: Option<ExportRequestRow> = self
+            .write_with_event(
+                REQUEST_EXPORT_STATEMENT,
+                RequestExportBindings {
+                    export_rid: RecordId::new(
+                        "atelier_export_request",
+                        SurrealUuid::from(export_id),
+                    ),
+                    export_id: export_id.into(),
+                    character_ref: RecordId::new(
+                        "atelier_character",
+                        SurrealUuid::from(new.character_internal_id),
+                    ),
+                    sheet_version_ref,
+                    format: new.format.as_token().to_owned(),
+                    label: new.label.clone(),
+                    requested_by: new.requested_by.clone(),
+                },
+                EXPORT_REQUESTED,
+                "atelier_export_request",
+                &export_id.to_string(),
+                serde_json::json!({
+                    "sheet_version_id": new.sheet_version_id,
+                    "format": new.format.as_token(),
+                    "requested_by": new.requested_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| AtelierError::Internal("export request write returned no row".into()))?
+            .try_into()
     }
 
     /// Fetch an export request by id.
     pub async fn get_export_request(&self, export_id: Uuid) -> AtelierResult<ExportRequest> {
-        let row = sqlx::query(
-            r#"SELECT export_id, character_internal_id, sheet_version_id, format,
-                      status, label, requested_by, created_at_utc
-               FROM atelier_export_request WHERE export_id = $1"#,
-        )
-        .bind(export_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("export_id={export_id}")))?;
-        request_from_row(&row)
+        let export_ref = RecordId::new("atelier_export_request", SurrealUuid::from(export_id));
+        let row: Option<ExportRequestRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!("SELECT ", export_request_select!(), " FROM $export_ref;"),
+                        ExportIdBinding { export_ref },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.ok_or_else(|| AtelierError::NotFound(format!("export_id={export_id}")))?
+            .try_into()
     }
 
     /// Record the rendered artifact for a pending export and flip it to
@@ -1254,58 +1778,59 @@ impl AtelierStore {
         // Guard: the request must exist (also flips status below).
         let _ = self.get_export_request(export_id).await?;
 
-        let mut tx = self.pool().begin().await?;
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_export_result
-                 (export_id, artifact_ref, content_hash, byte_len)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (export_id, content_hash)
-                 DO UPDATE SET artifact_ref = EXCLUDED.artifact_ref
-               RETURNING result_id, export_id, artifact_ref, content_hash,
-                         byte_len, created_at_utc"#,
-        )
-        .bind(export_id)
-        .bind(artifact_ref)
-        .bind(content_hash)
-        .bind(byte_len)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        sqlx::query("UPDATE atelier_export_request SET status = 'rendered' WHERE export_id = $1")
-            .bind(export_id)
-            .execute(&mut *tx)
+        let result_id = Uuid::new_v4();
+        let row: Option<ExportResultRow> = self
+            .write_with_event(
+                RECORD_EXPORT_RESULT_STATEMENT,
+                RecordExportResultBindings {
+                    result_rid: RecordId::new(
+                        "atelier_export_result",
+                        SurrealUuid::from(result_id),
+                    ),
+                    result_id: result_id.into(),
+                    export_ref: RecordId::new(
+                        "atelier_export_request",
+                        SurrealUuid::from(export_id),
+                    ),
+                    artifact_ref: artifact_ref.to_owned(),
+                    content_hash: content_hash.to_owned(),
+                    byte_len,
+                },
+                EXPORT_RENDERED,
+                "atelier_export_request",
+                &export_id.to_string(),
+                serde_json::json!({
+                    "result_id": result_id,
+                    "content_hash": content_hash,
+                    "byte_len": byte_len,
+                }),
+            )
             .await?;
-
-        tx.commit().await?;
-
-        let result = result_from_row(&row);
-        self.record_event(
-            EXPORT_RENDERED,
-            "atelier_export_request",
-            &export_id.to_string(),
-            serde_json::json!({
-                "result_id": result.result_id,
-                "content_hash": result.content_hash,
-                "byte_len": result.byte_len,
-            }),
-        )
-        .await?;
-        Ok(result)
+        row.map(Into::into)
+            .ok_or_else(|| AtelierError::Internal("export result write returned no row".into()))
     }
 
     /// The rendered result for an export, if one has been recorded.
     pub async fn get_export_result(&self, export_id: Uuid) -> AtelierResult<Option<ExportResult>> {
-        let row = sqlx::query(
-            r#"SELECT result_id, export_id, artifact_ref, content_hash, byte_len,
-                      created_at_utc
-               FROM atelier_export_result WHERE export_id = $1
-               ORDER BY created_at_utc DESC LIMIT 1"#,
-        )
-        .bind(export_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(result_from_row))
+        let export_ref = RecordId::new("atelier_export_request", SurrealUuid::from(export_id));
+        let row: Option<ExportResultRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            export_result_select!(),
+                            " FROM atelier_export_result WHERE export_id = $export_ref \
+                             ORDER BY created_at_utc DESC LIMIT 1;"
+                        ),
+                        ExportIdBinding { export_ref },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(Into::into))
     }
 
     /// Attach an item to an export's share-pack manifest (MT-199).
@@ -1331,62 +1856,60 @@ impl AtelierStore {
         // Guard: the export must exist.
         let _ = self.get_export_request(export_id).await?;
 
-        let mut tx = self.pool().begin().await?;
-
-        let next_seq: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(seq), 0) + 1 FROM atelier_export_manifest_entry WHERE export_id = $1",
-        )
-        .bind(export_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_export_manifest_entry
-                 (export_id, seq, kind, artifact_ref, pack_path)
-               VALUES ($1, $2, $3, $4, $5)
-               RETURNING entry_id, export_id, seq, kind, artifact_ref, pack_path,
-                         created_at_utc"#,
-        )
-        .bind(export_id)
-        .bind(next_seq)
-        .bind(kind.as_token())
-        .bind(artifact_ref)
-        .bind(pack_path)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        let entry = entry_from_row(&row)?;
-        self.record_event(
-            EXPORT_MANIFEST_ITEM_ADDED,
-            "atelier_export_request",
-            &export_id.to_string(),
-            serde_json::json!({
-                "entry_id": entry.entry_id,
-                "seq": entry.seq,
-                "kind": entry.kind.as_token(),
-                "pack_path": entry.pack_path,
-            }),
-        )
-        .await?;
-        Ok(entry)
+        let entry_id = Uuid::new_v4();
+        let row: Option<ManifestEntryRow> = self
+            .write_with_event(
+                ADD_MANIFEST_ENTRY_STATEMENT,
+                AddManifestEntryBindings {
+                    entry_rid: RecordId::new(
+                        "atelier_export_manifest_entry",
+                        SurrealUuid::from(entry_id),
+                    ),
+                    entry_id: entry_id.into(),
+                    export_ref: RecordId::new(
+                        "atelier_export_request",
+                        SurrealUuid::from(export_id),
+                    ),
+                    kind: kind.as_token().to_owned(),
+                    artifact_ref: artifact_ref.to_owned(),
+                    pack_path: pack_path.to_owned(),
+                },
+                EXPORT_MANIFEST_ITEM_ADDED,
+                "atelier_export_request",
+                &export_id.to_string(),
+                serde_json::json!({
+                    "entry_id": entry_id,
+                    "kind": kind.as_token(),
+                    "pack_path": pack_path,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| AtelierError::Internal("manifest entry write returned no row".into()))?
+            .try_into()
     }
 
     /// The ordered share-pack manifest for an export (ascending sequence),
     /// mirroring legacy source `manifest.json` item ordering.
     pub async fn export_manifest(&self, export_id: Uuid) -> AtelierResult<Vec<ManifestEntry>> {
-        let rows = sqlx::query(
-            r#"SELECT entry_id, export_id, seq, kind, artifact_ref, pack_path,
-                      created_at_utc
-               FROM atelier_export_manifest_entry
-               WHERE export_id = $1
-               ORDER BY seq ASC"#,
-        )
-        .bind(export_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(entry_from_row).collect()
+        let export_ref = RecordId::new("atelier_export_request", SurrealUuid::from(export_id));
+        let rows: Vec<ManifestEntryRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        concat!(
+                            "SELECT ",
+                            manifest_entry_select!(),
+                            " FROM atelier_export_manifest_entry WHERE export_id = $export_ref \
+                             ORDER BY seq ASC;"
+                        ),
+                        ExportIdBinding { export_ref },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 
     pub async fn build_share_pack_manifest(
@@ -1433,21 +1956,24 @@ impl AtelierStore {
             if !seen_media.insert(*asset_id) {
                 continue;
             }
-            let row = sqlx::query(
-                r#"SELECT asset_id, artifact_ref, content_hash, byte_len, mime
-                   FROM atelier_media_asset
-                   WHERE asset_id = $1"#,
-            )
-            .bind(asset_id)
-            .fetch_optional(self.pool())
-            .await?
-            .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
-            let artifact_ref: String = row.get("artifact_ref");
-            let content_hash: String = row.get("content_hash");
-            let byte_len: i64 = row.get("byte_len");
-            validate_artifact_store_ref("media.artifact_ref", &artifact_ref)?;
-            validate_content_hash("media.content_hash", &content_hash)?;
-            validate_positive_byte_len("media.byte_len", byte_len)?;
+            let asset_ref = RecordId::new("atelier_media_asset", SurrealUuid::from(*asset_id));
+            let row: SharePackMediaRow = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT asset_id, artifact_ref, content_hash, byte_len, mime \
+                             FROM $asset_ref;",
+                            AssetIdBinding { asset_ref },
+                        )
+                        .await
+                    })
+                })
+                .await?
+                .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
+            validate_artifact_store_ref("media.artifact_ref", &row.artifact_ref)?;
+            validate_content_hash("media.content_hash", &row.content_hash)?;
+            validate_positive_byte_len("media.byte_len", row.byte_len)?;
             media_rows.push(row);
         }
 
@@ -1464,15 +1990,13 @@ impl AtelierStore {
             );
         }
         for row in &media_rows {
-            let asset_id: Uuid = row.get("asset_id");
-            let artifact_ref: String = row.get("artifact_ref");
-            let mime: String = row.get("mime");
+            let asset_id = Uuid::from(row.asset_id);
             entries.push(
                 self.add_manifest_entry(
                     request.export_id,
                     ManifestItemKind::Media,
-                    &artifact_ref,
-                    &media_pack_path(asset_id, &mime),
+                    &row.artifact_ref,
+                    &media_pack_path(asset_id, &row.mime),
                 )
                 .await?,
             );
@@ -1508,33 +2032,38 @@ impl AtelierStore {
         let requested_by = trimmed_nonempty("requested_by", &new.requested_by)?;
         let _ = self.get_collection(new.source_collection_id).await?;
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_web_portfolio_export_request
-                 (source_collection_id, slug, title, status, requested_by)
-               VALUES ($1, $2, $3, 'pending', $4)
-               RETURNING portfolio_export_id, source_collection_id, slug, title,
-                         status, requested_by, created_at_utc, updated_at_utc"#,
-        )
-        .bind(new.source_collection_id)
-        .bind(&slug)
-        .bind(&title)
-        .bind(&requested_by)
-        .fetch_one(self.pool())
-        .await?;
-        let request = web_portfolio_request_from_row(&row)?;
-
-        self.record_event(
-            WEB_PORTFOLIO_EXPORT_REQUESTED,
-            "atelier_web_portfolio_export_request",
-            &request.portfolio_export_id.to_string(),
-            serde_json::json!({
-                "source_collection_id": request.source_collection_id,
-                "slug": request.slug,
-                "requested_by": request.requested_by,
-            }),
-        )
-        .await?;
-        Ok(request)
+        let portfolio_export_id = Uuid::new_v4();
+        let row: Option<WebPortfolioRequestRow> = self
+            .write_with_event(
+                REQUEST_PORTFOLIO_STATEMENT,
+                RequestPortfolioBindings {
+                    request_rid: RecordId::new(
+                        "atelier_web_portfolio_export_request",
+                        SurrealUuid::from(portfolio_export_id),
+                    ),
+                    portfolio_export_id: portfolio_export_id.into(),
+                    collection_ref: RecordId::new(
+                        "atelier_collection",
+                        SurrealUuid::from(new.source_collection_id),
+                    ),
+                    slug: slug.clone(),
+                    title,
+                    requested_by: requested_by.clone(),
+                },
+                WEB_PORTFOLIO_EXPORT_REQUESTED,
+                "atelier_web_portfolio_export_request",
+                &portfolio_export_id.to_string(),
+                serde_json::json!({
+                    "source_collection_id": new.source_collection_id,
+                    "slug": slug,
+                    "requested_by": requested_by,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("web portfolio request write returned no row".into())
+        })?
+        .try_into()
     }
 
     /// Fetch a web portfolio export request by id.
@@ -1542,19 +2071,32 @@ impl AtelierStore {
         &self,
         portfolio_export_id: Uuid,
     ) -> AtelierResult<WebPortfolioExportRequest> {
-        let row = sqlx::query(
-            r#"SELECT portfolio_export_id, source_collection_id, slug, title,
-                      status, requested_by, created_at_utc, updated_at_utc
-               FROM atelier_web_portfolio_export_request
-               WHERE portfolio_export_id = $1"#,
-        )
-        .bind(portfolio_export_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| {
+        let portfolio_export_ref = RecordId::new(
+            "atelier_web_portfolio_export_request",
+            SurrealUuid::from(portfolio_export_id),
+        );
+        let row: Option<WebPortfolioRequestRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            web_portfolio_request_select!(),
+                            " FROM $portfolio_export_ref;"
+                        ),
+                        PortfolioExportIdBinding {
+                            portfolio_export_ref,
+                        },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.ok_or_else(|| {
             AtelierError::NotFound(format!("portfolio_export_id={portfolio_export_id}"))
-        })?;
-        web_portfolio_request_from_row(&row)
+        })?
+        .try_into()
     }
 
     /// Record a rendered web portfolio manifest artifact and its manifest item
@@ -1576,40 +2118,50 @@ impl AtelierStore {
             .get_web_portfolio_export_request(portfolio_export_id)
             .await?;
         for item in items {
-            let row = sqlx::query(
-                r#"SELECT ma.artifact_ref, ma.content_hash, ma.byte_len
-                   FROM atelier_collection_item ci
-                   JOIN atelier_media_asset ma
-                     ON ma.asset_id = ci.asset_id
-                   WHERE ci.collection_id = $1
-                     AND ci.asset_id = $2"#,
-            )
-            .bind(request.source_collection_id)
-            .bind(item.asset_id)
-            .fetch_optional(self.pool())
-            .await?
-            .ok_or_else(|| {
-                AtelierError::Validation(format!(
-                    "asset_id {} is not in web portfolio source collection {}",
-                    item.asset_id, request.source_collection_id
-                ))
-            })?;
-            let stored_artifact_ref: String = row.get("artifact_ref");
-            let stored_content_hash: String = row.get("content_hash");
-            let stored_byte_len: i64 = row.get("byte_len");
-            if stored_artifact_ref != item.artifact_ref {
+            let collection_ref = RecordId::new(
+                "atelier_collection",
+                SurrealUuid::from(request.source_collection_id),
+            );
+            let asset_ref = RecordId::new("atelier_media_asset", SurrealUuid::from(item.asset_id));
+            let row: SharePackMediaRow = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT record::id(asset_id) AS asset_id, \
+                             asset_id.artifact_ref AS artifact_ref, \
+                             asset_id.content_hash AS content_hash, \
+                             asset_id.byte_len AS byte_len, asset_id.mime AS mime \
+                             FROM atelier_collection_item WHERE collection_id = $collection_ref \
+                               AND asset_id = $asset_ref LIMIT 1;",
+                            PortfolioAssetBinding {
+                                collection_ref,
+                                asset_ref,
+                            },
+                        )
+                        .await
+                    })
+                })
+                .await?
+                .ok_or_else(|| {
+                    AtelierError::Validation(format!(
+                        "asset_id {} is not in web portfolio source collection {}",
+                        item.asset_id, request.source_collection_id
+                    ))
+                })?;
+            if row.artifact_ref != item.artifact_ref {
                 return Err(AtelierError::Validation(format!(
                     "artifact_ref for asset_id {} does not match stored media asset",
                     item.asset_id
                 )));
             }
-            if stored_content_hash != item.content_hash {
+            if row.content_hash != item.content_hash {
                 return Err(AtelierError::Validation(format!(
                     "content_hash for asset_id {} does not match stored media asset",
                     item.asset_id
                 )));
             }
-            if stored_byte_len != item.byte_len {
+            if row.byte_len != item.byte_len {
                 return Err(AtelierError::Validation(format!(
                     "byte_len for asset_id {} does not match stored media asset",
                     item.asset_id
@@ -1619,51 +2171,39 @@ impl AtelierStore {
 
         let manifest_json =
             web_portfolio_manifest_json(&request, artifact_ref, content_hash, byte_len, items);
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_web_portfolio_export_result
-                 (portfolio_export_id, artifact_ref, content_hash, byte_len, manifest_json)
-               VALUES ($1, $2, $3, $4, $5)
-               ON CONFLICT (portfolio_export_id, content_hash)
-                 DO UPDATE SET artifact_ref = EXCLUDED.artifact_ref,
-                               byte_len = EXCLUDED.byte_len,
-                               manifest_json = EXCLUDED.manifest_json
-               RETURNING result_id, portfolio_export_id, artifact_ref, content_hash,
-                         byte_len, manifest_json, created_at_utc"#,
-        )
-        .bind(portfolio_export_id)
-        .bind(artifact_ref)
-        .bind(content_hash)
-        .bind(byte_len)
-        .bind(&manifest_json)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        sqlx::query(
-            r#"UPDATE atelier_web_portfolio_export_request
-               SET status = 'rendered', updated_at_utc = NOW()
-               WHERE portfolio_export_id = $1"#,
-        )
-        .bind(portfolio_export_id)
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        let result = web_portfolio_result_from_row(&row);
-        self.record_event(
-            WEB_PORTFOLIO_EXPORT_RENDERED,
-            "atelier_web_portfolio_export_request",
-            &portfolio_export_id.to_string(),
-            serde_json::json!({
-                "result_id": result.result_id,
-                "content_hash": result.content_hash,
-                "byte_len": result.byte_len,
-                "item_count": items.len(),
-            }),
-        )
-        .await?;
-        Ok(result)
+        let result_id = Uuid::new_v4();
+        let row: Option<WebPortfolioResultRow> = self
+            .write_with_event(
+                RECORD_PORTFOLIO_RESULT_STATEMENT,
+                RecordPortfolioResultBindings {
+                    result_rid: RecordId::new(
+                        "atelier_web_portfolio_export_result",
+                        SurrealUuid::from(result_id),
+                    ),
+                    result_id: result_id.into(),
+                    request_ref: RecordId::new(
+                        "atelier_web_portfolio_export_request",
+                        SurrealUuid::from(portfolio_export_id),
+                    ),
+                    artifact_ref: artifact_ref.to_owned(),
+                    content_hash: content_hash.to_owned(),
+                    byte_len,
+                    manifest_json,
+                },
+                WEB_PORTFOLIO_EXPORT_RENDERED,
+                "atelier_web_portfolio_export_request",
+                &portfolio_export_id.to_string(),
+                serde_json::json!({
+                    "result_id": result_id,
+                    "content_hash": content_hash,
+                    "byte_len": byte_len,
+                    "item_count": items.len(),
+                }),
+            )
+            .await?;
+        row.map(Into::into).ok_or_else(|| {
+            AtelierError::Internal("web portfolio result write returned no row".into())
+        })
     }
 
     /// The most recent web portfolio result for a request, if one exists.
@@ -1671,18 +2211,31 @@ impl AtelierStore {
         &self,
         portfolio_export_id: Uuid,
     ) -> AtelierResult<Option<WebPortfolioExportResult>> {
-        let row = sqlx::query(
-            r#"SELECT result_id, portfolio_export_id, artifact_ref, content_hash,
-                      byte_len, manifest_json, created_at_utc
-               FROM atelier_web_portfolio_export_result
-               WHERE portfolio_export_id = $1
-               ORDER BY created_at_utc DESC, result_id DESC
-               LIMIT 1"#,
-        )
-        .bind(portfolio_export_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(web_portfolio_result_from_row))
+        let portfolio_export_ref = RecordId::new(
+            "atelier_web_portfolio_export_request",
+            SurrealUuid::from(portfolio_export_id),
+        );
+        let row: Option<WebPortfolioResultRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            web_portfolio_result_select!(),
+                            " FROM atelier_web_portfolio_export_result \
+                             WHERE portfolio_export_id = $portfolio_export_ref \
+                             ORDER BY created_at_utc DESC, result_id DESC LIMIT 1;"
+                        ),
+                        PortfolioExportIdBinding {
+                            portfolio_export_ref,
+                        },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(Into::into))
     }
 
     /// Record a backup manifest with app/spec/schema version traceability and
@@ -1717,44 +2270,39 @@ impl AtelierStore {
         })?;
         let manifest_hash = sha256_hex(&manifest_bytes);
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_backup_manifest
-                 (backup_id, app_version, spec_version, schema_version,
-                  artifact_ref, content_hash, byte_len, manifest_hash,
-                  manifest_json, created_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-               RETURNING backup_id, app_version, spec_version, schema_version,
-                         artifact_ref, content_hash, byte_len, manifest_hash,
-                         manifest_json, created_by, created_at_utc"#,
-        )
-        .bind(backup_id)
-        .bind(&app_version)
-        .bind(&spec_version)
-        .bind(new.schema_version)
-        .bind(&new.artifact_ref)
-        .bind(&new.content_hash)
-        .bind(new.byte_len)
-        .bind(&manifest_hash)
-        .bind(&manifest_json)
-        .bind(&created_by)
-        .fetch_one(self.pool())
-        .await?;
-        let backup = backup_manifest_from_row(&row);
-
-        self.record_event(
-            BACKUP_MANIFEST_RECORDED,
-            "atelier_backup_manifest",
-            &backup.backup_id.to_string(),
-            serde_json::json!({
-                "app_version": backup.app_version,
-                "spec_version": backup.spec_version,
-                "schema_version": backup.schema_version,
-                "manifest_hash": backup.manifest_hash,
-                "file_count": new.files.len(),
-            }),
-        )
-        .await?;
-        Ok(backup)
+        let row: Option<BackupManifestRow> = self
+            .write_with_event(
+                RECORD_BACKUP_STATEMENT,
+                RecordBackupBindings {
+                    backup_rid: RecordId::new(
+                        "atelier_backup_manifest",
+                        SurrealUuid::from(backup_id),
+                    ),
+                    backup_id: backup_id.into(),
+                    app_version: app_version.clone(),
+                    spec_version: spec_version.clone(),
+                    schema_version: i64::from(new.schema_version),
+                    artifact_ref: new.artifact_ref.clone(),
+                    content_hash: new.content_hash.clone(),
+                    byte_len: new.byte_len,
+                    manifest_hash: manifest_hash.clone(),
+                    manifest_json,
+                    created_by,
+                },
+                BACKUP_MANIFEST_RECORDED,
+                "atelier_backup_manifest",
+                &backup_id.to_string(),
+                serde_json::json!({
+                    "app_version": app_version,
+                    "spec_version": spec_version,
+                    "schema_version": new.schema_version,
+                    "manifest_hash": manifest_hash,
+                    "file_count": new.files.len(),
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| AtelierError::Internal("backup manifest write returned no row".into()))?
+            .try_into()
     }
 
     /// Fetch a recorded backup manifest.
@@ -1762,18 +2310,21 @@ impl AtelierStore {
         &self,
         backup_id: Uuid,
     ) -> AtelierResult<BackupManifestRecord> {
-        let row = sqlx::query(
-            r#"SELECT backup_id, app_version, spec_version, schema_version,
-                      artifact_ref, content_hash, byte_len, manifest_hash,
-                      manifest_json, created_by, created_at_utc
-               FROM atelier_backup_manifest
-               WHERE backup_id = $1"#,
-        )
-        .bind(backup_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("backup_id={backup_id}")))?;
-        Ok(backup_manifest_from_row(&row))
+        let backup_ref = RecordId::new("atelier_backup_manifest", SurrealUuid::from(backup_id));
+        let row: Option<BackupManifestRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!("SELECT ", backup_manifest_select!(), " FROM $backup_ref;"),
+                        BackupIdBinding { backup_ref },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.ok_or_else(|| AtelierError::NotFound(format!("backup_id={backup_id}")))?
+            .try_into()
     }
 
     /// Record restore compatibility preflight for a backup. A manifest created
@@ -1802,41 +2353,42 @@ impl AtelierStore {
             BackupRestorePreflightStatus::Accepted
         };
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_backup_restore_preflight
-                 (backup_id, current_app_version, current_spec_version,
-                  current_schema_version, status, refusal_reason, requested_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING preflight_id, backup_id, current_app_version,
-                         current_spec_version, current_schema_version, status,
-                         refusal_reason, requested_by, created_at_utc"#,
-        )
-        .bind(request.backup_id)
-        .bind(&current_app_version)
-        .bind(&current_spec_version)
-        .bind(request.current_schema_version)
-        .bind(status.as_token())
-        .bind(&refusal_reason)
-        .bind(&requested_by)
-        .fetch_one(self.pool())
-        .await?;
-        let preflight = backup_preflight_from_row(&row)?;
-
-        self.record_event(
-            BACKUP_RESTORE_PREFLIGHT_RECORDED,
-            "atelier_backup_manifest",
-            &backup.backup_id.to_string(),
-            serde_json::json!({
-                "preflight_id": preflight.preflight_id,
-                "status": preflight.status.as_token(),
-                "refusal_reason": preflight.refusal_reason,
-                "current_app_version": preflight.current_app_version,
-                "current_spec_version": preflight.current_spec_version,
-                "current_schema_version": preflight.current_schema_version,
-            }),
-        )
-        .await?;
-        Ok(preflight)
+        let preflight_id = Uuid::new_v4();
+        let row: Option<BackupPreflightRow> = self
+            .write_with_event(
+                RECORD_PREFLIGHT_STATEMENT,
+                RecordPreflightBindings {
+                    preflight_rid: RecordId::new(
+                        "atelier_backup_restore_preflight",
+                        SurrealUuid::from(preflight_id),
+                    ),
+                    preflight_id: preflight_id.into(),
+                    backup_ref: RecordId::new(
+                        "atelier_backup_manifest",
+                        SurrealUuid::from(request.backup_id),
+                    ),
+                    current_app_version: current_app_version.clone(),
+                    current_spec_version: current_spec_version.clone(),
+                    current_schema_version: i64::from(request.current_schema_version),
+                    status: status.as_token().to_owned(),
+                    refusal_reason: refusal_reason.clone(),
+                    requested_by,
+                },
+                BACKUP_RESTORE_PREFLIGHT_RECORDED,
+                "atelier_backup_manifest",
+                &backup.backup_id.to_string(),
+                serde_json::json!({
+                    "preflight_id": preflight_id,
+                    "status": status.as_token(),
+                    "refusal_reason": refusal_reason,
+                    "current_app_version": current_app_version,
+                    "current_spec_version": current_spec_version,
+                    "current_schema_version": request.current_schema_version,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| AtelierError::Internal("backup preflight write returned no row".into()))?
+            .try_into()
     }
 
     /// Attach the target refs from an intake item/batch to an export (MT-032).
@@ -1852,20 +2404,32 @@ impl AtelierStore {
         item_id: Uuid,
     ) -> AtelierResult<ExportIntakeLink> {
         let export = self.get_export_request(export_id).await?;
-        let batch_row = sqlx::query(
-            r#"SELECT character_internal_id, target_character_id,
-                      target_sheet_version_id, target_collection_id
-               FROM atelier_intake_batch
-               WHERE batch_id = $1"#,
-        )
-        .bind(batch_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("intake batch {batch_id}")))?;
-        let batch_character_id: Option<Uuid> = batch_row.get("character_internal_id");
-        let target_character_id: Option<Uuid> = batch_row.get("target_character_id");
-        let target_sheet_version_id: Option<Uuid> = batch_row.get("target_sheet_version_id");
-        let target_collection_id: Option<Uuid> = batch_row.get("target_collection_id");
+        let batch_ref = RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id));
+        let batch_row: IntakeBatchTargetRow = self
+            .store()
+            .with_data_operation({
+                let record_ref = batch_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT record::id(character_internal_id) AS character_internal_id, \
+                             record::id(target_character_id) AS target_character_id, \
+                             record::id(target_sheet_version_id) AS target_sheet_version_id, \
+                             record::id(target_collection_id) AS target_collection_id \
+                             FROM $record_ref;",
+                            RecordBinding { record_ref },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake batch {batch_id}")))?;
+        let batch_character_id: Option<Uuid> = batch_row.character_internal_id.map(Uuid::from);
+        let target_character_id: Option<Uuid> = batch_row.target_character_id.map(Uuid::from);
+        let target_sheet_version_id: Option<Uuid> =
+            batch_row.target_sheet_version_id.map(Uuid::from);
+        let target_collection_id: Option<Uuid> = batch_row.target_collection_id.map(Uuid::from);
         let effective_target_character_id = target_character_id.or(batch_character_id);
 
         if let Some(target_character_id) = effective_target_character_id {
@@ -1885,12 +2449,23 @@ impl AtelierStore {
             }
         }
 
-        let item_batch_id: Option<Uuid> =
-            sqlx::query_scalar("SELECT batch_id FROM atelier_intake_item WHERE item_id = $1")
-                .bind(item_id)
-                .fetch_optional(self.pool())
-                .await?;
-        match item_batch_id {
+        let item_ref = RecordId::new("atelier_intake_item", SurrealUuid::from(item_id));
+        let item_owner: Option<IntakeItemOwnerRow> = self
+            .store()
+            .with_data_operation({
+                let item_ref = item_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT record::id(batch_id) AS batch_id FROM $item_ref;",
+                            IntakeItemBinding { item_ref },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        match item_owner.map(|row| Uuid::from(row.batch_id)) {
             None => {
                 return Err(AtelierError::NotFound(format!("intake item {item_id}")));
             }
@@ -1903,19 +2478,33 @@ impl AtelierStore {
         }
 
         if let Some(target_collection_id) = target_collection_id {
-            let collection_row = sqlx::query(
-                r#"SELECT character_internal_id, sheet_version_id
-                   FROM atelier_collection
-                   WHERE collection_id = $1"#,
-            )
-            .bind(target_collection_id)
-            .fetch_optional(self.pool())
-            .await?
-            .ok_or_else(|| {
-                AtelierError::NotFound(format!("target collection {target_collection_id}"))
-            })?;
-            let collection_character_id: Option<Uuid> = collection_row.get("character_internal_id");
-            let collection_sheet_version_id: Option<Uuid> = collection_row.get("sheet_version_id");
+            let collection_ref = RecordId::new(
+                "atelier_collection",
+                SurrealUuid::from(target_collection_id),
+            );
+            let collection_row: CollectionTargetRow = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT record::id(character_internal_id) AS character_internal_id, \
+                             record::id(sheet_version_id) AS sheet_version_id \
+                             FROM $record_ref;",
+                            RecordBinding {
+                                record_ref: collection_ref,
+                            },
+                        )
+                        .await
+                    })
+                })
+                .await?
+                .ok_or_else(|| {
+                    AtelierError::NotFound(format!("target collection {target_collection_id}"))
+                })?;
+            let collection_character_id: Option<Uuid> =
+                collection_row.character_internal_id.map(Uuid::from);
+            let collection_sheet_version_id: Option<Uuid> =
+                collection_row.sheet_version_id.map(Uuid::from);
             if let Some(collection_character_id) = collection_character_id {
                 if collection_character_id != export.character_internal_id {
                     return Err(AtelierError::Validation(format!(
@@ -1935,69 +2524,78 @@ impl AtelierStore {
             }
         }
 
-        let version_agnostic = target_sheet_version_id.is_none();
-        let row = sqlx::query(
-            r#"WITH inserted AS (
-                 INSERT INTO atelier_export_intake_link
-                   (export_id, batch_id, item_id, target_character_id,
-                    target_sheet_version_id, target_collection_id,
-                    version_agnostic)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)
-                 ON CONFLICT (export_id, batch_id, item_id) DO NOTHING
-                 RETURNING link_id, export_id, batch_id, item_id,
-                           target_character_id, target_sheet_version_id,
-                           target_collection_id, version_agnostic,
-                           created_at_utc
-               )
-               SELECT TRUE AS inserted, link_id, export_id, batch_id, item_id,
-                      target_character_id, target_sheet_version_id,
-                      target_collection_id, version_agnostic, created_at_utc
-               FROM inserted
-               UNION ALL
-               SELECT FALSE AS inserted, link_id, export_id, batch_id, item_id,
-                      target_character_id, target_sheet_version_id,
-                      target_collection_id, version_agnostic, created_at_utc
-               FROM atelier_export_intake_link
-               WHERE export_id = $1 AND batch_id = $2 AND item_id = $3
-               LIMIT 1"#,
-        )
-        .bind(export_id)
-        .bind(batch_id)
-        .bind(item_id)
-        .bind(effective_target_character_id)
-        .bind(target_sheet_version_id)
-        .bind(target_collection_id)
-        .bind(version_agnostic)
-        .fetch_one(self.pool())
-        .await?;
-        let inserted: bool = row.get("inserted");
-        let link = intake_link_from_row(&row);
+        let export_ref = RecordId::new("atelier_export_request", SurrealUuid::from(export_id));
+        let existing: Option<ExportIntakeLinkRow> = self
+            .store()
+            .with_data_operation({
+                let export_ref = export_ref.clone();
+                let batch_ref = batch_ref.clone();
+                let item_ref = item_ref.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            concat!(
+                                "SELECT ",
+                                intake_link_select!(),
+                                " FROM atelier_export_intake_link WHERE export_id = $export_ref \
+                                 AND batch_id = $batch_ref AND item_id = $item_ref LIMIT 1;"
+                            ),
+                            IntakeLinkKeyBinding {
+                                export_ref,
+                                batch_ref,
+                                item_ref,
+                            },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        if let Some(existing) = existing {
+            return Ok(existing.into());
+        }
 
-        if inserted {
-            self.record_event(
+        let version_agnostic = target_sheet_version_id.is_none();
+        let link_id = Uuid::new_v4();
+        let row: Option<ExportIntakeLinkRow> = self
+            .write_with_event(
+                ATTACH_INTAKE_LINK_STATEMENT,
+                AttachIntakeLinkBindings {
+                    link_rid: RecordId::new(
+                        "atelier_export_intake_link",
+                        SurrealUuid::from(link_id),
+                    ),
+                    link_id: link_id.into(),
+                    export_ref,
+                    batch_ref,
+                    item_ref,
+                    target_character_ref: effective_target_character_id
+                        .map(|id| RecordId::new("atelier_character", SurrealUuid::from(id))),
+                    target_sheet_version_ref: target_sheet_version_id
+                        .map(|id| RecordId::new("atelier_sheet_version", SurrealUuid::from(id))),
+                    target_collection_ref: target_collection_id
+                        .map(|id| RecordId::new("atelier_collection", SurrealUuid::from(id))),
+                    version_agnostic,
+                },
                 EXPORT_INTAKE_LINK_ATTACHED,
                 "atelier_export_request",
                 &export_id.to_string(),
                 serde_json::json!({
-                    "link_id": link.link_id,
-                    "batch_id": link.batch_id,
-                    "item_id": link.item_id,
-                    "version_agnostic": link.version_agnostic,
-                    "target_character_ref": link
-                        .target_character_id
+                    "link_id": link_id,
+                    "batch_id": batch_id,
+                    "item_id": item_id,
+                    "version_agnostic": version_agnostic,
+                    "target_character_ref": effective_target_character_id
                         .map(|id| event_ref_for_text(&id.to_string())),
-                    "target_sheet_version_ref": link
-                        .target_sheet_version_id
+                    "target_sheet_version_ref": target_sheet_version_id
                         .map(|id| event_ref_for_text(&id.to_string())),
-                    "target_collection_ref": link
-                        .target_collection_id
+                    "target_collection_ref": target_collection_id
                         .map(|id| event_ref_for_text(&id.to_string())),
                 }),
             )
             .await?;
-        }
-
-        Ok(link)
+        row.map(Into::into)
+            .ok_or_else(|| AtelierError::Internal("intake link write returned no row".into()))
     }
 
     /// Export-linked intake target refs, ordered by durable attach time.
@@ -2006,18 +2604,25 @@ impl AtelierStore {
         export_id: Uuid,
     ) -> AtelierResult<Vec<ExportIntakeLink>> {
         let _ = self.get_export_request(export_id).await?;
-        let rows = sqlx::query(
-            r#"SELECT link_id, export_id, batch_id, item_id,
-                      target_character_id, target_sheet_version_id,
-                      target_collection_id, version_agnostic, created_at_utc
-               FROM atelier_export_intake_link
-               WHERE export_id = $1
-               ORDER BY created_at_utc ASC, link_id ASC"#,
-        )
-        .bind(export_id)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(intake_link_from_row).collect())
+        let export_ref = RecordId::new("atelier_export_request", SurrealUuid::from(export_id));
+        let rows: Vec<ExportIntakeLinkRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        concat!(
+                            "SELECT ",
+                            intake_link_select!(),
+                            " FROM atelier_export_intake_link WHERE export_id = $export_ref \
+                             ORDER BY created_at_utc ASC, link_id ASC;"
+                        ),
+                        ExportIdBinding { export_ref },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 
     /// Preserve PNG/JPG contact-sheet export as an explicit planned capability
@@ -2035,55 +2640,66 @@ impl AtelierStore {
             ));
         }
         let _ = self.get_contact_sheet(sheet_id).await?;
-        let status = ContactSheetRasterExportStatus::Planned;
-        let row = sqlx::query(
-            r#"WITH inserted AS (
-                 INSERT INTO atelier_contact_sheet_raster_export_plan
-                   (sheet_id, format, status, reason, requested_by)
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (sheet_id, format) DO NOTHING
-                 RETURNING plan_id, sheet_id, format, status, reason,
-                           requested_by, created_at_utc
-               )
-               SELECT TRUE AS inserted, plan_id, sheet_id, format, status, reason,
-                      requested_by, created_at_utc
-               FROM inserted
-               UNION ALL
-               SELECT FALSE AS inserted, plan_id, sheet_id, format, status, reason,
-                      requested_by, created_at_utc
-               FROM atelier_contact_sheet_raster_export_plan
-               WHERE sheet_id = $1 AND format = $2
-               LIMIT 1"#,
-        )
-        .bind(sheet_id)
-        .bind(format.as_token())
-        .bind(status.as_token())
-        .bind(CONTACT_SHEET_RASTER_EXPORT_DEFERRED_REASON)
-        .bind(requested_by)
-        .fetch_one(self.pool())
-        .await?;
-        let inserted: bool = row.get("inserted");
-        let plan = raster_export_plan_from_row(&row)?;
+        let sheet_ref = RecordId::new("atelier_contact_sheet", SurrealUuid::from(sheet_id));
+        let existing: Option<RasterExportPlanRow> = self
+            .store()
+            .with_data_operation({
+                let sheet_ref = sheet_ref.clone();
+                let format = format.as_token().to_owned();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            concat!(
+                                "SELECT ",
+                                raster_export_plan_select!(),
+                                " FROM atelier_contact_sheet_raster_export_plan \
+                                 WHERE sheet_id = $sheet_ref AND format = $format LIMIT 1;"
+                            ),
+                            RasterPlanKeyBinding { sheet_ref, format },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        if let Some(existing) = existing {
+            return existing.try_into();
+        }
 
-        if inserted {
-            self.record_event(
+        let status = ContactSheetRasterExportStatus::Planned;
+        let plan_id = Uuid::new_v4();
+        let row: Option<RasterExportPlanRow> = self
+            .write_with_event(
+                PLAN_RASTER_EXPORT_STATEMENT,
+                PlanRasterExportBindings {
+                    plan_rid: RecordId::new(
+                        "atelier_contact_sheet_raster_export_plan",
+                        SurrealUuid::from(plan_id),
+                    ),
+                    plan_id: plan_id.into(),
+                    sheet_ref,
+                    format: format.as_token().to_owned(),
+                    reason: CONTACT_SHEET_RASTER_EXPORT_DEFERRED_REASON.to_owned(),
+                    requested_by: requested_by.to_owned(),
+                },
                 CONTACT_SHEET_RASTER_EXPORT_PLANNED,
                 "atelier_contact_sheet",
                 &sheet_id.to_string(),
                 serde_json::json!({
-                    "plan_id": plan.plan_id,
-                    "sheet_id": plan.sheet_id,
-                    "format": plan.format.as_token(),
-                    "status": plan.status.as_token(),
-                    "reason": plan.reason,
-                    "requested_by": plan.requested_by,
+                    "plan_id": plan_id,
+                    "sheet_id": sheet_id,
+                    "format": format.as_token(),
+                    "status": status.as_token(),
+                    "reason": CONTACT_SHEET_RASTER_EXPORT_DEFERRED_REASON,
+                    "requested_by": requested_by,
                     "output_artifact": "not_produced",
                 }),
             )
             .await?;
-        }
-
-        Ok(plan)
+        row.ok_or_else(|| {
+            AtelierError::Internal("raster export plan write returned no row".into())
+        })?
+        .try_into()
     }
 
     /// List planned PNG/JPG raster export markers for a contact sheet.
@@ -2092,16 +2708,24 @@ impl AtelierStore {
         sheet_id: Uuid,
     ) -> AtelierResult<Vec<ContactSheetRasterExportPlan>> {
         let _ = self.get_contact_sheet(sheet_id).await?;
-        let rows = sqlx::query(
-            r#"SELECT plan_id, sheet_id, format, status, reason,
-                      requested_by, created_at_utc
-               FROM atelier_contact_sheet_raster_export_plan
-               WHERE sheet_id = $1
-               ORDER BY created_at_utc ASC, format ASC"#,
-        )
-        .bind(sheet_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(raster_export_plan_from_row).collect()
+        let sheet_ref = RecordId::new("atelier_contact_sheet", SurrealUuid::from(sheet_id));
+        let rows: Vec<RasterExportPlanRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        concat!(
+                            "SELECT ",
+                            raster_export_plan_select!(),
+                            " FROM atelier_contact_sheet_raster_export_plan \
+                             WHERE sheet_id = $sheet_ref ORDER BY created_at_utc ASC, format ASC;"
+                        ),
+                        SheetIdBinding { sheet_ref },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 }

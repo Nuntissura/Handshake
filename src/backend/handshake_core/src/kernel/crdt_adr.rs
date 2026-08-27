@@ -18,7 +18,7 @@ pub enum CrdtSelection {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KernelCrdtStorageModel {
-    PostgresEventLedgerUpdateLog,
+    SurrealEventLedgerUpdateLog,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,8 +72,8 @@ pub fn kernel002_crdt_adr() -> KernelCrdtAdr {
         decision: CrdtSelection::YjsCompatibleUpdateLog,
         selected_approach: "Use the existing frontend Yjs/Tiptap dependency path as the editor CRDT format, persist Yjs-compatible binary updates and snapshots as kernel write-box evidence, and validate/promotion-gate materialized state before EventLedger authority writes.",
         option_assessments: KERNEL002_CRDT_OPTIONS,
-        storage_model: KernelCrdtStorageModel::PostgresEventLedgerUpdateLog,
-        storage_contract: "Persist document_id, workspace_id, actor_id, actor_kind, crdt_site_id, schema_id, update_seq, update_bytes_ref, update_sha256, state_vector, base_snapshot_ref, materialized_projection_hash, EventLedger correlation id, promotion_box_id, validation_state, and replay metadata in Postgres. CRDT updates are evidence until a promotion action appends authority events.",
+        storage_model: KernelCrdtStorageModel::SurrealEventLedgerUpdateLog,
+        storage_contract: "Persist document_id, workspace_id, actor_id, actor_kind, crdt_site_id, schema_id, update_seq, update_bytes_ref, update_sha256, state_vector, base_snapshot_ref, materialized_projection_hash, EventLedger correlation id, promotion_box_id, validation_state, and replay metadata in embedded SurrealDB. CRDT updates are evidence until a promotion action appends authority events.",
         runtime_boundary: RuntimeIntegrationBoundary::TypeScriptYjsRustValidatedBytes,
         rust_typescript_boundary: "TypeScript owns Y.Doc/Tiptap collaboration editing and emits binary update/state-vector payloads. Rust receives opaque Yjs-compatible bytes, stores hashes and replay metadata, validates schema/materialized projections through kernel guards, and may later use yrs for server-side replay without changing the wire format.",
         authority_boundary: KernelCrdtAuthorityBoundary::CrdtIsPrePromotionEvidence,
@@ -91,7 +91,7 @@ const KERNEL002_CRDT_OPTIONS: &[CrdtOptionAssessment] = &[
         fit_notes: "Best fit for Kernel002 because the app already depends on yjs and Tiptap collaboration packages, Yjs has editor bindings for Tiptap/ProseMirror, update/state-vector APIs, persistence providers, and network-agnostic sync semantics.",
         rejected_or_deferred_because: "",
         risks: "Browser CRDT state can be mistaken for authority; schema drift can silently drop unsupported Tiptap nodes; server-side validation needs byte/hash discipline until Rust replay is wired.",
-        reuse_opportunities: "Reuse app/package.json yjs dependency, Tiptap collaboration dependency, current REST boundary, and future Postgres/EventLedger write-box storage.",
+        reuse_opportunities: "Reuse app/package.json yjs dependency, Tiptap collaboration dependency, current REST boundary, and embedded SurrealDB/EventLedger write-box storage.",
     },
     CrdtOptionAssessment {
         library: CrdtLibrary::Yrs,
@@ -123,12 +123,12 @@ const KERNEL002_CRDT_OPTIONS: &[CrdtOptionAssessment] = &[
         fit_notes: "Local product already ships yjs and @tiptap/extension-collaboration dependencies; current editor persists full JSON blocks over REST and can be migrated toward Yjs updates without replacing the whole document surface.",
         rejected_or_deferred_because: "",
         risks: "Dependencies are present but not wired into TiptapEditor, so Kernel002 must explicitly prevent full-block REST replacement from becoming the hidden authority path.",
-        reuse_opportunities: "Reuse existing Tiptap editor, document API, Postgres storage abstraction, DCC projection patterns, and write-box/promotion work in later MTs.",
+        reuse_opportunities: "Reuse existing Tiptap editor, document API, embedded SurrealDB storage abstraction, DCC projection patterns, and write-box/promotion work in later MTs.",
     },
 ];
 
 const KERNEL002_CRDT_VALIDATION_PLAN: &[&str] = &[
-    "replay updates from Postgres by document_id/workspace_id to rebuild materialized state and verify stored update_sha256/state_vector metadata",
+    "replay updates from embedded SurrealDB by document_id/workspace_id to rebuild materialized state and verify stored update_sha256/state_vector metadata",
     "compare materialized Tiptap/ProseMirror JSON against schema_id and reject unsupported nodes, unsupported marks, stale schemas, or lossy projections",
     "prove CRDT merge only creates pre-promotion evidence; promotion gate must validate actor eligibility, state_vector freshness, idempotency, and schema compatibility before EventLedger authority events",
     "record denied promotion attempts with actionable denial evidence and retain CRDT workspace state for replay",

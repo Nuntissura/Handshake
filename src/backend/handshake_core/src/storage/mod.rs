@@ -11,7 +11,7 @@ use crate::workspace_safety::MergeBackArtifact;
 
 use crate::kernel::{
     crdt::{persistence::CrdtUpdateRecordV1, snapshot::CrdtSnapshotRecordV1},
-    KernelEvent, KernelEventType, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState,
+    KernelEvent, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState,
 };
 
 use crate::ai_ready_data::records::{
@@ -289,7 +289,7 @@ pub enum StorageError {
     Migration(String),
 }
 
-// The former `From<sqlx::Error>` and `From<sqlx::migrate::MigrateError>` impls
+// The former relational-driver error conversions
 // are gone with PostgreSQL. The embedded store converts through
 // `From<surreal::SurrealStorageError>` below, which serves the same purpose:
 // it keeps the driver's message while keeping the driver type out of the
@@ -1903,9 +1903,10 @@ pub trait StructuredCollaborationStore: StorageCapabilityStore + Send + Sync {
     async fn locus_task_board_get_status_and_metadata(
         &self,
         wp_id: &str,
-    ) -> StorageResult<Option<(String, String)>>;
+    ) -> StorageResult<Option<(i64, String, String)>>;
     async fn locus_task_board_update_work_packet(
         &self,
+        expected_version: i64,
         status: &str,
         task_board_status: &str,
         updated_at: &str,
@@ -2254,7 +2255,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("workspace settings backend"))
     }
     // ---- WP-KERNEL-012 MT-072 Settings & Preferences domain (Master Spec §10.17) ----
-    // Canonical typed PreferenceRecord authority in PostgreSQL. `entry` is the registry schema entry
+    // Canonical typed PreferenceRecord authority in SurrealDB. `entry` is the registry schema entry
     // (default, value_type, namespace, redaction). The value passed to `preference_set` MUST already be
     // typed-validated by the caller (`PreferenceSchemaEntry::validate`) — the store enforces authority,
     // EventLedger receipts, and revisions, not re-validation of user input semantics.
@@ -2550,7 +2551,7 @@ pub trait Database: Send + Sync {
     /// §10.12 #9.1.1 forbids any SQLite/cache/offline/sidecar authority path;
     /// the only durable Loom authority is the embedded store + EventLedger.
     fn loom_authority_backend(&self) -> LoomAuthorityBackend {
-        LoomAuthorityBackend::PostgresEventLedger
+        LoomAuthorityBackend::SurrealEventLedger
     }
 
     /// Bridge a `LoomBlock` to the ProjectKnowledgeIndex + EventLedger
@@ -3066,21 +3067,13 @@ pub trait Database: Send + Sync {
     async fn append_kernel_event(&self, event: NewKernelEvent) -> StorageResult<KernelEvent>;
     async fn append_kernel_events_atomic(
         &self,
-        _events: Vec<NewKernelEvent>,
-    ) -> StorageResult<Vec<KernelEvent>> {
-        Err(StorageError::NotImplemented(
-            "atomic kernel EventLedger append requires Postgres",
-        ))
-    }
+        events: Vec<NewKernelEvent>,
+    ) -> StorageResult<Vec<KernelEvent>>;
     async fn append_kernel_event_pair_atomic_with_causation(
         &self,
-        _first: NewKernelEvent,
-        _second: NewKernelEvent,
-    ) -> StorageResult<Vec<KernelEvent>> {
-        Err(StorageError::NotImplemented(
-            "atomic causation-linked kernel EventLedger append requires Postgres",
-        ))
-    }
+        first: NewKernelEvent,
+        second: NewKernelEvent,
+    ) -> StorageResult<Vec<KernelEvent>>;
     /// WP-KERNEL-009 authority-hardening #2: promote a graph proposal into a
     /// durable `knowledge_crdt_promoted_facts` row in ONE transaction with the
     /// causation-linked PROMOTION_REQUESTED/PROMOTION_ACCEPTED event pair and
@@ -3091,14 +3084,10 @@ pub trait Database: Send + Sync {
     /// a re-promotion returns the existing fact untouched.
     async fn promote_graph_fact_atomic(
         &self,
-        _requested: NewKernelEvent,
-        _accepted: NewKernelEvent,
-        _fact: knowledge_crdt::NewPromotedFact,
-    ) -> StorageResult<knowledge_crdt::PromotedFactRow> {
-        Err(StorageError::NotImplemented(
-            "atomic graph-fact promotion requires Postgres",
-        ))
-    }
+        requested: NewKernelEvent,
+        accepted: NewKernelEvent,
+        fact: knowledge_crdt::NewPromotedFact,
+    ) -> StorageResult<knowledge_crdt::PromotedFactRow>;
     async fn list_kernel_events_for_session(
         &self,
         session_run_id: &str,
@@ -3118,58 +3107,32 @@ pub trait Database: Send + Sync {
     ) -> StorageResult<Vec<KernelEvent>>;
     async fn append_kernel_crdt_update(
         &self,
-        _record: CrdtUpdateRecordV1,
-        _update_bytes: Vec<u8>,
-    ) -> StorageResult<CrdtUpdateRecordV1> {
-        Err(StorageError::NotImplemented(
-            "kernel CRDT update persistence requires Postgres",
-        ))
-    }
+        record: CrdtUpdateRecordV1,
+        update_bytes: Vec<u8>,
+    ) -> StorageResult<CrdtUpdateRecordV1>;
     async fn list_kernel_crdt_updates(
         &self,
-        _workspace_id: &str,
-        _document_id: &str,
-        _crdt_document_id: &str,
-    ) -> StorageResult<Vec<CrdtUpdateRecordV1>> {
-        Err(StorageError::NotImplemented(
-            "kernel CRDT update replay requires Postgres",
-        ))
-    }
-    async fn read_kernel_crdt_update_bytes(
-        &self,
-        _update_bytes_ref: &str,
-    ) -> StorageResult<Vec<u8>> {
-        Err(StorageError::NotImplemented(
-            "kernel CRDT update byte reads require Postgres",
-        ))
-    }
+        workspace_id: &str,
+        document_id: &str,
+        crdt_document_id: &str,
+    ) -> StorageResult<Vec<CrdtUpdateRecordV1>>;
+    async fn read_kernel_crdt_update_bytes(&self, update_bytes_ref: &str)
+        -> StorageResult<Vec<u8>>;
     async fn append_kernel_crdt_snapshot(
         &self,
-        _record: CrdtSnapshotRecordV1,
-        _snapshot_bytes: Vec<u8>,
-    ) -> StorageResult<CrdtSnapshotRecordV1> {
-        Err(StorageError::NotImplemented(
-            "kernel CRDT snapshot persistence requires Postgres",
-        ))
-    }
+        record: CrdtSnapshotRecordV1,
+        snapshot_bytes: Vec<u8>,
+    ) -> StorageResult<CrdtSnapshotRecordV1>;
     async fn list_kernel_crdt_snapshots(
         &self,
-        _workspace_id: &str,
-        _document_id: &str,
-        _crdt_document_id: &str,
-    ) -> StorageResult<Vec<CrdtSnapshotRecordV1>> {
-        Err(StorageError::NotImplemented(
-            "kernel CRDT snapshot replay requires Postgres",
-        ))
-    }
+        workspace_id: &str,
+        document_id: &str,
+        crdt_document_id: &str,
+    ) -> StorageResult<Vec<CrdtSnapshotRecordV1>>;
     async fn read_kernel_crdt_snapshot_bytes(
         &self,
-        _snapshot_bytes_ref: &str,
-    ) -> StorageResult<Vec<u8>> {
-        Err(StorageError::NotImplemented(
-            "kernel CRDT snapshot byte reads require Postgres",
-        ))
-    }
+        snapshot_bytes_ref: &str,
+    ) -> StorageResult<Vec<u8>>;
     async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun>;
     async fn enqueue_kernel_session_run_and_record_event(
         &self,
@@ -3293,7 +3256,7 @@ pub trait Database: Send + Sync {
     /// Run database migrations.
     async fn run_migrations(&self) -> StorageResult<()>;
 
-    /// Returns the current schema migration version from `_sqlx_migrations`.
+    /// Returns the current embedded SurrealDB schema revision.
     async fn migration_version(&self) -> StorageResult<i64>;
 
     async fn execute_locus_operation(
@@ -3306,13 +3269,21 @@ pub trait Database: Send + Sync {
 
     async fn locus_task_board_update_work_packet(
         &self,
+        expected_version: i64,
         status: &str,
         task_board_status: &str,
         updated_at: &str,
         metadata: &str,
         wp_id: &str,
     ) -> StorageResult<()> {
-        let _ = (status, task_board_status, updated_at, metadata, wp_id);
+        let _ = (
+            expected_version,
+            status,
+            task_board_status,
+            updated_at,
+            metadata,
+            wp_id,
+        );
         Err(StorageError::NotImplemented("locus runtime"))
     }
 
@@ -3365,7 +3336,7 @@ pub trait Database: Send + Sync {
         ))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_overwrite_loom_block_metrics(
         &self,
         workspace_id: &str,
@@ -3384,13 +3355,13 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test loom metrics backend"))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
         let _ = workspace_id;
         Err(StorageError::NotImplemented("test loom metrics backend"))
     }
 
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(any(test, feature = "test-utils", feature = "surreal-test-support"))]
     async fn test_insert_loom_traversal_perf_fixture(
         &self,
         workspace_id: &str,
@@ -3402,7 +3373,7 @@ pub trait Database: Send + Sync {
         ))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_update_ai_job_metadata(
         &self,
         job_id: Uuid,
@@ -3414,7 +3385,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test ai job metadata backend"))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_fetch_mutation_traceability_row(
         &self,
         table: &str,
@@ -3468,13 +3439,14 @@ where
     async fn locus_task_board_get_status_and_metadata(
         &self,
         wp_id: &str,
-    ) -> StorageResult<Option<(String, String)>> {
+    ) -> StorageResult<Option<(i64, String, String)>> {
         let row = Database::structured_collab_work_packet_row(self, wp_id).await?;
-        Ok(row.map(|row| (row.task_board_status, row.metadata)))
+        Ok(row.map(|row| (row.version, row.task_board_status, row.metadata)))
     }
 
     async fn locus_task_board_update_work_packet(
         &self,
+        expected_version: i64,
         status: &str,
         task_board_status: &str,
         updated_at: &str,
@@ -3483,6 +3455,7 @@ where
     ) -> StorageResult<()> {
         Database::locus_task_board_update_work_packet(
             self,
+            expected_version,
             status,
             task_board_status,
             updated_at,
@@ -3582,25 +3555,17 @@ pub async fn init_control_plane_storage_with_config(
     }
 }
 
-/// Configured concurrency budget used by bounded bulk routes. One unit is
-/// reserved for control-plane health/finalization work.
+/// Configured concurrency budget for bounded embedded-SurrealDB operations.
 ///
-/// The connection pool this originally sized is gone — the embedded SurrealDB
-/// store is opened in-process, not pooled. The function name and the
-/// `HANDSHAKE_POSTGRES_MAX_CONNECTIONS` env var are kept unchanged because live
-/// call sites and documented operator commands still use them.
-pub fn configured_postgres_max_connections() -> u32 {
-    std::env::var("HANDSHAKE_POSTGRES_MAX_CONNECTIONS")
+/// This controls application work admitted concurrently; it is not a database
+/// connection-pool size. Invalid or out-of-range values fail closed to the
+/// conservative default instead of reviving a legacy PostgreSQL setting.
+pub fn configured_surreal_operation_concurrency() -> usize {
+    std::env::var("HANDSHAKE_SURREAL_OPERATION_CONCURRENCY")
         .ok()
-        .and_then(|value| value.parse::<u32>().ok())
-        .filter(|value| (1..=64).contains(value))
-        .unwrap_or(5)
-}
-
-pub fn configured_postgres_parallelism() -> usize {
-    configured_postgres_max_connections()
-        .saturating_sub(1)
-        .clamp(1, 32) as usize
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| (1..=32).contains(value))
+        .unwrap_or(4)
 }
 
 pub async fn init_storage_with_config(

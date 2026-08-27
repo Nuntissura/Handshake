@@ -957,7 +957,7 @@ $sourcePaths = @(
     "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
-    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/test_heartbeat.rs",
     "src/frontend/handshake_native/tests/test_diagnostics_panel.rs",
     "src/frontend/handshake_native/tests/test_perf_large_code.rs",
@@ -1084,7 +1084,7 @@ function Test-IsJsonInteger {
     )
 }
 
-# No psql to resolve: an embedded in-process store has no command-line client. The run is scoped to a
+# The embedded in-process store has no command-line client. The run is scoped to a
 # store directory instead, and the harness owns cleanup by discarding that directory.
 $script:mt045StoreIdentity = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012ackend-runtime\$RunId"))
 [void][IO.Directory]::CreateDirectory($script:mt045StoreIdentity)
@@ -1121,11 +1121,11 @@ function Invoke-Mt045PostReapWorkspaceCleanup {
         throw "workspace identity marker does not bind the exact owned run/scenario/backend"
     }
     $workspaceId = [string]$marker.workspace_id
-    $literal = $workspaceId.Replace("'", "''")
     $stdoutPath = Join-Path $RuntimeDirectory "workspace-cleanup.stdout.log"
     $stderrPath = Join-Path $RuntimeDirectory "workspace-cleanup.stderr.log"
-    # The PostgreSQL version deleted the proof workspace row through psql and asserted the row count
-    # returned to zero. An embedded in-process store cannot be reached from here, so the equivalent
+    # The legacy server-backed version deleted the proof workspace row through a direct database client
+    # and asserted the row count returned to zero. An embedded in-process store cannot be reached from
+    # here, so the equivalent
     # guarantee comes from isolation rather than deletion: this run's store lives only under
     # $script:mt045StoreIdentity and is discarded with it, so no workspace row can outlive the run.
     # This is a WEAKER statement than the old one - it proves the row cannot persist, not that a
@@ -1919,7 +1919,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
 
         $forcedTestName = "forced-termination-self-test"
         $selfTestWorkspaceId = "wp012-job-cleanup-$([guid]::NewGuid().ToString('N'))"
-        # The PostgreSQL self-test inserted a workspace row so the post-Job cleanup had something
+        # The legacy server-backed self-test inserted a workspace row so post-Job cleanup had something
         # real to delete. Cleanup is no longer a DELETE - it is store-directory isolation - so the
         # self-test now plants a marker inside the run's store root and the teardown assertion below
         # proves the root, and therefore the marker, is discarded. It exercises the mechanism that
@@ -2099,7 +2099,6 @@ Start-Sleep -Seconds 30
         $env:HSK_MT045_SOURCE_SHA = $sourceSha
         $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
         $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
-        $env:HSK_PSQL_BIN = $script:mt045PsqlPath
         $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
         $env:HSK_TEST_BACKEND_BIN = $backendBinary
         $probeDiagnosticResults = [Collections.Generic.List[object]]::new()
@@ -2247,7 +2246,6 @@ Start-Sleep -Seconds 30
     }
     finally {
         if (-not [string]::IsNullOrWhiteSpace($selfTestWorkspaceId) -and ("Mt045JobRunner" -as [type])) {
-            $literal = $selfTestWorkspaceId.Replace("'", "''")
             Remove-Item -LiteralPath $selfTestMarker -Force -ErrorAction SilentlyContinue
             if (Test-Path -LiteralPath $selfTestMarker -PathType Leaf) {
                 throw "diagnostics self-test store-scoped cleanup marker survived teardown"
@@ -2350,7 +2348,6 @@ try {
     $env:HSK_MT045_SOURCE_SHA = $sourceSha
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
     $env:HANDSHAKE_DATA_DIR = $script:mt045StoreIdentity
-    $env:HSK_PSQL_BIN = $script:mt045PsqlPath
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
 
@@ -2596,7 +2593,7 @@ finally {
             Assert-StorePreserved
         }
         catch {
-            Write-Error "PostgreSQL preservation check also failed: $($_.Exception.Message)"
+            Write-Error "SurrealDB store-preservation check also failed: $($_.Exception.Message)"
         }
     }
 }

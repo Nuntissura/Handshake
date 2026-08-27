@@ -15,7 +15,7 @@
 //! promotion events) are untouched by replay — replay is draft-only.
 //!
 //! The machine-readable contract below follows the
-//! `kernel_crdt_postgres_update_log_contract` precedent so validators can
+//! `kernel_crdt_surreal_update_log_contract` precedent so validators can
 //! assert the boundary without parsing prose.
 
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::storage::Database;
 
 use super::yjs_bridge::{
-    KnowledgeCrdtFlowError, YjsPushOutcomeV1, YjsUpdateEnvelopeV1, push_yjs_update,
+    push_yjs_update, KnowledgeCrdtFlowError, YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
 };
 
 pub const OFFLINE_DRAFT_BOUNDARY_CONTRACT_SCHEMA_ID: &str =

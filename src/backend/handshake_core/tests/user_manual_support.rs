@@ -1,8 +1,8 @@
 //! Shared support for the WP-KERNEL-009 UserManual integration tests
-//! (MT-193..MT-208): a real-PostgreSQL AppState + loopback server over the
-//! actual Axum routers. No SQLite, no mock store — the AppState pool points
-//! at the SAME isolated schema the migrations ran in
-//! (`knowledge_pg_support::knowledge_pg`).
+//! (MT-193..MT-208): a real embedded-SurrealDB AppState + loopback server over
+//! the actual Axum routers. No server, fallback database, or mock store is
+//! involved: every fixture owns an isolated embedded store and the AppState
+//! shares that same handle.
 
 use std::sync::Arc;
 
@@ -16,7 +16,9 @@ use handshake_core::flight_recorder::{
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::{Database, NewWorkspace, StorageResult, WriteContext};
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
 use uuid::Uuid;
@@ -92,20 +94,59 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-/// Build a real AppState whose storage AND pool point at the isolated schema.
-pub async fn app_state_for(schema_url: &str) -> AppState {
-    let storage = PostgresDatabase::connect(schema_url, 5)
-        .await
-        .expect("connect AppState storage to isolated schema")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState pool to isolated schema");
+/// A concrete database handle over one isolated embedded test store.
+///
+/// The retained backend owns the store directory and lifecycle handle while
+/// `db` exposes the concrete Surreal type required by UserManual and knowledge
+/// consumers.
+pub struct ManualTestBackend {
+    pub db: SurrealDatabase,
+    _backend: EmbeddedTestBackend,
+}
+
+impl ManualTestBackend {
+    pub async fn create_workspace(&self) -> String {
+        self.db
+            .create_workspace(
+                &WriteContext::system(Some("user-manual-test".to_owned())),
+                NewWorkspace {
+                    name: format!("user-manual-test-{}", Uuid::now_v7()),
+                },
+            )
+            .await
+            .expect("create UserManual test workspace")
+            .id
+    }
+
+    /// Close the embedded engine on the test runtime before that runtime is
+    /// torn down, then prove that its isolated RocksDB directory is removable.
+    /// The backend's synchronous `Drop` cleanup remains a failure-path fallback;
+    /// successful tests must use this explicit path so engine tasks can drain.
+    pub async fn close_and_remove(self) -> StorageResult<()> {
+        let ManualTestBackend { db, _backend } = self;
+        drop(db);
+        _backend.close_and_remove().await
+    }
+}
+
+/// Open a mandatory real embedded store. Failure is a test failure, never a
+/// reason to skip the proof or fall back to another database.
+pub async fn manual_test_backend() -> StorageResult<ManualTestBackend> {
+    let backend = embedded_test_backend().await?;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    Ok(ManualTestBackend {
+        db,
+        _backend: backend,
+    })
+}
+
+/// Build a real AppState sharing the exact embedded store already used by the
+/// test's concrete database handle.
+pub async fn app_state_for(db: &SurrealDatabase) -> AppState {
     let recorder = Arc::new(NoopRecorder);
     AppState {
-        storage,
+        storage: Arc::new(db.clone()),
+        surreal: db.storage().clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -113,7 +154,6 @@ pub async fn app_state_for(schema_url: &str) -> AppState {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     }
 }
 
@@ -127,20 +167,4 @@ pub async fn start_server(app: Router) -> (String, tokio::task::JoinHandle<()>) 
         axum::serve(listener, app).await.expect("test api server");
     });
     (format!("http://{addr}"), server)
-}
-
-#[macro_export]
-macro_rules! skip_if_no_pg {
-    ($opt:expr, $name:literal) => {
-        match $opt {
-            Some(value) => value,
-            None => {
-                panic!(concat!(
-                    "PostgreSQL unavailable for ",
-                    $name,
-                    ": UserManual proof requires live PostgreSQL/EventLedger"
-                ));
-            }
-        }
-    };
 }

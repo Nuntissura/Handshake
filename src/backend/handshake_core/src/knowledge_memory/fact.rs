@@ -1,7 +1,7 @@
 //! MT-114 MemoryFactSchema (product surface).
 //!
 //! The MemoryFact storage type and CRUD live in
-//! `storage::knowledge_memory` (the PostgreSQL authority surface). This module
+//! `storage::knowledge_memory` (the SurrealDB authority surface). This module
 //! re-exports the fact vocabulary for product-logic consumers (projections,
 //! conflict detection, the backend API) so they import a single
 //! `knowledge_memory::fact` path instead of reaching into `storage`.

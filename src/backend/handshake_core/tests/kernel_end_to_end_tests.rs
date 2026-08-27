@@ -223,7 +223,7 @@ async fn end_to_end_kernel_proof() {
 
     assert!(result.kernel_task_run_id.starts_with("KTR-"));
     assert!(result.session_run_id.starts_with("SR-"));
-    assert_eq!(result.trace.authority_source, "postgres_event_ledger");
+    assert_eq!(result.trace.authority_source, "surreal_event_ledger");
     write_trace_evidence("end-to-end-kernel-proof", &result);
     for event_type in [
         KernelEventType::TaskIntentRecorded,
@@ -387,7 +387,7 @@ async fn kernel_trace_inspector() {
 
     assert_eq!(inspected.kernel_task_run_id, result.kernel_task_run_id);
     assert_eq!(inspected.session_run_id, result.session_run_id);
-    assert_eq!(inspected.authority_source, "postgres_event_ledger");
+    assert_eq!(inspected.authority_source, "surreal_event_ledger");
     assert!(inspected.contains_event_type(KernelEventType::ValidationRecorded));
     assert!(inspected.contains_event_type(KernelEventType::PromotionDecided));
 }
@@ -435,7 +435,7 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
 
     assert_eq!(projection.kernel_task_run_id, result.kernel_task_run_id);
     assert_eq!(projection.session_run_id, result.session_run_id);
-    assert_eq!(projection.authority_source, "postgres_event_ledger");
+    assert_eq!(projection.authority_source, "surreal_event_ledger");
     assert!(projection.contains_event_type(KernelEventType::PromotionDecided));
 }
 
@@ -505,7 +505,7 @@ async fn kernel_proof_records_flight_recorder_diagnostic_mirrors() {
     assert!(result
         .trace
         .contains_event_type(KernelEventType::FlightRecorderMirrorRecorded));
-    assert_eq!(result.trace.authority_source, "postgres_event_ledger");
+    assert_eq!(result.trace.authority_source, "surreal_event_ledger");
 }
 
 #[tokio::test]

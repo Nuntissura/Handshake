@@ -405,7 +405,7 @@ pub async fn upsert_memory_ontology_term(
                         "IF array::len((SELECT VALUE term_id FROM \
                          knowledge_memory_ontology_terms WHERE workspace_id = $workspace \
                          AND term_kind = $term_kind AND term_key = $term_key)) = 0 { \
-                           CREATE type::thing('knowledge_memory_ontology_terms', $term_id) \
+                           CREATE type::record('knowledge_memory_ontology_terms', $term_id) \
                            CONTENT { term_id: $term_id, workspace_id: $workspace, \
                              term_kind: $term_kind, term_key: $term_key, \
                              normalized_label: $normalized_label, \
@@ -729,7 +729,7 @@ pub async fn add_memory_ontology_alias(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_memory_ontology_aliases', $alias_id) \
+                        "CREATE type::record('knowledge_memory_ontology_aliases', $alias_id) \
                          CONTENT { alias_id: $alias_id, term_id: $term_id, \
                            workspace_id: $workspace_id, alias_surface: $alias_surface, \
                            alias_norm_key: $alias_norm_key, alias_source: $alias_source };",
@@ -1062,7 +1062,7 @@ pub async fn create_memory_fact(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_memory_facts', $fact_id) CONTENT { \
+                        "CREATE type::record('knowledge_memory_facts', $fact_id) CONTENT { \
                            fact_id: $fact_id, workspace_id: $workspace_id, claim_id: $claim_id, \
                            subject_entity_id: $subject_entity_id, \
                            predicate_key: $predicate_key, \
@@ -1589,7 +1589,7 @@ pub async fn record_conflict_detection_job(
                     .query_values(
                         "{ \
                            LET $job = (CREATE \
-                             type::thing('knowledge_memory_conflict_detection_jobs', $job_id) \
+                             type::record('knowledge_memory_conflict_detection_jobs', $job_id) \
                              CONTENT { job_id: $job_id, workspace_id: $workspace, \
                                detection_kind: $detection_kind, job_state: 'completed', \
                                candidates_scanned: $candidates_scanned, \
@@ -1599,7 +1599,7 @@ pub async fn record_conflict_detection_job(
                                completed_at: time::now() }); \
                            FOR $conflict IN $conflicts { \
                              CREATE knowledge_memory_conflict_detection_findings CONTENT { \
-                               job_id: type::thing('knowledge_memory_conflict_detection_jobs', \
+                               job_id: type::record('knowledge_memory_conflict_detection_jobs', \
                                                    $job_id), \
                                conflict_id: $conflict }; \
                            }; \
@@ -1809,17 +1809,14 @@ pub async fn record_conflict_resolution_job(
         kept_claim_id: optional_link(CLAIMS_TABLE, kept_claim_id),
         discarded_claim_id: optional_link(CLAIMS_TABLE, discarded_claim_id),
         resolution_detail,
-        resolution_receipt_event_id: link(
-            KERNEL_EVENT_LEDGER_TABLE,
-            resolution_receipt_event_id,
-        ),
+        resolution_receipt_event_id: link(KERNEL_EVENT_LEDGER_TABLE, resolution_receipt_event_id),
     };
     let rows: Vec<ResolutionJobRecord> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_memory_conflict_resolution_jobs', $job_id) \
+                        "CREATE type::record('knowledge_memory_conflict_resolution_jobs', $job_id) \
                          CONTENT { job_id: $job_id, workspace_id: $workspace_id, \
                            conflict_id: $conflict_id, outcome: $outcome, \
                            kept_claim_id: $kept_claim_id, \
@@ -2021,10 +2018,7 @@ pub async fn list_active_edge_endpoints(
 
 /// Undirected degree of an entity in the non-retired edge graph (number of
 /// edges touching it as source or target). The hub-suppression input.
-pub async fn entity_edge_degree(
-    storage: &SurrealStorage,
-    entity_id: &str,
-) -> StorageResult<i64> {
+pub async fn entity_edge_degree(storage: &SurrealStorage, entity_id: &str) -> StorageResult<i64> {
     let bindings = EdgeDegreeBindings {
         entity: link(ENTITIES_TABLE, entity_id),
     };
@@ -2195,7 +2189,7 @@ pub async fn record_bridge_decision(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_memory_bridge_decisions', $decision_id) \
+                        "CREATE type::record('knowledge_memory_bridge_decisions', $decision_id) \
                          CONTENT { decision_id: $decision_id, workspace_id: $workspace_id, \
                            entity_id_a: $entity_id_a, entity_id_b: $entity_id_b, \
                            decision: $decision, degree_a: $degree_a, degree_b: $degree_b, \
@@ -2244,5 +2238,7 @@ pub async fn list_bridge_decisions(
         })
         .await
         .map_err(map_err)?;
-    rows.into_iter().map(BridgeDecisionRow::into_record).collect()
+    rows.into_iter()
+        .map(BridgeDecisionRow::into_record)
+        .collect()
 }

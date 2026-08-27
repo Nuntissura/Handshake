@@ -64,7 +64,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use sqlx::Row;
 use uuid::Uuid;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
@@ -856,28 +855,26 @@ async fn validate_document_save_receipt(
         .get("save_receipt_event_id")
         .and_then(Value::as_str)
         .ok_or_else(invalid_event)?;
-    let row = sqlx::query(
-        r#"
-        SELECT event_type, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id,
-               actor_kind, actor_id, correlation_id, payload
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-        "#,
-    )
-    .bind(receipt_id)
-    .fetch_optional(&state.postgres_pool)
-    .await
-    .map_err(db_error)?
-    .ok_or_else(invalid_event)?;
+    let document_id = payload
+        .get("document_id")
+        .and_then(Value::as_str)
+        .ok_or_else(invalid_event)?;
+    let row = state
+        .storage
+        .list_kernel_events_for_aggregate("knowledge_rich_document", document_id)
+        .await
+        .map_err(db_error)?
+        .into_iter()
+        .find(|row| row.event_id == receipt_id)
+        .ok_or_else(invalid_event)?;
 
-    let receipt_payload: Value = row.try_get("payload").map_err(db_error)?;
-    let receipt_payload = receipt_payload.as_object().ok_or_else(invalid_event)?;
+    let receipt_payload = row.payload.as_object().ok_or_else(invalid_event)?;
     let request_actor_kind = payload
         .get("actor_kind")
         .and_then(Value::as_str)
         .and_then(canonical_receipt_actor_kind)
         .ok_or_else(invalid_event)?;
-    let correlation: Option<String> = row.try_get("correlation_id").map_err(db_error)?;
+    let correlation = row.correlation_id.as_deref();
     let claimed_correlation = payload
         .get("correlation_id")
         .and_then(|value| value.as_str().map(str::to_owned));
@@ -908,29 +905,18 @@ async fn validate_document_save_receipt(
         (Some(minted), Some(claiming)) if minted == claiming
     );
 
-    let authentic = row.try_get::<String, _>("event_type").map_err(db_error)?
-        == KernelEventType::KnowledgeRichDocumentSaved.as_str()
-        && row
-            .try_get::<String, _>("aggregate_type")
-            .map_err(db_error)?
-            == "knowledge_rich_document"
-        && row.try_get::<String, _>("aggregate_id").map_err(db_error)?
-            == payload["document_id"].as_str().unwrap_or_default()
-        && row.try_get::<String, _>("actor_kind").map_err(db_error)? == request_actor_kind
+    let authentic = row.event_type == KernelEventType::KnowledgeRichDocumentSaved
+        && row.aggregate_type == "knowledge_rich_document"
+        && row.aggregate_id == document_id
+        && row.actor.actor_kind() == request_actor_kind
         // The canonical save receipt must belong to the SAME authenticated principal that is now
         // claiming it: `event.actor_id` is server-derived by this point, and `minted_by_principal`
         // is server-written by the save route, so a caller cannot bind its native event to another
         // principal's document-save receipt. See the MT-120 note above.
         && receipt_owned_by_claimant
-        && row
-            .try_get::<String, _>("kernel_task_run_id")
-            .map_err(db_error)?
-            == payload["kernel_task_run_id"].as_str().unwrap_or_default()
-        && row
-            .try_get::<String, _>("session_run_id")
-            .map_err(db_error)?
-            == payload["session_run_id"].as_str().unwrap_or_default()
-        && correlation == claimed_correlation
+        && row.kernel_task_run_id == payload["kernel_task_run_id"].as_str().unwrap_or_default()
+        && row.session_run_id == payload["session_run_id"].as_str().unwrap_or_default()
+        && correlation == claimed_correlation.as_deref()
         && receipt_payload.get("event").and_then(Value::as_str) == Some("saved")
         && receipt_payload.get("workspace_id").and_then(Value::as_str)
             == Some(event.canonical_workspace_id())
@@ -1398,7 +1384,7 @@ async fn record_native_editor_event(
     }
 
     // Canonicalize every common envelope identity before the first durable write. Equivalent lexical
-    // UUID/timestamp spellings must converge on one PostgreSQL aggregate/idempotency state machine and
+    // UUID/timestamp spellings must converge on one embedded aggregate/idempotency state machine and
     // one Flight Recorder UUID, never create parallel mirrors for the same logical event.
     //
     // Actor and workspace are OVERWRITTEN from the authenticated context here, so everything
@@ -1439,7 +1425,7 @@ async fn record_native_editor_event(
     let durable_event_uuid = fr_event.event_id;
     // Durable EventLedger mirror is written FIRST and is idempotent. If the subsequent FR write fails,
     // a retry converges by reusing this receipt and completing the missing FR row. The former FR-first
-    // ordering could strand an FR row forever without its required PostgreSQL mirror.
+    // ordering could strand an FR row forever without its required EventLedger mirror.
     let pending_receipt = build_native_editor_pending(&event, &fr_event).map_err(db_error)?;
 
     let pending_receipt = state
@@ -1701,11 +1687,12 @@ mod tests {
     use crate::llm::{
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
     };
-    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database};
+    use crate::storage::{tests::embedded_test_backend, Database};
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use crate::AppState;
     use axum::http::{HeaderMap, HeaderValue};
     use std::sync::Arc;
+    use surrealdb::types::{RecordId, SurrealValue};
     use uuid::Uuid;
 
     /// The canonical fixture workspace every unqualified native-editor fixture is bound to.
@@ -1715,6 +1702,36 @@ mod tests {
     /// The server-derived actor identity the authenticated context yields in these tests. Fixtures
     /// never set `actor_id` themselves — that is the point of the MT-109 remediation.
     const TEST_ACTOR_ID: &str = "handshake-native:mt109-fixture:0";
+
+    #[derive(SurrealValue)]
+    struct TestWorkspaceSeed {
+        name: String,
+        last_job_id: Option<String>,
+        last_workflow_id: Option<String>,
+        last_actor_id: Option<String>,
+        edit_event_id: String,
+        last_actor_kind: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct NoBindings {}
+
+    #[derive(SurrealValue)]
+    struct CountRow {
+        count: i64,
+    }
+
+    #[derive(SurrealValue)]
+    struct PayloadHashUpdate {
+        record: RecordId,
+        payload_hash: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct PayloadUpdate {
+        record: RecordId,
+        payload: Value,
+    }
 
     /// `HANDSHAKE_STAGE_BINDING_FILE` is process-global, so the router-level authorization tests
     /// that install a real native-MCP binding must not race each other OR `api::memory`'s suite.
@@ -1804,18 +1821,34 @@ mod tests {
 
     /// Seed a real canonical workspace row with a chosen id. Ingestion binds the path workspace to
     /// canonical authority, so fixtures must name workspaces that actually exist. Every test runs
-    /// in its own isolated `storage_test_<uuid>` schema, so the fixed ids never collide.
+    /// in its own isolated embedded store, so the fixed ids never collide.
     async fn ensure_test_workspace(
         state: &AppState,
         workspace_id: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        sqlx::query(
-            "INSERT INTO workspaces (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
-        )
-        .bind(workspace_id)
-        .bind(format!("mt109-fr-{workspace_id}"))
-        .execute(&state.postgres_pool)
-        .await?;
+        let workspace_id = workspace_id.to_owned();
+        state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<surrealdb::types::Value, _>(
+                            "workspaces",
+                            &workspace_id,
+                            TestWorkspaceSeed {
+                                name: format!("mt109-fr-{workspace_id}"),
+                                last_job_id: None,
+                                last_workflow_id: None,
+                                last_actor_id: None,
+                                edit_event_id: Uuid::nil().to_string(),
+                                last_actor_kind: "system".to_owned(),
+                            },
+                        )
+                        .await
+                        .map(|_| ())
+                })
+            })
+            .await?;
         Ok(())
     }
 
@@ -1837,11 +1870,84 @@ mod tests {
     async fn native_editor_ledger_row_count(
         state: &AppState,
     ) -> Result<i64, Box<dyn std::error::Error>> {
-        Ok(sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event'",
-        )
-        .fetch_one(&state.postgres_pool)
-        .await?)
+        let rows = state
+            .surreal
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<CountRow, _>(
+                            "SELECT count() AS count FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' GROUP ALL;",
+                            NoBindings {},
+                        )
+                        .await
+                })
+            })
+            .await?;
+        Ok(rows.first().map_or(0, |row| row.count))
+    }
+
+    async fn native_editor_ledger_events(
+        state: &AppState,
+        aggregate_id: impl AsRef<str>,
+    ) -> Result<Vec<crate::kernel::KernelEvent>, Box<dyn std::error::Error>> {
+        Ok(state
+            .storage
+            .list_kernel_events_for_aggregate("native_editor_event", aggregate_id.as_ref())
+            .await?)
+    }
+
+    async fn set_event_payload_hash(
+        state: &AppState,
+        event_id: String,
+        payload_hash: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let affected = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .execute_returning(
+                            "UPDATE $record SET payload_hash = $payload_hash RETURN AFTER;",
+                            PayloadHashUpdate {
+                                record: RecordId::new("kernel_event_ledger", event_id),
+                                payload_hash,
+                            },
+                        )
+                        .await
+                })
+            })
+            .await?;
+        if affected != 1 {
+            return Err(format!("payload_hash fault injection matched {affected} rows").into());
+        }
+        Ok(())
+    }
+
+    async fn set_event_payload(
+        state: &AppState,
+        event_id: String,
+        payload: Value,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let affected = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .execute_returning(
+                            "UPDATE $record SET payload = $payload RETURN AFTER;",
+                            PayloadUpdate {
+                                record: RecordId::new("kernel_event_ledger", event_id),
+                                payload,
+                            },
+                        )
+                        .await
+                })
+            })
+            .await?;
+        if affected != 1 {
+            return Err(format!("payload fault injection matched {affected} rows").into());
+        }
+        Ok(())
     }
 
     /// The exact redacted capability-decision audit rows this route group must emit.
@@ -1904,15 +2010,13 @@ mod tests {
     }
 
     async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+        let backend = embedded_test_backend().await?;
 
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
         let state = AppState {
             storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+            surreal: backend.storage,
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: Arc::new(TestLlmClient::new()),
@@ -1948,7 +2052,7 @@ mod tests {
     fn state_with_recorder(state: &AppState, recorder: Arc<DuckDbFlightRecorder>) -> AppState {
         AppState {
             storage: state.storage.clone(),
-            postgres_pool: state.postgres_pool.clone(),
+            surreal: state.surreal.clone(),
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: state.llm_client.clone(),
@@ -2219,14 +2323,12 @@ mod tests {
         );
         assert!(events[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
 
-        // Durable EventLedger mirror in managed PostgreSQL.
-        let ledger_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
-        )
-        .bind(format!("native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"))
-        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        // Durable EventLedger mirror in the embedded authority store.
+        let ledger_count = native_editor_ledger_events(&state, durable_uuid.to_string())
+            .await?
+            .into_iter()
+            .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+            .count();
         assert_eq!(
             ledger_count, 1,
             "one durable native-editor FR ledger receipt"
@@ -2255,14 +2357,11 @@ mod tests {
             "idempotent: still exactly one FR row"
         );
 
-        let ledger_after: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!(
-            "native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"
-        ))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let ledger_after = native_editor_ledger_events(&state, durable_uuid.to_string())
+            .await?
+            .into_iter()
+            .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+            .count();
         assert_eq!(
             ledger_after, 1,
             "idempotent: still exactly one ledger receipt"
@@ -2326,14 +2425,18 @@ mod tests {
             .await?;
         assert_eq!(recorder_rows.len(), 1, "exactly one Flight Recorder row");
 
-        let ledger_rows: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type IN ($2, $3)",
-        )
-        .bind(durable_id_for(&event_id).to_string())
-        .bind(KernelEventType::FlightRecorderMirrorPending.as_str())
-        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let ledger_rows =
+            native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+                .await?
+                .into_iter()
+                .filter(|row| {
+                    matches!(
+                        row.event_type,
+                        KernelEventType::FlightRecorderMirrorPending
+                            | KernelEventType::FlightRecorderMirrorRecorded
+                    )
+                })
+                .count();
         assert_eq!(ledger_rows, 2, "one pending and one completion receipt");
         Ok(())
     }
@@ -2361,14 +2464,17 @@ mod tests {
 
         let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
         let aggregate_id = durable_uuid.to_string();
-        let ledger_rows: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type IN ($2, $3)",
-        )
-        .bind(&aggregate_id)
-        .bind(KernelEventType::FlightRecorderMirrorPending.as_str())
-        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let ledger_rows = native_editor_ledger_events(&state, &aggregate_id)
+            .await?
+            .into_iter()
+            .filter(|row| {
+                matches!(
+                    row.event_type,
+                    KernelEventType::FlightRecorderMirrorPending
+                        | KernelEventType::FlightRecorderMirrorRecorded
+                )
+            })
+            .count();
         assert_eq!(
             ledger_rows, 2,
             "one canonical pending/completion state machine"
@@ -2657,7 +2763,7 @@ mod tests {
         );
 
         // This is the same startup pass installed by `routes`: it discovers work from durable
-        // PostgreSQL state rather than relying on an in-memory queue from the failed process.
+        // embedded EventLedger state rather than relying on an in-memory queue from the failed process.
         reconcile_native_editor_pending(&state)
             .await
             .map_err(std::io::Error::other)?;
@@ -2670,13 +2776,12 @@ mod tests {
             })
             .await?;
         assert_eq!(after.len(), 1, "startup reconciliation restored the FR row");
-        let completion_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
-        )
-        .bind(format!("native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"))
-        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let completion_count =
+            native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+                .await?
+                .into_iter()
+                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .count();
         assert_eq!(
             completion_count, 1,
             "completion exists only after FR recovery"
@@ -2764,13 +2869,12 @@ mod tests {
             1,
             "spurious completion must not suppress the pending mirror"
         );
-        let completion_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
-        )
-        .bind(format!("native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"))
-        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let completion_count =
+            native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+                .await?
+                .into_iter()
+                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .count();
         assert_eq!(completion_count, 1);
         Ok(())
     }
@@ -2795,17 +2899,10 @@ mod tests {
             .await?;
         let completion = build_native_editor_completion(&pending, &event)?;
         let canonical_completion_hash = completion.payload_hash.clone();
-        state.storage.append_kernel_event(completion).await?;
+        let completion = state.storage.append_kernel_event(completion).await?;
+        let completion_event_id = completion.event_id;
 
-        sqlx::query("UPDATE kernel_event_ledger SET payload_hash = $1 WHERE idempotency_key = $2")
-            .bind("0".repeat(64))
-            .bind(format!(
-                "native-editor-fr-complete:{}:{}",
-                event.canonical_workspace_id(),
-                event.event_id
-            ))
-            .execute(&state.postgres_pool)
-            .await?;
+        set_event_payload_hash(&state, completion_event_id.clone(), "0".repeat(64)).await?;
 
         let candidates = state
             .storage
@@ -2817,17 +2914,8 @@ mod tests {
         let corrupt_completion_rejected = reconcile_native_editor_pending_receipt(&state, pending)
             .await
             .is_err();
-        // Restore the test-injected fault so the shared managed PostgreSQL resource
-        // does not retain a poison row after this adversarial probe.
-        sqlx::query("UPDATE kernel_event_ledger SET payload_hash = $1 WHERE idempotency_key = $2")
-            .bind(canonical_completion_hash)
-            .bind(format!(
-                "native-editor-fr-complete:{}:{}",
-                event.canonical_workspace_id(),
-                event.event_id
-            ))
-            .execute(&state.postgres_pool)
-            .await?;
+        // Restore the test-injected fault so the embedded fixture remains internally consistent.
+        set_event_payload_hash(&state, completion_event_id, canonical_completion_hash).await?;
         assert!(
             candidate_found,
             "completion with a non-canonical payload_hash suppressed recovery"
@@ -2935,17 +3023,12 @@ mod tests {
                 1,
                 "restart must converge each partial-write window to one FR row"
             );
-            let completion_count: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
-            )
-            .bind(format!(
-                "native-editor-fr-complete:{}:{}",
-                event.canonical_workspace_id(),
-                event.event_id
-            ))
-            .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-            .fetch_one(&state_after.postgres_pool)
-            .await?;
+            let completion_count =
+                native_editor_ledger_events(&state_after, durable_id(&event).to_string())
+                    .await?
+                    .into_iter()
+                    .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                    .count();
             assert_eq!(completion_count, 1);
         }
         drop(state_after);
@@ -2992,15 +3075,6 @@ mod tests {
             .await?
             .len();
 
-        // Test-only cleanup prevents deliberately malformed append-only fixtures from burdening
-        // every later reconciler pass in the shared managed test database.
-        sqlx::query(
-            "DELETE FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND (aggregate_id LIKE $1 OR aggregate_id = $2)",
-        )
-        .bind(format!("{prefix}%"))
-        .bind(durable_id(&valid).to_string())
-        .execute(&state.postgres_pool)
-        .await?;
         assert_eq!(
             valid_rows, 1,
             "101 poison rows must not starve the newer valid mirror"
@@ -3227,13 +3301,11 @@ mod tests {
             assert_eq!(events[0].payload["kind"], kind.as_str());
             assert_eq!(events[0].payload["workspace_id"], workspace_id);
 
-            let completion_count: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type = $2",
-            )
-            .bind(&aggregate_id)
-            .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-            .fetch_one(&state.postgres_pool)
-            .await?;
+            let completion_count = native_editor_ledger_events(&state, &aggregate_id)
+                .await?
+                .into_iter()
+                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .count();
             assert_eq!(
                 completion_count,
                 1,
@@ -3609,8 +3681,7 @@ mod tests {
         // Principal A is some OTHER live native process; the ingesting principal is TEST_ACTOR_ID.
         let other_principal = "handshake-native:999999:0f0f0f0f";
         assert_ne!(other_principal, TEST_ACTOR_ID);
-        let foreign =
-            authentic_document_saved_envelope_minted_by(&state, other_principal).await?;
+        let foreign = authentic_document_saved_envelope_minted_by(&state, other_principal).await?;
 
         let fr_before = native_editor_fr_row_count(&state).await?;
         let ledger_before = native_editor_ledger_row_count(&state).await?;
@@ -3657,17 +3728,30 @@ mod tests {
                 .as_str()
                 .expect("fixture receipt id")
                 .to_owned();
+            let document_id = envelope.payload["document_id"]
+                .as_str()
+                .expect("fixture document id");
+            let receipt = state
+                .storage
+                .list_kernel_events_for_aggregate("knowledge_rich_document", document_id)
+                .await?
+                .into_iter()
+                .find(|event| event.event_id == receipt_id)
+                .expect("fixture receipt row");
+            let mut receipt_payload = receipt.payload;
+            let receipt_object = receipt_payload
+                .as_object_mut()
+                .expect("receipt payload object");
             let field = crate::api::knowledge_documents::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD;
-            let patched = match mutate {
-                None => format!("payload - '{field}'"),
-                Some(value) => format!("jsonb_set(payload, '{{{field}}}', to_jsonb('{value}'::text))"),
-            };
-            sqlx::query(&format!(
-                "UPDATE kernel_event_ledger SET payload = {patched} WHERE event_id = $1"
-            ))
-            .bind(&receipt_id)
-            .execute(&state.postgres_pool)
-            .await?;
+            match mutate {
+                None => {
+                    receipt_object.remove(field);
+                }
+                Some(value) => {
+                    receipt_object.insert(field.to_owned(), Value::String(value.to_owned()));
+                }
+            }
+            set_event_payload(&state, receipt_id, receipt_payload).await?;
 
             let fr_before = native_editor_fr_row_count(&state).await?;
             let ledger_before = native_editor_ledger_row_count(&state).await?;
@@ -3703,6 +3787,7 @@ mod tests {
         };
         let event_id = Uuid::now_v7();
         let event = native_editor_envelope(&event_id.to_string());
+        let aggregate_id = durable_id(&event).to_string();
         let fr_only = native_editor_fr_event_from_envelope(&event)
             .map_err(|_| "failed to build exact FR-only fixture")?;
         state.flight_recorder.record_event(fr_only).await?;
@@ -3711,17 +3796,14 @@ mod tests {
             .await
             .map_err(|(code, _)| format!("repair replay failed: {code}"))?;
         assert_eq!(ack["idempotent"], true);
-        let ledger_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
-        )
-        .bind(format!(
-            "native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"
-        ))
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let ledger_count = native_editor_ledger_events(&state, aggregate_id)
+            .await?
+            .into_iter()
+            .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+            .count();
         assert_eq!(
             ledger_count, 1,
-            "replay repaired the missing PostgreSQL mirror"
+            "replay repaired the missing embedded EventLedger mirror"
         );
         Ok(())
     }
@@ -4052,13 +4134,14 @@ mod tests {
         );
         assert!(stored[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
 
-        let ledger_actor: String = sqlx::query_scalar(
-            "SELECT actor_id FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type = $2",
-        )
-        .bind(durable.to_string())
-        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let ledger_actor = native_editor_ledger_events(&state, durable.to_string())
+            .await?
+            .into_iter()
+            .find(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+            .expect("completion receipt")
+            .actor
+            .actor_id()
+            .to_owned();
         assert_eq!(
             ledger_actor, actor_id,
             "the durable EventLedger attribution is server-derived"
@@ -4144,12 +4227,9 @@ mod tests {
             (OTHER_TEST_WORKSPACE_ID, attacker_durable),
             (TEST_WORKSPACE_ID, victim_durable),
         ] {
-            let receipts: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1",
-            )
-            .bind(durable.to_string())
-            .fetch_one(&state.postgres_pool)
-            .await?;
+            let receipts = native_editor_ledger_events(&state, durable.to_string())
+                .await?
+                .len();
             assert_eq!(
                 receipts, 2,
                 "{workspace_id} owns its own pending+completion"

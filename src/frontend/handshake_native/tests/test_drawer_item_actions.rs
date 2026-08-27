@@ -15,7 +15,7 @@
 //!
 //! The headless shell has no tokio runtime, so the PERSISTING backend calls (Stow/Pin/Discard) are not
 //! driven here; those are proven by the backend_client wire-capture unit tests (the REAL spawn path) and
-//! the `#[ignore]` real-PG integration test in `test_drawer_integration.rs` (PROOF-024-3). These kittests
+//! the `#[ignore]` real-SurrealDB integration test in `test_drawer_integration.rs` (PROOF-024-3). These kittests
 //! prove the UI / menu / AccessKit / local-action / dispatch-routing surface end-to-end.
 
 use egui_kittest::kittest::Queryable;

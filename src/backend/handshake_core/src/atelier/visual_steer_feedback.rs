@@ -4,18 +4,18 @@
 //! [`VisualDebuggingLoopV1`](crate::kernel::visual_debugging_loop::VisualDebuggingLoopV1)
 //! into actionable, durable STEER feedback records -- never a silent failure
 //! and never generic prose. One record per `(loop_id, evidence_id)` breach is
-//! persisted in the durable store (table `atelier_visual_steer_feedback`, migration
-//! `0129_atelier_visual_steer_retention.sql`) and mirrored through the Atelier
+//! persisted in the embedded SurrealDB store (table
+//! `atelier_visual_steer_feedback`) and mirrored through the Atelier
 //! EventLedger so downstream roles can route the STEER receipt.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::Row;
+use surrealdb::types::{Datetime, SurrealValue};
 
 use crate::kernel::visual_debugging_loop::{validate_visual_debugging_loop, VisualDebuggingLoopV1};
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, AtelierError, AtelierResult, AtelierStore};
 
 pub mod visual_steer_event_family {
     /// A visual threshold breach was converted into a STEER feedback record
@@ -36,7 +36,8 @@ pub struct VisualSteerFeedbackRecord {
     pub threshold_basis_points: i32,
     /// Role the STEER receipt is routed to (always `VALIDATOR` today).
     pub target_role: String,
-    /// Receipt kind (always `STEER`; enforced by a DB check constraint).
+    /// Receipt kind (always `STEER`; enforced by the schema's literal field
+    /// type).
     pub receipt_kind: String,
     pub code_diff_ref: String,
     pub visual_diff_ref: String,
@@ -46,27 +47,93 @@ pub struct VisualSteerFeedbackRecord {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const VISUAL_STEER_FEEDBACK_COLUMNS: &str =
-    "feedback_id, loop_id, evidence_id, wp_id, mismatch_basis_points, \
-     threshold_basis_points, target_role, receipt_kind, code_diff_ref, \
-     visual_diff_ref, next_action, created_at_utc";
+/// One `atelier_visual_steer_feedback` row as the store returns it.
+#[derive(SurrealValue)]
+struct VisualSteerFeedbackRow {
+    feedback_id: String,
+    loop_id: String,
+    evidence_id: String,
+    wp_id: String,
+    mismatch_basis_points: i32,
+    threshold_basis_points: i32,
+    target_role: String,
+    receipt_kind: String,
+    code_diff_ref: String,
+    visual_diff_ref: String,
+    next_action: String,
+    created_at_utc: Datetime,
+}
 
-fn visual_steer_feedback_from_row(row: &sqlx::postgres::PgRow) -> VisualSteerFeedbackRecord {
-    VisualSteerFeedbackRecord {
-        feedback_id: row.get("feedback_id"),
-        loop_id: row.get("loop_id"),
-        evidence_id: row.get("evidence_id"),
-        wp_id: row.get("wp_id"),
-        mismatch_basis_points: row.get("mismatch_basis_points"),
-        threshold_basis_points: row.get("threshold_basis_points"),
-        target_role: row.get("target_role"),
-        receipt_kind: row.get("receipt_kind"),
-        code_diff_ref: row.get("code_diff_ref"),
-        visual_diff_ref: row.get("visual_diff_ref"),
-        next_action: row.get("next_action"),
-        created_at_utc: row.get("created_at_utc"),
+impl From<VisualSteerFeedbackRow> for VisualSteerFeedbackRecord {
+    fn from(row: VisualSteerFeedbackRow) -> Self {
+        VisualSteerFeedbackRecord {
+            feedback_id: row.feedback_id,
+            loop_id: row.loop_id,
+            evidence_id: row.evidence_id,
+            wp_id: row.wp_id,
+            mismatch_basis_points: row.mismatch_basis_points,
+            threshold_basis_points: row.threshold_basis_points,
+            target_role: row.target_role,
+            receipt_kind: row.receipt_kind,
+            code_diff_ref: row.code_diff_ref,
+            visual_diff_ref: row.visual_diff_ref,
+            next_action: row.next_action,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
+
+#[derive(Clone, SurrealValue)]
+struct VisualSteerFeedbackBindings {
+    feedback_id: String,
+    loop_id: String,
+    evidence_id: String,
+    wp_id: String,
+    mismatch_basis_points: i32,
+    threshold_basis_points: i32,
+    target_role: String,
+    receipt_kind: String,
+    code_diff_ref: String,
+    visual_diff_ref: String,
+    next_action: String,
+}
+
+#[derive(SurrealValue)]
+struct LoopIdBinding {
+    loop_id: String,
+}
+
+/// Upsert one STEER feedback record keyed on its deterministic
+/// `feedback_id` (which encodes `loop_id` + `evidence_id`) and append its
+/// event in the same atomic statement. The SET form deliberately omits
+/// `created_at_utc` so the schema default stamps it on first write and an
+/// upsert replay preserves it, matching the former conflict-update contract.
+const RECORD_VISUAL_STEER_FEEDBACK_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = type::record('atelier_visual_steer_feedback', $domain.feedback_id); ",
+    atelier_event_sql!(),
+    " RETURN (UPSERT $rid SET \
+         feedback_id = $domain.feedback_id, \
+         loop_id = $domain.loop_id, \
+         evidence_id = $domain.evidence_id, \
+         wp_id = $domain.wp_id, \
+         mismatch_basis_points = $domain.mismatch_basis_points, \
+         threshold_basis_points = $domain.threshold_basis_points, \
+         target_role = $domain.target_role, \
+         receipt_kind = $domain.receipt_kind, \
+         code_diff_ref = $domain.code_diff_ref, \
+         visual_diff_ref = $domain.visual_diff_ref, \
+         next_action = $domain.next_action \
+       RETURN AFTER)[0]; };"
+);
+
+const LIST_VISUAL_STEER_FEEDBACK_STATEMENT: &str =
+    "SELECT feedback_id, loop_id, evidence_id, wp_id, mismatch_basis_points, \
+            threshold_basis_points, target_role, receipt_kind, code_diff_ref, \
+            visual_diff_ref, next_action, created_at_utc \
+     FROM atelier_visual_steer_feedback \
+     WHERE loop_id = $loop_id \
+     ORDER BY created_at_utc DESC, feedback_id ASC;";
 
 impl AtelierStore {
     /// Convert every visual threshold breach in `loop_config` into a durable,
@@ -77,8 +144,10 @@ impl AtelierStore {
     /// evidence artifact whose `mismatch_basis_points` exceeds the configured
     /// `max_pixel_diff_basis_points`, one record is upserted keyed on
     /// `(loop_id, evidence_id)` and one `VISUAL_STEER_FEEDBACK_RECORDED` event
-    /// is emitted in the same transaction. A loop without breaches records
-    /// nothing and returns an empty list.
+    /// is written in the same atomic statement as the record. Records are
+    /// written per breach; a replay converges because every write is an
+    /// idempotent upsert. A loop without breaches records nothing and returns
+    /// an empty list.
     pub async fn record_visual_steer_feedback(
         &self,
         loop_config: &VisualDebuggingLoopV1,
@@ -105,7 +174,6 @@ impl AtelierStore {
         }
 
         let steering = &loop_config.validator_steering;
-        let mut tx = self.pool().begin().await?;
         let mut recorded = Vec::with_capacity(breaches.len());
         for artifact in breaches {
             let feedback_id = format!("steer-{}-{}", loop_config.loop_id, artifact.evidence_id);
@@ -118,59 +186,48 @@ impl AtelierStore {
                 steering.code_diff_ref,
                 artifact.visual_diff_artifact_ref,
             );
-            let row = sqlx::query(&format!(
-                r#"INSERT INTO atelier_visual_steer_feedback
-                     (feedback_id, loop_id, evidence_id, wp_id, mismatch_basis_points,
-                      threshold_basis_points, target_role, receipt_kind, code_diff_ref,
-                      visual_diff_ref, next_action)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                   ON CONFLICT (loop_id, evidence_id) DO UPDATE SET
-                     wp_id = EXCLUDED.wp_id,
-                     mismatch_basis_points = EXCLUDED.mismatch_basis_points,
-                     threshold_basis_points = EXCLUDED.threshold_basis_points,
-                     target_role = EXCLUDED.target_role,
-                     receipt_kind = EXCLUDED.receipt_kind,
-                     code_diff_ref = EXCLUDED.code_diff_ref,
-                     visual_diff_ref = EXCLUDED.visual_diff_ref,
-                     next_action = EXCLUDED.next_action
-                   RETURNING {VISUAL_STEER_FEEDBACK_COLUMNS}"#
-            ))
-            .bind(&feedback_id)
-            .bind(&loop_config.loop_id)
-            .bind(&artifact.evidence_id)
-            .bind(&artifact.wp_id)
-            .bind(artifact.mismatch_basis_points as i32)
-            .bind(threshold as i32)
-            .bind(&steering.target_role)
-            .bind(&steering.receipt_kind)
-            .bind(&steering.code_diff_ref)
-            .bind(&artifact.visual_diff_artifact_ref)
-            .bind(&next_action)
-            .fetch_one(&mut *tx)
-            .await?;
-            let record = visual_steer_feedback_from_row(&row);
-
-            self.record_event_in_tx(
-                &mut tx,
-                visual_steer_event_family::VISUAL_STEER_FEEDBACK_RECORDED,
-                "atelier_visual_steer_feedback",
-                &record.feedback_id,
-                json!({
-                    "feedback_id": record.feedback_id,
-                    "loop_id": record.loop_id,
-                    "evidence_id": record.evidence_id,
-                    "wp_id": record.wp_id,
-                    "mismatch_basis_points": record.mismatch_basis_points,
-                    "threshold_basis_points": record.threshold_basis_points,
-                    "target_role": record.target_role,
-                    "receipt_kind": record.receipt_kind,
-                    "schema": "hsk.atelier.visual_steer_feedback@1",
-                }),
-            )
-            .await?;
+            let bindings = VisualSteerFeedbackBindings {
+                feedback_id: feedback_id.clone(),
+                loop_id: loop_config.loop_id.clone(),
+                evidence_id: artifact.evidence_id.clone(),
+                wp_id: artifact.wp_id.clone(),
+                mismatch_basis_points: artifact.mismatch_basis_points as i32,
+                threshold_basis_points: threshold as i32,
+                target_role: steering.target_role.clone(),
+                receipt_kind: steering.receipt_kind.clone(),
+                code_diff_ref: steering.code_diff_ref.clone(),
+                visual_diff_ref: artifact.visual_diff_artifact_ref.clone(),
+                next_action,
+            };
+            let row: Option<VisualSteerFeedbackRow> = self
+                .write_with_event(
+                    RECORD_VISUAL_STEER_FEEDBACK_STATEMENT,
+                    bindings,
+                    visual_steer_event_family::VISUAL_STEER_FEEDBACK_RECORDED,
+                    "atelier_visual_steer_feedback",
+                    &feedback_id,
+                    json!({
+                        "feedback_id": feedback_id,
+                        "loop_id": loop_config.loop_id,
+                        "evidence_id": artifact.evidence_id,
+                        "wp_id": artifact.wp_id,
+                        "mismatch_basis_points": artifact.mismatch_basis_points,
+                        "threshold_basis_points": threshold,
+                        "target_role": steering.target_role,
+                        "receipt_kind": steering.receipt_kind,
+                        "schema": "hsk.atelier.visual_steer_feedback@1",
+                    }),
+                )
+                .await?;
+            let record: VisualSteerFeedbackRecord = row
+                .ok_or_else(|| {
+                    AtelierError::Internal(
+                        "recording visual steer feedback returned no row".to_owned(),
+                    )
+                })?
+                .into();
             recorded.push(record);
         }
-        tx.commit().await?;
         Ok(recorded)
     }
 
@@ -180,15 +237,21 @@ impl AtelierStore {
         &self,
         loop_id: &str,
     ) -> AtelierResult<Vec<VisualSteerFeedbackRecord>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {VISUAL_STEER_FEEDBACK_COLUMNS}
-               FROM atelier_visual_steer_feedback
-               WHERE loop_id = $1
-               ORDER BY created_at_utc DESC, feedback_id ASC"#
-        ))
-        .bind(loop_id)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(visual_steer_feedback_from_row).collect())
+        let bindings = LoopIdBinding {
+            loop_id: loop_id.to_owned(),
+        };
+        let rows: Vec<VisualSteerFeedbackRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_VISUAL_STEER_FEEDBACK_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(VisualSteerFeedbackRecord::from)
+            .collect())
     }
 }

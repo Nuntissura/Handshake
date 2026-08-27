@@ -1,27 +1,26 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
 use super::{
-    CapsuleFlightRecorderEvent, CapsuleRecord, CapsuleSuppressedEvent, FR_EVT_CAPSULE_SUPPRESSED,
-    FemsFlightRecorder, FemsFlightRecorderError, KERNEL_ACTION_REQUEST_SCHEMA_ID,
-    KernelActionRejection, KernelActionSubmission, KernelActionSubmitter,
-    MEMORY_WRITE_BOX_SCHEMA_ID, RecordReceipt, TaskType, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
-    WriteBoxV1Envelope,
+    CapsuleFlightRecorderEvent, CapsuleRecord, CapsuleSuppressedEvent, FemsFlightRecorder,
+    FemsFlightRecorderError, KernelActionRejection, KernelActionSubmission, KernelActionSubmitter,
+    RecordReceipt, TaskType, WriteBoxV1Envelope, FR_EVT_CAPSULE_SUPPRESSED,
+    KERNEL_ACTION_REQUEST_SCHEMA_ID, MEMORY_WRITE_BOX_SCHEMA_ID, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
 };
 use crate::kernel::{
     action_envelope::{
-        ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef, KernelActionRequestV1,
-        KernelActorRef, KernelSessionRef, KernelTargetRef, ValidationRequirement,
-        validate_kernel_action_request,
+        validate_kernel_action_request, ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef,
+        KernelActionRequestV1, KernelActorRef, KernelSessionRef, KernelTargetRef,
+        ValidationRequirement,
     },
     context_bundle::{canonical_json_bytes, sha256_hex},
     write_boxes::{
-        MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef,
-        WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef, WriteBoxValidationState,
-        WriteBoxValidationStatus, validate_write_box_common,
+        validate_write_box_common, MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState,
+        WriteBoxOwnerRef, WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef,
+        WriteBoxValidationState, WriteBoxValidationStatus,
     },
 };
 
@@ -38,7 +37,7 @@ pub const MEMORY_CAPSULE_SUPPRESS_PAYLOAD_SCHEMA_ID: &str =
 pub trait MemoryCapsuleIpcStore {
     fn all_capsule_records(&self) -> Result<Vec<CapsuleRecord>, MemoryIpcError>;
     fn get_capsule_record(&self, capsule_id: Uuid)
-    -> Result<Option<CapsuleRecord>, MemoryIpcError>;
+        -> Result<Option<CapsuleRecord>, MemoryIpcError>;
     fn save_capsule_record(&self, record: CapsuleRecord) -> Result<(), MemoryIpcError>;
 }
 

@@ -97,15 +97,13 @@ const EVIDENCE_CLAIMS: &[EvidenceClaim] = &[
     EvidenceClaim {
         hbr_id: HBR_VIS_GAP_HBR_ID, // HBR-VIS-005
         capability: "Loom visual-debug projection from live PG navigation state",
-        proof_test_files: &[
-            "loom_visual_debug_views_tests.rs",
-            "hbr_vis_gap_tests.rs",
-        ],
+        proof_test_files: &["loom_visual_debug_views_tests.rs", "hbr_vis_gap_tests.rs"],
         receipt_kinds: &["KNOWLEDGE_LOOM_BLOCK_INDEXED"],
     },
     EvidenceClaim {
         hbr_id: "CX-503R",
-        capability: "PostgreSQL + EventLedger is the only durable authority; receipts re-read from PG",
+        capability:
+            "PostgreSQL + EventLedger is the only durable authority; receipts re-read from PG",
         proof_test_files: &[
             "knowledge_parallel_write_conflict_fixture_tests.rs",
             "loom_transclusion_tests.rs",
@@ -176,7 +174,7 @@ fn assemble_evidence_index(dir: &Path) -> Value {
         "schema_id": EVIDENCE_SCHEMA_ID,
         "wp_id": WP_ID,
         "mt_id": MT_ID,
-        "authority_backend": "postgres_event_ledger",
+        "authority_backend": "surreal_event_ledger",
         "authority_class": "validator_evidence_pack",
         "no_sqlite": true,
         "no_docker": true,
@@ -268,9 +266,7 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
         &allowlist,
     );
     assert!(
-        sqlite_violations
-            .iter()
-            .any(|v| v.class_id == "sqlite"),
+        sqlite_violations.iter().any(|v| v.class_id == "sqlite"),
         "no-SQLite source tripwire must fire on SqlitePool fixture: {sqlite_violations:?}"
     );
     for bad_path in [
@@ -337,8 +333,11 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
         .expect("build Loom visual-debug snapshot");
     assert_eq!(snapshot.schema_id, LOOM_VISUAL_DEBUG_SCHEMA_ID);
     assert_eq!(snapshot.authority_class, "projection");
-    assert_eq!(snapshot.authority_backend.as_str(), "postgres_event_ledger");
-    assert!(snapshot.counts.blocks >= 2, "visual-debug snapshot must reflect live PG blocks");
+    assert_eq!(snapshot.authority_backend.as_str(), "surreal_event_ledger");
+    assert!(
+        snapshot.counts.blocks >= 2,
+        "visual-debug snapshot must reflect live PG blocks"
+    );
     assert!(
         snapshot
             .graph
@@ -380,7 +379,10 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
         KernelEventType::KnowledgeValidationRecorded,
         KernelActor::ValidationRunner("wp009_integration_validator_evidence_pack".to_string()),
     )
-    .aggregate("wp009_integration_validator_evidence_pack", aggregate_id.clone())
+    .aggregate(
+        "wp009_integration_validator_evidence_pack",
+        aggregate_id.clone(),
+    )
     .idempotency_key(format!("KEI-{aggregate_id}"))
     .source_component("wp009_integration_validator_evidence_pack")
     .payload(evidence_index.clone())
@@ -406,9 +408,16 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
         )
         .await
         .expect("re-read evidence receipt from PostgreSQL");
-    assert_eq!(rows.len(), 1, "exactly one evidence receipt re-read from PG");
+    assert_eq!(
+        rows.len(),
+        1,
+        "exactly one evidence receipt re-read from PG"
+    );
     let reread = &rows[0];
-    assert_eq!(reread.event_type, KernelEventType::KnowledgeValidationRecorded);
+    assert_eq!(
+        reread.event_type,
+        KernelEventType::KnowledgeValidationRecorded
+    );
     assert_eq!(
         reread.payload_hash, expected_hash,
         "re-read evidence payload hash must match the appended hash (no silent mutation)"
@@ -448,7 +457,12 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
         .iter()
         .filter_map(Value::as_str)
         .collect();
-    for required in ["HBR-STOP-001", "HBR-STOP-002", HBR_VIS_GAP_HBR_ID, "CX-503R"] {
+    for required in [
+        "HBR-STOP-001",
+        "HBR-STOP-002",
+        HBR_VIS_GAP_HBR_ID,
+        "CX-503R",
+    ] {
         assert!(
             proved.contains(required),
             "MT-240 hbr_focus row {required} must be proved + durable: {proved:?}"

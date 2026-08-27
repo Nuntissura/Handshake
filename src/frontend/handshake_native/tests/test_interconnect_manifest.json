@@ -106,7 +106,7 @@
       "PUT /knowledge/documents/{doc_id}/save",
       "GET /knowledge/documents/{doc_id}"
     ],
-    "description": "Reference code symbol from note: the real Copy as note reference command writes [[code:...]] through the mockable clipboard and shared bus; inserting it yields hsLink(refKind=code), then the production native SaveManager persists it to managed PostgreSQL, GET reload returns the exact refValue, and the exact save receipt records the code-prefixed reference target.",
+    "description": "Reference code symbol from note: the real Copy as note reference command writes [[code:...]] through the mockable clipboard and shared bus; inserting it yields hsLink(refKind=code), then the production native SaveManager persists it to managed SurrealDB, GET reload returns the exact refValue, and the exact save receipt records the code-prefixed reference target.",
     "edge": "note_code_crossref",
     "proof_fn": "interconnect_ic07_reference_code_symbol_from_note",
     "scenario_id": "IC-07",
@@ -132,7 +132,7 @@
   },
   {
     "backend_apis_called": [],
-    "description": "Code diagnostics surface note reference: a code diagnostic carrying a related-note reference dispatches open-document on the SAME shared bus; the rich-editor pane's real AccessKit surface ('rich-editor-surface') is the focus target. SUBSTRATE proof (no PG). Contract names 'rich_editor.pane.{doc_id}'; the REAL registered id is 'rich-editor-surface' -> assert the real id, typed note.",
+    "description": "Code diagnostics surface note reference: a code diagnostic carrying a related-note reference dispatches open-document on the SAME shared bus; the rich-editor pane's real AccessKit surface ('rich-editor-surface') is the focus target. SUBSTRATE proof (no SurrealDB). Contract names 'rich_editor.pane.{doc_id}'; the REAL registered id is 'rich-editor-surface' -> assert the real id, typed note.",
     "edge": "note_code_crossref",
     "proof_fn": "interconnect_ic09_diagnostic_note_reference",
     "scenario_id": "IC-09",
@@ -150,7 +150,7 @@
       "PUT /knowledge/documents/{doc_id}/save",
       "GET /workspaces/{id}/loom/blocks/{loom_B}/backlinks"
     ],
-    "description": "Backlink appears across surfaces: saving note A with a wikilink to code-block B registers a Loom backlink edge B<-A in managed PostgreSQL; the proof reloads backend authority and verifies the exact source/target identities.",
+    "description": "Backlink appears across surfaces: saving note A with a wikilink to code-block B registers a Loom backlink edge B<-A in managed SurrealDB; the proof reloads backend authority and verifies the exact source/target identities.",
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic10_backlink_cross_surface",
     "scenario_id": "IC-10",
@@ -199,7 +199,7 @@
       "GET /workspaces/{id}/loom/ai-suggestions",
       "POST /workspaces/{id}/loom/ai-suggestions/{suggestion_id}/accept"
     ],
-    "description": "AI Loom job proposes cross-surface link: a link_suggest AI job proposes a code-file target and acceptance writes a real backlink edge. The only allowed skip is the mounted endpoint's exact typed 409 HSK-409-LOOM-AI-NO-MODEL; before/after managed-PostgreSQL proof requires zero owned-workspace suggestion rows, zero joined proposal events, and no delta in the fixture-owned session's AI proposal events. Every other response fails or passes normally.",
+    "description": "AI Loom job proposes cross-surface link: a link_suggest AI job proposes a code-file target and acceptance writes a real backlink edge. The only allowed skip is the mounted endpoint's exact typed 409 HSK-409-LOOM-AI-NO-MODEL; before/after managed-SurrealDB proof requires zero owned-workspace suggestion rows, zero joined proposal events, and no delta in the fixture-owned session's AI proposal events. Every other response fails or passes normally.",
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic13_ai_link_suggestion",
     "scenario_id": "IC-13",
@@ -233,7 +233,7 @@
       "PUT /knowledge/documents/{doc_id}/save",
       "GET /knowledge/documents/{doc_id}"
     ],
-    "description": "Undo crosses rich editor edit: EDIT_A is saved to managed PostgreSQL, the canonical Ctrl+Z path runs through the ONE shared InteractionBus undo scope, the restored snapshot is saved, and a backend GET proves EDIT_A is absent while versions advance across both saves.",
+    "description": "Undo crosses rich editor edit: EDIT_A is saved to managed SurrealDB, the canonical Ctrl+Z path runs through the ONE shared InteractionBus undo scope, the restored snapshot is saved, and a backend GET proves EDIT_A is absent while versions advance across both saves.",
     "edge": "shared_undo_ledger",
     "proof_fn": "interconnect_ic15_undo_rich_editor",
     "scenario_id": "IC-15",
@@ -245,7 +245,7 @@
   },
   {
     "backend_apis_called": [],
-    "description": "Undo crosses code editor edit: a code-buffer edit (insert CODE_EDIT) recorded on the ONE shared undo stack is reverted by one undo so the buffer no longer contains CODE_EDIT. SUBSTRATE proof (no PG) via the real CodeEditorPanel + push_code_edit_undo adapter. The PG version-revert half is requires_pg.",
+    "description": "Undo crosses code editor edit: a code-buffer edit (insert CODE_EDIT) recorded on the ONE shared undo stack is reverted by one undo so the buffer no longer contains CODE_EDIT. SUBSTRATE proof (no SurrealDB) via the real CodeEditorPanel + push_code_edit_undo adapter. The SurrealDB version-revert half is requires_surrealdb.",
     "edge": "shared_undo_ledger",
     "proof_fn": "interconnect_ic16_undo_code_editor",
     "scenario_id": "IC-16",
@@ -274,7 +274,7 @@
   },
   {
     "backend_apis_called": [],
-    "description": "Shared undo stack policy scoped per-pane vs global: two panes (rich note A, code file B) are edited in sequence, then ONE undo reverts only the MOST RECENTLY edited surface (B), leaving A unchanged. CTRL-4: a single Arc<Mutex<UndoStack>> shared by both editors; the test inspects BOTH surfaces after one undo. SUBSTRATE proof (no PG), the load-bearing per-pane-scope policy proof.",
+    "description": "Shared undo stack policy scoped per-pane vs global: two panes (rich note A, code file B) are edited in sequence, then ONE undo reverts only the MOST RECENTLY edited surface (B), leaving A unchanged. CTRL-4: a single Arc<Mutex<UndoStack>> shared by both editors; the test inspects BOTH surfaces after one undo. SUBSTRATE proof (no SurrealDB), the load-bearing per-pane-scope policy proof.",
     "edge": "shared_undo_ledger",
     "proof_fn": "interconnect_ic18_undo_scope_policy",
     "scenario_id": "IC-18",

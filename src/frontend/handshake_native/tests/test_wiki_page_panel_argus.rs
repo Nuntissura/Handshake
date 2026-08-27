@@ -1,6 +1,6 @@
 //! MT-025 V4 canonical Argus proof for the mounted wiki projection overlay editor.
 //!
-//! This is deliberately a managed-PostgreSQL/current-source product proof, not a direct-seeded panel
+//! This is deliberately a managed-SurrealDB/current-source product proof, not a direct-seeded panel
 //! harness. It creates source Loom blocks and a wiki projection through the production HTTP API, lets
 //! `WikiPagePaneMount` load that projection through `LoomWikiClient`, and drives Edit, SetValue, Cancel,
 //! Edit, SetValue, and Save through the localhost canonical Argus transport. Save is accepted only after
@@ -19,8 +19,8 @@ use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, Canonic
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "integration")]
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -196,7 +196,7 @@ fn write_atomic(path: &Path, bytes: &[u8]) {
 #[test]
 #[cfg(feature = "integration")]
 fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
-    let mut live = pg_proof_support::require_live_backend();
+    let mut live = backend_proof_support::require_live_backend();
     let run_id = format!("run-{}", uuid::Uuid::new_v4());
     let backend_binding = live.owned_backend_binding_receipt();
     let workspace_id = live.workspace_id.clone();
@@ -450,7 +450,7 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
     );
     assert_eq!(save_detail["source_content_sha256"], source_content_sha256);
 
-    let artifact_dir = pg_proof_support::external_artifact_root()
+    let artifact_dir = backend_proof_support::external_artifact_root()
         .join("wp-kernel-012-mt-025")
         .join("canonical-argus-v4-runs")
         .join(&run_id);
@@ -589,7 +589,7 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
     assert_eq!(manifest_reread["screenshot_sha256"], screenshot_sha256);
 
     println!(
-        "MT-025 V4 current-source PG Argus: run={} cancel={} save={} overlay={} screenshot={} evidence={} manifest={}",
+        "MT-025 V4 current-source SurrealDB Argus: run={} cancel={} save={} overlay={} screenshot={} evidence={} manifest={}",
         run_id,
         cancelled.receipt_status,
         saved.receipt_status,

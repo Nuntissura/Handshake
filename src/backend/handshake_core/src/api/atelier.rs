@@ -7,18 +7,9 @@
 //! builder, `State(AppState)` handlers, and a private `ErrorResponse` with
 //! `internal_error` / `bad_request` helpers.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-138): `AtelierStore` and these
-//! handlers still bind `sqlx` against the deleted relational backend, so this
-//! surface does not compile and serves no request today. Handshake's only
-//! database is the embedded SurrealDB store.
-//!
-//! Storage authority is the single store only (`AtelierStore` over the shared
-//! `AppState::postgres_pool`); SQLite is never used. `ensure_schema` is called
-//! once at startup, never per-request. Read handlers build an `AtelierStore`
-//! per request from the shared pool, or run a direct `sqlx` query against the
-//! pool where no typed read method fits the contract. Table names used in count
-//! queries come from a fixed allowlist constant; no caller input is ever
-//! interpolated into SQL.
+//! Storage authority is the embedded SurrealDB store. Read handlers use the
+//! typed `AtelierStore` surface or its lease-bound Surreal data context; no
+//! relational fallback exists.
 
 use axum::{
     extract::{Path, State},
@@ -28,11 +19,12 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use crate::atelier::intake::{
     IntakeBatchMode, IntakeItemLoomProjection, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
+    NewIntakeItem,
 };
 use crate::atelier::search::{
     AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, NewAiTagSuggestion,
@@ -56,7 +48,7 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/atelier/intake/batches/:batch_id/items",
-            get(list_intake_batch_items),
+            get(list_intake_batch_items).post(create_intake_item),
         )
         .route(
             "/atelier/intake/items/:item_id/loom-projection",
@@ -111,8 +103,8 @@ pub fn routes(state: AppState) -> Router {
 }
 
 /// Curated atelier tables surfaced by the overview row-count projection. This is
-/// a fixed allowlist: only these literal identifiers are ever placed into a
-/// `SELECT count(*)` statement, so no caller input reaches SQL.
+/// a fixed allowlist paired with literal SurrealQL count statements, so no
+/// caller input reaches the query text.
 const OVERVIEW_TABLES: &[&str] = &[
     "atelier_character",
     "atelier_media_asset",
@@ -134,6 +126,49 @@ const OVERVIEW_TABLES: &[&str] = &[
     "atelier_ai_tag_suggestion",
     "atelier_stealth_window",
 ];
+
+fn overview_count_statement(table: &str) -> &'static str {
+    match table {
+        "atelier_character" => "RETURN count(SELECT id FROM atelier_character);",
+        "atelier_media_asset" => "RETURN count(SELECT id FROM atelier_media_asset);",
+        "atelier_media_source_provenance_ref" => {
+            "RETURN count(SELECT id FROM atelier_media_source_provenance_ref);"
+        }
+        "atelier_media_sidecar" => "RETURN count(SELECT id FROM atelier_media_sidecar);",
+        "atelier_bulk_operation_receipt" => {
+            "RETURN count(SELECT id FROM atelier_bulk_operation_receipt);"
+        }
+        "atelier_trash_marker" => "RETURN count(SELECT id FROM atelier_trash_marker);",
+        "atelier_filesystem_health_check" => {
+            "RETURN count(SELECT id FROM atelier_filesystem_health_check);"
+        }
+        "atelier_filesystem_health_finding" => {
+            "RETURN count(SELECT id FROM atelier_filesystem_health_finding);"
+        }
+        "atelier_image_import_request" => {
+            "RETURN count(SELECT id FROM atelier_image_import_request);"
+        }
+        "atelier_intake_batch" => "RETURN count(SELECT id FROM atelier_intake_batch);",
+        "atelier_intake_item" => "RETURN count(SELECT id FROM atelier_intake_item);",
+        "atelier_pose_rig" => "RETURN count(SELECT id FROM atelier_pose_rig);",
+        "atelier_comfy_intake_output" => {
+            "RETURN count(SELECT id FROM atelier_comfy_intake_output);"
+        }
+        "atelier_sourcing_spec" => "RETURN count(SELECT id FROM atelier_sourcing_spec);",
+        "atelier_transcript_artifact" => {
+            "RETURN count(SELECT id FROM atelier_transcript_artifact);"
+        }
+        "atelier_md_download_session" => {
+            "RETURN count(SELECT id FROM atelier_md_download_session);"
+        }
+        "atelier_command_corpus_entry" => {
+            "RETURN count(SELECT id FROM atelier_command_corpus_entry);"
+        }
+        "atelier_ai_tag_suggestion" => "RETURN count(SELECT id FROM atelier_ai_tag_suggestion);",
+        "atelier_stealth_window" => "RETURN count(SELECT id FROM atelier_stealth_window);",
+        _ => unreachable!("overview table must come from OVERVIEW_TABLES"),
+    }
+}
 
 fn atelier_store(state: &AppState) -> AtelierStore {
     AtelierStore::with_observability(
@@ -231,38 +266,54 @@ struct OverviewResponse {
     event_families: Vec<EventFamilyCount>,
 }
 
+#[derive(SurrealValue)]
+struct NoBindings {}
+
+#[derive(SurrealValue)]
+struct EventFamilyCountRow {
+    event_family: String,
+    count: i64,
+}
+
 /// GET /atelier/overview — row counts for the curated atelier tables plus
 /// per-family atelier event counts.
 async fn overview(
     State(state): State<AppState>,
 ) -> Result<Json<OverviewResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let pool = &state.postgres_pool;
+    let store = atelier_store(&state);
 
     let mut tables = Vec::with_capacity(OVERVIEW_TABLES.len());
     for name in OVERVIEW_TABLES {
-        // `name` is a fixed allowlist literal, never caller input.
-        let rows: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM {name}"))
-            .fetch_one(pool)
+        let statement = overview_count_statement(name);
+        let rows = store
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first::<i64, _>(statement, NoBindings {}).await })
+            })
             .await
-            .map_err(internal_error)?;
+            .map_err(atelier_error)?;
+        let rows = rows.unwrap_or(0);
         tables.push(TableCount { name, rows });
     }
 
-    let family_rows = sqlx::query(
-        r#"SELECT event_family, count(*) AS n
-           FROM atelier_event
-           GROUP BY event_family
-           ORDER BY event_family"#,
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(internal_error)?;
+    let family_rows: Vec<EventFamilyCountRow> = store
+        .with_data(|ctx| {
+            Box::pin(async move {
+                ctx.query_values(
+                    "SELECT event_family, count() AS count FROM atelier_event \
+                     GROUP BY event_family ORDER BY event_family;",
+                    NoBindings {},
+                )
+                .await
+            })
+        })
+        .await
+        .map_err(atelier_error)?;
 
     let event_families = family_rows
-        .iter()
+        .into_iter()
         .map(|row| EventFamilyCount {
-            family: row.get("event_family"),
-            count: row.get("n"),
+            family: row.event_family,
+            count: row.count,
         })
         .collect();
 
@@ -661,6 +712,70 @@ struct IntakeBatchItemsResponse {
     items: Vec<IntakeItemResponse>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CreateIntakeItemRequest {
+    source_path: String,
+    file_name: String,
+    byte_len: i64,
+    content_hash: Option<String>,
+}
+
+/// POST /atelier/intake/batches/:batch_id/items — register one source item.
+/// Replaying the same `(batch_id, source_path)` converges on the canonical item.
+async fn create_intake_item(
+    State(state): State<AppState>,
+    Path(batch_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateIntakeItemRequest>,
+) -> Result<(StatusCode, Json<IntakeItemResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let item = atelier_store(&state)
+        .add_intake_item(
+            batch_id,
+            &NewIntakeItem {
+                source_path: payload.source_path,
+                file_name: payload.file_name,
+                byte_len: payload.byte_len,
+                content_hash: payload.content_hash,
+            },
+        )
+        .await
+        .map_err(atelier_error)?;
+    let response = IntakeItemResponse {
+        item_id: item.item_id,
+        source_path: item.source_path,
+        file_name: item.file_name,
+        lane: item.lane.as_str().to_owned(),
+        byte_len: item.byte_len,
+        loom_block_id: None,
+    };
+
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/intake/batches/:batch_id/items",
+        status = "created",
+        actor = %actor,
+        batch_id = %batch_id,
+        item_id = %response.item_id,
+        "register intake batch item"
+    );
+
+    Ok((StatusCode::CREATED, Json(response)))
+}
+
+#[derive(SurrealValue)]
+struct IntakeProjectionBinding {
+    batch_ref: RecordId,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct IntakeProjectionRow {
+    item_id: SurrealUuid,
+    loom_block_id: String,
+}
+
 /// GET /atelier/intake/batches/:batch_id/items — lane counts + items for a batch.
 async fn list_intake_batch_items(
     State(state): State<AppState>,
@@ -673,34 +788,45 @@ async fn list_intake_batch_items(
         .await
         .map_err(atelier_error)?;
 
-    // The typed `list_intake_items` is uncapped; a batch can hold tens of
-    // thousands of items, so use a direct capped query (LIST_CAP) like the
-    // other list routes. The lane_counts header carries the true totals.
-    let rows = sqlx::query(
-        r#"SELECT item.item_id, item.source_path, item.file_name, item.lane, item.byte_len,
-                  projection.loom_block_id
-           FROM atelier_intake_item item
-           LEFT JOIN atelier_intake_item_loom_projection projection
-             ON projection.item_id = item.item_id
-           WHERE item.batch_id = $1
-           ORDER BY item.created_at_utc ASC
-           LIMIT $2"#,
-    )
-    .bind(batch_id)
-    .bind(LIST_CAP)
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(internal_error)?;
-
-    let items = rows
-        .iter()
-        .map(|row| IntakeItemResponse {
-            item_id: row.get("item_id"),
-            source_path: row.get("source_path"),
-            file_name: row.get("file_name"),
-            lane: row.get("lane"),
-            byte_len: row.get("byte_len"),
-            loom_block_id: row.get("loom_block_id"),
+    let projections: Vec<IntakeProjectionRow> = store
+        .with_data(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(
+                    "SELECT record::id(item_id) AS item_id, \
+                     record::id(loom_block_id) AS loom_block_id \
+                     FROM atelier_intake_item_loom_projection \
+                     WHERE item_id IN (SELECT VALUE id FROM atelier_intake_item \
+                     WHERE batch_id = $batch_ref \
+                     ORDER BY created_at_utc ASC LIMIT $limit);",
+                    IntakeProjectionBinding {
+                        batch_ref: RecordId::new(
+                            "atelier_intake_batch",
+                            SurrealUuid::from(batch_id),
+                        ),
+                        limit: LIST_CAP,
+                    },
+                )
+                .await
+            })
+        })
+        .await
+        .map_err(atelier_error)?;
+    let projections = projections
+        .into_iter()
+        .map(|row| (Uuid::from(row.item_id), row.loom_block_id))
+        .collect::<std::collections::HashMap<_, _>>();
+    let items = store
+        .list_intake_items_limited(batch_id, None, LIST_CAP)
+        .await
+        .map_err(atelier_error)?
+        .into_iter()
+        .map(|item| IntakeItemResponse {
+            loom_block_id: projections.get(&item.item_id).cloned(),
+            item_id: item.item_id,
+            source_path: item.source_path,
+            file_name: item.file_name,
+            lane: item.lane.as_str().to_owned(),
+            byte_len: item.byte_len,
         })
         .collect();
 
@@ -757,28 +883,18 @@ struct CommandCorpusEntryResponse {
 async fn list_command_corpus(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CommandCorpusEntryResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    // No typed list method caps the result set, so a direct, capped query is
-    // used. Column projection only; no caller input reaches SQL.
-    let rows = sqlx::query(
-        r#"SELECT entry_id, action_id, owner, execution_class, foreground_flag, manual_anchor
-           FROM atelier_command_corpus_entry
-           ORDER BY action_id ASC
-           LIMIT $1"#,
-    )
-    .bind(LIST_CAP)
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(internal_error)?;
-
-    let out = rows
-        .iter()
-        .map(|row| CommandCorpusEntryResponse {
-            entry_id: row.get("entry_id"),
-            action_id: row.get("action_id"),
-            owner: row.get("owner"),
-            execution_class: row.get("execution_class"),
-            foreground_flag: row.get("foreground_flag"),
-            manual_anchor: row.get("manual_anchor"),
+    let out = atelier_store(&state)
+        .list_command_corpus_entries_limited(None, LIST_CAP)
+        .await
+        .map_err(atelier_error)?
+        .into_iter()
+        .map(|entry| CommandCorpusEntryResponse {
+            entry_id: entry.entry_id,
+            action_id: entry.action_id,
+            owner: entry.owner,
+            execution_class: entry.execution_class.as_token().to_owned(),
+            foreground_flag: entry.foreground_flag,
+            manual_anchor: entry.manual_anchor,
         })
         .collect();
 

@@ -5,7 +5,7 @@
 //! the ingestion front door of the ProjectKnowledgeIndex: it turns operator
 //! project roots, governance artifacts, research notes, PDFs, and media
 //! transcripts into durable `KnowledgeSource` rows, ingestion spans,
-//! extraction receipts, and repair-queue entries — all PostgreSQL +
+//! extraction receipts, and repair-queue entries — all embedded SurrealDB +
 //! EventLedger authority, never prose.
 //!
 //! # Model manual (no-context quick start)
@@ -94,7 +94,7 @@ pub enum IngestionError {
     /// Input failed typed validation before any durable write.
     #[error("ingestion validation failed: {0}")]
     Validation(String),
-    /// Underlying storage layer error (PostgreSQL/EventLedger).
+    /// Underlying storage layer error (SurrealDB/EventLedger).
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
     /// Kernel EventLedger construction error.

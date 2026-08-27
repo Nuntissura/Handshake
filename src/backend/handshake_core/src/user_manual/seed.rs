@@ -7,7 +7,7 @@
 //!   generated from [`registry::wp009_surface_registry`] + the legacy static
 //!   manifest so the catalog can never drift from the declared inventory).
 //! * MT-198 UserManualFailureRecoveryPages — common failures, diagnostics,
-//!   recovery steps, repair queues, stale state, missing-Postgres behavior.
+//!   recovery steps, repair queues, stale state, and embedded-store behavior.
 //! * MT-199 UserManualModelQuickstartBundles — per-area quickstart pages.
 //! * MT-206 UserManualStateRecoveryGuide — session compaction, interrupted
 //!   MTs, failed builds, validation reentry.
@@ -33,7 +33,7 @@ use super::store::{
 use super::USER_MANUAL_VERSION;
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
 use crate::model_manual::{model_manual, CommandStatus};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 /// Everything the seeder writes.
@@ -172,6 +172,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_startup_and_run_commands(),
         page_backend_navigation_and_identity(),
         page_permissions_and_safety(),
+        page_atelier_storage_authority(),
         page_knowledge_index_surface(),
         page_notes_loom_surface(),
         page_rich_documents_surface(),
@@ -181,7 +182,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_usermanual_surface(),
         page_failure_modes_and_recovery(),
         page_repair_queues_and_staleness(),
-        page_missing_postgres_behavior(),
+        page_embedded_store_recovery(),
         page_state_recovery_guide(),
         page_kernel_write_governance(),
         page_legacy_bridge(),
@@ -197,6 +198,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "startup-and-run-commands",
         "backend-navigation-and-identity",
         "permissions-and-safety",
+        "atelier-storage-authority",
         "knowledge-index-surface",
         "notes-loom-surface",
         "rich-documents-surface",
@@ -206,7 +208,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "usermanual-surface",
         "failure-modes-and-recovery",
         "repair-queues-and-staleness",
-        "missing-postgres-behavior",
+        "embedded-store-recovery",
         "state-recovery-guide",
         "kernel-write-governance",
         "legacy-model-manual-bridge",
@@ -230,7 +232,7 @@ fn page_manual_toc() -> NewUserManualPage {
                 "navigation",
                 "How to use this manual",
                 "This is the Handshake UserManual: the built-in, no-context operating manual for \
-                 models and operators. Every page is a PostgreSQL authority row served over \
+                 models and operators. Every page is an embedded SurrealDB authority row served over \
                  `GET /usermanual/pages/:slug`. Start here with no prior context:\n\n\
                  1. `GET /usermanual/pages` — list all pages.\n\
                  2. `GET /usermanual/pages/handshake-product-purpose` — what Handshake is.\n\
@@ -248,7 +250,7 @@ fn page_manual_toc() -> NewUserManualPage {
                     .iter()
                     .map(|s| format!("- [[{s}]]\n"))
                     .collect::<String>(),
-                json!(all_slugs),
+                json!({ "pages": all_slugs }),
             ),
         ],
         anchors,
@@ -267,7 +269,7 @@ fn page_product_purpose() -> NewUserManualPage {
                 "purpose",
                 "What Handshake is",
                 "Handshake is a local-first creative + execution workbench where operators and \
-                 models co-author work over ONE authority substrate: PostgreSQL plus the \
+                 models co-author work over ONE authority substrate: embedded SurrealDB plus the \
                  EventLedger. WP-KERNEL-009 adds the Project Knowledge Index (typed knowledge \
                  about a project's sources, code symbols, claims, and media), a Tiptap/ProseMirror \
                  rich document editor with embedded Monaco code nodes, the Notes surface \
@@ -282,12 +284,12 @@ fn page_product_purpose() -> NewUserManualPage {
             section(
                 "purpose",
                 "Authority model",
-                "PostgreSQL + EventLedger is canonical for durable state, receipts, indexing \
+                "Embedded SurrealDB + EventLedger is canonical for durable state, receipts, indexing \
                  evidence, and validation. Generated markdown, wiki pages, HTML exports, context \
                  bundles, debug reports, and UI projections are PROJECTIONS — useful, never \
-                 authority. There is no SQLite, no Docker dependency, no external daemon: \
-                 Handshake manages its own PostgreSQL cluster (see \
-                 [[missing-postgres-behavior]]).",
+                 authority. There is no alternate local database, no Docker dependency, and no database daemon: \
+                 Handshake opens its own embedded SurrealDB store (see \
+                 [[embedded-store-recovery]]).",
             ),
             section(
                 "navigation",
@@ -302,7 +304,7 @@ fn page_product_purpose() -> NewUserManualPage {
         anchors: vec![
             page_link("startup-and-run-commands"),
             page_link("backend-navigation-and-identity"),
-            page_link("missing-postgres-behavior"),
+            page_link("embedded-store-recovery"),
             page_link("failure-modes-and-recovery"),
             spec_anchor("2.3.13.11"),
             spec_anchor("7.1.1.9"),
@@ -416,17 +418,16 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                  ```\n\n\
                  The server binds `127.0.0.1:37501` and mounts every API both at `/` and under \
                  `/api` (e.g. `/usermanual/pages` and `/api/usermanual/pages` are the same \
-                 surface). On startup Handshake ensures its own managed PostgreSQL cluster is \
-                 running (default port 5544, data dir `Handshake_Artifacts/handshake-product/managed_pgdata` in the \
-                 shared `Handshake_Artifacts` root beside the repo — the worktrees' sibling, not \
-                 inside the worktree) — no Docker, no external daemon. Quiet by design: no foreground \
-                 window is popped.",
+                 surface). On startup Handshake opens its embedded SurrealDB store from \
+                 `HANDSHAKE_DATA_DIR` when configured, otherwise from the platform-local application \
+                 data directory. It starts no database server or daemon. Quiet by design: no \
+                 foreground window is popped.",
                 json!({
                     "run_command": "cargo run -p handshake_core --bin handshake_core --features app-runtime",
                     "listen_addr": "127.0.0.1:37501",
                     "api_mounts": ["/", "/api"],
-                    "managed_postgres_port": 5544,
-                    "managed_postgres_data_dir": "Handshake_Artifacts/handshake-product/managed_pgdata"
+                    "database_engine": "embedded_surrealdb_rocksdb",
+                    "data_dir_override": "HANDSHAKE_DATA_DIR"
                 }),
             ),
             section(
@@ -434,7 +435,7 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                 "Probe health",
                 "```\ncurl http://127.0.0.1:37501/health\n```\n\n\
                  `GET /health` answers when the server is up. If it does not answer, see \
-                 [[missing-postgres-behavior]] and [[state-recovery-guide]].",
+                 [[embedded-store-recovery]] and [[state-recovery-guide]].",
             ),
             section(
                 "run_commands",
@@ -446,9 +447,11 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                  cargo test -p handshake_core --features test-utils --test knowledge_code_nav_api_tests\n\
                  cargo test -p handshake_core --lib user_manual\n\
                  ```\n\n\
-                 Integration tests provision an isolated schema per test on the real cluster \
-                 (`POSTGRES_TEST_URL` > `DATABASE_URL` > managed cluster) and fail hard when \
-                 PostgreSQL is unavailable. There is no SQLite or mock fallback.",
+                 The migrated MT-136 storage proofs and Surreal-backed fixture tests allocate an \
+                 isolated store under `HANDSHAKE_ARTIFACTS_ROOT` and exercise the real embedded \
+                 SurrealDB/RocksDB engine. They fail hard when the store cannot open; these scoped \
+                 proofs have no alternate local database, in-memory, server, or mock fallback. Other integration-test \
+                 targets may still be pending migration and must be inspected before use.",
             ),
             section(
                 "inputs_outputs",
@@ -460,7 +463,7 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
             ),
         ],
         anchors: vec![
-            page_link("missing-postgres-behavior"),
+            page_link("embedded-store-recovery"),
             page_link("state-recovery-guide"),
             page_link("backend-navigation-and-identity"),
             NewManualAnchor {
@@ -589,7 +592,7 @@ fn page_permissions_and_safety() -> NewUserManualPage {
                 "safety",
                 "Safety constraints",
                 "- Never treat projections (markdown exports, wiki pages, UI state, this page's \
-                 rendered HTML) as authority; authority is the PostgreSQL row + EventLedger \
+                 rendered HTML) as authority; authority is the embedded SurrealDB row + EventLedger \
                  receipt.\n\
                  - Never invent write paths: if no documented route performs the mutation, stop \
                  and record the gap; do not poke tables directly.\n\
@@ -615,6 +618,143 @@ fn page_permissions_and_safety() -> NewUserManualPage {
     }
 }
 
+/// WP-KERNEL-012 MT-138: the no-context storage and restart contract for the
+/// Atelier domain after its embedded-store port.
+fn page_atelier_storage_authority() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "atelier-storage-authority".into(),
+        title: "Atelier — Embedded Storage Authority".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["2.3.13.0".into(), "6.0.0".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "Atelier storage authority after the port",
+                "Atelier reads and writes Handshake's single embedded SurrealDB authority through \
+                 `AtelierStore`. There is no legacy server database, alternate local database, in-memory, mock, compatibility, or \
+                 fallback database path. Domain mutations and their EventLedger evidence use the \
+                 same embedded authority boundary.",
+            ),
+            section_with_json(
+                "workflows",
+                "Startup and restart behavior",
+                "Before the backend serves routes, the global Surreal bootstrap verifies the \
+                 compiled schema lineage and fingerprint. `AtelierStore::bootstrap_schema` then \
+                 reuses a complete Atelier projection, applies the canonical bounded projection \
+                 only when the Atelier surface is wholly absent, and refuses partial or full-count \
+                 catalog divergence. Inspection and canonical DDL run under one shared bootstrap \
+                 mutex, and DDL applies in one transaction. Exact-complete reuse verifies canonical \
+                 fields, indexes, and events, not only table names. Its `AtelierStore::ensure_schema` \
+                 readiness check also verifies every canonical `atelier_*` table and fails startup \
+                 closed if any table is missing. After readiness succeeds, \
+                 `bootstrap_builtin_command_corpus` projects the built-in CKC command corpus into \
+                 the same store and removes obsolete builtin descriptors and blocked records. An \
+                 unchanged restart performs no corpus mutation, timestamp refresh, or event append. \
+                 Restarting reopens the same data directory, repeats both gates, and preserves \
+                 existing Atelier rows.",
+                json!({
+                    "authority": "embedded_surrealdb",
+                    "schema_bootstrap": "AtelierStore::bootstrap_schema",
+                    "schema_atomicity": "shared_mutex_and_single_transaction",
+                    "catalog_reuse_gate": ["tables", "fields", "indexes", "events"],
+                    "readiness_gate": "AtelierStore::ensure_schema",
+                    "startup_projection": "AtelierStore::bootstrap_builtin_command_corpus",
+                    "obsolete_builtin_policy": "remove_descriptor_and_blocked_records",
+                    "unchanged_restart_writes": 0,
+                    "fallbacks": [],
+                    "failure_mode": "fail_closed_before_routes"
+                }),
+            ),
+            section_with_json(
+                "schema",
+                "Where the SurrealDB schema comes from",
+                "`storage/surreal/schema.surql` is the sole declarative schema authority. Startup \
+                 proves its exact bytes against a pinned SHA-256, parses the same source into a \
+                 sorted semantic catalog, and verifies exact identities and counts for 281 tables, \
+                 3,313 authored fields, 793 indexes, 19 events, two views, and two sequences. The \
+                 live catalog is then read from the pinned SurrealDB 3.2 engine and compared with an \
+                 exact structured fingerprint. A fresh embedded RocksDB bootstrap, adversarial \
+                 catalog mutations, shutdown, reopen, and unchanged-fingerprint checks prove that \
+                 source, applied state, and restarted state agree. Unknown, missing, or redefined \
+                 objects fail closed; startup never substitutes another database or prunes ordinary \
+                 application records. The only mutating reuse path is one exact hash-allowlisted \
+                 predecessor: startup transactionally rewrites the 61 historically registered rows \
+                 from the retired `migration_file` field to `schema_source`, adds the current-only \
+                 0343 support-table registry row for a final exact 62-row registry, removes the \
+                 retired field, preserves \
+                 application records, and reports `upgraded_supported_predecessor`. Every other \
+                 predecessor or divergent lineage is rejected. Registry value \
+                 `storage/surreal/schema.surql` is relative to the crate source root \
+                 `src/backend/handshake_core/src`, resolving repo-wide to \
+                 `src/backend/handshake_core/src/storage/surreal/schema.surql`. Stable proof \
+                 identifiers are `exact_source_bytes_sha256`, \
+                 `parsed_declarative_catalog_sha256`, and `live_engine_catalog_sha256`; the engine \
+                 binding is `surrealdb_3_2_0`, the restart proof is `close/reopen`, and the drift \
+                 policy is `fail_closed`.",
+                json!({
+                    "schema_source": "storage/surreal/schema.surql",
+                    "schema_source_base": "src/backend/handshake_core/src",
+                    "schema_source_repo_path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+                    "supported_predecessor_transition": {
+                        "allowlist": "exact_state_schema_info_and_61_row_predecessor_registry_sha256",
+                        "registry_rewrite": "61_historical_migration_file_rows_to_62_current_schema_source_rows",
+                        "ordinary_application_records": "preserved",
+                        "reported_outcome": "upgraded_supported_predecessor",
+                        "all_other_lineages": "rejected"
+                    },
+                    "proof_layers": [
+                        "exact_source_bytes_sha256",
+                        "parsed_declarative_catalog_sha256",
+                        "live_engine_catalog_sha256"
+                    ],
+                    "catalog_counts": {
+                        "tables": 281,
+                        "authored_fields": 3313,
+                        "indexes": 793,
+                        "events": 19,
+                        "views": 2,
+                        "sequences": 2
+                    },
+                    "engine_binding": "surrealdb_3_2_0",
+                    "restart_proof": "embedded_rocksdb_close_reopen",
+                    "drift_policy": "fail_closed"
+                }),
+            ),
+            section(
+                "navigation",
+                "Inspecting the live surface",
+                "- `GET /atelier/overview` returns bounded counts for the curated Atelier tables.\n\
+                 - `GET /atelier/command-corpus` reads the durable builtin-command projection.\n\
+                 - Storage-originated Atelier route failures are never permission to read from an \
+                 alternate database. Request validation, not-found, and conflict responses remain \
+                 ordinary `400`, `404`, and `409` domain outcomes.",
+            ),
+            section(
+                "recovery",
+                "Recovery",
+                "1. Preserve the configured `HANDSHAKE_DATA_DIR`; do not delete it as a repair.\n\
+                 2. First inspect any global Surreal schema lineage, manifest, or fingerprint error; \
+                 it occurs before the Atelier gate.\n\
+                 3. If global bootstrap succeeds, inspect the Atelier error for a partial schema, \
+                 full-count catalog mismatch, or the first missing `atelier_*` table. Divergent \
+                 lineage is refused, not overwritten.\n\
+                 4. Repair the canonical SurrealDB schema/open path, then restart the backend.\n\
+                 5. Verify `GET /atelier/overview` and `GET /atelier/command-corpus`; never configure \
+                 an alternate database or bypass the readiness gate.",
+            ),
+        ],
+        anchors: vec![
+            route_anchor("GET", "/atelier/overview"),
+            route_anchor("GET", "/atelier/command-corpus"),
+            page_link("startup-and-run-commands"),
+            page_link("embedded-store-recovery"),
+            spec_anchor("2.3.13.0"),
+            spec_anchor("6.0.0"),
+        ],
+    }
+}
+
 /// WP-KERNEL-012 MT-072: the editor Settings & Preferences surface, authored as the canonical typed
 /// PreferenceRecord authority (Master Spec §10.17). Lists every editor `preference_id`, its value type,
 /// default, and the exact recovery/inspection routes so a no-context model/operator can set, reset, and
@@ -632,11 +772,11 @@ fn page_editor_preferences() -> NewUserManualPage {
                 "What this surface is",
                 "Editor settings (font size, tab size, word wrap, syntax palette, keybinding overrides, \
                  and the code-editor view toggles) persist as the canonical typed **PreferenceRecord** \
-                 authority in PostgreSQL — NOT as an opaque workspace-settings JSON blob. Every editor \
+                 authority in embedded SurrealDB — NOT as an opaque workspace-settings JSON blob. Every editor \
                  preference has a stable `preference_id`, a declared `value_type`, a registry `default`, a \
                  `scope` (workspace), a `source` (`default`/`operator`/`migration`), a monotonically \
                  increasing `revision`, typed validation, reset-to-default semantics, a full change \
-                 history, and recoverable EventLedger receipts. Authority is the PostgreSQL row + the \
+                 history, and recoverable EventLedger receipts. Authority is the embedded SurrealDB row + the \
                  `PREFERENCE_RECORD_CHANGED` EventLedger receipt — never a projection or the settings UI.",
             ),
             section_with_json(
@@ -716,7 +856,7 @@ fn page_editor_preferences() -> NewUserManualPage {
                  validation 400 is non-retryable and is not re-sent).\n\
                  - Diagnostic posture (HBR-INT-009): Tier 1 Flight Recorder = WIRED (the \
                  `PREFERENCE_RECORD_CHANGED` receipt is durable EventLedger evidence in the kernel event \
-                 ledger, appended in the same PostgreSQL transaction as the record write, and recoverable \
+                 ledger, appended in the same embedded SurrealDB transaction as the record write, and recoverable \
                  via the kernel aggregate endpoint above rather than the FR `/events` projection). Tier 2 \
                  internal_diagnostics and Tier 3 Palmistry = DEFERRED (not yet shipped in this worktree; \
                  preference reads/writes surface through the standard backend request diagnostics until \
@@ -746,16 +886,18 @@ fn surface_page(
             "navigation",
             "Routes",
             &group_routes_md(group),
-            json!(wp009_surface_registry()
-                .iter()
-                .filter(|s| s.group == group)
-                .map(|s| json!({
-                    "surface_id": s.surface_id,
-                    "method": s.method,
-                    "route": s.route,
-                    "summary": s.summary,
-                }))
-                .collect::<Vec<_>>()),
+            json!({
+                "routes": wp009_surface_registry()
+                    .iter()
+                    .filter(|s| s.group == group)
+                    .map(|s| json!({
+                        "surface_id": s.surface_id,
+                        "method": s.method,
+                        "route": s.route,
+                        "summary": s.summary,
+                    }))
+                    .collect::<Vec<_>>()
+            }),
         ),
     ];
     sections.extend(extra_sections);
@@ -777,7 +919,7 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
         "knowledge-index-surface",
         "Project Knowledge Index — Ingestion And Code Navigation",
         SurfaceGroup::KnowledgeIngestion,
-        "The Project Knowledge Index turns configured project roots into typed PostgreSQL \
+        "The Project Knowledge Index turns configured project roots into typed embedded SurrealDB \
          knowledge: sources with content hashes, extraction receipts, entities, edges, evidence \
          spans, and code symbols. Ingestion routes manage roots/runs/repairs; the code-navigation \
          routes (listed below with the ingestion routes) answer symbol questions WITHOUT an \
@@ -787,16 +929,18 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                 "navigation",
                 "Code navigation routes",
                 &group_routes_md(SurfaceGroup::CodeNavigation),
-                json!(wp009_surface_registry()
-                    .iter()
-                    .filter(|s| s.group == SurfaceGroup::CodeNavigation)
-                    .map(|s| json!({
-                        "surface_id": s.surface_id,
-                        "method": s.method,
-                        "route": s.route,
-                        "summary": s.summary,
-                    }))
-                    .collect::<Vec<_>>()),
+                json!({
+                    "routes": wp009_surface_registry()
+                        .iter()
+                        .filter(|s| s.group == SurfaceGroup::CodeNavigation)
+                        .map(|s| json!({
+                            "surface_id": s.surface_id,
+                            "method": s.method,
+                            "route": s.route,
+                            "summary": s.summary,
+                        }))
+                        .collect::<Vec<_>>()
+                }),
             ),
             section(
                 "inputs_outputs",
@@ -818,8 +962,8 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                  refused the operation.\n\
                  - `io_error` — source unreadable at extraction time (queues a repair, never a \
                  silent skip).\n\
-                 - 500 `internal_error` / `storage_error` — PostgreSQL unavailable: fail-closed, \
-                 no data is served (see [[missing-postgres-behavior]]).",
+                 - 500 `internal_error` / `storage_error` — embedded SurrealDB unavailable: fail-closed, \
+                 no data is served (see [[embedded-store-recovery]]).",
             ),
             section(
                 "recovery",
@@ -837,7 +981,7 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
             // so the MT-195 gate sees full coverage (this is also the MT-112
             // closure: /knowledge/code/* is manual-registered).
             let mut extra = group_route_anchors(SurfaceGroup::CodeNavigation);
-            extra.push(page_link("missing-postgres-behavior"));
+            extra.push(page_link("embedded-store-recovery"));
             extra.push(page_link("repair-queues-and-staleness"));
             extra
         },
@@ -882,7 +1026,7 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  `bcv.new-view.confirm` (cancel: `bcv.new-view.cancel`). The client sends one \
                  stable block id to `POST /workspaces/:workspace_id/loom/views/definitions` \
                  and retains that id across Retry, so response loss cannot create a second view. \
-                 PostgreSQL inserts the final `view_def` block, search projection, knowledge \
+                 embedded SurrealDB inserts the final `view_def` block, search projection, knowledge \
                  bridge, EventLedger mutation receipt, and exact Flight Recorder outbox event in \
                  one transaction; same-id/same-definition retries converge, while a changed \
                  payload for that id returns 409.\n\
@@ -903,7 +1047,7 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  and one bounded results query. Workspace/generation guards reject stale \
                  deliveries.\n\
                  Diagnostic posture: Tier 1 Flight Recorder is WIRED for create/update through \
-                 the transactional PostgreSQL outbox and restart reconciler; query events are \
+                 the transactional embedded SurrealDB outbox and restart reconciler; query events are \
                  observational. Tier 2 internal_diagnostics is WIRED at the shared host/watchdog \
                  but has no collection-specific counter. Tier 3 Palmistry is WIRED at the shared \
                  out-of-process freeze/crash boundary; it has no collection-specific child. \
@@ -920,10 +1064,12 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  `sub_tags`, direct `tagged_blocks`, and `backlink_count` across every incoming \
                  edge type. Duplicate semantic tag edges remain legal: member rows are \
                  de-duplicated while `backlink_count` counts physical incoming edges. The \
-                 release proof `perf_proof_perf_lk03_tag_hub` independently verifies an exact \
-                 5,001-block/5,000-tag-edge PostgreSQL fixture, retains `EXPLAIN (ANALYZE, \
-                 BUFFERS)` plans, and enforces the unchanged 2,000 ms end-to-end budget with \
-                 no override.\n\
+                 MT-136's `mt136_database_surface_proof_a` exercises the real embedded-Surreal \
+                 tag-hub read path, including de-duplication and non-tag rejection. There is not yet \
+                 a migrated 5,001-block/5,000-edge load proof or a Surreal-native replacement for \
+                 the former legacy server database `EXPLAIN (ANALYZE, BUFFERS)` evidence, so the historical \
+                 2,000 ms large-hub budget is pending revalidation and must not be claimed from the \
+                 functional proof. Use the structured stage timings below for current diagnosis.\n\
                  Recovery: a non-tag target fails closed as `HSK-400-LOOM-VALIDATION`; an \
                  unavailable backend, request timeout, or partial response remains a typed \
                  request failure and must be retried after `/health` reports both service and \
@@ -932,7 +1078,7 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  chain under the external `Handshake_Artifacts/wp-kernel-012/mt-045` root.\n\
                  Diagnostic posture (HBR-INT-009): the backend emits structured \
                  `loom_tag_hub_stage_timing` tracing events for tag-block lookup, incoming-edge \
-                 SQL, workspace lookup, LoomBlock mapping, sub-tag/tag assembly, backlink count, JSON \
+                 query, workspace lookup, LoomBlock mapping, sub-tag/tag assembly, backlink count, JSON \
                  serialization, and response construction; events contain only mechanical durations, \
                  row counts, edge type, and response bytes. Tier 1 Flight Recorder remains WIRED \
                  for Loom mutations but these read-stage timings use structured backend logs. \
@@ -965,7 +1111,7 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                 "Folder-tree mutations (`POST/PATCH/DELETE .../loom/folders...` and folder \
                  membership `PUT/DELETE .../loom/folders/:folder_id/blocks/:block_id`) and \
                  tag-edge mutations (`POST/DELETE .../loom/edges` with `edge_type='tag'`) each \
-                 append a durable EventLedger receipt in the SAME PostgreSQL transaction as the \
+                 append a durable EventLedger receipt in the SAME embedded SurrealDB transaction as the \
                  domain write. Event types: `KNOWLEDGE_LOOM_FOLDER_MUTATED` \
                  (aggregate_type=`loom_folder`, aggregate_id=folder_id) and \
                  `KNOWLEDGE_LOOM_TAG_MUTATED` (aggregate_type=`loom_edge`, aggregate_id=edge_id). \
@@ -989,10 +1135,7 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  are open).",
             ),
         ],
-        vec![
-            route_anchor("POST", "/workspaces"),
-            page_link("quickstart-loom"),
-        ],
+        vec![page_link("quickstart-loom")],
         vec!["2.2.1.14".into(), "7.1.1.9".into(), "10.12".into()],
     )
 }
@@ -1002,7 +1145,7 @@ fn page_rich_documents_surface() -> NewUserManualPage {
         "rich-documents-surface",
         "Rich Documents — Authority, History, Projections, Embeds",
         SurfaceGroup::RichDocuments,
-        "RichDocuments are versioned Tiptap/ProseMirror JSON authority rows in PostgreSQL with \
+        "RichDocuments are versioned Tiptap/ProseMirror JSON authority rows in embedded SurrealDB with \
          EventLedger receipts on every save (`KNOWLEDGE_RICH_DOCUMENT_SAVED`). The editor (and \
          embedded Monaco code nodes) renders the typed block tree; saves are optimistic \
          (expected_version) so concurrent writers get a 409 instead of clobbering each other. \
@@ -1241,7 +1384,7 @@ fn page_usermanual_surface() -> NewUserManualPage {
         "UserManual — This Surface",
         SurfaceGroup::UserManual,
         "The UserManual is itself a product surface: pages/sections/anchors/tool entries are \
-         PostgreSQL rows (migration 0310), seeded from a compiled-in corpus, receipted through \
+         embedded SurrealDB rows (migration 0310), seeded from a compiled-in corpus, receipted through \
          `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` events, and served read-only over \
          `/usermanual/*`. Anonymous reads are allowed (this is the bootstrap surface); the only \
          write surface is the gated `POST /usermanual/resync`.",
@@ -1341,13 +1484,13 @@ fn page_failure_modes_and_recovery() -> NewUserManualPage {
                  - Stale wiki -> `POST /workspaces/:ws/loom/wiki/:projection_id/regenerate`\n\
                  - Stale manual -> `POST /usermanual/resync`\n\
                  - Lost session state -> [[state-recovery-guide]]\n\
-                 - DB down -> [[missing-postgres-behavior]]",
+                 - Embedded store unavailable -> [[embedded-store-recovery]]",
             ),
         ],
         anchors: vec![
             page_link("repair-queues-and-staleness"),
             page_link("state-recovery-guide"),
-            page_link("missing-postgres-behavior"),
+            page_link("embedded-store-recovery"),
             route_anchor("POST", "/knowledge/documents/embeds/:embed_id/repair"),
         ],
     }
@@ -1392,10 +1535,10 @@ fn page_repair_queues_and_staleness() -> NewUserManualPage {
     }
 }
 
-fn page_missing_postgres_behavior() -> NewUserManualPage {
+fn page_embedded_store_recovery() -> NewUserManualPage {
     NewUserManualPage {
-        slug: "missing-postgres-behavior".into(),
-        title: "Missing PostgreSQL Behavior".into(),
+        slug: "embedded-store-recovery".into(),
+        title: "Missing Embedded Storage Behavior".into(),
         page_kind: "failure_recovery",
         audience: "model_and_operator",
         spec_anchors: vec!["2.3.13.11".into()],
@@ -1403,29 +1546,48 @@ fn page_missing_postgres_behavior() -> NewUserManualPage {
             section(
                 "failure_modes",
                 "What happens without the database",
-                "PostgreSQL is the only authority store — there is NO SQLite, in-memory, or mock \
+                "Embedded SurrealDB is the only authority store — there is NO alternate local database, in-memory, or mock \
                  fallback anywhere in the product. Behavior when it is unavailable:\n\n\
                  - **Product runtime**: knowledge routes FAIL CLOSED with 500 \
                  `internal_error`/`storage_error` envelopes; no fail-open path serves data when \
                  the store errors.\n\
-                 - **Startup**: the server ensures the Handshake-managed cluster \
-                 (default `127.0.0.1:5544`, data dir `Handshake_Artifacts/handshake-product/managed_pgdata`) is \
-                 running before serving; an adopted external cluster is left untouched at \
-                 shutdown.\n\
-                 - **Tests**: integration tests resolve `POSTGRES_TEST_URL` > `DATABASE_URL` > \
-                 managed cluster; when PostgreSQL is unavailable they fail hard. A green run \
-                 therefore requires real PostgreSQL, not SQLite, mocks, or skipped proof.",
+                 - **Startup**: the server opens the configured `HANDSHAKE_DATA_DIR`, or its \
+                 platform-local default, before serving. A locked, corrupt, or incompatible store \
+                 fails closed.\n\
+                 - **Scoped migrated tests**: MT-136 storage proofs and Surreal-backed fixtures \
+                 allocate isolated stores under `HANDSHAKE_ARTIFACTS_ROOT`; when embedded SurrealDB \
+                 is unavailable they fail hard. A green run for those targets therefore requires \
+                 the real embedded engine, not alternate local database, mocks, or skipped proof. Inspect other \
+                 integration-test targets before assuming they have completed the migration.",
             ),
             section(
                 "recovery",
                 "Recovery",
-                "1. Probe: `curl http://127.0.0.1:37501/health` and check the cluster port 5544.\n\
-                 2. Restart the backend — startup re-ensures the managed cluster.\n\
-                 3. If the data dir is corrupt, the managed cluster logs name the failure; the \
-                 EventLedger and all manual/knowledge rows live IN PostgreSQL, so never delete \
-                 `Handshake_Artifacts/handshake-product/managed_pgdata` to 'fix' a startup error without a backup.\n\
+                "1. Probe: `curl http://127.0.0.1:37501/health` and inspect the backend storage error.\n\
+                 2. Confirm `HANDSHAKE_DATA_DIR` resolves to the intended store, then restart the backend.\n\
+                 3. If the data directory is locked or corrupt, preserve it: EventLedger and all \
+                 manual/knowledge rows live in embedded SurrealDB, so never delete the store to \
+                 'fix' startup without a backup.\n\
                  4. Re-run the smallest scoped test that exercises your surface to confirm \
                  recovery.",
+            ),
+            section(
+                "workflows",
+                "Process, session checkpoint, and Flight Recorder durability",
+                "The process ledger writes `kernel_process_lifecycle` START/STOP state with one \
+                 atomic SurrealDB merge per process. A replayed START cannot erase a concurrent \
+                 STOP or reclaim result. The session checkpoint writer flushes queued \
+                 `kernel_session_checkpoint` rows during bounded shutdown and reports sink or \
+                 join failures. Every duplicate checkpoint id is ignored without replacing the \
+                 original row or increasing the written-row count, including a duplicate carrying \
+                 different content; later independent checkpoints in the same retained batch still \
+                 persist. Flight Recorder envelopes \
+                 receive a stable event id and idempotency key before their first write, use \
+                 bounded retry, and surface durable-sink or shutdown failure instead of silently \
+                 dropping accepted events. Startup reopens the same embedded store, runs \
+                 restart-resume before serving, and the consumer timeline query reads the \
+                 recovered `kernel_event_ledger` rows. There is no legacy server database compatibility or \
+                 fallback path in any of these flows.",
             ),
         ],
         anchors: vec![
@@ -1472,7 +1634,7 @@ fn page_state_recovery_guide() -> NewUserManualPage {
             section_with_json(
                 "recovery",
                 "Parallel swarm operation and recovery",
-                "Parallel local/cloud agents recover from the PostgreSQL/EventLedger swarm \
+                "Parallel local/cloud agents recover from the embedded SurrealDB/EventLedger swarm \
                  surface, not from chat history or UI state. Use the live runtime symbols as the \
                  recovery map:\n\n\
                  - `AgentLaneIdentity` names the lane, actor, provider attribution, and \
@@ -1498,9 +1660,9 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  `mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts`, \
                  `mt223_quiet_receipt_failure_rolls_back_index_run_and_lease`, \
                  `mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer`, and \
-                 `mt223_restart_after_crash_reconstructs_swarm_state_from_postgres`. These \
+                 `mt223_restart_after_crash_reconstructs_swarm_state_from_surreal` (legacy test name). These \
                  prove false receipts are not emitted, queue order survives stale reclaim, and \
-                 a fresh store can reconstruct state from Postgres alone.",
+                 a fresh embedded SurrealDB store can reconstruct state from durable authority alone.",
                 json!({
                     "runtime_symbols": [
                         "AgentLaneIdentity",
@@ -1519,10 +1681,10 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                         "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
                         "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
                         "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
-                        "mt223_restart_after_crash_reconstructs_swarm_state_from_postgres"
+                        "mt223_restart_after_crash_reconstructs_swarm_state_from_surreal"
                     ],
                     "authority": [
-                        "PostgreSQL",
+                        "embedded SurrealDB",
                         "kernel_event_ledger",
                         "knowledge_agent_worktree_claims",
                         "knowledge_agent_role_mailbox_handoffs",
@@ -1540,10 +1702,9 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  --test <target>` (one cargo invocation at a time; lock waits under a shared \
                  target dir are normal — never kill a peer's build).\n\
                  2. Read the FIRST compile error; later errors usually cascade.\n\
-                 3. If the failure names a missing table, the migration chain is behind: \
-                 migrations run automatically per isolated test schema; check the migration file \
-                 numbering for collisions.\n\
-                 4. A PostgreSQL availability failure is not a pass — provision the cluster.",
+                 3. If the failure names a missing table, compare the exact declarative catalog in \
+                 `storage/surreal/schema.surql` with the live structured catalog fingerprint.\n\
+                 4. An embedded SurrealDB availability failure is not a pass — repair the configured store path.",
             ),
             section(
                 "recovery",
@@ -1586,7 +1747,7 @@ fn page_kernel_write_governance() -> NewUserManualPage {
                 .iter()
                 .map(|line| format!("- {line}\n"))
                 .collect::<String>(),
-            json!(kernel_section.instructions),
+            json!({ "instructions": kernel_section.instructions }),
         ));
     }
     NewUserManualPage {
@@ -1625,22 +1786,23 @@ fn page_legacy_bridge() -> NewUserManualPage {
                 "Migration plan",
                 "The full machine-readable plan: `GET /usermanual/migration-plan`. Summary of \
                  phases:\n\n\
-                 - **P1 (this WP)**: canonical `user_manual` module + PostgreSQL authority + \
+                 - **P1 (this WP)**: canonical `user_manual` module + embedded SurrealDB authority + \
                  aliases + receipts (DONE by MT-193..MT-208).\n\
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
                  - **P3 (later WP)**: retire the static legacy module files.",
-                json!(plan
-                    .rows
-                    .iter()
-                    .map(|r| json!({
-                        "row_id": r.row_id,
-                        "legacy_id": r.legacy_id,
-                        "canonical_ref": r.canonical_ref,
-                        "phase": r.phase.as_str(),
-                        "shim_state": r.shim_state.as_str(),
-                    }))
-                    .collect::<Vec<_>>()),
+                json!({
+                    "rows": plan.rows
+                        .iter()
+                        .map(|r| json!({
+                            "row_id": r.row_id,
+                            "legacy_id": r.legacy_id,
+                            "canonical_ref": r.canonical_ref,
+                            "phase": r.phase.as_str(),
+                            "shim_state": r.shim_state.as_str(),
+                        }))
+                        .collect::<Vec<_>>()
+                }),
             ),
         ],
         anchors: vec![
@@ -1757,10 +1919,12 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
         quickstart(
             "validation",
             "Quickstart — Validation",
-            "1. Run the surface's SCOPED test target on real PostgreSQL \
-             ([[startup-and-run-commands]]): `cargo test -p handshake_core --features \
-             test-utils --test <surface>_tests`.\n\
-             2. A PostgreSQL availability failure is NOT a pass — provision PostgreSQL.\n\
+            "1. For a migrated target named in the legacy-to-Surreal validation matrix, run its \
+             SCOPED test target on real embedded SurrealDB ([[startup-and-run-commands]]). Before \
+             running any other `<surface>_tests` target, inspect that target's current backend; \
+             unmigrated legacy targets can still contain legacy server database setup or skip behavior.\n\
+             2. For a migrated embedded target, SurrealDB availability failure is NOT a pass — \
+             repair the configured store path.\n\
              3. Check negative fixtures stay red-on-defect (stale, missing, denied, conflict \
              paths).\n\
              4. `GET /usermanual/freshness` — manual-vs-product drift must be `current`.\n\
@@ -1798,7 +1962,7 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "404 not_found (unknown root/source/repair id)".into(),
             "409 conflict / policy_denied (allowlist or secret policy refused)".into(),
             "io_error (source unreadable; queues a repair)".into(),
-            "500 internal_error (PostgreSQL unavailable; fail-closed)".into(),
+            "500 internal_error (embedded SurrealDB unavailable; fail-closed)".into(),
         ],
         SurfaceGroup::CodeNavigation => vec![
             "400 bad_request (missing identity headers)".into(),
@@ -2075,11 +2239,11 @@ fn seed_aliases() -> Vec<LegacyAliasRow> {
 // The idempotent seeder.
 // ---------------------------------------------------------------------------
 
-/// Seed (or re-sync) the UserManual corpus into PostgreSQL. Idempotent: rows
+/// Seed (or re-sync) the UserManual corpus into embedded SurrealDB. Idempotent: rows
 /// short-circuit on content hash; receipts are appended only for changed
 /// pages plus one summary receipt when anything changed. Always records the
 /// `user_manual_versions` row.
-pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
+pub async fn ensure_seeded(db: &SurrealDatabase) -> StorageResult<SeedReport> {
     let store = UserManualStore::new(db);
     let corpus = seed_corpus();
     let seed_hash = corpus_hash(&corpus);
@@ -2167,6 +2331,44 @@ mod tests {
             assert_eq!(page.slug, page.slug.to_lowercase());
             assert!(!page.slug.contains(' '));
             assert!(!page.sections.is_empty(), "{} has no sections", page.slug);
+        }
+    }
+
+    #[test]
+    fn every_section_body_json_matches_the_surreal_object_contract() {
+        for page in seed_corpus().pages {
+            for section in page.sections {
+                if let Some(body_json) = section.body_json {
+                    assert!(
+                        body_json.is_object(),
+                        "{}.{} body_json must be an object for the embedded SurrealDB schema",
+                        page.slug,
+                        section.title
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn page_anchor_identities_are_unique_for_the_surreal_index() {
+        for page in seed_corpus().pages {
+            let mut identities = BTreeSet::new();
+            for anchor in page.anchors {
+                let identity = (
+                    anchor.anchor_kind,
+                    anchor.anchor_value.clone(),
+                    anchor.http_method,
+                );
+                assert!(
+                    identities.insert(identity),
+                    "{} repeats anchor identity ({}, {}, {})",
+                    page.slug,
+                    anchor.anchor_kind,
+                    anchor.anchor_value,
+                    anchor.http_method
+                );
+            }
         }
     }
 
@@ -2276,6 +2478,122 @@ mod tests {
             assert!(
                 corpus.pages.iter().any(|p| p.slug == slug),
                 "missing quickstart page {slug}"
+            );
+        }
+    }
+
+    #[test]
+    fn mt137_manual_covers_embedded_lifecycle_persistence() {
+        let page = seed_corpus()
+            .pages
+            .into_iter()
+            .find(|page| page.slug == "embedded-store-recovery")
+            .expect("embedded storage behavior page");
+        let body = page
+            .sections
+            .iter()
+            .map(|section| section.body_md.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "kernel_process_lifecycle",
+            "kernel_session_checkpoint",
+            "kernel_event_ledger",
+            "Every duplicate checkpoint id is ignored without replacing the original row",
+            "later independent checkpoints in the same retained batch still persist",
+            "stable event id and idempotency key",
+            "no legacy server database compatibility or fallback path",
+        ] {
+            assert!(
+                body.contains(required),
+                "missing MT-137 manual text: {required}"
+            );
+        }
+    }
+
+    #[test]
+    fn mt138_manual_covers_atelier_storage_authority_and_restart_gate() {
+        let page = seed_corpus()
+            .pages
+            .into_iter()
+            .find(|page| page.slug == "atelier-storage-authority")
+            .expect("Atelier storage authority page");
+        let body = page
+            .sections
+            .iter()
+            .map(|section| section.body_md.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "global Surreal bootstrap",
+            "AtelierStore::bootstrap_schema",
+            "AtelierStore::ensure_schema",
+            "every canonical `atelier_*` table",
+            "fields, indexes, and events, not only table names",
+            "one shared bootstrap mutex",
+            "DDL applies in one transaction",
+            "fails startup closed",
+            "bootstrap_builtin_command_corpus",
+            "removes obsolete builtin descriptors and blocked records",
+            "no corpus mutation, timestamp refresh, or event append",
+            "Restarting reopens the same data directory",
+            "There is no legacy server database, alternate local database, in-memory, mock, compatibility, or fallback database path",
+            "ordinary `400`, `404`, and `409` domain outcomes",
+            "Divergent lineage is refused, not overwritten",
+            "GET /atelier/overview",
+            "GET /atelier/command-corpus",
+        ] {
+            assert!(
+                body.contains(required),
+                "missing MT-138 manual text: {required}"
+            );
+        }
+    }
+
+    #[test]
+    fn mt139_manual_covers_declarative_schema_authority() {
+        let page = seed_corpus()
+            .pages
+            .into_iter()
+            .find(|page| page.slug == "atelier-storage-authority")
+            .expect("Atelier storage authority page");
+        let body = page
+            .sections
+            .iter()
+            .map(|section| section.body_md.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let schema_authority = page
+            .sections
+            .iter()
+            .find(|section| section.section_kind == "schema")
+            .and_then(|section| section.body_json.as_ref())
+            .expect("schema authority machine-readable contract");
+        let predecessor_transition = &schema_authority["supported_predecessor_transition"];
+        assert_eq!(
+            predecessor_transition["allowlist"].as_str(),
+            Some("exact_state_schema_info_and_61_row_predecessor_registry_sha256")
+        );
+        assert_eq!(
+            predecessor_transition["registry_rewrite"].as_str(),
+            Some("61_historical_migration_file_rows_to_62_current_schema_source_rows")
+        );
+        for required in [
+            "schema.surql",
+            "exact_source_bytes_sha256",
+            "parsed_declarative_catalog_sha256",
+            "live_engine_catalog_sha256",
+            "281 tables",
+            "3,313 authored fields",
+            "793 indexes",
+            "19 events",
+            "surrealdb_3_2_0",
+            "close/reopen",
+            "fail_closed",
+        ] {
+            assert!(
+                body.contains(required),
+                "missing MT-139 manual text: {required}"
             );
         }
     }

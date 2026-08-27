@@ -18,22 +18,115 @@ use surrealdb::{
 use thiserror::Error;
 use tokio::sync::{watch, Mutex, RwLock};
 
-use super::{DefaultStorageGuard, StorageGuard};
+use super::{DefaultStorageGuard, StorageGuard, StorageResult};
 
+mod ai_job_store;
+mod ai_ready_store;
+mod block_view_store;
 mod blocks;
+mod bridge_store;
+mod calendar_store;
+mod canvas_store;
 mod database;
 mod documents;
+pub(crate) mod event_ledger;
+mod governance_check_store;
+mod kb003_store;
+mod kernel_crdt_store;
+mod kernel_queue_store;
+mod knowledge;
+pub(crate) mod locus_store;
+mod loom_canvas_store;
+pub(crate) mod loom_store;
+mod mcp_store;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_adversarial_regression_proof;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_database_surface_proof_a;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_database_surface_proof_b;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_database_surface_proof_c;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_kernel_action_submitter_proof;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_knowledge_surface_proof;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_proof_harness;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_registry_integrity_proof;
+#[cfg(any(test, feature = "surreal-test-support"))]
+mod mt136_rich_document_delete_proof;
+mod preferences;
+mod promotion_store;
 mod schema;
+mod search_store;
+mod session_store;
+mod state_store;
+pub(crate) mod structured_collab_store;
 #[cfg(feature = "surreal-test-support")]
 mod test_inspector;
+mod visual_debug_store;
+mod wiki_store;
+mod workflow_store;
 mod workspaces;
 
 pub use database::SurrealDatabase;
+pub use kb003_store::SurrealKb003Storage;
+pub(crate) use knowledge::KnowledgeRichDocumentDeleteOutcome;
 pub use schema::{
-    bootstrap_schema, SchemaBootstrapReport, EXPECTED_SCHEMA_INFO_SHA256,
-    GENERATED_SURREALQL_SHA256, SCHEMA_REVISION, SCHEMA_VERSION, SOURCE_FORWARD_MIGRATION_COUNT,
-    SOURCE_FORWARD_WAVE_MANIFEST_SHA256,
+    bootstrap_atelier_schema, bootstrap_schema, SchemaBootstrapOutcome, SchemaBootstrapReport,
+    DECLARATIVE_SCHEMA_CATALOG_SHA256, EXPECTED_SCHEMA_INFO_SHA256, GENERATED_SURREALQL_SHA256,
+    SCHEMA_LINEAGE_SHA256, SCHEMA_REVISION, SCHEMA_VERSION,
 };
+#[cfg(feature = "surreal-test-support")]
+pub use schema::{
+    bootstrap_mt137_flight_recorder_test_schema, bootstrap_mt137_process_ledger_test_schema,
+};
+
+#[cfg(feature = "surreal-test-support")]
+pub async fn run_mt136_surface_proofs() -> StorageResult<()> {
+    eprintln!("MT136_PROOF_START adversarial_regressions");
+    mt136_adversarial_regression_proof::run_all().await?;
+    eprintln!("MT136_PROOF_PASS adversarial_regressions");
+    eprintln!("MT136_PROOF_START database_surface_a");
+    mt136_database_surface_proof_a::run_all().await?;
+    eprintln!("MT136_PROOF_PASS database_surface_a");
+    eprintln!("MT136_PROOF_START database_surface_b");
+    mt136_database_surface_proof_b::run_all().await?;
+    eprintln!("MT136_PROOF_PASS database_surface_b");
+    eprintln!("MT136_PROOF_START database_surface_c");
+    mt136_database_surface_proof_c::run_all().await?;
+    eprintln!("MT136_PROOF_PASS database_surface_c");
+    eprintln!("MT136_PROOF_START knowledge_surface");
+    mt136_knowledge_surface_proof::run_all().await?;
+    eprintln!("MT136_PROOF_PASS knowledge_surface");
+    eprintln!("MT136_PROOF_START kernel_action_submitter");
+    mt136_kernel_action_submitter_proof::run_all().await?;
+    eprintln!("MT136_PROOF_PASS kernel_action_submitter");
+    eprintln!("MT136_PROOF_START registry_integrity");
+    mt136_registry_integrity_proof::run_all().await?;
+    eprintln!("MT136_PROOF_PASS registry_integrity");
+    eprintln!("MT136_PROOF_START rich_document_delete");
+    mt136_rich_document_delete_proof::run_all().await?;
+    eprintln!("MT136_PROOF_PASS rich_document_delete");
+    Ok(())
+}
+
+#[cfg(feature = "surreal-test-support")]
+pub async fn run_mt136_adversarial_regression_proof() -> StorageResult<()> {
+    mt136_adversarial_regression_proof::run_all().await
+}
+
+#[cfg(feature = "surreal-test-support")]
+pub async fn run_mt136_kernel_action_submitter_proof() -> StorageResult<()> {
+    mt136_kernel_action_submitter_proof::run_all().await
+}
+
+#[cfg(feature = "surreal-test-support")]
+pub async fn run_mt136_registry_integrity_proof() -> StorageResult<()> {
+    mt136_registry_integrity_proof::run_all().await
+}
 #[cfg(feature = "surreal-test-support")]
 pub use test_inspector::{
     FieldCatalog, FieldSelector, IndexCatalog, ProjectedRow, RecordIdentity, ReferenceCatalog,
@@ -69,7 +162,9 @@ pub enum SurrealStorageError {
     MissingApplicationDataDirectory,
     #[error("embedded database data directory must not be empty")]
     EmptyDataDirectory,
-    #[error("embedded database path {path} is incompatible with the SurrealDB 3.2 endpoint parser: {reason}")]
+    #[error(
+        "embedded database path {path} is incompatible with the SurrealDB 3.2 endpoint parser: {reason}"
+    )]
     IncompatibleEndpointPath { path: PathBuf, reason: &'static str },
     #[error(
         "embedded database context mismatch: expected namespace/database {expected_namespace}/{expected_database}, observed {actual_namespace}/{actual_database}"
@@ -96,6 +191,8 @@ pub enum SurrealStorageError {
     InvalidDocumentRecord { reason: &'static str },
     #[error("embedded block record has an invalid shape: {reason}")]
     InvalidBlockRecord { reason: &'static str },
+    #[error("embedded preference record has an invalid shape: {reason}")]
+    InvalidPreferenceRecord { reason: &'static str },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -179,6 +276,8 @@ pub struct SurrealStorage {
 
 pub type SurrealOperation<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, SurrealStorageError>> + Send + 'a>>;
+pub(crate) type SurrealStorageOperation<'a, T> =
+    Pin<Box<dyn Future<Output = StorageResult<T>> + Send + 'a>>;
 
 tokio::task_local! {
     static INSIDE_SURREAL_OPERATION: ();
@@ -196,6 +295,19 @@ pub struct SurrealDataContext<'a> {
 }
 
 impl SurrealDataContext<'_> {
+    pub(crate) async fn create_one<R, D>(
+        &self,
+        table: &str,
+        id: &str,
+        content: D,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        D: surrealdb::types::SurrealValue,
+    {
+        Ok(self.client.create((table, id)).content(content).await?)
+    }
+
     pub(crate) async fn upsert_one<R, D>(
         &self,
         table: &str,
@@ -262,13 +374,88 @@ impl SurrealDataContext<'_> {
         R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
-        let mut response = self
-            .client
-            .query(statement)
-            .bind(surrealdb::types::SurrealValue::into_value(bindings))
-            .await?
-            .check()?;
-        Ok(response.take(0)?)
+        self.query_values_at(statement, bindings, 0).await
+    }
+
+    /// Runs a parameterized multi-statement query and decodes one explicit
+    /// result set. Statement indexes count every semicolon-terminated
+    /// statement, including transaction delimiters. This keeps transaction
+    /// users behind the lease-bound facade instead of exposing the SDK client.
+    pub(crate) async fn query_values_at<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+        index: usize,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let bindings = surrealdb::types::SurrealValue::into_value(bindings);
+        let query = self.client.query(statement);
+        let mut response = if matches!(bindings, surrealdb::types::Value::None) {
+            query.await?
+        } else {
+            query.bind(bindings).await?
+        };
+        let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+        errors.sort_by_key(|(statement_index, _)| *statement_index);
+        if !errors.is_empty() {
+            let meaningful = errors
+                .iter()
+                .position(|(_, error)| {
+                    !error
+                        .to_string()
+                        .to_ascii_lowercase()
+                        .contains("query was not executed due to a failed transaction")
+                })
+                .unwrap_or(0);
+            return Err(errors.swap_remove(meaningful).1.into());
+        }
+        Ok(response.take(index)?)
+    }
+
+    /// Runs one bound multi-statement query and decodes five result sets from
+    /// that same response. This preserves one explicit transaction snapshot
+    /// for same-shaped source queries; calling [`Self::query_values_at`] five
+    /// times would rerun the transaction and mix snapshots.
+    pub(crate) async fn query_five_values_at<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+        indexes: [usize; 5],
+    ) -> Result<[Vec<R>; 5], SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let bindings = surrealdb::types::SurrealValue::into_value(bindings);
+        let query = self.client.query(statement);
+        let mut response = if matches!(bindings, surrealdb::types::Value::None) {
+            query.await?
+        } else {
+            query.bind(bindings).await?
+        };
+        let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+        errors.sort_by_key(|(statement_index, _)| *statement_index);
+        if !errors.is_empty() {
+            let meaningful = errors
+                .iter()
+                .position(|(_, error)| {
+                    !error
+                        .to_string()
+                        .to_ascii_lowercase()
+                        .contains("query was not executed due to a failed transaction")
+                })
+                .unwrap_or(0);
+            return Err(errors.swap_remove(meaningful).1.into());
+        }
+        let first: Vec<R> = response.take(indexes[0])?;
+        let second: Vec<R> = response.take(indexes[1])?;
+        let third: Vec<R> = response.take(indexes[2])?;
+        let fourth: Vec<R> = response.take(indexes[3])?;
+        let fifth: Vec<R> = response.take(indexes[4])?;
+        Ok([first, second, third, fourth, fifth])
     }
 
     /// [`Self::query_values`] returning only the first row.
@@ -343,9 +530,9 @@ impl SurrealDataContext<'_> {
         }
 
         let rows = self
-            .query_values::<R, _>(
-                "LET $record = type::thing($tb, $id); \
-                 IF (SELECT VALUE id FROM $record) IS NONE \
+            .query_values_at::<R, _>(
+                "LET $record = type::record($tb, $id); \
+                 IF (SELECT VALUE id FROM $record)[0] = NONE \
                  { RETURN CREATE $record CONTENT $content; } \
                  ELSE { RETURN []; };",
                 CreateIfAbsentBindings {
@@ -353,6 +540,7 @@ impl SurrealDataContext<'_> {
                     id: id.to_owned(),
                     content: content.into_value(),
                 },
+                1,
             )
             .await?;
         Ok(rows.into_iter().next())
@@ -396,6 +584,18 @@ enum ShutdownCoordinatorState {
         receiver: watch::Receiver<Option<SharedShutdownResult>>,
     },
     Closed,
+    Failed {
+        error: Arc<str>,
+    },
+}
+
+enum ShutdownAttemptError {
+    /// The sole client is still owned by the storage and another shutdown call
+    /// may safely retry the flush barrier.
+    Retryable(SurrealStorageError),
+    /// The sole client was taken and dropped. Operations must remain closed even
+    /// though the platform release proof could not be completed.
+    Terminal(SurrealStorageError),
 }
 
 struct SurrealStorageInner {
@@ -493,6 +693,25 @@ impl SurrealStorage {
             .await
     }
 
+    /// Runs a domain storage operation under the same lifecycle lease while
+    /// preserving its typed [`crate::storage::StorageError`] as the inner
+    /// result. The outer result remains reserved for lifecycle failures.
+    pub(crate) async fn with_storage_operation<T, F>(
+        &self,
+        operation: F,
+    ) -> Result<StorageResult<T>, SurrealStorageError>
+    where
+        T: Send,
+        F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealStorageOperation<'a, T>
+            + Send
+            + 'static,
+    {
+        self.with_data_operation(move |database| {
+            Box::pin(async move { Ok(operation(database).await) })
+        })
+        .await
+    }
+
     async fn with_admin_operation<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>
     where
         T: Send,
@@ -544,6 +763,9 @@ impl SurrealStorage {
             let mut coordinator = self.inner.shutdown.lock().await;
             match &*coordinator {
                 ShutdownCoordinatorState::Closed => return Ok(()),
+                ShutdownCoordinatorState::Failed { error } => {
+                    return Err(SurrealStorageError::Shutdown(Arc::clone(error)));
+                }
                 ShutdownCoordinatorState::Closing { receiver } => receiver.clone(),
                 ShutdownCoordinatorState::Open => {
                     let (sender, receiver) = watch::channel(None);
@@ -586,9 +808,16 @@ impl SurrealStorage {
         inner: Arc<SurrealStorageInner>,
         sender: watch::Sender<Option<SharedShutdownResult>>,
     ) {
-        let result = SurrealStorage::perform_shutdown(&inner)
-            .await
-            .map_err(|error| Arc::<str>::from(error.to_string()));
+        let attempt = SurrealStorage::perform_shutdown(&inner).await;
+        let terminal_failure = matches!(&attempt, Err(ShutdownAttemptError::Terminal(_)));
+        let result = attempt.map_err(|failure| {
+            let error = match failure {
+                ShutdownAttemptError::Retryable(error) | ShutdownAttemptError::Terminal(error) => {
+                    error
+                }
+            };
+            Arc::<str>::from(error.to_string())
+        });
 
         let mut coordinator = inner.shutdown.lock().await;
         match &result {
@@ -596,10 +825,19 @@ impl SurrealStorage {
                 inner.lifecycle.store(LIFECYCLE_CLOSED, Ordering::Release);
                 *coordinator = ShutdownCoordinatorState::Closed;
             }
+            Err(error) if terminal_failure => {
+                // The client has already been taken and dropped. Preserve that
+                // truth for operations and every subsequent shutdown caller;
+                // reopening this wrapper would claim ownership of a client that
+                // no longer exists.
+                inner.lifecycle.store(LIFECYCLE_CLOSED, Ordering::Release);
+                *coordinator = ShutdownCoordinatorState::Failed {
+                    error: Arc::clone(error),
+                };
+            }
             Err(_) => {
-                // `perform_shutdown` can fail only before taking the sole client.
-                // Once the client is taken, its release barrier never returns an
-                // error, so OPEN always implies a usable client is still present.
+                // The flush barrier failed before the sole client was taken, so
+                // the wrapper still owns a usable client and shutdown may retry.
                 inner.lifecycle.store(LIFECYCLE_OPEN, Ordering::Release);
                 *coordinator = ShutdownCoordinatorState::Open;
             }
@@ -607,24 +845,31 @@ impl SurrealStorage {
         let _ = sender.send(Some(result));
     }
 
-    async fn perform_shutdown(inner: &SurrealStorageInner) -> Result<(), SurrealStorageError> {
+    async fn perform_shutdown(inner: &SurrealStorageInner) -> Result<(), ShutdownAttemptError> {
         let mut guard = inner.client.write().await;
         let Some(client) = guard.as_ref() else {
             return Ok(());
         };
-        client.query("RETURN true;").await?.check()?;
+        client
+            .query("RETURN true;")
+            .await
+            .map_err(SurrealStorageError::from)
+            .and_then(|response| response.check().map_err(SurrealStorageError::from))
+            .map_err(ShutdownAttemptError::Retryable)?;
         let client = guard
             .take()
             .expect("the client was checked while holding the write lease");
         drop(guard);
         drop(client);
-        wait_for_engine_release(&inner.config.path).await;
+        wait_for_engine_release(&inner.config.path)
+            .await
+            .map_err(ShutdownAttemptError::Terminal)?;
         Ok(())
     }
 }
 
 #[cfg(windows)]
-async fn wait_for_engine_release(store_path: &Path) {
+async fn wait_for_engine_release(store_path: &Path) -> Result<(), SurrealStorageError> {
     use std::{fs::OpenOptions, os::windows::fs::OpenOptionsExt};
 
     const ERROR_SHARING_VIOLATION: i32 = 32;
@@ -634,7 +879,6 @@ async fn wait_for_engine_release(store_path: &Path) {
 
     let lock_path = store_path.join("LOCK");
     let mut backoff = INITIAL_BACKOFF;
-    let mut last_unexpected_error: Option<String> = None;
 
     loop {
         match OpenOptions::new()
@@ -648,7 +892,7 @@ async fn wait_for_engine_release(store_path: &Path) {
                 // RocksDB opens this file with the same zero-sharing contract.
                 // Acquiring it proves the prior WinFileLock CloseHandle ran.
                 drop(probe);
-                return;
+                return Ok(());
             }
             Err(error)
                 if matches!(
@@ -656,15 +900,15 @@ async fn wait_for_engine_release(store_path: &Path) {
                     Some(ERROR_SHARING_VIOLATION) | Some(ERROR_LOCK_VIOLATION)
                 ) => {}
             Err(error) => {
-                let diagnostic = error.to_string();
-                if last_unexpected_error.as_deref() != Some(diagnostic.as_str()) {
-                    tracing::warn!(
-                        lock_path = %lock_path.display(),
-                        error = %error,
-                        "unexpected error while waiting for the RocksDB lock-release proof; shutdown remains in progress"
-                    );
-                    last_unexpected_error = Some(diagnostic);
-                }
+                tracing::warn!(
+                    lock_path = %lock_path.display(),
+                    error = %error,
+                    "unexpected error while proving RocksDB lock release; shutdown is terminally closed without a release proof"
+                );
+                return Err(SurrealStorageError::Io {
+                    path: lock_path,
+                    source: error,
+                });
             }
         }
 
@@ -674,11 +918,12 @@ async fn wait_for_engine_release(store_path: &Path) {
 }
 
 #[cfg(not(windows))]
-async fn wait_for_engine_release(_store_path: &Path) {
+async fn wait_for_engine_release(_store_path: &Path) -> Result<(), SurrealStorageError> {
     // The locked SDK provides no router join or datastore-close acknowledgement.
     // A yield preserves the prior non-Windows behavior without claiming proof
     // equivalent to the Windows zero-sharing LOCK acquisition above.
     tokio::task::yield_now().await;
+    Ok(())
 }
 
 fn absolute_path(path: PathBuf) -> Result<PathBuf, SurrealStorageError> {
@@ -808,9 +1053,7 @@ mod windows_path_tests {
             .expect("hold exclusive RocksDB-style lock");
 
         let store_path = temp.path().to_path_buf();
-        let mut waiter = tokio::spawn(async move {
-            wait_for_engine_release(&store_path).await;
-        });
+        let mut waiter = tokio::spawn(async move { wait_for_engine_release(&store_path).await });
         assert!(
             tokio::time::timeout(Duration::from_millis(50), &mut waiter)
                 .await
@@ -822,6 +1065,50 @@ mod windows_path_tests {
         tokio::time::timeout(Duration::from_secs(2), waiter)
             .await
             .expect("release proof should finish after CloseHandle")
-            .expect("release proof task should not panic");
+            .expect("release proof task should not panic")
+            .expect("exclusive release probe should succeed");
+    }
+
+    #[tokio::test]
+    async fn unexpected_release_probe_error_terminally_closes_the_wrapper() {
+        let temp = tempfile::tempdir().expect("create temporary root");
+        let actual_store_path = temp.path().join("actual-store");
+        let config =
+            SurrealStorageConfig::for_store_path(&actual_store_path).expect("configure store");
+        let mut storage = SurrealStorage::open(config).await.expect("open storage");
+
+        // Redirect only the post-drop proof path to a missing parent. This
+        // deterministically produces a non-sharing Windows error after the
+        // actual engine client has already been taken and dropped.
+        let missing_store_path = temp.path().join("missing-parent").join("store");
+        Arc::get_mut(&mut storage.inner)
+            .expect("test owns the only inner reference")
+            .config
+            .path = missing_store_path;
+
+        let first_error = tokio::time::timeout(Duration::from_secs(2), storage.shutdown())
+            .await
+            .expect("unexpected probe error must not retry forever")
+            .expect_err("shutdown must report the missing release proof")
+            .to_string();
+        assert!(
+            first_error.contains("failed to prepare embedded database path"),
+            "unexpected terminal shutdown error: {first_error}"
+        );
+        assert!(storage.is_closed().await);
+        assert!(!storage.is_accepting_operations());
+        assert!(storage.inner.client.read().await.is_none());
+
+        let operation_result: Result<(), SurrealStorageError> = storage
+            .with_data_operation(|_| Box::pin(async { Ok(()) }))
+            .await;
+        assert!(matches!(operation_result, Err(SurrealStorageError::Closed)));
+
+        let repeated_error = tokio::time::timeout(Duration::from_millis(100), storage.shutdown())
+            .await
+            .expect("terminal shutdown result must be immediately reusable")
+            .expect_err("terminal shutdown failure must remain observable")
+            .to_string();
+        assert_eq!(repeated_error, first_error);
     }
 }

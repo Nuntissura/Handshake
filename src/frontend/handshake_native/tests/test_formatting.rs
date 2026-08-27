@@ -21,7 +21,7 @@
 //! - AC-007 transport `format_request_reuses_mt008_transport`: the `textDocument/formatting` /
 //!   `rangeFormatting` requests reuse the EXISTING MT-008 stdio transport (no second transport).
 //!
-//! Provable WITHOUT a live PostgreSQL / a real language server: the mock LSP is an in-memory duplex pipe
+//! Provable WITHOUT a live SurrealDB / a real language server: the mock LSP is an in-memory duplex pipe
 //! installed via the REAL `LspClient::install_test_transport`, the apply uses in-memory `TextBuffer`s, and
 //! the single-undo proof drives the REAL `InteractionBus` undo ring — exactly the MT proof discipline.
 

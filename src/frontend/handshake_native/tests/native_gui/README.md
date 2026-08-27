@@ -23,7 +23,7 @@ The MT-031 tests build and inspect the single-installer bundle:
   picks one automatically — see `installer/windows/BUNDLED_DEPS_POLICY.md`).
 - OPTIONAL: WiX 4/5 (`dotnet tool install --global wix`) to build the real `.msi`. Absent it, the script
   emits a `handshake-setup.zip` (still a single self-contained artifact) and the smoke runs `-ForceZip`.
-- OPTIONAL: a PostgreSQL toolchain on PATH / `HANDSHAKE_MANAGED_PG_BIN` / `PGBIN` to stage the real managed
+- OPTIONAL: a SurrealDB toolchain on PATH / `HSK_TEST_BACKEND_BIN` / `BACKEND_BIN` to stage the real managed
   binaries. Absent it, the script stages a documented placeholder so the bundle layout is valid; a real
   release MUST stage the real binaries.
 
@@ -32,7 +32,7 @@ The MT-031 tests build and inspect the single-installer bundle:
 A true clean Windows profile test needs a VM snapshot or Windows Sandbox. The smoke approximates a clean
 profile by running the staged binary from a temp staging tree with `HANDSHAKE_WORKSPACE_ROOT` and
 `HANDSHAKE_RUNTIME_ROOT` removed from the environment, and `--self-check` (which does not start the GUI,
-open a window, or connect to postgres). This is the best practical automated approximation without a full
+open a window, or connect to surrealdb). This is the best practical automated approximation without a full
 VM; a real clean-profile VM install pass is a later hardening item.
 
 ### Run

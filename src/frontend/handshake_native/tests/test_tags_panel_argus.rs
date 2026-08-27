@@ -1,12 +1,12 @@
 //! WP-KERNEL-012 E3 MT-023 V4 remediation: canonical Argus inspect / safe-steer / authoritative
-//! re-observe proof for the MOUNTED tags panel against real PostgreSQL.
+//! re-observe proof for the MOUNTED tags panel against real SurrealDB.
 //!
 //! `validation_v4` observed visible tag-list -> hub navigation but rejected the indeterminate click
 //! receipt because the post-state was not causally bound to the exact authoritative hub-membership
 //! request. This test drives the mounted `HandshakeApp` through the real localhost `SwarmMcpServer`
 //! transport the way an out-of-process swarm agent does and closes that exact gap:
 //!
-//!   1. creates an isolated real-PostgreSQL workspace and seeds three tag hubs plus one real tag edge,
+//!   1. creates an isolated real-SurrealDB workspace and seeds three tag hubs plus one real tag edge,
 //!      then mounts the production `HandshakeApp` Tags pane against the current backend,
 //!   2. binds the CANONICAL Argus driver (real localhost JSON-RPC, the same `argus.inspect` /
 //!      `argus.click` the swarm path uses) to the mounted app,
@@ -138,7 +138,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204 | 404),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         self.cleaned = true;
     }
@@ -303,7 +303,7 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
             .tags
             .len(),
         3,
-        "real PostgreSQL tag list settles with all three seeded tag hubs"
+        "real SurrealDB tag list settles with all three seeded tag hubs"
     );
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-023-tags-panel");
@@ -403,7 +403,7 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
     );
 
     // Capture terminal visual evidence in memory. No PASS-looking durable artifact is published until
-    // PostgreSQL/backend cleanup, Argus finalization, and local-artifact hygiene all succeed.
+    // SurrealDB/backend cleanup, Argus finalization, and local-artifact hygiene all succeed.
     let screenshot = harness
         .render()
         .expect("MT-023 V4 requires GPU rendering for the terminal hub screenshot");

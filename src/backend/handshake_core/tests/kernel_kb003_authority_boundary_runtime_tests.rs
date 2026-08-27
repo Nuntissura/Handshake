@@ -40,7 +40,7 @@ fn sample_receipt_row() -> PromotionReceiptRowV1 {
 
 #[test]
 fn non_gate_actor_denied_at_storage_boundary_for_decision() {
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     for actor in [
         AuthorityMutationActor::Coder,
         AuthorityMutationActor::Validator,
@@ -71,7 +71,7 @@ fn non_gate_actor_denied_at_storage_boundary_for_decision() {
 
 #[test]
 fn non_gate_actor_denied_at_storage_boundary_for_receipt() {
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     for actor in [
         AuthorityMutationActor::Coder,
         AuthorityMutationActor::Validator,
@@ -101,7 +101,7 @@ fn non_gate_actor_denied_at_storage_boundary_for_receipt() {
 
 #[test]
 fn promotion_gate_actor_permitted_at_storage_boundary() {
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let dec_result = store.insert_promotion_decision(
         &sample_decision_row(),
         AuthorityMutationActor::PromotionGate,

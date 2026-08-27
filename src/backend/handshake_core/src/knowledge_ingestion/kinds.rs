@@ -18,10 +18,12 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
+use surrealdb::types::SurrealValue;
 
 use super::{IngestionError, IngestionResult};
 use crate::storage::knowledge::KnowledgeRootKind;
+use crate::storage::surreal::SurrealDatabase;
+use crate::storage::StorageError;
 
 /// Version token stored on every projected registry row; bump when the
 /// registry shape or semantics change so stale projections are detectable.
@@ -366,53 +368,53 @@ pub fn detect_governance_sub_kind(relative_path: &str) -> Option<GovernanceSubKi
 /// Sync the DB projection (`knowledge_ingestion_kind_registry`, 0161) to the
 /// code registry: upsert every entry, delete rows the code no longer ships.
 /// Returns the number of projected rows.
-pub async fn sync_kind_projection(pool: &PgPool) -> IngestionResult<usize> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(crate::storage::StorageError::from)?;
-
-    let keys: Vec<String> = REGISTRY.iter().map(|s| s.kind_key.to_string()).collect();
-    sqlx::query("DELETE FROM knowledge_ingestion_kind_registry WHERE kind_key <> ALL($1)")
-        .bind(&keys)
-        .execute(&mut *tx)
-        .await
-        .map_err(crate::storage::StorageError::from)?;
-
-    for spec in REGISTRY {
-        sqlx::query(
-            "INSERT INTO knowledge_ingestion_kind_registry
-                 (kind_key, display_name, capabilities, extensions, mime_types,
-                  registry_version, projected_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())
-             ON CONFLICT (kind_key) DO UPDATE SET
-                 display_name = EXCLUDED.display_name,
-                 capabilities = EXCLUDED.capabilities,
-                 extensions = EXCLUDED.extensions,
-                 mime_types = EXCLUDED.mime_types,
-                 registry_version = EXCLUDED.registry_version,
-                 projected_at = NOW()",
-        )
-        .bind(spec.kind_key)
-        .bind(spec.display_name)
-        .bind(json!({
-            "span_extraction": spec.capabilities.span_extraction,
-            "anchor_kinds": spec.capabilities.anchor_kinds,
-            "supports_partial_extraction": spec.capabilities.supports_partial_extraction,
-            "requires_text_layer_detection": spec.capabilities.requires_text_layer_detection,
-            "secret_scan": spec.capabilities.secret_scan,
-        }))
-        .bind(json!(spec.extensions))
-        .bind(json!(spec.mime_types))
-        .bind(KIND_REGISTRY_VERSION)
-        .execute(&mut *tx)
-        .await
-        .map_err(crate::storage::StorageError::from)?;
+pub async fn sync_kind_projection(db: &SurrealDatabase) -> IngestionResult<usize> {
+    #[derive(SurrealValue)]
+    struct KindProjection {
+        kind_key: String,
+        display_name: String,
+        capabilities: serde_json::Value,
+        extensions: Vec<String>,
+        mime_types: Vec<String>,
+        registry_version: String,
     }
-
-    tx.commit()
-        .await
-        .map_err(crate::storage::StorageError::from)?;
+    #[derive(SurrealValue)]
+    struct Bindings {
+        keys: Vec<String>,
+        projections: Vec<KindProjection>,
+    }
+    let keys: Vec<String> = REGISTRY.iter().map(|s| s.kind_key.to_string()).collect();
+    let projections = REGISTRY
+        .iter()
+        .map(|spec| KindProjection {
+            kind_key: spec.kind_key.to_owned(),
+            display_name: spec.display_name.to_owned(),
+            capabilities: json!({
+                "span_extraction": spec.capabilities.span_extraction,
+                "anchor_kinds": spec.capabilities.anchor_kinds,
+                "supports_partial_extraction": spec.capabilities.supports_partial_extraction,
+                "requires_text_layer_detection": spec.capabilities.requires_text_layer_detection,
+                "secret_scan": spec.capabilities.secret_scan,
+            }),
+            extensions: spec
+                .extensions
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            mime_types: spec
+                .mime_types
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            registry_version: KIND_REGISTRY_VERSION.to_owned(),
+        })
+        .collect();
+    db.storage().with_data_operation(move |database| Box::pin(async move {
+        database.query_values::<surrealdb::types::Value, _>(
+            "BEGIN TRANSACTION; DELETE knowledge_ingestion_kind_registry WHERE kind_key NOT IN $keys; FOR $projection IN $projections { UPSERT type::record('knowledge_ingestion_kind_registry', $projection.kind_key) CONTENT { kind_key: $projection.kind_key, display_name: $projection.display_name, capabilities: $projection.capabilities, extensions: $projection.extensions, mime_types: $projection.mime_types, registry_version: $projection.registry_version, projected_at: time::now() }; }; COMMIT TRANSACTION;",
+            Bindings { keys, projections },
+        ).await
+    })).await.map_err(|error| IngestionError::Storage(StorageError::Database(error.to_string())))?;
     Ok(REGISTRY.len())
 }
 

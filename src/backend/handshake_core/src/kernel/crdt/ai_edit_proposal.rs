@@ -15,21 +15,21 @@
 //! promoting a rejected/pending proposal leaves a durable
 //! `ai_edit_promotion_denied` receipt + PROMOTION_REJECTED event.
 
+use crate::storage::surreal::SurrealStorage;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use sqlx::PgPool;
+use serde_json::{json, Value};
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
-    self, AiEditProposalRow, NewAiEditProposal, NewKnowledgeCrdtDenialReceipt,
-    insert_denial_receipt, new_denial_receipt_id,
+    self, insert_denial_receipt, new_denial_receipt_id, AiEditProposalRow, NewAiEditProposal,
+    NewKnowledgeCrdtDenialReceipt,
 };
+use crate::storage::Database;
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use super::agent_lease::{
-    KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
-    guard_lease_for_write, new_ulid,
+    guard_lease_for_write, new_ulid, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
+    LeaseWriteGuardOutcomeV1,
 };
 use super::persistence::sha256_hex;
 use super::state_vector::KnowledgeStateVectorV1;
@@ -161,7 +161,7 @@ pub enum RecordAiEditProposalOutcomeV1 {
 /// NO draft row — presence-only checking let those through.
 pub async fn record_ai_edit_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     request: AiEditProposalRequestV1,
 ) -> Result<RecordAiEditProposalOutcomeV1, LeaseFlowError> {
     if let Err(errors) = validate_ai_edit_proposal_request(&request) {
@@ -281,7 +281,7 @@ impl std::error::Error for AiEditDecisionError {}
 /// Approve or reject (AI_EDIT_PROPOSAL_DECIDED; reviewer = operator/validator).
 pub async fn decide_ai_edit_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     approve: bool,
     reviewer: &KnowledgeActorIdV1,
@@ -392,7 +392,7 @@ pub enum AiEditPromotionOutcomeV1 {
 /// durable denial receipt + PROMOTION_REJECTED event. Idempotent.
 pub async fn promote_ai_edit_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     gate_actor: &KnowledgeActorIdV1,
     gate_session_id: &str,
@@ -532,7 +532,7 @@ pub async fn promote_ai_edit_proposal(
 #[allow(clippy::too_many_arguments)]
 async fn deny_promotion(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     proposal: Option<&AiEditProposalRow>,
     gate_actor: &KnowledgeActorIdV1,
@@ -664,7 +664,7 @@ pub enum AiEditApplyOutcomeV1 {
 /// non-matching update can never be recorded as that application.
 pub async fn apply_approved_ai_edit(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     applied_update_id: &str,
     applied_diff: &Value,
@@ -831,7 +831,7 @@ pub async fn apply_approved_ai_edit(
 #[allow(clippy::too_many_arguments)]
 async fn deny_applied_update_missing(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal: &AiEditProposalRow,
     applied_update_id: &str,
     stored_update_sha256: Option<String>,

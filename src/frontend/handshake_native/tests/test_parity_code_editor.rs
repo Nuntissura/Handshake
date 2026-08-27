@@ -2,13 +2,13 @@
 //!
 //! This is the **frontend-only** half of the parity gate (contract REALITY split, KERNEL_BUILDER gate
 //! 2026-06-26): the ten E1 code-editor features (#1-#10) are proven NOW against the REAL native
-//! `handshake_native::code_editor::*` impls with NO PostgreSQL — they exercise the rope buffer
+//! `handshake_native::code_editor::*` impls with NO SurrealDB — they exercise the rope buffer
 //! (MT-001), the tree-sitter highlighter (MT-001), virtualization (MT-002), multi-cursor (MT-003),
 //! find/replace (MT-004), folding (MT-005), minimap + go-to-line (MT-006), the gutter diagnostic store
 //! (MT-007), the in-process LSP transport stub (MT-008), and the diff engine (MT-009). The E2/E3/E4
-//! proofs (#11-#43) BIND the backend and need a live managed PostgreSQL; they live in the sibling
+//! proofs (#11-#43) BIND the backend and need a live managed SurrealDB; they live in the sibling
 //! `test_parity_rich_editor.rs` / `test_parity_knowledge.rs` / `test_parity_search.rs` files, gated
-//! `requires_pg`.
+//! `requires_surrealdb`.
 //!
 //! ## No mock smuggling (RISK-2 / CTRL-2)
 //!
@@ -17,7 +17,7 @@
 //! `transport::read_loop` the editor uses) wired to an in-memory pipe carrying a real
 //! `Content-Length`-framed `textDocument/completion` response — it is the production request/route
 //! path, not a parallel reimplementation, and no OS process is spawned (deterministic + focus-safe,
-//! HBR-QUIET). There is NO sqlite, NO in-memory backend stub, and NO hard-coded result substituted for
+//! HBR-QUIET). There is NO alternate_local_store, NO in-memory backend stub, and NO hard-coded result substituted for
 //! a real impl call anywhere in this file.
 //!
 //! ## Manifest write-back (RISK-3 / CTRL-3)

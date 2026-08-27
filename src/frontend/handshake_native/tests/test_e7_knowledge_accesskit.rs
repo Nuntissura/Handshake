@@ -38,7 +38,7 @@
 //! ## Backend reality (Spec-Realism Gate / the MT-021/026/027 pattern)
 //!
 //! AC-042-10 is a non-ignored integration test. It creates an isolated workspace on the reachable
-//! Handshake-managed PostgreSQL backend, observes the real empty projection, seeds real blocks/edges,
+//! Handshake-managed SurrealDB backend, observes the real empty projection, seeds real blocks/edges,
 //! fetches through the production graph client, drives stable author_ids, persists add/remove, performs
 //! fresh-client reload, and proves the backend-loss negative. It never consumes an operator-seeded
 //! workspace and never substitutes an in-memory projection for the live verdict.
@@ -1433,7 +1433,7 @@ fn toolbar_plain_click_applies_pan_exactly_once() {
 // BACKEND REQUEST-SHAPE proven STANDALONE (the contract's "the E6 request-SHAPE (right route/body built)
 // are provable STANDALONE" gate; the must-fix request-shape gap). These take a DISPATCHED knowledge event
 // (the same typed event a swarm dispatch produces) and feed it into the REAL production request builders
-// in backend_client.rs / backend/loom.rs, asserting the exact verified route + body. No live PG is needed
+// in backend_client.rs / backend/loom.rs, asserting the exact verified route + body. No live SurrealDB is needed
 // — the DB ROUND-TRIP stays the gated `#[ignore]` test; this proves the host wiring (MT-043/044) would
 // build a WELL-FORMED request from the event, which the typed-event-only assertions above cannot.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1829,7 +1829,7 @@ fn ctrl03_malformed_payload_does_not_panic() {
     println!("CTRL-042-03: malformed / missing / absent payloads are logged + dropped — no panic on the UI thread");
 }
 
-// ── AC-042 live closure: self-seeded managed PostgreSQL graph + AccessKit relations ────────────────
+// ── AC-042 live closure: self-seeded managed SurrealDB graph + AccessKit relations ────────────────
 
 struct LiveGraphHarness<'a> {
     harness: Harness<'a, ()>,
@@ -1974,68 +1974,6 @@ fn graph_block_id(value: &serde_json::Value) -> String {
         .to_owned()
 }
 
-fn persisted_tag_edge_count(
-    workspace_id: &str,
-    source_block_id: &str,
-    target_block_id: &str,
-) -> u64 {
-    let psql =
-        std::env::var_os("HSK_PSQL_BIN").expect("MT-042 PostgreSQL proof requires HSK_PSQL_BIN");
-    let dsn = std::env::var("HANDSHAKE_TEST_PG_DSN")
-        .expect("MT-042 PostgreSQL proof requires HANDSHAKE_TEST_PG_DSN");
-    let pg_literal = |value: &str| format!("'{}'", value.replace('\'', "''"));
-    let sql = format!(
-        "SELECT count(*) FROM loom_edges WHERE workspace_id = {} AND source_block_id = {} AND target_block_id = {} AND edge_type = 'tag';",
-        pg_literal(workspace_id),
-        pg_literal(source_block_id),
-        pg_literal(target_block_id)
-    );
-    let mut child = std::process::Command::new(psql)
-        .arg(format!("--dbname={dsn}"))
-        .arg("--set=ON_ERROR_STOP=1")
-        .arg("--tuples-only")
-        .arg("--no-align")
-        .arg(format!("--command={sql}"))
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .expect("spawn bounded MT-042 psql authority query");
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => break,
-            Ok(None) if Instant::now() < deadline => {
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            Ok(None) => {
-                let _ = child.kill();
-                let output = child
-                    .wait_with_output()
-                    .expect("reap timed-out MT-042 psql authority query");
-                panic!(
-                    "MT-042 psql authority query exceeded five seconds: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-            Err(error) => panic!("poll MT-042 psql authority query: {error}"),
-        }
-    }
-    let output = child
-        .wait_with_output()
-        .expect("reap bounded MT-042 psql authority query");
-    assert!(
-        output.status.success(),
-        "MT-042 psql query failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout)
-        .expect("psql stdout is UTF-8")
-        .trim()
-        .parse()
-        .expect("psql tag-edge count is an integer")
-}
-
 struct Mt042WorkspaceCleanup<'a> {
     backend: &'a interconnect_support::LiveBackend,
     workspace_id: String,
@@ -2051,11 +1989,11 @@ impl Drop for Mt042WorkspaceCleanup<'_> {
 }
 
 /// The complete graph proof is integration-gated but deliberately NOT ignored. It owns an isolated
-/// workspace, starts from a real empty PostgreSQL projection, seeds three real LoomBlocks and edges,
+/// workspace, starts from a real empty SurrealDB projection, seeds three real LoomBlocks and edges,
 /// fetches through the production LoomGraphClient, mounts the real graph widget, drives it only by
 /// stable author_id, persists add/remove mutations, and re-fetches through fresh production clients.
 #[test]
-fn ac10_live_pg_populated_graph_accesskit_round_trip() {
+fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
     let live = interconnect_support::require_reachable_backend();
     let nonce = format!(
         "{}-{}",
@@ -2126,12 +2064,12 @@ fn ac10_live_pg_populated_graph_accesskit_round_trip() {
     assert_eq!(
         populated.nodes.len(),
         3,
-        "three seeded PostgreSQL blocks are visible"
+        "three seeded SurrealDB blocks are visible"
     );
     assert_eq!(
         populated.edges.len(),
         2,
-        "two seeded PostgreSQL edges are visible"
+        "two seeded SurrealDB edges are visible"
     );
     let expected_nodes: Vec<(String, String)> = populated
         .nodes
@@ -2145,7 +2083,7 @@ fn ac10_live_pg_populated_graph_accesskit_round_trip() {
     for (block_id, title) in &expected_nodes {
         let author = graph_node_author_id(block_id);
         let node = find_node(&mounted.harness.root(), &author)
-            .unwrap_or_else(|| panic!("live PostgreSQL node {author} is mounted"));
+            .unwrap_or_else(|| panic!("live SurrealDB node {author} is mounted"));
         assert_eq!(node.role, "TreeItem");
         assert_eq!(node.label.as_deref(), Some(title.as_str()));
         assert!(node.supports_click && node.supports_focus);
@@ -2237,7 +2175,7 @@ fn ac10_live_pg_populated_graph_accesskit_round_trip() {
         }
         assert!(
             Instant::now() < host_deadline,
-            "production graph host did not load the managed PostgreSQL projection within five seconds"
+            "production graph host did not load the managed SurrealDB projection within five seconds"
         );
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -2565,27 +2503,25 @@ fn ac10_live_pg_populated_graph_accesskit_round_trip() {
     }
     let tag_graph = live.get_json(&format!("/workspaces/{workspace_id}/loom/graph/global"));
     let tag_edges = tag_graph["edges"].as_array().expect("raw graph tag edges");
-    let has_tag_edge = |target: &str| {
-        tag_edges.iter().any(|row| {
+    let tag_edge_count = |target: &str| {
+        tag_edges.iter().filter(|row| {
             row["edge"]["source_block_id"].as_str() == Some(alpha_id.as_str())
                 && row["edge"]["target_block_id"].as_str() == Some(target)
                 && row["edge"]["edge_type"].as_str() == Some("tag")
-        })
+        }).count()
     };
-    assert!(has_tag_edge(&done_tag));
-    assert!(!has_tag_edge(&todo_tag));
     assert_eq!(
-        persisted_tag_edge_count(&workspace_id, &alpha_id, &done_tag),
+        tag_edge_count(&done_tag),
         1,
-        "direct PostgreSQL authority contains the destination tag edge"
+        "canonical graph API contains exactly one destination tag edge"
     );
     assert_eq!(
-        persisted_tag_edge_count(&workspace_id, &alpha_id, &todo_tag),
+        tag_edge_count(&todo_tag),
         0,
-        "direct PostgreSQL authority removed the source tag edge"
+        "canonical graph API removed the source tag edge"
     );
     println!(
-        "PROOF-042-D PostgreSQL loom_edges: block={alpha_id} done_tag={done_tag} count=1 todo_tag={todo_tag} count=0"
+        "PROOF-042-D canonical graph edges: block={alpha_id} done_tag={done_tag} count=1 todo_tag={todo_tag} count=0"
     );
 
     // A completely fresh pane retains the same author_id -> NodeId mapping after durable reload.

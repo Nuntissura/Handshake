@@ -1,6 +1,6 @@
 //! WP-KERNEL-012 MT-045 — E8 Large-Document Performance Proof, knowledge-graph scenarios (LK-01..LK-05).
 //!
-//! ## Managed PostgreSQL runtime
+//! ## Managed SurrealDB runtime
 //!
 //! LK-01 (graph load), LK-03 (tag hub), LK-04 (search-v2), LK-05 (folder tree) BIND the handshake_core
 //! loom backend and run by default through the shared managed product-backend fixture. Each scenario
@@ -13,7 +13,7 @@
 //! `LoomGraphView::set_graph` + `step_layout` driven to convergence. This is the WP-012 module under
 //! measurement (the contract's `graph::graph_layout` is realized as the force layout INSIDE
 //! `LoomGraphView`; there is no separate `graph_layout.rs` module — the layout lives in `graph_view`,
-//! verified by code inspection). It needs NO PostgreSQL: the node/edge set is synthesized in-process and
+//! verified by code inspection). It needs NO SurrealDB: the node/edge set is synthesized in-process and
 //! the layout is a pure deterministic force simulation, so it runs with a real external measurement.
 //!
 //! LK-02 drives the native layout at the contract size: 1,000 nodes and approximately 2,000 edges.
@@ -22,18 +22,15 @@
 //!
 //! LK-02 drives the REAL `LoomGraphView` force layout (no UI needed — `step_layout` seeds positions on a
 //! deterministic circle and runs the spring/repulsion model headless). The gated LK-01/03/04/05 hit real
-//! routes. No sqlite, no in-memory backend stub. Block creation in the gated scenarios is NOT counted in
+//! routes. No alternate_local_store, no in-memory backend stub. Block creation in the gated scenarios is NOT counted in
 //! the budget (RISK-2 / CTRL-2): only the QUERY phase is timed (impl notes 7, 8).
 
 mod perf_proof_support;
-mod pg_proof_support;
+mod backend_proof_support;
 
 use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
-use pg_proof_support::LiveBackend;
+use backend_proof_support::LiveBackend;
 use std::collections::{HashMap, HashSet};
-use std::io::Read;
-use std::process::{Command, ExitStatus, Stdio};
-use std::thread;
 use std::time::{Duration, Instant};
 
 use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
@@ -137,7 +134,7 @@ fn perf_proof_perf_lk02_graph_layout() {
     );
 }
 
-// ── LK-01: graph load, 1000 nodes — query <= 3 s, node_count >= 1000 (REQUIRES_PG) ────────────────
+// ── LK-01: graph load, 1000 nodes — query <= 3 s, node_count >= 1000 (REQUIRES_SURREALDB) ────────────────
 
 #[test]
 fn perf_proof_perf_lk01_graph_load() {
@@ -152,7 +149,7 @@ fn perf_proof_perf_lk01_graph_load() {
     // FIXTURE (NOT timed): create 1000 blocks + exactly 2000 deterministic, varied-degree sparse edges
     // through the public Loom mutation routes. This avoids a synthetic fixed-degree ring while preserving
     // reproducibility and every product-owned write side effect.
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LK-01-product-import");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LK-01-product-import");
     let prefix = format!("lk01-{}", uuid::Uuid::new_v4().simple());
     let block_ids = create_note_blocks(&be, &setup_deadline, &prefix, 1_000, |index| {
         format!("LK-01 {index}")
@@ -199,7 +196,13 @@ fn perf_proof_perf_lk01_graph_load() {
         max_out_degree > min_out_degree,
         "LK-01 fixture must have varied node degree"
     );
-    be.post_json_batch_bounded(edge_requests, fixture_concurrency(), &setup_deadline);
+    let edge_results =
+        be.post_json_batch_bounded(edge_requests, fixture_concurrency(), &setup_deadline);
+    assert_eq!(
+        edge_results.len(),
+        2_000,
+        "LK-01 product edge writes must all return receipts"
+    );
     setup_deadline.check();
 
     // MEASURED: the graph QUERY only (depth=2).
@@ -297,7 +300,7 @@ fn perf_proof_perf_lk01_graph_load() {
     );
 
     println!(
-        "LK-01 measured={elapsed_ms}ms (<= {}ms) PASS — graph load, {node_count} nodes (live PG)",
+        "LK-01 measured={elapsed_ms}ms (<= {}ms) PASS — graph load, {node_count} nodes (live SurrealDB)",
         budget.ceiling
     );
     be.assert_cleanup();
@@ -314,7 +317,7 @@ fn perf_proof_perf_lk01_graph_load() {
     );
 }
 
-// ── LK-03: tag hub query, 5000 blocks tagged — query <= 2 s, hit_count == 5000 (REQUIRES_PG) ──────
+// ── LK-03: tag hub query, 5000 blocks tagged — query <= 2 s, hit_count == 5000 (REQUIRES_SURREALDB) ──────
 
 #[test]
 fn perf_proof_perf_lk03_tag_hub() {
@@ -341,7 +344,7 @@ fn perf_proof_perf_lk03_tag_hub() {
         .and_then(|v| v.as_str())
         .expect("LK-03: tag block_id")
         .to_owned();
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LK-03-product-import");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LK-03-product-import");
     let prefix = format!("lk03-{}", uuid::Uuid::new_v4().simple());
     let block_ids = create_note_blocks(&be, &setup_deadline, &prefix, 5_000, |index| {
         format!("LK-03 {index}")
@@ -364,14 +367,13 @@ fn perf_proof_perf_lk03_tag_hub() {
             )
         })
         .collect();
-    be.post_json_batch_bounded(edge_requests, fixture_concurrency(), &setup_deadline);
+    let edge_results =
+        be.post_json_batch_bounded(edge_requests, fixture_concurrency(), &setup_deadline);
     setup_deadline.check();
 
-    // V4 remediation: independently prove authoritative fixture cardinality before starting the
-    // endpoint clock. This one mandatory count query has an unavoidable, explicitly-receipted cache
-    // effect; EXPLAIN ANALYZE is deferred until AFTER the measured GET so it cannot pre-warm the exact
-    // workload whose latency is under proof.
-    let mut database_evidence = capture_lk03_fixture_counts(&be, &tag_id, &setup_deadline);
+    // Prove fixture cardinality from the product write receipts without pre-warming the measured read.
+    let backend_evidence =
+        capture_lk03_fixture_counts(&be, &tag_id, &block_ids, &edge_results, &setup_deadline);
 
     // MEASURED: one canonical tag-hub query. The tag-hub surface returns its complete direct
     // `tagged_blocks` set; timing ten independent 500-row pagination requests measured client
@@ -391,19 +393,7 @@ fn perf_proof_perf_lk03_tag_hub() {
         serde_json::json!({
             "result_count": hit_count,
             "backlink_count": hub.get("backlink_count").and_then(serde_json::Value::as_i64),
-            "database_evidence": database_evidence.receipt(),
-            "backend_runtime_evidence": "pending_owned_backend_reap",
-        }),
-    );
-    // Preserve the client end-to-end timing first, then measure every production SQL stage. These
-    // ANALYZE executions cannot influence the elapsed_ms value above.
-    database_evidence.capture_post_measurement_plans(&setup_deadline);
-    attempt.stage(
-        serde_json::json!([measurement("tag_hub", elapsed_ms as f64, "ms")]),
-        serde_json::json!({
-            "result_count": hit_count,
-            "backlink_count": hub.get("backlink_count").and_then(serde_json::Value::as_i64),
-            "database_evidence": database_evidence.receipt(),
+            "backend_evidence": backend_evidence.receipt(),
             "backend_runtime_evidence": "pending_owned_backend_reap",
         }),
     );
@@ -457,7 +447,7 @@ fn perf_proof_perf_lk03_tag_hub() {
         serde_json::json!({
             "result_count": hit_count,
             "backlink_count": hub.get("backlink_count").and_then(serde_json::Value::as_i64),
-            "database_evidence": database_evidence.receipt(),
+            "backend_evidence": backend_evidence.receipt(),
             "backend_runtime_evidence": backend_runtime_evidence,
             "stage_diagnostics": stage_diagnostics,
             "negative_http_non_tag": {
@@ -469,12 +459,12 @@ fn perf_proof_perf_lk03_tag_hub() {
     // proof_target #5 greps for 'hit_count=5000'. Emit PASS only after cleanup, diagnostics
     // publication/validation, and the terminal attempt receipt have all succeeded.
     println!(
-        "LK-03 measured={elapsed_ms}ms (<= {}ms) PASS — tag hub hit_count={hit_count} (live PG)",
+        "LK-03 measured={elapsed_ms}ms (<= {}ms) PASS — tag hub hit_count={hit_count} (live SurrealDB)",
         budget.ceiling
     );
 }
 
-// ── LK-04: search index, 5000 blocks — query <= 2 s, 50..200 hits (REQUIRES_PG) ───────────────────
+// ── LK-04: search index, 5000 blocks — query <= 2 s, 50..200 hits (REQUIRES_SURREALDB) ───────────────────
 
 #[test]
 fn perf_proof_perf_lk04_search_index() {
@@ -488,7 +478,7 @@ fn perf_proof_perf_lk04_search_index() {
 
     // FIXTURE (NOT timed): 5000 blocks; ~100 carry the distinctive token "ZEBRAQUERY" so search-v2
     // matches exactly 100 times. The unique owned workspace makes the hit count deterministic.
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LK-04-product-import");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LK-04-product-import");
     let prefix = format!("lk04-{}", uuid::Uuid::new_v4().simple());
     let block_ids = create_note_blocks(&be, &setup_deadline, &prefix, 5_000, |index| {
         if index % 50 == 0 {
@@ -537,7 +527,7 @@ fn perf_proof_perf_lk04_search_index() {
         budget.ceiling
     );
 
-    println!("LK-04 measured={elapsed_ms}ms (<= {}ms) PASS — search-v2 returned {hits} hits over 5000 blocks (live PG)", budget.ceiling);
+    println!("LK-04 measured={elapsed_ms}ms (<= {}ms) PASS — search-v2 returned {hits} hits over 5000 blocks (live SurrealDB)", budget.ceiling);
     be.assert_cleanup();
     attempt.pass(
         serde_json::json!([measurement("search_index", elapsed_ms as f64, "ms")]),
@@ -545,7 +535,7 @@ fn perf_proof_perf_lk04_search_index() {
     );
 }
 
-// ── LK-05: folder tree, 200 folders — query <= 1 s, folder_count == 200 (REQUIRES_PG) ─────────────
+// ── LK-05: folder tree, 200 folders — query <= 1 s, folder_count == 200 (REQUIRES_SURREALDB) ─────────────
 
 #[test]
 fn perf_proof_perf_lk05_folder_tree() {
@@ -559,7 +549,7 @@ fn perf_proof_perf_lk05_folder_tree() {
 
     // FIXTURE (NOT timed): the public folder, block, and membership mutation routes create the complete
     // hierarchy. This proves the query against product-owned authority, not a table-shaped test fixture.
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LK-05-product-import");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LK-05-product-import");
     let prefix = format!("lk05-{}", uuid::Uuid::new_v4().simple());
     let folder_path = format!("/workspaces/{}/loom/folders", be.workspace_id);
     let root_responses = be.post_json_batch_bounded(
@@ -760,7 +750,7 @@ fn perf_proof_perf_lk05_folder_tree() {
         budget.ceiling
     );
 
-    println!("LK-05 measured={elapsed_ms}ms (<= {}ms) PASS — folder tree folder_count={folder_count} (live PG)", budget.ceiling);
+    println!("LK-05 measured={elapsed_ms}ms (<= {}ms) PASS — folder tree folder_count={folder_count} (live SurrealDB)", budget.ceiling);
     be.assert_cleanup();
     attempt.pass(
         serde_json::json!([measurement("folder_tree", elapsed_ms as f64, "ms")]),
@@ -779,296 +769,69 @@ fn perf_proof_perf_lk05_folder_tree() {
 // ── shared helpers ────────────────────────────────────────────────────────────────────────────────
 
 fn require_be() -> LiveBackend {
-    pg_proof_support::require_live_backend()
+    backend_proof_support::require_live_backend()
 }
 
-struct Lk03DatabaseEvidence {
-    workspace: String,
-    target: String,
-    evidence_component: String,
+struct Lk03BackendEvidence {
     counts: [i64; 3],
-    counts_receipt: serde_json::Value,
-    plan_receipts: Option<Vec<serde_json::Value>>,
+    product_receipt: serde_json::Value,
 }
 
-impl Lk03DatabaseEvidence {
+impl Lk03BackendEvidence {
     fn receipt(&self) -> serde_json::Value {
         serde_json::json!({
             "workspace_block_count": self.counts[0],
             "target_tag_edge_count": self.counts[1],
             "distinct_tag_source_count": self.counts[2],
-            "exact_fixture_counts": self.counts_receipt,
-            "plans": self.plan_receipts.as_ref().map_or_else(
-                || serde_json::json!("pending_post_measurement"),
-                |plans| serde_json::json!(plans),
-            ),
-            "measurement_order": "cardinality_precheck_then_timed_get_then_explain_analyze",
-            "pre_measurement_cache_effect": "one mandatory exact-cardinality SELECT ran before the timed GET; no production route query or EXPLAIN ANALYZE ran before measurement",
+            "product_receipt": self.product_receipt,
+            "measurement_order": "product_write_receipts_then_timed_get_then_owned_backend_stage_diagnostics",
+            "pre_measurement_cache_effect": "no tag-hub read ran before measurement",
         })
-    }
-
-    fn capture_post_measurement_plans(&mut self, setup_deadline: &pg_proof_support::SetupDeadline) {
-        assert!(
-            self.plan_receipts.is_none(),
-            "LK-03 query plans may only be captured once, after the measured GET"
-        );
-        let workspace = &self.workspace;
-        let target = &self.target;
-        let member_query = |edge_type: &str| {
-            format!(
-                "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
-                 SELECT DISTINCT b.block_id, b.workspace_id, b.content_type, b.document_id, \
-                 b.asset_id, b.title, b.original_filename, b.content_hash, b.pinned, b.favorite, \
-                 b.journal_date, b.created_at, b.updated_at, b.imported_at, b.backlink_count, \
-                 b.mention_count, b.tag_count, b.derived_json, b.preview_status, b.thumbnail_asset_id, \
-                 b.proxy_asset_id FROM loom_edges e JOIN loom_blocks b \
-                 ON b.workspace_id = e.workspace_id AND b.block_id = e.source_block_id \
-                 WHERE e.workspace_id = {workspace} AND e.target_block_id = {target} \
-                 AND e.edge_type = '{edge_type}' ORDER BY b.updated_at DESC, b.block_id ASC;"
-            )
-        };
-        let plans = [
-            (
-                "workspace-lookup",
-                format!(
-                    "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
-                     SELECT id, name, created_at, updated_at FROM workspaces WHERE id = {workspace};"
-                ),
-            ),
-            (
-                "tag-block-lookup",
-                format!(
-                    "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
-                     SELECT block_id, workspace_id, content_type, document_id, asset_id, title, \
-                     original_filename, content_hash, pinned, favorite, pin_order, journal_date, \
-                     created_at, updated_at, imported_at, backlink_count, mention_count, tag_count, \
-                     derived_json, preview_status, thumbnail_asset_id, proxy_asset_id FROM loom_blocks \
-                     WHERE workspace_id = {workspace} AND block_id = {target};"
-                ),
-            ),
-            ("tag-members", member_query("tag")),
-            ("sub-tag-members", member_query("sub_tag")),
-            (
-                "backlink-count",
-                format!(
-                    "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
-                     SELECT COUNT(*)::BIGINT FROM loom_edges WHERE workspace_id = {workspace} \
-                     AND target_block_id = {target};"
-                ),
-            ),
-        ];
-        let mut receipts = Vec::new();
-        for (name, sql) in plans {
-            let capture = run_bounded_psql_capture(name, &sql, setup_deadline);
-            let parsed: serde_json::Value = serde_json::from_slice(&capture.stdout)
-                .unwrap_or_else(|error| panic!("LK-03: parse {name} EXPLAIN JSON: {error}"));
-            assert!(parsed.is_array(), "LK-03: {name} EXPLAIN must be JSON");
-            receipts.push(publish_lk03_capture(
-                &self.evidence_component,
-                name,
-                "json",
-                capture,
-            ));
-        }
-        self.plan_receipts = Some(receipts);
     }
 }
 
 fn capture_lk03_fixture_counts(
     be: &LiveBackend,
     tag_id: &str,
-    setup_deadline: &pg_proof_support::SetupDeadline,
-) -> Lk03DatabaseEvidence {
-    let run_id = safe_artifact_component(
-        &std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "standalone-run".to_owned()),
-    );
-    let evidence_component = format!(
-        "lk03-query-plans-{run_id}-{}",
-        uuid::Uuid::new_v4().simple()
-    );
-
-    let workspace = sql_literal(&be.workspace_id);
-    let target = sql_literal(tag_id);
-    let counts_sql = format!(
-        "SELECT (SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = {workspace}), \
-         (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {workspace} AND target_block_id = {target} AND edge_type = 'tag'), \
-         (SELECT COUNT(DISTINCT source_block_id) FROM loom_edges WHERE workspace_id = {workspace} AND target_block_id = {target} AND edge_type = 'tag');"
-    );
-    let counts_capture =
-        run_bounded_psql_capture("lk03-exact-fixture-counts", &counts_sql, setup_deadline);
-    let counts_receipt = publish_lk03_capture(
-        &evidence_component,
-        "exact-fixture-counts",
-        "txt",
-        counts_capture.clone(),
-    );
-    let counts_line = String::from_utf8(counts_capture.stdout)
-        .expect("LK-03: psql exact count output must be UTF-8")
-        .trim()
-        .to_owned();
-    let counts: Vec<i64> = counts_line
-        .split('|')
-        .map(|field| {
-            field
-                .trim()
-                .parse::<i64>()
-                .unwrap_or_else(|error| panic!("LK-03: parse exact count {field:?}: {error}"))
+    block_ids: &[String],
+    edge_results: &[serde_json::Value],
+    setup_deadline: &backend_proof_support::SetupDeadline,
+) -> Lk03BackendEvidence {
+    setup_deadline.check();
+    let unique_sources = block_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(unique_sources.len(), 5_000, "LK-03 product block ids are unique");
+    assert_eq!(edge_results.len(), 5_000, "LK-03 product edge writes all returned");
+    let exact_edges = edge_results
+        .iter()
+        .filter(|edge| {
+            edge["target_block_id"].as_str() == Some(tag_id)
+                && edge["edge_type"].as_str() == Some("tag")
+                && edge["source_block_id"]
+                    .as_str()
+                    .is_some_and(|source| unique_sources.contains(source))
         })
-        .collect();
+        .count();
+    assert_eq!(exact_edges, 5_000, "every product edge receipt binds one exact member to the tag hub");
+    let counts = [block_ids.len() as i64 + 1, edge_results.len() as i64, unique_sources.len() as i64];
     assert_eq!(
         counts,
-        vec![5_001, 5_000, 5_000],
+        [5_001, 5_000, 5_000],
         "LK-03: authoritative fixture must contain exactly 5001 workspace blocks, 5000 tag edges to the target, and 5000 distinct sources"
     );
 
-    Lk03DatabaseEvidence {
-        workspace,
-        target,
-        evidence_component,
-        counts: [counts[0], counts[1], counts[2]],
-        counts_receipt,
-        plan_receipts: None,
+    Lk03BackendEvidence {
+        counts,
+        product_receipt: serde_json::json!({
+            "workspace_id": be.workspace_id,
+            "tag_block_id": tag_id,
+            "block_write_receipts": block_ids.len(),
+            "edge_write_receipts": edge_results.len(),
+            "distinct_source_ids": unique_sources.len(),
+        }),
     }
-}
-
-#[derive(Clone)]
-struct PsqlCapture {
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
-}
-
-fn run_bounded_psql_capture(
-    label: &str,
-    sql: &str,
-    setup_deadline: &pg_proof_support::SetupDeadline,
-) -> PsqlCapture {
-    setup_deadline.check();
-    let database_url = [
-        "HANDSHAKE_TEST_PG_DSN",
-        "HSK_PROOF_DATABASE_URL",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-    .into_iter()
-    .find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    })
-    .unwrap_or_else(|| panic!("{label}: PostgreSQL DSN is required"));
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let mut command = Command::new(psql);
-    command
-        .current_dir(pg_proof_support::external_artifact_root())
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--dbname")
-        .arg(database_url)
-        .arg("--tuples-only")
-        .arg("--no-align")
-        .arg("--quiet")
-        .arg("--command")
-        .arg(sql)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("PGCONNECT_TIMEOUT", "5");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let mut child = command
-        .spawn()
-        .unwrap_or_else(|error| panic!("{label}: start bounded psql: {error}"));
-    let mut stdout = child.stdout.take().expect("LK-03 psql stdout pipe");
-    let mut stderr = child.stderr.take().expect("LK-03 psql stderr pipe");
-    let stdout_reader = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stdout
-            .read_to_end(&mut bytes)
-            .map(|_| bytes)
-            .map_err(|error| format!("read psql stdout: {error}"))
-    });
-    let stderr_reader = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stderr
-            .read_to_end(&mut bytes)
-            .map(|_| bytes)
-            .map_err(|error| format!("read psql stderr: {error}"))
-    });
-    let deadline = Instant::now() + Duration::from_secs(120);
-    let terminal: Result<ExitStatus, String> = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
-            Ok(None) if Instant::now() < deadline => {
-                thread::sleep(Duration::from_millis(25));
-            }
-            Ok(None) => {
-                let kill = child.kill();
-                let wait = child.wait();
-                break Err(format!(
-                    "psql exceeded its 120s hard timeout; kill={kill:?}; wait={wait:?}"
-                ));
-            }
-            Err(error) => {
-                let kill = child.kill();
-                let wait = child.wait();
-                break Err(format!("poll psql: {error}; kill={kill:?}; wait={wait:?}"));
-            }
-        }
-    };
-    let stdout = stdout_reader
-        .join()
-        .expect("LK-03 psql stdout reader thread")
-        .unwrap_or_else(|error| panic!("{label}: {error}"));
-    let stderr = stderr_reader
-        .join()
-        .expect("LK-03 psql stderr reader thread")
-        .unwrap_or_else(|error| panic!("{label}: {error}"));
-    let status = terminal.unwrap_or_else(|error| panic!("{label}: {error}"));
-    assert!(
-        status.success(),
-        "{label}: psql failed with {status}; stderr={}",
-        String::from_utf8_lossy(&stderr)
-            .chars()
-            .take(4096)
-            .collect::<String>()
-    );
-    // Check the aggregate setup deadline only after psql has reached a terminal state. Panicking while
-    // its child is live would bypass the owned-child kill/reap branches above and leak a proof process.
-    setup_deadline.check();
-    PsqlCapture { stdout, stderr }
-}
-
-fn publish_lk03_capture(
-    evidence_component: &str,
-    name: &str,
-    stdout_extension: &str,
-    capture: PsqlCapture,
-) -> serde_json::Value {
-    let stdout_name = format!("{name}.{stdout_extension}");
-    let stderr_name = format!("{name}.stderr.log");
-    let stdout = pg_proof_support::publish_mt045_evidence_bytes(
-        "measurements",
-        evidence_component,
-        &stdout_name,
-        &capture.stdout,
-    )
-    .unwrap_or_else(|error| panic!("LK-03: publish {stdout_name}: {error}"));
-    let stderr = pg_proof_support::publish_mt045_evidence_bytes(
-        "measurements",
-        evidence_component,
-        &stderr_name,
-        &capture.stderr,
-    )
-    .unwrap_or_else(|error| panic!("LK-03: publish {stderr_name}: {error}"));
-    serde_json::json!({
-        "name": name,
-        "stdout": stdout,
-        "stderr": stderr,
-    })
 }
 
 fn assert_lk03_stage_diagnostics(
@@ -1226,34 +989,10 @@ fn diagnostic_field_ignores_ansi_sgr_boundaries() {
     );
 }
 
-fn sql_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-fn safe_artifact_component(value: &str) -> String {
-    let safe: String = value
-        .chars()
-        .take(96)
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.') {
-                character
-            } else {
-                '-'
-            }
-        })
-        .collect();
-    let safe = safe.trim_matches(['-', '.']);
-    if safe.is_empty() {
-        "standalone-run".to_owned()
-    } else {
-        safe.to_owned()
-    }
-}
-
 // Seed concurrency for the bounded product-import batches. The default 4 stays below the live backend's
-// default 5-connection PostgreSQL pool (leaving one connection for Flight Recorder/background work); the
+// default 5-connection SurrealDB pool (leaving one connection for Flight Recorder/background work); the
 // previous 24-way burst timed out around chunk 170 against that default pool. HSK_MT045_FIXTURE_CONCURRENCY
-// raises it when the attached backend is started with a larger HANDSHAKE_POSTGRES_MAX_CONNECTIONS pool, so
+// raises it when the attached backend is started with a larger HANDSHAKE_SURREAL_OPERATION_CONCURRENCY pool, so
 // large-corpus seeding (LK-03's 10k requests) completes within the 1200s setup deadline instead of aborting
 // it (adversarial review H2: the const could not be tuned to the available pool). Setup is never the
 // measured value, so faster seeding does not affect any budget's honesty.
@@ -1267,7 +1006,7 @@ fn fixture_concurrency() -> usize {
 
 fn create_note_blocks(
     be: &LiveBackend,
-    setup_deadline: &pg_proof_support::SetupDeadline,
+    setup_deadline: &backend_proof_support::SetupDeadline,
     prefix: &str,
     count: usize,
     title: impl Fn(usize) -> String,

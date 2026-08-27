@@ -1,6 +1,6 @@
 //! WP-KERNEL-012 MT-045 — E8 Large-Document Performance Proof, rich-editor scenarios (LR-01..LR-07).
 //!
-//! ## Managed PostgreSQL runtime
+//! ## Managed SurrealDB runtime
 //!
 //! LR-01..LR-04, LR-06, LR-07 and the LIVE 50-hop half of LR-05 BIND the handshake_core backend
 //! (knowledge documents create/load/save/projection + the loom transclusion read-through). The shared
@@ -10,10 +10,10 @@
 //!
 //! ## EXCEPTION — LR-05 cycle-detection logic runs NOW (contract REALITY note, RISK-4 / CTRL-4)
 //!
-//! The TRANSCLUSION ENDPOINT is PG-gated, but the cycle-detection RESOLVER LOGIC (a recursive walk that
+//! The TRANSCLUSION ENDPOINT is SurrealDB-gated, but the cycle-detection RESOLVER LOGIC (a recursive walk that
 //! tracks visited block ids in a `HashSet<String>` and returns `Err("cycle_detected")` when a block id
 //! repeats) is the NATIVE contribution the React reference lacks — and it is frontend-testable NOW,
-//! independent of PG, because it is a pure algorithm over a "fetch one hop" function. Per CTRL-4 it is
+//! independent of SurrealDB, because it is a pure algorithm over a "fetch one hop" function. Per CTRL-4 it is
 //! proven as two logic checks inside the single LR-05 catalog test:
 //!   - a LINEAR chain of 50 resolves correctly
 //!     (returns the full path, no false cycle).
@@ -28,14 +28,14 @@
 //! ## No mock smuggling (RISK-2 / CTRL-2)
 //!
 //! The LR-05 resolver under test is a real algorithm; its `fetch_hop` is in-memory for the two logic
-//! tests (a deterministic chain/cycle map, NOT a backend mock — there is no PG route being faked), and
-//! is the live transclusion route for the gated 50-hop proof. No sqlite, no in-memory backend stub.
+//! tests (a deterministic chain/cycle map, NOT a backend mock — there is no SurrealDB route being faked), and
+//! is the live transclusion route for the gated 50-hop proof. No alternate_local_store, no in-memory backend stub.
 
 mod perf_proof_support;
-mod pg_proof_support;
+mod backend_proof_support;
 
 use perf_proof_support::{measurement, Budget, ScenarioAttempt};
-use pg_proof_support::LiveBackend;
+use backend_proof_support::LiveBackend;
 
 use handshake_native::rich_editor::document_model::doc_json;
 use handshake_native::rich_editor::find_replace::scanner::{self, FindQuery};
@@ -95,7 +95,7 @@ fn run_lr05_logic_linear() {
     );
 
     // This logic test proves the resolver independently; the default live test below proves the same
-    // algorithm against a self-seeded PostgreSQL chain and records the authoritative measurement.
+    // algorithm against a self-seeded SurrealDB chain and records the authoritative measurement.
     println!(
         "LR-05 (linear logic) measured={elapsed_ms}ms (<= {}ms) PASS — native resolver walks a 50-hop \
          linear chain without a false cycle",
@@ -160,7 +160,7 @@ fn run_lr05_logic_cycle_detected() {
     );
 }
 
-// ── LR-01: load a 1000-block rich document — round-trip <= 2 s, native parse <= 100 ms (REQUIRES_PG) ─
+// ── LR-01: load a 1000-block rich document — round-trip <= 2 s, native parse <= 100 ms (REQUIRES_SURREALDB) ─
 
 #[test]
 fn perf_proof_perf_lr01_load_large_doc() {
@@ -190,7 +190,7 @@ fn perf_proof_perf_lr01_load_large_doc() {
         doc_id: doc_id.clone(),
     };
 
-    // MEASURED (round-trip): GET the 1000-block doc back through real PG.
+    // MEASURED (round-trip): GET the 1000-block doc back through real SurrealDB.
     let (loaded, rt_ms) =
         perf_proof_support::time_ms(|| be.get_json(&format!("/knowledge/documents/{doc_id}")));
     attempt.stage(
@@ -231,7 +231,7 @@ fn perf_proof_perf_lr01_load_large_doc() {
         parse_budget.ceiling
     );
 
-    println!("LR-01 measured={rt_ms}ms round-trip (<= {}ms), parse {parse_ms}ms (<= {}ms) PASS — {block_count} blocks (live PG)", budget.ceiling, parse_budget.ceiling);
+    println!("LR-01 measured={rt_ms}ms round-trip (<= {}ms), parse {parse_ms}ms (<= {}ms) PASS — {block_count} blocks (live SurrealDB)", budget.ceiling, parse_budget.ceiling);
     drop(_guard);
     be.assert_cleanup();
     attempt.pass(
@@ -243,7 +243,7 @@ fn perf_proof_perf_lr01_load_large_doc() {
     );
 }
 
-// ── LR-02: scroll through a 1000-block doc — 100 viewport steps <= 1000 ms (REQUIRES_PG) ──────────
+// ── LR-02: scroll through a 1000-block doc — 100 viewport steps <= 1000 ms (REQUIRES_SURREALDB) ──────────
 
 #[test]
 fn perf_proof_perf_lr02_scroll_large_doc() {
@@ -334,7 +334,7 @@ fn perf_proof_perf_lr02_scroll_large_doc() {
         budget.ceiling
     );
 
-    println!("LR-02 measured={elapsed_ms}ms (<= {}ms) PASS — 100 viewport steps over 1000 blocks, no layout panic (live PG)", budget.ceiling);
+    println!("LR-02 measured={elapsed_ms}ms (<= {}ms) PASS — 100 viewport steps over 1000 blocks, no layout panic (live SurrealDB)", budget.ceiling);
     drop(_guard);
     be.assert_cleanup();
     attempt.pass(
@@ -343,7 +343,7 @@ fn perf_proof_perf_lr02_scroll_large_doc() {
     );
 }
 
-// ── LR-03: find in a rich doc — 500 matches <= 200 ms (REQUIRES_PG) ───────────────────────────────
+// ── LR-03: find in a rich doc — 500 matches <= 200 ms (REQUIRES_SURREALDB) ───────────────────────────────
 
 #[test]
 fn perf_proof_perf_lr03_find_in_doc() {
@@ -411,7 +411,7 @@ fn perf_proof_perf_lr03_find_in_doc() {
         budget.ceiling
     );
 
-    println!("LR-03 measured={elapsed_ms}ms (<= {}ms) PASS — 500 FINDME matches in a 1000-block doc (live PG)", budget.ceiling);
+    println!("LR-03 measured={elapsed_ms}ms (<= {}ms) PASS — 500 FINDME matches in a 1000-block doc (live SurrealDB)", budget.ceiling);
     drop(_guard);
     be.assert_cleanup();
     attempt.pass(
@@ -420,7 +420,7 @@ fn perf_proof_perf_lr03_find_in_doc() {
     );
 }
 
-// ── LR-04: save a 1000-block doc — round-trip <= 3 s, version advances (REQUIRES_PG) ──────────────
+// ── LR-04: save a 1000-block doc — round-trip <= 3 s, version advances (REQUIRES_SURREALDB) ──────────────
 
 #[test]
 fn perf_proof_perf_lr04_save_large_doc() {
@@ -519,7 +519,7 @@ fn perf_proof_perf_lr04_save_large_doc() {
         budget.ceiling
     );
 
-    println!("LR-04 measured={elapsed_ms}ms (<= {}ms) PASS — 1000-block save, version {base_version}->{new_version} (live PG)", budget.ceiling);
+    println!("LR-04 measured={elapsed_ms}ms (<= {}ms) PASS — 1000-block save, version {base_version}->{new_version} (live SurrealDB)", budget.ceiling);
     drop(_guard);
     be.assert_cleanup();
     attempt.pass(
@@ -528,7 +528,7 @@ fn perf_proof_perf_lr04_save_large_doc() {
     );
 }
 
-// ── LR-05 (LIVE 50-hop): resolve a 50-deep chain over the real transclusion endpoint (REQUIRES_PG) ─
+// ── LR-05 (LIVE 50-hop): resolve a 50-deep chain over the real transclusion endpoint (REQUIRES_SURREALDB) ─
 
 #[test]
 fn perf_proof_perf_lr05_transclusion_chain_live() {
@@ -552,7 +552,7 @@ fn perf_proof_perf_lr05_transclusion_chain_live() {
 
     // FIXTURE (NOT timed): create the tail first, then 49 native RichDocuments whose authority content
     // carries one loomTransclusion atom to the previously-created same-ID Loom projection.
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LR-05-linear-50");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LR-05-linear-50");
     let mut next: Option<String> = None;
     for index in (0..50).rev() {
         setup_deadline.check();
@@ -623,7 +623,7 @@ fn perf_proof_perf_lr05_transclusion_chain_live() {
         budget.ceiling
     );
 
-    println!("LR-05 measured={elapsed_ms}ms (<= {}ms) PASS — live 50-hop transclusion chain, cycle-safe (live PG)", budget.ceiling);
+    println!("LR-05 measured={elapsed_ms}ms (<= {}ms) PASS — live 50-hop transclusion chain, cycle-safe (live SurrealDB)", budget.ceiling);
     be.assert_cleanup();
     // `LiveBackend` owns the cross-test fixture lock. Release the cleaned linear fixture before the
     // cyclic proof acquires its own workspace; retaining `be` here self-deadlocks for 60 seconds.
@@ -649,7 +649,7 @@ fn run_lr05_transclusion_chain_cycle_live(attempt: ScenarioAttempt, budget: &Bud
 
     // Create five persisted document projections first so every target block id exists, then save a
     // ring A->B->C->D->E->A through the public rich-document save route.
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LR-05-cyclic-5");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LR-05-cyclic-5");
     let mut docs: Vec<(String, String, i64)> = Vec::with_capacity(5);
     for index in 0..5usize {
         setup_deadline.check();
@@ -753,7 +753,7 @@ fn run_lr05_transclusion_chain_cycle_live(attempt: ScenarioAttempt, budget: &Bud
     );
 }
 
-// ── LR-06: memory budget for a 1000-block doc — RSS delta <= 30 MB (REQUIRES_PG) ──────────────────
+// ── LR-06: memory budget for a 1000-block doc — RSS delta <= 30 MB (REQUIRES_SURREALDB) ──────────────────
 
 #[test]
 fn perf_proof_perf_lr06_memory() {
@@ -799,7 +799,7 @@ fn perf_proof_perf_lr06_memory() {
         budget.ceiling
     );
 
-    println!("LR-06 measured={worst_mb:.2}mb (<= {}mb) PASS — 1000-block doc load RSS delta worst of 3 (live PG)", budget.ceiling);
+    println!("LR-06 measured={worst_mb:.2}mb (<= {}mb) PASS — 1000-block doc load RSS delta worst of 3 (live SurrealDB)", budget.ceiling);
     drop(_guard);
     be.assert_cleanup();
     attempt.pass(
@@ -808,7 +808,7 @@ fn perf_proof_perf_lr06_memory() {
     );
 }
 
-// ── LR-07: HTML projection of a 1000-block doc — <= 2 s, length > 50000 (REQUIRES_PG) ─────────────
+// ── LR-07: HTML projection of a 1000-block doc — <= 2 s, length > 50000 (REQUIRES_SURREALDB) ─────────────
 
 #[test]
 fn perf_proof_perf_lr07_html_projection() {
@@ -854,7 +854,7 @@ fn perf_proof_perf_lr07_html_projection() {
         budget.ceiling
     );
 
-    println!("LR-07 measured={elapsed_ms}ms (<= {}ms) PASS — 1000-block HTML projection, {} chars (live PG)", budget.ceiling, html.len());
+    println!("LR-07 measured={elapsed_ms}ms (<= {}ms) PASS — 1000-block HTML projection, {} chars (live SurrealDB)", budget.ceiling, html.len());
     drop(_guard);
     be.assert_cleanup();
     attempt.pass(
@@ -866,7 +866,7 @@ fn perf_proof_perf_lr07_html_projection() {
 // ── shared helpers ────────────────────────────────────────────────────────────────────────────────
 
 fn require_be() -> LiveBackend {
-    pg_proof_support::require_live_backend()
+    backend_proof_support::require_live_backend()
 }
 
 /// A `{ type:"doc", content:[ <count> paragraph blocks ] }` payload (~50 chars/block). Deterministic.

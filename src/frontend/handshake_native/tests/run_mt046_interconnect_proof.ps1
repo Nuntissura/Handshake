@@ -501,7 +501,7 @@ $sourceBoundPaths = @(
     'src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs',
     'src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs',
     'src/frontend/handshake_native/tests/native_gui_support/screenshot_marker.rs',
-    'src/frontend/handshake_native/tests/pg_proof_support/mod.rs',
+    'src/frontend/handshake_native/tests/backend_proof_support/mod.rs',
     'src/backend',
     'src/shared'
 )
@@ -595,13 +595,13 @@ $discoverySha256 = Write-ImmutableJson -Path $discoveryPath -Value ([ordered]@{
 })
 
 # Handshake's database is EMBEDDED in the backend process, so there is no
-# separate server to find, no port to prove ownership of, and no psql to locate
+# separate server to find, no port to prove ownership of, and no direct_db_client to locate
 # and hash. The identity that matters is now the STORE DIRECTORY this run is
 # scoped to: the backend opens it, holds an exclusive RocksDB lock on it for the
 # lifetime of the process, and it dies with the run root.
 #
-# The old block verified that a `postgres` process owned 127.0.0.1:5544 and that
-# a sibling psql.exe existed. Both checks existed to prove the proof was talking
+# The old block verified that a `surrealdb` process owned 127.0.0.1:5544 and that
+# a sibling direct_db_client.exe existed. Both checks existed to prove the proof was talking
 # to Handshake's own database rather than something else on the port. With an
 # embedded store that question cannot arise - the only process that can open the
 # store is the backend this supervisor launched.
@@ -822,7 +822,7 @@ try {
     $env:HSK_TEST_BACKEND_BIN = $backendPath
     $env:HANDSHAKE_DATA_DIR = $storeIdentity
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = Join-Path $runRoot 'stage-binding'
-    $env:HSK_MT045_RUN_ID = $RunId # pg_proof_support's current generic managed-backend receipt key
+    $env:HSK_MT045_RUN_ID = $RunId # backend_proof_support's current generic managed-backend receipt key
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
     $env:HSK_MT046_RUN_ID = $RunId
     $env:HSK_MT046_CANONICAL = '1'
@@ -1410,13 +1410,13 @@ try {
         if ($workspaceId -notmatch '^[A-Za-z0-9_-]{1,128}$') {
             throw "MT-046 refuses unsafe workspace cleanup identity '$workspaceId'"
         }
-        # The PostgreSQL version of this step shelled out to psql and swept
-        # information_schema for any table carrying a workspace_id, failing on
-        # residue. An embedded store has no out-of-process query path, so that
+        # The SurrealDB version of this step shelled out to direct_db_client and swept
+        # every authority table carrying a workspace identity, failing on residue. An embedded store
+        # has no out-of-process query path, so that
         # sweep CANNOT be reproduced from PowerShell.
         #
         # It is not silently dropped: the Rust harness owns the equivalent proof
-        # (verify_owned_store_containment_after_reap in pg_proof_support), which
+        # (verify_owned_store_containment_after_reap in backend_proof_support), which
         # asserts the run's store lives inside a fixture-owned runtime root and
         # goes away with it. The distinction is recorded rather than hidden -
         # containment is proven, per-table residue is not, and a validator should

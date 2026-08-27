@@ -12,7 +12,7 @@ use crate::sandbox::{
     ResourceLimits, SandboxAdapterError, DOCKER_ADAPTER_ID,
 };
 
-use super::adapter::DockerConfig;
+use super::adapter::{DockerConfig, DOCKER_PROCESS_OWNER_LABEL};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -68,6 +68,8 @@ pub fn docker_run_args(
         "-d".to_string(),
         "--name".to_string(),
         container_name.to_string(),
+        "--label".to_string(),
+        format!("{DOCKER_PROCESS_OWNER_LABEL}={container_name}"),
         "--read-only".to_string(),
         "--tmpfs".to_string(),
         "/tmp:rw,noexec,nosuid,nodev,mode=1777".to_string(),

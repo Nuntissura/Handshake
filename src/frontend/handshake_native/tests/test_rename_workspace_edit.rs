@@ -11,7 +11,7 @@
 //!   MT-047 proofs use — no second transport) AND parses BOTH the `changes` map form AND the
 //!   `documentChanges` array form of the WorkspaceEdit response to the same FileEditPreview set.
 //!
-//! Provable WITHOUT a live PostgreSQL / a real language server: the mock LSP is an in-memory duplex pipe
+//! Provable WITHOUT a live SurrealDB / a real language server: the mock LSP is an in-memory duplex pipe
 //! installed via the REAL `LspClient::install_test_transport`, and the 2-file apply uses in-memory
 //! `TextBuffer`s — exactly the MT proof discipline.
 

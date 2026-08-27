@@ -24,9 +24,8 @@
 use std::collections::{BTreeSet, VecDeque};
 
 use crate::storage::knowledge::{KnowledgeEdgeLifecycle, KnowledgeEdgeType, KnowledgeStore};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::{SurrealDatabase, SurrealStorage};
 use crate::storage::StorageResult;
-use sqlx::PgPool;
 
 /// Bounding controls for a graph traversal. Defaults are conservative so a
 /// traversal is always bounded even if a caller forgets to tune them.
@@ -140,12 +139,16 @@ impl GraphTraversalResult {
 
 /// The bounded graph-traversal planner/executor.
 pub struct GraphTraversalPlanner<'a> {
-    db: &'a PostgresDatabase,
+    db: &'a SurrealDatabase,
     policy: GraphTraversalPolicy,
 }
 
 impl<'a> GraphTraversalPlanner<'a> {
-    pub fn new(db: &'a PostgresDatabase, _pool: &'a PgPool, policy: GraphTraversalPolicy) -> Self {
+    pub fn new(
+        db: &'a SurrealDatabase,
+        _storage: &'a SurrealStorage,
+        policy: GraphTraversalPolicy,
+    ) -> Self {
         Self { db, policy }
     }
 

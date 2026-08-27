@@ -29,8 +29,8 @@
 //! enforced this as a JS self-consistency test over an in-process command list;
 //! Handshake promotes it to a typed, database-backed parity contract.
 //!
-//! Storage authority is the single Handshake store only (AtelierStore::pool());
-//! SQLite is forbidden (MT-004). PENDING the SurrealDB port — see the `atelier`
+//! Storage authority is the single embedded Handshake SurrealDB store only.
+//! SQLite and PostgreSQL are forbidden (MT-004, MT-138).
 //! module header (MT-138). This module is enumeration + parity + projection only:
 //! it stores and queries the governed catalog/manual/blocked records and emits
 //! events. It NEVER opens a socket, spawns a process, or calls an external
@@ -45,10 +45,12 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 /// Command-corpus parity event families (MT-206, MT-005). Defined here so the
 /// parent folds these into [`super::event_family::ALL`] and the MT-005 coverage
@@ -364,40 +366,98 @@ fn parse_error_variants(value: serde_json::Value) -> AtelierResult<Vec<CorpusErr
         .map_err(|e| AtelierError::Validation(format!("invalid errors array: {e}")))
 }
 
-fn entry_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<CommandCorpusEntry> {
-    let corpus_source: String = row.get("corpus_source");
-    let execution_class: String = row.get("execution_class");
+#[derive(SurrealValue)]
+struct CommandCorpusEntryRow {
+    entry_id: SurrealUuid,
+    action_id: String,
+    corpus_source: String,
+    owner: String,
+    actor_eligibility: serde_json::Value,
+    params_schema_ref: String,
+    input_schema_version: i64,
+    capabilities: serde_json::Value,
+    execution_class: String,
+    receipt_shape: String,
+    errors: serde_json::Value,
+    foreground_flag: bool,
+    manual_anchor: String,
+    evidence_class: serde_json::Value,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+fn entry_from_row(row: CommandCorpusEntryRow) -> AtelierResult<CommandCorpusEntry> {
     Ok(CommandCorpusEntry {
-        entry_id: row.get("entry_id"),
-        action_id: row.get("action_id"),
-        corpus_source: CorpusSource::from_token(&corpus_source)?,
-        owner: row.get("owner"),
-        actor_eligibility: parse_str_list(row.get("actor_eligibility"))?,
-        params_schema_ref: row.get("params_schema_ref"),
-        input_schema_version: row.get("input_schema_version"),
-        capabilities: parse_str_list(row.get("capabilities"))?,
-        execution_class: ExecutionClass::from_token(&execution_class)?,
-        receipt_shape: row.get("receipt_shape"),
-        errors: parse_error_variants(row.get("errors"))?,
-        foreground_flag: row.get("foreground_flag"),
-        manual_anchor: row.get("manual_anchor"),
-        evidence_class: parse_str_list(row.get("evidence_class"))?,
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        entry_id: row.entry_id.into(),
+        action_id: row.action_id,
+        corpus_source: CorpusSource::from_token(&row.corpus_source)?,
+        owner: row.owner,
+        actor_eligibility: parse_str_list(row.actor_eligibility)?,
+        params_schema_ref: row.params_schema_ref,
+        input_schema_version: i32::try_from(row.input_schema_version)
+            .map_err(|_| AtelierError::Internal("input schema version exceeds i32".into()))?,
+        capabilities: parse_str_list(row.capabilities)?,
+        execution_class: ExecutionClass::from_token(&row.execution_class)?,
+        receipt_shape: row.receipt_shape,
+        errors: parse_error_variants(row.errors)?,
+        foreground_flag: row.foreground_flag,
+        manual_anchor: row.manual_anchor,
+        evidence_class: parse_str_list(row.evidence_class)?,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
-fn blocked_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<CommandCorpusBlockedRecord> {
-    let blocked_reason: String = row.get("blocked_reason");
-    let discovered_in: String = row.get("discovered_in");
+#[derive(SurrealValue)]
+struct CommandCorpusBlockedRow {
+    blocked_id: SurrealUuid,
+    action_id: String,
+    blocked_reason: String,
+    discovered_in: String,
+    recovery_instruction: String,
+    first_seen_utc: Datetime,
+    last_seen_utc: Datetime,
+}
+
+#[cfg(feature = "runtime-full")]
+#[derive(SurrealValue)]
+struct ReconcileBuiltinMembershipBindings {
+    action_ids: Vec<String>,
+}
+
+#[derive(SurrealValue)]
+struct ParityReportRow {
+    report_id: SurrealUuid,
+    total_corpus: i64,
+    covered_count: i64,
+    blocked_count: i64,
+    orphaned_manual_count: i64,
+    defects: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+fn parity_from_row(row: ParityReportRow) -> AtelierResult<CommandCorpusParityReport> {
+    Ok(CommandCorpusParityReport {
+        report_id: row.report_id.into(),
+        total_corpus: row.total_corpus,
+        covered_count: row.covered_count,
+        blocked_count: row.blocked_count,
+        orphaned_manual_count: row.orphaned_manual_count,
+        defects: serde_json::from_value(row.defects)
+            .map_err(|e| AtelierError::Validation(format!("invalid defects payload: {e}")))?,
+        created_at_utc: row.created_at_utc.into(),
+    })
+}
+
+fn blocked_from_row(row: CommandCorpusBlockedRow) -> AtelierResult<CommandCorpusBlockedRecord> {
     Ok(CommandCorpusBlockedRecord {
-        blocked_id: row.get("blocked_id"),
-        action_id: row.get("action_id"),
-        blocked_reason: BlockedReason::from_token(&blocked_reason)?,
-        discovered_in: CorpusSource::from_token(&discovered_in)?,
-        recovery_instruction: row.get("recovery_instruction"),
-        first_seen_utc: row.get("first_seen_utc"),
-        last_seen_utc: row.get("last_seen_utc"),
+        blocked_id: row.blocked_id.into(),
+        action_id: row.action_id,
+        blocked_reason: BlockedReason::from_token(&row.blocked_reason)?,
+        discovered_in: CorpusSource::from_token(&row.discovered_in)?,
+        recovery_instruction: row.recovery_instruction,
+        first_seen_utc: row.first_seen_utc.into(),
+        last_seen_utc: row.last_seen_utc.into(),
     })
 }
 
@@ -424,15 +484,173 @@ fn validate_invocation_ref(field: &str, value: &str) -> AtelierResult<()> {
     Ok(())
 }
 
-const ENTRY_COLUMNS: &str = "entry_id, action_id, corpus_source, owner, actor_eligibility, \
-                             params_schema_ref, input_schema_version, capabilities, \
-                             execution_class, receipt_shape, errors, foreground_flag, \
-                             manual_anchor, evidence_class, created_at_utc, updated_at_utc";
+macro_rules! entry_columns {
+    () => {
+        "entry_id, action_id, corpus_source, owner, actor_eligibility, params_schema_ref, \
+         input_schema_version, capabilities, execution_class, receipt_shape, errors, \
+         foreground_flag, manual_anchor, evidence_class, created_at_utc, updated_at_utc"
+    };
+}
 
-const BLOCKED_COLUMNS: &str = "blocked_id, action_id, blocked_reason, discovered_in, \
-                               recovery_instruction, first_seen_utc, last_seen_utc";
+macro_rules! blocked_columns {
+    () => {
+        "blocked_id, action_id, blocked_reason, discovered_in, recovery_instruction, \
+         first_seen_utc, last_seen_utc"
+    };
+}
+
+#[derive(SurrealValue)]
+struct ActionBinding {
+    action_id: String,
+}
+
+#[derive(SurrealValue)]
+struct OwnerBinding {
+    owner: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct OwnerLimitBinding {
+    owner: Option<String>,
+    limit: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpsertEntryBindings {
+    new_rid: RecordId,
+    entry_id: SurrealUuid,
+    action_id: String,
+    corpus_source: String,
+    owner: String,
+    actor_eligibility: serde_json::Value,
+    params_schema_ref: String,
+    input_schema_version: i64,
+    capabilities: serde_json::Value,
+    execution_class: String,
+    receipt_shape: String,
+    errors: serde_json::Value,
+    foreground_flag: bool,
+    manual_anchor: String,
+    evidence_class: serde_json::Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AnchorBindings {
+    action_id: String,
+    manual_anchor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct BlockedBindings {
+    new_rid: RecordId,
+    blocked_id: SurrealUuid,
+    action_id: String,
+    blocked_reason: String,
+    discovered_in: String,
+    recovery_instruction: String,
+    pin_manual_anchor: bool,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ParityBindings {
+    report_rid: RecordId,
+    report_id: SurrealUuid,
+    total_corpus: i64,
+    covered_count: i64,
+    blocked_count: i64,
+    orphaned_manual_count: i64,
+    defects: serde_json::Value,
+}
+
+const UPSERT_ENTRY_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_command_corpus_entry \
+       WHERE action_id = $domain.action_id LIMIT 1)[0]; LET $rid = $existing ?? $domain.new_rid; ",
+    atelier_event_sql!(),
+    " IF $existing IS NONE { CREATE $domain.new_rid CONTENT { entry_id: $domain.entry_id, \
+       action_id: $domain.action_id, corpus_source: $domain.corpus_source, owner: $domain.owner, \
+       actor_eligibility: $domain.actor_eligibility, params_schema_ref: $domain.params_schema_ref, \
+       input_schema_version: $domain.input_schema_version, capabilities: $domain.capabilities, \
+       execution_class: $domain.execution_class, receipt_shape: $domain.receipt_shape, \
+       errors: $domain.errors, foreground_flag: $domain.foreground_flag, \
+       manual_anchor: $domain.manual_anchor, evidence_class: $domain.evidence_class }; \
+     } ELSE { UPDATE $existing SET corpus_source=$domain.corpus_source, owner=$domain.owner, \
+       actor_eligibility=$domain.actor_eligibility, params_schema_ref=$domain.params_schema_ref, \
+       input_schema_version=$domain.input_schema_version, capabilities=$domain.capabilities, \
+       execution_class=$domain.execution_class, receipt_shape=$domain.receipt_shape, \
+       errors=$domain.errors, foreground_flag=$domain.foreground_flag, \
+       manual_anchor=$domain.manual_anchor, evidence_class=$domain.evidence_class, \
+       updated_at_utc=time::now(); }; RETURN (SELECT ",
+    entry_columns!(),
+    " FROM $rid); };"
+);
+
+const ANCHOR_ENTRY_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = (SELECT VALUE id FROM atelier_command_corpus_entry \
+       WHERE action_id=$domain.action_id LIMIT 1)[0]; IF $rid IS NONE { RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " UPDATE $rid SET manual_anchor=$domain.manual_anchor, updated_at_utc=time::now(); \
+       DELETE atelier_command_corpus_blocked WHERE action_id=$domain.action_id \
+         AND blocked_reason='no_manual_anchor'; RETURN (SELECT ",
+    entry_columns!(),
+    " FROM $rid); };"
+);
+
+const RECORD_BLOCKED_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_command_corpus_blocked \
+       WHERE action_id=$domain.action_id AND blocked_reason=$domain.blocked_reason LIMIT 1)[0]; \
+       LET $rid=$existing ?? $domain.new_rid; ",
+    atelier_event_sql!(),
+    " IF $existing IS NONE { CREATE $domain.new_rid CONTENT { blocked_id:$domain.blocked_id, \
+       action_id:$domain.action_id, blocked_reason:$domain.blocked_reason, \
+       discovered_in:$domain.discovered_in, recovery_instruction:$domain.recovery_instruction }; \
+       } ELSE { UPDATE $existing SET discovered_in=$domain.discovered_in, \
+       recovery_instruction=$domain.recovery_instruction,last_seen_utc=time::now(); }; \
+       IF $domain.pin_manual_anchor { UPDATE atelier_command_corpus_entry SET \
+       manual_anchor='BLOCKED',updated_at_utc=time::now() WHERE action_id=$domain.action_id; }; \
+       RETURN (SELECT ",
+    blocked_columns!(),
+    " FROM $rid); };"
+);
+
+const RECORD_PARITY_STATEMENT: &str = concat!(
+    "RETURN { ",
+    atelier_event_sql!(),
+    " CREATE $domain.report_rid CONTENT { report_id:$domain.report_id, \
+       total_corpus:$domain.total_corpus,covered_count:$domain.covered_count, \
+       blocked_count:$domain.blocked_count,orphaned_manual_count:$domain.orphaned_manual_count, \
+       defects:$domain.defects }; RETURN (SELECT report_id,total_corpus,covered_count, \
+       blocked_count,orphaned_manual_count,defects,created_at_utc FROM $domain.report_rid); };"
+);
+
+#[cfg(feature = "runtime-full")]
+const RECONCILE_BUILTIN_MEMBERSHIP_STATEMENT: &str =
+    "RETURN { LET $stale = (SELECT VALUE action_id FROM atelier_command_corpus_entry \
+       WHERE action_id NOT IN $action_ids); \
+       DELETE atelier_command_corpus_blocked WHERE action_id IN $stale; \
+       DELETE atelier_command_corpus_entry WHERE action_id IN $stale; \
+       RETURN $stale; };";
 
 impl AtelierStore {
+    #[cfg(feature = "runtime-full")]
+    async fn reconcile_builtin_command_corpus_membership(
+        &self,
+        action_ids: Vec<String>,
+    ) -> AtelierResult<Vec<String>> {
+        let rows: Vec<String> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        RECONCILE_BUILTIN_MEMBERSHIP_STATEMENT,
+                        ReconcileBuiltinMembershipBindings { action_ids },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(rows)
+    }
+
     /// Register (create or update) one action-catalog descriptor (10.19.2).
     ///
     /// Upsert key is `action_id` (the corpus is a single typed catalog;
@@ -486,67 +704,49 @@ impl AtelierStore {
         let evidence_json = serde_json::to_value(&input.evidence_class)
             .map_err(|e| AtelierError::Validation(format!("evidence_class: {e}")))?;
 
-        let mut tx = self.pool().begin().await?;
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_command_corpus_entry
-                 (action_id, corpus_source, owner, actor_eligibility, params_schema_ref,
-                  input_schema_version, capabilities, execution_class, receipt_shape,
-                  errors, foreground_flag, manual_anchor, evidence_class)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-               ON CONFLICT (action_id) DO UPDATE SET
-                  corpus_source        = EXCLUDED.corpus_source,
-                  owner                = EXCLUDED.owner,
-                  actor_eligibility    = EXCLUDED.actor_eligibility,
-                  params_schema_ref    = EXCLUDED.params_schema_ref,
-                  input_schema_version = EXCLUDED.input_schema_version,
-                  capabilities         = EXCLUDED.capabilities,
-                  execution_class      = EXCLUDED.execution_class,
-                  receipt_shape        = EXCLUDED.receipt_shape,
-                  errors               = EXCLUDED.errors,
-                  foreground_flag      = EXCLUDED.foreground_flag,
-                  manual_anchor        = EXCLUDED.manual_anchor,
-                  evidence_class       = EXCLUDED.evidence_class,
-                  updated_at_utc       = NOW()
-               RETURNING {ENTRY_COLUMNS}"#
-        ))
-        .bind(&input.action_id)
-        .bind(input.corpus_source.as_token())
-        .bind(&input.owner)
-        .bind(actor_json)
-        .bind(&input.params_schema_ref)
-        .bind(input.input_schema_version)
-        .bind(caps_json)
-        .bind(input.execution_class.as_token())
-        .bind(&input.receipt_shape)
-        .bind(errors_json)
-        .bind(input.foreground_flag)
-        .bind(&input.manual_anchor)
-        .bind(evidence_json)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let entry = entry_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            CORPUS_ENTRY_UPSERTED,
-            "atelier_command_corpus_entry",
-            &entry.action_id,
-            serde_json::json!({
-                "entry_id": entry.entry_id,
-                "action_id": entry.action_id,
-                "corpus_source": entry.corpus_source.as_token(),
-                "owner": entry.owner,
-                "execution_class": entry.execution_class.as_token(),
-                "foreground_flag": entry.foreground_flag,
-                "manual_anchor": entry.manual_anchor,
-                "capability_count": entry.capabilities.len(),
-                "evidence_count": entry.evidence_class.len(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(entry)
+        let entry_id = Uuid::now_v7();
+        let row: Option<CommandCorpusEntryRow> = self
+            .write_with_event(
+                UPSERT_ENTRY_STATEMENT,
+                UpsertEntryBindings {
+                    new_rid: RecordId::new(
+                        "atelier_command_corpus_entry",
+                        SurrealUuid::from(entry_id),
+                    ),
+                    entry_id: entry_id.into(),
+                    action_id: input.action_id.clone(),
+                    corpus_source: input.corpus_source.as_token().to_owned(),
+                    owner: input.owner.clone(),
+                    actor_eligibility: actor_json,
+                    params_schema_ref: input.params_schema_ref.clone(),
+                    input_schema_version: i64::from(input.input_schema_version),
+                    capabilities: caps_json,
+                    execution_class: input.execution_class.as_token().to_owned(),
+                    receipt_shape: input.receipt_shape.clone(),
+                    errors: errors_json,
+                    foreground_flag: input.foreground_flag,
+                    manual_anchor: input.manual_anchor.clone(),
+                    evidence_class: evidence_json,
+                },
+                CORPUS_ENTRY_UPSERTED,
+                "atelier_command_corpus_entry",
+                &input.action_id,
+                serde_json::json!({
+                    "entry_id": entry_id,
+                    "action_id": input.action_id,
+                    "corpus_source": input.corpus_source.as_token(),
+                    "owner": input.owner,
+                    "execution_class": input.execution_class.as_token(),
+                    "foreground_flag": input.foreground_flag,
+                    "manual_anchor": input.manual_anchor,
+                    "capability_count": input.capabilities.len(),
+                    "evidence_count": input.evidence_class.len(),
+                }),
+            )
+            .await?;
+        entry_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("command corpus upsert returned no row".into())
+        })?)
     }
 
     /// Fetch one catalog descriptor by its stable `action_id`.
@@ -554,16 +754,13 @@ impl AtelierStore {
         &self,
         action_id: &str,
     ) -> AtelierResult<Option<CommandCorpusEntry>> {
-        let row = sqlx::query(&format!(
-            "SELECT {ENTRY_COLUMNS} FROM atelier_command_corpus_entry WHERE action_id = $1"
-        ))
-        .bind(action_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(entry_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let bindings = ActionBinding {
+            action_id: action_id.to_owned(),
+        };
+        let row: Option<CommandCorpusEntryRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_first(concat!("SELECT ",entry_columns!()," FROM atelier_command_corpus_entry WHERE action_id=$action_id LIMIT 1;"),bindings).await })
+        }).await?;
+        row.map(entry_from_row).transpose()
     }
 
     /// List catalog descriptors, ordered by `action_id`. Optionally filter to a
@@ -572,16 +769,33 @@ impl AtelierStore {
         &self,
         owner: Option<&str>,
     ) -> AtelierResult<Vec<CommandCorpusEntry>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {ENTRY_COLUMNS}
-               FROM atelier_command_corpus_entry
-               WHERE ($1::TEXT IS NULL OR owner = $1)
-               ORDER BY action_id ASC"#
-        ))
-        .bind(owner)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(entry_from_row).collect()
+        let bindings = OwnerBinding {
+            owner: owner.map(str::to_owned),
+        };
+        let rows: Vec<CommandCorpusEntryRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_values(concat!("SELECT ",entry_columns!()," FROM atelier_command_corpus_entry WHERE $owner=NONE OR owner=$owner ORDER BY action_id ASC;"),bindings).await })
+        }).await?;
+        rows.into_iter().map(entry_from_row).collect()
+    }
+
+    /// List at most `limit` descriptors, with filtering and capping performed
+    /// by SurrealDB rather than after the full catalog is materialized.
+    pub async fn list_command_corpus_entries_limited(
+        &self,
+        owner: Option<&str>,
+        limit: i64,
+    ) -> AtelierResult<Vec<CommandCorpusEntry>> {
+        if limit <= 0 {
+            return Ok(Vec::new());
+        }
+        let bindings = OwnerLimitBinding {
+            owner: owner.map(str::to_owned),
+            limit,
+        };
+        let rows: Vec<CommandCorpusEntryRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_values(concat!("SELECT ",entry_columns!()," FROM atelier_command_corpus_entry WHERE $owner=NONE OR owner=$owner ORDER BY action_id ASC LIMIT $limit;"),bindings).await })
+        }).await?;
+        rows.into_iter().map(entry_from_row).collect()
     }
 
     /// Bind a catalog entry's `manual_anchor` to a live ModelManual command id
@@ -601,62 +815,25 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_command_corpus_entry
-               SET manual_anchor = $2, updated_at_utc = NOW()
-               WHERE action_id = $1
-               RETURNING {ENTRY_COLUMNS}"#
-        ))
-        .bind(action_id)
-        .bind(manual_command_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| {
-            AtelierError::NotFound(format!("command corpus entry action_id={action_id}"))
-        })?;
-
-        // Clearing the no-manual-anchor block is part of supplying the anchor.
-        let cleared: Option<Uuid> = sqlx::query_scalar(
-            r#"DELETE FROM atelier_command_corpus_blocked
-               WHERE action_id = $1 AND blocked_reason = 'no_manual_anchor'
-               RETURNING blocked_id"#,
-        )
-        .bind(action_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let entry = entry_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            CORPUS_ENTRY_ANCHORED,
-            "atelier_command_corpus_entry",
-            &entry.action_id,
-            serde_json::json!({
-                "entry_id": entry.entry_id,
-                "action_id": entry.action_id,
-                "manual_anchor": entry.manual_anchor,
-            }),
-        )
-        .await?;
-        if let Some(blocked_id) = cleared {
-            self.record_event_in_tx(
-                &mut tx,
-                CORPUS_BLOCKED_CLEARED,
-                "atelier_command_corpus_blocked",
+        let row: Option<CommandCorpusEntryRow> = self
+            .write_with_event(
+                ANCHOR_ENTRY_STATEMENT,
+                AnchorBindings {
+                    action_id: action_id.to_owned(),
+                    manual_anchor: manual_command_id.to_owned(),
+                },
+                CORPUS_ENTRY_ANCHORED,
+                "atelier_command_corpus_entry",
                 action_id,
                 serde_json::json!({
-                    "blocked_id": blocked_id,
                     "action_id": action_id,
-                    "blocked_reason": BlockedReason::NoManualAnchor.as_token(),
-                    "cleared_by": "manual_anchor_supplied",
+                    "manual_anchor": manual_command_id,
                 }),
             )
             .await?;
-        }
-        tx.commit().await?;
-        Ok(entry)
+        entry_from_row(row.ok_or_else(|| {
+            AtelierError::NotFound(format!("command corpus entry action_id={action_id}"))
+        })?)
     }
 
     /// Record (open or refresh) a durable BLOCKED record for a command
@@ -687,57 +864,36 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_command_corpus_blocked
-                 (action_id, blocked_reason, discovered_in, recovery_instruction)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (action_id, blocked_reason) DO UPDATE SET
-                  discovered_in        = EXCLUDED.discovered_in,
-                  recovery_instruction = EXCLUDED.recovery_instruction,
-                  last_seen_utc        = NOW()
-               RETURNING {BLOCKED_COLUMNS}"#
-        ))
-        .bind(action_id)
-        .bind(reason.as_token())
-        .bind(discovered_in.as_token())
-        .bind(recovery_instruction)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        // Keep the descriptor's manual_anchor consistent with the block when
-        // the block is specifically the missing manual anchor. Only touches an
-        // existing entry; a corpus command may be blocked before its descriptor
-        // is projected, so a missing entry is not an error here.
-        if reason == BlockedReason::NoManualAnchor {
-            sqlx::query(
-                r#"UPDATE atelier_command_corpus_entry
-                   SET manual_anchor = $2, updated_at_utc = NOW()
-                   WHERE action_id = $1"#,
+        let blocked_id = Uuid::now_v7();
+        let row: Option<CommandCorpusBlockedRow> = self
+            .write_with_event(
+                RECORD_BLOCKED_STATEMENT,
+                BlockedBindings {
+                    new_rid: RecordId::new(
+                        "atelier_command_corpus_blocked",
+                        SurrealUuid::from(blocked_id),
+                    ),
+                    blocked_id: blocked_id.into(),
+                    action_id: action_id.to_owned(),
+                    blocked_reason: reason.as_token().to_owned(),
+                    discovered_in: discovered_in.as_token().to_owned(),
+                    recovery_instruction: recovery_instruction.to_owned(),
+                    pin_manual_anchor: reason == BlockedReason::NoManualAnchor,
+                },
+                CORPUS_BLOCKED_RECORDED,
+                "atelier_command_corpus_blocked",
+                action_id,
+                serde_json::json!({
+                    "blocked_id": blocked_id,
+                    "action_id": action_id,
+                    "blocked_reason": reason.as_token(),
+                    "discovered_in": discovered_in.as_token(),
+                }),
             )
-            .bind(action_id)
-            .bind(MANUAL_ANCHOR_BLOCKED)
-            .execute(&mut *tx)
             .await?;
-        }
-
-        let record = blocked_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            CORPUS_BLOCKED_RECORDED,
-            "atelier_command_corpus_blocked",
-            &record.action_id,
-            serde_json::json!({
-                "blocked_id": record.blocked_id,
-                "action_id": record.action_id,
-                "blocked_reason": record.blocked_reason.as_token(),
-                "discovered_in": record.discovered_in.as_token(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        blocked_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("blocked command upsert returned no row".into())
+        })?)
     }
 
     /// List all open BLOCKED records, newest activity first. Optionally filter
@@ -747,16 +903,15 @@ impl AtelierStore {
         &self,
         action_id: Option<&str>,
     ) -> AtelierResult<Vec<CommandCorpusBlockedRecord>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {BLOCKED_COLUMNS}
-               FROM atelier_command_corpus_blocked
-               WHERE ($1::TEXT IS NULL OR action_id = $1)
-               ORDER BY last_seen_utc DESC, action_id ASC"#
-        ))
-        .bind(action_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(blocked_from_row).collect()
+        #[derive(SurrealValue)]
+        struct Filter {
+            action_id: Option<String>,
+        }
+        let bindings = Filter {
+            action_id: action_id.map(str::to_owned),
+        };
+        let rows:Vec<CommandCorpusBlockedRow>=self.store().with_data_operation(move|ctx|Box::pin(async move{ctx.query_values(concat!("SELECT ",blocked_columns!()," FROM atelier_command_corpus_blocked WHERE $action_id=NONE OR action_id=$action_id ORDER BY last_seen_utc DESC,action_id ASC;"),bindings).await})).await?;
+        rows.into_iter().map(blocked_from_row).collect()
     }
 
     /// Read-only dispatch guard for BLOCKED-004. Callers that execute a
@@ -985,82 +1140,96 @@ impl AtelierStore {
         let defects_json = serde_json::to_value(&defects)
             .map_err(|e| AtelierError::Validation(format!("defects: {e}")))?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_command_corpus_parity_report
-                 (total_corpus, covered_count, blocked_count, orphaned_manual_count, defects)
-               VALUES ($1, $2, $3, $4, $5)
-               RETURNING report_id, total_corpus, covered_count, blocked_count,
-                         orphaned_manual_count, defects, created_at_utc"#,
+        let report_id = Uuid::now_v7();
+        let row:Option<ParityReportRow>=self.write_with_event(
+            RECORD_PARITY_STATEMENT,
+            ParityBindings{report_rid:RecordId::new("atelier_command_corpus_parity_report",SurrealUuid::from(report_id)),report_id:report_id.into(),total_corpus,covered_count,blocked_count,orphaned_manual_count,defects:defects_json},
+            CORPUS_PARITY_REPORTED,"atelier_command_corpus_parity_report",&report_id.to_string(),
+            serde_json::json!({"report_id":report_id,"total_corpus":total_corpus,"covered_count":covered_count,"blocked_count":blocked_count,"orphaned_manual_count":orphaned_manual_count,"defect_count":defects.len()})
+        ).await?;
+        parity_from_row(
+            row.ok_or_else(|| {
+                AtelierError::Internal("parity report write returned no row".into())
+            })?,
         )
-        .bind(total_corpus)
-        .bind(covered_count)
-        .bind(blocked_count)
-        .bind(orphaned_manual_count)
-        .bind(defects_json)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let report = CommandCorpusParityReport {
-            report_id: row.get("report_id"),
-            total_corpus: row.get("total_corpus"),
-            covered_count: row.get("covered_count"),
-            blocked_count: row.get("blocked_count"),
-            orphaned_manual_count: row.get("orphaned_manual_count"),
-            defects,
-            created_at_utc: row.get("created_at_utc"),
-        };
-
-        self.record_event_in_tx(
-            &mut tx,
-            CORPUS_PARITY_REPORTED,
-            "atelier_command_corpus_parity_report",
-            &report.report_id.to_string(),
-            serde_json::json!({
-                "report_id": report.report_id,
-                "total_corpus": report.total_corpus,
-                "covered_count": report.covered_count,
-                "blocked_count": report.blocked_count,
-                "orphaned_manual_count": report.orphaned_manual_count,
-                "defect_count": report.defects.len(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(report)
     }
 
     /// Fetch the most recent parity report, if one has been materialized.
     pub async fn latest_command_corpus_parity_report(
         &self,
     ) -> AtelierResult<Option<CommandCorpusParityReport>> {
-        let row = sqlx::query(
-            r#"SELECT report_id, total_corpus, covered_count, blocked_count,
-                      orphaned_manual_count, defects, created_at_utc
-               FROM atelier_command_corpus_parity_report
-               ORDER BY created_at_utc DESC, report_id DESC
-               LIMIT 1"#,
+        #[derive(SurrealValue)]
+        struct Empty {}
+        let row:Option<ParityReportRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_first("SELECT report_id,total_corpus,covered_count,blocked_count,orphaned_manual_count,defects,created_at_utc FROM atelier_command_corpus_parity_report ORDER BY created_at_utc DESC,report_id DESC LIMIT 1;",Empty{}).await})).await?;
+        row.map(parity_from_row).transpose()
+    }
+}
+
+#[cfg(all(test, feature = "runtime-full"))]
+mod tests {
+    use super::*;
+    use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+
+    #[tokio::test]
+    async fn mt138_reconcile_builtin_membership_returns_flat_ids_and_removes_stale_rows() {
+        let directory = tempfile::tempdir().expect("create MT-138 corpus directory");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(directory.path().join("store"))
+                .expect("configure MT-138 corpus store"),
         )
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            None => Ok(None),
-            Some(r) => {
-                let defects: Vec<ParityDefectRow> = serde_json::from_value(r.get("defects"))
-                    .map_err(|e| {
-                        AtelierError::Validation(format!("invalid defects payload: {e}"))
-                    })?;
-                Ok(Some(CommandCorpusParityReport {
-                    report_id: r.get("report_id"),
-                    total_corpus: r.get("total_corpus"),
-                    covered_count: r.get("covered_count"),
-                    blocked_count: r.get("blocked_count"),
-                    orphaned_manual_count: r.get("orphaned_manual_count"),
-                    defects,
-                    created_at_utc: r.get("created_at_utc"),
-                }))
-            }
-        }
+        .await
+        .expect("open MT-138 corpus store");
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    let _: Vec<bool> = ctx
+                        .query_values_at(
+                            "DEFINE TABLE OVERWRITE atelier_command_corpus_entry SCHEMALESS; \
+                             DEFINE TABLE OVERWRITE atelier_command_corpus_blocked SCHEMALESS; \
+                             CREATE atelier_command_corpus_entry:keep SET action_id = 'keep'; \
+                             CREATE atelier_command_corpus_entry:stale SET action_id = 'stale'; \
+                             CREATE atelier_command_corpus_blocked:stale SET action_id = 'stale'; \
+                             RETURN true;",
+                            (),
+                            5,
+                        )
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed MT-138 corpus rows");
+
+        let atelier = AtelierStore::new(storage.clone());
+        let stale = atelier
+            .reconcile_builtin_command_corpus_membership(vec!["keep".to_owned()])
+            .await
+            .expect("reconcile MT-138 corpus membership");
+        assert_eq!(stale, vec!["stale"]);
+
+        let (entries, blocked): (Vec<String>, Vec<String>) = storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    let entries = ctx
+                        .query_values(
+                            "SELECT VALUE action_id FROM atelier_command_corpus_entry ORDER BY action_id;",
+                            (),
+                        )
+                        .await?;
+                    let blocked = ctx
+                        .query_values(
+                            "SELECT VALUE action_id FROM atelier_command_corpus_blocked ORDER BY action_id;",
+                            (),
+                        )
+                        .await?;
+                    Ok((entries, blocked))
+                })
+            })
+            .await
+            .expect("inspect reconciled MT-138 corpus");
+        assert_eq!(entries, vec!["keep"]);
+        assert!(blocked.is_empty());
+        storage.shutdown().await.expect("close MT-138 corpus store");
     }
 }
 
@@ -1069,7 +1238,7 @@ impl AtelierStore {
 //
 // Appended after the command-corpus parity contract. These are product/runtime
 // surfaces for no-context models, never governance markdown. Storage is
-// PostgreSQL only (AtelierStore::pool()); SQLite is forbidden (MT-004).
+// Persisted through the embedded SurrealDB store; SQL backends are forbidden.
 //
 //   * MT-140 -- structured ErrorTaxonomy: 10 canonical diagnostics error classes,
 //     each with a mandatory recovery hint, in atelier_diagnostics_error_taxonomy.
@@ -1488,6 +1657,82 @@ pub struct ResetOrphanDiagnostics {
     pub adopted_count: i64,
 }
 
+#[derive(SurrealValue)]
+struct ErrorTaxonomyRow {
+    class: String,
+    description: String,
+    recovery_hint: String,
+    created_at_utc: Datetime,
+}
+fn error_taxonomy_from_row(row: ErrorTaxonomyRow) -> AtelierResult<DiagnosticsErrorTaxonomyEntry> {
+    Ok(DiagnosticsErrorTaxonomyEntry {
+        class: DiagnosticsErrorClass::from_token(&row.class)?,
+        description: row.description,
+        recovery_hint: row.recovery_hint,
+        created_at_utc: row.created_at_utc.into(),
+    })
+}
+
+#[derive(SurrealValue)]
+struct PromptMatrixRow {
+    entry_id: String,
+    prompt_text: String,
+    expected_response_shape: serde_json::Value,
+    scoring_schema: serde_json::Value,
+    status: String,
+    created_at_utc: Datetime,
+}
+fn prompt_matrix_from_row(row: PromptMatrixRow) -> AtelierResult<PromptResponseMatrixEntry> {
+    Ok(PromptResponseMatrixEntry {
+        entry_id: row.entry_id,
+        prompt_text: row.prompt_text,
+        expected_response_shape: row.expected_response_shape,
+        scoring_schema: row.scoring_schema,
+        status: PromptResponseMatrixStatus::from_token(&row.status)?,
+        created_at_utc: row.created_at_utc.into(),
+    })
+}
+
+#[derive(SurrealValue)]
+struct ResetDiagnosticsDbRow {
+    reset_id: SurrealUuid,
+    mode: String,
+    requested_by: String,
+    reason: String,
+    preferences_deleted_count: i64,
+    original_media_preserved_count: i64,
+    orphan_manifest_id: Option<SurrealUuid>,
+    created_at_utc: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct OrphanCountsRow {
+    orphaned_pending_count: i64,
+    adopted_count: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ErrorTaxonomyBindings {
+    rid: RecordId,
+    class: String,
+    description: String,
+    recovery_hint: String,
+}
+#[derive(Clone, SurrealValue)]
+struct PromptMatrixBindings {
+    rid: RecordId,
+    entry_id: String,
+    prompt_text: String,
+    expected_response_shape: serde_json::Value,
+    scoring_schema: serde_json::Value,
+    status: String,
+}
+#[derive(SurrealValue)]
+struct EmptyBindings {}
+
+const RECORD_ERROR_TAXONOMY:&str=concat!("RETURN { ",atelier_event_sql!()," UPSERT $domain.rid SET class=$domain.class,description=$domain.description,recovery_hint=$domain.recovery_hint; RETURN (SELECT class,description,recovery_hint,created_at_utc FROM $domain.rid); };");
+const RECORD_PROMPT_MATRIX:&str=concat!("RETURN { ",atelier_event_sql!()," UPSERT $domain.rid SET entry_id=$domain.entry_id,prompt_text=$domain.prompt_text,expected_response_shape=$domain.expected_response_shape,scoring_schema=$domain.scoring_schema,status=$domain.status; RETURN (SELECT entry_id,prompt_text,expected_response_shape,scoring_schema,status,created_at_utc FROM $domain.rid); };");
+
 impl AtelierStore {
     /// MT-140: persist the structured error-taxonomy catalog (10 classes, each
     /// with a recovery hint). Idempotent on `class`; re-recording refreshes the
@@ -1510,41 +1755,33 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_diagnostics_error_taxonomy (class, description, recovery_hint)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (class) DO UPDATE SET
-                 description = EXCLUDED.description,
-                 recovery_hint = EXCLUDED.recovery_hint
-               RETURNING class, description, recovery_hint, created_at_utc"#,
+        let row: Option<ErrorTaxonomyRow> = self
+            .write_with_event(
+                RECORD_ERROR_TAXONOMY,
+                ErrorTaxonomyBindings {
+                    rid: RecordId::new(
+                        "atelier_diagnostics_error_taxonomy",
+                        class.as_token().to_owned(),
+                    ),
+                    class: class.as_token().to_owned(),
+                    description: description.to_owned(),
+                    recovery_hint: recovery_hint.to_owned(),
+                },
+                DIAGNOSTICS_ERROR_TAXONOMY_RECORDED,
+                "atelier_diagnostics_error_taxonomy",
+                class.as_token(),
+                serde_json::json!({
+                    "class": class.as_token(),
+                    "description": description,
+                    "recovery_hint": recovery_hint,
+                }),
+            )
+            .await?;
+        error_taxonomy_from_row(
+            row.ok_or_else(|| {
+                AtelierError::Internal("error taxonomy write returned no row".into())
+            })?,
         )
-        .bind(class.as_token())
-        .bind(description)
-        .bind(recovery_hint)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let entry = DiagnosticsErrorTaxonomyEntry {
-            class: DiagnosticsErrorClass::from_token(row.get("class"))?,
-            description: row.get("description"),
-            recovery_hint: row.get("recovery_hint"),
-            created_at_utc: row.get("created_at_utc"),
-        };
-        self.record_event_in_tx(
-            &mut tx,
-            DIAGNOSTICS_ERROR_TAXONOMY_RECORDED,
-            "atelier_diagnostics_error_taxonomy",
-            entry.class.as_token(),
-            serde_json::json!({
-                "class": entry.class.as_token(),
-                "description": entry.description,
-                "recovery_hint": entry.recovery_hint,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(entry)
     }
 
     /// MT-140: persist the entire error-taxonomy catalog in one call.
@@ -1565,23 +1802,8 @@ impl AtelierStore {
     pub async fn list_diagnostics_error_taxonomy(
         &self,
     ) -> AtelierResult<Vec<DiagnosticsErrorTaxonomyEntry>> {
-        let rows = sqlx::query(
-            r#"SELECT class, description, recovery_hint, created_at_utc
-               FROM atelier_diagnostics_error_taxonomy
-               ORDER BY class ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(DiagnosticsErrorTaxonomyEntry {
-                    class: DiagnosticsErrorClass::from_token(row.get("class"))?,
-                    description: row.get("description"),
-                    recovery_hint: row.get("recovery_hint"),
-                    created_at_utc: row.get("created_at_utc"),
-                })
-            })
-            .collect()
+        let rows:Vec<ErrorTaxonomyRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_values("SELECT class,description,recovery_hint,created_at_utc FROM atelier_diagnostics_error_taxonomy ORDER BY class ASC;",EmptyBindings{}).await})).await?;
+        rows.into_iter().map(error_taxonomy_from_row).collect()
     }
 
     /// MT-207: preserve one prompt-response matrix entry as a deferred contract.
@@ -1614,48 +1836,34 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_diagnostics_prompt_response_matrix
-                 (entry_id, prompt_text, expected_response_shape, scoring_schema, status)
-               VALUES ($1, $2, $3::jsonb, $4::jsonb, $5)
-               ON CONFLICT (entry_id) DO UPDATE SET
-                 prompt_text = EXCLUDED.prompt_text,
-                 expected_response_shape = EXCLUDED.expected_response_shape,
-                 scoring_schema = EXCLUDED.scoring_schema,
-                 status = EXCLUDED.status
-               RETURNING entry_id, prompt_text, expected_response_shape, scoring_schema,
-                         status, created_at_utc"#,
+        let row: Option<PromptMatrixRow> = self
+            .write_with_event(
+                RECORD_PROMPT_MATRIX,
+                PromptMatrixBindings {
+                    rid: RecordId::new(
+                        "atelier_diagnostics_prompt_response_matrix",
+                        new.entry_id.clone(),
+                    ),
+                    entry_id: new.entry_id.clone(),
+                    prompt_text: new.prompt_text.clone(),
+                    expected_response_shape: new.expected_response_shape.clone(),
+                    scoring_schema: new.scoring_schema.clone(),
+                    status: new.status.as_token().to_owned(),
+                },
+                DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
+                "atelier_diagnostics_prompt_response_matrix",
+                &new.entry_id,
+                serde_json::json!({
+                    "entry_id": new.entry_id,
+                    "status": new.status.as_token(),
+                }),
+            )
+            .await?;
+        prompt_matrix_from_row(
+            row.ok_or_else(|| {
+                AtelierError::Internal("prompt matrix write returned no row".into())
+            })?,
         )
-        .bind(&new.entry_id)
-        .bind(&new.prompt_text)
-        .bind(&new.expected_response_shape)
-        .bind(&new.scoring_schema)
-        .bind(new.status.as_token())
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let entry = PromptResponseMatrixEntry {
-            entry_id: row.get("entry_id"),
-            prompt_text: row.get("prompt_text"),
-            expected_response_shape: row.get("expected_response_shape"),
-            scoring_schema: row.get("scoring_schema"),
-            status: PromptResponseMatrixStatus::from_token(row.get("status"))?,
-            created_at_utc: row.get("created_at_utc"),
-        };
-        self.record_event_in_tx(
-            &mut tx,
-            DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
-            "atelier_diagnostics_prompt_response_matrix",
-            &entry.entry_id,
-            serde_json::json!({
-                "entry_id": entry.entry_id,
-                "status": entry.status.as_token(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(entry)
     }
 
     /// MT-207: preserve the whole WP-0118 catalog in one call.
@@ -1673,26 +1881,8 @@ impl AtelierStore {
     pub async fn list_prompt_response_matrix(
         &self,
     ) -> AtelierResult<Vec<PromptResponseMatrixEntry>> {
-        let rows = sqlx::query(
-            r#"SELECT entry_id, prompt_text, expected_response_shape, scoring_schema,
-                      status, created_at_utc
-               FROM atelier_diagnostics_prompt_response_matrix
-               ORDER BY entry_id ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(PromptResponseMatrixEntry {
-                    entry_id: row.get("entry_id"),
-                    prompt_text: row.get("prompt_text"),
-                    expected_response_shape: row.get("expected_response_shape"),
-                    scoring_schema: row.get("scoring_schema"),
-                    status: PromptResponseMatrixStatus::from_token(row.get("status"))?,
-                    created_at_utc: row.get("created_at_utc"),
-                })
-            })
-            .collect()
+        let rows:Vec<PromptMatrixRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_values("SELECT entry_id,prompt_text,expected_response_shape,scoring_schema,status,created_at_utc FROM atelier_diagnostics_prompt_response_matrix ORDER BY entry_id ASC;",EmptyBindings{}).await})).await?;
+        rows.into_iter().map(prompt_matrix_from_row).collect()
     }
 
     /// MT-166: build the reset/orphan evidence projection over the existing
@@ -1719,39 +1909,26 @@ impl AtelierStore {
 
     /// MT-166: read the reset/orphan evidence projection without emitting an event.
     pub async fn list_reset_orphan_diagnostics(&self) -> AtelierResult<ResetOrphanDiagnostics> {
-        let reset_rows = sqlx::query(
-            r#"SELECT reset_id, mode, requested_by, reason,
-                      preferences_deleted_count, original_media_preserved_count,
-                      orphan_manifest_id, created_at_utc
-               FROM atelier_reset_operation
-               ORDER BY created_at_utc DESC, reset_id DESC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
+        let reset_rows:Vec<ResetDiagnosticsDbRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_values("SELECT reset_id,mode,requested_by,reason,preferences_deleted_count,original_media_preserved_count,orphan_manifest_id,created_at_utc FROM atelier_reset_operation ORDER BY created_at_utc DESC,reset_id DESC;",EmptyBindings{}).await})).await?;
         let resets = reset_rows
             .into_iter()
             .map(|row| ResetDiagnosticsRow {
-                reset_id: row.get("reset_id"),
-                mode: row.get("mode"),
-                requested_by: row.get("requested_by"),
-                reason: row.get("reason"),
-                preferences_deleted_count: row.get("preferences_deleted_count"),
-                original_media_preserved_count: row.get("original_media_preserved_count"),
-                orphan_manifest_id: row.get("orphan_manifest_id"),
-                created_at_utc: row.get("created_at_utc"),
+                reset_id: row.reset_id.into(),
+                mode: row.mode,
+                requested_by: row.requested_by,
+                reason: row.reason,
+                preferences_deleted_count: row.preferences_deleted_count,
+                original_media_preserved_count: row.original_media_preserved_count,
+                orphan_manifest_id: row.orphan_manifest_id.map(Into::into),
+                created_at_utc: row.created_at_utc.into(),
             })
-            .collect::<Vec<_>>();
+            .collect();
 
-        let counts = sqlx::query(
-            r#"SELECT
-                 COUNT(*) FILTER (WHERE adoption_status = 'orphaned') AS orphaned_pending,
-                 COUNT(*) FILTER (WHERE adoption_status = 'adopted')  AS adopted
-               FROM atelier_orphan_manifest_item"#,
-        )
-        .fetch_one(self.pool())
-        .await?;
-        let orphaned_pending_count: i64 = counts.get("orphaned_pending");
-        let adopted_count: i64 = counts.get("adopted");
+        let counts:Option<OrphanCountsRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_first("RETURN {orphaned_pending_count:array::len((SELECT VALUE id FROM atelier_orphan_manifest_item WHERE adoption_status='orphaned')),adopted_count:array::len((SELECT VALUE id FROM atelier_orphan_manifest_item WHERE adoption_status='adopted'))};",EmptyBindings{}).await})).await?;
+        let counts = counts
+            .ok_or_else(|| AtelierError::Internal("orphan counts query returned no row".into()))?;
+        let orphaned_pending_count = counts.orphaned_pending_count;
+        let adopted_count = counts.adopted_count;
 
         Ok(ResetOrphanDiagnostics {
             resets,
@@ -1769,7 +1946,7 @@ impl AtelierStore {
 // MT-145 / MT-144: Command Log + stale-session detection (WP-KERNEL-005).
 //
 // Two more typed Model-Workflow-Diagnostics runtime surfaces, appended after
-// the MT-140/MT-166/MT-207 surfaces above. PostgreSQL only; SQLite forbidden.
+// the MT-140/MT-166/MT-207 surfaces above. Embedded SurrealDB only.
 //
 //   * MT-145 -- atelier_command_log: an APPEND-ONLY queryable command log tied
 //     to sessions and receipts. record_command_log_entry validates the session/
@@ -1849,15 +2026,25 @@ pub struct CommandLogEntry {
     pub recorded_at_utc: DateTime<Utc>,
 }
 
-fn command_log_from_row(row: &sqlx::postgres::PgRow) -> CommandLogEntry {
+#[derive(SurrealValue)]
+struct CommandLogRow {
+    command_log_id: String,
+    session_ref: String,
+    command_id: String,
+    status: String,
+    receipt_ref: Option<String>,
+    evidence_ref: Option<String>,
+    recorded_at_utc: Datetime,
+}
+fn command_log_from_row(row: CommandLogRow) -> CommandLogEntry {
     CommandLogEntry {
-        command_log_id: row.get("command_log_id"),
-        session_ref: row.get("session_ref"),
-        command_id: row.get("command_id"),
-        status: row.get("status"),
-        receipt_ref: row.get("receipt_ref"),
-        evidence_ref: row.get("evidence_ref"),
-        recorded_at_utc: row.get("recorded_at_utc"),
+        command_log_id: row.command_log_id,
+        session_ref: row.session_ref,
+        command_id: row.command_id,
+        status: row.status,
+        receipt_ref: row.receipt_ref,
+        evidence_ref: row.evidence_ref,
+        recorded_at_utc: row.recorded_at_utc.into(),
     }
 }
 
@@ -1903,15 +2090,48 @@ pub struct DiagnosticsSession {
     pub created_at_utc: DateTime<Utc>,
 }
 
-fn diagnostics_session_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DiagnosticsSession> {
-    let status: String = row.get("status");
+#[derive(SurrealValue)]
+struct DiagnosticsSessionRow {
+    session_ref: String,
+    status: String,
+    last_heartbeat_utc: Datetime,
+    created_at_utc: Datetime,
+}
+fn diagnostics_session_from_row(row: DiagnosticsSessionRow) -> AtelierResult<DiagnosticsSession> {
     Ok(DiagnosticsSession {
-        session_ref: row.get("session_ref"),
-        status: SessionStatus::from_token(&status)?,
-        last_heartbeat_utc: row.get("last_heartbeat_utc"),
-        created_at_utc: row.get("created_at_utc"),
+        session_ref: row.session_ref,
+        status: SessionStatus::from_token(&row.status)?,
+        last_heartbeat_utc: row.last_heartbeat_utc.into(),
+        created_at_utc: row.created_at_utc.into(),
     })
 }
+
+#[derive(SurrealValue)]
+struct StringBinding {
+    value: String,
+}
+#[derive(Clone, SurrealValue)]
+struct CommandLogBindings {
+    rid: RecordId,
+    command_log_id: String,
+    session_ref: String,
+    command_id: String,
+    status: String,
+    receipt_ref: Option<String>,
+    evidence_ref: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct HeartbeatBindings {
+    rid: RecordId,
+    session_ref: String,
+}
+#[derive(Clone, SurrealValue)]
+struct StaleBindings {
+    cutoff: Datetime,
+}
+const RECORD_COMMAND_LOG:&str=concat!("RETURN { ",atelier_event_sql!()," CREATE $domain.rid CONTENT {command_log_id:$domain.command_log_id,session_ref:$domain.session_ref,command_id:$domain.command_id,status:$domain.status,receipt_ref:$domain.receipt_ref,evidence_ref:$domain.evidence_ref};RETURN (SELECT command_log_id,session_ref,command_id,status,receipt_ref,evidence_ref,recorded_at_utc FROM $domain.rid);};");
+const RECORD_HEARTBEAT:&str=concat!("RETURN { ",atelier_event_sql!()," UPSERT $domain.rid SET session_ref=$domain.session_ref,status='ACTIVE',last_heartbeat_utc=time::now();RETURN (SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM $domain.rid);};");
+const FLAG_STALE:&str=concat!("RETURN { ",atelier_event_sql!()," LET $rows=(SELECT VALUE id FROM atelier_diagnostics_session WHERE last_heartbeat_utc<$domain.cutoff AND status!='STALE');UPDATE atelier_diagnostics_session SET status='STALE' WHERE id IN $rows;RETURN (SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM atelier_diagnostics_session WHERE id IN $rows);};");
 
 /// Pure stale-session detection over already-loaded session records (MT-144).
 ///
@@ -1971,12 +2191,7 @@ impl AtelierStore {
         // Append-only enforcement: a PK conflict means this command_log_id was
         // already recorded. We DO NOT upsert; we surface a typed Validation
         // error so the prior evidence row stays untouched.
-        let already_exists: Option<String> = sqlx::query_scalar(
-            "SELECT command_log_id FROM atelier_command_log WHERE command_log_id = $1",
-        )
-        .bind(&new.command_log_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let already_exists: Option<String> = self.store().with_data_operation({let b=StringBinding{value:new.command_log_id.clone()};move|ctx|Box::pin(async move{ctx.query_first("SELECT VALUE command_log_id FROM atelier_command_log WHERE command_log_id=$value LIMIT 1;",b).await})}).await?;
         if already_exists.is_some() {
             return Err(AtelierError::Validation(format!(
                 "command_log is append-only: command_log_id={} already recorded; \
@@ -1985,41 +2200,34 @@ impl AtelierStore {
             )));
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_command_log
-                 (command_log_id, session_ref, command_id, status, receipt_ref, evidence_ref)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               RETURNING command_log_id, session_ref, command_id, status,
-                         receipt_ref, evidence_ref, recorded_at_utc"#,
-        )
-        .bind(&new.command_log_id)
-        .bind(&new.session_ref)
-        .bind(&new.command_id)
-        .bind(&new.status)
-        .bind(&new.receipt_ref)
-        .bind(&new.evidence_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let entry = command_log_from_row(&row);
-        self.record_event_in_tx(
-            &mut tx,
-            COMMAND_LOG_RECORDED,
-            "atelier_command_log",
-            &entry.command_log_id,
-            serde_json::json!({
-                "command_log_id": entry.command_log_id,
-                "session_ref": entry.session_ref,
-                "command_id": entry.command_id,
-                "status": entry.status,
-                "has_receipt_ref": entry.receipt_ref.is_some(),
-                "has_evidence_ref": entry.evidence_ref.is_some(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(entry)
+        let row: Option<CommandLogRow> = self
+            .write_with_event(
+                RECORD_COMMAND_LOG,
+                CommandLogBindings {
+                    rid: RecordId::new("atelier_command_log", new.command_log_id.clone()),
+                    command_log_id: new.command_log_id.clone(),
+                    session_ref: new.session_ref.clone(),
+                    command_id: new.command_id.clone(),
+                    status: new.status.clone(),
+                    receipt_ref: new.receipt_ref.clone(),
+                    evidence_ref: new.evidence_ref.clone(),
+                },
+                COMMAND_LOG_RECORDED,
+                "atelier_command_log",
+                &new.command_log_id,
+                serde_json::json!({
+                    "command_log_id": new.command_log_id,
+                    "session_ref": new.session_ref,
+                    "command_id": new.command_id,
+                    "status": new.status,
+                    "has_receipt_ref": new.receipt_ref.is_some(),
+                    "has_evidence_ref": new.evidence_ref.is_some(),
+                }),
+            )
+            .await?;
+        Ok(command_log_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("command log write returned no row".into())
+        })?))
     }
 
     /// MT-145: list the append-only command log for one session, oldest first.
@@ -2027,17 +2235,8 @@ impl AtelierStore {
         &self,
         session_ref: &str,
     ) -> AtelierResult<Vec<CommandLogEntry>> {
-        let rows = sqlx::query(
-            r#"SELECT command_log_id, session_ref, command_id, status,
-                      receipt_ref, evidence_ref, recorded_at_utc
-               FROM atelier_command_log
-               WHERE session_ref = $1
-               ORDER BY recorded_at_utc ASC, command_log_id ASC"#,
-        )
-        .bind(session_ref)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(command_log_from_row).collect())
+        let rows:Vec<CommandLogRow>=self.store().with_data_operation({let b=StringBinding{value:session_ref.to_owned()};move|ctx|Box::pin(async move{ctx.query_values("SELECT command_log_id,session_ref,command_id,status,receipt_ref,evidence_ref,recorded_at_utc FROM atelier_command_log WHERE session_ref=$value ORDER BY recorded_at_utc ASC,command_log_id ASC;",b).await})}).await?;
+        Ok(rows.into_iter().map(command_log_from_row).collect())
     }
 
     /// MT-144: record (open or refresh) a session heartbeat. Idempotent on
@@ -2051,46 +2250,32 @@ impl AtelierStore {
     ) -> AtelierResult<DiagnosticsSession> {
         reject_legacy_runtime_ref("session_ref", session_ref)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_diagnostics_session (session_ref, status, last_heartbeat_utc)
-               VALUES ($1, 'ACTIVE', NOW())
-               ON CONFLICT (session_ref) DO UPDATE SET
-                 status = 'ACTIVE',
-                 last_heartbeat_utc = NOW()
-               RETURNING session_ref, status, last_heartbeat_utc, created_at_utc"#,
+        let row: Option<DiagnosticsSessionRow> = self
+            .write_with_event(
+                RECORD_HEARTBEAT,
+                HeartbeatBindings {
+                    rid: RecordId::new("atelier_diagnostics_session", session_ref.to_owned()),
+                    session_ref: session_ref.to_owned(),
+                },
+                SESSION_HEARTBEAT_RECORDED,
+                "atelier_diagnostics_session",
+                session_ref,
+                serde_json::json!({
+                    "session_ref": session_ref,
+                    "status": SessionStatus::Active.as_token(),
+                }),
+            )
+            .await?;
+        diagnostics_session_from_row(
+            row.ok_or_else(|| AtelierError::Internal("heartbeat write returned no row".into()))?,
         )
-        .bind(session_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let session = diagnostics_session_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            SESSION_HEARTBEAT_RECORDED,
-            "atelier_diagnostics_session",
-            &session.session_ref,
-            serde_json::json!({
-                "session_ref": session.session_ref,
-                "status": session.status.as_token(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(session)
     }
 
     /// MT-144: list all heartbeat-bearing diagnostics sessions, newest heartbeat
     /// first.
     pub async fn list_diagnostics_sessions(&self) -> AtelierResult<Vec<DiagnosticsSession>> {
-        let rows = sqlx::query(
-            r#"SELECT session_ref, status, last_heartbeat_utc, created_at_utc
-               FROM atelier_diagnostics_session
-               ORDER BY last_heartbeat_utc DESC, session_ref ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(diagnostics_session_from_row).collect()
+        let rows:Vec<DiagnosticsSessionRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_values("SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM atelier_diagnostics_session ORDER BY last_heartbeat_utc DESC,session_ref ASC;",EmptyBindings{}).await})).await?;
+        rows.into_iter().map(diagnostics_session_from_row).collect()
     }
 
     /// MT-144: flag every session whose `last_heartbeat_utc` is older than
@@ -2107,58 +2292,47 @@ impl AtelierStore {
                 "stale-session timeout must not be negative".into(),
             ));
         }
-        // Postgres computes the cutoff against canonical server time so the
-        // detection is consistent with NOW()-stamped heartbeats.
-        let timeout_seconds = timeout.num_seconds();
-
-        let mut tx = self.pool().begin().await?;
-        let rows = sqlx::query(
-            r#"UPDATE atelier_diagnostics_session
-               SET status = 'STALE'
-               WHERE last_heartbeat_utc < (NOW() - make_interval(secs => $1::double precision))
-                 AND status <> 'STALE'
-               RETURNING session_ref, status, last_heartbeat_utc, created_at_utc"#,
-        )
-        .bind(timeout_seconds as f64)
-        .fetch_all(&mut *tx)
-        .await?;
-
-        let flagged: Vec<DiagnosticsSession> = rows
+        let cutoff = Utc::now() - timeout;
+        #[derive(SurrealValue)]
+        struct CutoffBinding {
+            cutoff: Datetime,
+        }
+        let candidates:Vec<DiagnosticsSessionRow>=self.store().with_data_operation({let b=CutoffBinding{cutoff:cutoff.into()};move|ctx|Box::pin(async move{ctx.query_values("SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM atelier_diagnostics_session WHERE last_heartbeat_utc<$cutoff AND status!='STALE';",b).await})}).await?;
+        if candidates.is_empty() {
+            return Ok(Vec::new());
+        }
+        let refs: Vec<String> = candidates
             .iter()
-            .map(diagnostics_session_from_row)
-            .collect::<AtelierResult<_>>()?;
-
-        if !flagged.is_empty() {
-            self.record_event_in_tx(
-                &mut tx,
+            .map(|row| row.session_ref.clone())
+            .collect();
+        let rows: Option<Vec<DiagnosticsSessionRow>> = self
+            .write_with_event(
+                FLAG_STALE,
+                StaleBindings {
+                    cutoff: cutoff.into(),
+                },
                 SESSION_FLAGGED_STALE,
                 "atelier_diagnostics_session",
                 "stale-session-detection",
                 serde_json::json!({
-                    "flagged_count": flagged.len(),
-                    "session_refs": flagged.iter().map(|s| &s.session_ref).collect::<Vec<_>>(),
+                    "flagged_count": refs.len(),
+                    "session_refs": refs,
                     "evidence_preserved": true,
                 }),
             )
             .await?;
-        }
-        tx.commit().await?;
-        Ok(flagged)
+        rows.unwrap_or_default()
+            .into_iter()
+            .map(diagnostics_session_from_row)
+            .collect()
     }
 
     /// MT-144: list the sessions currently flagged STALE, newest heartbeat first.
     /// Their evidence rows remain queryable via
     /// [`AtelierStore::list_command_log_for_session`].
     pub async fn list_stale_sessions(&self) -> AtelierResult<Vec<DiagnosticsSession>> {
-        let rows = sqlx::query(
-            r#"SELECT session_ref, status, last_heartbeat_utc, created_at_utc
-               FROM atelier_diagnostics_session
-               WHERE status = 'STALE'
-               ORDER BY last_heartbeat_utc DESC, session_ref ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(diagnostics_session_from_row).collect()
+        let rows:Vec<DiagnosticsSessionRow>=self.store().with_data_operation(|ctx|Box::pin(async move{ctx.query_values("SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM atelier_diagnostics_session WHERE status='STALE' ORDER BY last_heartbeat_utc DESC,session_ref ASC;",EmptyBindings{}).await})).await?;
+        rows.into_iter().map(diagnostics_session_from_row).collect()
     }
 }
 
@@ -2174,7 +2348,7 @@ impl AtelierStore {
 // below is the typed action-catalog enumeration of that full surface --
 // one row per registered handler -- and
 // [`AtelierStore::bootstrap_builtin_command_corpus`] projects it into the
-// PostgreSQL catalog, cross-checked live against the ModelManual
+// embedded SurrealDB catalog, cross-checked live against the ModelManual
 // (`crate::model_manual`):
 //   * a command covered by a live ModelManual `CommandReference` is anchored
 //     to that manual id (clearing any stale `no_manual_anchor` block);
@@ -3083,10 +3257,37 @@ pub struct BuiltinCorpusBootstrapReceipt {
 }
 
 #[cfg(feature = "runtime-full")]
+const BUILTIN_MISSING_MANUAL_RECOVERY: &str =
+    "add a ModelManual CommandReference covering this command, then bind it via \
+     anchor_command_manual";
+
+#[cfg(feature = "runtime-full")]
+fn stored_entry_matches_builtin(
+    stored: &CommandCorpusEntry,
+    builtin: &UpsertCommandCorpusEntry,
+) -> bool {
+    stored.action_id == builtin.action_id
+        && stored.corpus_source == builtin.corpus_source
+        && stored.owner == builtin.owner
+        && stored.actor_eligibility == builtin.actor_eligibility
+        && stored.params_schema_ref == builtin.params_schema_ref
+        && stored.input_schema_version == builtin.input_schema_version
+        && stored.capabilities == builtin.capabilities
+        && stored.execution_class == builtin.execution_class
+        && stored.receipt_shape == builtin.receipt_shape
+        && stored.errors == builtin.errors
+        && stored.foreground_flag == builtin.foreground_flag
+        && stored.manual_anchor == builtin.manual_anchor
+        && stored.evidence_class == builtin.evidence_class
+}
+
+#[cfg(feature = "runtime-full")]
 impl AtelierStore {
     /// Project the FULL builtin command corpus ([`builtin_command_corpus`])
-    /// into the durable action catalog. Idempotent: re-running re-projects
-    /// every descriptor in place (stable `entry_id` per `action_id`).
+    /// into the durable action catalog. Idempotent: an unchanged descriptor,
+    /// anchor, and BLOCKED record performs no mutation, timestamp refresh, or
+    /// event append. Changed builtin state is reconciled in place while keeping
+    /// the stable `entry_id` per `action_id`.
     ///
     /// For every command the live ModelManual cross-check decides the anchor:
     ///   * covered -> upsert + [`AtelierStore::anchor_command_manual`] (which
@@ -3114,25 +3315,59 @@ impl AtelierStore {
                 )));
             }
         }
+        self.reconcile_builtin_command_corpus_membership(
+            entries
+                .iter()
+                .map(|entry| entry.action_id.clone())
+                .collect(),
+        )
+        .await?;
 
         let mut covered_count = 0usize;
         let mut blocked_count = 0usize;
         for input in &entries {
-            self.upsert_command_corpus_entry(input).await?;
+            let existing = self.get_command_corpus_entry(&input.action_id).await?;
+            let existing_blocked = self.list_blocked_commands(Some(&input.action_id)).await?;
+            let descriptor_current = existing
+                .as_ref()
+                .is_some_and(|stored| stored_entry_matches_builtin(stored, input));
+            if !descriptor_current {
+                self.upsert_command_corpus_entry(input).await?;
+            }
+
             if input.manual_anchor == MANUAL_ANCHOR_BLOCKED {
                 blocked_count += 1;
-                self.record_blocked_command(
-                    &input.action_id,
-                    BlockedReason::NoManualAnchor,
-                    input.corpus_source,
-                    "add a ModelManual CommandReference covering this command, then bind it \
-                     via anchor_command_manual",
-                )
-                .await?;
+                let blocked_current = existing_blocked.iter().any(|record| {
+                    record.blocked_reason == BlockedReason::NoManualAnchor
+                        && record.discovered_in == input.corpus_source
+                        && record.recovery_instruction == BUILTIN_MISSING_MANUAL_RECOVERY
+                });
+                if !blocked_current
+                    || existing
+                        .as_ref()
+                        .is_none_or(|stored| stored.manual_anchor != MANUAL_ANCHOR_BLOCKED)
+                {
+                    self.record_blocked_command(
+                        &input.action_id,
+                        BlockedReason::NoManualAnchor,
+                        input.corpus_source,
+                        BUILTIN_MISSING_MANUAL_RECOVERY,
+                    )
+                    .await?;
+                }
             } else {
                 covered_count += 1;
-                self.anchor_command_manual(&input.action_id, &input.manual_anchor)
-                    .await?;
+                let stale_missing_anchor_block = existing_blocked
+                    .iter()
+                    .any(|record| record.blocked_reason == BlockedReason::NoManualAnchor);
+                if existing
+                    .as_ref()
+                    .is_none_or(|stored| stored.manual_anchor != input.manual_anchor)
+                    || stale_missing_anchor_block
+                {
+                    self.anchor_command_manual(&input.action_id, &input.manual_anchor)
+                        .await?;
+                }
             }
         }
 

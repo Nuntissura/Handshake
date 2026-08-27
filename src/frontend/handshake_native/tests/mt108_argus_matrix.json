@@ -443,7 +443,7 @@
       "edge_state_tag": "resolved_and_missing",
       "proof_kind": "locus_live",
       "test_binary": "test_locus_interop",
-      "test_name": "resolve_locus_ref_against_real_pg_live",
+      "test_name": "resolve_locus_ref_against_real_surrealdb_live",
       "ignored": true,
       "capture_required": true,
       "expected_author_id_prefixes": ["locus-ref-chip-"]

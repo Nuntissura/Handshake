@@ -27,7 +27,8 @@ use crate::sandbox::{
     encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
     AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough, IsolationStrength,
     IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits,
-    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    RestartCleanupOutcome, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef,
+    ThroughputClass,
 };
 
 use super::guest_agent::{
@@ -206,7 +207,7 @@ const SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES: usize = 16 * 1024;
 const WARM_AGENT_BRIDGE_STDERR_TAIL_BYTES: usize = 16 * 1024;
 const WARM_AGENT_SNAPSHOT_MARKER_FILE: &str = ".hsk-warm-agent-guest-path";
 const COMMITTED_MEMORY_SNAPSHOT_MARKER_FILE: &str = ".hsk-committed-memory-mib";
-const VM_ROOT_OWNER_PID_FILE: &str = ".hsk-owner-pid";
+const VM_ROOT_OWNER_TOKEN_FILE: &str = ".hsk-owner-token";
 
 /// Proven-working defaults for the host WSL2 sandbox layout. Every field is
 /// overridable via a `HANDSHAKE_CH_*` environment variable so the adapter stays
@@ -734,6 +735,9 @@ static COMMITTED_MEMORY_REGISTRY: OnceLock<CommittedMemoryRegistry> = OnceLock::
 #[derive(Clone)]
 pub struct CloudHypervisorAdapter {
     config: CloudHypervisorConfig,
+    /// Per-backend-boot identity persisted into every VM scratch root. A PID
+    /// alone is unsafe because the OS may reuse it after a backend restart.
+    owner_token: String,
     handles: Arc<Mutex<HashMap<Uuid, HandleState>>>,
     /// Live CH child processes for persistent handles. Skipped in `Debug`.
     persistent_children: PersistentChildren,
@@ -790,6 +794,7 @@ impl CloudHypervisorAdapter {
         verify_available(&config).await?;
         Ok(Self {
             config,
+            owner_token: Uuid::now_v7().to_string(),
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
@@ -874,51 +879,64 @@ impl CloudHypervisorAdapter {
             .unwrap_or_default()
     }
 
-    /// Discover persistent/restore VM scratch roots left on disk that this
+    /// Discover persistent/restore/ephemeral-exec VM scratch roots left on disk that this
     /// adapter does NOT own in-process — orphans from a crashed or restarted
     /// prior run (Master Spec v02.187 §3.5.7 #8/#9 — no leaked VMs across
     /// restart). Returns absolute WSL dir paths.
-    pub async fn discover_orphan_vm_dirs(&self) -> Vec<String> {
-        let listing = match run_wsl_sh(
+    pub async fn discover_orphan_vm_dirs(&self) -> Result<Vec<String>, SandboxAdapterError> {
+        let listing = run_wsl_sh(
             &self.config,
-            &discover_orphan_vm_dirs_script(&self.config.work_dir, std::process::id()),
+            &discover_orphan_vm_dirs_script(&self.config.work_dir, &self.owner_token),
             PROBE_TIMEOUT_MS,
         )
-        .await
-        {
-            Ok(listing) => listing,
-            Err(_) => return Vec::new(),
-        };
+        .await?;
+        if listing.exit_code != 0 {
+            return Err(spawn_failed(format!(
+                "cloud-hypervisor orphan discovery failed (exit {}): {}",
+                listing.exit_code,
+                listing.stderr_text()
+            )));
+        }
         let live = self.live_vm_roots();
-        String::from_utf8_lossy(&listing.stdout)
+        Ok(String::from_utf8_lossy(&listing.stdout)
             .lines()
             .map(|line| line.trim().to_string())
             .filter(|line| !line.is_empty() && !live.contains(line))
-            .collect()
+            .collect())
     }
 
     /// Reclaim orphaned persistent/restore VMs left on disk by a prior run:
-    /// best-effort terminate any Cloud Hypervisor process still bound to the
+    /// prove termination of any Cloud Hypervisor process still bound to the
     /// orphan's scratch root, then remove the scratch dir. Returns the number of
     /// orphan roots cleaned. Safe to call at adapter bring-up for crash recovery
     /// (it never touches a VM this adapter currently owns). Master Spec §3.5.7 #9.
-    pub async fn reclaim_orphan_vm_dirs(&self) -> usize {
-        let orphans = self.discover_orphan_vm_dirs().await;
+    pub async fn reclaim_orphan_vm_dirs(&self) -> Result<usize, SandboxAdapterError> {
+        let orphans = self.discover_orphan_vm_dirs().await?;
         let mut reclaimed = 0;
         for dir in orphans {
             // Terminate any CH process whose argv references this scratch root
             // (its --api-socket / --initramfs live under it).
-            let _ = run_wsl_sh(
+            let output = run_wsl_sh(
                 &self.config,
-                &format!("pkill -f {d} 2>/dev/null || true", d = sh_quote_wsl(&dir)),
+                &restart_vm_cleanup_script(&dir),
                 PROBE_TIMEOUT_MS,
             )
-            .await;
-            if remove_wsl_path(&self.config, &dir).await {
-                reclaimed += 1;
+            .await?;
+            if output.exit_code != 0 {
+                return Err(spawn_failed(format!(
+                    "cloud-hypervisor restart cleanup could not prove process absence for `{dir}` (exit {}): {}",
+                    output.exit_code,
+                    output.stderr_text()
+                )));
             }
+            if !remove_wsl_path(&self.config, &dir).await {
+                return Err(spawn_failed(format!(
+                    "cloud-hypervisor restart cleanup could not remove orphan root `{dir}`"
+                )));
+            }
+            reclaimed += 1;
         }
-        reclaimed
+        Ok(reclaimed)
     }
 
     /// Release a restore reservation/handle from the registry (snapshot-clone
@@ -1067,6 +1085,7 @@ impl CloudHypervisorAdapter {
     fn new_for_test() -> Self {
         Self {
             config: CloudHypervisorConfig::default(),
+            owner_token: Uuid::now_v7().to_string(),
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
@@ -1255,7 +1274,7 @@ impl CloudHypervisorAdapter {
             let _ = remove_wsl_path(&self.config, &vm_root).await;
             return Err(error);
         }
-        if let Err(error) = mark_vm_root_owned(&self.config, &vm_root).await {
+        if let Err(error) = mark_vm_root_owned(&self.config, &vm_root, &self.owner_token).await {
             let _ = remove_wsl_path(&self.config, &vm_root).await;
             return Err(error);
         }
@@ -1609,6 +1628,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             let _ = remove_wsl_path(&self.config, &exec_root).await;
             return Err(error);
         }
+        if let Err(error) = mark_vm_root_owned(&self.config, &exec_root, &self.owner_token).await {
+            let _ = remove_wsl_path(&self.config, &exec_root).await;
+            return Err(error);
+        }
 
         let _memory_reservation = self.reserve_committed_memory_mib(memory_mib)?;
         let boot_args = self.boot_args(
@@ -1818,6 +1841,36 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             bridges.remove(&handle.id);
         }
         Ok(())
+    }
+
+    async fn cleanup_after_restart(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<RestartCleanupOutcome, SandboxAdapterError> {
+        if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID)
+            || !handle.sandbox_internal_id.starts_with("hsk-ch-")
+        {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        // VM roots carry a per-backend-boot owner token. A fresh adapter owns
+        // none of the prior boot's roots, so the owner-aware orphan sweep can
+        // terminate exact CH argv references and remove persistent, restored,
+        // and in-flight ephemeral scratch roots without consulting `handles`.
+        let reclaimed = self.reclaim_orphan_vm_dirs().await?;
+        let remaining = self.discover_orphan_vm_dirs().await?;
+        if !remaining.is_empty() {
+            return Err(spawn_failed(format!(
+                "cloud-hypervisor restart cleanup left orphan VM roots: {}",
+                remaining.join(",")
+            )));
+        }
+        Ok(if reclaimed == 0 {
+            RestartCleanupOutcome::AlreadyAbsent
+        } else {
+            RestartCleanupOutcome::Terminated
+        })
     }
 
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
@@ -2188,7 +2241,8 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 "warm-agent snapshot marker exists but restored snapshot config has no serial agent socket",
             ));
         }
-        if let Err(error) = mark_vm_root_owned(&self.config, &restore_root).await {
+        if let Err(error) = mark_vm_root_owned(&self.config, &restore_root, &self.owner_token).await
+        {
             let _ = remove_wsl_path(&self.config, &restore_root).await;
             self.release_restore_reservation(handle.id);
             return Err(error);
@@ -2585,7 +2639,7 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
     // 2. ch binary, kernel and initramfs all exist inside WSL, and 3. /dev/kvm
     // is readable+writable. A single `test` chain keeps this to one wsl call.
     let probe_script = format!(
-        "test -x {bin} && test -f {kernel} && test -f {initramfs} && test -r /dev/kvm && test -w /dev/kvm && echo CH_OK",
+        "test -x {bin} && test -f {kernel} && test -f {initramfs} && test -r /dev/kvm && test -w /dev/kvm && command -v pgrep >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1 && echo CH_OK",
         bin = sh_quote_wsl(config.ch_bin()),
         kernel = sh_quote_wsl(config.kernel()),
         initramfs = sh_quote_wsl(config.initramfs()),
@@ -2609,7 +2663,7 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
 
     if probe.exit_code != 0 || !String::from_utf8_lossy(&probe.stdout).contains("CH_OK") {
         return Err(unavailable(format!(
-            "Cloud Hypervisor prerequisites missing in WSL distro `{}` (ch_bin={}, kernel={}, initramfs={}, /dev/kvm rw): {}",
+            "Cloud Hypervisor prerequisites missing in WSL distro `{}` (ch_bin={}, kernel={}, initramfs={}, /dev/kvm rw, pgrep, pkill): {}",
             config.distro(),
             config.ch_bin(),
             config.kernel(),
@@ -2727,13 +2781,14 @@ async fn remove_wsl_path(config: &CloudHypervisorConfig, path: &str) -> bool {
 async fn mark_vm_root_owned(
     config: &CloudHypervisorConfig,
     vm_root: &str,
+    owner_token: &str,
 ) -> Result<(), SandboxAdapterError> {
-    let marker = format!("{vm_root}/{VM_ROOT_OWNER_PID_FILE}");
+    let marker = format!("{vm_root}/{VM_ROOT_OWNER_TOKEN_FILE}");
     let output = run_wsl_sh(
         config,
         &format!(
             "printf '%s\\n' {} > {} && echo HSK_OWNER_MARKER_OK",
-            std::process::id(),
+            sh_quote_wsl(owner_token),
             sh_quote_wsl(&marker)
         ),
         PROBE_TIMEOUT_MS,
@@ -2750,16 +2805,64 @@ async fn mark_vm_root_owned(
     Ok(())
 }
 
-fn discover_orphan_vm_dirs_script(work_dir: &str, owner_pid: u32) -> String {
+fn discover_orphan_vm_dirs_script(work_dir: &str, owner_token: &str) -> String {
     format!(
-        "for d in {wd}/persistent-* {wd}/restore-*; do \
+        "for d in {wd}/persistent-* {wd}/restore-* {wd}/exec-*; do \
            [ -d \"$d\" ] || continue; \
-           if [ \"$(cat \"$d/{owner}\" 2>/dev/null)\" = \"{owner_pid}\" ]; then continue; fi; \
+           if [ \"$(cat \"$d/{owner}\" 2>/dev/null)\" = {owner_token} ]; then continue; fi; \
            echo \"$d\"; \
          done",
         wd = sh_quote_wsl(work_dir),
-        owner = VM_ROOT_OWNER_PID_FILE,
+        owner = VM_ROOT_OWNER_TOKEN_FILE,
+        owner_token = sh_quote_wsl(owner_token),
     )
+}
+
+fn restart_vm_cleanup_script(vm_root: &str) -> String {
+    let pattern = process_match_pattern(vm_root);
+    let quoted = sh_quote_wsl(&pattern);
+    format!(
+        "command -v pgrep >/dev/null 2>&1 || exit 74; \
+         command -v pkill >/dev/null 2>&1 || exit 75; \
+         pgrep -f -- {quoted} >/dev/null 2>&1; probe_rc=$?; \
+         if [ \"$probe_rc\" -eq 0 ]; then \
+           pkill -KILL -f -- {quoted} >/dev/null 2>&1 || true; \
+           pgrep -f -- {quoted} >/dev/null 2>&1; verify_rc=$?; \
+           if [ \"$verify_rc\" -eq 0 ]; then exit 73; \
+           elif [ \"$verify_rc\" -ne 1 ]; then exit 76; fi; \
+         elif [ \"$probe_rc\" -ne 1 ]; then exit 77; fi"
+    )
+}
+
+/// Build a `pgrep -f`/`pkill -f` expression that matches the VM root as a
+/// literal while not matching the cleanup command's own argv. Every POSIX ERE
+/// metacharacter is escaped first; one safe literal character is then written
+/// as a bracket expression, so the process command and cleanup argv differ.
+fn process_match_pattern(value: &str) -> String {
+    let (index, character) = value
+        .char_indices()
+        .find(|(_, character)| character.is_ascii_alphanumeric() || matches!(character, '/' | '_'))
+        .expect("cloud_hypervisor VM roots always contain a path separator");
+    let after_index = index + character.len_utf8();
+    format!(
+        "{}[{character}]{}",
+        escape_posix_ere_literal(&value[..index]),
+        escape_posix_ere_literal(&value[after_index..])
+    )
+}
+
+fn escape_posix_ere_literal(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        if matches!(
+            character,
+            '.' | '[' | ']' | '\\' | '*' | '^' | '$' | '+' | '?' | '{' | '}' | '|' | '(' | ')'
+        ) {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
 }
 
 /// Run a `sh -c <script>` inside the configured WSL distro and return the raw
@@ -5220,12 +5323,16 @@ done
 
     #[test]
     fn orphan_discovery_script_skips_current_process_owned_roots() {
-        let script = discover_orphan_vm_dirs_script("/tmp/handshake sandbox", 4242);
-        assert!(script.contains(VM_ROOT_OWNER_PID_FILE));
+        let script = discover_orphan_vm_dirs_script(
+            "/tmp/handshake sandbox",
+            "018f6b62-4fa7-7c63-a80c-2f73c781b443",
+        );
+        assert!(script.contains(VM_ROOT_OWNER_TOKEN_FILE));
         assert!(script.contains("/persistent-*"));
         assert!(script.contains("/restore-*"));
-        assert!(script.contains("cat \"$d/.hsk-owner-pid\""));
-        assert!(script.contains("= \"4242\""));
+        assert!(script.contains("/exec-*"));
+        assert!(script.contains("cat \"$d/.hsk-owner-token\""));
+        assert!(script.contains("= 018f6b62-4fa7-7c63-a80c-2f73c781b443"));
         assert!(
             script.contains("then continue"),
             "current-process owned VM roots must be skipped, not reclaimed"
@@ -5233,10 +5340,46 @@ done
     }
 
     #[test]
-    fn owner_marker_uses_process_id_file_inside_vm_root() {
-        let marker = format!("/tmp/vm-root/{VM_ROOT_OWNER_PID_FILE}");
-        assert_eq!(marker, "/tmp/vm-root/.hsk-owner-pid");
-        assert_eq!(VM_ROOT_OWNER_PID_FILE, ".hsk-owner-pid");
+    fn owner_marker_uses_boot_unique_token_file_inside_vm_root() {
+        let marker = format!("/tmp/vm-root/{VM_ROOT_OWNER_TOKEN_FILE}");
+        assert_eq!(marker, "/tmp/vm-root/.hsk-owner-token");
+        assert_eq!(VM_ROOT_OWNER_TOKEN_FILE, ".hsk-owner-token");
+        assert_ne!(
+            CloudHypervisorAdapter::new_for_test().owner_token,
+            CloudHypervisorAdapter::new_for_test().owner_token,
+            "fresh backend adapters must never share an ownership token"
+        );
+    }
+
+    #[test]
+    fn restart_vm_cleanup_script_fails_closed_on_probe_or_tool_failure() {
+        let cleanup = restart_vm_cleanup_script("/tmp/hsk vm/persistent-1");
+        assert!(cleanup.contains("command -v pgrep"));
+        assert!(cleanup.contains("command -v pkill"));
+        assert!(cleanup.contains("probe_rc"));
+        assert!(cleanup.contains("verify_rc"));
+        assert!(cleanup.contains("exit 73"));
+        assert!(cleanup.contains("exit 76"));
+        assert!(cleanup.contains("[/]tmp/hsk vm/persistent-1"));
+    }
+
+    #[test]
+    fn restart_vm_cleanup_treats_configured_work_dir_as_literal_posix_ere() {
+        let vm_root = "/tmp/hsk.[x]*(vm)+{1}?|^$/persistent-1";
+        let pattern = process_match_pattern(vm_root);
+        assert_eq!(
+            pattern,
+            "[/]tmp/hsk\\.\\[x\\]\\*\\(vm\\)\\+\\{1\\}\\?\\|\\^\\$/persistent-1"
+        );
+        let cleanup = restart_vm_cleanup_script(vm_root);
+        assert!(cleanup.contains(&sh_quote_wsl(&pattern)));
+        assert!(!cleanup.contains("[/]tmp/hsk.[x]*(vm)+{1}?|^$/persistent-1"));
+        assert_eq!(
+            escape_posix_ere_literal(".[]\\*^$+?{}|()"),
+            "\\.\\[\\]\\\\\\*\\^\\$\\+\\?\\{\\}\\|\\(\\)"
+        );
+        let quoted = sh_quote_wsl("[/]tmp/it's-literal\\.path");
+        assert_eq!(quoted, "'[/]tmp/it'\\''s-literal\\.path'");
     }
 
     #[test]

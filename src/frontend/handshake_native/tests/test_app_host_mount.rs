@@ -23,7 +23,7 @@
 //!   SAME mounted rich state, runs a live frame, and asserts the editor's `pending_events` was DRAINED
 //!   (reached the shell) — no event left unrouted.
 
-mod pg_proof_support;
+mod backend_proof_support;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -438,7 +438,7 @@ fn mounted_tag_event_resolves_canonical_name_to_real_hub_id() {
 /// so a green run means the host consumed the intent (the panel's staged slot is empty WITHOUT this test
 /// taking it) and the SAME wikilink runtime the rich editor's chip-click uses holds the in-flight create
 /// (the `POST /knowledge/documents` dispatch fired, duplicate-guarded — MC-001). The following managed
-/// test closes the durable PostgreSQL + exact navigation/focus half; this test isolates host wiring.
+/// test closes the durable SurrealDB + exact navigation/focus half; this test isolates host wiring.
 #[test]
 fn code_pane_create_note_from_link_routes_through_host_drain() {
     use handshake_native::code_editor::panel::CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID;
@@ -659,15 +659,15 @@ fn hidden_rich_tab_create_failure_surfaces_typed_status_once() {
 }
 
 /// Managed-resource closure for the complete mounted Create-note chain. Unlike the in-flight wiring
-/// proof above, this test waits for the actual PostgreSQL write, the rich editor's success delivery,
+/// proof above, this test waits for the actual SurrealDB write, the rich editor's success delivery,
 /// and the host's one-shot navigation handoff. The exact backend-minted id must become the focused
 /// LoomWikiPage tab and must read back durably through the canonical document GET.
 #[test]
-fn managed_postgres_code_create_note_opens_exact_durable_rich_document() {
+fn managed_surrealdb_code_create_note_opens_exact_durable_rich_document() {
     use handshake_native::code_editor::panel::CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID;
     use handshake_native::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend;
 
-    let backend = pg_proof_support::require_live_backend();
+    let backend = backend_proof_support::require_live_backend();
     let (mut app, runtime) = editor_shell();
     app.bind_active_project_for_integration_test(backend.workspace_id.clone());
     app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());

@@ -22,11 +22,11 @@
 //!
 //! AC-2 (create rich doc -> non-empty block_id parses as a LoomBlockAddr), AC-3 (self-seeded A -> B
 //! inbound backlink), and AC-6 (save/refetch content_hash equals canonical SHA-256) are covered by the
-//! unignored `live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof` test behind the `integration`
-//! feature. Run it with `HANDSHAKE_TEST_STAGE_BINDING_ROOT`, `HANDSHAKE_TEST_PG_DSN`, and a current
+//! unignored `live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof` test behind the `integration`
+//! feature. Run it with `HANDSHAKE_TEST_STAGE_BINDING_ROOT`, `HANDSHAKE_DATA_DIR`, and a current
 //! `HSK_TEST_BACKEND_BIN`; the canonical managed fixture owns a quiet ephemeral backend and workspace.
 //! The proof creates its own documents, uses fresh clients for read-back, and deletes the exact created
-//! ids even during panic. It NEVER fakes PostgreSQL. The KERNEL_BUILDER gate established `content_hash` is
+//! ids even during panic. It NEVER fakes SurrealDB. The KERNEL_BUILDER gate established `content_hash` is
 //! BACKEND-COMPUTED (no writable PATCH field on `LoomBlockUpdate`); AC-6 therefore READS the backend's
 //! `content_hash` and asserts it equals the local canonical SHA-256 of the saved `content_json` — it
 //! never client-PATCHes a hash.
@@ -49,8 +49,8 @@ use handshake_diag_ring::{DiagEventCode, DiagRingReader, DiagRingWriter, DEFAULT
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
 #[cfg(feature = "integration")]
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 #[cfg(feature = "integration")]
@@ -1153,10 +1153,10 @@ fn canvas_loom_chip_screenshot() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-2 / AC-3 / AC-6: LIVE-PG integration (NEEDS_MANAGED_RESOURCE_PROOF — `--features integration`).
+// AC-2 / AC-3 / AC-6: LIVE-SURREALDB integration (NEEDS_MANAGED_RESOURCE_PROOF — `--features integration`).
 //
-// These require the canonical pg_proof_support environment. The fixture starts and owns a quiet
-// current-source backend plus a real workspace against Handshake-managed PostgreSQL; it NEVER fakes PG.
+// These require the canonical backend_proof_support environment. The fixture starts and owns a quiet
+// current-source backend plus a real workspace against Handshake-managed SurrealDB; it NEVER fakes SurrealDB.
 // content_hash is BACKEND-COMPUTED (KERNEL_BUILDER gate): AC-6 READS the backend's content_hash and
 // asserts it equals the local canonical SHA-256 of the saved content_json — no client PATCH of a hash.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1181,7 +1181,7 @@ fn required_doc_field(doc: &serde_json::Value, field: &str) -> String {
     doc.get(field)
         .and_then(|x| x.as_str())
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| panic!("live PG document response missing required '{field}': {doc}"))
+        .unwrap_or_else(|| panic!("live SurrealDB document response missing required '{field}': {doc}"))
         .to_owned()
 }
 
@@ -1375,12 +1375,12 @@ impl Drop for LiveDocumentCleanup {
 /// loom:// address, and refetches authority + LoomBlock hashes through fresh clients.
 #[test]
 #[cfg(feature = "integration")]
-fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
+fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
     assert!(
         std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some(),
         "MT-032 mounted Argus proof requires HANDSHAKE_TEST_STAGE_BINDING_ROOT so the canonical fixture owns the backend"
     );
-    let mut managed_backend = pg_proof_support::require_live_backend();
+    let mut managed_backend = backend_proof_support::require_live_backend();
     let live_base_url = managed_backend.base.clone();
     let managed_workspace_id = managed_backend.workspace_id.clone();
     let rt = tokio::runtime::Runtime::new().expect("integration runtime");
@@ -1492,7 +1492,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert!(link_save["backlinks_error"].is_null(), "{link_save}");
         assert!(link_save["backlinks_skipped_reason"].is_null(), "{link_save}");
 
-        // End-to-end production client/runtime: Idle -> Loading -> Loaded against managed PG.
+        // End-to-end production client/runtime: Idle -> Loading -> Loaded against managed SurrealDB.
         let panel_runtime = load_backlinks_runtime(
             runtime_handle.clone(),
             &live_base_url,
@@ -1802,16 +1802,16 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 }
 
 /// V3 remediation proof for the validator's restart/stale gap. This test is deliberately run in its
-/// own exact test process with `HANDSHAKE_TEST_STAGE_BINDING_ROOT` set, forcing `pg_proof_support` to
+/// own exact test process with `HANDSHAKE_TEST_STAGE_BINDING_ROOT` set, forcing `backend_proof_support` to
 /// spawn and own a quiet current-source backend. It never restarts or stops the shared root backend.
 #[test]
 #[cfg(feature = "integration")]
-fn live_pg_owned_restart_preserves_document_backlink_and_content_hash() {
+fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
     assert!(
         std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some(),
         "MT-032 restart proof requires HANDSHAKE_TEST_STAGE_BINDING_ROOT so the fixture owns the backend"
     );
-    let mut backend = pg_proof_support::require_live_backend();
+    let mut backend = backend_proof_support::require_live_backend();
     let workspace_id = backend.workspace_id.clone();
     let run_suffix = uuid::Uuid::new_v4().simple().to_string();
     let initial_content = serde_json::json!({

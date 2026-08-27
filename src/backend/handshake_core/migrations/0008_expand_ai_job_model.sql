@@ -1,4 +1,0 @@
--- Harden AI Job model: enforce non-null metrics and preserve enum mapping
--- Implements WP-1-AI-Job-Model-v3 (v02.92 A2.6.6.2.8)
--- Portable rebuild: avoid sqlite-only PRAGMA and keep Postgres-compatible DDL.
--- NOTE: Replay-safe normalization: final schemas are created in `0001_init.sql`, `0002_create_ai_core_tables.sql`, and `0007_workflow_persistence.sql`.

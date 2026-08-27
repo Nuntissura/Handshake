@@ -9,10 +9,9 @@
 //!
 //! SURREALDB PORT (WP-KERNEL-012 MT-138). This file owns the domain SEAM — the
 //! store handle, the schema-readiness gate, and the event-recording path that
-//! every submodule writes through. The submodules are ported behind it, one
-//! domain at a time; a submodule that has not been ported yet still names
-//! `sqlx` and does not compile. The seam is deliberately ported first because
-//! every one of those submodules reaches the database through it.
+//! every submodule writes through. Every Atelier submodule now reaches the
+//! embedded store through this seam; no alternate database implementation or
+//! fallback remains in the domain.
 //!
 //! Two shape changes travel with the port and are worth stating once, here,
 //! rather than re-deriving them in thirty-four files:
@@ -50,14 +49,14 @@ use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
+use crate::storage::surreal::{SurrealDataContext, SurrealStorage, SurrealStorageError};
 #[cfg(feature = "runtime-full")]
 use crate::storage::Database;
-use crate::storage::surreal::{SurrealDataContext, SurrealStorage, SurrealStorageError};
 use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
-use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 #[cfg(feature = "runtime-full")]
 use std::sync::Arc;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -510,6 +509,19 @@ pub(crate) fn event_ref_for_text(text: &str) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(text.as_bytes())))
 }
 
+/// Extract the uuid key from a record link the schema declares as
+/// `record<...>` with a uuid id (the shape every atelier foreign-key link
+/// uses). A non-uuid key means the row was written outside this module's
+/// contract, which is an internal invariant violation, not a caller error.
+pub(crate) fn uuid_from_record_link(field: &str, link: &RecordId) -> AtelierResult<Uuid> {
+    match &link.key {
+        surrealdb::types::RecordIdKey::Uuid(uuid) => Ok((*uuid).into()),
+        other => Err(AtelierError::Internal(format!(
+            "{field} record link key is not a uuid: {other:?}"
+        ))),
+    }
+}
+
 fn event_ref_for_value(value: &serde_json::Value) -> serde_json::Value {
     let bytes = if let Some(text) = value.as_str() {
         text.as_bytes().to_vec()
@@ -786,11 +798,8 @@ macro_rules! atelier_event_sql {
 pub(crate) use atelier_event_sql;
 
 /// Record an atelier event and nothing else.
-const RECORD_EVENT_STATEMENT: &str = concat!(
-    "RETURN { ",
-    atelier_event_sql!(),
-    " RETURN $ledger_row; };"
-);
+const RECORD_EVENT_STATEMENT: &str =
+    concat!("RETURN { ", atelier_event_sql!(), " RETURN $ledger_row; };");
 
 /// Atelier data store.
 ///
@@ -802,6 +811,12 @@ pub struct AtelierStore {
     store: SurrealStorage,
     #[cfg(feature = "runtime-full")]
     flight_recorder: Option<Arc<dyn FlightRecorder>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AtelierSchemaBootstrapReport {
+    pub applied: bool,
+    pub table_count: usize,
 }
 
 /// Every table the atelier domain reads or writes.
@@ -825,6 +840,7 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_character_document",
     "atelier_character_document_version",
     "atelier_character_relationship",
+    "atelier_character_relationship_graph_projection",
     "atelier_character_script",
     "atelier_character_tag",
     "atelier_collection",
@@ -869,6 +885,7 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_image_import_request",
     "atelier_intake_batch",
     "atelier_intake_item",
+    "atelier_intake_item_loom_projection",
     "atelier_intake_item_rejection_audit",
     "atelier_md_allowlist_policy",
     "atelier_md_auth_context",
@@ -887,8 +904,10 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_media_source_provenance_ref",
     "atelier_model_apply",
     "atelier_model_config",
+    "atelier_model_coordination_lease",
     "atelier_model_manual_drift_guard",
     "atelier_model_manual_row_merge",
+    "atelier_model_manual_section",
     "atelier_moodboard",
     "atelier_moodboard_export_request",
     "atelier_moodboard_operation_receipt",
@@ -903,8 +922,10 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_pose_workspace_rig_state",
     "atelier_preference",
     "atelier_reset_operation",
+    "atelier_retrieval_policy",
     "atelier_saved_search",
     "atelier_screenshot_artifact_storage",
+    "atelier_self_improve_sandbox_run",
     "atelier_sheet_parse_snapshot",
     "atelier_sheet_version",
     "atelier_similarity_projection",
@@ -926,6 +947,7 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_transcript_artifact",
     "atelier_transcript_receipt",
     "atelier_trash_marker",
+    "atelier_validator_first_pass_run",
     "atelier_version_mismatch_receipt",
     "atelier_visual_steer_feedback",
     "atelier_web_portfolio_export_request",
@@ -983,6 +1005,37 @@ impl AtelierStore {
         Ok(self.store.with_data_operation(operation).await?)
     }
 
+    async fn defined_table_names(&self) -> AtelierResult<Vec<String>> {
+        Ok(self
+            .store
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values::<String, ()>(
+                        "RETURN array::sort(object::keys((INFO FOR DB).tables));",
+                        (),
+                    )
+                    .await
+                })
+            })
+            .await?)
+    }
+
+    /// Apply the bounded canonical Atelier schema projection to an empty
+    /// Atelier surface, or reuse an exact-complete projection.
+    ///
+    /// A partially present Atelier schema is never repaired in place: that is
+    /// lineage damage, and overwriting it could conceal a failed product
+    /// bootstrap. The DDL installer is mechanically derived from the same
+    /// compiled `schema.surql` used by the global production bootstrap.
+    pub async fn bootstrap_schema(&self) -> AtelierResult<AtelierSchemaBootstrapReport> {
+        let applied = crate::storage::surreal::bootstrap_atelier_schema(&self.store).await?;
+        self.ensure_schema().await?;
+        Ok(AtelierSchemaBootstrapReport {
+            applied,
+            table_count: ATELIER_TABLES.len(),
+        })
+    }
+
     /// Verify the atelier schema is present, and fail closed when it is not.
     ///
     /// The PostgreSQL version of this method REPLAYED 88 migration files under
@@ -999,18 +1052,7 @@ impl AtelierStore {
     /// because "atelier schema not ready" with no table name was the least
     /// actionable failure the old readiness check could produce.
     pub async fn ensure_schema(&self) -> AtelierResult<()> {
-        let defined: Vec<String> = self
-            .store
-            .with_data_operation(|ctx| {
-                Box::pin(async move {
-                    ctx.query_values::<String, ()>(
-                        "RETURN array::sort(object::keys((INFO FOR DB).tables));",
-                        (),
-                    )
-                    .await
-                })
-            })
-            .await?;
+        let defined = self.defined_table_names().await?;
         let missing: Vec<&str> = ATELIER_TABLES
             .iter()
             .copied()
@@ -1193,14 +1235,8 @@ impl AtelierStore {
             aggregate_id: aggregate_id.to_owned(),
             safe_payload,
             bindings: RecordEventBindings {
-                ledger_id: RecordId::new(
-                    "kernel_event_ledger",
-                    kernel_event.event_id.clone(),
-                ),
-                atelier_id: RecordId::new(
-                    "atelier_event",
-                    SurrealUuid::from(atelier_event_id),
-                ),
+                ledger_id: RecordId::new("kernel_event_ledger", kernel_event.event_id.clone()),
+                atelier_id: RecordId::new("atelier_event", SurrealUuid::from(atelier_event_id)),
                 atelier_event_uuid: SurrealUuid::from(atelier_event_id),
                 kernel_event_id: kernel_event.event_id.clone(),
                 event_version: event.event_version.clone(),
@@ -1350,6 +1386,98 @@ impl AtelierStore {
 mod guard_tests {
     use super::*;
 
+    #[derive(Clone, Debug, SurrealValue)]
+    struct MalformedTableSentinel {
+        marker: String,
+    }
+
+    async fn run_mt138_catalog_mutation(storage: &SurrealStorage, statement: &'static str) {
+        storage
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    let _: Vec<bool> = ctx.query_values_at(statement, (), 1).await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("apply MT-138 catalog mutation");
+    }
+
+    async fn assert_mt138_adversarial_catalog_rejections(
+        storage: &SurrealStorage,
+        atelier: &AtelierStore,
+    ) {
+        run_mt138_catalog_mutation(
+            storage,
+            "DEFINE TABLE OVERWRITE atelier_rogue SCHEMAFULL PERMISSIONS NONE; RETURN true;",
+        )
+        .await;
+        let rogue_error = atelier
+            .bootstrap_schema()
+            .await
+            .expect_err("unexpected atelier table must fail closed");
+        assert!(rogue_error.to_string().contains("TABLE_SET_MISMATCH"));
+        run_mt138_catalog_mutation(storage, "REMOVE TABLE atelier_rogue; RETURN true;").await;
+
+        run_mt138_catalog_mutation(
+            storage,
+            "DEFINE FIELD OVERWRITE attacker_extra ON TABLE atelier_character TYPE string; RETURN true;",
+        )
+        .await;
+        let extra_field_error = atelier
+            .bootstrap_schema()
+            .await
+            .expect_err("unexpected atelier field must fail closed");
+        assert!(extra_field_error
+            .to_string()
+            .contains("CATALOG_FINGERPRINT_MISMATCH"));
+        run_mt138_catalog_mutation(
+            storage,
+            "REMOVE FIELD attacker_extra ON TABLE atelier_character; RETURN true;",
+        )
+        .await;
+
+        run_mt138_catalog_mutation(
+            storage,
+            "ALTER TABLE atelier_character SCHEMALESS; RETURN true;",
+        )
+        .await;
+        let schemaless_error = atelier
+            .bootstrap_schema()
+            .await
+            .expect_err("schemaless atelier table must fail closed");
+        assert!(schemaless_error
+            .to_string()
+            .contains("CATALOG_FINGERPRINT_MISMATCH"));
+        run_mt138_catalog_mutation(
+            storage,
+            "ALTER TABLE atelier_character SCHEMAFULL; RETURN true;",
+        )
+        .await;
+
+        run_mt138_catalog_mutation(
+            storage,
+            "DEFINE TABLE OVERWRITE atelier_character_relationship_graph_projection TYPE NORMAL PERMISSIONS NONE; RETURN true;",
+        )
+        .await;
+        let non_view_error = atelier
+            .bootstrap_schema()
+            .await
+            .expect_err("non-view replacement must fail closed");
+        assert!(non_view_error
+            .to_string()
+            .contains("CATALOG_FINGERPRINT_MISMATCH"));
+        run_mt138_catalog_mutation(
+            storage,
+            "DEFINE TABLE OVERWRITE atelier_character_relationship_graph_projection TYPE NORMAL AS SELECT relationship_id AS edge_id, source_character_id, target_character_id, relationship_kind, label, notes, updated_at_utc FROM atelier_character_relationship PERMISSIONS NONE; RETURN true;",
+        )
+        .await;
+        atelier
+            .bootstrap_schema()
+            .await
+            .expect("restored exact Atelier catalog");
+    }
+
     #[test]
     fn rejects_sqlite_urls() {
         assert!(assert_embedded_store_backend("sqlite://./x.db").is_err());
@@ -1433,5 +1561,258 @@ mod guard_tests {
                 "{value} should be accepted"
             );
         }
+    }
+
+    #[test]
+    fn mt138_readiness_inventory_matches_canonical_surreal_schema() {
+        let canonical: std::collections::BTreeSet<String> =
+            include_str!("../storage/surreal/schema.surql")
+                .lines()
+                .filter_map(|line| {
+                    line.strip_prefix("DEFINE TABLE OVERWRITE atelier_")
+                        .and_then(|rest| rest.split_ascii_whitespace().next())
+                        .map(|suffix| format!("atelier_{}", suffix.trim_end_matches(';')))
+                })
+                .collect();
+        let declared: std::collections::BTreeSet<String> = ATELIER_TABLES
+            .iter()
+            .map(|table| (*table).to_owned())
+            .collect();
+        assert_eq!(declared, canonical);
+        assert_eq!(declared.len(), 125);
+    }
+
+    #[tokio::test]
+    async fn mt138_rejects_full_count_schemaless_projection() {
+        tokio::time::timeout(std::time::Duration::from_secs(120), async {
+            let temp = tempfile::tempdir().expect("create malformed MT-138 store directory");
+            let store = SurrealStorage::open(
+                crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
+                    .expect("configure malformed MT-138 store"),
+            )
+            .await
+            .expect("open malformed MT-138 store");
+            store
+                .with_data_operation(|ctx| {
+                    Box::pin(async move {
+                        for table in ATELIER_TABLES {
+                            let _: Option<MalformedTableSentinel> = ctx
+                                .upsert_one(
+                                    table,
+                                    "malformed",
+                                    MalformedTableSentinel {
+                                        marker: "schemaless".to_owned(),
+                                    },
+                                )
+                                .await?;
+                        }
+                        Ok(())
+                    })
+                })
+                .await
+                .expect("create full-count malformed Atelier projection");
+            let atelier = AtelierStore::new(store.clone());
+            atelier
+                .ensure_schema()
+                .await
+                .expect("name-only readiness demonstrates the adversarial counterexample");
+            let error = atelier
+                .bootstrap_schema()
+                .await
+                .expect_err("catalog verification must reject schemaless full-count projection");
+            assert!(error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"));
+            store.shutdown().await.expect("close malformed store");
+        })
+        .await
+        .expect("malformed MT-138 rejection proof exceeded two minutes");
+    }
+
+    #[tokio::test]
+    async fn mt138_atelier_readiness_is_idempotent_across_embedded_restart() {
+        tokio::time::timeout(std::time::Duration::from_secs(1_140), async {
+            let proof_started = std::time::Instant::now();
+            let temp = tempfile::tempdir().expect("create MT-138 embedded-store directory");
+            let config = crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
+                .expect("configure MT-138 embedded store");
+            let first = SurrealStorage::open(config)
+                .await
+                .expect("open first store");
+            let first_atelier = AtelierStore::new(first.clone());
+            let concurrent_atelier = first_atelier.clone();
+            let (first_bootstrap, concurrent_bootstrap) = tokio::join!(
+                first_atelier.bootstrap_schema(),
+                concurrent_atelier.bootstrap_schema()
+            );
+            let first_bootstrap = first_bootstrap.expect("first concurrent Atelier bootstrap");
+            let concurrent_bootstrap =
+                concurrent_bootstrap.expect("second concurrent Atelier bootstrap");
+            assert_ne!(first_bootstrap.applied, concurrent_bootstrap.applied);
+            assert_eq!(first_bootstrap.table_count, 125);
+            assert_eq!(concurrent_bootstrap.table_count, 125);
+            eprintln!(
+                "MT-138 timing: concurrent schema bootstrap {:?}",
+                proof_started.elapsed()
+            );
+            assert_mt138_adversarial_catalog_rejections(&first, &first_atelier).await;
+            eprintln!(
+                "MT-138 timing: adversarial catalog checks {:?}",
+                proof_started.elapsed()
+            );
+            first_atelier
+                .record_event(
+                    "atelier.mt138.bootstrap_probe",
+                    "atelier_schema",
+                    "canonical",
+                    serde_json::json!({"proof": "canonical_ddl"}),
+                )
+                .await
+                .expect("write typed Atelier event through canonical schema");
+            #[cfg(feature = "runtime-full")]
+            {
+                let mut removed_builtin = command_corpus::builtin_command_corpus()
+                    .into_iter()
+                    .next()
+                    .expect("builtin command fixture");
+                removed_builtin.action_id = "mt138.removed-builtin-probe".to_owned();
+                removed_builtin.manual_anchor = command_corpus::MANUAL_ANCHOR_BLOCKED.to_owned();
+                first_atelier
+                    .upsert_command_corpus_entry(&removed_builtin)
+                    .await
+                    .expect("seed removed builtin descriptor");
+                first_atelier
+                    .record_blocked_command(
+                        &removed_builtin.action_id,
+                        command_corpus::BlockedReason::NoManualAnchor,
+                        removed_builtin.corpus_source,
+                        "removed builtin must be reconciled out",
+                    )
+                    .await
+                    .expect("seed removed builtin blocked record");
+
+                let first_corpus = first_atelier
+                    .bootstrap_builtin_command_corpus()
+                    .await
+                    .expect("bootstrap builtin command corpus first pass");
+                eprintln!(
+                    "MT-138 timing: first corpus bootstrap {:?}",
+                    proof_started.elapsed()
+                );
+                assert!(first_atelier
+                    .get_command_corpus_entry(&removed_builtin.action_id)
+                    .await
+                    .expect("query removed builtin after reconciliation")
+                    .is_none());
+                assert!(first_atelier
+                    .list_blocked_commands(Some(&removed_builtin.action_id))
+                    .await
+                    .expect("query removed builtin blocks after reconciliation")
+                    .is_empty());
+                let entries_before = first_atelier
+                    .list_command_corpus_entries(None)
+                    .await
+                    .expect("read first-pass command corpus");
+                let blocked_before = first_atelier
+                    .list_blocked_commands(None)
+                    .await
+                    .expect("read first-pass blocked commands");
+                let mut event_counts_before = Vec::new();
+                for family in command_corpus::command_corpus_event_family::ALL {
+                    event_counts_before.push(
+                        first_atelier
+                            .count_events(family)
+                            .await
+                            .expect("count first-pass command-corpus events"),
+                    );
+                }
+
+                let second_corpus = first_atelier
+                    .bootstrap_builtin_command_corpus()
+                    .await
+                    .expect("bootstrap builtin command corpus second pass");
+                eprintln!(
+                    "MT-138 timing: second corpus bootstrap {:?}",
+                    proof_started.elapsed()
+                );
+                let entries_after = first_atelier
+                    .list_command_corpus_entries(None)
+                    .await
+                    .expect("read second-pass command corpus");
+                let blocked_after = first_atelier
+                    .list_blocked_commands(None)
+                    .await
+                    .expect("read second-pass blocked commands");
+                let mut event_counts_after = Vec::new();
+                for family in command_corpus::command_corpus_event_family::ALL {
+                    event_counts_after.push(
+                        first_atelier
+                            .count_events(family)
+                            .await
+                            .expect("count second-pass command-corpus events"),
+                    );
+                }
+
+                assert_eq!(first_corpus, second_corpus);
+                assert_eq!(entries_before, entries_after);
+                assert_eq!(blocked_before, blocked_after);
+                assert_eq!(event_counts_before, event_counts_after);
+            }
+            let (fields, indexes): (Vec<String>, Vec<String>) = first
+                .with_data_operation(|ctx| {
+                    Box::pin(async move {
+                        let fields = ctx
+                            .query_values::<String, ()>(
+                                "RETURN object::keys((INFO FOR TABLE atelier_character).fields);",
+                                (),
+                            )
+                            .await?;
+                        let indexes = ctx
+                            .query_values::<String, ()>(
+                                "RETURN object::keys((INFO FOR TABLE atelier_character).indexes);",
+                                (),
+                            )
+                            .await?;
+                        Ok((fields, indexes))
+                    })
+                })
+                .await
+                .expect("inspect canonical Atelier table shape");
+            assert!(fields.iter().any(|field| field == "internal_id"));
+            assert!(indexes.iter().any(|index| index == "pk_atelier_character"));
+            first.shutdown().await.expect("close first store");
+            eprintln!(
+                "MT-138 timing: first shutdown {:?}",
+                proof_started.elapsed()
+            );
+
+            let reopened = SurrealStorage::open(
+                crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
+                    .expect("configure reopened MT-138 store"),
+            )
+            .await
+            .expect("reopen MT-138 store");
+            let reopened_atelier = AtelierStore::new(reopened.clone());
+            let reopened_report = reopened_atelier
+                .bootstrap_schema()
+                .await
+                .expect("reuse canonical Atelier schema after restart");
+            eprintln!(
+                "MT-138 timing: reopened schema verification {:?}",
+                proof_started.elapsed()
+            );
+            assert!(!reopened_report.applied);
+            let persisted = reopened_atelier
+                .count_events_for_aggregate(
+                    "atelier.mt138.bootstrap_probe",
+                    "atelier_schema",
+                    "canonical",
+                )
+                .await
+                .expect("read persisted typed Atelier event");
+            assert_eq!(persisted, 1);
+            reopened.shutdown().await.expect("close reopened store");
+            eprintln!("MT-138 timing: complete {:?}", proof_started.elapsed());
+        })
+        .await
+        .expect("MT-138 embedded restart proof exceeded nineteen minutes");
     }
 }

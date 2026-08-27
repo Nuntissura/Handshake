@@ -8,7 +8,7 @@
 //!    prove the CodeNavClient's transformation surface without a backend.
 //!
 //! 2. LIVE-BACKEND (`--features integration`, AC-001/002/003): the CodeNavClient binds the REAL running
-//!    handshake_core code-nav API backed by Handshake-managed PostgreSQL. The existing
+//!    handshake_core code-nav API backed by Handshake-managed SurrealDB. The existing
 //!    `mt249_code_intelligence_fixture` seeds `add` plus its `caller` through the real CodeIndexEngine
 //!    and prints the base URL, workspace id, and symbol entity id. The runner supplies those values as
 //!    `HANDSHAKE_TEST_DB_URL`, `HANDSHAKE_TEST_WORKSPACE_ID`, and
@@ -473,7 +473,7 @@ async fn code_nav_dropped_connection_is_typed_error_not_empty_success() {
 
 // ── LIVE-BACKEND (--features integration): the REAL handshake_core code-nav binding ────────────────
 //
-// These consume the ready values printed by the real managed-PostgreSQL fixture. The integration feature
+// These consume the ready values printed by the real managed-SurrealDB fixture. The integration feature
 // is the explicit resource gate; once enabled, every required value and every populated result is strict.
 
 #[cfg(feature = "integration")]

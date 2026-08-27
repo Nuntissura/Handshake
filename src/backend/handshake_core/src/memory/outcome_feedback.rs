@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -18,15 +18,15 @@ use crate::kernel::{
     },
     context_bundle::{canonical_json_bytes, sha256_hex},
     write_boxes::{
-        MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef,
-        WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef, WriteBoxValidationState,
-        WriteBoxValidationStatus, validate_write_box_common,
+        validate_write_box_common, MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState,
+        WriteBoxOwnerRef, WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef,
+        WriteBoxValidationState, WriteBoxValidationStatus,
     },
 };
 
 use super::persistence::{
-    KERNEL_ACTION_REQUEST_SCHEMA_ID, KernelActionSubmission, MEMORY_WRITE_BOX_SCHEMA_ID,
-    RecordReceipt, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID, WriteBoxV1Envelope,
+    KernelActionSubmission, RecordReceipt, WriteBoxV1Envelope, KERNEL_ACTION_REQUEST_SCHEMA_ID,
+    MEMORY_WRITE_BOX_SCHEMA_ID, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
 };
 
 pub const OUTCOME_ATTACH_INPUT_SCHEMA_ID: &str = "hsk.kernel.memory_capsule_outcome_input@1";

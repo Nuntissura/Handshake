@@ -151,6 +151,10 @@ fn default_calendar_event_export_mode() -> CalendarEventExportMode {
     CalendarEventExportMode::LocalOnly
 }
 
+fn empty_calendar_collection() -> Value {
+    Value::Array(Vec::new())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CalendarSyncInput {
     pub workspace_id: String,
@@ -208,9 +212,9 @@ pub struct CalendarSyncEventUpsert {
     #[serde(default)]
     pub is_override: bool,
     pub source_last_seen_at: Option<DateTime<Utc>>,
-    #[serde(default)]
+    #[serde(default = "empty_calendar_collection")]
     pub attendees: Value,
-    #[serde(default)]
+    #[serde(default = "empty_calendar_collection")]
     pub links: Value,
     pub provider_payload: Option<Value>,
 }

@@ -1,5 +1,5 @@
 //! WP-KERNEL-012 E9 MT-064 remediation (FAIL_V2): CANONICAL Argus inspect / safe-steer / re-observe
-//! proof for the MOUNTED "Propose to Memory" dialog, driven over REAL managed PostgreSQL.
+//! proof for the MOUNTED "Propose to Memory" dialog, driven over REAL managed SurrealDB.
 //!
 //! `validation_v2` remediation step 2 requires: "drive the editor proposal UI through canonical Argus
 //! and update canonical UserManual". The isolated `test_memory_proposal.rs` kittest coverage drives the
@@ -9,7 +9,7 @@
 //! dialog's stable `author_id`s (the inspect -> steer -> re-inspect pattern the sibling surfaces use in
 //! `test_folder_tree_argus.rs` / `test_embeds_argus.rs`). This test closes that exact gap:
 //!
-//!   1. starts REAL managed PostgreSQL + the owned product `handshake_core` backend (pg_proof_support),
+//!   1. starts REAL managed SurrealDB + the owned product `handshake_core` backend (backend_proof_support),
 //!   2. mounts the production `HandshakeApp` shell pointed at that live backend with a code document +
 //!      a live selection, so the "Propose to Memory" affordance is reachable,
 //!   3. binds the CANONICAL Argus driver (real localhost JSON-RPC, the same `argus.inspect` /
@@ -19,7 +19,7 @@
 //!      JSON-RPC snapshot (`fems-propose-dialog`, `fems-class-{episodic|semantic|procedural}`,
 //!      `fems-propose-confirm`),
 //!   6. `argus.click` the class radio + confirm to SUBMIT a real review-gated proposal,
-//!   7. drives the host until the real proposal PERSISTS in live PostgreSQL AND the FR-EVT-MEM-001
+//!   7. drives the host until the real proposal PERSISTS in live SurrealDB AND the FR-EVT-MEM-001
 //!      (`memory_write_proposed`) event lands in the live Flight Recorder / EventLedger (exact shape:
 //!      event_code, proposal_id, proposal_hash, artifact_ref, scope_refs, op_count,
 //!      requires_review_count, and NO raw memory content),
@@ -28,7 +28,7 @@
 //!   9. writes the before/after canonical trees externally + a screenshot marker (headless DEFERRED is
 //!      an acceptable typed outcome).
 //!
-//! Live-resource law: NO SQLite, NO mock, NO in-memory fallback. If the managed backend/PostgreSQL is
+//! Live-resource law: NO alternate local store, NO mock, NO in-memory fallback. If the managed backend/SurrealDB is
 //! not configured the shared fixture PANICS (never a silent green). Artifact hygiene (CX-212E): every
 //! artifact is written ONLY under the EXTERNAL `Handshake_Artifacts/handshake-test/` root.
 
@@ -45,9 +45,9 @@ use screenshot_harness::ScreenshotHarness as Harness;
 mod canonical_argus_driver;
 use canonical_argus_driver::{json_has_author_id, ArgusObservation, CanonicalArgusDriver};
 
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
-use pg_proof_support::{require_live_backend, LiveBackend};
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
+use backend_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
@@ -124,7 +124,7 @@ impl ScopedLocalAppData {
         let previous = std::env::var_os(variable);
         let previous_owned_backend_root = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT");
         std::env::set_var(variable, &root);
-        // pg_proof_support treats this explicit root as the force-owned signal. That prevents this
+        // backend_proof_support treats this explicit root as the force-owned signal. That prevents this
         // current-source proof from attaching to an arbitrary already-running or stale backend.
         std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root);
         Self {
@@ -472,8 +472,8 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     // below (which the memory routes' capture_context validates) is then discoverable by both processes.
     let _appdata = ScopedLocalAppData::install();
 
-    // (0b) REAL managed PostgreSQL + owned product backend. Panics (never silently skips) if the live
-    // backend/PG is not configured — the shared fixture enforces the no-SQLite / no-mock law.
+    // (0b) REAL managed SurrealDB + owned product backend. Panics (never silently skips) if the live
+    // backend/SurrealDB is not configured — the shared fixture enforces the no-alternate local store / no-mock law.
     let live = require_live_backend();
     let workspace_id = live.workspace_id.clone();
     assert!(
@@ -773,7 +773,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         .to_owned();
     {
         // The confirm receipt's own terminal detail must carry the SAME ids the status node reports;
-        // the live PostgreSQL / Flight Recorder readback below then proves those exact ids persisted.
+        // the live SurrealDB / Flight Recorder readback below then proves those exact ids persisted.
         let detail = receipt_terminal_detail(&confirm_steer.after, confirm_steer.receipt_id);
         assert_eq!(detail["proposal_id"], proposal_id);
         assert_eq!(detail["event_id"], event_id);
@@ -805,7 +805,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     let session_hex = harness.state().mcp_token().as_hex().to_owned();
     let deadline = Instant::now() + Duration::from_secs(30);
 
-    // (6) LIVE PostgreSQL readback: the proposal row is a persisted, review-gated pending_review row.
+    // (6) LIVE SurrealDB readback: the proposal row is a persisted, review-gated pending_review row.
     // Memory routes are session-gated, so the readback carries the mounted app's session token.
     let readback = get_json_session(
         &live.base,
@@ -1004,7 +1004,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     };
     println!(
         "MT-064 canonical Argus mounted propose dialog: menu-edit -> select-all -> menu-go -> \
-         command-palette -> propose-to-memory row -> procedural radio -> confirm; live PG proposal \
+         command-palette -> propose-to-memory row -> procedural radio -> confirm; live SurrealDB proposal \
          {proposal_id} persisted + FR-EVT-MEM-001 {event_id} correlated -> reinspect(terminal status); \
          canonical receipts={} agent={} screenshot={} tree={}",
         serde_json::to_string(&receipt_summary).unwrap_or_else(|_| "<unserializable>".to_owned()),

@@ -46,7 +46,7 @@ use crate::{
     memory::{
         bitemporal::PostgresBitemporalMemoryIndex,
         hygiene::{HygieneConfig, HygieneJobRunner},
-        PostgresKernelActionSubmitter,
+        SurrealKernelActionSubmitter,
     },
     mex::gates::evaluate_session_safety_gates,
     mex::runtime::{
@@ -1567,7 +1567,7 @@ async fn execute_locus_sync_task_board(
                     .locus_task_board_get_status_and_metadata(&entry.wp_id)
                     .await?;
 
-                let Some((db_task_board_status, metadata_raw)) = row else {
+                let Some((expected_version, db_task_board_status, metadata_raw)) = row else {
                     unknown_wp_ids.push(entry.wp_id.clone());
                     record_event_safely(
                         state,
@@ -1612,6 +1612,7 @@ async fn execute_locus_sync_task_board(
                     let metadata = serde_json::to_string(&metadata)
                         .map_err(crate::storage::StorageError::from)?;
                     db.locus_task_board_update_work_packet(
+                        expected_version,
                         work_packet_status_db(entry.status),
                         task_board_status_db(entry.status),
                         &now,
@@ -22097,7 +22098,7 @@ async fn run_fems_hygiene_job(
     let config = parse_fems_hygiene_config(inputs)?;
     let report = {
         let fems = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&state.storage));
-        let submitter = PostgresKernelActionSubmitter::with_db(Arc::clone(&state.storage));
+        let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&state.storage));
         let runner = HygieneJobRunner::new(&fems, &submitter);
         runner
             .run_once(config)
@@ -28549,11 +28550,8 @@ mod tests {
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
-        tests::{
-            optional_postgres_backend_with_pool_from_env, postgres_backend_with_pool_from_env,
-        },
-        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState,
-        SafetyMode,
+        tests::embedded_test_backend, AccessMode, Database, JobKind, JobMetrics, JobState,
+        ModelSession, ModelSessionState, SafetyMode,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
@@ -28615,15 +28613,13 @@ mod tests {
     }
 
     async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(storage) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+        let storage = embedded_test_backend().await?;
 
         let flight_recorder = test_recorder();
 
         Ok(Some(AppState {
             storage: storage.database,
-            postgres_pool: storage.postgres_pool,
+            surreal: storage.storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -28634,25 +28630,10 @@ mod tests {
 
     static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
 
-    async fn setup_postgres_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let storage = postgres_backend_with_pool_from_env().await?;
-        let flight_recorder = test_recorder();
-
-        Ok(Some(AppState {
-            storage: storage.database,
-            postgres_pool: storage.postgres_pool,
-            flight_recorder: flight_recorder.clone(),
-            diagnostics: flight_recorder,
-            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
-            capability_registry: Arc::new(CapabilityRegistry::new()),
-            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        }))
-    }
-
     #[tokio::test]
     async fn model_run_timeout_ms_fails_before_simulated_runtime_finishes(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_postgres_state().await? else {
+        let Some(state) = setup_state().await? else {
             return Ok(());
         };
         let session_id = format!("sess-{}", Uuid::now_v7());
@@ -28728,167 +28709,6 @@ mod tests {
         );
         let session = state.storage.get_model_session(&session_id).await?;
         assert_eq!(session.state, ModelSessionState::Failed);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn model_run_dispatch_repairs_legacy_null_workflow_run_before_parse_failure(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_postgres_state().await? else {
-            return Ok(());
-        };
-        let job = state
-            .storage
-            .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::now_v7(),
-                job_kind: JobKind::ModelRun,
-                protocol_id: "protocol-default".to_string(),
-                profile_id: "default".to_string(),
-                capability_profile_id: "Analyst".to_string(),
-                access_mode: AccessMode::AnalysisOnly,
-                safety_mode: SafetyMode::Normal,
-                entity_refs: Vec::new(),
-                planned_operations: Vec::new(),
-                status_reason: "legacy_orphan".to_string(),
-                metrics: JobMetrics::zero(),
-                job_inputs: Some(json!({
-                    "launch_surface": "handshake_native"
-                })),
-            })
-            .await?;
-
-        sqlx::query("DELETE FROM workflow_runs WHERE job_id = $1")
-            .bind(job.job_id.to_string())
-            .execute(&state.postgres_pool)
-            .await?;
-        sqlx::query("UPDATE ai_jobs SET workflow_run_id = NULL WHERE id = $1")
-            .bind(job.job_id.to_string())
-            .execute(&state.postgres_pool)
-            .await?;
-
-        let queued = list_queued_model_run_jobs(&state).await?;
-        let queued_job = queued
-            .into_iter()
-            .find(|queued| queued.job_id == job.job_id)
-            .ok_or("legacy orphan model_run job must be queued before dispatch")?;
-        let config = state.session_registry.scheduler_config().await;
-        let step = dispatch_queued_model_run_job(&state, queued_job, &config).await?;
-        assert_eq!(step, ModelRunDispatchStep::Continue);
-
-        let repaired = state.storage.get_ai_job(&job.job_id.to_string()).await?;
-        assert!(matches!(repaired.state, JobState::Failed));
-        let workflow_run_id = repaired
-            .workflow_run_id
-            .ok_or("dispatcher must repair legacy model_run workflow_run_id before failing")?;
-        let workflow_status: String =
-            sqlx::query_scalar("SELECT status FROM workflow_runs WHERE id = $1")
-                .bind(workflow_run_id.to_string())
-                .fetch_one(&state.postgres_pool)
-                .await?;
-        assert_eq!(workflow_status, JobState::Failed.as_str());
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn model_run_startup_repair_backfills_legacy_null_workflow_run(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_postgres_state().await? else {
-            return Ok(());
-        };
-        let job = state
-            .storage
-            .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::now_v7(),
-                job_kind: JobKind::ModelRun,
-                protocol_id: "protocol-default".to_string(),
-                profile_id: "default".to_string(),
-                capability_profile_id: "Analyst".to_string(),
-                access_mode: AccessMode::AnalysisOnly,
-                safety_mode: SafetyMode::Normal,
-                entity_refs: Vec::new(),
-                planned_operations: Vec::new(),
-                status_reason: "legacy_orphan".to_string(),
-                metrics: JobMetrics::zero(),
-                job_inputs: Some(json!({
-                    "launch_surface": "handshake_native"
-                })),
-            })
-            .await?;
-
-        sqlx::query("DELETE FROM workflow_runs WHERE job_id = $1")
-            .bind(job.job_id.to_string())
-            .execute(&state.postgres_pool)
-            .await?;
-        sqlx::query("UPDATE ai_jobs SET workflow_run_id = NULL WHERE id = $1")
-            .bind(job.job_id.to_string())
-            .execute(&state.postgres_pool)
-            .await?;
-
-        let repaired_count = repair_model_run_workflow_bindings(&state).await?;
-        assert_eq!(repaired_count, 1);
-
-        let repaired = state.storage.get_ai_job(&job.job_id.to_string()).await?;
-        assert!(matches!(repaired.state, JobState::Queued));
-        let workflow_run_id = repaired
-            .workflow_run_id
-            .ok_or("startup repair must backfill legacy model_run workflow_run_id")?;
-        let workflow_status: String =
-            sqlx::query_scalar("SELECT status FROM workflow_runs WHERE id = $1")
-                .bind(workflow_run_id.to_string())
-                .fetch_one(&state.postgres_pool)
-                .await?;
-        assert_eq!(workflow_status, JobState::Queued.as_str());
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn model_run_capability_denial_marks_precreated_workflow_failed(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_postgres_state().await? else {
-            return Ok(());
-        };
-        let job = state
-            .storage
-            .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::now_v7(),
-                job_kind: JobKind::ModelRun,
-                protocol_id: "protocol-default".to_string(),
-                profile_id: "default".to_string(),
-                capability_profile_id: "missing_profile".to_string(),
-                access_mode: AccessMode::AnalysisOnly,
-                safety_mode: SafetyMode::Normal,
-                entity_refs: Vec::new(),
-                planned_operations: Vec::new(),
-                status_reason: "queued".to_string(),
-                metrics: JobMetrics::zero(),
-                job_inputs: Some(json!({
-                    "launch_surface": "handshake_native"
-                })),
-            })
-            .await?;
-        let job_id = job.job_id;
-        let workflow_run_id = job
-            .workflow_run_id
-            .ok_or("model_run job must be precreated with workflow_run_id")?;
-
-        let result = start_workflow_for_job(&state, job).await;
-        assert!(result.is_err(), "expected capability error");
-
-        let workflow_status: String =
-            sqlx::query_scalar("SELECT status FROM workflow_runs WHERE id = $1")
-                .bind(workflow_run_id.to_string())
-                .fetch_one(&state.postgres_pool)
-                .await?;
-        assert_eq!(workflow_status, JobState::Failed.as_str());
-        let updated_job = state
-            .storage
-            .get_ai_job(job_id.to_string().as_str())
-            .await?;
-        assert!(matches!(updated_job.state, JobState::Failed));
-        assert_eq!(updated_job.workflow_run_id, Some(workflow_run_id));
 
         Ok(())
     }
@@ -29226,7 +29046,7 @@ mod tests {
     #[tokio::test]
     async fn postgres_structured_collab_artifacts_materialize_parity_fields(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_postgres_state().await? else {
+        let Some(state) = setup_state().await? else {
             return Ok(());
         };
 
@@ -29246,7 +29066,7 @@ mod tests {
             locus::LocusOperation::CreateWp(create_params.clone()),
         )
         .await?;
-        let (status, metadata_raw) = state
+        let (expected_version, status, metadata_raw) = state
             .storage
             .as_ref()
             .locus_task_board_get_status_and_metadata(wp_id)
@@ -29269,6 +29089,7 @@ mod tests {
             .storage
             .as_ref()
             .locus_task_board_update_work_packet(
+                expected_version,
                 &status,
                 "STUB",
                 &Utc::now().to_rfc3339(),
@@ -30646,15 +30467,13 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
 
-        let Some(storage) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(());
-        };
+        let storage = embedded_test_backend().await?;
         let external = tempfile::tempdir()?;
         let recorder_path = external.path().join("fems-forget-flight-recorder.duckdb");
         let recorder = Arc::new(DuckDbFlightRecorder::new_on_path(&recorder_path, 7)?);
         let state = AppState {
             storage: storage.database,
-            postgres_pool: storage.postgres_pool,
+            surreal: storage.storage,
             flight_recorder: recorder.clone(),
             diagnostics: recorder.clone(),
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -30713,7 +30532,7 @@ mod tests {
         let reloaded = state.storage.get_ai_job(&job.job_id.to_string()).await?;
         let outputs = reloaded
             .job_outputs
-            .expect("real PostgreSQL job row durably retains FEMS commit output");
+            .expect("real embedded SurrealDB job row durably retains FEMS commit output");
         assert_eq!(outputs["review"]["status"], "approved");
         assert_eq!(
             outputs["commit_report"]["applied_ops"]

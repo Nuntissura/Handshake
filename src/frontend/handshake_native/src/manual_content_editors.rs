@@ -1208,10 +1208,10 @@ Handshake_Artifacts/handshake-cargo-target and never set CARGO_TARGET_DIR or pas
 nested, or per-run target. On Windows, canonical just recipes resolve that same target with absolute_path \
 so a literal worktree\\.. segment cannot cross MSVC MAX_PATH; a direct command may pass --target-dir only \
 to the normalized absolute form of that exact canonical root. Set \
-HANDSHAKE_TEST_PG_DSN for an isolated real database, HSK_TEST_BACKEND_BIN to that canonical target's \
+HANDSHAKE_DATA_DIR for an isolated embedded SurrealDB store, HSK_TEST_BACKEND_BIN to that canonical target's \
 current-source handshake_core binary, HANDSHAKE_PALMISTRY_EXE to its current-source Palmistry binary, and \
 HANDSHAKE_TEST_STAGE_BINDING_ROOT to a fresh external binding root; then run `cargo test --test \
-test_backend_down_responsive backend_down_responsive_real_pg_palmistry_argus -- --ignored --exact \
+test_backend_down_responsive backend_down_responsive_real_surrealdb_palmistry_argus -- --ignored --exact \
 --nocapture --test-threads=1`. Evidence is written under \
 Handshake_Artifacts/handshake-test/wp-kernel-012-mt-088/integrated/run-*/ and includes status and Settings \
 Diagnostics Argus trees, four unique action receipts with fresh terminal snapshots and passing predicates, \
@@ -1423,7 +1423,7 @@ truncated flag and suppressed_hub_ids make a bounded projection visible; an omit
 means no hubs were suppressed. Empty workspaces show 0 nodes. Backend failures stay visible as Graph error: ... \
 with graph.retry instead of clearing the surface. A workspace switch clears nodes, selection, local focus, errors, \
 and queued request identity even while the graph tab is closed, so an older A response cannot re-enter after \
-A -> B -> A. The integration-gated graph_view_live_pg_self_seeds_local_global proof creates an isolated \
+A -> B -> A. The integration-gated graph_view_live_surrealdb_self_seeds_local_global proof creates an isolated \
 Handshake-managed embedded SurrealDB workspace, verifies the real pre-seed 0-node Global projection, seeds linked \
 Loom blocks, verifies populated Global and Local projections, forces a bounded typed transport failure, and \
 retries the exact same workspace/mode/depth before its cleanup guard removes the seeded workspace. A missing \
@@ -1572,9 +1572,9 @@ folder-tree.retry after backend loss, wait for the authoritative list, then retr
 the row action. Deletion has no automatic undo: cancel before confirming, or recover by recreating the folder \
 subtree and reassigning surviving Loom blocks from authoritative block data. Populated live folder, child, \
 CRUD, conflict, move-to-root, delete, and recolor persistence \
-is covered by the self-seeding folder_tree_live_pg_self_seeded_round_trip proof against a \
+is covered by the self-seeding folder_tree_live_surrealdb_self_seeded_round_trip proof against a \
 Handshake-managed embedded SurrealDB backend. It records exact seed ids and cleanup_verified=true in the external \
-MT-022-live-pg-seed.json receipt; a missing backend fails the proof rather than skipping it. Folder and membership \
+MT-022-live-surrealdb-seed.json receipt; a missing backend fails the proof rather than skipping it. Folder and membership \
 mutations commit their matching EventLedger receipt atomically with the SurrealDB change; a ledger failure rolls \
 the mutation back rather than leaving unaudited state. HBR-INT-009 diagnostic posture: Flight Recorder/EventLedger \
 = SHIPPED for those durable mutations; internal_diagnostics = DEFERRED-with-reason because this host has no folder-operation-specific event \
@@ -1615,7 +1615,7 @@ the hub, and created_by='user'; the host re-queries the hub only after the POST 
 fixed sleep. Switching projects clears the previous workspace's tag rows, search text, open hub, queued \
 events, and stale async deliveries before refetching, so a no-context model should trust the active \
 workspace in the visible pane rather than cached row text. Empty workspaces show No tags. The \
-integration-gated tags_tag_hub_live_pg_self_seeds_mounted_round_trip proof creates an isolated workspace \
+integration-gated tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip proof creates an isolated workspace \
 against Handshake-managed SurrealDB/EventLedger, drives the mounted pane through empty/list/filter/open/add, verifies \
 rename and tag removal with a fresh client, checks bounded backend loss, writes an external receipt, and \
 deletes the workspace before reporting success. The exact canonical visual proof is \
@@ -1721,7 +1721,8 @@ BackendRecovered edges plus the advancing UI heartbeat; a Notes-Search-specific 
 DEFERRED-with-reason because none is registered. Tier 3 Palmistry = WIRED through the shared diagnostic ring for \
 freeze/crash survival; it has no Notes-Search-specific payload or tracker. \
 The current durable managed proof is run from src/frontend/handshake_native after setting HSK_TEST_BACKEND_BIN to \
-the current-source external handshake_core executable, HANDSHAKE_TEST_PG_DSN to a real PostgreSQL DSN, and \
+the current-source external handshake_core executable (the backend opens its Handshake-managed embedded SurrealDB \
+store at the fixture-provided per-run HANDSHAKE_DATA_DIR; no external database server exists) and \
 HANDSHAKE_ARTIFACTS_ROOT to the allocated external artifact root: cargo test --features integration --test \
 test_loom_search_v2 loom_search_v2_managed_mounted_search_facet_save_reload_cleanup -- --exact --nocapture. \
 That command proves the mounted live search/save transport and persisted definition reload; it is not canonical \
@@ -1925,7 +1926,7 @@ canvas placements with placed_block_id show the full wrapped loom:// chip, graph
 and content_hash is read from the backend LoomBlock / ContentHash::from_backend rather than PATCHed by the \
 client. The managed proof command cargo test --manifest-path src/frontend/handshake_native/Cargo.toml \
 -p handshake-native --features integration --test test_loom_address \
-live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof -- --exact --nocapture --test-threads=1 creates A \
+live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof -- --exact --nocapture --test-threads=1 creates A \
 and B in Handshake-managed embedded SurrealDB, creates/removes/restores A -> B only through normal saves, loads B \
 through ReqwestWikilinkBackend/WikilinkRuntime, deletes A, and compares the fresh RichDocument/LoomBlock \
 identity plus backend-computed content_hash. It writes the strict live visual to \

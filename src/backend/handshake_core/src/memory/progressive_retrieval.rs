@@ -245,11 +245,9 @@ mod tests {
             .unwrap();
         assert!(report.tiers_completed.contains(&TIER_FULL_TEXT.to_string()));
         assert!(report.tiers_completed.contains(&TIER_VECTOR.to_string()));
-        assert!(
-            report
-                .tiers_skipped
-                .contains(&TIER_GRAPH_EXPANSION.to_string())
-        );
+        assert!(report
+            .tiers_skipped
+            .contains(&TIER_GRAPH_EXPANSION.to_string()));
         assert!(report.tiers_skipped.contains(&TIER_RERANK.to_string()));
     }
 
@@ -265,11 +263,9 @@ mod tests {
             .unwrap();
         assert!(report.tiers_completed.contains(&TIER_FULL_TEXT.to_string()));
         assert!(report.tiers_completed.contains(&TIER_VECTOR.to_string()));
-        assert!(
-            report
-                .tiers_skipped
-                .contains(&TIER_GRAPH_EXPANSION.to_string())
-        );
+        assert!(report
+            .tiers_skipped
+            .contains(&TIER_GRAPH_EXPANSION.to_string()));
         assert!(report.tiers_skipped.contains(&TIER_RERANK.to_string()));
     }
 

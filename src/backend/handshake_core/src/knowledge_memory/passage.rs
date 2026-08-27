@@ -14,14 +14,30 @@
 //! read side the passage/evidence graph projection (MT-118) and the backend API
 //! (MT-126) consume.
 
-use sqlx::{PgPool, Row};
+use surrealdb::types::{RecordId, SurrealValue, Value};
 
 use crate::storage::knowledge::{
     KnowledgeMemoryPassage, KnowledgePassageEvidenceRef, KnowledgeStore,
 };
 use crate::storage::knowledge_memory::{get_memory_fact_by_claim, MemoryFact};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
+
+#[derive(SurrealValue)]
+struct PassageWorkspaceBindings {
+    workspace: RecordId,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct PassageClaimBindings {
+    claim: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct PassageIdRow {
+    passage_id: String,
+}
 
 /// List the passage ids of a workspace (newest first), then load each through
 /// the committed passage store so the typed `KnowledgeMemoryPassage` (with its
@@ -30,28 +46,33 @@ use crate::storage::StorageResult;
 /// hand-rolled partial. The id list is a direct read over
 /// `knowledge_memory_passages`; the records come from `KnowledgeStore`.
 pub async fn load_passages_for_workspace(
-    pool: &PgPool,
+    db: &SurrealDatabase,
     workspace_id: &str,
     limit: i64,
 ) -> StorageResult<Vec<KnowledgeMemoryPassage>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT passage_id FROM knowledge_memory_passages
-        WHERE workspace_id = $1
-        ORDER BY created_at DESC, passage_id DESC
-        LIMIT $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(limit)
-    .fetch_all(pool)
-    .await?;
+    let bindings = PassageWorkspaceBindings {
+        workspace: RecordId::new("workspaces", workspace_id),
+        limit,
+    };
+    let rows: Vec<PassageIdRow> = db
+        .storage()
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT record::id(id) AS passage_id FROM knowledge_memory_passages \
+                         WHERE workspace_id = $workspace \
+                         ORDER BY created_at DESC, passage_id DESC LIMIT $limit;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await?;
 
-    let db = PostgresDatabase::new(pool.clone());
     let mut passages = Vec::with_capacity(rows.len());
-    for row in &rows {
-        let passage_id: String = row.get("passage_id");
-        if let Some(passage) = db.get_knowledge_memory_passage(&passage_id).await? {
+    for row in rows {
+        if let Some(passage) = db.get_knowledge_memory_passage(&row.passage_id).await? {
             passages.push(passage);
         }
     }
@@ -73,8 +94,7 @@ pub struct PassageWithEvidence {
 /// passage store (`KnowledgeStore`) for the passage + lineage, then resolves
 /// the fact behind each `claim` evidence ref.
 pub async fn load_passage_with_evidence(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
     passage_id: &str,
 ) -> StorageResult<Option<PassageWithEvidence>> {
     let Some(passage) = db.get_knowledge_memory_passage(passage_id).await? else {
@@ -85,7 +105,7 @@ pub async fn load_passage_with_evidence(
     let mut cited_facts = Vec::new();
     for reference in &evidence {
         if let KnowledgePassageEvidenceRef::Claim { claim_id } = reference {
-            if let Some(fact) = get_memory_fact_by_claim(pool, claim_id).await? {
+            if let Some(fact) = get_memory_fact_by_claim(db.storage(), claim_id).await? {
                 cited_facts.push(fact);
             }
         }
@@ -102,22 +122,27 @@ pub async fn load_passage_with_evidence(
 /// evidence ref). Used by the evidence-graph projection to walk
 /// claim -> passages. Direct read over `knowledge_passage_evidence`.
 pub async fn list_passages_citing_claim(
-    pool: &PgPool,
+    db: &SurrealDatabase,
     claim_id: &str,
 ) -> StorageResult<Vec<String>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT DISTINCT passage_id
-        FROM knowledge_passage_evidence
-        WHERE ref_kind = 'claim' AND claim_id = $1
-        ORDER BY passage_id ASC
-        "#,
-    )
-    .bind(claim_id)
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .iter()
-        .map(|row| row.get::<String, _>("passage_id"))
-        .collect())
+    let bindings = PassageClaimBindings {
+        claim: RecordId::new("knowledge_claims", claim_id),
+    };
+    let rows: Vec<PassageIdRow> = db
+        .storage()
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT record::id(passage_id) AS passage_id \
+                         FROM knowledge_passage_evidence \
+                         WHERE ref_kind = 'claim' AND claim_id = $claim \
+                         GROUP BY passage_id ORDER BY passage_id ASC;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await?;
+    Ok(rows.into_iter().map(|row| row.passage_id).collect())
 }

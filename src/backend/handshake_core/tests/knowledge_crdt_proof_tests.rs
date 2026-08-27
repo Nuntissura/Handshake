@@ -877,7 +877,7 @@ mod mt_080_spec_compatibility {
         knowledge_offline_draft_boundary_contract, validate_offline_draft_boundary_contract,
     };
     use handshake_core::kernel::crdt::persistence::{
-        kernel_crdt_postgres_update_log_contract, validate_crdt_update_record,
+        kernel_crdt_surreal_update_log_contract, validate_crdt_update_record,
         CrdtStorageAuthorityPosture,
     };
     use handshake_core::kernel::crdt::yjs_bridge::validate_yjs_update_envelope;
@@ -1094,11 +1094,11 @@ mod mt_080_spec_compatibility {
 
     /// Spec 2.3.13.11: storage-authority MUSTs. Browser/file/memory state is
     /// never CRDT authority; the typed posture and the update-log contract
-    /// reject every non-Postgres authority claim.
+    /// reject every non-Surreal authority claim.
     #[test]
-    fn must_postgres_event_ledger_is_the_only_crdt_authority() {
+    fn must_surreal_event_ledger_is_the_only_crdt_authority() {
         // The update-log contract names the denied authority surfaces.
-        let contract = kernel_crdt_postgres_update_log_contract();
+        let contract = kernel_crdt_surreal_update_log_contract();
         assert_eq!(contract.table_name, "kernel_crdt_updates");
         assert!(contract
             .denied_authority_refs

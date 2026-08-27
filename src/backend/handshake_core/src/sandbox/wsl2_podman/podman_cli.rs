@@ -7,7 +7,7 @@ use std::{
 use bytes::Bytes;
 use tokio::{io::AsyncWriteExt, process::Command as TokioCommand};
 
-use super::adapter::Wsl2PodmanConfig;
+use super::adapter::{Wsl2PodmanConfig, PODMAN_PROCESS_OWNER_LABEL};
 use crate::sandbox::{
     AdapterId, BindMode, BindSpec, NetAllowlistEntry, NetPolicy, ProcessSpec, ProcessStatus,
     ResourceLimits, SandboxAdapterError, WSL2_PODMAN_ADAPTER_ID,
@@ -34,6 +34,20 @@ impl CliOutput {
 }
 
 pub fn podman_run_args(spec: &ProcessSpec) -> Result<Vec<String>, SandboxAdapterError> {
+    podman_run_args_inner(spec, None)
+}
+
+pub(super) fn podman_run_args_for_container(
+    spec: &ProcessSpec,
+    container_name: &str,
+) -> Result<Vec<String>, SandboxAdapterError> {
+    podman_run_args_inner(spec, Some(container_name))
+}
+
+fn podman_run_args_inner(
+    spec: &ProcessSpec,
+    container_name: Option<&str>,
+) -> Result<Vec<String>, SandboxAdapterError> {
     if spec.cmd.is_empty() {
         return Err(spawn_failed("ProcessSpec.cmd must not be empty"));
     }
@@ -53,6 +67,10 @@ pub fn podman_run_args(spec: &ProcessSpec) -> Result<Vec<String>, SandboxAdapter
         "--network".to_string(),
         network_mode(&spec.net_policy)?,
     ];
+
+    if let Some(container_name) = container_name {
+        args.extend(podman_container_identity_args(container_name));
+    }
 
     if let Some(cwd) = &spec.cwd {
         args.push("-w".to_string());
@@ -81,6 +99,35 @@ pub fn podman_run_args(spec: &ProcessSpec) -> Result<Vec<String>, SandboxAdapter
     args.push(spec.image_or_root.as_str().to_string());
     args.extend(spec.cmd.iter().cloned());
     Ok(args)
+}
+
+fn podman_container_identity_args(container_name: &str) -> [String; 4] {
+    [
+        "--name".to_string(),
+        container_name.to_string(),
+        "--label".to_string(),
+        format!("{PODMAN_PROCESS_OWNER_LABEL}={container_name}"),
+    ]
+}
+
+#[cfg(test)]
+mod container_identity_tests {
+    use super::*;
+
+    #[test]
+    fn production_container_identity_args_bind_name_and_owner_label() {
+        let container_name = "hsk-018f4b49b2a87f1f9e1d0f3d2c1b0a9e";
+        let args = podman_container_identity_args(container_name);
+        assert_eq!(
+            args,
+            [
+                "--name",
+                container_name,
+                "--label",
+                "io.handshake.process-id=hsk-018f4b49b2a87f1f9e1d0f3d2c1b0a9e",
+            ]
+        );
+    }
 }
 
 fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), SandboxAdapterError> {

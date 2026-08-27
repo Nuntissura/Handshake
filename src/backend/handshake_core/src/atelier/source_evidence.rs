@@ -7,9 +7,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, SurrealValue};
 
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 pub mod source_evidence_event_family {
     pub const SOURCE_EVIDENCE_MATRIX_RECORDED: &str = "atelier.source_evidence.matrix_recorded";
@@ -160,7 +162,7 @@ pub fn core_data_source_evidence_matrix(recorded_by: impl Into<String>) -> NewSo
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/core.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0030_atelier_foundation.sql"
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql"
                         .to_string(),
                 ],
                 proof_refs: vec![
@@ -179,7 +181,7 @@ pub fn core_data_source_evidence_matrix(recorded_by: impl Into<String>) -> NewSo
                     .to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/sheet.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0037_atelier_sheet_parser_ast.sql"
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql"
                         .to_string(),
                 ],
                 proof_refs: vec![
@@ -199,7 +201,7 @@ pub fn core_data_source_evidence_matrix(recorded_by: impl Into<String>) -> NewSo
                 implementation_status: "partial_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/bulk.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0039_atelier_bulk_operation_receipts.sql"
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql"
                         .to_string(),
                 ],
                 proof_refs: vec![
@@ -221,7 +223,7 @@ pub fn core_data_source_evidence_matrix(recorded_by: impl Into<String>) -> NewSo
                     .to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0043_atelier_media_review_metadata.sql"
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql"
                         .to_string(),
                 ],
                 proof_refs: vec![
@@ -246,14 +248,14 @@ pub fn core_data_source_evidence_matrix(recorded_by: impl Into<String>) -> NewSo
             NewAnchorVerificationRecord {
                 anchor_id: "ANCHOR-MT-008-sheet-parser".to_string(),
                 source_id: "MT-008.sheet-template-parser".to_string(),
-                anchor_label: "Typed parser product module and migration".to_string(),
+                anchor_label: "Typed parser product module and declarative schema projection"
+                    .to_string(),
                 expected_product_path: "src/backend/handshake_core/src/atelier/sheet.rs"
                     .to_string(),
                 verification_status: AnchorVerificationStatus::Verified,
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/sheet.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0037_atelier_sheet_parser_ast.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                     "src/backend/handshake_core/tests/atelier_sheet_parser_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
@@ -267,8 +269,7 @@ pub fn core_data_source_evidence_matrix(recorded_by: impl Into<String>) -> NewSo
                 verification_status: AnchorVerificationStatus::Verified,
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0043_atelier_media_review_metadata.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                     "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
@@ -293,8 +294,7 @@ pub fn pose_comfy_source_evidence_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string()
@@ -311,8 +311,7 @@ pub fn pose_comfy_source_evidence_matrix(
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0047_atelier_media_sidecars.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string(),
@@ -329,8 +328,7 @@ pub fn pose_comfy_source_evidence_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string()
@@ -346,8 +344,7 @@ pub fn pose_comfy_source_evidence_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/comfy.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_comfy_tests.rs".to_string()
@@ -363,8 +360,7 @@ pub fn pose_comfy_source_evidence_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/command_corpus.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_command_corpus_tests.rs".to_string(),
@@ -380,8 +376,7 @@ pub fn pose_comfy_source_evidence_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/sourcing.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_sourcing_tests.rs".to_string()
@@ -479,7 +474,7 @@ pub fn pose_comfy_source_evidence_matrix(
 /// names (pose, media, artifact, workflow, external tools, diagnostics) it
 /// asserts either `VERIFIED` with the real product paths that back the anchor,
 /// or `BLOCKED_MISSING_ANCHOR` with a blocking_reason. All paths cited here
-/// resolve to modules/migrations/tests that exist in the product source tree,
+/// resolve to modules/declarative-schema/tests that exist in the product source tree,
 /// so every anchor in this matrix is `VERIFIED`.
 pub fn pose_media_anchor_verification_matrix(
     recorded_by: impl Into<String>,
@@ -497,8 +492,7 @@ pub fn pose_media_anchor_verification_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0090_atelier_pose_sidecars.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string()
@@ -514,8 +508,7 @@ pub fn pose_media_anchor_verification_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0043_atelier_media_review_metadata.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
@@ -531,8 +524,7 @@ pub fn pose_media_anchor_verification_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0040_atelier_media_artifact_manifest.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
@@ -576,8 +568,7 @@ pub fn pose_media_anchor_verification_matrix(
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string()
@@ -589,13 +580,12 @@ pub fn pose_media_anchor_verification_matrix(
             NewAnchorVerificationRecord {
                 anchor_id: "ANCHOR-MT-082-pose".to_string(),
                 source_id: "MT-082.pose-anchor".to_string(),
-                anchor_label: "Pose product module and pose-sidecar migration".to_string(),
+                anchor_label: "Pose product module and pose-sidecar schema projection".to_string(),
                 expected_product_path: "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
                 verification_status: AnchorVerificationStatus::Verified,
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0090_atelier_pose_sidecars.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
@@ -603,14 +593,14 @@ pub fn pose_media_anchor_verification_matrix(
             NewAnchorVerificationRecord {
                 anchor_id: "ANCHOR-MT-082-media".to_string(),
                 source_id: "MT-082.media-anchor".to_string(),
-                anchor_label: "Media review-metadata product module and migration".to_string(),
+                anchor_label: "Media review-metadata product module and schema projection"
+                    .to_string(),
                 expected_product_path: "src/backend/handshake_core/src/atelier/media.rs"
                     .to_string(),
                 verification_status: AnchorVerificationStatus::Verified,
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0043_atelier_media_review_metadata.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                     "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
@@ -618,15 +608,14 @@ pub fn pose_media_anchor_verification_matrix(
             NewAnchorVerificationRecord {
                 anchor_id: "ANCHOR-MT-082-artifact".to_string(),
                 source_id: "MT-082.artifact-anchor".to_string(),
-                anchor_label: "Media artifact manifest product module and migration".to_string(),
+                anchor_label: "Media artifact manifest product module and schema projection"
+                    .to_string(),
                 expected_product_path:
-                    "src/backend/handshake_core/migrations/0040_atelier_media_artifact_manifest.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 verification_status: AnchorVerificationStatus::Verified,
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/media.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0040_atelier_media_artifact_manifest.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                     "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
@@ -660,15 +649,13 @@ pub fn pose_media_anchor_verification_matrix(
             NewAnchorVerificationRecord {
                 anchor_id: "ANCHOR-MT-082-diagnostics".to_string(),
                 source_id: "MT-082.diagnostics-anchor".to_string(),
-                anchor_label: "Pose diagnostics product module and migration".to_string(),
+                anchor_label: "Pose diagnostics product module and schema projection".to_string(),
                 expected_product_path:
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                 verification_status: AnchorVerificationStatus::Verified,
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
-                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
-                        .to_string(),
+                    "src/backend/handshake_core/src/storage/surreal/schema.surql".to_string(),
                     "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
@@ -676,6 +663,153 @@ pub fn pose_media_anchor_verification_matrix(
         ],
     }
 }
+
+#[derive(SurrealValue)]
+struct SourceEvidenceRow {
+    source_id: String,
+    matrix_id: String,
+    source_label: String,
+    source_ref: String,
+    product_area: String,
+    maturity_status: String,
+    implementation_status: String,
+    evidence_refs: Vec<String>,
+    proof_refs: Vec<String>,
+    gap_reason: Option<String>,
+    updated_at_utc: Datetime,
+}
+
+impl TryFrom<SourceEvidenceRow> for SourceEvidenceRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: SourceEvidenceRow) -> AtelierResult<Self> {
+        Ok(Self {
+            source_id: row.source_id,
+            matrix_id: row.matrix_id,
+            source_label: row.source_label,
+            source_ref: row.source_ref,
+            product_area: row.product_area,
+            maturity_status: SourceMaturityStatus::from_token(&row.maturity_status)?,
+            implementation_status: row.implementation_status,
+            evidence_refs: row.evidence_refs,
+            proof_refs: row.proof_refs,
+            gap_reason: row.gap_reason,
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct AnchorVerificationRow {
+    anchor_id: String,
+    matrix_id: String,
+    source_id: String,
+    anchor_label: String,
+    expected_product_path: String,
+    verification_status: String,
+    verified_product_paths: Vec<String>,
+    blocking_reason: Option<String>,
+    updated_at_utc: Datetime,
+}
+
+impl TryFrom<AnchorVerificationRow> for AnchorVerificationRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: AnchorVerificationRow) -> AtelierResult<Self> {
+        Ok(Self {
+            anchor_id: row.anchor_id,
+            matrix_id: row.matrix_id,
+            source_id: row.source_id,
+            anchor_label: row.anchor_label,
+            expected_product_path: row.expected_product_path,
+            verification_status: AnchorVerificationStatus::from_token(&row.verification_status)?,
+            verified_product_paths: row.verified_product_paths,
+            blocking_reason: row.blocking_reason,
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct SourceEvidenceInput {
+    source_id: String,
+    source_label: String,
+    source_ref: String,
+    product_area: String,
+    maturity_status: String,
+    implementation_status: String,
+    evidence_refs: Vec<String>,
+    proof_refs: Vec<String>,
+    gap_reason: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AnchorVerificationInput {
+    anchor_id: String,
+    source_id: String,
+    anchor_label: String,
+    expected_product_path: String,
+    verification_status: String,
+    verified_product_paths: Vec<String>,
+    blocking_reason: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordMatrixBindings {
+    matrix_id: String,
+    source_ids: Vec<String>,
+    anchor_ids: Vec<String>,
+    sources: Vec<SourceEvidenceInput>,
+    anchors: Vec<AnchorVerificationInput>,
+}
+
+#[derive(SurrealValue)]
+struct MatrixIdBinding {
+    matrix_id: String,
+}
+
+const RECORD_MATRIX_STATEMENT: &str = concat!(
+    "RETURN { \
+       DELETE atelier_anchor_verification_record \
+         WHERE matrix_id = $domain.matrix_id AND anchor_id NOT IN $domain.anchor_ids; \
+       DELETE atelier_source_evidence_record \
+         WHERE matrix_id = $domain.matrix_id AND source_id NOT IN $domain.source_ids; \
+       FOR $source IN $domain.sources { \
+         LET $rid = type::record('atelier_source_evidence_record', \
+                                [$domain.matrix_id, $source.source_id]); \
+         UPSERT $rid SET source_id = $source.source_id, matrix_id = $domain.matrix_id, \
+           source_label = $source.source_label, source_ref = $source.source_ref, \
+           product_area = $source.product_area, maturity_status = $source.maturity_status, \
+           implementation_status = $source.implementation_status, \
+           evidence_refs = $source.evidence_refs, proof_refs = $source.proof_refs, \
+           gap_reason = $source.gap_reason, updated_at_utc = time::now(); \
+       }; \
+       FOR $anchor IN $domain.anchors { \
+         LET $rid = type::record('atelier_anchor_verification_record', \
+                                [$domain.matrix_id, $anchor.anchor_id]); \
+         LET $source_ref = type::record('atelier_source_evidence_record', \
+                                       [$domain.matrix_id, $anchor.source_id]); \
+         UPSERT $rid SET anchor_id = $anchor.anchor_id, matrix_id = $domain.matrix_id, \
+           source_id = $source_ref, anchor_label = $anchor.anchor_label, \
+           expected_product_path = $anchor.expected_product_path, \
+           verification_status = $anchor.verification_status, \
+           verified_product_paths = $anchor.verified_product_paths, \
+           blocking_reason = $anchor.blocking_reason, updated_at_utc = time::now(); \
+       }; ",
+    atelier_event_sql!(),
+    " RETURN true; };"
+);
+
+const GET_SOURCES_STATEMENT: &str =
+    "SELECT source_id, matrix_id, source_label, source_ref, product_area, maturity_status, \
+            implementation_status, evidence_refs, proof_refs, gap_reason, updated_at_utc \
+     FROM atelier_source_evidence_record WHERE matrix_id = $matrix_id ORDER BY source_id;";
+
+const GET_ANCHORS_STATEMENT: &str =
+    "SELECT anchor_id, matrix_id, record::id(source_id)[1] AS source_id, anchor_label, \
+            expected_product_path, verification_status, verified_product_paths, \
+            blocking_reason, updated_at_utc \
+     FROM atelier_anchor_verification_record WHERE matrix_id = $matrix_id ORDER BY anchor_id;";
 
 impl AtelierStore {
     pub async fn record_source_evidence_matrix(
@@ -697,7 +831,6 @@ impl AtelierStore {
             })
             .count();
 
-        let mut tx = self.pool().begin().await?;
         let source_ids = input
             .sources
             .iter()
@@ -708,108 +841,63 @@ impl AtelierStore {
             .iter()
             .map(|anchor| anchor.anchor_id.clone())
             .collect::<Vec<_>>();
-        sqlx::query(
-            r#"DELETE FROM atelier_anchor_verification_record
-               WHERE matrix_id = $1
-                 AND NOT (anchor_id = ANY($2::text[]))"#,
-        )
-        .bind(&input.matrix_id)
-        .bind(&anchor_ids)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
-            r#"DELETE FROM atelier_source_evidence_record
-               WHERE matrix_id = $1
-                 AND NOT (source_id = ANY($2::text[]))"#,
-        )
-        .bind(&input.matrix_id)
-        .bind(&source_ids)
-        .execute(&mut *tx)
-        .await?;
-        for source in &input.sources {
-            let evidence_refs = serde_json::to_value(&source.evidence_refs)
-                .map_err(|err| AtelierError::Validation(err.to_string()))?;
-            let proof_refs = serde_json::to_value(&source.proof_refs)
-                .map_err(|err| AtelierError::Validation(err.to_string()))?;
-            sqlx::query(
-                r#"INSERT INTO atelier_source_evidence_record (
-                       source_id, matrix_id, source_label, source_ref, product_area,
-                       maturity_status, implementation_status, evidence_refs, proof_refs,
-                       gap_reason, updated_at_utc
-                   )
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, NOW())
-                   ON CONFLICT (matrix_id, source_id) DO UPDATE SET
-                       source_label = EXCLUDED.source_label,
-                       source_ref = EXCLUDED.source_ref,
-                       product_area = EXCLUDED.product_area,
-                       maturity_status = EXCLUDED.maturity_status,
-                       implementation_status = EXCLUDED.implementation_status,
-                       evidence_refs = EXCLUDED.evidence_refs,
-                       proof_refs = EXCLUDED.proof_refs,
-                       gap_reason = EXCLUDED.gap_reason,
-                       updated_at_utc = NOW()"#,
+        let sources = input
+            .sources
+            .iter()
+            .map(|source| SourceEvidenceInput {
+                source_id: source.source_id.clone(),
+                source_label: source.source_label.clone(),
+                source_ref: source.source_ref.clone(),
+                product_area: source.product_area.clone(),
+                maturity_status: source.maturity_status.as_token().to_owned(),
+                implementation_status: source.implementation_status.clone(),
+                evidence_refs: source.evidence_refs.clone(),
+                proof_refs: source.proof_refs.clone(),
+                gap_reason: source.gap_reason.clone(),
+            })
+            .collect();
+        let anchors = input
+            .anchors
+            .iter()
+            .map(|anchor| AnchorVerificationInput {
+                anchor_id: anchor.anchor_id.clone(),
+                source_id: anchor.source_id.clone(),
+                anchor_label: anchor.anchor_label.clone(),
+                expected_product_path: anchor.expected_product_path.clone(),
+                verification_status: anchor.verification_status.as_token().to_owned(),
+                verified_product_paths: anchor.verified_product_paths.clone(),
+                blocking_reason: anchor.blocking_reason.clone(),
+            })
+            .collect();
+        let bindings = RecordMatrixBindings {
+            matrix_id: input.matrix_id.clone(),
+            source_ids,
+            anchor_ids,
+            sources,
+            anchors,
+        };
+        let recorded: Option<bool> = self
+            .write_with_event(
+                RECORD_MATRIX_STATEMENT,
+                bindings,
+                source_evidence_event_family::SOURCE_EVIDENCE_MATRIX_RECORDED,
+                "atelier_source_evidence_matrix",
+                &input.matrix_id,
+                serde_json::json!({
+                    "matrix_id": input.matrix_id,
+                    "recorded_by": input.recorded_by,
+                    "source_count": evidence_count,
+                    "verified_anchor_count": verified_anchor_count,
+                    "blocked_missing_anchor_count": blocked_anchor_count,
+                    "schema": "hsk.atelier.source_evidence_matrix@1",
+                }),
             )
-            .bind(&source.source_id)
-            .bind(&input.matrix_id)
-            .bind(&source.source_label)
-            .bind(&source.source_ref)
-            .bind(&source.product_area)
-            .bind(source.maturity_status.as_token())
-            .bind(&source.implementation_status)
-            .bind(evidence_refs)
-            .bind(proof_refs)
-            .bind(source.gap_reason.as_deref())
-            .execute(&mut *tx)
             .await?;
+        if recorded != Some(true) {
+            return Err(AtelierError::Internal(
+                "recording source evidence matrix returned no result".to_owned(),
+            ));
         }
-
-        for anchor in &input.anchors {
-            let verified_product_paths = serde_json::to_value(&anchor.verified_product_paths)
-                .map_err(|err| AtelierError::Validation(err.to_string()))?;
-            sqlx::query(
-                r#"INSERT INTO atelier_anchor_verification_record (
-                       anchor_id, matrix_id, source_id, anchor_label, expected_product_path,
-                       verification_status, verified_product_paths, blocking_reason,
-                       updated_at_utc
-                   )
-                   VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, NOW())
-                   ON CONFLICT (matrix_id, anchor_id) DO UPDATE SET
-                       source_id = EXCLUDED.source_id,
-                       anchor_label = EXCLUDED.anchor_label,
-                       expected_product_path = EXCLUDED.expected_product_path,
-                       verification_status = EXCLUDED.verification_status,
-                       verified_product_paths = EXCLUDED.verified_product_paths,
-                       blocking_reason = EXCLUDED.blocking_reason,
-                       updated_at_utc = NOW()"#,
-            )
-            .bind(&anchor.anchor_id)
-            .bind(&input.matrix_id)
-            .bind(&anchor.source_id)
-            .bind(&anchor.anchor_label)
-            .bind(&anchor.expected_product_path)
-            .bind(anchor.verification_status.as_token())
-            .bind(verified_product_paths)
-            .bind(anchor.blocking_reason.as_deref())
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        self.record_event_in_tx(
-            &mut tx,
-            source_evidence_event_family::SOURCE_EVIDENCE_MATRIX_RECORDED,
-            "atelier_source_evidence_matrix",
-            &input.matrix_id,
-            serde_json::json!({
-                "matrix_id": input.matrix_id,
-                "recorded_by": input.recorded_by,
-                "source_count": evidence_count,
-                "verified_anchor_count": verified_anchor_count,
-                "blocked_missing_anchor_count": blocked_anchor_count,
-                "schema": "hsk.atelier.source_evidence_matrix@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
 
         self.get_source_evidence_matrix(&input.matrix_id).await
     }
@@ -819,27 +907,30 @@ impl AtelierStore {
         matrix_id: &str,
     ) -> AtelierResult<SourceEvidenceMatrix> {
         let matrix_id = validate_token("matrix_id", matrix_id)?;
-        let source_rows = sqlx::query(
-            r#"SELECT source_id, matrix_id, source_label, source_ref, product_area,
-                      maturity_status, implementation_status, evidence_refs, proof_refs,
-                      gap_reason, updated_at_utc
-               FROM atelier_source_evidence_record
-               WHERE matrix_id = $1
-               ORDER BY source_id"#,
-        )
-        .bind(&matrix_id)
-        .fetch_all(self.pool())
-        .await?;
-        let anchor_rows = sqlx::query(
-            r#"SELECT anchor_id, matrix_id, source_id, anchor_label, expected_product_path,
-                      verification_status, verified_product_paths, blocking_reason, updated_at_utc
-               FROM atelier_anchor_verification_record
-               WHERE matrix_id = $1
-               ORDER BY anchor_id"#,
-        )
-        .bind(&matrix_id)
-        .fetch_all(self.pool())
-        .await?;
+        let source_bindings = MatrixIdBinding {
+            matrix_id: matrix_id.clone(),
+        };
+        let source_rows: Vec<SourceEvidenceRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(GET_SOURCES_STATEMENT, source_bindings)
+                        .await
+                })
+            })
+            .await?;
+        let anchor_bindings = MatrixIdBinding {
+            matrix_id: matrix_id.clone(),
+        };
+        let anchor_rows: Vec<AnchorVerificationRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(GET_ANCHORS_STATEMENT, anchor_bindings)
+                        .await
+                })
+            })
+            .await?;
 
         if source_rows.is_empty() {
             return Err(AtelierError::NotFound(format!(
@@ -847,39 +938,14 @@ impl AtelierStore {
             )));
         }
 
-        let mut sources = Vec::with_capacity(source_rows.len());
-        for row in source_rows {
-            sources.push(SourceEvidenceRecord {
-                source_id: row.get("source_id"),
-                matrix_id: row.get("matrix_id"),
-                source_label: row.get("source_label"),
-                source_ref: row.get("source_ref"),
-                product_area: row.get("product_area"),
-                maturity_status: SourceMaturityStatus::from_token(row.get("maturity_status"))?,
-                implementation_status: row.get("implementation_status"),
-                evidence_refs: jsonb_string_array(row.get("evidence_refs"))?,
-                proof_refs: jsonb_string_array(row.get("proof_refs"))?,
-                gap_reason: row.get("gap_reason"),
-                updated_at_utc: row.get("updated_at_utc"),
-            });
-        }
-
-        let mut anchors = Vec::with_capacity(anchor_rows.len());
-        for row in anchor_rows {
-            anchors.push(AnchorVerificationRecord {
-                anchor_id: row.get("anchor_id"),
-                matrix_id: row.get("matrix_id"),
-                source_id: row.get("source_id"),
-                anchor_label: row.get("anchor_label"),
-                expected_product_path: row.get("expected_product_path"),
-                verification_status: AnchorVerificationStatus::from_token(
-                    row.get("verification_status"),
-                )?,
-                verified_product_paths: jsonb_string_array(row.get("verified_product_paths"))?,
-                blocking_reason: row.get("blocking_reason"),
-                updated_at_utc: row.get("updated_at_utc"),
-            });
-        }
+        let sources = source_rows
+            .into_iter()
+            .map(SourceEvidenceRecord::try_from)
+            .collect::<AtelierResult<Vec<_>>>()?;
+        let anchors = anchor_rows
+            .into_iter()
+            .map(AnchorVerificationRecord::try_from)
+            .collect::<AtelierResult<Vec<_>>>()?;
 
         Ok(SourceEvidenceMatrix {
             matrix_id,
@@ -1005,9 +1071,4 @@ fn validate_ref_list(field: &str, values: &[String]) -> AtelierResult<()> {
         validate_ref(field, value)?;
     }
     Ok(())
-}
-
-fn jsonb_string_array(value: serde_json::Value) -> AtelierResult<Vec<String>> {
-    serde_json::from_value(value)
-        .map_err(|err| AtelierError::Validation(format!("expected JSON string array: {err}")))
 }

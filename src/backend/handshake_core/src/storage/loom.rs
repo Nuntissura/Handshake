@@ -645,7 +645,7 @@ pub struct LoomGraphSearchResult {
 }
 
 // =============================================================================
-// LoomSearchV2 (WP-KERNEL-009 MT-264) — Postgres-native hybrid search over the
+// LoomSearchV2 (WP-KERNEL-009 MT-264) — SurrealDB-native hybrid search over the
 // derived loom_block_search_index projection.
 // =============================================================================
 
@@ -745,7 +745,7 @@ pub struct QuickSwitcherRecent {
 // MT-191 LoomVisualDebugViews
 //
 // A bounded backend debug payload for no-context models and visual-debug
-// surfaces. This is a projection over Loom authority rows (PostgreSQL +
+// surfaces. This is a projection over Loom authority rows (SurrealDB +
 // EventLedger bridge evidence), never a parallel graph/search store and never a
 // full-content export.
 // ---------------------------------------------------------------------------
@@ -870,7 +870,7 @@ pub struct LoomVisualDebugSnapshot {
 // The authority binding that makes the Loom surface resolve to the
 // ProjectKnowledgeIndex (knowledge_entities) + EventLedger, rather than living
 // as a parallel store. Per Master Spec §10.12 #9.1.1 (WP-KERNEL-009 authority
-// supersession) the ONLY authority path is PostgreSQL + EventLedger; this is
+// supersession) the ONLY authority path is embedded SurrealDB + EventLedger; this is
 // the positive binding for that rule.
 // ---------------------------------------------------------------------------
 
@@ -882,20 +882,18 @@ pub struct LoomVisualDebugSnapshot {
 /// SurrealDB store is the only reachable backend and this enum makes that
 /// explicit and assertable in tests.
 ///
-/// The variant identifier and its `postgres_event_ledger` wire form are legacy
-/// names kept unchanged because they are serialized and asserted by existing
-/// tests; they no longer describe the backing engine.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LoomAuthorityBackend {
     /// The embedded store + EventLedger — the sole WP-009 Loom authority.
-    PostgresEventLedger,
+    #[serde(alias = "postgres_event_ledger")]
+    SurrealEventLedger,
 }
 
 impl LoomAuthorityBackend {
     pub fn as_str(&self) -> &'static str {
         match self {
-            LoomAuthorityBackend::PostgresEventLedger => "postgres_event_ledger",
+            LoomAuthorityBackend::SurrealEventLedger => "surreal_event_ledger",
         }
     }
 
@@ -903,7 +901,7 @@ impl LoomAuthorityBackend {
     /// a cache / offline / sidecar). Always true: the only variant is the
     /// embedded store + EventLedger authority.
     pub fn is_authority(&self) -> bool {
-        matches!(self, LoomAuthorityBackend::PostgresEventLedger)
+        matches!(self, LoomAuthorityBackend::SurrealEventLedger)
     }
 }
 
@@ -935,7 +933,7 @@ pub struct LoomKnowledgeBridge {
 // context snippet, PLUS unlinked mentions — text occurrences of a block's
 // title/aliases that are NOT yet formal links, surfaced so one click converts
 // them to edges (Obsidian unlinked-mentions idiom; feeds the Unlinked view).
-// Authority is the loom_edges + loom_blocks Postgres store (no parallel index).
+// Authority is the embedded loom_edges + loom_blocks store (no parallel index).
 // ---------------------------------------------------------------------------
 
 /// A linked backlink: an incoming `LoomEdge` (MENTION/TAG/...) together with the
@@ -979,7 +977,7 @@ pub const LOOM_SNIPPET_CONTEXT_CHARS: usize = 48;
 // with filters/edge-types/depth/stale-markers/source-citations) and §7.1.4.3 /
 // [LM-GRAPH-002] (project global graph with performance limits + hub
 // suppression). Authority = loom_edges + loom_blocks (+ the MT-177 bridge for
-// citations). These are read projections over Postgres; never a parallel store.
+// citations). These are read projections over SurrealDB; never a parallel store.
 // ---------------------------------------------------------------------------
 
 /// A node in a Loom graph projection.
@@ -1145,7 +1143,7 @@ pub fn loom_find_unlinked_term(text: &str, term: &str) -> Option<(usize, usize)>
 //
 // Master Spec §7.1.4.3 / MT-181: a persistent Loom folder hierarchy with color
 // labels, sort modes, and project membership ("links are the new folders" but
-// an explicit tree is still offered). Authority = PostgreSQL (loom_folders +
+// an explicit tree is still offered). Authority = SurrealDB (loom_folders +
 // loom_folder_members). An organizational overlay over LoomBlocks, never a
 // second source of block truth.
 // ---------------------------------------------------------------------------
@@ -1438,7 +1436,7 @@ pub struct LoomCanvasStageCompensation {
 // `loom_edges` (via create_loom_edge); visual-only edges are board-local
 // decoration that is EXPLICITLY NOT graph authority. Board state (viewport) is
 // JSONB on the canvas row, mirroring the 0323 workbench-layout-state precedent.
-// Authority = PostgreSQL + EventLedger; the React canvas is a projection only.
+// Authority = SurrealDB + EventLedger; the React canvas is a projection only.
 //
 // TRAP GUARD: this is the NEW LoomBoard, NOT the legacy Excalidraw sketch canvas
 // (`canvas_nodes`/`canvas_edges`, migration 0005), which stores content COPIES.
@@ -1863,18 +1861,9 @@ mod mt046_ckc_content_type_tests {
     }
 
     #[test]
-    fn migration_0337_widens_check_to_include_ckc_types() {
-        // The migration must exist and admit both CKC content types so a
-        // loom_blocks INSERT with content_type in {ckc_moodboard, ckc_character}
-        // passes the loom_blocks_content_type_check constraint.
-        let up = include_str!("../../migrations/0337_loom_ckc_content_types.sql");
-        assert!(up.contains("loom_blocks_content_type_check"));
-        assert!(up.contains("'ckc_moodboard'"));
-        assert!(up.contains("'ckc_character'"));
-        let down = include_str!("../../migrations/0337_loom_ckc_content_types.down.sql");
-        // The down migration restores the pre-CKC allow-list (no CKC literals).
-        assert!(down.contains("loom_blocks_content_type_check"));
-        assert!(!down.contains("ckc_moodboard"));
-        assert!(!down.contains("ckc_character"));
+    fn declarative_schema_allows_ckc_content_types() {
+        let schema = include_str!("surreal/schema.surql");
+        let content_type = "DEFINE FIELD OVERWRITE content_type ON TABLE loom_blocks TYPE 'note' | 'file' | 'annotated_file' | 'tag_hub' | 'journal' | 'canvas' | 'view_def' | 'ckc_moodboard' | 'ckc_character';";
+        assert!(schema.lines().any(|line| line == content_type));
     }
 }

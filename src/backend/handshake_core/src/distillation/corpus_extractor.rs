@@ -12,14 +12,14 @@
 //!
 //! Architecture:
 //! - [`SessionMetadataSource`] trait abstracts the
-//!   `governed_sessions.distill_corpus` Postgres lookup so concrete
+//!   `governed_sessions.distill_corpus` embedded-store lookup so concrete
 //!   storage wiring can land in a follow-on without touching this
 //!   extraction logic.
 //! - [`EventLedgerSource`] trait abstracts the FlightRecorder
 //!   `LlmInference` event query (filtered to `FR-EVT-LLM-INFER-START`,
 //!   `FR-EVT-LLM-INFER-TOKEN`, `FR-EVT-LLM-INFER-END` triples).
 //! - [`CorpusExtractor::extract`] enforces opt-in default-deny THEN
-//!   replays events into [`TrainingTurn`] rows. The Postgres flag
+//!   replays events into [`TrainingTurn`] rows. The embedded-store flag
 //!   lookup happens before any event read (no in-memory shortcut per
 //!   MT-119 red_team minimum_controls).
 
@@ -93,9 +93,9 @@ pub enum ExtractionError {
     EmptyLicenseTag,
 }
 
-/// Abstraction over the Postgres `governed_sessions.distill_corpus`
-/// lookup. Concrete impls wire to sqlx; mock impls drive the unit
-/// tests. Required by MT-119 red_team: "Postgres flag lookup before
+/// Abstraction over the embedded `governed_sessions.distill_corpus`
+/// lookup. Concrete implementations wire to SurrealDB; mock implementations
+/// drive the unit tests. Required by MT-119 red_team: "durable flag lookup before
 /// extraction (no in-memory shortcut)" — the production impl reads the
 /// flag at extract time, NOT from a cached in-process value.
 pub trait SessionMetadataSource {
@@ -197,7 +197,7 @@ pub fn assemble_turns(
 /// The extractor wires a [`SessionMetadataSource`] and an
 /// [`EventLedgerSource`] together. The constructor takes ownership of
 /// both so tests can inject mocks and production can wire real
-/// Postgres + FlightRecorder.
+/// SurrealDB + FlightRecorder.
 pub struct CorpusExtractor<S: SessionMetadataSource, L: EventLedgerSource> {
     metadata: S,
     ledger: L,
@@ -209,7 +209,7 @@ impl<S: SessionMetadataSource, L: EventLedgerSource> CorpusExtractor<S, L> {
     }
 
     /// Extract the training corpus for `session_id`. Default-deny on the
-    /// opt-in flag (Postgres lookup happens BEFORE any event read).
+    /// opt-in flag (the embedded-store lookup happens BEFORE any event read).
     /// `license_tag` is inherited from the model artifact + active LoRA
     /// stack and is stamped on every turn for downstream Skill Bank
     /// license discipline.
@@ -316,7 +316,7 @@ mod tests {
             }
             other => panic!("expected NotOptedIn, got {other:?}"),
         }
-        // Metadata lookup happened (Postgres flag lookup BEFORE event read).
+        // Metadata lookup happened (durable flag lookup BEFORE event read).
         assert_eq!(extractor.metadata.lookup_calls.borrow().len(), 1);
         // Event ledger NOT queried because metadata refused.
         assert!(extractor.ledger.query_calls.borrow().is_empty());

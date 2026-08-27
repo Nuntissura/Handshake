@@ -3,9 +3,8 @@
 //! machine-local `root_path` and reads back the total number of symbols the
 //! index produced (`symbol_count`).
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-137): this surface still binds
-//! `sqlx` against the deleted relational backend and does not compile today.
-//! Handshake's only database is the embedded SurrealDB store.
+//! This surface uses Handshake's shared embedded SurrealDB store; no
+//! relational database or compatibility fallback participates in indexing.
 //!
 //! This is NOT a thin adapter. It genuinely, over single-store/EventLedger
 //! authority (no SQLite):
@@ -48,15 +47,15 @@ use crate::knowledge_code_index::config_schema::detect_config_format;
 use crate::knowledge_code_index::engine::{read_and_index, CodeIndexContext, CodeIndexEngine};
 use crate::knowledge_code_index::parser::detect_code_language;
 use crate::knowledge_code_index::CodeIndexError;
+use crate::knowledge_ingestion::backpressure::IngestionLimits;
 use crate::knowledge_ingestion::engine::{
     IngestionContext, IngestionEngine, RootRegistrationRequest,
 };
-use crate::knowledge_ingestion::backpressure::IngestionLimits;
 use crate::knowledge_ingestion::IngestionError;
+use crate::storage::configured_surreal_operation_concurrency;
 use crate::storage::knowledge::KnowledgeRootKind;
 use crate::storage::knowledge::{KnowledgeIndexRunCounts, KnowledgeIndexRunOutcome};
-use crate::storage::postgres::PostgresDatabase;
-use crate::storage::configured_postgres_parallelism;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageError;
 use crate::AppState;
 
@@ -257,7 +256,7 @@ async fn index_workspace_code(
     let anchor = PathBuf::from(root_path);
 
     // One shared pooled handle backs both engines (no reconnect).
-    let db = Arc::new(PostgresDatabase::new(state.postgres_pool.clone()));
+    let db = Arc::new(SurrealDatabase::new(state.surreal.clone()));
     let ingestion = IngestionEngine::from_database(db.clone());
     let code_index = Arc::new(CodeIndexEngine::from_database(db));
 
@@ -305,9 +304,9 @@ async fn index_workspace_code(
 
     // The ingestion pass remains ordered so source lifecycle and stale-source
     // detection retain their canonical semantics. Code indexing is independent
-    // per source, however, and each operation uses the shared PostgreSQL pool.
-    // Keep a small bounded fan-out so the route makes progress on the managed
-    // pool without opening an unbounded task/connection storm.
+    // per source, however, and each operation uses the shared embedded
+    // SurrealDB handle. Keep a small bounded fan-out so the route makes
+    // progress without opening an unbounded task/query storm.
     let index_inputs: Vec<(String, String)> = persisted_sources
         .clone()
         .into_iter()
@@ -381,7 +380,7 @@ async fn index_workspace_code(
                         .map_err(code_index_error)
                     }
                 })
-                .buffer_unordered(configured_postgres_parallelism())
+                .buffer_unordered(configured_surreal_operation_concurrency())
                 .collect::<Vec<_>>()
                 .await
         }

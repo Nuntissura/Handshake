@@ -19,10 +19,10 @@
 //!   * `MtLoopControl`       — orchestration helpers (record + resume)
 //!   * `LoopControlError`    — typed budget / size violations (no silent
 //!                              continuation; spec line 6147 invariant)
-//!   * `MtLoopCheckpointRepo` — Postgres-backed persistence (FK to
-//!                              `kernel_micro_task_job(job_id)` ON DELETE
-//!                              CASCADE; CHECK constraint enforces summary
-//!                              bound at the DB level too).
+//!   * `MtLoopCheckpointRepo` — embedded-store persistence (`job_id` is a
+//!                              `record<kernel_micro_task_job>` REFERENCE with
+//!                              ON DELETE CASCADE; a schema ASSERT enforces the
+//!                              summary bound at the store level too).
 //!
 //! Wire-form note for `evidence_pointers`:
 //!   The on-disk JSONB column stores `Vec<EvidencePointer>` per the contract
@@ -38,10 +38,10 @@
 //!   * Verifier-feedback history is append-only inside a single
 //!     `record_checkpoint` call (callers pass `prior_history` and the new
 //!     checkpoint carries a strictly longer chain when feedback is appended).
-//!     The Postgres repo enforces the same shape at write time by binding
-//!     `verifier_feedback_history` as the full JSONB array; concurrent
-//!     writers cannot blind-drop earlier entries because the prior history
-//!     is read inside the same transaction.
+//!     The store repo enforces the same shape at write time by binding
+//!     `verifier_feedback_history` as the full array on an append-only row;
+//!     checkpoints are immutable records, so concurrent writers cannot
+//!     blind-drop earlier entries.
 //!   * `record_checkpoint` is a pure function on `MicroTaskJob` + budget +
 //!     prior history. Persistence is a separate concern (the
 //!     `MtLoopCheckpointRepo::persist` step) so a fresh executor can rebuild
@@ -54,21 +54,27 @@
 
 use chrono::{DateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::types::{RecordId, SurrealValue};
 use thiserror::Error;
 use uuid::Uuid;
 
 use crate::mt_executor::job::{CompletionSignal, EscalationTier, MicroTaskJob, MicroTaskJobId};
+use crate::mt_executor::queue::job_record;
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 /// Evidence pointer reused from the MT-179 mailbox-family surface so loop
 /// checkpoints and mailbox `micro_task_*` payloads share the same wire form.
 pub use crate::role_mailbox_v1::families::EvidencePointer;
 
-/// Bound on the `compact_summary` field. Mirrored as a CHECK constraint in
-/// `migrations/0023_micro_task_job_queue.sql`
-/// (`CONSTRAINT compact_summary_bound CHECK (octet_length(compact_summary) <= 2048)`).
+/// Bound on the `compact_summary` field. Mirrored as a schema ASSERT in
+/// `storage/surreal/schema.surql`
+/// (`ASSERT bytes::len(<bytes>$value) <= 2048` on `compact_summary`).
 pub const COMPACT_SUMMARY_MAX_BYTES: usize = 2048;
 
-fn now_utc_postgres_precision() -> DateTime<Utc> {
+/// Microsecond-truncated now. The wire form predates the embedded store (the
+/// previous backend stored microsecond timestamps) and is kept so checkpoint
+/// ordering and equality comparisons stay stable across the port.
+fn now_utc_micros_precision() -> DateTime<Utc> {
     let now = Utc::now();
     let nanos = now.timestamp_subsec_nanos();
     now.with_nanosecond(nanos - (nanos % 1_000)).unwrap_or(now)
@@ -212,7 +218,7 @@ impl MtLoopControl {
             verifier_feedback_history: prior_history,
             compact_summary,
             evidence_pointers,
-            created_at_utc: now_utc_postgres_precision(),
+            created_at_utc: now_utc_micros_precision(),
             created_by_session: session_id,
         })
     }
@@ -283,64 +289,164 @@ impl MtLoopControl {
     }
 }
 
-// ---------------------------- Postgres-backed repo --------------------------
+// ---------------------------- store-backed repo ------------------------------
 
-/// Postgres-backed checkpoint repository. Writes to `kernel_mt_loop_checkpoint`
-/// declared in `migrations/0023_micro_task_job_queue.sql` with FK
-/// `job_id REFERENCES kernel_micro_task_job(job_id) ON DELETE CASCADE` and
-/// `CONSTRAINT compact_summary_bound CHECK (octet_length(compact_summary) <= 2048)`.
-#[derive(Debug, Clone)]
+/// Embedded-store checkpoint repository. Writes to `kernel_mt_loop_checkpoint`
+/// declared in `storage/surreal/schema.surql`; `job_id` is a
+/// `record<kernel_micro_task_job>` REFERENCE with ON DELETE CASCADE and the
+/// compact-summary byte bound is a schema ASSERT, so both previous DB-level
+/// constraints survive the port.
+#[derive(Clone)]
 pub struct MtLoopCheckpointRepo {
-    pool: sqlx::PgPool,
+    storage: SurrealStorage,
 }
 
 #[derive(Debug, Error)]
 pub enum CheckpointRepoError {
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("storage error: {0}")]
+    Storage(#[from] SurrealStorageError),
     #[error("serde error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error("loop control: {0}")]
     LoopControl(#[from] LoopControlError),
+    #[error("checkpoint parse: {0}")]
+    Parse(String),
 }
 
-impl MtLoopCheckpointRepo {
-    pub fn new(pool: sqlx::PgPool) -> Self {
-        Self { pool }
+/// One `kernel_mt_loop_checkpoint` record; mirrors the `SCHEMAFULL` table.
+#[derive(Debug, Clone, SurrealValue)]
+struct LoopCheckpointRow {
+    checkpoint_id: Uuid,
+    job_id: RecordId,
+    iteration_n: i64,
+    state_at_checkpoint: serde_json::Value,
+    retry_budget_remaining: i64,
+    verifier_feedback_history: Vec<serde_json::Value>,
+    compact_summary: String,
+    evidence_pointers: Vec<serde_json::Value>,
+    created_at_utc: DateTime<Utc>,
+    created_by_session: Uuid,
+}
+
+impl LoopCheckpointRow {
+    fn from_checkpoint(checkpoint: &MtLoopCheckpoint) -> Result<Self, CheckpointRepoError> {
+        Ok(Self {
+            checkpoint_id: checkpoint.checkpoint_id,
+            job_id: job_record(checkpoint.job_id.as_uuid()),
+            iteration_n: i64::from(checkpoint.iteration_n),
+            state_at_checkpoint: serde_json::to_value(&checkpoint.state_at_checkpoint)?,
+            retry_budget_remaining: i64::from(checkpoint.retry_budget_remaining),
+            verifier_feedback_history: checkpoint
+                .verifier_feedback_history
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<_, _>>()?,
+            compact_summary: checkpoint.compact_summary.clone(),
+            evidence_pointers: checkpoint
+                .evidence_pointers
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<_, _>>()?,
+            created_at_utc: checkpoint.created_at_utc,
+            created_by_session: checkpoint.created_by_session,
+        })
     }
 
-    pub fn pool(&self) -> &sqlx::PgPool {
-        &self.pool
+    fn into_checkpoint(self) -> Result<MtLoopCheckpoint, CheckpointRepoError> {
+        let state: MtLoopState = serde_json::from_value(self.state_at_checkpoint)?;
+        let history: Vec<VerifierFeedbackRef> =
+            serde_json::from_value(serde_json::Value::Array(self.verifier_feedback_history))?;
+        let pointers: Vec<EvidencePointer> =
+            serde_json::from_value(serde_json::Value::Array(self.evidence_pointers))?;
+        let job_uuid = match &self.job_id.key {
+            surrealdb::types::RecordIdKey::Uuid(value) => value.into_inner(),
+            other => {
+                return Err(CheckpointRepoError::Parse(format!(
+                    "job record id key is not a uuid: {other:?}"
+                )))
+            }
+        };
+        Ok(MtLoopCheckpoint {
+            checkpoint_id: self.checkpoint_id,
+            job_id: MicroTaskJobId(job_uuid),
+            iteration_n: u32::try_from(self.iteration_n).unwrap_or(u32::MAX),
+            state_at_checkpoint: state,
+            retry_budget_remaining: u32::try_from(self.retry_budget_remaining).unwrap_or(u32::MAX),
+            verifier_feedback_history: history,
+            compact_summary: self.compact_summary,
+            evidence_pointers: pointers,
+            created_at_utc: self.created_at_utc,
+            created_by_session: self.created_by_session,
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct CreateCheckpointBindings {
+    record: RecordId,
+    content: surrealdb::types::Value,
+}
+
+#[derive(SurrealValue)]
+struct CheckpointIdBinding {
+    checkpoint_id: Uuid,
+}
+
+#[derive(SurrealValue)]
+struct JobRecordBinding {
+    job: RecordId,
+}
+
+const CHECKPOINT_TABLE: &str = "kernel_mt_loop_checkpoint";
+
+impl MtLoopCheckpointRepo {
+    pub fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
+    }
+
+    pub fn storage(&self) -> &SurrealStorage {
+        &self.storage
+    }
+
+    async fn query<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Send + 'static,
+    {
+        self.storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values(statement, bindings).await })
+            })
+            .await
     }
 
     /// Insert one checkpoint. Pre-validates against the budget so a runaway
-    /// loop fails before we round-trip to the DB.
+    /// loop fails before we round-trip to the store. `CREATE` (not `UPSERT`)
+    /// keeps the append-only contract: a duplicate checkpoint id fails
+    /// exactly as the original INSERT did.
     pub async fn persist(&self, checkpoint: &MtLoopCheckpoint) -> Result<(), CheckpointRepoError> {
         if checkpoint.compact_summary.as_bytes().len() > COMPACT_SUMMARY_MAX_BYTES {
             return Err(CheckpointRepoError::LoopControl(
                 LoopControlError::SummaryTooLarge(checkpoint.compact_summary.as_bytes().len()),
             ));
         }
-        sqlx::query(
-            r#"INSERT INTO kernel_mt_loop_checkpoint
-               (checkpoint_id, job_id, iteration_n, state_at_checkpoint,
-                retry_budget_remaining, verifier_feedback_history,
-                compact_summary, evidence_pointers,
-                created_at_utc, created_by_session)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
-        )
-        .bind(checkpoint.checkpoint_id)
-        .bind(checkpoint.job_id.as_uuid())
-        .bind(checkpoint.iteration_n as i64)
-        .bind(serde_json::to_value(&checkpoint.state_at_checkpoint)?)
-        .bind(checkpoint.retry_budget_remaining as i64)
-        .bind(serde_json::to_value(&checkpoint.verifier_feedback_history)?)
-        .bind(&checkpoint.compact_summary)
-        .bind(serde_json::to_value(&checkpoint.evidence_pointers)?)
-        .bind(checkpoint.created_at_utc)
-        .bind(checkpoint.created_by_session)
-        .execute(&self.pool)
-        .await?;
+        let row = LoopCheckpointRow::from_checkpoint(checkpoint)?;
+        let _: Vec<surrealdb::types::Value> = self
+            .query(
+                "CREATE $record CONTENT $content RETURN AFTER;",
+                CreateCheckpointBindings {
+                    record: RecordId::new(
+                        CHECKPOINT_TABLE,
+                        surrealdb::types::Uuid::from(checkpoint.checkpoint_id),
+                    ),
+                    content: row.into_value(),
+                },
+            )
+            .await?;
         Ok(())
     }
 
@@ -349,44 +455,19 @@ impl MtLoopCheckpointRepo {
         &self,
         checkpoint_id: Uuid,
     ) -> Result<Option<MtLoopCheckpoint>, CheckpointRepoError> {
-        let row: Option<(
-            Uuid,
-            Uuid,
-            i64,
-            serde_json::Value,
-            i64,
-            serde_json::Value,
-            String,
-            serde_json::Value,
-            DateTime<Utc>,
-            Uuid,
-        )> = sqlx::query_as(
-            r#"SELECT checkpoint_id, job_id, iteration_n, state_at_checkpoint,
-                       retry_budget_remaining, verifier_feedback_history,
-                       compact_summary, evidence_pointers,
-                       created_at_utc, created_by_session
-                  FROM kernel_mt_loop_checkpoint
-                 WHERE checkpoint_id = $1"#,
-        )
-        .bind(checkpoint_id)
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some(r) = row else { return Ok(None) };
-        let state: MtLoopState = serde_json::from_value(r.3)?;
-        let history: Vec<VerifierFeedbackRef> = serde_json::from_value(r.5)?;
-        let pointers: Vec<EvidencePointer> = serde_json::from_value(r.7)?;
-        Ok(Some(MtLoopCheckpoint {
-            checkpoint_id: r.0,
-            job_id: MicroTaskJobId(r.1),
-            iteration_n: r.2 as u32,
-            state_at_checkpoint: state,
-            retry_budget_remaining: r.4 as u32,
-            verifier_feedback_history: history,
-            compact_summary: r.6,
-            evidence_pointers: pointers,
-            created_at_utc: r.8,
-            created_by_session: r.9,
-        }))
+        let rows: Vec<LoopCheckpointRow> = self
+            .query(
+                "SELECT checkpoint_id, job_id, iteration_n, state_at_checkpoint, \
+                 retry_budget_remaining, verifier_feedback_history, compact_summary, \
+                 evidence_pointers, created_at_utc, created_by_session \
+                 FROM kernel_mt_loop_checkpoint WHERE checkpoint_id = $checkpoint_id;",
+                CheckpointIdBinding { checkpoint_id },
+            )
+            .await?;
+        rows.into_iter()
+            .next()
+            .map(LoopCheckpointRow::into_checkpoint)
+            .transpose()
     }
 
     /// Latest checkpoint for a job, by `created_at_utc DESC`. Returns None
@@ -395,17 +476,22 @@ impl MtLoopCheckpointRepo {
         &self,
         job_id: MicroTaskJobId,
     ) -> Result<Option<MtLoopCheckpoint>, CheckpointRepoError> {
-        let row: Option<(Uuid,)> = sqlx::query_as(
-            r#"SELECT checkpoint_id FROM kernel_mt_loop_checkpoint
-                WHERE job_id = $1
-                ORDER BY created_at_utc DESC
-                LIMIT 1"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some((cp_id,)) = row else { return Ok(None) };
-        self.get(cp_id).await
+        let rows: Vec<LoopCheckpointRow> = self
+            .query(
+                "SELECT checkpoint_id, job_id, iteration_n, state_at_checkpoint, \
+                 retry_budget_remaining, verifier_feedback_history, compact_summary, \
+                 evidence_pointers, created_at_utc, created_by_session \
+                 FROM kernel_mt_loop_checkpoint WHERE job_id = $job \
+                 ORDER BY created_at_utc DESC LIMIT 1;",
+                JobRecordBinding {
+                    job: job_record(job_id.as_uuid()),
+                },
+            )
+            .await?;
+        rows.into_iter()
+            .next()
+            .map(LoopCheckpointRow::into_checkpoint)
+            .transpose()
     }
 
     /// Full ordered chain of checkpoints for a job. Useful for audit /
@@ -414,41 +500,42 @@ impl MtLoopCheckpointRepo {
         &self,
         job_id: MicroTaskJobId,
     ) -> Result<Vec<MtLoopCheckpoint>, CheckpointRepoError> {
-        let rows: Vec<(Uuid,)> = sqlx::query_as(
-            r#"SELECT checkpoint_id FROM kernel_mt_loop_checkpoint
-                WHERE job_id = $1
-                ORDER BY created_at_utc ASC, checkpoint_id ASC"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_all(&self.pool)
-        .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for (cp_id,) in rows {
-            if let Some(cp) = self.get(cp_id).await? {
-                out.push(cp);
-            }
-        }
-        Ok(out)
+        let rows: Vec<LoopCheckpointRow> = self
+            .query(
+                "SELECT checkpoint_id, job_id, iteration_n, state_at_checkpoint, \
+                 retry_budget_remaining, verifier_feedback_history, compact_summary, \
+                 evidence_pointers, created_at_utc, created_by_session \
+                 FROM kernel_mt_loop_checkpoint WHERE job_id = $job \
+                 ORDER BY created_at_utc ASC, checkpoint_id ASC;",
+                JobRecordBinding {
+                    job: job_record(job_id.as_uuid()),
+                },
+            )
+            .await?;
+        rows.into_iter()
+            .map(LoopCheckpointRow::into_checkpoint)
+            .collect()
     }
 
     /// Atomic count of recorded retry-driving checkpoints for a job. Useful
     /// for the cross-executor "concurrent checkpoints don't double-count
-    /// retries" invariant: the counter is computed from the DB rows
+    /// retries" invariant: the counter is computed from the store rows
     /// directly so two executors racing on the same job can't both think
     /// they hold the last retry slot.
     pub async fn count_iterations(
         &self,
         job_id: MicroTaskJobId,
     ) -> Result<i64, CheckpointRepoError> {
-        let row: (i64,) = sqlx::query_as(
-            r#"SELECT COUNT(*)::BIGINT
-                 FROM kernel_mt_loop_checkpoint
-                WHERE job_id = $1"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_one(&self.pool)
-        .await?;
-        Ok(row.0)
+        let counts: Vec<i64> = self
+            .query(
+                "SELECT VALUE count() FROM kernel_mt_loop_checkpoint \
+                 WHERE job_id = $job GROUP ALL;",
+                JobRecordBinding {
+                    job: job_record(job_id.as_uuid()),
+                },
+            )
+            .await?;
+        Ok(counts.into_iter().next().unwrap_or(0))
     }
 }
 

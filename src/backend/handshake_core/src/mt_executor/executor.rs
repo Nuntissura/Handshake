@@ -91,7 +91,7 @@ impl MicroTaskExecutor {
     }
 
     /// Run a single job to terminal outcome. Production wires the queue +
-    /// mailbox + Postgres repository; this entrypoint is fully testable with
+    /// mailbox + embedded repository; this entrypoint is fully testable with
     /// a stub coder.
     pub async fn run_job(
         &self,

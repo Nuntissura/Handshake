@@ -412,7 +412,10 @@ fn pii_placeholder(kind: PiiKind) -> &'static str {
 /// Overlapping detections are collapsed (first-wins) and replacement runs
 /// back-to-front so earlier byte offsets stay valid. Returns the redacted
 /// text and the number of replacements applied.
-fn replace_detections(text: &str, mut detections: Vec<pii_patterns::PiiDetection>) -> (String, usize) {
+fn replace_detections(
+    text: &str,
+    mut detections: Vec<pii_patterns::PiiDetection>,
+) -> (String, usize) {
     detections.sort_by_key(|d| (d.start, d.end));
     let mut kept: Vec<pii_patterns::PiiDetection> = Vec::new();
     let mut last_end = 0usize;
@@ -846,7 +849,10 @@ mod tests {
         let (red, count) =
             redact_pii("card 4242 4242 4242 4242 here, host 192.168.1.1, mail a@b.co");
         assert!(count >= 3, "expected >=3 detections; got {count}: {red}");
-        assert!(!red.contains("4242 4242 4242 4242"), "card not redacted: {red}");
+        assert!(
+            !red.contains("4242 4242 4242 4242"),
+            "card not redacted: {red}"
+        );
         assert!(!red.contains("192.168.1.1"), "ipv4 not redacted: {red}");
         assert!(!red.contains("a@b.co"), "email not redacted: {red}");
     }

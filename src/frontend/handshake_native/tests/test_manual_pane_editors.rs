@@ -12,7 +12,8 @@
 //!   DECLARED_IDENTITIES + the fixed interop/FEMS/Stage/Calendar/Locus constants) and fails on any orphan.
 //! - AC-005 / PT-002: the four interop edges (FEMS, Stage, Calendar, Locus) are each documented with an
 //!   author_id + mcp_tool.
-//! - MC-006: the manual content contains NO 'SQLite' token and no direct-DB-write language.
+//! - MC-006: the manual content names SurrealDB/EventLedger as authority and contains no legacy-store
+//!   or direct-DB-write language.
 //!
 //! ARTIFACT HYGIENE (CX-212E / the SCREENSHOT/TEST-ARTIFACT rule): the HBR-VIS screenshot is written ONLY
 //! to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-073/ root via
@@ -1063,9 +1064,9 @@ fn interop_edges_all_documented_with_author_id_and_tool() {
     );
 }
 
-// ── MC-006: the manual content names NO SQLite and no direct-DB-write language ────────────────────────
+// ── MC-006: SurrealDB authority with no legacy-store or direct-DB-write language ─────────────────
 #[test]
-fn manual_content_has_no_sqlite_and_no_direct_db_writes() {
+fn manual_content_has_surrealdb_authority_and_no_direct_db_writes() {
     let section = editors_manual_section();
     let all_text: String = section
         .topics
@@ -1076,19 +1077,18 @@ fn manual_content_has_no_sqlite_and_no_direct_db_writes() {
     let lower = all_text.to_lowercase();
     assert!(
         !lower.contains("sqlite"),
-        "MC-006: the manual must not mention SQLite"
+        "MC-006: the manual must not mention the detected legacy local store"
     );
     // Persistence must be described as the embedded SurrealDB/EventLedger authority via handshake_core.
     assert!(
         lower.contains("surrealdb") && lower.contains("eventledger"),
         "MC-006: persistence must be described as SurrealDB/EventLedger"
     );
-    // The only surviving PostgreSQL token is the legacy proof-harness variable HANDSHAKE_TEST_PG_DSN,
-    // which is still literally required by tests/pg_proof_support/mod.rs. No persistence-authority
-    // sentence may describe PostgreSQL as the store.
+    // These literals are deliberate detector tripwires: no legacy server-store sentence may claim
+    // persistence authority.
     assert!(
         !lower.contains("postgresql/eventledger") && !lower.contains("postgresql authority"),
-        "MC-006: PostgreSQL must not be described as the persistence authority"
+        "MC-006: a legacy server store must not be described as the persistence authority"
     );
     assert!(
         lower.contains("handshake_core"),

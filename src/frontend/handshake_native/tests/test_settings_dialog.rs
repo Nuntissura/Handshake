@@ -6,7 +6,7 @@
 //! `current_theme` and persists, the search filter narrows sections, keybinding edits detect conflicts
 //! (and a conflicting binding is NOT saved), and the Reset-Layout button arms the reset. Persistence is
 //! proven against a stub `SettingsTransport` so no live server is needed for the default `cargo test`
-//! run; the live-PG round-trip is the cfg-gated `integration_tests` test at the bottom.
+//! run; the live-SurrealDB round-trip is the cfg-gated `integration_tests` test at the bottom.
 
 use std::sync::{Arc, Mutex};
 
@@ -651,15 +651,15 @@ fn opening_settings_loads_persisted_theme_from_backend() {
     );
 }
 
-// ── Live-PG integration: change theme, persist, reload, assert it round-trips through PostgreSQL ─────
+// ── Live-SurrealDB integration: change theme, persist, reload, assert it round-trips through SurrealDB ─────
 //
 // Gated behind the `integration_tests` feature + #[ignore] (mirrors test_layout_persistence.rs): it
-// needs managed-postgres + handshake_core on 127.0.0.1:37501 and an existing workspace id. Run with:
+// needs managed-surrealdb + handshake_core on 127.0.0.1:37501 and an existing workspace id. Run with:
 //   cargo test --features integration_tests -- --ignored live_backend_settings
 #[cfg(feature = "integration_tests")]
 #[test]
-#[ignore = "needs managed-postgres + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
-fn live_backend_settings_round_trips_through_postgres() {
+#[ignore = "needs managed-surrealdb + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
+fn live_backend_settings_round_trips_through_surrealdb() {
     use handshake_native::workspace_settings::{
         default_workspace_settings_state, normalize_workspace_settings_state, SettingsClient,
     };
@@ -689,6 +689,6 @@ fn live_backend_settings_round_trips_through_postgres() {
     let normalized = normalize_workspace_settings_state(&got, &default_workspace_settings_state());
     assert_eq!(
         normalized, settings,
-        "live PostgreSQL settings_state round-trips identically"
+        "live SurrealDB settings_state round-trips identically"
     );
 }

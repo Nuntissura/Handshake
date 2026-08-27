@@ -23,7 +23,7 @@
 //!   the SAME request+open_menu flow (the `code_editor_ctx_quick_fix` AccessKit node is present and a
 //!   Ctrl+./context-menu arm opens the same controller menu — no duplicate apply logic).
 //!
-//! Provable WITHOUT a live PostgreSQL / a real language server: the mock LSP is an in-memory duplex pipe
+//! Provable WITHOUT a live SurrealDB / a real language server: the mock LSP is an in-memory duplex pipe
 //! installed via the REAL `LspClient::install_test_transport`, the apply uses an in-memory `TextBuffer`,
 //! and the diagnostic store + degradation are standalone — exactly the MT proof discipline.
 

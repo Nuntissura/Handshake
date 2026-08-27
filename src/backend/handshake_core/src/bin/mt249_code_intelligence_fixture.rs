@@ -1,6 +1,9 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use axum::{routing::get, Json, Router};
+use axum::{
+    routing::{get, post},
+    Json, Router,
+};
 use handshake_core::{
     api,
     capabilities::CapabilityRegistry,
@@ -11,12 +14,12 @@ use handshake_core::{
         parser::{CodeLanguage, CodeParserAdapter},
     },
     llm::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage},
-    managed_postgres::{ManagedPostgres, ManagedPostgresConfig, ManagedPostgresError},
     storage::{
         knowledge::{
             KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeStore, NewKnowledgeSourceRoot,
         },
-        postgres::PostgresDatabase,
+        surreal::SurrealDatabase,
+        tests::{embedded_test_backend, EmbeddedTestBackend},
         Database, NewWorkspace, WriteContext,
     },
     workflows::{SessionRegistry, SessionSchedulerConfig},
@@ -24,8 +27,7 @@ use handshake_core::{
 };
 use serde::Serialize;
 use serde_json::json;
-use sqlx::Connection;
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::watch};
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
@@ -84,15 +86,25 @@ async fn main() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(base_url) = base_database_url().await? else {
-        println!("MT249_FIXTURE_SKIP PostgreSQL binaries not found");
-        return Ok(());
-    };
-    let schema_url = isolated_schema_url(&base_url).await?;
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
+    let backend = embedded_test_backend().await?;
+    let body_result = run_server(&backend).await;
+    let cleanup_result = backend.close_and_remove().await;
 
-    let workspace_id = seed_code_fixture(&db, &schema_url).await?;
+    match (body_result, cleanup_result) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(body_error), Ok(())) => Err(body_error),
+        (Ok(()), Err(cleanup_error)) => Err(Box::new(cleanup_error)),
+        (Err(body_error), Err(cleanup_error)) => Err(std::io::Error::other(format!(
+            "fixture body failed: {body_error}; embedded-store cleanup also failed: {cleanup_error}"
+        ))
+        .into()),
+    }
+}
+
+async fn run_server(backend: &EmbeddedTestBackend) -> Result<(), Box<dyn std::error::Error>> {
+    let db = Arc::new(SurrealDatabase::new(backend.storage.clone()));
+
+    let workspace_id = seed_code_fixture(db.clone()).await?;
     let symbol = db
         .lookup_code_symbols(&workspace_id, Some("add"), None, None, 5)
         .await?
@@ -104,8 +116,17 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     db.mark_knowledge_code_file_stale(&code_file.code_file_id)
         .await?;
 
-    let state = app_state_for(&schema_url).await?;
-    let app = app_router(state);
+    let state = app_state_for(backend)?;
+    let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
+    let app = app_router(state).route(
+        "/__fixture/shutdown",
+        post(move || {
+            let shutdown_tx = shutdown_tx.clone();
+            async move {
+                let _ = shutdown_tx.send(true);
+            }
+        }),
+    );
     let port = std::env::var("MT249_FIXTURE_PORT")
         .ok()
         .and_then(|value| value.parse::<u16>().ok())
@@ -121,65 +142,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     println!("MT249_FIXTURE_READY {}", serde_json::to_string(&ready)?);
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            loop {
+                if *shutdown_rx.borrow_and_update() {
+                    break;
+                }
+                if shutdown_rx.changed().await.is_err() {
+                    break;
+                }
+            }
+        })
+        .await?;
     Ok(())
 }
 
-async fn base_database_url() -> Result<Option<String>, Box<dyn std::error::Error>> {
-    for var in ["POSTGRES_TEST_URL", "DATABASE_URL"] {
-        if let Some(url) = std::env::var(var)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-        {
-            return Ok(Some(url));
-        }
-    }
-
-    match ManagedPostgres::ensure_running(ManagedPostgresConfig::from_env()).await {
-        Ok(managed) => Ok(Some(managed.database_url())),
-        Err(ManagedPostgresError::BinariesNotFound(detail)) => {
-            eprintln!("SKIP MT-249 fixture: PostgreSQL binaries not found ({detail})");
-            Ok(None)
-        }
-        Err(error) => Err(Box::new(error)),
-    }
-}
-
-async fn isolated_schema_url(base_url: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let schema = format!("mt249_code_intel_{}", Uuid::now_v7().simple());
-    let mut conn = sqlx::PgConnection::connect(base_url).await?;
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    sqlx::query("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public")
-        .execute(&mut conn)
-        .await?;
-    for shim in [
-        format!(
-            r#"
-            CREATE OR REPLACE FUNCTION {schema}.digest(input text, algorithm text)
-            RETURNS bytea LANGUAGE SQL IMMUTABLE PARALLEL SAFE
-            AS $$ SELECT public.digest(input::bytea, algorithm) $$
-            "#
-        ),
-        format!(
-            r#"
-            CREATE OR REPLACE FUNCTION {schema}.digest(input bytea, algorithm text)
-            RETURNS bytea LANGUAGE SQL IMMUTABLE PARALLEL SAFE
-            AS $$ SELECT public.digest(input, algorithm) $$
-            "#
-        ),
-    ] {
-        sqlx::query(&shim).execute(&mut conn).await?;
-    }
-    let sep = if base_url.contains('?') { "&" } else { "?" };
-    Ok(format!("{base_url}{sep}options=-csearch_path%3D{schema}"))
-}
-
-async fn seed_code_fixture(
-    db: &PostgresDatabase,
-    schema_url: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
+async fn seed_code_fixture(db: Arc<SurrealDatabase>) -> Result<String, Box<dyn std::error::Error>> {
     let workspace = db
         .create_workspace(
             &WriteContext::human(None),
@@ -188,8 +166,7 @@ async fn seed_code_fixture(
             },
         )
         .await?;
-    let engine_db = PostgresDatabase::connect(schema_url, 5).await?;
-    let engine = CodeIndexEngine::new(Arc::new(engine_db));
+    let engine = CodeIndexEngine::new(db.clone());
     let context = CodeIndexContext {
         actor: KernelActor::System("mt249-code-intelligence-fixture".to_string()),
         kernel_task_run_id: "KTR-MT249-fixture".to_string(),
@@ -223,15 +200,11 @@ async fn seed_code_fixture(
     Ok(workspace.id)
 }
 
-async fn app_state_for(schema_url: &str) -> Result<AppState, Box<dyn std::error::Error>> {
-    let storage = PostgresDatabase::connect(schema_url, 5).await?.into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await?;
+fn app_state_for(backend: &EmbeddedTestBackend) -> Result<AppState, Box<dyn std::error::Error>> {
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     Ok(AppState {
-        storage,
+        storage: backend.database.clone(),
+        surreal: backend.storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -239,7 +212,6 @@ async fn app_state_for(schema_url: &str) -> Result<AppState, Box<dyn std::error:
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     })
 }
 

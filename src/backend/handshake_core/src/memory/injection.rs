@@ -418,7 +418,7 @@ pub trait MemoryCapsuleInjection: Send + Sync {
     ) -> Result<InjectionDecision, InjectionError>;
 
     fn suppress_capsule(&self, handle: CapsuleHandle, reason: String)
-    -> Result<(), InjectionError>;
+        -> Result<(), InjectionError>;
 }
 
 /// Owned, `Send + Sync` variant of [`CapsuleInjector`] suitable for storage

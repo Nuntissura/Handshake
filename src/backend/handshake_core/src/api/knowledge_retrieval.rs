@@ -10,9 +10,7 @@
 //! `storage/knowledge` + `storage/knowledge_retrieval` over the shared
 //! shared storage handle — single-store + EventLedger authority only, no SQLite.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): both stores still name the
-//! deleted relational backend, so this module does not compile and serves no
-//! request today. Handshake's only database is the embedded SurrealDB store.
+//! Both stores are backed by the embedded SurrealDB authority.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every endpoint REQUIRES the
@@ -59,7 +57,7 @@ use crate::knowledge_retrieval::graph_planner::GraphTraversalPolicy;
 use crate::knowledge_retrieval::planner::RetrievalRequest;
 use crate::storage::knowledge::{KnowledgeBundleItemRefKind, KnowledgeStore};
 use crate::storage::knowledge_retrieval::list_semantic_catalog_entries;
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
 
@@ -96,13 +94,9 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
-/// WP-KERNEL-012 TRAIT-SURFACE GAP: the reads below are typed against
-/// `storage::knowledge::KnowledgeStore`, which has no live implementor after
-/// PostgreSQL removal (`SurrealDatabase` implements `storage::Database` only)
-/// and `AppState` carries no `Arc<dyn KnowledgeStore>`. The gap is confined to
-/// this one constructor.
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+/// Build the knowledge facade over the single embedded SurrealDB authority.
+fn db_for(state: &AppState) -> SurrealDatabase {
+    SurrealDatabase::new(state.surreal.clone())
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -339,8 +333,15 @@ async fn bundle_staleness(
     for item in &items {
         let (status, reason): (&str, Option<String>) = match item.ref_kind {
             KnowledgeBundleItemRefKind::Span => {
-                match db.get_knowledge_span(&item.ref_id).await.map_err(storage_error)? {
-                    None => ("missing_evidence", Some("cited span no longer exists".into())),
+                match db
+                    .get_knowledge_span(&item.ref_id)
+                    .await
+                    .map_err(storage_error)?
+                {
+                    None => (
+                        "missing_evidence",
+                        Some("cited span no longer exists".into()),
+                    ),
                     Some(span) => {
                         match db
                             .get_knowledge_source(&span.source_id)
@@ -369,7 +370,10 @@ async fn bundle_staleness(
                     .await
                     .map_err(storage_error)?
                 {
-                    None => ("missing_evidence", Some("cited passage no longer exists".into())),
+                    None => (
+                        "missing_evidence",
+                        Some("cited passage no longer exists".into()),
+                    ),
                     Some(_) => ("ok", None),
                 }
             }
@@ -379,7 +383,10 @@ async fn bundle_staleness(
                     .await
                     .map_err(storage_error)?
                 {
-                    None => ("missing_evidence", Some("cited source no longer exists".into())),
+                    None => (
+                        "missing_evidence",
+                        Some("cited source no longer exists".into()),
+                    ),
                     Some(source) if source.stale => (
                         "source_stale",
                         Some("source changed since indexing (stale)".into()),
@@ -399,7 +406,10 @@ async fn bundle_staleness(
                     .await
                     .map_err(storage_error)?
                 {
-                    None => ("missing_evidence", Some("cited claim no longer exists".into())),
+                    None => (
+                        "missing_evidence",
+                        Some("cited claim no longer exists".into()),
+                    ),
                     Some(_) => ("ok", None),
                 }
             }
@@ -476,7 +486,7 @@ async fn repair_bundle(
     request.graph_neighborhood_expected = recorded_mode == "graph_traversal";
     let executed = execute_retrieval(
         &db,
-        &state.postgres_pool,
+        &state.surreal,
         &ctx.kernel_task_run_id,
         &ctx.session_run_id,
         BundleTargetKind::Task,
@@ -524,7 +534,7 @@ async fn list_catalog(
     let ctx = nav_context(&headers)?;
     let limit = clamp_limit(params.limit);
 
-    let entries = list_semantic_catalog_entries(&state.postgres_pool, &params.workspace_id, limit)
+    let entries = list_semantic_catalog_entries(&state.surreal, &params.workspace_id, limit)
         .await
         .map_err(storage_error)?;
 

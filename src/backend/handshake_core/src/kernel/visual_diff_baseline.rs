@@ -3,8 +3,7 @@
 //!
 //! MT-155 (Visual Diff Baseline Contract): screenshot baselines and the
 //! standalone diff-request schema (threshold + metadata) persist in
-//! PostgreSQL (tables from migration 0124, applied by the kernel migration
-//! runner `Database::run_migrations`) instead of living only as embedded
+//! embedded SurrealDB tables instead of living only as embedded
 //! fields of the in-memory [`crate::kernel::visual_debugging_loop`]
 //! projection. A diff request binds EITHER a registered baseline row OR the
 //! previous screenshot artifact ref — the "baseline-or-previous" comparison
@@ -23,11 +22,13 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use sqlx::Row;
+use serde_json::Value as JsonValue;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid, Value};
 use uuid::Uuid;
 
-use crate::atelier::{AtelierError, AtelierResult, AtelierStore, reject_legacy_runtime_ref};
+use crate::atelier::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 use super::visual_debugging_loop::{
     VisualComparisonMode, VisualDebuggingThresholdConfigV1, VisualDiffComputationV1,
@@ -92,7 +93,7 @@ pub struct NewVisualDiffRequest {
     pub candidate_screenshot_ref: String,
     pub comparison_mode: VisualComparisonMode,
     pub threshold_config: VisualDebuggingThresholdConfigV1,
-    pub metadata: Value,
+    pub metadata: JsonValue,
     pub requested_by: String,
 }
 
@@ -105,7 +106,7 @@ pub struct VisualDiffRequestRecord {
     pub candidate_screenshot_ref: String,
     pub comparison_mode: VisualComparisonMode,
     pub threshold_config: VisualDebuggingThresholdConfigV1,
-    pub metadata: Value,
+    pub metadata: JsonValue,
     pub requested_by: String,
     pub created_at_utc: DateTime<Utc>,
 }
@@ -211,97 +212,209 @@ fn require_token(field: &str, value: &str) -> AtelierResult<()> {
     Ok(())
 }
 
-fn baseline_from_row(row: &sqlx::postgres::PgRow) -> VisualDiffBaselineRecord {
-    VisualDiffBaselineRecord {
-        baseline_id: row.get("baseline_id"),
-        surface_id: row.get("surface_id"),
-        baseline_ref: row.get("baseline_ref"),
-        content_sha256: row.get("content_sha256"),
-        captured_by: row.get("captured_by"),
-        captured_at_utc: row.get("captured_at_utc"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct BaselineRow {
+    baseline_id: SurrealUuid,
+    surface_id: String,
+    baseline_ref: String,
+    content_sha256: String,
+    captured_by: String,
+    captured_at_utc: Datetime,
+    created_at_utc: Datetime,
+}
+
+impl From<BaselineRow> for VisualDiffBaselineRecord {
+    fn from(row: BaselineRow) -> Self {
+        Self {
+            baseline_id: row.baseline_id.into(),
+            surface_id: row.surface_id,
+            baseline_ref: row.baseline_ref,
+            content_sha256: row.content_sha256,
+            captured_by: row.captured_by,
+            captured_at_utc: row.captured_at_utc.into(),
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn request_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<VisualDiffRequestRecord> {
-    let mode_token: String = row.get("comparison_mode");
-    let comparison_mode = VisualComparisonMode::from_token(&mode_token).ok_or_else(|| {
-        AtelierError::Validation(format!("unknown comparison_mode token: {mode_token}"))
-    })?;
-    let baseline_id: Option<Uuid> = row.get("baseline_id");
-    let previous_screenshot_ref: Option<String> = row.get("previous_screenshot_ref");
-    let reference = match (baseline_id, previous_screenshot_ref) {
-        (Some(baseline_id), None) => VisualDiffReference::Baseline { baseline_id },
-        (None, Some(previous_screenshot_ref)) => VisualDiffReference::PreviousScreenshot {
-            previous_screenshot_ref,
-        },
-        _ => {
-            return Err(AtelierError::Validation(
-                "diff request row must carry exactly one of baseline_id / \
-                 previous_screenshot_ref"
-                    .into(),
-            ));
-        }
-    };
-    let pixel: i32 = row.get("max_pixel_diff_basis_points");
-    let layout: i32 = row.get("max_layout_shift_basis_points");
-    let structural: i32 = row.get("structural_mismatch_limit");
-    Ok(VisualDiffRequestRecord {
-        request_id: row.get("request_id"),
-        surface_id: row.get("surface_id"),
-        reference,
-        candidate_screenshot_ref: row.get("candidate_screenshot_ref"),
-        comparison_mode,
-        threshold_config: VisualDebuggingThresholdConfigV1 {
-            threshold_config_ref: row.get("threshold_config_ref"),
-            max_pixel_diff_basis_points: pixel as u32,
-            max_layout_shift_basis_points: layout as u32,
-            structural_mismatch_limit: structural as u32,
-        },
-        metadata: row.get("metadata_json"),
-        requested_by: row.get("requested_by"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct RequestRow {
+    request_id: SurrealUuid,
+    surface_id: String,
+    baseline_id: Option<SurrealUuid>,
+    previous_screenshot_ref: Option<String>,
+    candidate_screenshot_ref: String,
+    comparison_mode: String,
+    threshold_config_ref: String,
+    max_pixel_diff_basis_points: i64,
+    max_layout_shift_basis_points: i64,
+    structural_mismatch_limit: i64,
+    metadata_json: JsonValue,
+    requested_by: String,
+    created_at_utc: Datetime,
 }
 
-fn result_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<VisualDiffResultRecord> {
-    let mode_token: String = row.get("comparison_mode");
-    let comparison_mode = VisualComparisonMode::from_token(&mode_token).ok_or_else(|| {
-        AtelierError::Validation(format!("unknown comparison_mode token: {mode_token}"))
-    })?;
-    let outcome_token: String = row.get("outcome");
-    let outcome = VisualDiffOutcome::from_token(&outcome_token).ok_or_else(|| {
-        AtelierError::Validation(format!("unknown outcome token: {outcome_token}"))
-    })?;
-    let units_compared: i64 = row.get("units_compared");
-    let units_differing: i64 = row.get("units_differing");
-    let mismatch_basis_points: i32 = row.get("mismatch_basis_points");
-    Ok(VisualDiffResultRecord {
-        result_id: row.get("result_id"),
-        request_id: row.get("request_id"),
-        computation: VisualDiffComputationV1 {
+impl TryFrom<RequestRow> for VisualDiffRequestRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: RequestRow) -> AtelierResult<Self> {
+        let comparison_mode =
+            VisualComparisonMode::from_token(&row.comparison_mode).ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "unknown comparison_mode token: {}",
+                    row.comparison_mode
+                ))
+            })?;
+        let reference = match (row.baseline_id, row.previous_screenshot_ref) {
+            (Some(baseline_id), None) => VisualDiffReference::Baseline {
+                baseline_id: baseline_id.into(),
+            },
+            (None, Some(previous_screenshot_ref)) => VisualDiffReference::PreviousScreenshot {
+                previous_screenshot_ref,
+            },
+            _ => {
+                return Err(AtelierError::Validation(
+                    "diff request row must carry exactly one baseline reference".into(),
+                ))
+            }
+        };
+        Ok(Self {
+            request_id: row.request_id.into(),
+            surface_id: row.surface_id,
+            reference,
+            candidate_screenshot_ref: row.candidate_screenshot_ref,
             comparison_mode,
-            units_compared: units_compared as u64,
-            units_differing: units_differing as u64,
-            mismatch_basis_points: mismatch_basis_points as u32,
-            threshold_exceeded: row.get("threshold_exceeded"),
-            outcome,
-        },
-        computed_at_utc: row.get("computed_at_utc"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+            threshold_config: VisualDebuggingThresholdConfigV1 {
+                threshold_config_ref: row.threshold_config_ref,
+                max_pixel_diff_basis_points: u32::try_from(row.max_pixel_diff_basis_points)
+                    .map_err(|_| AtelierError::Validation("pixel threshold out of range".into()))?,
+                max_layout_shift_basis_points: u32::try_from(row.max_layout_shift_basis_points)
+                    .map_err(|_| {
+                        AtelierError::Validation("layout threshold out of range".into())
+                    })?,
+                structural_mismatch_limit: u32::try_from(row.structural_mismatch_limit).map_err(
+                    |_| AtelierError::Validation("structural threshold out of range".into()),
+                )?,
+            },
+            metadata: row.metadata_json,
+            requested_by: row.requested_by,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
-const BASELINE_COLUMNS: &str = "baseline_id, surface_id, baseline_ref, content_sha256, \
-                                captured_by, captured_at_utc, created_at_utc";
-const REQUEST_COLUMNS: &str = "request_id, surface_id, baseline_id, previous_screenshot_ref, \
-                               candidate_screenshot_ref, comparison_mode, threshold_config_ref, \
-                               max_pixel_diff_basis_points, max_layout_shift_basis_points, \
-                               structural_mismatch_limit, metadata_json, requested_by, \
-                               created_at_utc";
-const RESULT_COLUMNS: &str = "result_id, request_id, comparison_mode, units_compared, \
-                              units_differing, mismatch_basis_points, threshold_exceeded, \
-                              outcome, computed_at_utc, created_at_utc";
+#[derive(SurrealValue)]
+struct ResultRow {
+    result_id: SurrealUuid,
+    request_id: SurrealUuid,
+    comparison_mode: String,
+    units_compared: i64,
+    units_differing: i64,
+    mismatch_basis_points: i64,
+    threshold_exceeded: bool,
+    outcome: String,
+    computed_at_utc: Datetime,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<ResultRow> for VisualDiffResultRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: ResultRow) -> AtelierResult<Self> {
+        let comparison_mode =
+            VisualComparisonMode::from_token(&row.comparison_mode).ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "unknown comparison_mode token: {}",
+                    row.comparison_mode
+                ))
+            })?;
+        let outcome = VisualDiffOutcome::from_token(&row.outcome).ok_or_else(|| {
+            AtelierError::Validation(format!("unknown outcome token: {}", row.outcome))
+        })?;
+        Ok(Self {
+            result_id: row.result_id.into(),
+            request_id: row.request_id.into(),
+            computation: VisualDiffComputationV1 {
+                comparison_mode,
+                units_compared: u64::try_from(row.units_compared)
+                    .map_err(|_| AtelierError::Validation("units_compared out of range".into()))?,
+                units_differing: u64::try_from(row.units_differing)
+                    .map_err(|_| AtelierError::Validation("units_differing out of range".into()))?,
+                mismatch_basis_points: u32::try_from(row.mismatch_basis_points).map_err(|_| {
+                    AtelierError::Validation("mismatch basis points out of range".into())
+                })?,
+                threshold_exceeded: row.threshold_exceeded,
+                outcome,
+            },
+            computed_at_utc: row.computed_at_utc.into(),
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct BaselineBindings {
+    record_id: RecordId,
+    baseline_id: SurrealUuid,
+    surface_id: String,
+    baseline_ref: String,
+    content_sha256: String,
+    captured_by: String,
+    captured_at_utc: Datetime,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RequestBindings {
+    record_id: RecordId,
+    request_id: SurrealUuid,
+    surface_id: String,
+    baseline_id: Option<SurrealUuid>,
+    previous_screenshot_ref: Option<String>,
+    candidate_screenshot_ref: String,
+    comparison_mode: String,
+    threshold_config_ref: String,
+    max_pixel_diff_basis_points: i64,
+    max_layout_shift_basis_points: i64,
+    structural_mismatch_limit: i64,
+    metadata_json: Value,
+    requested_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ResultBindings {
+    record_id: RecordId,
+    result_id: SurrealUuid,
+    request_id: SurrealUuid,
+    comparison_mode: String,
+    units_compared: i64,
+    units_differing: i64,
+    mismatch_basis_points: i64,
+    threshold_exceeded: bool,
+    outcome: String,
+    computed_at_utc: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct UuidBinding {
+    id: SurrealUuid,
+}
+#[derive(SurrealValue)]
+struct SurfaceBinding {
+    surface_id: String,
+}
+
+const RECORD_BASELINE: &str = concat!(
+    "RETURN { LET $row = (CREATE $domain.record_id CONTENT { baseline_id: $domain.baseline_id, surface_id: $domain.surface_id, baseline_ref: $domain.baseline_ref, content_sha256: $domain.content_sha256, captured_by: $domain.captured_by, captured_at_utc: $domain.captured_at_utc } RETURN AFTER)[0]; ",
+    atelier_event_sql!(), " RETURN $row; };"
+);
+const RECORD_REQUEST: &str = concat!(
+    "RETURN { LET $row = (CREATE $domain.record_id CONTENT { request_id: $domain.request_id, surface_id: $domain.surface_id, baseline_id: $domain.baseline_id, previous_screenshot_ref: $domain.previous_screenshot_ref, candidate_screenshot_ref: $domain.candidate_screenshot_ref, comparison_mode: $domain.comparison_mode, threshold_config_ref: $domain.threshold_config_ref, max_pixel_diff_basis_points: $domain.max_pixel_diff_basis_points, max_layout_shift_basis_points: $domain.max_layout_shift_basis_points, structural_mismatch_limit: $domain.structural_mismatch_limit, metadata_json: $domain.metadata_json, requested_by: $domain.requested_by } RETURN AFTER)[0]; ",
+    atelier_event_sql!(), " RETURN $row; };"
+);
+const RECORD_RESULT: &str = concat!(
+    "RETURN { LET $row = (CREATE $domain.record_id CONTENT { result_id: $domain.result_id, request_id: $domain.request_id, comparison_mode: $domain.comparison_mode, units_compared: $domain.units_compared, units_differing: $domain.units_differing, mismatch_basis_points: $domain.mismatch_basis_points, threshold_exceeded: $domain.threshold_exceeded, outcome: $domain.outcome, computed_at_utc: $domain.computed_at_utc } RETURN AFTER)[0]; ",
+    atelier_event_sql!(), " RETURN $row; };"
+);
 
 impl AtelierStore {
     /// Register a screenshot baseline for a GUI surface, emitting the
@@ -314,40 +427,36 @@ impl AtelierStore {
         validate_new_baseline(new)?;
 
         let baseline_id = Uuid::now_v7();
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            "INSERT INTO kernel_visual_diff_baseline
-                 (baseline_id, surface_id, baseline_ref, content_sha256,
-                  captured_by, captured_at_utc)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING {BASELINE_COLUMNS}"
-        ))
-        .bind(baseline_id)
-        .bind(&new.surface_id)
-        .bind(&new.baseline_ref)
-        .bind(&new.content_sha256)
-        .bind(&new.captured_by)
-        .bind(new.captured_at_utc)
-        .fetch_one(&mut *tx)
-        .await?;
-        let baseline = baseline_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            kernel_visual_diff_event_family::BASELINE_RECORDED,
-            "kernel_visual_diff_baseline",
-            &baseline.baseline_id.to_string(),
-            serde_json::json!({
-                "schema": KERNEL_VISUAL_DIFF_BASELINE_SCHEMA,
-                "baseline_id": baseline.baseline_id,
-                "surface_id": baseline.surface_id,
-                "baseline_ref": baseline.baseline_ref,
-                "content_sha256": baseline.content_sha256,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(baseline)
+        let row: Option<BaselineRow> = self
+            .write_with_event(
+                RECORD_BASELINE,
+                BaselineBindings {
+                    record_id: RecordId::new(
+                        "kernel_visual_diff_baseline",
+                        SurrealUuid::from(baseline_id),
+                    ),
+                    baseline_id: baseline_id.into(),
+                    surface_id: new.surface_id.clone(),
+                    baseline_ref: new.baseline_ref.clone(),
+                    content_sha256: new.content_sha256.clone(),
+                    captured_by: new.captured_by.clone(),
+                    captured_at_utc: new.captured_at_utc.into(),
+                },
+                kernel_visual_diff_event_family::BASELINE_RECORDED,
+                "kernel_visual_diff_baseline",
+                &baseline_id.to_string(),
+                serde_json::json!({
+                    "schema": KERNEL_VISUAL_DIFF_BASELINE_SCHEMA,
+                    "baseline_id": baseline_id,
+                    "surface_id": new.surface_id,
+                    "baseline_ref": new.baseline_ref,
+                    "content_sha256": new.content_sha256,
+                }),
+            )
+            .await?;
+        row.map(Into::into).ok_or_else(|| {
+            AtelierError::Internal("recording visual diff baseline returned no row".into())
+        })
     }
 
     /// Fetch a registered baseline by id, if recorded.
@@ -355,15 +464,19 @@ impl AtelierStore {
         &self,
         baseline_id: Uuid,
     ) -> AtelierResult<Option<VisualDiffBaselineRecord>> {
-        let row = sqlx::query(&format!(
-            "SELECT {BASELINE_COLUMNS}
-             FROM kernel_visual_diff_baseline
-             WHERE baseline_id = $1"
-        ))
-        .bind(baseline_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(baseline_from_row))
+        let row: Option<BaselineRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT baseline_id, surface_id, baseline_ref, content_sha256, captured_by, captured_at_utc, created_at_utc FROM kernel_visual_diff_baseline WHERE baseline_id = $id LIMIT 1;",
+                        UuidBinding { id: baseline_id.into() },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(Into::into))
     }
 
     /// Latest baseline for a surface (newest capture wins) — the "baseline"
@@ -372,17 +485,22 @@ impl AtelierStore {
         &self,
         surface_id: &str,
     ) -> AtelierResult<Option<VisualDiffBaselineRecord>> {
-        let row = sqlx::query(&format!(
-            "SELECT {BASELINE_COLUMNS}
-             FROM kernel_visual_diff_baseline
-             WHERE surface_id = $1
-             ORDER BY captured_at_utc DESC, baseline_id DESC
-             LIMIT 1"
-        ))
-        .bind(surface_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(baseline_from_row))
+        let bindings = SurfaceBinding {
+            surface_id: surface_id.to_owned(),
+        };
+        let row: Option<BaselineRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT baseline_id, surface_id, baseline_ref, content_sha256, captured_by, captured_at_utc, created_at_utc FROM kernel_visual_diff_baseline WHERE surface_id = $surface_id ORDER BY captured_at_utc DESC, baseline_id DESC LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(Into::into))
     }
 
     /// Persist a standalone visual-diff request (threshold + metadata),
@@ -410,51 +528,51 @@ impl AtelierStore {
         }
 
         let request_id = Uuid::now_v7();
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            "INSERT INTO kernel_visual_diff_request
-                 (request_id, surface_id, baseline_id, previous_screenshot_ref,
-                  candidate_screenshot_ref, comparison_mode, threshold_config_ref,
-                  max_pixel_diff_basis_points, max_layout_shift_basis_points,
-                  structural_mismatch_limit, metadata_json, requested_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
-             RETURNING {REQUEST_COLUMNS}"
-        ))
-        .bind(request_id)
-        .bind(&new.surface_id)
-        .bind(baseline_id)
-        .bind(previous_screenshot_ref.as_deref())
-        .bind(&new.candidate_screenshot_ref)
-        .bind(new.comparison_mode.as_token())
-        .bind(&new.threshold_config.threshold_config_ref)
-        .bind(new.threshold_config.max_pixel_diff_basis_points as i32)
-        .bind(new.threshold_config.max_layout_shift_basis_points as i32)
-        .bind(new.threshold_config.structural_mismatch_limit as i32)
-        .bind(&new.metadata)
-        .bind(&new.requested_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let request = request_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            kernel_visual_diff_event_family::REQUEST_RECORDED,
-            "kernel_visual_diff_request",
-            &request.request_id.to_string(),
-            serde_json::json!({
-                "schema": KERNEL_VISUAL_DIFF_REQUEST_SCHEMA,
-                "request_id": request.request_id,
-                "surface_id": request.surface_id,
-                "comparison_mode": request.comparison_mode.as_token(),
-                "reference": request.reference,
-                "threshold_config_ref": request.threshold_config.threshold_config_ref,
-                "max_pixel_diff_basis_points":
-                    request.threshold_config.max_pixel_diff_basis_points,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(request)
+        let row: Option<RequestRow> = self
+            .write_with_event(
+                RECORD_REQUEST,
+                RequestBindings {
+                    record_id: RecordId::new(
+                        "kernel_visual_diff_request",
+                        SurrealUuid::from(request_id),
+                    ),
+                    request_id: request_id.into(),
+                    surface_id: new.surface_id.clone(),
+                    baseline_id: baseline_id.map(Into::into),
+                    previous_screenshot_ref,
+                    candidate_screenshot_ref: new.candidate_screenshot_ref.clone(),
+                    comparison_mode: new.comparison_mode.as_token().to_owned(),
+                    threshold_config_ref: new.threshold_config.threshold_config_ref.clone(),
+                    max_pixel_diff_basis_points: i64::from(
+                        new.threshold_config.max_pixel_diff_basis_points,
+                    ),
+                    max_layout_shift_basis_points: i64::from(
+                        new.threshold_config.max_layout_shift_basis_points,
+                    ),
+                    structural_mismatch_limit: i64::from(
+                        new.threshold_config.structural_mismatch_limit,
+                    ),
+                    metadata_json: SurrealValue::into_value(new.metadata.clone()),
+                    requested_by: new.requested_by.clone(),
+                },
+                kernel_visual_diff_event_family::REQUEST_RECORDED,
+                "kernel_visual_diff_request",
+                &request_id.to_string(),
+                serde_json::json!({
+                    "schema": KERNEL_VISUAL_DIFF_REQUEST_SCHEMA,
+                    "request_id": request_id,
+                    "surface_id": new.surface_id,
+                    "comparison_mode": new.comparison_mode.as_token(),
+                    "reference": new.reference,
+                    "threshold_config_ref": new.threshold_config.threshold_config_ref,
+                    "max_pixel_diff_basis_points": new.threshold_config.max_pixel_diff_basis_points,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording visual diff request returned no row".into())
+        })?
+        .try_into()
     }
 
     /// Fetch a visual-diff request by id, if recorded.
@@ -462,15 +580,13 @@ impl AtelierStore {
         &self,
         request_id: Uuid,
     ) -> AtelierResult<Option<VisualDiffRequestRecord>> {
-        let row = sqlx::query(&format!(
-            "SELECT {REQUEST_COLUMNS}
-             FROM kernel_visual_diff_request
-             WHERE request_id = $1"
-        ))
-        .bind(request_id)
-        .fetch_optional(self.pool())
-        .await?;
-        row.as_ref().map(request_from_row).transpose()
+        let row: Option<RequestRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
+            ctx.query_first(
+                "SELECT request_id, surface_id, baseline_id, previous_screenshot_ref, candidate_screenshot_ref, comparison_mode, threshold_config_ref, max_pixel_diff_basis_points, max_layout_shift_basis_points, structural_mismatch_limit, metadata_json, requested_by, created_at_utc FROM kernel_visual_diff_request WHERE request_id = $id LIMIT 1;",
+                UuidBinding { id: request_id.into() },
+            ).await
+        })).await?;
+        row.map(TryInto::try_into).transpose()
     }
 
     /// Persist a computed comparison result against its request (MT-157
@@ -500,48 +616,48 @@ impl AtelierStore {
         }
 
         let result_id = Uuid::now_v7();
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            "INSERT INTO kernel_visual_diff_result
-                 (result_id, request_id, comparison_mode, units_compared,
-                  units_differing, mismatch_basis_points, threshold_exceeded,
-                  outcome, computed_at_utc)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             RETURNING {RESULT_COLUMNS}"
-        ))
-        .bind(result_id)
-        .bind(request_id)
-        .bind(computation.comparison_mode.as_token())
-        .bind(computation.units_compared as i64)
-        .bind(computation.units_differing as i64)
-        .bind(computation.mismatch_basis_points as i32)
-        .bind(computation.threshold_exceeded)
-        .bind(computation.outcome.as_token())
-        .bind(computed_at_utc)
-        .fetch_one(&mut *tx)
-        .await?;
-        let result = result_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            kernel_visual_diff_event_family::RESULT_RECORDED,
-            "kernel_visual_diff_request",
-            &request_id.to_string(),
-            serde_json::json!({
-                "schema": KERNEL_VISUAL_DIFF_RESULT_SCHEMA,
-                "result_id": result.result_id,
-                "request_id": request_id,
-                "comparison_mode": result.computation.comparison_mode.as_token(),
-                "units_compared": result.computation.units_compared,
-                "units_differing": result.computation.units_differing,
-                "mismatch_basis_points": result.computation.mismatch_basis_points,
-                "threshold_exceeded": result.computation.threshold_exceeded,
-                "outcome": result.computation.outcome.as_token(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(result)
+        let row: Option<ResultRow> = self
+            .write_with_event(
+                RECORD_RESULT,
+                ResultBindings {
+                    record_id: RecordId::new(
+                        "kernel_visual_diff_result",
+                        SurrealUuid::from(result_id),
+                    ),
+                    result_id: result_id.into(),
+                    request_id: request_id.into(),
+                    comparison_mode: computation.comparison_mode.as_token().to_owned(),
+                    units_compared: i64::try_from(computation.units_compared).map_err(|_| {
+                        AtelierError::Validation("units_compared out of range".into())
+                    })?,
+                    units_differing: i64::try_from(computation.units_differing).map_err(|_| {
+                        AtelierError::Validation("units_differing out of range".into())
+                    })?,
+                    mismatch_basis_points: i64::from(computation.mismatch_basis_points),
+                    threshold_exceeded: computation.threshold_exceeded,
+                    outcome: computation.outcome.as_token().to_owned(),
+                    computed_at_utc: computed_at_utc.into(),
+                },
+                kernel_visual_diff_event_family::RESULT_RECORDED,
+                "kernel_visual_diff_request",
+                &request_id.to_string(),
+                serde_json::json!({
+                    "schema": KERNEL_VISUAL_DIFF_RESULT_SCHEMA,
+                    "result_id": result_id,
+                    "request_id": request_id,
+                    "comparison_mode": computation.comparison_mode.as_token(),
+                    "units_compared": computation.units_compared,
+                    "units_differing": computation.units_differing,
+                    "mismatch_basis_points": computation.mismatch_basis_points,
+                    "threshold_exceeded": computation.threshold_exceeded,
+                    "outcome": computation.outcome.as_token(),
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording visual diff result returned no row".into())
+        })?
+        .try_into()
     }
 
     /// Results recorded for a request, newest first.
@@ -549,16 +665,13 @@ impl AtelierStore {
         &self,
         request_id: Uuid,
     ) -> AtelierResult<Vec<VisualDiffResultRecord>> {
-        let rows = sqlx::query(&format!(
-            "SELECT {RESULT_COLUMNS}
-             FROM kernel_visual_diff_result
-             WHERE request_id = $1
-             ORDER BY created_at_utc DESC, result_id DESC"
-        ))
-        .bind(request_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(result_from_row).collect()
+        let rows: Vec<ResultRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
+            ctx.query_values(
+                "SELECT result_id, request_id, comparison_mode, units_compared, units_differing, mismatch_basis_points, threshold_exceeded, outcome, computed_at_utc, created_at_utc FROM kernel_visual_diff_result WHERE request_id = $id ORDER BY created_at_utc DESC, result_id DESC;",
+                UuidBinding { id: request_id.into() },
+            ).await
+        })).await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 }
 

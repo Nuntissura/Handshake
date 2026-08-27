@@ -1,39 +1,31 @@
-//! WP-KERNEL-012 MT-067: the calendar activity-span store — the native
-//! editor's edit-activity provenance for a calendar block.
+//! WP-KERNEL-012 MT-067 calendar activity-span authority on embedded SurrealDB.
 //!
-//! DISTINCT from `flight_recorder::spans::ActivitySpan` (table
-//! `kernel_activity_span`, a swarm / mt-iteration span with no calendar
-//! linkage): this store is calendar-specific — every span carries a
-//! `calendar_event_id` and the set of documents edited during that event window
-//! (`edited_doc_ids`). Backed by `calendar_activity_spans` (migration 0340)
-//! over the shared storage handle — single-store authority only, no SQLite.
-//!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): this module still binds
-//! `sqlx` against the deleted relational backend and does not compile today.
-//! Handshake's only database is the embedded SurrealDB store.
+//! This store is calendar-specific and distinct from the swarm activity-span
+//! projection. Every row belongs to one workspace and calendar event, and the
+//! span identity is immutable across idempotent retries.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use sqlx::{postgres::PgRow, PgPool, Row};
+use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 
-use super::StorageError;
+use super::{surreal::SurrealStorage, StorageError};
 
-/// One stored calendar activity span.
+const ACTIVITY_TABLE: &str = "calendar_activity_spans";
+const WORKSPACES_TABLE: &str = "workspaces";
+const CALENDAR_EVENTS_TABLE: &str = "calendar_events";
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CalendarActivitySpan {
     pub span_id: String,
     pub workspace_id: String,
     pub calendar_event_id: String,
     pub started_utc: DateTime<Utc>,
-    /// `None` while the span is still open (an in-progress edit block).
     pub ended_utc: Option<DateTime<Utc>>,
     pub edited_doc_ids: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-/// Upsert input for a calendar activity span.
 #[derive(Clone, Debug)]
 pub struct NewCalendarActivitySpan {
     pub span_id: String,
@@ -44,20 +36,58 @@ pub struct NewCalendarActivitySpan {
     pub edited_doc_ids: Vec<String>,
 }
 
-/// Pool-backed store for calendar activity spans + the daily-note linkage read.
-/// Cheap to construct per request (wraps a pooled handle; never reconnects).
+#[derive(SurrealValue)]
+struct ActivitySpanRow {
+    span_id: String,
+    workspace_id: RecordId,
+    calendar_event_id: String,
+    started_utc: Datetime,
+    ended_utc: Option<Datetime>,
+    edited_doc_ids: Vec<String>,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct UpsertBindings {
+    span: RecordId,
+    workspace: RecordId,
+    event: RecordId,
+    span_id: String,
+    calendar_event_id: String,
+    started_utc: Datetime,
+    ended_utc: Option<Datetime>,
+    edited_doc_ids: Vec<String>,
+}
+
+#[derive(SurrealValue)]
+struct EventBindings {
+    workspace: RecordId,
+    calendar_event_id: String,
+}
+
+#[derive(SurrealValue)]
+struct DailyNoteBindings {
+    workspace: RecordId,
+    journal_date: String,
+}
+
+#[derive(SurrealValue)]
+struct DailyNoteRow {
+    block_id: String,
+    document_id: Option<RecordId>,
+}
+
 #[derive(Clone)]
 pub struct CalendarActivityStore {
-    pool: PgPool,
+    storage: SurrealStorage,
 }
 
 impl CalendarActivityStore {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
     }
 
-    /// Insert-or-update a calendar activity span keyed by `span_id`. Its workspace/event identity is
-    /// immutable after creation; idempotent retries may update only the span times and edited documents.
     pub async fn upsert_activity_span(
         &self,
         input: NewCalendarActivitySpan,
@@ -77,170 +107,156 @@ impl CalendarActivityStore {
                 "activity span calendar_event_id is required",
             ));
         }
-        if let Some(ended) = input.ended_utc {
-            if ended < input.started_utc {
-                return Err(StorageError::Validation(
-                    "activity span ended_utc must be >= started_utc",
-                ));
-            }
+        if input
+            .ended_utc
+            .is_some_and(|ended| ended < input.started_utc)
+        {
+            return Err(StorageError::Validation(
+                "activity span ended_utc must be >= started_utc",
+            ));
         }
 
-        // JSON array of doc-id strings for the `edited_doc_ids` jsonb column.
-        let edited: Value = Value::Array(
-            input
-                .edited_doc_ids
-                .iter()
-                .map(|d| Value::String(d.clone()))
-                .collect(),
-        );
+        let bindings = UpsertBindings {
+            span: RecordId::new(ACTIVITY_TABLE, input.span_id.clone()),
+            workspace: RecordId::new(WORKSPACES_TABLE, input.workspace_id),
+            event: RecordId::new(CALENDAR_EVENTS_TABLE, input.calendar_event_id.clone()),
+            span_id: input.span_id,
+            calendar_event_id: input.calendar_event_id,
+            started_utc: Datetime::from(input.started_utc),
+            ended_utc: input.ended_utc.map(Datetime::from),
+            edited_doc_ids: input.edited_doc_ids,
+        };
+        let result: Result<Option<ActivitySpanRow>, _> = self
+            .storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            "IF (SELECT VALUE id FROM $event WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { \
+                                 THROW 'HSK-CALENDAR-EVENT-NOT-FOUND'; \
+                             } ELSE IF (SELECT VALUE workspace_id FROM $span LIMIT 1)[0] != NONE \
+                                 AND (SELECT VALUE workspace_id FROM $span LIMIT 1)[0] != $workspace { \
+                                 THROW 'HSK-CALENDAR-SPAN-WORKSPACE-CONFLICT'; \
+                             } ELSE IF (SELECT VALUE calendar_event_id FROM $span LIMIT 1)[0] != NONE \
+                                 AND (SELECT VALUE calendar_event_id FROM $span LIMIT 1)[0] != $calendar_event_id { \
+                                 THROW 'HSK-CALENDAR-SPAN-EVENT-CONFLICT'; \
+                             } ELSE { \
+                                 RETURN UPSERT $span SET span_id = $span_id, workspace_id = $workspace, \
+                                     calendar_event_id = $calendar_event_id, started_utc = $started_utc, \
+                                     ended_utc = $ended_utc, edited_doc_ids = $edited_doc_ids, \
+                                     updated_at = time::now() RETURN AFTER; \
+                             };",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await;
 
-        let mut tx = self.pool.begin().await.map_err(StorageError::from)?;
-
-        // `span_id` is globally unique in the authority table. Serialize all writers for one id so
-        // two workspaces racing the same id cannot pass an absent-row precheck and then overwrite or
-        // surface an opaque database error.
-        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-            .bind(&input.span_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(StorageError::from)?;
-
-        let event_exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM calendar_events WHERE id = $1 AND workspace_id = $2)",
-        )
-        .bind(&input.calendar_event_id)
-        .bind(&input.workspace_id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(StorageError::from)?;
-        if !event_exists {
-            return Err(StorageError::NotFound("calendar_event_not_found"));
-        }
-
-        let existing_identity: Option<(String, String)> = sqlx::query_as(
-            "SELECT workspace_id, calendar_event_id FROM calendar_activity_spans WHERE span_id = $1",
-        )
-        .bind(&input.span_id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(StorageError::from)?;
-        if let Some((workspace_id, calendar_event_id)) = existing_identity {
-            if workspace_id != input.workspace_id {
-                return Err(StorageError::Conflict(
-                    "calendar_activity_span_workspace_conflict",
-                ));
+        match result {
+            Ok(Some(row)) => map_span_row(row),
+            Ok(None) => Err(StorageError::Database(
+                "calendar activity span upsert returned no row".to_owned(),
+            )),
+            Err(error) => {
+                let rendered = error.to_string();
+                if rendered.contains("HSK-CALENDAR-EVENT-NOT-FOUND") {
+                    Err(StorageError::NotFound("calendar_event_not_found"))
+                } else if rendered.contains("HSK-CALENDAR-SPAN-WORKSPACE-CONFLICT") {
+                    Err(StorageError::Conflict(
+                        "calendar_activity_span_workspace_conflict",
+                    ))
+                } else if rendered.contains("HSK-CALENDAR-SPAN-EVENT-CONFLICT") {
+                    Err(StorageError::Conflict(
+                        "calendar_activity_span_event_conflict",
+                    ))
+                } else {
+                    Err(StorageError::Database(rendered))
+                }
             }
-            if calendar_event_id != input.calendar_event_id {
-                return Err(StorageError::Conflict(
-                    "calendar_activity_span_event_conflict",
-                ));
-            }
         }
-
-        let row = sqlx::query(
-            r#"
-            INSERT INTO calendar_activity_spans
-                (span_id, workspace_id, calendar_event_id, started_utc, ended_utc, edited_doc_ids)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (span_id) DO UPDATE SET
-                started_utc = EXCLUDED.started_utc,
-                ended_utc = EXCLUDED.ended_utc,
-                edited_doc_ids = EXCLUDED.edited_doc_ids,
-                updated_at = NOW()
-            RETURNING span_id, workspace_id, calendar_event_id, started_utc, ended_utc,
-                      edited_doc_ids, created_at, updated_at
-            "#,
-        )
-        .bind(&input.span_id)
-        .bind(&input.workspace_id)
-        .bind(&input.calendar_event_id)
-        .bind(input.started_utc)
-        .bind(input.ended_utc)
-        .bind(edited)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(StorageError::from)?;
-        tx.commit().await.map_err(StorageError::from)?;
-        Ok(map_span_row(&row))
     }
 
-    /// All activity spans for a calendar event, newest span-start first.
     pub async fn query_activity_spans_by_event(
         &self,
         workspace_id: &str,
         calendar_event_id: &str,
     ) -> Result<Vec<CalendarActivitySpan>, StorageError> {
-        let rows = sqlx::query(
-            r#"
-            SELECT span_id, workspace_id, calendar_event_id, started_utc, ended_utc,
-                   edited_doc_ids, created_at, updated_at
-            FROM calendar_activity_spans
-            WHERE workspace_id = $1 AND calendar_event_id = $2
-            ORDER BY started_utc DESC, span_id ASC
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(calendar_event_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(StorageError::from)?;
-        Ok(rows.iter().map(map_span_row).collect())
+        let bindings = EventBindings {
+            workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+            calendar_event_id: calendar_event_id.to_owned(),
+        };
+        let rows: Vec<ActivitySpanRow> = self
+            .storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(
+                            "SELECT span_id, workspace_id, calendar_event_id, started_utc, ended_utc, \
+                                 edited_doc_ids, created_at, updated_at FROM calendar_activity_spans \
+                             WHERE workspace_id = $workspace AND calendar_event_id = $calendar_event_id \
+                             ORDER BY started_utc DESC, span_id ASC;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(|error| StorageError::Database(error.to_string()))?;
+        rows.into_iter().map(map_span_row).collect()
     }
 
-    /// Read-only: the daily-note doc id for a workspace + date, if a daily
-    /// journal LoomBlock exists for that date (`content_type = 'journal'` and
-    /// `journal_date` = the `YYYY-MM-DD` key — the MT-019 / MT-257 daily
-    /// journal). Returns the block's linked `document_id` when present, else the
-    /// block id (the same date->doc key the native daily-note interop uses in
-    /// `calendar_interop::open_or_create_daily_note`). This is a pure LOOKUP: it
-    /// never creates a journal block.
     pub async fn find_daily_note_doc_id_for_date(
         &self,
         workspace_id: &str,
         journal_date: &str,
     ) -> Result<Option<String>, StorageError> {
-        let row = sqlx::query(
-            r#"
-            SELECT block_id, document_id
-            FROM loom_blocks
-            WHERE workspace_id = $1
-              AND content_type = 'journal'
-              AND journal_date = $2
-            LIMIT 1
-            "#,
-        )
-        .bind(workspace_id)
-        .bind(journal_date)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(StorageError::from)?;
-        Ok(row.map(|r| {
-            let document_id: Option<String> = r.get("document_id");
-            let block_id: String = r.get("block_id");
-            document_id.unwrap_or(block_id)
-        }))
+        let bindings = DailyNoteBindings {
+            workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+            journal_date: journal_date.to_owned(),
+        };
+        let row: Option<DailyNoteRow> = self
+            .storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            "SELECT block_id, document_id FROM loom_blocks \
+                             WHERE workspace_id = $workspace AND content_type = 'journal' \
+                             AND journal_date = $journal_date LIMIT 1;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(|error| StorageError::Database(error.to_string()))?;
+        row.map(|row| match row.document_id {
+            Some(record) => record_key(record, "daily-note document"),
+            None => Ok(row.block_id),
+        })
+        .transpose()
     }
 }
 
-/// Map one `calendar_activity_spans` row to the domain type.
-fn map_span_row(row: &PgRow) -> CalendarActivitySpan {
-    let edited: Value = row.get("edited_doc_ids");
-    let edited_doc_ids = edited
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(str::to_string))
-                .collect()
-        })
-        .unwrap_or_default();
-    CalendarActivitySpan {
-        span_id: row.get("span_id"),
-        workspace_id: row.get("workspace_id"),
-        calendar_event_id: row.get("calendar_event_id"),
-        started_utc: row.get("started_utc"),
-        ended_utc: row.get("ended_utc"),
-        edited_doc_ids,
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+fn map_span_row(row: ActivitySpanRow) -> Result<CalendarActivitySpan, StorageError> {
+    Ok(CalendarActivitySpan {
+        span_id: row.span_id,
+        workspace_id: record_key(row.workspace_id, "calendar activity workspace")?,
+        calendar_event_id: row.calendar_event_id,
+        started_utc: row.started_utc.into_inner(),
+        ended_utc: row.ended_utc.map(Datetime::into_inner),
+        edited_doc_ids: row.edited_doc_ids,
+        created_at: row.created_at.into_inner(),
+        updated_at: row.updated_at.into_inner(),
+    })
+}
+
+fn record_key(record: RecordId, field: &str) -> Result<String, StorageError> {
+    match record.key {
+        RecordIdKey::String(value) => Ok(value),
+        _ => Err(StorageError::Serialization(format!(
+            "{field} is not a string record key"
+        ))),
     }
 }

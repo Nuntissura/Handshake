@@ -68,9 +68,9 @@ fn kernel_events_preserve_run_causation_and_payload() {
 }
 
 #[test]
-fn kernel_authority_accepts_only_postgres_primary_mode() {
-    assert_kernel_authority_storage_mode(ControlPlaneStorageMode::PostgresPrimary)
-        .expect("PostgresPrimary is the only Kernel V1 authority mode");
+fn kernel_authority_accepts_only_surreal_embedded_mode() {
+    assert_kernel_authority_storage_mode(ControlPlaneStorageMode::SurrealEmbedded)
+        .expect("SurrealEmbedded is the only Kernel V1 authority mode");
 }
 
 #[test]

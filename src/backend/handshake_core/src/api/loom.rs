@@ -313,8 +313,8 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/graph-search",
             get(search_loom_graph),
         )
-        // MT-264: LoomSearchV2 -- Postgres-native, graph-blended hybrid search
-        // (FTS + pg_trgm + pgvector kNN). Supersedes/extends the MT-258/250
+        // MT-264: LoomSearchV2 -- store-native, graph-blended hybrid search
+        // (full-text + trigram similarity + vector kNN). Supersedes/extends the MT-258/250
         // workspace search entrypoint.
         .route(
             "/workspaces/:workspace_id/loom/search-v2",
@@ -642,13 +642,13 @@ async fn get_loom_block_transclusion(
         .await
         .map_err(map_storage_error)?;
 
-    // The rich-document authority lives on the KnowledgeStore (implemented on
-    // PostgresDatabase), reached through the shared pool — mirroring the
+    // The rich-document authority lives on the KnowledgeStore implemented by
+    // the embedded SurrealDB database, mirroring the
     // knowledge_documents API's `db_for`. Native RichDocuments have a same-ID
     // LoomBlock projection (`block_id == rich_document_id`) and no legacy
     // `document_id`; imported legacy blocks continue to resolve through their
-    // `documents` anchor. Both are real PostgreSQL authority paths.
-    let knowledge_db = crate::storage::postgres::PostgresDatabase::new(state.postgres_pool.clone());
+    // `documents` anchor. Both are real embedded-store authority paths.
+    let knowledge_db = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
     let document = if let Some(document_id) = block.document_id.as_deref() {
         crate::storage::knowledge::KnowledgeStore::get_knowledge_rich_document_by_document_id(
             &knowledge_db,
@@ -836,9 +836,9 @@ struct ServedWikiPage {
     staleness_verdict: crate::knowledge_wiki::WikiStalenessVerdict,
 }
 
-fn wiki_pg(state: &AppState) -> std::sync::Arc<crate::storage::postgres::PostgresDatabase> {
-    std::sync::Arc::new(crate::storage::postgres::PostgresDatabase::new(
-        state.postgres_pool.clone(),
+fn wiki_db(state: &AppState) -> std::sync::Arc<crate::storage::surreal::SurrealDatabase> {
+    std::sync::Arc::new(crate::storage::surreal::SurrealDatabase::new(
+        state.surreal.clone(),
     ))
 }
 
@@ -896,7 +896,7 @@ async fn attach_wiki_verdict(
     state: &AppState,
     page: crate::storage::LoomWikiProjection,
 ) -> ApiResult<ServedWikiPage> {
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(state));
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(state));
     let staleness_verdict = checker
         .evaluate_stamp_value(&page.workspace_id, page.compile_stamp.as_ref())
         .await
@@ -969,7 +969,7 @@ async fn loom_wiki_projection_stale(
         .get_loom_wiki_projection(&workspace_id, &projection_id)
         .await
         .map_err(map_storage_error)?;
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(&state));
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
     let verdict = checker
         .evaluate_stamp_value(&workspace_id, projection.compile_stamp.as_ref())
         .await
@@ -1036,7 +1036,7 @@ async fn list_loom_wiki_pages(
     Query(params): Query<ListWikiPagesQuery>,
 ) -> ApiResult<Json<serde_json::Value>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let db = wiki_pg(&state);
+    let db = wiki_db(&state);
     let pages = db
         .list_knowledge_wiki_pages(
             &workspace_id,
@@ -1082,7 +1082,7 @@ async fn bootstrap_project_wiki(
     ensure_workspace_exists(&state, &workspace_id).await?;
     let request = payload.map(|Json(p)| p).unwrap_or_default();
     let ctx = wiki_compile_context(&headers);
-    let db = wiki_pg(&state);
+    let db = wiki_db(&state);
     let compiler = crate::knowledge_wiki::compiler::ProjectWikiCompiler::new(db.clone());
     let mut options = crate::knowledge_wiki::compiler::WikiBootstrapOptions::default();
     if let Some(budget) = request.page_token_budget {
@@ -1158,7 +1158,7 @@ async fn project_wiki_drift_check(
     ensure_workspace_exists(&state, &workspace_id).await?;
     let request = payload.map(|Json(p)| p).unwrap_or_default();
     let ctx = wiki_compile_context(&headers);
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(&state));
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
     let report = checker
         .check_workspace(&ctx, &workspace_id, request.persist.unwrap_or(true))
         .await
@@ -1186,7 +1186,7 @@ async fn project_wiki_fanout(
 ) -> ApiResult<Json<crate::knowledge_wiki::fanout::WikiFanOutOutcome>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let ctx = wiki_compile_context(&headers);
-    let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_pg(&state));
+    let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_db(&state));
     let mut request = crate::knowledge_wiki::fanout::WikiFanOutRequest::new(
         payload.source_kind,
         payload.source_id,
@@ -1789,10 +1789,9 @@ async fn reconcile_block_view_events(
     }
 
     loop {
-        let pending =
-            block_view_outbox::list_pending(&state.surreal, workspace_id, None, 200)
-                .await
-                .map_err(map_storage_error)?;
+        let pending = block_view_outbox::list_pending(&state.surreal, workspace_id, None, 200)
+            .await
+            .map_err(map_storage_error)?;
         let pending_count = pending.len();
         let mut first_error = None;
         for (event_workspace_id, event) in pending {
@@ -1809,13 +1808,9 @@ async fn reconcile_block_view_events(
                 first_error.get_or_insert(error);
                 continue;
             }
-            block_view_outbox::mark_published(
-                &state.surreal,
-                &event_workspace_id,
-                event.event_id,
-            )
-            .await
-            .map_err(map_storage_error)?;
+            block_view_outbox::mark_published(&state.surreal, &event_workspace_id, event.event_id)
+                .await
+                .map_err(map_storage_error)?;
         }
         if let Some(error) = first_error {
             return Err(error);
@@ -2964,7 +2959,7 @@ async fn run_loom_ai_job(
     };
     let result = run_loom_ai_job_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal,
         state.llm_client.as_ref(),
         req,
     )
@@ -3049,7 +3044,7 @@ async fn list_loom_ai_suggestions(
 ) -> ApiResult<Json<Vec<LoomAiSuggestionRow>>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let rows = list_suggestion_rows(
-        &state.postgres_pool,
+        &state.surreal,
         &workspace_id,
         query.job_id.as_deref(),
         query.state.as_deref(),
@@ -3079,7 +3074,7 @@ async fn accept_loom_ai_suggestion(
 
     let outcome = accept_suggestion_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal,
         &suggestion_id,
         &reviewer,
         &loom_ai_session(&headers),
@@ -3124,7 +3119,7 @@ async fn reject_loom_ai_suggestion(
 
     let outcome = reject_suggestion_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal,
         &suggestion_id,
         &reviewer,
         &loom_ai_session(&headers),
@@ -3186,11 +3181,11 @@ async fn accept_all_loom_ai_suggestions(
     let correlation = loom_ai_correlation(&headers);
 
     // Delegate to the canonical accept-all sweep (lists the PENDING authority
-    // set from PostgreSQL and runs the SAME per-item flow on each), so per-item
+    // set from SurrealDB and runs the SAME per-item flow on each), so per-item
     // authority is enforced identically for the HTTP and direct callers.
     let outcome = accept_all_suggestions_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal,
         &workspace_id,
         &job_id,
         kind_filter,
@@ -4535,12 +4530,53 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{
-        tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace,
-    };
+    use crate::storage::{tests::embedded_test_backend, Database, NewWorkspace};
     use once_cell::sync::Lazy;
     use std::sync::{Arc, Mutex};
+    use surrealdb::types::{RecordId, SurrealValue};
     use tempfile::TempDir;
+
+    #[derive(Clone, SurrealValue)]
+    struct LoomTestBlockBinding {
+        block: RecordId,
+    }
+
+    #[derive(Clone, SurrealValue)]
+    struct LoomTestEventBinding {
+        workspace: RecordId,
+        event_id: String,
+    }
+
+    #[derive(Clone, SurrealValue)]
+    struct LoomTestCorruptionBinding {
+        workspace: RecordId,
+        event_id: String,
+        hash: String,
+    }
+
+    #[derive(Clone, SurrealValue)]
+    struct LoomTestEventListBinding {
+        event_ids: Vec<String>,
+    }
+
+    #[derive(SurrealValue)]
+    struct LoomTestCountRow {
+        count: i64,
+    }
+
+    async fn loom_test_count<B: SurrealValue + Send>(
+        state: &AppState,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<i64, Box<dyn std::error::Error>> {
+        let row: Option<LoomTestCountRow> = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_first(statement, bindings).await })
+            })
+            .await?;
+        Ok(row.map_or(0, |row| row.count))
+    }
 
     static ENV_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -4580,16 +4616,13 @@ mod tests {
         }
     }
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
-
+    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+        let backend = embedded_test_backend().await?;
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(Some(AppState {
+        Ok(AppState {
             storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+            surreal: backend.storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -4597,7 +4630,7 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        }))
+        })
     }
 
     async fn create_workspace(state: &AppState) -> Result<String, Box<dyn std::error::Error>> {
@@ -4618,14 +4651,12 @@ mod tests {
     /// produces and persists block embeddings exactly like a configured Ollama
     /// embedding model. Used to prove blocker #2 (embedding refreshed on
     /// create/update through the real handler, not only in manual-reindex tests).
-    async fn setup_state_with_embedding() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+    async fn setup_state_with_embedding() -> Result<AppState, Box<dyn std::error::Error>> {
+        let backend = embedded_test_backend().await?;
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
-        Ok(Some(AppState {
+        Ok(AppState {
             storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+            surreal: backend.storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(
@@ -4636,7 +4667,7 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        }))
+        })
     }
 
     /// The number of `loom_block_search_index` rows for a block that carry a
@@ -4645,14 +4676,15 @@ mod tests {
         state: &AppState,
         block_id: &str,
     ) -> Result<i64, Box<dyn std::error::Error>> {
-        let n: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM loom_block_search_index \
-             WHERE block_id = $1 AND embedding IS NOT NULL",
+        loom_test_count(
+            state,
+            "SELECT count() AS count FROM loom_block_search_index \
+             WHERE block_id = $block AND embedding != NONE GROUP ALL;",
+            LoomTestBlockBinding {
+                block: RecordId::new("loom_blocks", block_id),
+            },
         )
-        .bind(block_id)
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        Ok(n)
+        .await
     }
 
     /// MT-264 blocker #2: a block created through the REAL `create_loom_block`
@@ -4663,9 +4695,7 @@ mod tests {
     #[tokio::test]
     async fn mt264_api_create_and_update_refresh_embedding(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state_with_embedding().await? else {
-            return Ok(());
-        };
+        let state = setup_state_with_embedding().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let created = create_loom_block(
@@ -4748,9 +4778,7 @@ mod tests {
     /// against the real durable store.
     #[tokio::test]
     async fn mt264_journal_block_indexed_on_create() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let journal = open_daily_journal(
@@ -4765,11 +4793,15 @@ mod tests {
         let block_id = journal.0.block_id.clone();
 
         // The journal block has an index row immediately on creation.
-        let index_rows: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1")
-                .bind(&block_id)
-                .fetch_one(&state.postgres_pool)
-                .await?;
+        let index_rows = loom_test_count(
+            &state,
+            "SELECT count() AS count FROM loom_block_search_index \
+             WHERE block_id = $block GROUP ALL;",
+            LoomTestBlockBinding {
+                block: RecordId::new("loom_blocks", &block_id),
+            },
+        )
+        .await?;
         assert_eq!(
             index_rows, 1,
             "journal block must get a search-index row on creation (no drift)"
@@ -4848,9 +4880,7 @@ mod tests {
     #[tokio::test]
     async fn graph_search_inline_operators_filter_real_rows(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
         let ctx = WriteContext::human(None);
 
@@ -5001,7 +5031,7 @@ mod tests {
         assert_eq!(
             hit_keys,
             vec![("loom_block", matching.block_id.as_str())],
-            "inline tag/mention/kind/path operators must filter against PostgreSQL rows"
+            "inline tag/mention/kind/path operators must filter against SurrealDB rows"
         );
         Ok(())
     }
@@ -5015,9 +5045,7 @@ mod tests {
             temp.path().to_string_lossy().as_ref(),
         );
 
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let bytes = b"hello loom".to_vec();
@@ -5061,9 +5089,7 @@ mod tests {
 
     #[tokio::test]
     async fn view_and_search_emit_events() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let _ = create_loom_block(
@@ -5141,10 +5167,7 @@ mod tests {
     #[tokio::test]
     async fn mt258_bookmark_routes_persist_add_remove_and_emit_receipts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            eprintln!("SKIP MT-258 bookmark route proof: PostgreSQL backend unavailable");
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let created = create_loom_block(
@@ -5283,10 +5306,10 @@ mod tests {
             .storage
             .get_loom_block(&workspace_id, &block_id)
             .await?;
-        assert!(!stored.pinned, "Postgres read after remove is unpinned");
+        assert!(!stored.pinned, "SurrealDB read after remove is unpinned");
         assert_eq!(
             stored.pin_order, None,
-            "Postgres read after remove is unordered"
+            "SurrealDB read after remove is unordered"
         );
 
         let pins_after_remove = query_loom_view(
@@ -5362,10 +5385,7 @@ mod tests {
     #[tokio::test]
     async fn mt258_properties_tag_edit_persists_edges_and_metrics(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            eprintln!("SKIP MT-258 tag-edit route proof: PostgreSQL backend unavailable");
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let make_block = |content_type: LoomBlockContentType, title: &str| {
@@ -5439,7 +5459,7 @@ mod tests {
             "route add_tags must create real tag edges and recompute tag_count"
         );
 
-        // The edges are real `tag` loom_edges in Postgres, not just a counter.
+        // The edges are real `tag` loom_edges in SurrealDB, not just a counter.
         let edges_after_add = state
             .storage
             .list_loom_edges_for_block(&workspace_id, &block_id)
@@ -5477,7 +5497,7 @@ mod tests {
                     && edge.source_block_id == block_id
                     && edge.target_block_id == tag_a.block_id)
             }),
-            "removed tag edge must be gone from Postgres"
+            "removed tag edge must be gone from SurrealDB"
         );
         assert!(
             edges_after_remove.iter().any(|edge| {
@@ -5488,14 +5508,14 @@ mod tests {
             "the untouched tag edge must survive the remove"
         );
 
-        // Postgres read after the route confirms durability (not in-memory only).
+        // SurrealDB read after the route confirms durability (not in-memory only).
         let stored = state
             .storage
             .get_loom_block(&workspace_id, &block_id)
             .await?;
         assert_eq!(
             stored.derived.tag_count, 1,
-            "Postgres re-read confirms the tag mutation persisted"
+            "SurrealDB re-read confirms the tag mutation persisted"
         );
 
         // TagHub guard: a non-TagHub target is rejected, no edge is created.
@@ -5572,9 +5592,7 @@ mod tests {
 
     #[tokio::test]
     async fn loom_search_backend_tier() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let _ = create_loom_block(
@@ -5648,9 +5666,7 @@ mod tests {
 
     #[tokio::test]
     async fn graph_traversal_and_metrics_routes_work() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let start_block = create_loom_block(
@@ -5873,14 +5889,14 @@ mod tests {
         workspace_id: &str,
         event_id: Uuid,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(sqlx::query_scalar(
-            "SELECT published_at IS NOT NULL FROM loom_block_view_fr_outbox \
-             WHERE workspace_id = $1 AND event_id = $2",
+        Ok(crate::storage::block_view_outbox_surreal::load_row(
+            &state.surreal,
+            workspace_id,
+            event_id,
         )
-        .bind(workspace_id)
-        .bind(event_id.to_string())
-        .fetch_one(&state.postgres_pool)
-        .await?)
+        .await?
+        .published_at
+        .is_some())
     }
 
     /// MT-027 V3: prove the transactional outbox recovery matrix against real
@@ -5888,9 +5904,7 @@ mod tests {
     #[tokio::test]
     async fn mt027_block_view_publication_survives_outage_restart_races_and_retention(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(mut state) = setup_state().await? else {
-            return Ok(());
-        };
+        let mut state = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
         let recorder_dir = TempDir::new()?;
         let recorder_path = recorder_dir.path().join("mt027-flight-recorder.duckdb");
@@ -5899,7 +5913,7 @@ mod tests {
         state.flight_recorder = recorder.clone();
         state.diagnostics = recorder;
 
-        // Recorder outage after the PostgreSQL commit: publication fails and
+        // Recorder outage after the SurrealDB commit: publication fails and
         // durable intent remains retryable until a reconstructed service object
         // drains it after the real DuckDB surface returns.
         let outage_id = Uuid::new_v4().to_string();
@@ -5936,13 +5950,13 @@ mod tests {
             })?;
         assert!(mt027_is_published(&state, &workspace_id, outage_event_id).await?);
 
-        // Crash after recorder insert but before PostgreSQL acknowledgement:
+        // Crash after recorder insert but before SurrealDB acknowledgement:
         // restart observes the same real event and marks it exactly once.
         let crash_id = Uuid::new_v4().to_string();
         let crash = mt027_create_pending_view(&state, &workspace_id, &crash_id).await?;
         let crash_event_id = crash.publication_event_id.expect("crash event id");
         let crash_event = match block_view_outbox::load_scoped_publication(
-            &state.postgres_pool,
+            &state.surreal,
             &workspace_id,
             crash_event_id,
         )
@@ -6055,17 +6069,14 @@ mod tests {
         reconcile_block_view_events(&state, None, None)
             .await
             .map_err(|error| format!("batch reconcile failed: {} {}", error.0, error.1 .0.error))?;
-        let unpublished_batch: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM loom_block_view_fr_outbox \
-             WHERE event_id = ANY($1) AND published_at IS NULL",
+        let unpublished_batch = loom_test_count(
+            &state,
+            "SELECT count() AS count FROM loom_block_view_fr_outbox \
+             WHERE event_id IN $event_ids AND published_at = NONE GROUP ALL;",
+            LoomTestEventListBinding {
+                event_ids: batch_event_ids.iter().map(ToString::to_string).collect(),
+            },
         )
-        .bind(
-            batch_event_ids
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>(),
-        )
-        .fetch_one(&state.postgres_pool)
         .await?;
         assert_eq!(unpublished_batch, 0, "all rows beyond page 200 must drain");
 
@@ -6073,14 +6084,29 @@ mod tests {
         let corrupt_id = Uuid::new_v4().to_string();
         let corrupt = mt027_create_pending_view(&state, &workspace_id, &corrupt_id).await?;
         let corrupt_event_id = corrupt.publication_event_id.expect("corrupt event id");
-        sqlx::query(
-            "UPDATE loom_block_view_fr_outbox SET event_hash = repeat('0', 64) \
-             WHERE workspace_id = $1 AND event_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(corrupt_event_id.to_string())
-        .execute(&state.postgres_pool)
-        .await?;
+        let corrupt_binding = LoomTestEventBinding {
+            workspace: RecordId::new("workspaces", &workspace_id),
+            event_id: corrupt_event_id.to_string(),
+        };
+        let corrupted = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .execute_returning(
+                            "UPDATE loom_block_view_fr_outbox SET event_hash = $hash \
+                             WHERE workspace_id = $workspace AND event_id = $event_id RETURN AFTER;",
+                            LoomTestCorruptionBinding {
+                                workspace: corrupt_binding.workspace,
+                                event_id: corrupt_binding.event_id,
+                                hash: "0".repeat(64),
+                            },
+                        )
+                        .await
+                })
+            })
+            .await?;
+        assert_eq!(corrupted, 1, "the exact outbox row must be corrupted");
         for attempt in 1..=2 {
             assert!(
                 reconcile_block_view_events(&state, Some(&workspace_id), Some(corrupt_event_id))
@@ -6089,15 +6115,14 @@ mod tests {
                 "corrupt/quarantined exact event must fail attempt {attempt}"
             );
         }
-        let corrupt_state: (bool, bool) = sqlx::query_as(
-            "SELECT quarantined_at IS NOT NULL, published_at IS NOT NULL \
-             FROM loom_block_view_fr_outbox WHERE workspace_id = $1 AND event_id = $2",
+        let corrupt_state = crate::storage::block_view_outbox_surreal::load_row(
+            &state.surreal,
+            &workspace_id,
+            corrupt_event_id,
         )
-        .bind(&workspace_id)
-        .bind(corrupt_event_id.to_string())
-        .fetch_one(&state.postgres_pool)
         .await?;
-        assert_eq!(corrupt_state, (true, false));
+        assert!(corrupt_state.quarantined_at.is_some());
+        assert!(corrupt_state.published_at.is_none());
 
         // Already-published exact retries are idempotent success.
         reconcile_block_view_events(&state, Some(&workspace_id), Some(outage_event_id))

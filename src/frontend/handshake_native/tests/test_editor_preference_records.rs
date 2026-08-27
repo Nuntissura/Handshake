@@ -1,8 +1,8 @@
-//! WP-KERNEL-012 MT-072 remediation (FAIL_V2) — canonical PreferenceRecord authority live-PG proof.
+//! WP-KERNEL-012 MT-072 remediation (FAIL_V2) — canonical PreferenceRecord authority live-SurrealDB proof.
 //!
 //! Validator V2 rejected editor settings because they persisted as an opaque workspace-settings JSON
 //! document rather than the typed [`PreferenceRecord`] authority (Master Spec v02.201 §10.17). This
-//! proof drives the NEW canonical preference HTTP surface against a REAL managed PostgreSQL +
+//! proof drives the NEW canonical preference HTTP surface against a REAL managed SurrealDB +
 //! handshake_core backend and asserts the full lifecycle the validator required:
 //!
 //! * SET-REC-003 — a defined-but-unset preference resolves to its registry default (never null), with a
@@ -12,14 +12,14 @@
 //!   EventLedger row, and the EventLedger row is visible on `/events`.
 //! * SET-UI-002 — reset-to-default is a mutation with `source=operator` + its own receipt, not a delete.
 //! * SET-UI-003 — the change history lists every mutation newest-first, and survives a fresh GET (the
-//!   canonical PostgreSQL round-trip; there is no in-memory settings cache — PostgreSQL is the sole
+//!   canonical SurrealDB round-trip; there is no in-memory settings cache — SurrealDB is the sole
 //!   authority, so the readback proves durable persistence).
 //! * SET-PROJ-002 — the redacted projection is a deterministic read-only view over canonical state.
 //!
 //! Run against a live backend, e.g. attach to http://127.0.0.1:37501 or an owned
-//! `HSK_TEST_BACKEND_BIN` + `HANDSHAKE_TEST_PG_DSN` (see pg_proof_support).
+//! `HSK_TEST_BACKEND_BIN` + `HANDSHAKE_DATA_DIR` (see backend_proof_support).
 
-mod pg_proof_support;
+mod backend_proof_support;
 
 use serde_json::{json, Value};
 
@@ -41,8 +41,8 @@ const TAB_SIZE: &str = "view-defaults.editor.tab-size";
 const WORD_WRAP: &str = "view-defaults.editor.word-wrap";
 
 #[test]
-fn editor_preferences_persist_reset_and_history_on_live_postgres() {
-    let mut backend = pg_proof_support::require_live_backend();
+fn editor_preferences_persist_reset_and_history_on_live_surrealdb() {
+    let mut backend = backend_proof_support::require_live_backend();
     let wsid = backend.workspace_id.clone();
     let base = format!("/workspaces/{wsid}/preferences");
 
@@ -129,7 +129,7 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
     assert_eq!(event["payload"]["revision"], 1);
     assert_eq!(event["payload"]["new_value_ref"], json!(20.0));
 
-    // --- SET-UI-003 durability: a fresh GET (canonical PostgreSQL, no cache) returns the set value. ---
+    // --- SET-UI-003 durability: a fresh GET (canonical SurrealDB, no cache) returns the set value. ---
     let reread = backend.get_json(&format!("{base}/{FONT_SIZE}"));
     assert_eq!(reread["record"]["value"], json!(20.0));
     assert_eq!(reread["record"]["revision"], 1);
@@ -196,10 +196,10 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// MT-072 remediation items 6 + 7 (FAIL_V4): the FULL live-PostgreSQL authoritative matrix and the
+// MT-072 remediation items 6 + 7 (FAIL_V4): the FULL live-SurrealDB authoritative matrix and the
 // adversarial live cases. V4 accepted the proof above as real but noted it "mutates and rereads editor
 // font size only", leaving the remaining scalars, the palette, and the code/rich keybinding overrides
-// on stub transport. Everything below runs against the SAME real backend + real PostgreSQL, and the
+// on stub transport. Everything below runs against the SAME real backend + real SurrealDB, and the
 // fresh-client reopen uses the PRODUCTION `PreferenceClient` (no `StubPreferenceTransport` anywhere in
 // this file).
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -265,11 +265,11 @@ fn hydrated_app(rows: &[PreferenceProjectionRow]) -> HandshakeApp {
 
 /// MT-072 remediation item 6 — EVERY authoritative editor preference proves typed projection, set,
 /// fresh-client reopen, exact revision, receipt, EventLedger reference, reset, and history against REAL
-/// PostgreSQL, plus all three palette modes, a custom swatch, and BOTH a code and a rich keybinding
+/// SurrealDB, plus all three palette modes, a custom swatch, and BOTH a code and a rich keybinding
 /// override landing on the mounted editors of a freshly hydrated client.
 #[test]
-fn every_editor_preference_persists_reopens_resets_and_histories_on_live_postgres() {
-    let mut backend = pg_proof_support::require_live_backend();
+fn every_editor_preference_persists_reopens_resets_and_histories_on_live_surrealdb() {
+    let mut backend = backend_proof_support::require_live_backend();
     let wsid = backend.workspace_id.clone();
     let base = format!("/workspaces/{wsid}/preferences");
     let matrix = authoritative_matrix();
@@ -558,7 +558,7 @@ fn every_editor_preference_persists_reopens_resets_and_histories_on_live_postgre
 /// `(value, revision, history_length)` for one preference — the exact durable state a rejected write
 /// must leave untouched.
 fn preference_snapshot(
-    backend: &pg_proof_support::LiveBackend,
+    backend: &backend_proof_support::LiveBackend,
     base: &str,
     preference_id: &str,
 ) -> (Value, i64, usize) {
@@ -578,8 +578,8 @@ fn preference_snapshot(
 /// MT-072 remediation item 7 — the adversarial live cases. Every rejected write is proven to leave the
 /// durable revision, the change history, AND the mounted-editor state untouched.
 #[test]
-fn editor_preference_adversarial_cases_on_live_postgres() {
-    let mut backend = pg_proof_support::require_live_backend();
+fn editor_preference_adversarial_cases_on_live_surrealdb() {
+    let mut backend = backend_proof_support::require_live_backend();
     let wsid = backend.workspace_id.clone();
     let base = format!("/workspaces/{wsid}/preferences");
     let (client, _client_runtime) = fresh_production_client(&backend.base);

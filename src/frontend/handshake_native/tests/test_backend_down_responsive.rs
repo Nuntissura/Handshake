@@ -49,8 +49,8 @@ use screenshot_harness::ScreenshotHarness as Harness;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 
 use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagRingReader, DiagRingWriter, DiagSeverity};
@@ -1091,7 +1091,7 @@ const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
     ".cargo/config.toml",
     "Cargo.toml",
     "tests/test_backend_down_responsive.rs",
-    "tests/pg_proof_support/mod.rs",
+    "tests/backend_proof_support/mod.rs",
     "tests/native_gui_support/canonical_argus_driver.rs",
     "tests/native_gui_support/screenshot_harness.rs",
     "tests/native_gui_support/screenshot_marker.rs",
@@ -1401,7 +1401,7 @@ fn validate_integrated_screenshot_markers(
         assert_eq!(row["process_correlation_id"], owner_session);
         assert_eq!(
             row["process_scenario_id"],
-            "backend_down_responsive_real_pg_palmistry_argus"
+            "backend_down_responsive_real_surrealdb_palmistry_argus"
         );
         assert_eq!(row["process_id"], u64::from(std::process::id()));
         assert_eq!(row["status"], "CAPTURED");
@@ -2615,7 +2615,7 @@ fn recovery_fires_recovered_event() {
 }
 
 /// V4 remediation gate: one exact current-source run binds every previously separate proof surface.
-/// It starts the real managed-PostgreSQL `handshake_core`, mounts the real `HandshakeApp`, launches the
+/// It starts the real managed-SurrealDB `handshake_core`, mounts the real `HandshakeApp`, launches the
 /// real out-of-process Palmistry watcher on the app's exact diagnostics ring, then suspends ONLY the
 /// fixture-owned backend process. Suspension leaves the real listener/sockets present but prevents the
 /// backend from answering, exercising the half-open/slow-response request deadline without a stub.
@@ -2637,7 +2637,7 @@ fn delegate_integrated_proof_to_fresh_test_process() -> bool {
         std::env::current_exe().expect("resolve current MT-088 test executable for re-exec");
     let mut command = std::process::Command::new(&executable);
     command
-        .arg("backend_down_responsive_real_pg_palmistry_argus")
+        .arg("backend_down_responsive_real_surrealdb_palmistry_argus")
         .args(["--ignored", "--exact", "--nocapture", "--test-threads=1"])
         .env(CHILD_ENV, "1");
     #[cfg(windows)]
@@ -2660,9 +2660,9 @@ fn delegate_integrated_proof_to_fresh_test_process() -> bool {
 
 #[test]
 #[ignore = "LIVE MT-088 V4 proof: requires current-source handshake_core + palmistry binaries, isolated \
-            real PostgreSQL, and canonical Argus. Run the exact governed command documented in the \
+            real SurrealDB, and canonical Argus. Run the exact governed command documented in the \
             UserManual; missing live prerequisites hard-fail and never silently skip."]
-fn backend_down_responsive_real_pg_palmistry_argus() {
+fn backend_down_responsive_real_surrealdb_palmistry_argus() {
     if delegate_integrated_proof_to_fresh_test_process() {
         return;
     }
@@ -2692,12 +2692,12 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     let _proof_mt = EnvGuard::set_value("HANDSHAKE_PROOF_MT_ID", "MT-088");
     let _proof_scenario = EnvGuard::set_value(
         "HANDSHAKE_PROOF_PROCESS_SCENARIO_ID",
-        "backend_down_responsive_real_pg_palmistry_argus",
+        "backend_down_responsive_real_surrealdb_palmistry_argus",
     );
     let _clear_action_receipt = EnvGuard::set_value("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", "");
     let _matrix_scenario = EnvGuard::set_value(
         "HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID",
-        "backend_down_responsive_real_pg_palmistry_argus",
+        "backend_down_responsive_real_surrealdb_palmistry_argus",
     );
     let _matrix_surface =
         EnvGuard::set_value("HANDSHAKE_ARGUS_MATRIX_SURFACE", "settings-diagnostics");
@@ -2747,7 +2747,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "Palmistry child {palmistry_pid} must be alive before the mounted scenario"
     );
 
-    let mut backend = pg_proof_support::require_live_backend();
+    let mut backend = backend_proof_support::require_live_backend();
     let backend_binary_provenance = current_binary_provenance(
         backend.owned_binary_path(),
         &["../../backend/handshake_core"],
@@ -2758,7 +2758,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     let backend_workspace_id = backend.workspace_id.clone();
     assert!(
         !backend_workspace_id.is_empty(),
-        "the integrated mounted proof requires a real PostgreSQL-backed workspace"
+        "the integrated mounted proof requires a real SurrealDB-backed workspace"
     );
     let mut harness: Harness<HandshakeApp> = Harness::builder()
         .with_size(egui::vec2(1600.0, 1100.0))
@@ -2777,7 +2777,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     assert_eq!(
         harness.state().active_project_id(),
         backend_workspace_id,
-        "mounted proof workspace remains bound to the managed PostgreSQL fixture"
+        "mounted proof workspace remains bound to the managed SurrealDB fixture"
     );
     let ring =
         DiagRingReader::open(&session.ring_path).expect("Palmistry-shared MT-088 ring is readable");
@@ -3079,7 +3079,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     );
 
     // Resume the exact owned process only long enough to make termination safe, then restart the
-    // current-source backend with the same PostgreSQL authority and exact listener. The app retains its
+    // current-source backend with the same SurrealDB authority and exact listener. The app retains its
     // URL throughout; no test seam fabricates the recovered state.
     suspended.resume();
     let recovery_started_nanos = std::time::SystemTime::now()
@@ -3414,7 +3414,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "source_identity": source_identity,
         "source_provenance": source_provenance,
         "running_test_binary": running_test_binary,
-        "managed_postgresql": true,
+        "managed_surrealdb": true,
         "current_source_backend": {
             "base_url": backend_base,
             "workspace_id": backend_workspace_id,
@@ -3556,7 +3556,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     assert!(evidence_path.is_file());
     assert_no_local_artifact_dir();
     eprintln!(
-        "MT-088 INTEGRATED PASS: real PG/backend suspension+restart, mounted heartbeat/events, \
+        "MT-088 INTEGRATED PASS: real SurrealDB/backend suspension+restart, mounted heartbeat/events, \
          Palmistry survivor, canonical Argus down/recovered; evidence={}",
         evidence_path.display()
     );

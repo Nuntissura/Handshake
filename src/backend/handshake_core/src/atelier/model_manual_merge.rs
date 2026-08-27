@@ -22,13 +22,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use crate::kernel::action_catalog::{kernel002_action_catalog, KernelActionCatalogV1};
 use crate::model_manual::{CommandReference, CommandStatus, Manual};
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, AtelierError, AtelierResult, AtelierStore};
 
 pub mod model_manual_merge_event_family {
     pub const MANUAL_ROW_MERGE_RECORDED: &str = "atelier.model_manual.row_merge_recorded";
@@ -636,6 +636,144 @@ pub struct ManualDriftGuardRecord {
 // Persistence
 // ---------------------------------------------------------------------------
 
+#[derive(SurrealValue)]
+struct ManualRowMergeRecordRow {
+    run_id: SurrealUuid,
+    source_kind: String,
+    manual_version: String,
+    merged_rows: serde_json::Value,
+    blockers: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<ManualRowMergeRecordRow> for ManualRowMergeRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: ManualRowMergeRecordRow) -> AtelierResult<Self> {
+        Ok(Self {
+            run_id: row.run_id.into(),
+            source_kind: ManualMergeSourceKind::from_token(&row.source_kind)?,
+            manual_version: row.manual_version,
+            merged_rows: typed_jsonb(row.merged_rows)?,
+            blockers: typed_jsonb(row.blockers)?,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct ManualDriftGuardRecordRow {
+    run_id: SurrealUuid,
+    guard_scope: String,
+    manual_version: String,
+    wired_surface_sha256: String,
+    wired_surface_changed: bool,
+    findings: serde_json::Value,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<ManualDriftGuardRecordRow> for ManualDriftGuardRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: ManualDriftGuardRecordRow) -> AtelierResult<Self> {
+        Ok(Self {
+            run_id: row.run_id.into(),
+            guard_scope: row.guard_scope,
+            manual_version: row.manual_version,
+            wired_surface_sha256: row.wired_surface_sha256,
+            wired_surface_changed: row.wired_surface_changed,
+            findings: typed_jsonb(row.findings)?,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct ManualRowMergeBindings {
+    record_id: RecordId,
+    run_id: SurrealUuid,
+    source_kind: String,
+    manual_version: String,
+    merged_row_count: i64,
+    blocker_count: i64,
+    merged_rows: serde_json::Value,
+    blockers: serde_json::Value,
+}
+
+#[derive(SurrealValue)]
+struct RunIdBinding {
+    run_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct SourceKindBinding {
+    source_kind: String,
+}
+
+#[derive(SurrealValue)]
+struct GuardScopeBinding {
+    guard_scope: String,
+}
+
+#[derive(SurrealValue)]
+struct PreviousDriftGuardRow {
+    manual_version: String,
+    wired_surface_sha256: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ManualDriftGuardBindings {
+    record_id: RecordId,
+    run_id: SurrealUuid,
+    guard_scope: String,
+    manual_version: String,
+    wired_surface_sha256: String,
+    wired_surface_changed: bool,
+    finding_count: i64,
+    findings: serde_json::Value,
+}
+
+const RECORD_MANUAL_ROW_MERGE_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $rid CONTENT { \
+         run_id: $domain.run_id, source_kind: $domain.source_kind, \
+         manual_version: $domain.manual_version, \
+         merged_row_count: $domain.merged_row_count, blocker_count: $domain.blocker_count, \
+         merged_rows: $domain.merged_rows, blockers: $domain.blockers \
+       })[0]; };"
+);
+
+const GET_MANUAL_ROW_MERGE_STATEMENT: &str =
+    "SELECT run_id, source_kind, manual_version, merged_rows, blockers, created_at_utc \
+     FROM atelier_model_manual_row_merge WHERE run_id = $run_id LIMIT 1;";
+
+const LATEST_MANUAL_ROW_MERGE_STATEMENT: &str =
+    "SELECT run_id, source_kind, manual_version, merged_rows, blockers, created_at_utc \
+     FROM atelier_model_manual_row_merge WHERE source_kind = $source_kind \
+     ORDER BY created_at_utc DESC, run_id DESC LIMIT 1;";
+
+const PREVIOUS_MANUAL_DRIFT_GUARD_STATEMENT: &str =
+    "SELECT manual_version, wired_surface_sha256 FROM atelier_model_manual_drift_guard \
+     WHERE guard_scope = $guard_scope ORDER BY created_at_utc DESC, run_id DESC LIMIT 1;";
+
+const RECORD_MANUAL_DRIFT_GUARD_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $rid CONTENT { \
+         run_id: $domain.run_id, guard_scope: $domain.guard_scope, \
+         manual_version: $domain.manual_version, \
+         wired_surface_sha256: $domain.wired_surface_sha256, \
+         wired_surface_changed: $domain.wired_surface_changed, \
+         finding_count: $domain.finding_count, findings: $domain.findings \
+       })[0]; };"
+);
+
+const GET_MANUAL_DRIFT_GUARD_STATEMENT: &str =
+    "SELECT run_id, guard_scope, manual_version, wired_surface_sha256, \
+            wired_surface_changed, findings, created_at_utc \
+     FROM atelier_model_manual_drift_guard WHERE run_id = $run_id LIMIT 1;";
+
 impl AtelierStore {
     /// Persist an executed manual source-row merge run (MT-185/186/187) and
     /// mirror it through the canonical EventLedger family.
@@ -661,59 +799,54 @@ impl AtelierStore {
         let blockers = serde_json::to_value(&outcome.blockers)
             .map_err(|err| AtelierError::Validation(err.to_string()))?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_model_manual_row_merge (
-                   run_id, source_kind, manual_version, merged_row_count,
-                   blocker_count, merged_rows, blockers
-               )
-               VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
-               RETURNING run_id, source_kind, manual_version, merged_rows,
-                         blockers, created_at_utc"#,
-        )
-        .bind(run_id)
-        .bind(outcome.source_kind.as_token())
-        .bind(manual_version)
-        .bind(outcome.merged_rows.len() as i32)
-        .bind(outcome.blockers.len() as i32)
-        .bind(merged_rows)
-        .bind(blockers)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = manual_row_merge_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            model_manual_merge_event_family::MANUAL_ROW_MERGE_RECORDED,
-            "atelier_model_manual_row_merge",
-            &record.run_id.to_string(),
-            serde_json::json!({
-                "run_id": record.run_id,
-                "source_kind": record.source_kind.as_token(),
-                "manual_version": record.manual_version,
-                "merged_row_count": record.merged_rows.len(),
-                "blocker_count": record.blockers.len(),
-                "blockers": record.blockers,
-                "schema": "hsk.atelier.model_manual_row_merge@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let bindings = ManualRowMergeBindings {
+            record_id: RecordId::new("atelier_model_manual_row_merge", SurrealUuid::from(run_id)),
+            run_id: SurrealUuid::from(run_id),
+            source_kind: outcome.source_kind.as_token().to_owned(),
+            manual_version: manual_version.to_owned(),
+            merged_row_count: outcome.merged_rows.len() as i64,
+            blocker_count: outcome.blockers.len() as i64,
+            merged_rows,
+            blockers,
+        };
+        let row: Option<ManualRowMergeRecordRow> = self
+            .write_with_event(
+                RECORD_MANUAL_ROW_MERGE_STATEMENT,
+                bindings,
+                model_manual_merge_event_family::MANUAL_ROW_MERGE_RECORDED,
+                "atelier_model_manual_row_merge",
+                &run_id.to_string(),
+                serde_json::json!({
+                    "run_id": run_id,
+                    "source_kind": outcome.source_kind.as_token(),
+                    "manual_version": manual_version,
+                    "merged_row_count": outcome.merged_rows.len(),
+                    "blocker_count": outcome.blockers.len(),
+                    "blockers": outcome.blockers,
+                    "schema": "hsk.atelier.model_manual_row_merge@1",
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording a manual row merge returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     pub async fn get_manual_row_merge(&self, run_id: Uuid) -> AtelierResult<ManualRowMergeRecord> {
-        let row = sqlx::query(
-            r#"SELECT run_id, source_kind, manual_version, merged_rows,
-                      blockers, created_at_utc
-               FROM atelier_model_manual_row_merge
-               WHERE run_id = $1"#,
-        )
-        .bind(run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let bindings = RunIdBinding {
+            run_id: SurrealUuid::from(run_id),
+        };
+        let row: Option<ManualRowMergeRecordRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_MANUAL_ROW_MERGE_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
         match row {
-            Some(row) => manual_row_merge_from_row(&row),
+            Some(row) => row.try_into(),
             None => Err(AtelierError::NotFound(format!(
                 "manual row merge run_id={run_id}"
             ))),
@@ -724,18 +857,18 @@ impl AtelierStore {
         &self,
         source_kind: ManualMergeSourceKind,
     ) -> AtelierResult<Option<ManualRowMergeRecord>> {
-        let row = sqlx::query(
-            r#"SELECT run_id, source_kind, manual_version, merged_rows,
-                      blockers, created_at_utc
-               FROM atelier_model_manual_row_merge
-               WHERE source_kind = $1
-               ORDER BY created_at_utc DESC, run_id DESC
-               LIMIT 1"#,
-        )
-        .bind(source_kind.as_token())
-        .fetch_optional(self.pool())
-        .await?;
-        row.map(|row| manual_row_merge_from_row(&row)).transpose()
+        let bindings = SourceKindBinding {
+            source_kind: source_kind.as_token().to_owned(),
+        };
+        let row: Option<ManualRowMergeRecordRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(LATEST_MANUAL_ROW_MERGE_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        row.map(TryInto::try_into).transpose()
     }
 
     /// Execute and persist a manual drift-guard run (MT-183): the static
@@ -757,24 +890,22 @@ impl AtelierStore {
         let mut findings = run_manual_drift_guard(manual, surfaces);
         let fingerprint = wired_surface_fingerprint(manual);
 
-        let mut tx = self.pool().begin().await?;
-        let previous = sqlx::query(
-            r#"SELECT manual_version, wired_surface_sha256
-               FROM atelier_model_manual_drift_guard
-               WHERE guard_scope = $1
-               ORDER BY created_at_utc DESC, run_id DESC
-               LIMIT 1"#,
-        )
-        .bind(guard_scope)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let previous_bindings = GuardScopeBinding {
+            guard_scope: guard_scope.to_owned(),
+        };
+        let previous: Option<PreviousDriftGuardRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(PREVIOUS_MANUAL_DRIFT_GUARD_STATEMENT, previous_bindings)
+                        .await
+                })
+            })
+            .await?;
 
         let mut wired_surface_changed = false;
         if let Some(previous) = previous {
-            let previous_version: String = previous.get("manual_version");
-            let previous_fingerprint: String = previous.get("wired_surface_sha256");
-            wired_surface_changed = previous_fingerprint != fingerprint;
-            if wired_surface_changed && previous_version == manual.version {
+            wired_surface_changed = previous.wired_surface_sha256 != fingerprint;
+            if wired_surface_changed && previous.manual_version == manual.version {
                 findings.push(ManualDriftFinding {
                     drift_kind: ManualDriftKind::ManualVersionNotBumped,
                     command_id: None,
@@ -789,94 +920,66 @@ impl AtelierStore {
         let run_id = Uuid::now_v7();
         let findings_json = serde_json::to_value(&findings)
             .map_err(|err| AtelierError::Validation(err.to_string()))?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_model_manual_drift_guard (
-                   run_id, guard_scope, manual_version, wired_surface_sha256,
-                   wired_surface_changed, finding_count, findings
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-               RETURNING run_id, guard_scope, manual_version,
-                         wired_surface_sha256, wired_surface_changed,
-                         findings, created_at_utc"#,
-        )
-        .bind(run_id)
-        .bind(guard_scope)
-        .bind(manual.version)
-        .bind(&fingerprint)
-        .bind(wired_surface_changed)
-        .bind(findings.len() as i32)
-        .bind(findings_json)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = manual_drift_guard_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            model_manual_merge_event_family::MANUAL_DRIFT_GUARD_RECORDED,
-            "atelier_model_manual_drift_guard",
-            &record.run_id.to_string(),
-            serde_json::json!({
-                "run_id": record.run_id,
-                "guard_scope": record.guard_scope,
-                "manual_version": record.manual_version,
-                "wired_surface_sha256": record.wired_surface_sha256,
-                "wired_surface_changed": record.wired_surface_changed,
-                "finding_count": record.findings.len(),
-                "findings": record.findings,
-                "schema": "hsk.atelier.model_manual_drift_guard@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let bindings = ManualDriftGuardBindings {
+            record_id: RecordId::new(
+                "atelier_model_manual_drift_guard",
+                SurrealUuid::from(run_id),
+            ),
+            run_id: SurrealUuid::from(run_id),
+            guard_scope: guard_scope.to_owned(),
+            manual_version: manual.version.to_owned(),
+            wired_surface_sha256: fingerprint.clone(),
+            wired_surface_changed,
+            finding_count: findings.len() as i64,
+            findings: findings_json,
+        };
+        let row: Option<ManualDriftGuardRecordRow> = self
+            .write_with_event(
+                RECORD_MANUAL_DRIFT_GUARD_STATEMENT,
+                bindings,
+                model_manual_merge_event_family::MANUAL_DRIFT_GUARD_RECORDED,
+                "atelier_model_manual_drift_guard",
+                &run_id.to_string(),
+                serde_json::json!({
+                    "run_id": run_id,
+                    "guard_scope": guard_scope,
+                    "manual_version": manual.version,
+                    "wired_surface_sha256": fingerprint,
+                    "wired_surface_changed": wired_surface_changed,
+                    "finding_count": findings.len(),
+                    "findings": findings,
+                    "schema": "hsk.atelier.model_manual_drift_guard@1",
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording a manual drift guard returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     pub async fn get_manual_drift_guard_run(
         &self,
         run_id: Uuid,
     ) -> AtelierResult<ManualDriftGuardRecord> {
-        let row = sqlx::query(
-            r#"SELECT run_id, guard_scope, manual_version, wired_surface_sha256,
-                      wired_surface_changed, findings, created_at_utc
-               FROM atelier_model_manual_drift_guard
-               WHERE run_id = $1"#,
-        )
-        .bind(run_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let bindings = RunIdBinding {
+            run_id: SurrealUuid::from(run_id),
+        };
+        let row: Option<ManualDriftGuardRecordRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(GET_MANUAL_DRIFT_GUARD_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
         match row {
-            Some(row) => manual_drift_guard_from_row(&row),
+            Some(row) => row.try_into(),
             None => Err(AtelierError::NotFound(format!(
                 "manual drift guard run_id={run_id}"
             ))),
         }
     }
-}
-
-fn manual_row_merge_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ManualRowMergeRecord> {
-    let source_kind: String = row.get("source_kind");
-    Ok(ManualRowMergeRecord {
-        run_id: row.get("run_id"),
-        source_kind: ManualMergeSourceKind::from_token(&source_kind)?,
-        manual_version: row.get("manual_version"),
-        merged_rows: typed_jsonb(row.get("merged_rows"))?,
-        blockers: typed_jsonb(row.get("blockers"))?,
-        created_at_utc: row.get("created_at_utc"),
-    })
-}
-
-fn manual_drift_guard_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<ManualDriftGuardRecord> {
-    Ok(ManualDriftGuardRecord {
-        run_id: row.get("run_id"),
-        guard_scope: row.get("guard_scope"),
-        manual_version: row.get("manual_version"),
-        wired_surface_sha256: row.get("wired_surface_sha256"),
-        wired_surface_changed: row.get("wired_surface_changed"),
-        findings: typed_jsonb(row.get("findings"))?,
-        created_at_utc: row.get("created_at_utc"),
-    })
 }
 
 fn typed_jsonb<T: serde::de::DeserializeOwned>(value: serde_json::Value) -> AtelierResult<T> {

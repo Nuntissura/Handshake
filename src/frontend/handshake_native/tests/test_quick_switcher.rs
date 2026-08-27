@@ -17,7 +17,7 @@
 //! The switcher's backend I/O goes through a [`LoomGraphSearchTransport`] seam. These tests inject an
 //! in-memory `StubTransport` (canned hits + recents) and a real multi-thread tokio runtime handle so
 //! the spawned async tasks actually run and deliver — proving the full open→search→render→open path
-//! with NO live PostgreSQL/handshake_core. The genuine PostgreSQL path is exercised by the
+//! with NO live SurrealDB/handshake_core. The genuine SurrealDB path is exercised by the
 //! `#[cfg(feature = "integration_tests")]` live test below when the operator provides the backend.
 
 use std::path::{Path, PathBuf};
@@ -740,9 +740,9 @@ fn jump_does_not_block_on_recents_post() {
 }
 
 // =============================================================================
-// Live PostgreSQL integration test (MT-017 PT2) — mirrors the MT-009 layout
+// Live SurrealDB integration test (MT-017 PT2) — mirrors the MT-009 layout
 // live test. Gated behind `integration_tests`; needs handshake_core + managed
-// PostgreSQL on 127.0.0.1:37501 and an existing workspace id.
+// SurrealDB on 127.0.0.1:37501 and an existing workspace id.
 // =============================================================================
 //
 // Run with:
@@ -750,10 +750,10 @@ fn jump_does_not_block_on_recents_post() {
 //
 // HSK_LIVE_WORKSPACE_ID must name a workspace with at least one searchable graph entity matching
 // HSK_LIVE_QUICK_SWITCHER_QUERY (default "a"). This exercises the REAL LoomGraphSearchClient against
-// the real graph-search + quick-switcher/recents endpoints over PostgreSQL.
+// the real graph-search + quick-switcher/recents endpoints over SurrealDB.
 #[cfg(feature = "integration_tests")]
 #[test]
-#[ignore = "needs managed-postgres + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
+#[ignore = "needs managed-surrealdb + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID"]
 fn live_backend_quick_switcher_searches_real_graph() {
     use handshake_native::quick_switcher::{
         ordered_results, LoomGraphSearchClient, LoomGraphSearchTransport,

@@ -1,14 +1,10 @@
-//! PostgreSQL store for the ingestion-owned tables (migrations 0160-0169).
-//!
-//! Pattern: like `AtelierStore`, this store owns its SQL over the shared
-//! `AppState::postgres_pool`. Rows in the pre-existing knowledge tables
-//! (`knowledge_source_roots`, `knowledge_sources`, 0131/0132) are NOT written
-//! here — the engine goes through `storage::knowledge::KnowledgeStore` for
-//! those, so there is exactly one SQL authority per table.
+//! Embedded SurrealDB store for the ingestion-owned tables.
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use sqlx::{PgPool, Row};
+use std::sync::Arc;
+use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
+use tokio::sync::Mutex;
 
 use super::allowlist::{PolicyVerdictKind, RootRegistrationPolicy};
 use super::receipts::{ExtractionReceipt, NewExtractionReceipt};
@@ -16,18 +12,42 @@ use super::repair::{NewRepairEntry, RepairAttemptOutcome, RepairEntry, RepairSta
 use super::spans::{ExtractedSpan, SpanAnchor};
 use super::{new_ingestion_id, IngestionError, IngestionResult};
 use crate::ai_ready_data::chunking::sha256_hex;
+use crate::storage::surreal::{SurrealDatabase, SurrealStorageError};
+use crate::storage::StorageError;
 
-/// Store over the ingestion-owned `knowledge_ingestion_*` tables.
-#[derive(Clone)]
-pub struct KnowledgeIngestionStore {
-    pool: PgPool,
+const WORKSPACES: &str = "workspaces";
+const SOURCES: &str = "knowledge_sources";
+const EVENTS: &str = "kernel_event_ledger";
+const POLICIES: &str = "knowledge_ingestion_root_policies";
+const RECEIPTS: &str = "knowledge_ingestion_receipts";
+static REPAIR_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+
+fn thing(table: &str, key: &str) -> RecordId {
+    RecordId::new(table, key.to_owned())
+}
+fn opt_thing(table: &str, key: Option<&str>) -> Option<RecordId> {
+    key.map(|key| thing(table, key))
+}
+fn key(record: RecordId) -> IngestionResult<String> {
+    match record.key {
+        RecordIdKey::String(value) => Ok(value),
+        _ => Err(IngestionError::Validation(
+            "SurrealDB record link does not have a string key".to_owned(),
+        )),
+    }
+}
+fn opt_key(record: Option<RecordId>) -> IngestionResult<Option<String>> {
+    record.map(key).transpose()
+}
+fn storage_error(error: SurrealStorageError) -> IngestionError {
+    IngestionError::Storage(StorageError::Database(error.to_string()))
 }
 
-// ---------------------------------------------------------------------------
-// MT-081 root registration policies + decisions.
-// ---------------------------------------------------------------------------
+#[derive(Clone)]
+pub struct KnowledgeIngestionStore {
+    db: Arc<SurrealDatabase>,
+}
 
-/// Durable row of `knowledge_ingestion_root_policies`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredRootPolicy {
     pub policy_id: String,
@@ -39,7 +59,6 @@ pub struct StoredRootPolicy {
     pub updated_at: DateTime<Utc>,
 }
 
-/// Durable row of `knowledge_ingestion_policy_decisions`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolicyDecision {
     pub decision_id: String,
@@ -56,7 +75,6 @@ pub struct PolicyDecision {
     pub decided_at: DateTime<Utc>,
 }
 
-/// Insert payload for [`PolicyDecision`].
 #[derive(Clone, Debug)]
 pub struct NewPolicyDecision {
     pub workspace_id: String,
@@ -71,625 +89,112 @@ pub struct NewPolicyDecision {
     pub receipt_event_id: Option<String>,
 }
 
-fn patterns_from_value(value: &Value, field: &str) -> IngestionResult<Vec<String>> {
-    let Some(items) = value.as_array() else {
-        return Err(IngestionError::Validation(format!(
-            "policy {field} must be a JSON array"
-        )));
-    };
-    items
-        .iter()
-        .map(|item| {
-            item.as_str().map(|s| s.to_string()).ok_or_else(|| {
-                IngestionError::Validation(format!("policy {field} entries must be strings"))
-            })
-        })
-        .collect()
+#[derive(SurrealValue)]
+struct PolicyRecord {
+    policy_id: String,
+    workspace_id: RecordId,
+    policy_version: i64,
+    allow_patterns: Vec<String>,
+    deny_patterns: Vec<String>,
+    require_operator_approval: bool,
+    active: bool,
+    created_at: Datetime,
+    updated_at: Datetime,
 }
-
-fn stored_policy_from_pg(row: &sqlx::postgres::PgRow) -> IngestionResult<StoredRootPolicy> {
-    let allow: Value = row.get("allow_patterns");
-    let deny: Value = row.get("deny_patterns");
+fn policy_from_record(row: PolicyRecord) -> IngestionResult<StoredRootPolicy> {
     Ok(StoredRootPolicy {
-        policy_id: row.get("policy_id"),
-        workspace_id: row.get("workspace_id"),
-        policy_version: row.get("policy_version"),
+        policy_id: row.policy_id,
+        workspace_id: key(row.workspace_id)?,
+        policy_version: i32::try_from(row.policy_version).map_err(|_| {
+            IngestionError::Validation("policy_version exceeds i32 range".to_owned())
+        })?,
         policy: RootRegistrationPolicy {
-            allow_patterns: patterns_from_value(&allow, "allow_patterns")?,
-            deny_patterns: patterns_from_value(&deny, "deny_patterns")?,
-            require_operator_approval: row.get("require_operator_approval"),
+            allow_patterns: row.allow_patterns,
+            deny_patterns: row.deny_patterns,
+            require_operator_approval: row.require_operator_approval,
         },
-        active: row.get("active"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        active: row.active,
+        created_at: row.created_at.into_inner(),
+        updated_at: row.updated_at.into_inner(),
     })
 }
 
-fn decision_from_pg(row: &sqlx::postgres::PgRow) -> IngestionResult<PolicyDecision> {
+#[derive(SurrealValue)]
+struct DecisionRecord {
+    decision_id: String,
+    workspace_id: RecordId,
+    policy_id: Option<RecordId>,
+    candidate_path: String,
+    root_kind: String,
+    verdict: String,
+    matched_pattern: Option<String>,
+    operator_approved: bool,
+    actor_kind: String,
+    actor_id: String,
+    receipt_event_id: Option<RecordId>,
+    decided_at: Datetime,
+}
+fn decision_from_record(row: DecisionRecord) -> IngestionResult<PolicyDecision> {
     Ok(PolicyDecision {
-        decision_id: row.get("decision_id"),
-        workspace_id: row.get("workspace_id"),
-        policy_id: row.get("policy_id"),
-        candidate_path: row.get("candidate_path"),
-        root_kind: row.get("root_kind"),
-        verdict: row.get::<String, _>("verdict").parse()?,
-        matched_pattern: row.get("matched_pattern"),
-        operator_approved: row.get("operator_approved"),
-        actor_kind: row.get("actor_kind"),
-        actor_id: row.get("actor_id"),
-        receipt_event_id: row.get("receipt_event_id"),
-        decided_at: row.get("decided_at"),
+        decision_id: row.decision_id,
+        workspace_id: key(row.workspace_id)?,
+        policy_id: opt_key(row.policy_id)?,
+        candidate_path: row.candidate_path,
+        root_kind: row.root_kind,
+        verdict: row.verdict.parse()?,
+        matched_pattern: row.matched_pattern,
+        operator_approved: row.operator_approved,
+        actor_kind: row.actor_kind,
+        actor_id: row.actor_id,
+        receipt_event_id: opt_key(row.receipt_event_id)?,
+        decided_at: row.decided_at.into_inner(),
     })
 }
 
-const POLICY_COLUMNS: &str = "policy_id, workspace_id, policy_version, allow_patterns, \
-     deny_patterns, require_operator_approval, active, created_at, updated_at";
-
-const DECISION_COLUMNS: &str = "decision_id, workspace_id, policy_id, candidate_path, root_kind, \
-     verdict, matched_pattern, operator_approved, actor_kind, actor_id, receipt_event_id, \
-     decided_at";
-
-impl KnowledgeIngestionStore {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
-    }
-
-    /// Activate a new policy version for the workspace. The previous active
-    /// policy (if any) is kept as an inactive row so historical decisions
-    /// retain their FK context; its version seeds the new version number.
-    pub async fn activate_root_policy(
-        &self,
-        workspace_id: &str,
-        policy: &RootRegistrationPolicy,
-    ) -> IngestionResult<StoredRootPolicy> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-
-        let previous_version: Option<i32> = sqlx::query_scalar(
-            "UPDATE knowledge_ingestion_root_policies
-             SET active = FALSE, updated_at = NOW()
-             WHERE workspace_id = $1 AND active
-             RETURNING policy_version",
-        )
-        .bind(workspace_id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(crate::storage::StorageError::from)?;
-
-        let policy_id = new_ingestion_id("KIP");
-        let sql = format!(
-            "INSERT INTO knowledge_ingestion_root_policies
-                 (policy_id, workspace_id, policy_version, allow_patterns,
-                  deny_patterns, require_operator_approval)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING {POLICY_COLUMNS}"
-        );
-        let row = sqlx::query(&sql)
-            .bind(&policy_id)
-            .bind(workspace_id)
-            .bind(previous_version.unwrap_or(0) + 1)
-            .bind(serde_json::json!(policy.allow_patterns))
-            .bind(serde_json::json!(policy.deny_patterns))
-            .bind(policy.require_operator_approval)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        let stored = stored_policy_from_pg(&row)?;
-
-        tx.commit()
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        Ok(stored)
-    }
-
-    /// The active policy for a workspace, if one was configured.
-    pub async fn get_active_root_policy(
-        &self,
-        workspace_id: &str,
-    ) -> IngestionResult<Option<StoredRootPolicy>> {
-        let sql = format!(
-            "SELECT {POLICY_COLUMNS} FROM knowledge_ingestion_root_policies
-             WHERE workspace_id = $1 AND active"
-        );
-        let row = sqlx::query(&sql)
-            .bind(workspace_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        row.as_ref().map(stored_policy_from_pg).transpose()
-    }
-
-    /// Persist one policy evaluation outcome (allowed or denied).
-    pub async fn record_policy_decision(
-        &self,
-        decision: NewPolicyDecision,
-    ) -> IngestionResult<PolicyDecision> {
-        let decision_id = new_ingestion_id("KIPD");
-        let sql = format!(
-            "INSERT INTO knowledge_ingestion_policy_decisions
-                 (decision_id, workspace_id, policy_id, candidate_path, root_kind,
-                  verdict, matched_pattern, operator_approved, actor_kind, actor_id,
-                  receipt_event_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-             RETURNING {DECISION_COLUMNS}"
-        );
-        let row = sqlx::query(&sql)
-            .bind(&decision_id)
-            .bind(&decision.workspace_id)
-            .bind(&decision.policy_id)
-            .bind(&decision.candidate_path)
-            .bind(&decision.root_kind)
-            .bind(decision.verdict.as_str())
-            .bind(&decision.matched_pattern)
-            .bind(decision.operator_approved)
-            .bind(&decision.actor_kind)
-            .bind(&decision.actor_id)
-            .bind(&decision.receipt_event_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        decision_from_pg(&row)
-    }
-
-    /// Decisions for a workspace, newest first.
-    pub async fn list_policy_decisions(
-        &self,
-        workspace_id: &str,
-        limit: i64,
-    ) -> IngestionResult<Vec<PolicyDecision>> {
-        let sql = format!(
-            "SELECT {DECISION_COLUMNS} FROM knowledge_ingestion_policy_decisions
-             WHERE workspace_id = $1 ORDER BY decided_at DESC, decision_id DESC LIMIT $2"
-        );
-        let rows = sqlx::query(&sql)
-            .bind(workspace_id)
-            .bind(limit)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        rows.iter().map(decision_from_pg).collect()
-    }
-
-    // -- MT-085 extraction receipts ------------------------------------------
-
-    /// Persist one extraction-attempt receipt.
-    pub async fn record_extraction_receipt(
-        &self,
-        receipt: NewExtractionReceipt,
-        receipt_event_id: Option<&str>,
-    ) -> IngestionResult<ExtractionReceipt> {
-        receipt.validate()?;
-        let receipt_id = new_ingestion_id("KIRC");
-        let sql = format!(
-            "INSERT INTO knowledge_ingestion_receipts
-                 (receipt_id, workspace_id, source_id, ingestion_run_token,
-                  extractor_id, extractor_version, status, error_class,
-                  error_detail, spans_produced, spans_failed, redaction_count,
-                  content_hash, duration_ms, receipt_event_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-             RETURNING {RECEIPT_COLUMNS}"
-        );
-        let row = sqlx::query(&sql)
-            .bind(&receipt_id)
-            .bind(&receipt.workspace_id)
-            .bind(&receipt.source_id)
-            .bind(&receipt.ingestion_run_token)
-            .bind(&receipt.extractor_id)
-            .bind(&receipt.extractor_version)
-            .bind(receipt.status.as_str())
-            .bind(receipt.error_class.map(|c| c.as_str()))
-            .bind(&receipt.error_detail)
-            .bind(receipt.spans_produced)
-            .bind(receipt.spans_failed)
-            .bind(receipt.redaction_count)
-            .bind(&receipt.content_hash)
-            .bind(receipt.duration_ms)
-            .bind(receipt_event_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        receipt_from_pg(&row)
-    }
-
-    /// Receipts for one source, newest first.
-    pub async fn list_extraction_receipts(
-        &self,
-        source_id: &str,
-        limit: i64,
-    ) -> IngestionResult<Vec<ExtractionReceipt>> {
-        let sql = format!(
-            "SELECT {RECEIPT_COLUMNS} FROM knowledge_ingestion_receipts
-             WHERE source_id = $1 ORDER BY created_at DESC, receipt_id DESC LIMIT $2"
-        );
-        let rows = sqlx::query(&sql)
-            .bind(source_id)
-            .bind(limit)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        rows.iter().map(receipt_from_pg).collect()
-    }
-
-    pub async fn get_extraction_receipt(
-        &self,
-        receipt_id: &str,
-    ) -> IngestionResult<Option<ExtractionReceipt>> {
-        let sql = format!(
-            "SELECT {RECEIPT_COLUMNS} FROM knowledge_ingestion_receipts WHERE receipt_id = $1"
-        );
-        let row = sqlx::query(&sql)
-            .bind(receipt_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        row.as_ref().map(receipt_from_pg).transpose()
-    }
-
-    // -- MT-087..MT-091 ingestion spans --------------------------------------
-
-    /// Replace the stored spans of a source with the spans of a new
-    /// extraction attempt (receipt). Old spans are deleted (the receipt
-    /// trail of prior attempts remains); the new spans insert atomically.
-    pub async fn replace_source_spans(
-        &self,
-        workspace_id: &str,
-        source_id: &str,
-        receipt_id: &str,
-        spans: &[ExtractedSpan],
-    ) -> IngestionResult<Vec<StoredSpan>> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        sqlx::query("DELETE FROM knowledge_ingestion_spans WHERE source_id = $1")
-            .bind(source_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-
-        let sql = format!(
-            "INSERT INTO knowledge_ingestion_spans
-                 (span_id, workspace_id, source_id, receipt_id, span_index,
-                  anchor_kind, anchor, byte_start, byte_end, content,
-                  content_hash, redaction_state, link_candidates)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-             RETURNING {SPAN_COLUMNS}"
-        );
-        let mut stored = Vec::with_capacity(spans.len());
-        for (index, span) in spans.iter().enumerate() {
-            let span_id = new_ingestion_id("KISP");
-            let content_hash = sha256_hex(span.content.as_bytes());
-            let row = sqlx::query(&sql)
-                .bind(&span_id)
-                .bind(workspace_id)
-                .bind(source_id)
-                .bind(receipt_id)
-                .bind(index as i32)
-                .bind(span.anchor.kind_str())
-                .bind(span.anchor.to_json())
-                .bind(span.byte_start)
-                .bind(span.byte_end)
-                .bind(&span.content)
-                .bind(&content_hash)
-                .bind(span.redaction.as_str())
-                .bind(serde_json::json!(span.link_candidates))
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(crate::storage::StorageError::from)?;
-            stored.push(span_from_pg(&row)?);
-        }
-        tx.commit()
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        Ok(stored)
-    }
-
-    /// Stored spans of a source in span order.
-    pub async fn list_source_spans(&self, source_id: &str) -> IngestionResult<Vec<StoredSpan>> {
-        let sql = format!(
-            "SELECT {SPAN_COLUMNS} FROM knowledge_ingestion_spans
-             WHERE source_id = $1 ORDER BY span_index"
-        );
-        let rows = sqlx::query(&sql)
-            .bind(source_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        rows.iter().map(span_from_pg).collect()
-    }
-
-    // -- MT-094 repair queue --------------------------------------------------
-
-    /// Enqueue (or refresh) the repair entry for a source. Three-step, in
-    /// strict order, so the queue never accumulates duplicate rows for the
-    /// same failure mode (MT-094 hardening #7):
-    ///
-    /// 1. Refresh an existing OPEN (`queued`/`retrying`) entry in place
-    ///    (reason, detail, receipt) -- the partial unique index already
-    ///    guarantees at most one such row per source.
-    /// 2. Otherwise REOPEN a `dead_letter` entry for the SAME source AND SAME
-    ///    reason_class: reset it to `queued` with a fresh attempt budget. A
-    ///    source that re-fails identically after exhausting its retries reuses
-    ///    its terminal row instead of inserting a brand-new one each pass (the
-    ///    partial unique index does NOT cover `dead_letter`, so without this
-    ///    those rows would multiply unboundedly).
-    /// 3. Otherwise INSERT a fresh entry (first failure, or a new reason class
-    ///    distinct from any existing dead-letter row).
-    ///
-    /// Reopen is scoped to the matching reason_class so a dead-letter for one
-    /// failure mode is never silently overwritten by a different one; a new
-    /// reason class for the same source falls through to a fresh row.
-    pub async fn enqueue_repair(&self, entry: NewRepairEntry) -> IngestionResult<RepairEntry> {
-        // (1) Refresh an existing open entry first.
-        let updated = {
-            let sql = format!(
-                "UPDATE knowledge_ingestion_repair_queue
-                 SET reason_class = $2, reason_detail = $3, receipt_id = $4,
-                     enqueue_event_id = COALESCE($5, enqueue_event_id),
-                     updated_at = NOW()
-                 WHERE source_id = $1 AND state IN ('queued', 'retrying')
-                 RETURNING {REPAIR_COLUMNS}"
-            );
-            sqlx::query(&sql)
-                .bind(&entry.source_id)
-                .bind(entry.reason_class.as_str())
-                .bind(&entry.reason_detail)
-                .bind(&entry.receipt_id)
-                .bind(&entry.enqueue_event_id)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(crate::storage::StorageError::from)?
-        };
-        if let Some(row) = updated {
-            return repair_from_pg(&row);
-        }
-
-        // (2) Reopen a dead-letter entry for the same source+reason instead of
-        // inserting a new row. Resetting attempts to 0 grants a fresh retry
-        // budget; the existing partial unique index cannot be violated because
-        // step (1) already proved no open entry exists for this source.
-        let reopened = {
-            let sql = format!(
-                "UPDATE knowledge_ingestion_repair_queue
-                 SET state = 'queued', attempts = 0, reason_detail = $3,
-                     receipt_id = $4,
-                     enqueue_event_id = COALESCE($5, enqueue_event_id),
-                     resolved_receipt_id = NULL,
-                     updated_at = NOW()
-                 WHERE source_id = $1 AND reason_class = $2 AND state = 'dead_letter'
-                   AND repair_id = (
-                       SELECT repair_id FROM knowledge_ingestion_repair_queue
-                       WHERE source_id = $1 AND reason_class = $2 AND state = 'dead_letter'
-                       ORDER BY updated_at DESC, repair_id DESC
-                       LIMIT 1
-                   )
-                 RETURNING {REPAIR_COLUMNS}"
-            );
-            sqlx::query(&sql)
-                .bind(&entry.source_id)
-                .bind(entry.reason_class.as_str())
-                .bind(&entry.reason_detail)
-                .bind(&entry.receipt_id)
-                .bind(&entry.enqueue_event_id)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(crate::storage::StorageError::from)?
-        };
-        if let Some(row) = reopened {
-            return repair_from_pg(&row);
-        }
-
-        // (3) Fresh entry: first failure, or a new reason class for this source.
-        let repair_id = new_ingestion_id("KIRQ");
-        let sql = format!(
-            "INSERT INTO knowledge_ingestion_repair_queue
-                 (repair_id, workspace_id, source_id, receipt_id, reason_class,
-                  reason_detail, max_attempts, enqueue_event_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING {REPAIR_COLUMNS}"
-        );
-        let row = sqlx::query(&sql)
-            .bind(&repair_id)
-            .bind(&entry.workspace_id)
-            .bind(&entry.source_id)
-            .bind(&entry.receipt_id)
-            .bind(entry.reason_class.as_str())
-            .bind(&entry.reason_detail)
-            .bind(entry.max_attempts)
-            .bind(&entry.enqueue_event_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        repair_from_pg(&row)
-    }
-
-    pub async fn get_repair_entry(&self, repair_id: &str) -> IngestionResult<Option<RepairEntry>> {
-        let sql = format!(
-            "SELECT {REPAIR_COLUMNS} FROM knowledge_ingestion_repair_queue WHERE repair_id = $1"
-        );
-        let row = sqlx::query(&sql)
-            .bind(repair_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        row.as_ref().map(repair_from_pg).transpose()
-    }
-
-    /// Repair entries for a workspace, optionally filtered by state.
-    pub async fn list_repair_entries(
-        &self,
-        workspace_id: &str,
-        state: Option<RepairState>,
-        limit: i64,
-    ) -> IngestionResult<Vec<RepairEntry>> {
-        let rows = match state {
-            Some(state) => {
-                let sql = format!(
-                    "SELECT {REPAIR_COLUMNS} FROM knowledge_ingestion_repair_queue
-                     WHERE workspace_id = $1 AND state = $2
-                     ORDER BY created_at DESC LIMIT $3"
-                );
-                sqlx::query(&sql)
-                    .bind(workspace_id)
-                    .bind(state.as_str())
-                    .bind(limit)
-                    .fetch_all(&self.pool)
-                    .await
-            }
-            None => {
-                let sql = format!(
-                    "SELECT {REPAIR_COLUMNS} FROM knowledge_ingestion_repair_queue
-                     WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT $2"
-                );
-                sqlx::query(&sql)
-                    .bind(workspace_id)
-                    .bind(limit)
-                    .fetch_all(&self.pool)
-                    .await
-            }
-        }
-        .map_err(crate::storage::StorageError::from)?;
-        rows.iter().map(repair_from_pg).collect()
-    }
-
-    /// Claim an open entry for a retry: queued|retrying -> retrying with the
-    /// attempt counted. Typed `Conflict` when the entry is terminal,
-    /// `Conflict` when the budget is exhausted (entry dead-letters), and
-    /// `NotFound` for unknown ids.
-    pub async fn begin_repair_attempt(&self, repair_id: &str) -> IngestionResult<RepairEntry> {
-        let sql = format!(
-            "UPDATE knowledge_ingestion_repair_queue
-             SET state = 'retrying', attempts = attempts + 1,
-                 last_attempt_at = NOW(), updated_at = NOW()
-             WHERE repair_id = $1 AND state IN ('queued', 'retrying')
-               AND attempts < max_attempts
-             RETURNING {REPAIR_COLUMNS}"
-        );
-        let row = sqlx::query(&sql)
-            .bind(repair_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?;
-        match row {
-            Some(row) => repair_from_pg(&row),
-            None => match self.get_repair_entry(repair_id).await? {
-                Some(entry) if entry.state.is_terminal() => Err(IngestionError::Storage(
-                    crate::storage::StorageError::Conflict(
-                        "repair entry is terminal; retries are over",
-                    ),
-                )),
-                Some(_) => {
-                    // Budget exhausted: dead-letter the entry now.
-                    let _ = self.dead_letter_repair(repair_id).await?;
-                    Err(IngestionError::Storage(
-                        crate::storage::StorageError::Conflict(
-                            "repair attempts exhausted; entry dead-lettered",
-                        ),
-                    ))
-                }
-                None => Err(IngestionError::Storage(
-                    crate::storage::StorageError::NotFound("repair entry"),
-                )),
-            },
-        }
-    }
-
-    /// Settle a retry attempt: resolve, requeue, or dead-letter on budget.
-    pub async fn settle_repair_attempt(
-        &self,
-        repair_id: &str,
-        outcome: RepairAttemptOutcome,
-    ) -> IngestionResult<RepairEntry> {
-        match outcome {
-            RepairAttemptOutcome::Resolved {
-                resolved_receipt_id,
-            } => {
-                let sql = format!(
-                    "UPDATE knowledge_ingestion_repair_queue
-                     SET state = 'resolved', resolved_receipt_id = $2, updated_at = NOW()
-                     WHERE repair_id = $1 AND state = 'retrying'
-                     RETURNING {REPAIR_COLUMNS}"
-                );
-                let row = sqlx::query(&sql)
-                    .bind(repair_id)
-                    .bind(&resolved_receipt_id)
-                    .fetch_optional(&self.pool)
-                    .await
-                    .map_err(crate::storage::StorageError::from)?
-                    .ok_or(IngestionError::Storage(
-                        crate::storage::StorageError::Conflict(
-                            "repair entry is not in a retrying state",
-                        ),
-                    ))?;
-                repair_from_pg(&row)
-            }
-            RepairAttemptOutcome::FailedAgain {
-                receipt_id,
-                reason_detail,
-            } => {
-                // Requeue while budget remains, dead-letter otherwise.
-                let sql = format!(
-                    "UPDATE knowledge_ingestion_repair_queue
-                     SET state = CASE WHEN attempts >= max_attempts
-                                      THEN 'dead_letter' ELSE 'queued' END,
-                         reason_detail = $2,
-                         receipt_id = COALESCE($3, receipt_id),
-                         updated_at = NOW()
-                     WHERE repair_id = $1 AND state = 'retrying'
-                     RETURNING {REPAIR_COLUMNS}"
-                );
-                let row = sqlx::query(&sql)
-                    .bind(repair_id)
-                    .bind(&reason_detail)
-                    .bind(&receipt_id)
-                    .fetch_optional(&self.pool)
-                    .await
-                    .map_err(crate::storage::StorageError::from)?
-                    .ok_or(IngestionError::Storage(
-                        crate::storage::StorageError::Conflict(
-                            "repair entry is not in a retrying state",
-                        ),
-                    ))?;
-                repair_from_pg(&row)
-            }
-        }
-    }
-
-    /// Operator decision: dead-letter an open entry directly.
-    pub async fn dead_letter_repair(&self, repair_id: &str) -> IngestionResult<RepairEntry> {
-        let sql = format!(
-            "UPDATE knowledge_ingestion_repair_queue
-             SET state = 'dead_letter', updated_at = NOW()
-             WHERE repair_id = $1 AND state IN ('queued', 'retrying')
-             RETURNING {REPAIR_COLUMNS}"
-        );
-        let row = sqlx::query(&sql)
-            .bind(repair_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(crate::storage::StorageError::from)?
-            .ok_or(IngestionError::Storage(
-                crate::storage::StorageError::Conflict(
-                    "repair entry is not open; cannot dead-letter",
-                ),
-            ))?;
-        repair_from_pg(&row)
-    }
+#[derive(SurrealValue)]
+struct ReceiptRecord {
+    receipt_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    ingestion_run_token: Option<String>,
+    extractor_id: String,
+    extractor_version: String,
+    status: String,
+    error_class: Option<String>,
+    error_detail: Option<Value>,
+    spans_produced: i64,
+    spans_failed: i64,
+    redaction_count: i64,
+    content_hash: String,
+    duration_ms: i64,
+    receipt_event_id: Option<RecordId>,
+    created_at: Datetime,
+}
+fn receipt_from_record(row: ReceiptRecord) -> IngestionResult<ExtractionReceipt> {
+    let count = |value: i64, name: &str| {
+        i32::try_from(value)
+            .map_err(|_| IngestionError::Validation(format!("{name} exceeds i32 range")))
+    };
+    Ok(ExtractionReceipt {
+        receipt_id: row.receipt_id,
+        workspace_id: key(row.workspace_id)?,
+        source_id: key(row.source_id)?,
+        ingestion_run_token: row.ingestion_run_token,
+        extractor_id: row.extractor_id,
+        extractor_version: row.extractor_version,
+        status: row.status.parse()?,
+        error_class: row.error_class.map(|value| value.parse()).transpose()?,
+        error_detail: row.error_detail,
+        spans_produced: count(row.spans_produced, "spans_produced")?,
+        spans_failed: count(row.spans_failed, "spans_failed")?,
+        redaction_count: count(row.redaction_count, "redaction_count")?,
+        content_hash: row.content_hash,
+        duration_ms: row.duration_ms,
+        receipt_event_id: opt_key(row.receipt_event_id)?,
+        created_at: row.created_at.into_inner(),
+    })
 }
 
-// ---------------------------------------------------------------------------
-// Row mappers for receipts, spans, repair entries.
-// ---------------------------------------------------------------------------
-
-/// Durable row of `knowledge_ingestion_spans`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StoredSpan {
     pub span_id: String,
@@ -706,77 +211,638 @@ pub struct StoredSpan {
     pub link_candidates: Value,
     pub created_at: DateTime<Utc>,
 }
-
-const RECEIPT_COLUMNS: &str = "receipt_id, workspace_id, source_id, ingestion_run_token, \
-     extractor_id, extractor_version, status, error_class, error_detail, spans_produced, \
-     spans_failed, redaction_count, content_hash, duration_ms, receipt_event_id, created_at";
-
-const SPAN_COLUMNS: &str = "span_id, workspace_id, source_id, receipt_id, span_index, \
-     anchor_kind, anchor, byte_start, byte_end, content, content_hash, redaction_state, \
-     link_candidates, created_at";
-
-const REPAIR_COLUMNS: &str = "repair_id, workspace_id, source_id, receipt_id, reason_class, \
-     reason_detail, state, attempts, max_attempts, last_attempt_at, resolved_receipt_id, \
-     enqueue_event_id, created_at, updated_at";
-
-fn receipt_from_pg(row: &sqlx::postgres::PgRow) -> IngestionResult<ExtractionReceipt> {
-    Ok(ExtractionReceipt {
-        receipt_id: row.get("receipt_id"),
-        workspace_id: row.get("workspace_id"),
-        source_id: row.get("source_id"),
-        ingestion_run_token: row.get("ingestion_run_token"),
-        extractor_id: row.get("extractor_id"),
-        extractor_version: row.get("extractor_version"),
-        status: row.get::<String, _>("status").parse()?,
-        error_class: row
-            .get::<Option<String>, _>("error_class")
-            .map(|c| c.parse())
-            .transpose()?,
-        error_detail: row.get("error_detail"),
-        spans_produced: row.get("spans_produced"),
-        spans_failed: row.get("spans_failed"),
-        redaction_count: row.get("redaction_count"),
-        content_hash: row.get("content_hash"),
-        duration_ms: row.get("duration_ms"),
-        receipt_event_id: row.get("receipt_event_id"),
-        created_at: row.get("created_at"),
-    })
+#[derive(SurrealValue)]
+struct SpanRecord {
+    span_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    receipt_id: RecordId,
+    span_index: i64,
+    anchor: Value,
+    byte_start: Option<i64>,
+    byte_end: Option<i64>,
+    content: String,
+    content_hash: String,
+    redaction_state: String,
+    link_candidates: Value,
+    created_at: Datetime,
 }
-
-fn span_from_pg(row: &sqlx::postgres::PgRow) -> IngestionResult<StoredSpan> {
-    let anchor_value: Value = row.get("anchor");
+fn span_from_record(row: SpanRecord) -> IngestionResult<StoredSpan> {
     Ok(StoredSpan {
-        span_id: row.get("span_id"),
-        workspace_id: row.get("workspace_id"),
-        source_id: row.get("source_id"),
-        receipt_id: row.get("receipt_id"),
-        span_index: row.get("span_index"),
-        anchor: SpanAnchor::from_json(&anchor_value)?,
-        byte_start: row.get("byte_start"),
-        byte_end: row.get("byte_end"),
-        content: row.get("content"),
-        content_hash: row.get("content_hash"),
-        redaction_state: row.get::<String, _>("redaction_state").parse()?,
-        link_candidates: row.get("link_candidates"),
-        created_at: row.get("created_at"),
+        span_id: row.span_id,
+        workspace_id: key(row.workspace_id)?,
+        source_id: key(row.source_id)?,
+        receipt_id: key(row.receipt_id)?,
+        span_index: i32::try_from(row.span_index)
+            .map_err(|_| IngestionError::Validation("span_index exceeds i32 range".to_owned()))?,
+        anchor: SpanAnchor::from_json(&row.anchor)?,
+        byte_start: row.byte_start,
+        byte_end: row.byte_end,
+        content: row.content,
+        content_hash: row.content_hash,
+        redaction_state: row.redaction_state.parse()?,
+        link_candidates: row.link_candidates,
+        created_at: row.created_at.into_inner(),
     })
 }
 
-fn repair_from_pg(row: &sqlx::postgres::PgRow) -> IngestionResult<RepairEntry> {
+#[derive(SurrealValue)]
+struct RepairRecord {
+    repair_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    receipt_id: Option<RecordId>,
+    reason_class: String,
+    reason_detail: Value,
+    state: String,
+    attempts: i64,
+    max_attempts: i64,
+    last_attempt_at: Option<Datetime>,
+    resolved_receipt_id: Option<RecordId>,
+    enqueue_event_id: Option<RecordId>,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
+fn repair_from_record(row: RepairRecord) -> IngestionResult<RepairEntry> {
     Ok(RepairEntry {
-        repair_id: row.get("repair_id"),
-        workspace_id: row.get("workspace_id"),
-        source_id: row.get("source_id"),
-        receipt_id: row.get("receipt_id"),
-        reason_class: row.get::<String, _>("reason_class").parse()?,
-        reason_detail: row.get("reason_detail"),
-        state: row.get::<String, _>("state").parse()?,
-        attempts: row.get("attempts"),
-        max_attempts: row.get("max_attempts"),
-        last_attempt_at: row.get("last_attempt_at"),
-        resolved_receipt_id: row.get("resolved_receipt_id"),
-        enqueue_event_id: row.get("enqueue_event_id"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        repair_id: row.repair_id,
+        workspace_id: key(row.workspace_id)?,
+        source_id: key(row.source_id)?,
+        receipt_id: opt_key(row.receipt_id)?,
+        reason_class: row.reason_class.parse()?,
+        reason_detail: row.reason_detail,
+        state: row.state.parse()?,
+        attempts: i32::try_from(row.attempts)
+            .map_err(|_| IngestionError::Validation("attempts exceeds i32 range".to_owned()))?,
+        max_attempts: i32::try_from(row.max_attempts)
+            .map_err(|_| IngestionError::Validation("max_attempts exceeds i32 range".to_owned()))?,
+        last_attempt_at: row.last_attempt_at.map(Datetime::into_inner),
+        resolved_receipt_id: opt_key(row.resolved_receipt_id)?,
+        enqueue_event_id: opt_key(row.enqueue_event_id)?,
+        created_at: row.created_at.into_inner(),
+        updated_at: row.updated_at.into_inner(),
     })
+}
+
+impl KnowledgeIngestionStore {
+    pub fn new(db: Arc<SurrealDatabase>) -> Self {
+        Self { db }
+    }
+    pub fn database(&self) -> &Arc<SurrealDatabase> {
+        &self.db
+    }
+
+    async fn rows<R, B>(&self, statement: &'static str, bindings: B) -> IngestionResult<Vec<R>>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Send + 'static,
+    {
+        self.db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values(statement, bindings).await })
+            })
+            .await
+            .map_err(storage_error)
+    }
+    async fn rows_at<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+        index: usize,
+    ) -> IngestionResult<Vec<R>>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Send + 'static,
+    {
+        self.db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values_at(statement, bindings, index).await })
+            })
+            .await
+            .map_err(storage_error)
+    }
+
+    pub async fn activate_root_policy(
+        &self,
+        workspace_id: &str,
+        policy: &RootRegistrationPolicy,
+    ) -> IngestionResult<StoredRootPolicy> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            policy_id: String,
+            workspace: RecordId,
+            allow: Vec<String>,
+            deny: Vec<String>,
+            approval: bool,
+        }
+        let rows: Vec<PolicyRecord> = self.rows_at(
+            "BEGIN TRANSACTION; LET $previous = (SELECT VALUE policy_version FROM knowledge_ingestion_root_policies WHERE workspace_id = $workspace AND active = true LIMIT 1)[0]; UPDATE knowledge_ingestion_root_policies SET active = false, updated_at = time::now() WHERE workspace_id = $workspace AND active = true; CREATE type::record('knowledge_ingestion_root_policies', $policy_id) CONTENT { policy_id: $policy_id, workspace_id: $workspace, policy_version: IF $previous = NONE { 1 } ELSE { $previous + 1 }, allow_patterns: $allow, deny_patterns: $deny, require_operator_approval: $approval } RETURN AFTER; COMMIT TRANSACTION;",
+            Bindings { policy_id: new_ingestion_id("KIP"), workspace: thing(WORKSPACES, workspace_id), allow: policy.allow_patterns.clone(), deny: policy.deny_patterns.clone(), approval: policy.require_operator_approval }, 3).await?;
+        rows.into_iter()
+            .next()
+            .map(policy_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::NotFound(
+                "activated ingestion root policy",
+            )))
+    }
+
+    pub async fn get_active_root_policy(
+        &self,
+        workspace_id: &str,
+    ) -> IngestionResult<Option<StoredRootPolicy>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            workspace: RecordId,
+        }
+        self.rows::<PolicyRecord, _>("SELECT * FROM knowledge_ingestion_root_policies WHERE workspace_id = $workspace AND active = true LIMIT 1;", Bindings { workspace: thing(WORKSPACES, workspace_id) }).await?.into_iter().next().map(policy_from_record).transpose()
+    }
+
+    pub async fn record_policy_decision(
+        &self,
+        decision: NewPolicyDecision,
+    ) -> IngestionResult<PolicyDecision> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+            workspace: RecordId,
+            policy: Option<RecordId>,
+            path: String,
+            root_kind: String,
+            verdict: String,
+            matched: Option<String>,
+            approved: bool,
+            actor_kind: String,
+            actor_id: String,
+            event: Option<RecordId>,
+        }
+        let rows: Vec<DecisionRecord> = self.rows("CREATE type::record('knowledge_ingestion_policy_decisions', $id) CONTENT { decision_id: $id, workspace_id: $workspace, policy_id: $policy, candidate_path: $path, root_kind: $root_kind, verdict: $verdict, matched_pattern: $matched, operator_approved: $approved, actor_kind: $actor_kind, actor_id: $actor_id, receipt_event_id: $event } RETURN AFTER;",
+            Bindings { id: new_ingestion_id("KIPD"), workspace: thing(WORKSPACES, &decision.workspace_id), policy: opt_thing(POLICIES, decision.policy_id.as_deref()), path: decision.candidate_path, root_kind: decision.root_kind, verdict: decision.verdict.as_str().to_owned(), matched: decision.matched_pattern, approved: decision.operator_approved, actor_kind: decision.actor_kind, actor_id: decision.actor_id, event: opt_thing(EVENTS, decision.receipt_event_id.as_deref()) }).await?;
+        rows.into_iter()
+            .next()
+            .map(decision_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::NotFound(
+                "ingestion policy decision",
+            )))
+    }
+
+    pub async fn list_policy_decisions(
+        &self,
+        workspace_id: &str,
+        limit: i64,
+    ) -> IngestionResult<Vec<PolicyDecision>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            workspace: RecordId,
+            limit: i64,
+        }
+        self.rows::<DecisionRecord, _>("SELECT * FROM knowledge_ingestion_policy_decisions WHERE workspace_id = $workspace ORDER BY decided_at DESC, decision_id DESC LIMIT $limit;", Bindings { workspace: thing(WORKSPACES, workspace_id), limit: limit.clamp(1, 10_000) }).await?.into_iter().map(decision_from_record).collect()
+    }
+
+    pub async fn record_extraction_receipt(
+        &self,
+        receipt: NewExtractionReceipt,
+        receipt_event_id: Option<&str>,
+    ) -> IngestionResult<ExtractionReceipt> {
+        receipt.validate()?;
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+            workspace: RecordId,
+            source: RecordId,
+            run: Option<String>,
+            extractor: String,
+            version: String,
+            status: String,
+            error_class: Option<String>,
+            error_detail: Option<Value>,
+            produced: i32,
+            failed: i32,
+            redactions: i32,
+            hash: String,
+            duration: i64,
+            event: Option<RecordId>,
+        }
+        let rows: Vec<ReceiptRecord> = self.rows("CREATE type::record('knowledge_ingestion_receipts', $id) CONTENT { receipt_id: $id, workspace_id: $workspace, source_id: $source, ingestion_run_token: $run, extractor_id: $extractor, extractor_version: $version, status: $status, error_class: $error_class, error_detail: $error_detail, spans_produced: $produced, spans_failed: $failed, redaction_count: $redactions, content_hash: $hash, duration_ms: $duration, receipt_event_id: $event } RETURN AFTER;",
+            Bindings { id: new_ingestion_id("KIRC"), workspace: thing(WORKSPACES, &receipt.workspace_id), source: thing(SOURCES, &receipt.source_id), run: receipt.ingestion_run_token, extractor: receipt.extractor_id, version: receipt.extractor_version, status: receipt.status.as_str().to_owned(), error_class: receipt.error_class.map(|value| value.as_str().to_owned()), error_detail: receipt.error_detail, produced: receipt.spans_produced, failed: receipt.spans_failed, redactions: receipt.redaction_count, hash: receipt.content_hash, duration: receipt.duration_ms, event: opt_thing(EVENTS, receipt_event_id) }).await?;
+        rows.into_iter()
+            .next()
+            .map(receipt_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::NotFound(
+                "extraction receipt",
+            )))
+    }
+
+    pub async fn list_extraction_receipts(
+        &self,
+        source_id: &str,
+        limit: i64,
+    ) -> IngestionResult<Vec<ExtractionReceipt>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            source: RecordId,
+            limit: i64,
+        }
+        self.rows::<ReceiptRecord, _>("SELECT * FROM knowledge_ingestion_receipts WHERE source_id = $source ORDER BY created_at DESC, receipt_id DESC LIMIT $limit;", Bindings { source: thing(SOURCES, source_id), limit: limit.clamp(1, 10_000) }).await?.into_iter().map(receipt_from_record).collect()
+    }
+    pub async fn get_extraction_receipt(
+        &self,
+        receipt_id: &str,
+    ) -> IngestionResult<Option<ExtractionReceipt>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+        }
+        self.rows::<ReceiptRecord, _>(
+            "SELECT * FROM knowledge_ingestion_receipts WHERE receipt_id = $id LIMIT 1;",
+            Bindings {
+                id: receipt_id.to_owned(),
+            },
+        )
+        .await?
+        .into_iter()
+        .next()
+        .map(receipt_from_record)
+        .transpose()
+    }
+
+    pub async fn replace_source_spans(
+        &self,
+        workspace_id: &str,
+        source_id: &str,
+        receipt_id: &str,
+        spans: &[ExtractedSpan],
+    ) -> IngestionResult<Vec<StoredSpan>> {
+        #[derive(SurrealValue)]
+        struct SpanInput {
+            span_id: String,
+            workspace_id: RecordId,
+            source_id: RecordId,
+            receipt_id: RecordId,
+            span_index: i64,
+            anchor_kind: String,
+            anchor: Value,
+            byte_start: Option<i64>,
+            byte_end: Option<i64>,
+            content: String,
+            content_hash: String,
+            redaction_state: String,
+            link_candidates: Value,
+        }
+        #[derive(SurrealValue)]
+        struct Bindings {
+            source: RecordId,
+            spans: Vec<SpanInput>,
+        }
+        let source = thing(SOURCES, source_id);
+        let inputs = spans
+            .iter()
+            .enumerate()
+            .map(|(index, span)| SpanInput {
+                span_id: new_ingestion_id("KISP"),
+                workspace_id: thing(WORKSPACES, workspace_id),
+                source_id: source.clone(),
+                receipt_id: thing(RECEIPTS, receipt_id),
+                span_index: index as i64,
+                anchor_kind: span.anchor.kind_str().to_owned(),
+                anchor: span.anchor.to_json(),
+                byte_start: span.byte_start,
+                byte_end: span.byte_end,
+                content: span.content.clone(),
+                content_hash: sha256_hex(span.content.as_bytes()),
+                redaction_state: span.redaction.as_str().to_owned(),
+                link_candidates: serde_json::json!(span.link_candidates),
+            })
+            .collect();
+        let rows: Vec<SpanRecord> = self.rows_at("BEGIN TRANSACTION; DELETE knowledge_ingestion_spans WHERE source_id = $source; FOR $span IN $spans { CREATE type::record('knowledge_ingestion_spans', $span.span_id) CONTENT $span; }; SELECT * FROM knowledge_ingestion_spans WHERE source_id = $source ORDER BY span_index; COMMIT TRANSACTION;", Bindings { source, spans: inputs }, 3).await?;
+        rows.into_iter().map(span_from_record).collect()
+    }
+    pub async fn list_source_spans(&self, source_id: &str) -> IngestionResult<Vec<StoredSpan>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            source: RecordId,
+        }
+        self.rows::<SpanRecord, _>("SELECT * FROM knowledge_ingestion_spans WHERE source_id = $source ORDER BY span_index;", Bindings { source: thing(SOURCES, source_id) }).await?.into_iter().map(span_from_record).collect()
+    }
+
+    pub async fn enqueue_repair(&self, entry: NewRepairEntry) -> IngestionResult<RepairEntry> {
+        let _guard = REPAIR_MUTATION_LOCK.lock().await;
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+            workspace: RecordId,
+            source: RecordId,
+            receipt: Option<RecordId>,
+            reason: String,
+            detail: Value,
+            max: i32,
+            event: Option<RecordId>,
+        }
+        let rows: Vec<RepairRecord> = self.rows_at("BEGIN TRANSACTION; LET $open = (SELECT VALUE id FROM knowledge_ingestion_repair_queue WHERE source_id = $source AND state IN ['queued', 'retrying'] LIMIT 1)[0]; LET $dead = (SELECT VALUE id FROM knowledge_ingestion_repair_queue WHERE source_id = $source AND reason_class = $reason AND state = 'dead_letter' ORDER BY updated_at DESC, repair_id DESC LIMIT 1)[0]; IF $open != NONE { UPDATE $open SET reason_class = $reason, reason_detail = $detail, receipt_id = $receipt, enqueue_event_id = IF $event = NONE { enqueue_event_id } ELSE { $event }, updated_at = time::now() RETURN AFTER; } ELSE IF $dead != NONE { UPDATE $dead SET state = 'queued', attempts = 0, reason_detail = $detail, receipt_id = $receipt, enqueue_event_id = IF $event = NONE { enqueue_event_id } ELSE { $event }, resolved_receipt_id = NONE, updated_at = time::now() RETURN AFTER; } ELSE { CREATE type::record('knowledge_ingestion_repair_queue', $id) CONTENT { repair_id: $id, workspace_id: $workspace, source_id: $source, receipt_id: $receipt, reason_class: $reason, reason_detail: $detail, max_attempts: $max, enqueue_event_id: $event } RETURN AFTER; }; COMMIT TRANSACTION;",
+            Bindings { id: new_ingestion_id("KIRQ"), workspace: thing(WORKSPACES, &entry.workspace_id), source: thing(SOURCES, &entry.source_id), receipt: opt_thing(RECEIPTS, entry.receipt_id.as_deref()), reason: entry.reason_class.as_str().to_owned(), detail: entry.reason_detail, max: entry.max_attempts, event: opt_thing(EVENTS, entry.enqueue_event_id.as_deref()) }, 3).await?;
+        rows.into_iter()
+            .next()
+            .map(repair_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::NotFound(
+                "repair queue mutation",
+            )))
+    }
+    pub async fn get_repair_entry(&self, repair_id: &str) -> IngestionResult<Option<RepairEntry>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+        }
+        self.rows::<RepairRecord, _>(
+            "SELECT * FROM knowledge_ingestion_repair_queue WHERE repair_id = $id LIMIT 1;",
+            Bindings {
+                id: repair_id.to_owned(),
+            },
+        )
+        .await?
+        .into_iter()
+        .next()
+        .map(repair_from_record)
+        .transpose()
+    }
+    pub async fn list_repair_entries(
+        &self,
+        workspace_id: &str,
+        state: Option<RepairState>,
+        limit: i64,
+    ) -> IngestionResult<Vec<RepairEntry>> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            workspace: RecordId,
+            state: Option<String>,
+            limit: i64,
+        }
+        self.rows::<RepairRecord, _>("SELECT * FROM knowledge_ingestion_repair_queue WHERE workspace_id = $workspace AND ($state = NONE OR state = $state) ORDER BY created_at DESC LIMIT $limit;", Bindings { workspace: thing(WORKSPACES, workspace_id), state: state.map(|value| value.as_str().to_owned()), limit: limit.clamp(1, 10_000) }).await?.into_iter().map(repair_from_record).collect()
+    }
+    pub async fn begin_repair_attempt(&self, repair_id: &str) -> IngestionResult<RepairEntry> {
+        let _guard = REPAIR_MUTATION_LOCK.lock().await;
+        let current = self
+            .get_repair_entry(repair_id)
+            .await?
+            .ok_or(IngestionError::Storage(StorageError::NotFound(
+                "repair entry",
+            )))?;
+        if current.state.is_terminal() {
+            return Err(IngestionError::Storage(StorageError::Conflict(
+                "repair entry is terminal; retries are over",
+            )));
+        }
+        if current.attempts >= current.max_attempts {
+            let _ = self.dead_letter_repair_unlocked(repair_id).await?;
+            return Err(IngestionError::Storage(StorageError::Conflict(
+                "repair attempts exhausted; entry dead-lettered",
+            )));
+        }
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+            expected: i32,
+        }
+        let rows: Vec<RepairRecord> = self.rows("UPDATE knowledge_ingestion_repair_queue SET state = 'retrying', attempts += 1, last_attempt_at = time::now(), updated_at = time::now() WHERE repair_id = $id AND state IN ['queued', 'retrying'] AND attempts = $expected RETURN AFTER;", Bindings { id: repair_id.to_owned(), expected: current.attempts }).await?;
+        rows.into_iter()
+            .next()
+            .map(repair_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::Conflict(
+                "repair entry changed while claiming retry",
+            )))
+    }
+    pub async fn settle_repair_attempt(
+        &self,
+        repair_id: &str,
+        outcome: RepairAttemptOutcome,
+    ) -> IngestionResult<RepairEntry> {
+        let _guard = REPAIR_MUTATION_LOCK.lock().await;
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+            receipt: Option<RecordId>,
+            detail: Option<Value>,
+        }
+        let (statement, receipt, detail) = match outcome {
+            RepairAttemptOutcome::Resolved { resolved_receipt_id } => ("UPDATE knowledge_ingestion_repair_queue SET state = 'resolved', resolved_receipt_id = $receipt, updated_at = time::now() WHERE repair_id = $id AND state = 'retrying' RETURN AFTER;", Some(thing(RECEIPTS, &resolved_receipt_id)), None),
+            RepairAttemptOutcome::FailedAgain { receipt_id, reason_detail } => ("UPDATE knowledge_ingestion_repair_queue SET state = IF attempts >= max_attempts { 'dead_letter' } ELSE { 'queued' }, reason_detail = $detail, receipt_id = IF $receipt = NONE { receipt_id } ELSE { $receipt }, updated_at = time::now() WHERE repair_id = $id AND state = 'retrying' RETURN AFTER;", opt_thing(RECEIPTS, receipt_id.as_deref()), Some(reason_detail)),
+        };
+        let rows: Vec<RepairRecord> = self
+            .rows(
+                statement,
+                Bindings {
+                    id: repair_id.to_owned(),
+                    receipt,
+                    detail,
+                },
+            )
+            .await?;
+        rows.into_iter()
+            .next()
+            .map(repair_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::Conflict(
+                "repair entry is not in a retrying state",
+            )))
+    }
+    async fn dead_letter_repair_unlocked(&self, repair_id: &str) -> IngestionResult<RepairEntry> {
+        #[derive(SurrealValue)]
+        struct Bindings {
+            id: String,
+        }
+        let rows: Vec<RepairRecord> = self.rows("UPDATE knowledge_ingestion_repair_queue SET state = 'dead_letter', updated_at = time::now() WHERE repair_id = $id AND state IN ['queued', 'retrying'] RETURN AFTER;", Bindings { id: repair_id.to_owned() }).await?;
+        rows.into_iter()
+            .next()
+            .map(repair_from_record)
+            .transpose()?
+            .ok_or(IngestionError::Storage(StorageError::Conflict(
+                "repair entry is not open; cannot dead-letter",
+            )))
+    }
+    pub async fn dead_letter_repair(&self, repair_id: &str) -> IngestionResult<RepairEntry> {
+        let _guard = REPAIR_MUTATION_LOCK.lock().await;
+        self.dead_letter_repair_unlocked(repair_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::knowledge_ingestion::receipts::ExtractionStatus;
+    use crate::knowledge_ingestion::spans::SpanAnchor;
+    use crate::storage::knowledge::{
+        KnowledgeIndexingEligibility, KnowledgePermissionScope, KnowledgeRedactionState,
+        KnowledgeRootKind, KnowledgeSourceKind, KnowledgeStore, NewKnowledgeSource,
+        NewKnowledgeSourceRoot,
+    };
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+    use crate::storage::{Database, NewWorkspace, WriteContext};
+    use serde_json::json;
+
+    async fn open(path: &std::path::Path) -> SurrealStorage {
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(path).expect("valid ingestion test path"),
+        )
+        .await
+        .expect("open embedded SurrealDB");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap ingestion schema");
+        storage
+    }
+
+    #[tokio::test]
+    async fn ingestion_rows_survive_reopen_and_span_replace_rolls_back() {
+        let directory = tempfile::tempdir().expect("temporary ingestion store root");
+        let path = directory.path().join("store");
+        let storage = open(&path).await;
+        let db = Arc::new(SurrealDatabase::new(storage.clone()));
+        let workspace = db
+            .create_workspace(
+                &WriteContext::human(None),
+                NewWorkspace {
+                    name: "Ingestion durability".to_owned(),
+                },
+            )
+            .await
+            .expect("create workspace");
+        let root = db
+            .create_knowledge_source_root(NewKnowledgeSourceRoot {
+                workspace_id: workspace.id.clone(),
+                display_name: "Repo".to_owned(),
+                root_kind: KnowledgeRootKind::ProjectRepo,
+                repo_relative_path: String::new(),
+                allowlist_policy: json!({"include":["**/*"],"exclude":[]}),
+                indexing_eligibility: KnowledgeIndexingEligibility::Eligible,
+            })
+            .await
+            .expect("create source root");
+        let source = db
+            .upsert_knowledge_source(NewKnowledgeSource {
+                workspace_id: workspace.id.clone(),
+                root_id: Some(root.root_id),
+                source_kind: KnowledgeSourceKind::File,
+                relative_path: Some("src/lib.rs".to_owned()),
+                asset_id: None,
+                loom_block_id: None,
+                document_id: None,
+                content_hash: "a".repeat(64),
+                size_bytes: Some(12),
+                provenance: json!({"test":"mt-137"}),
+                permission_scope: KnowledgePermissionScope::Workspace,
+                redaction_state: KnowledgeRedactionState::None,
+                source_modified_at: None,
+            })
+            .await
+            .expect("create source");
+        let store = KnowledgeIngestionStore::new(Arc::clone(&db));
+        let policy = store
+            .activate_root_policy(
+                &workspace.id,
+                &RootRegistrationPolicy {
+                    allow_patterns: vec!["**/*".to_owned()],
+                    deny_patterns: vec!["target/**".to_owned()],
+                    require_operator_approval: false,
+                },
+            )
+            .await
+            .expect("activate policy");
+        let receipt = store
+            .record_extraction_receipt(
+                NewExtractionReceipt {
+                    workspace_id: workspace.id.clone(),
+                    source_id: source.source_id.clone(),
+                    ingestion_run_token: Some("run-reopen".to_owned()),
+                    extractor_id: "rust-test".to_owned(),
+                    extractor_version: "1".to_owned(),
+                    status: ExtractionStatus::Success,
+                    error_class: None,
+                    error_detail: None,
+                    spans_produced: 1,
+                    spans_failed: 0,
+                    redaction_count: 0,
+                    content_hash: "a".repeat(64),
+                    duration_ms: 1,
+                },
+                None,
+            )
+            .await
+            .expect("record receipt");
+        let original = ExtractedSpan::new(
+            SpanAnchor::LineRange {
+                line_start: 1,
+                line_end: 1,
+                heading_path: Vec::new(),
+            },
+            "durable span",
+        )
+        .with_bytes(0, 12);
+        store
+            .replace_source_spans(
+                &workspace.id,
+                &source.source_id,
+                &receipt.receipt_id,
+                &[original],
+            )
+            .await
+            .expect("store original span");
+
+        let invalid = ExtractedSpan::new(
+            SpanAnchor::LineRange {
+                line_start: 1,
+                line_end: 1,
+                heading_path: Vec::new(),
+            },
+            "must roll back",
+        )
+        .with_bytes(-1, 1);
+        assert!(store
+            .replace_source_spans(
+                &workspace.id,
+                &source.source_id,
+                &receipt.receipt_id,
+                &[invalid],
+            )
+            .await
+            .is_err());
+        let after_failure = store
+            .list_source_spans(&source.source_id)
+            .await
+            .expect("read spans after failed replacement");
+        assert_eq!(after_failure.len(), 1);
+        assert_eq!(after_failure[0].content, "durable span");
+
+        storage.shutdown().await.expect("close ingestion store");
+        drop(store);
+        drop(db);
+        drop(storage);
+
+        let reopened = open(&path).await;
+        let reopened_store =
+            KnowledgeIngestionStore::new(Arc::new(SurrealDatabase::new(reopened.clone())));
+        let persisted_policy = reopened_store
+            .get_active_root_policy(&workspace.id)
+            .await
+            .expect("read reopened policy")
+            .expect("durable policy");
+        assert_eq!(persisted_policy.policy_id, policy.policy_id);
+        let persisted_receipt = reopened_store
+            .get_extraction_receipt(&receipt.receipt_id)
+            .await
+            .expect("read reopened receipt")
+            .expect("durable receipt");
+        assert_eq!(persisted_receipt.source_id, source.source_id);
+        let persisted_spans = reopened_store
+            .list_source_spans(&source.source_id)
+            .await
+            .expect("read reopened spans");
+        assert_eq!(persisted_spans.len(), 1);
+        assert_eq!(persisted_spans[0].content, "durable span");
+        reopened.shutdown().await.expect("close reopened store");
+    }
 }

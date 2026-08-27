@@ -2,7 +2,7 @@
 //!
 //! WP-KERNEL-012 MT-072 remediation (FAIL_V2): editor settings previously persisted as an opaque
 //! workspace-settings JSON document. Validator V2 required them re-authored as the canonical typed
-//! [`PreferenceRecord`] authority in PostgreSQL with a stable `preference_id`, declared `value_type`,
+//! [`PreferenceRecord`] authority in SurrealDB with a stable `preference_id`, declared `value_type`,
 //! `scope`, registry `default_value`, `source`, monotonically increasing `revision`, typed validation,
 //! reset-to-default semantics, change history, and recoverable EventLedger / Flight-Recorder receipts.
 //!
@@ -12,9 +12,10 @@
 //! * typed validation of a candidate value against a registry entry (§10.17.3 SET-REC-002), and
 //! * the redacted-projection row shape (§10.17.6 SET-PROJ-002).
 //!
-//! The PostgreSQL persistence, EventLedger emission, and receipt durability live in
+//! The SurrealDB persistence, EventLedger emission, and receipt durability live in
 //! `crate::storage` (see `Database::preference_*`); the HTTP surface lives in
-//! `crate::api::preferences`. SQLite is forbidden everywhere in this domain (§10.17.2 SET-STORE-002).
+//! `crate::api::preferences`. SurrealDB is the sole canonical store for this domain
+//! (§10.17.2 SET-STORE-002).
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};

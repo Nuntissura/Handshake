@@ -14,11 +14,14 @@
 //! (`knowledge_code_files`) and never re-parses.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use surrealdb::types::{SurrealValue, Value};
 
 use crate::storage::knowledge::{
     KnowledgeEdgeType, KnowledgeEntityKind, KnowledgeSpanKind, KnowledgeStore,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
+use crate::storage::StorageError;
 
 use super::staleness::{evaluate_staleness, IndexedState, LiveSourceState, StalenessVerdict};
 use super::{CodeIndexError, CodeIndexResult};
@@ -74,7 +77,7 @@ pub struct MonacoCodeLensPayload {
 /// (what the open editor buffer hashes to, and the adapter version for its
 /// language); they let the bridge flag staleness against the indexed state.
 pub async fn build_monaco_payload(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     workspace_id: &str,
     relative_path: &str,
     current_content_hash: &str,
@@ -126,24 +129,41 @@ pub async fn build_monaco_payload(
         .collect();
 
     // Symbol entities of this workspace whose key targets this file. MT-109
-    // hardening: the path filter pushes down to SQL (via lookup_code_symbols'
-    // `:{path}#` segment match) instead of loading every symbol in the workspace
-    // and filtering in Rust - the adversarial-review load-all DoS. A defensive
-    // Rust prefix re-check keeps the exact `{lang}:{path}#` boundary (the SQL
-    // LIKE is a superset because `path` could be a substring of another path).
+    // hardening: the exact language/path prefixes are pushed into the bounded
+    // embedded-store query instead of loading every workspace symbol.
     let prefix_a = format!("rust:{relative_path}#");
     let prefix_b = format!("typescript:{relative_path}#");
     let prefix_c = format!("tsx:{relative_path}#");
     let prefix_d = format!("javascript:{relative_path}#");
-    let file_symbols = db
-        .lookup_code_symbols(
-            workspace_id,
-            None,
-            Some(relative_path),
-            None,
-            MONACO_SYMBOL_LOOKUP_LIMIT,
-        )
-        .await?;
+    let bindings = SymbolLookupBindings {
+        workspace_id: workspace_id.to_owned(),
+        prefix_a: prefix_a.clone(),
+        prefix_b: prefix_b.clone(),
+        prefix_c: prefix_c.clone(),
+        prefix_d: prefix_d.clone(),
+        limit: MONACO_SYMBOL_LOOKUP_LIMIT,
+    };
+    let file_symbols: Vec<SymbolLookupRow> = db
+        .storage()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(
+                    "SELECT entity_id, entity_key, display_name, detection_provenance \
+                     FROM knowledge_entities \
+                     WHERE workspace_id = type::record('workspaces', $workspace_id) \
+                       AND entity_kind = 'symbol' AND lifecycle_state = 'active' \
+                       AND (string::starts_with(entity_key, $prefix_a) \
+                         OR string::starts_with(entity_key, $prefix_b) \
+                         OR string::starts_with(entity_key, $prefix_c) \
+                         OR string::starts_with(entity_key, $prefix_d)) \
+                     ORDER BY entity_key LIMIT $limit;",
+                    bindings,
+                )
+                .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
     let truncated = file_symbols.len() as i64 >= MONACO_SYMBOL_LOOKUP_LIMIT;
 
     let mut entries = Vec::new();
@@ -242,4 +262,22 @@ pub async fn build_monaco_payload(
         truncated,
         entries,
     })
+}
+
+#[derive(SurrealValue)]
+struct SymbolLookupBindings {
+    workspace_id: String,
+    prefix_a: String,
+    prefix_b: String,
+    prefix_c: String,
+    prefix_d: String,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct SymbolLookupRow {
+    entity_id: String,
+    entity_key: String,
+    display_name: String,
+    detection_provenance: JsonValue,
 }

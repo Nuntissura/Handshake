@@ -16,7 +16,7 @@
 //!   - AC-006 / PT-005: the missing-aliases backend path raises the typed-gap blocker (the runtime
 //!     alias-backend-gap flag) AND renders the visible local-only banner AND the create half still
 //!     works — the path does not silently no-op.
-//!   - AC-007 / MC-006: no SQLite anywhere; creation routes through the MT-037 binding (asserted by the
+//!   - AC-007 / MC-006: no alternate local store anywhere; creation routes through the MT-037 binding (asserted by the
 //!     mock backend recording exactly the create call) — the grep-gate is the reviewer's.
 //!
 //! Artifact hygiene (CX-212E): EVERY PNG goes ONLY to the EXTERNAL
@@ -118,7 +118,7 @@ impl WikilinkBackend for InertBackend {
 /// `(workspace_id, title)` of each `create_note` invocation — the create POST REQUEST SHAPE the
 /// runtime hands the MT-037 binding. This is the MC-001 (no duplicate POST) + AC-007 (creation routes
 /// through the binding with the right workspace + title, not a new endpoint) proof. It NEVER touches
-/// SQLite or a file.
+/// alternate local store or a file.
 struct SpyCreateBackend {
     calls: AtomicUsize,
     new_doc_id: String,
@@ -1096,22 +1096,22 @@ fn create_note_intent_is_the_command_bus_event() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // LIVE end-to-end (gated): NEEDS_MANAGED_RESOURCE_PROOF. The widget-level proofs above use a spy create
 // backend + a mock Loom search; the REAL Loom-search seeding + the REAL create POST against a managed
-// Handshake PostgreSQL/EventLedger cannot be exercised on a host with no managed backend, so it is
+// Handshake SurrealDB/EventLedger cannot be exercised on a host with no managed backend, so it is
 // gated with `#[ignore]` + the `integration` feature (never faked, never Docker). Run with:
 //   cargo test --features integration --test test_wikilink_resolver -- --ignored
-// against a live Handshake-managed PostgreSQL (HANDSHAKE_TEST_WS = a seeded workspace id). The wiring +
+// against a live Handshake-managed SurrealDB (HANDSHAKE_TEST_WS = a seeded workspace id). The wiring +
 // request-shape + dropdown/banner render ARE proven now at the widget level (the non-ignored tests).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// AC-002/003 against REAL PostgreSQL: mount the editor, call the PRODUCTION
+/// AC-002/003 against REAL SurrealDB: mount the editor, call the PRODUCTION
 /// `set_wikilink_context` (installs the real create backend + seeds the resolver index from the real
 /// Loom search), then prove a `[[Title]]` resolves from the seed AND a create-from-unresolved POST
 /// fires against the live `/knowledge/documents` binding. NEEDS_MANAGED_RESOURCE_PROOF absent a seeded
 /// managed backend (the create POST is a WRITE that must append through the real EventLedger authority).
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL/EventLedger with a seeded workspace (real Loom search seeding + real POST /knowledge/documents); no managed backend on this host"]
+#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed SurrealDB/EventLedger with a seeded workspace (real Loom search seeding + real POST /knowledge/documents); no managed backend on this host"]
 #[cfg(feature = "integration")]
-fn live_pg_set_wikilink_context_seeds_and_creates() {
+fn live_surrealdb_set_wikilink_context_seeds_and_creates() {
     let ws =
         std::env::var("HANDSHAKE_TEST_WS").expect("set HANDSHAKE_TEST_WS to a seeded workspace id");
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -1168,7 +1168,7 @@ fn live_pg_set_wikilink_context_seeds_and_creates() {
         if link.resolved {
             resolved = true;
             println!(
-                "AC-002 LIVE-PG: create POST resolved the mark to {}",
+                "AC-002 LIVE-SURREALDB: create POST resolved the mark to {}",
                 link.ref_value
             );
             break;

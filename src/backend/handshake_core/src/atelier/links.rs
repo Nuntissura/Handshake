@@ -5,11 +5,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::documents::CharacterDocumentType;
-use super::{event_ref_for_text, AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, event_ref_for_text, AtelierError, AtelierResult, AtelierStore};
 
 pub mod links_event_family {
     pub const BRACKET_LINKS_REBUILT: &str = "atelier.bracket_links.rebuilt";
@@ -141,46 +141,196 @@ fn parse_bracket_links(text: &str) -> AtelierResult<Vec<ParsedBracketLink>> {
     Ok(links)
 }
 
-fn projection_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BracketLinkProjection> {
-    let source_doc_type_token: String = row.get("source_doc_type");
-    let target_kind_token: String = row.get("target_kind");
-    Ok(BracketLinkProjection {
-        link_id: row.get("link_id"),
-        source_document_id: row.get("source_document_id"),
-        source_version_id: row.get("source_version_id"),
-        source_doc_type: CharacterDocumentType::from_token(&source_doc_type_token)?,
-        seq: row.get("seq"),
-        raw_marker: row.get("raw_marker"),
-        target_kind: BracketLinkTargetKind::from_token(&target_kind_token)?,
-        target_id: row.get("target_id"),
-        target_label: row.get("target_label"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+/// One `atelier_bracket_link_projection` row as the store returns it, with the
+/// source links projected back to their uuid keys.
+#[derive(SurrealValue)]
+struct BracketLinkRow {
+    link_id: SurrealUuid,
+    source_document_id: SurrealUuid,
+    source_version_id: SurrealUuid,
+    source_doc_type: String,
+    seq: i64,
+    raw_marker: String,
+    target_kind: String,
+    target_id: String,
+    target_label: Option<String>,
+    created_at_utc: Datetime,
 }
+
+impl TryFrom<BracketLinkRow> for BracketLinkProjection {
+    type Error = AtelierError;
+
+    fn try_from(row: BracketLinkRow) -> AtelierResult<Self> {
+        Ok(BracketLinkProjection {
+            link_id: row.link_id.into(),
+            source_document_id: row.source_document_id.into(),
+            source_version_id: row.source_version_id.into(),
+            source_doc_type: CharacterDocumentType::from_token(&row.source_doc_type)?,
+            seq: row.seq,
+            raw_marker: row.raw_marker,
+            target_kind: BracketLinkTargetKind::from_token(&row.target_kind)?,
+            target_id: row.target_id,
+            target_label: row.target_label,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct InternalIdBinding {
+    internal_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct PublicIdBinding {
+    public_id: String,
+}
+
+#[derive(SurrealValue)]
+struct DocumentIdBinding {
+    document_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct VersionIdBinding {
+    version_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct AssetIdBinding {
+    asset_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct DocumentRefBinding {
+    doc_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct BacklinkBindings {
+    target_kind: String,
+    target_id: String,
+}
+
+/// One rebuilt link travelling to [`REBUILD_BRACKET_LINKS_STATEMENT`].
+#[derive(Clone, SurrealValue)]
+struct BracketLinkInsert {
+    link_id: SurrealUuid,
+    seq: i64,
+    raw_marker: String,
+    target_kind: String,
+    target_id: String,
+    target_label: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RebuildBracketLinksBindings {
+    doc_ref: RecordId,
+    version_ref: RecordId,
+    source_doc_type: String,
+    links: Vec<BracketLinkInsert>,
+}
+
+#[derive(SurrealValue)]
+struct DocumentSourceRow {
+    document_id: SurrealUuid,
+    doc_type: String,
+    current_version_id: Option<SurrealUuid>,
+}
+
+const SELECT_DOCUMENT_SOURCE_STATEMENT: &str =
+    "SELECT document_id, doc_type, current_version_id FROM atelier_character_document \
+     WHERE document_id = $document_id LIMIT 1;";
+
+const SELECT_VERSION_BODY_STATEMENT: &str =
+    "SELECT VALUE body_raw_text FROM atelier_character_document_version \
+     WHERE version_id = $version_id LIMIT 1;";
+
+/// Replace the projection set for one document and append the rebuild event in
+/// the same atomic statement, so a reader can never observe a half-rebuilt
+/// projection. This is the replacement for the former advisory-lock +
+/// row-lock transaction: the whole delete + insert set commits together.
+const REBUILD_BRACKET_LINKS_STATEMENT: &str = concat!(
+    "RETURN { \
+       DELETE atelier_bracket_link_projection WHERE source_document_id = $domain.doc_ref; \
+       FOR $link IN $domain.links { \
+         CREATE type::record('atelier_bracket_link_projection', $link.link_id) CONTENT { \
+           link_id: $link.link_id, \
+           source_document_id: $domain.doc_ref, \
+           source_version_id: $domain.version_ref, \
+           source_doc_type: $domain.source_doc_type, \
+           seq: $link.seq, \
+           raw_marker: $link.raw_marker, \
+           target_kind: $link.target_kind, \
+           target_id: $link.target_id, \
+           target_label: $link.target_label \
+         }; \
+       }; ",
+    atelier_event_sql!(),
+    " RETURN array::len($domain.links); };"
+);
+
+const LIST_BRACKET_LINKS_STATEMENT: &str = concat!(
+    "SELECT ",
+    "link_id, record::id(source_document_id) AS source_document_id, \
+     record::id(source_version_id) AS source_version_id, source_doc_type, seq, \
+     raw_marker, target_kind, target_id, target_label, created_at_utc",
+    " FROM atelier_bracket_link_projection WHERE source_document_id = $doc_ref \
+     ORDER BY seq ASC, link_id ASC;"
+);
+
+const LIST_BACKLINKS_STATEMENT: &str = concat!(
+    "SELECT ",
+    "link_id, record::id(source_document_id) AS source_document_id, \
+     record::id(source_version_id) AS source_version_id, source_doc_type, seq, \
+     raw_marker, target_kind, target_id, target_label, created_at_utc",
+    " FROM atelier_bracket_link_projection \
+     WHERE target_kind = $target_kind AND target_id = $target_id \
+     ORDER BY source_document_id ASC, seq ASC, link_id ASC;"
+);
 
 impl AtelierStore {
     async fn canonical_character_id_from_link_ref(&self, value: &str) -> AtelierResult<Uuid> {
-        let internal_match = if let Ok(parsed_id) = Uuid::parse_str(value) {
-            sqlx::query_scalar::<_, Uuid>(
-                "SELECT internal_id FROM atelier_character WHERE internal_id = $1",
-            )
-            .bind(parsed_id)
-            .fetch_optional(self.pool())
-            .await?
-        } else {
-            None
-        };
-        if let Some(internal_id) = internal_match {
-            return Ok(internal_id);
+        if let Ok(parsed_id) = Uuid::parse_str(value) {
+            let bindings = InternalIdBinding {
+                internal_id: SurrealUuid::from(parsed_id),
+            };
+            let exists: Option<bool> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "RETURN record::exists(type::record('atelier_character', $internal_id));",
+                            bindings,
+                        )
+                        .await
+                    })
+                })
+                .await?;
+            if exists.unwrap_or(false) {
+                return Ok(parsed_id);
+            }
         }
 
-        sqlx::query_scalar::<_, Uuid>(
-            "SELECT internal_id FROM atelier_character WHERE public_id = $1",
-        )
-        .bind(value)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("bracket link character target {value}")))
+        let bindings = PublicIdBinding {
+            public_id: value.to_owned(),
+        };
+        let internal_id: Option<SurrealUuid> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT VALUE internal_id FROM atelier_character \
+                         WHERE public_id = $public_id LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        internal_id
+            .map(Into::into)
+            .ok_or_else(|| AtelierError::NotFound(format!("bracket link character target {value}")))
     }
 
     async fn canonical_bracket_link_target_id(
@@ -203,12 +353,22 @@ impl AtelierStore {
                         link.target_id
                     ))
                 })?;
-                let doc_type: Option<String> = sqlx::query_scalar(
-                    "SELECT doc_type FROM atelier_character_document WHERE document_id = $1",
-                )
-                .bind(document_id)
-                .fetch_optional(self.pool())
-                .await?;
+                let bindings = DocumentIdBinding {
+                    document_id: SurrealUuid::from(document_id),
+                };
+                let doc_type: Option<String> = self
+                    .store()
+                    .with_data_operation(move |ctx| {
+                        Box::pin(async move {
+                            ctx.query_first(
+                                "SELECT VALUE doc_type FROM atelier_character_document \
+                                 WHERE document_id = $document_id LIMIT 1;",
+                                bindings,
+                            )
+                            .await
+                        })
+                    })
+                    .await?;
                 let doc_type = doc_type.ok_or_else(|| {
                     AtelierError::NotFound(format!("bracket link document target {document_id}"))
                 })?;
@@ -231,13 +391,22 @@ impl AtelierStore {
                         link.target_id
                     ))
                 })?;
-                let exists: bool = sqlx::query_scalar(
-                    "SELECT EXISTS(SELECT 1 FROM atelier_media_asset WHERE asset_id = $1)",
-                )
-                .bind(asset_id)
-                .fetch_one(self.pool())
-                .await?;
-                if !exists {
+                let bindings = AssetIdBinding {
+                    asset_id: SurrealUuid::from(asset_id),
+                };
+                let exists: Option<bool> = self
+                    .store()
+                    .with_data_operation(move |ctx| {
+                        Box::pin(async move {
+                            ctx.query_first(
+                                "RETURN record::exists(type::record('atelier_media_asset', $asset_id));",
+                                bindings,
+                            )
+                            .await
+                        })
+                    })
+                    .await?;
+                if !exists.unwrap_or(false) {
                     return Err(AtelierError::NotFound(format!(
                         "bracket link image target {asset_id}"
                     )));
@@ -251,29 +420,41 @@ impl AtelierStore {
         &self,
         document_id: Uuid,
     ) -> AtelierResult<Vec<BracketLinkProjection>> {
-        let mut tx = self.pool().begin().await?;
-        sqlx::query("SELECT pg_advisory_xact_lock(39041, hashtext($1))")
-            .bind(document_id.to_string())
-            .execute(&mut *tx)
+        let source_bindings = DocumentIdBinding {
+            document_id: SurrealUuid::from(document_id),
+        };
+        let source: Option<DocumentSourceRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(SELECT_DOCUMENT_SOURCE_STATEMENT, source_bindings)
+                        .await
+                })
+            })
             .await?;
+        let source = source
+            .ok_or_else(|| AtelierError::NotFound(format!("character document {document_id}")))?;
+        let source_doc_type = CharacterDocumentType::from_token(&source.doc_type)?;
+        let source_version_id: Uuid = source
+            .current_version_id
+            .map(Into::into)
+            .ok_or_else(|| AtelierError::NotFound(format!("character document {document_id}")))?;
+        let source_document_id: Uuid = source.document_id.into();
 
-        let source_row = sqlx::query(
-            r#"SELECT d.document_id, d.doc_type, v.version_id, v.body_raw_text
-               FROM atelier_character_document d
-               JOIN atelier_character_document_version v
-                 ON v.version_id = d.current_version_id
-               WHERE d.document_id = $1
-               FOR UPDATE OF d"#,
-        )
-        .bind(document_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("character document {document_id}")))?;
-        let source_document_id: Uuid = source_row.get("document_id");
-        let source_doc_type_token: String = source_row.get("doc_type");
-        let source_doc_type = CharacterDocumentType::from_token(&source_doc_type_token)?;
-        let source_version_id: Uuid = source_row.get("version_id");
-        let source_body_raw_text: String = source_row.get("body_raw_text");
+        let body_bindings = VersionIdBinding {
+            version_id: SurrealUuid::from(source_version_id),
+        };
+        let source_body_raw_text: Option<String> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(SELECT_VERSION_BODY_STATEMENT, body_bindings)
+                        .await
+                })
+            })
+            .await?;
+        let source_body_raw_text = source_body_raw_text
+            .ok_or_else(|| AtelierError::NotFound(format!("character document {document_id}")))?;
 
         let parsed_links = parse_bracket_links(&source_body_raw_text)?;
         let mut validated_links = Vec::with_capacity(parsed_links.len());
@@ -282,73 +463,78 @@ impl AtelierStore {
             validated_links.push(link);
         }
 
-        sqlx::query("DELETE FROM atelier_bracket_link_projection WHERE source_document_id = $1")
-            .bind(document_id)
-            .execute(&mut *tx)
-            .await?;
-        let mut rebuilt = Vec::new();
-        for link in &validated_links {
-            let row = sqlx::query(
-                r#"INSERT INTO atelier_bracket_link_projection
-                     (source_document_id, source_version_id, source_doc_type, seq,
-                      raw_marker, target_kind, target_id, target_label)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                   RETURNING link_id, source_document_id, source_version_id,
-                             source_doc_type, seq, raw_marker, target_kind,
-                             target_id, target_label, created_at_utc"#,
-            )
-            .bind(source_document_id)
-            .bind(source_version_id)
-            .bind(source_doc_type.as_token())
-            .bind(link.seq)
-            .bind(&link.raw_marker)
-            .bind(link.target_kind.as_token())
-            .bind(&link.target_id)
-            .bind(link.target_label.as_deref())
-            .fetch_one(&mut *tx)
-            .await?;
-            rebuilt.push(projection_from_row(&row)?);
-        }
-
-        let target_kinds: Vec<&str> = rebuilt
+        let target_kinds: Vec<&str> = validated_links
             .iter()
             .map(|link| link.target_kind.as_token())
             .collect();
-        self.record_event_in_tx(
-            &mut tx,
-            links_event_family::BRACKET_LINKS_REBUILT,
-            "atelier_character_document",
-            &source_document_id.to_string(),
-            serde_json::json!({
-                "source_document_id_ref": event_ref_for_text(&source_document_id.to_string()),
-                "source_version_id_ref": event_ref_for_text(&source_version_id.to_string()),
-                "source_doc_type": source_doc_type.as_token(),
-                "link_count": rebuilt.len(),
-                "target_kinds": target_kinds,
-            }),
-        )
-        .await?;
+        let inserts: Vec<BracketLinkInsert> = validated_links
+            .iter()
+            .map(|link| BracketLinkInsert {
+                link_id: SurrealUuid::from(Uuid::now_v7()),
+                seq: link.seq,
+                raw_marker: link.raw_marker.clone(),
+                target_kind: link.target_kind.as_token().to_owned(),
+                target_id: link.target_id.clone(),
+                target_label: link.target_label.clone(),
+            })
+            .collect();
+        let bindings = RebuildBracketLinksBindings {
+            doc_ref: RecordId::new(
+                "atelier_character_document",
+                SurrealUuid::from(source_document_id),
+            ),
+            version_ref: RecordId::new(
+                "atelier_character_document_version",
+                SurrealUuid::from(source_version_id),
+            ),
+            source_doc_type: source_doc_type.as_token().to_owned(),
+            links: inserts,
+        };
 
-        tx.commit().await?;
-        Ok(rebuilt)
+        let written: Option<i64> = self
+            .write_with_event(
+                REBUILD_BRACKET_LINKS_STATEMENT,
+                bindings,
+                links_event_family::BRACKET_LINKS_REBUILT,
+                "atelier_character_document",
+                &source_document_id.to_string(),
+                serde_json::json!({
+                    "source_document_id_ref": event_ref_for_text(&source_document_id.to_string()),
+                    "source_version_id_ref": event_ref_for_text(&source_version_id.to_string()),
+                    "source_doc_type": source_doc_type.as_token(),
+                    "link_count": validated_links.len(),
+                    "target_kinds": target_kinds,
+                }),
+            )
+            .await?;
+        if written.is_none() {
+            return Err(AtelierError::Internal(
+                "rebuilding bracket links returned no result".to_owned(),
+            ));
+        }
+
+        self.list_bracket_links_from_document(document_id).await
     }
 
     pub async fn list_bracket_links_from_document(
         &self,
         document_id: Uuid,
     ) -> AtelierResult<Vec<BracketLinkProjection>> {
-        let rows = sqlx::query(
-            r#"SELECT link_id, source_document_id, source_version_id,
-                      source_doc_type, seq, raw_marker, target_kind,
-                      target_id, target_label, created_at_utc
-               FROM atelier_bracket_link_projection
-               WHERE source_document_id = $1
-               ORDER BY seq ASC, link_id ASC"#,
-        )
-        .bind(document_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(projection_from_row).collect()
+        let bindings = DocumentRefBinding {
+            doc_ref: RecordId::new("atelier_character_document", SurrealUuid::from(document_id)),
+        };
+        let rows: Vec<BracketLinkRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_BRACKET_LINKS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(BracketLinkProjection::try_from)
+            .collect()
     }
 
     pub async fn list_backlinks_to(
@@ -383,19 +569,18 @@ impl AtelierStore {
                 BracketLinkTargetKind::Character => unreachable!(),
             }
         };
-        let rows = sqlx::query(
-            r#"SELECT link_id, source_document_id, source_version_id,
-                      source_doc_type, seq, raw_marker, target_kind,
-                      target_id, target_label, created_at_utc
-               FROM atelier_bracket_link_projection
-               WHERE target_kind = $1
-                 AND target_id = $2
-               ORDER BY source_document_id ASC, seq ASC, link_id ASC"#,
-        )
-        .bind(target_kind.as_token())
-        .bind(&query_target_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(projection_from_row).collect()
+        let bindings = BacklinkBindings {
+            target_kind: target_kind.as_token().to_owned(),
+            target_id: query_target_id,
+        };
+        let rows: Vec<BracketLinkRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_BACKLINKS_STATEMENT, bindings).await })
+            })
+            .await?;
+        rows.into_iter()
+            .map(BracketLinkProjection::try_from)
+            .collect()
     }
 }

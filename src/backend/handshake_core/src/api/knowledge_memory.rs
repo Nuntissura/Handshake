@@ -9,9 +9,7 @@
 //! `storage::knowledge_memory` over the shared storage handle — single-store +
 //! EventLedger authority only, no SQLite.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): both stores still name the
-//! deleted relational backend, so this module does not compile and serves no
-//! request today. Handshake's only database is the embedded SurrealDB store.
+//! Both stores are backed by the embedded SurrealDB authority.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every endpoint REQUIRES the
@@ -47,12 +45,13 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
+use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_memory::visual_debug::build_memory_graph_visual_debug;
 use crate::storage::knowledge::KnowledgeStore;
 use crate::storage::knowledge_memory::{get_memory_fact, get_memory_fact_by_claim};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
 
@@ -83,14 +82,9 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
-/// WP-KERNEL-012 TRAIT-SURFACE GAP: these routes read through the
-/// `storage::knowledge::KnowledgeStore` trait, which has no live implementor
-/// after PostgreSQL removal (`SurrealDatabase` implements `storage::Database`
-/// only). `AppState` carries no `Arc<dyn KnowledgeStore>` to hand back, so the
-/// construction cannot be satisfied here. Every consumer below is already
-/// typed against the trait object, so the fix is local to this one function.
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+/// Build the knowledge facade over the single embedded SurrealDB authority.
+fn db_for(state: &AppState) -> SurrealDatabase {
+    SurrealDatabase::new(state.surreal.clone())
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -262,7 +256,7 @@ async fn get_claim_with_evidence(
         .list_knowledge_claim_conflicts(&claim_id)
         .await
         .map_err(storage_error)?;
-    let fact = get_memory_fact_by_claim(&state.postgres_pool, &claim_id)
+    let fact = get_memory_fact_by_claim(&state.surreal, &claim_id)
         .await
         .map_err(storage_error)?;
 
@@ -293,28 +287,39 @@ async fn list_conflicts(
     let open_only = params.open_only.unwrap_or(true);
     let limit = clamp_limit(params.limit);
 
-    // The conflict review / repair queue: open conflicts for the workspace.
-    // Reads knowledge_claim_conflicts joined to claims for workspace scoping.
-    let rows = sqlx::query_as::<_, ConflictRow>(
-        r#"
-        SELECT kcc.conflict_id, kcc.claim_id, kcc.conflicting_claim_id,
-               kcc.conflict_reason,
-               kcc.resolution_receipt_event_id,
-               kcc.detected_at, kcc.resolved_at
-        FROM knowledge_claim_conflicts kcc
-        JOIN knowledge_claims kc ON kc.claim_id = kcc.claim_id
-        WHERE kc.workspace_id = $1
-          AND ($2 = false OR kcc.resolved_at IS NULL)
-        ORDER BY kcc.detected_at DESC, kcc.conflict_id DESC
-        LIMIT $3
-        "#,
-    )
-    .bind(&params.workspace_id)
-    .bind(open_only)
-    .bind(limit)
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(|err| storage_error(StorageError::from(err)))?;
+    // Claim links are real Surreal record links, so workspace scoping traverses
+    // `claim_id.workspace_id` directly instead of recreating a relational join.
+    let rows: Vec<ConflictRecord> = state
+        .surreal
+        .with_data_operation({
+            let workspace_id = params.workspace_id.clone();
+            move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(
+                            "SELECT conflict_id, claim_id, conflicting_claim_id, conflict_reason, \
+                             resolution_receipt_event_id, detected_at, resolved_at \
+                             FROM knowledge_claim_conflicts \
+                             WHERE claim_id.workspace_id = $workspace \
+                               AND ($open_only = false OR resolved_at = NONE) \
+                             ORDER BY detected_at DESC, conflict_id DESC LIMIT $limit;",
+                            ConflictListBindings {
+                                workspace: RecordId::new("workspaces", workspace_id),
+                                open_only,
+                                limit,
+                            },
+                        )
+                        .await
+                })
+            }
+        })
+        .await
+        .map_err(|err| storage_error(StorageError::from(err)))?;
+    let rows = rows
+        .into_iter()
+        .map(ConflictRow::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
 
     let receipt = record_nav_receipt(
         state.storage.as_ref(),
@@ -333,7 +338,25 @@ async fn list_conflicts(
     })))
 }
 
-#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+#[derive(SurrealValue)]
+struct ConflictListBindings {
+    workspace: RecordId,
+    open_only: bool,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct ConflictRecord {
+    conflict_id: String,
+    claim_id: RecordId,
+    conflicting_claim_id: RecordId,
+    conflict_reason: String,
+    resolution_receipt_event_id: Option<RecordId>,
+    detected_at: Datetime,
+    resolved_at: Option<Datetime>,
+}
+
+#[derive(Debug, serde::Serialize)]
 struct ConflictRow {
     conflict_id: String,
     claim_id: String,
@@ -344,6 +367,37 @@ struct ConflictRow {
     resolved_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+impl TryFrom<ConflictRecord> for ConflictRow {
+    type Error = StorageError;
+
+    fn try_from(row: ConflictRecord) -> Result<Self, Self::Error> {
+        Ok(Self {
+            conflict_id: row.conflict_id,
+            claim_id: record_key(row.claim_id, "knowledge conflict claim")?,
+            conflicting_claim_id: record_key(
+                row.conflicting_claim_id,
+                "knowledge conflict opposing claim",
+            )?,
+            conflict_reason: row.conflict_reason,
+            resolution_receipt_event_id: row
+                .resolution_receipt_event_id
+                .map(|record| record_key(record, "knowledge conflict resolution receipt"))
+                .transpose()?,
+            detected_at: row.detected_at.into_inner(),
+            resolved_at: row.resolved_at.map(Datetime::into_inner),
+        })
+    }
+}
+
+fn record_key(record: RecordId, context: &'static str) -> Result<String, StorageError> {
+    match record.key {
+        RecordIdKey::String(value) => Ok(value),
+        _ => Err(StorageError::Database(format!(
+            "{context} record id is not a string key"
+        ))),
+    }
+}
+
 /// GET /knowledge/memory/facts/:fact_id
 async fn get_fact(
     State(state): State<AppState>,
@@ -352,7 +406,7 @@ async fn get_fact(
 ) -> Result<Json<Value>, ApiError> {
     let ctx = nav_context(&headers)?;
 
-    let fact = get_memory_fact(&state.postgres_pool, &fact_id)
+    let fact = get_memory_fact(&state.surreal, &fact_id)
         .await
         .map_err(storage_error)?
         .ok_or_else(|| not_found("memory fact"))?;
@@ -426,15 +480,9 @@ async fn visual_debug(
     let trusted_only = params.trusted_only.unwrap_or(false);
     let limit = clamp_limit(params.limit);
 
-    let payload = build_memory_graph_visual_debug(
-        &db,
-        &state.postgres_pool,
-        &params.workspace_id,
-        trusted_only,
-        limit,
-    )
-    .await
-    .map_err(storage_error)?;
+    let payload = build_memory_graph_visual_debug(&db, &params.workspace_id, trusted_only, limit)
+        .await
+        .map_err(storage_error)?;
 
     let receipt = record_nav_receipt(
         state.storage.as_ref(),

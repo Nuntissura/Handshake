@@ -4,15 +4,15 @@
 //!   - AC-1 (kittest): a `DragPayload::AtelierRef` released over the rich-text editor inserts an inline
 //!     CKC `hsLink` embed atom at the caret (drag-and-drop simulated via egui's DragAndDrop channel,
 //!     the same pattern as the canvas-board drop test).
-//!   - AC-2 (unit + gated live-PG): the inserted CKC embed is an `hsLink` atom that ROUND-TRIPS the
+//!   - AC-2 (unit + gated live backend): the inserted CKC embed is an `hsLink` atom that ROUND-TRIPS the
 //!     backend `content_json` (NOT an invented `atelier_embed` node) — proven structurally by a
-//!     content_json round-trip, and end-to-end against real PG in the integration-gated proof.
-//!   - AC-3 (kittest + gated live-PG): a resolved payload places its Loom block directly; an unresolved
+//!     content_json round-trip, and end-to-end against SurrealDB in the integration-gated proof.
+//!   - AC-3 (kittest + gated live backend): a resolved payload places its Loom block directly; an unresolved
 //!     Atelier payload is projected through the real Loom block API and then placed by block id (never a
-//!     fake `atelier_item_id`). The live-PG proof asserts the projected block and placement after reload.
+//!     fake `atelier_item_id`). The live proof asserts the projected block and placement after reload.
 //!   - AC-4 (kittest): the Route-to-Stage command (bus + palette) opens the Stage pane and displays the
 //!     routed content; the `stage-pane` AccessKit GenericContainer node carries the staged summary.
-//!   - AC-5 (gated live-PG): the AtelierSidePanel loads batches + corpus from the REAL atelier backend
+//!   - AC-5 (gated live backend): the AtelierSidePanel loads batches + corpus from the real Atelier backend
 //!     (no mocks) — at least one batch row when the backend has a seeded batch.
 //!   - AC-6 (AccessKit dump): `atelier-side-panel` (List), `atelier-item-{id}` (ListItem, draggable),
 //!     `stage-pane` (GenericContainer) are present in the live AccessKit tree.
@@ -31,8 +31,8 @@ use egui_kittest::kittest::{NodeT, Queryable};
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
 #[cfg(feature = "integration")]
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 #[cfg(feature = "wgpu_screenshots")]
@@ -2299,60 +2299,8 @@ fn atelier_client_builds_verified_routes() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE-PG (integration-gated): self-seeds the managed PostgreSQL/backend and cleans exact ids.
+// LIVE BACKEND (integration-gated): self-seeds an owned SurrealDB backend through product APIs.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-
-#[cfg(feature = "integration")]
-fn psql_program() -> std::path::PathBuf {
-    for var in ["HANDSHAKE_MANAGED_PG_BIN", "PGBIN"] {
-        if let Some(dir) = std::env::var_os(var).filter(|value| !value.is_empty()) {
-            let name = if cfg!(windows) { "psql.exe" } else { "psql" };
-            let candidate = std::path::PathBuf::from(dir).join(name);
-            if candidate.is_file() {
-                return candidate;
-            }
-        }
-    }
-    if cfg!(windows) {
-        for root_var in ["ProgramFiles", "ProgramFiles(x86)"] {
-            let Some(root) = std::env::var_os(root_var) else {
-                continue;
-            };
-            let postgres = std::path::PathBuf::from(root).join("PostgreSQL");
-            let Ok(entries) = std::fs::read_dir(postgres) else {
-                continue;
-            };
-            let mut candidates = entries
-                .filter_map(Result::ok)
-                .map(|entry| entry.path().join("bin").join("psql.exe"))
-                .filter(|path| path.is_file())
-                .collect::<Vec<_>>();
-            candidates.sort();
-            if let Some(candidate) = candidates.pop() {
-                return candidate;
-            }
-        }
-    }
-    std::path::PathBuf::from(if cfg!(windows) { "psql.exe" } else { "psql" })
-}
-
-#[cfg(feature = "integration")]
-fn pg_dsn() -> String {
-    [
-        "HANDSHAKE_TEST_PG_DSN",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-        .into_iter()
-        .find_map(|name| {
-            std::env::var(name)
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
-        .expect(
-            "AC-5 live requires HANDSHAKE_TEST_PG_DSN, POSTGRES_TEST_URL, or DATABASE_URL for exact test-row cleanup",
-        )
-}
 
 #[cfg(feature = "integration")]
 fn integration_suffix() -> String {
@@ -2369,7 +2317,7 @@ fn integration_suffix() -> String {
 #[cfg(feature = "integration")]
 fn proof_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
     request
-        .header("x-hsk-actor-id", "mt033-live-pg")
+        .header("x-hsk-actor-id", "mt033-live-backend")
         .header("x-hsk-actor-kind", "operator")
         .header("x-hsk-kernel-task-run-id", "WP-KERNEL-012-MT-033")
         .header("x-hsk-session-run-id", "MT-033-integration")
@@ -2378,168 +2326,32 @@ fn proof_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
 #[cfg(feature = "integration")]
 fn workspace_write_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
     request
-        .header("x-hsk-actor-id", "mt033-live-pg")
+        .header("x-hsk-actor-id", "mt033-live-backend")
         .header("x-hsk-actor-kind", "human")
 }
 
-#[cfg(feature = "integration")]
-fn run_psql(sql: &str) -> String {
-    let mut command = std::process::Command::new(psql_program());
-    command
-        .arg("--dbname")
-        .arg(pg_dsn())
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--no-align")
-        .arg("--tuples-only")
-        .arg("--command")
-        .arg(sql)
-        .env("PGCONNECT_TIMEOUT", "5");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt as _;
-        command.creation_flags(0x0800_0000);
-    }
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            // Some managed-PG hosts expose the trust-auth cluster without installing the PostgreSQL
-            // client tools on PATH. Keep psql as the primary portable path, then use the already-probed
-            // Python psycopg2 driver as a quiet equivalent for the same exact SQL and output format.
-            let script = r#"
-import json
-import psycopg2
-import sys
-
-def render(value):
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, separators=(",", ":"))
-    if isinstance(value, bool):
-        return "t" if value else "f"
-    if value is None:
-        return ""
-    return str(value)
-
-connection = psycopg2.connect(sys.argv[1])
-try:
-    connection.autocommit = True
-    cursor = connection.cursor()
-    cursor.execute(sys.argv[2])
-    if cursor.description:
-        for row in cursor.fetchall():
-            print("|".join(render(value) for value in row))
-finally:
-    connection.close()
-"#;
-            let mut python = std::process::Command::new("python");
-            python
-                .arg("-c")
-                .arg(script)
-                .arg(pg_dsn())
-                .arg(sql)
-                .env("PGCONNECT_TIMEOUT", "5");
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt as _;
-                python.creation_flags(0x0800_0000);
-            }
-            python
-                .output()
-                .expect("launch managed PostgreSQL psycopg2 fallback")
-        }
-        Err(error) => panic!("launch managed PostgreSQL psql: {error}"),
-    };
-    assert!(
-        output.status.success(),
-        "managed PostgreSQL SQL failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout).expect("psql emits UTF-8")
-}
-
-#[cfg(feature = "integration")]
-struct AtelierPgCleanup {
-    batch_id: String,
-    corpus_action_id: String,
-    armed: bool,
-}
-
-#[cfg(feature = "integration")]
-impl AtelierPgCleanup {
-    fn cleanup(&mut self) -> String {
-        let deleted = run_psql(&format!(
-            "WITH deleted_corpus AS (DELETE FROM atelier_command_corpus_entry WHERE action_id = '{action}' RETURNING 1), \
-             deleted_batch AS (DELETE FROM atelier_intake_batch WHERE batch_id = '{batch}'::uuid RETURNING 1) \
-             SELECT json_build_object('deleted_corpus', (SELECT count(*) FROM deleted_corpus), \
-                                      'deleted_batch', (SELECT count(*) FROM deleted_batch));",
-            action = self.corpus_action_id,
-            batch = self.batch_id,
-        ));
-        // Data-modifying CTE subqueries share one MVCC snapshot, so a same-statement item count can
-        // still observe rows removed by the batch's ON DELETE CASCADE. Measure absence in a fresh
-        // statement after the delete has completed.
-        let remaining_items = run_psql(&format!(
-            "SELECT count(*) FROM atelier_intake_item WHERE batch_id = '{}'::uuid;",
-            self.batch_id
-        ));
-        let mut receipt: serde_json::Value =
-            serde_json::from_str(deleted.trim()).expect("Atelier deletion receipt is JSON");
-        receipt["remaining_items"] = serde_json::json!(remaining_items
-            .trim()
-            .parse::<u64>()
-            .expect("remaining item count"));
-        self.armed = false;
-        serde_json::to_string(&receipt).expect("serialize Atelier cleanup receipt")
-    }
-}
-
-#[cfg(feature = "integration")]
-impl Drop for AtelierPgCleanup {
-    fn drop(&mut self) {
-        if self.armed {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.cleanup()));
-        }
-    }
-}
-
-#[cfg(feature = "integration")]
-fn assert_atelier_cleanup(receipt: &str, expected_corpus: u64) {
-    let parsed: serde_json::Value =
-        serde_json::from_str(receipt.trim()).expect("Atelier cleanup receipt is JSON");
-    assert_eq!(
-        parsed["deleted_corpus"].as_u64(),
-        Some(expected_corpus),
-        "{receipt}"
-    );
-    assert_eq!(parsed["deleted_batch"].as_u64(), Some(1), "{receipt}");
-    assert_eq!(parsed["remaining_items"].as_u64(), Some(0), "{receipt}");
-}
-
-/// AC-5 against REAL Handshake-managed PostgreSQL: create a unique batch through the product HTTP API,
-/// add one item + corpus row directly to that same managed database, then drive the production
-/// `AtelierClient` twice (fresh reload) over batches, corpus, and per-batch items. The exact generated ids
-/// are deleted and the cleanup receipt proves the cascade left no item behind. This test is unignored:
-/// selecting `--features integration` means the managed backend + DSN are required, not silently skipped.
+/// AC-5 against a fixture-owned Handshake/SurrealDB backend: create a unique batch and item through
+/// product HTTP APIs, then drive the production `AtelierClient` twice (fresh reload) over batches, the
+/// built-in command corpus, and per-batch items. The owned backend root contains all test state.
 #[test]
 #[cfg(feature = "integration")]
-fn ac5_atelier_side_panel_loads_from_live_pg() {
+fn ac5_atelier_side_panel_loads_from_live_backend() {
     use handshake_native::backend_client::{AtelierClient, AtelierItemsCell, AtelierSidePanelCell};
     use std::sync::{Arc, Mutex};
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let base =
-        std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let mut managed_backend = backend_proof_support::require_live_backend();
+    let base = managed_backend.base.clone();
     let suffix = integration_suffix();
     let source_label = format!("MT-033 managed proof {suffix}");
-    let corpus_action_id = format!("mt033.proof.{suffix}");
+    let corpus_action_id = "greet";
     let http = reqwest::Client::builder()
         .pool_max_idle_per_host(2)
         .timeout(std::time::Duration::from_secs(5))
         .build()
         .expect("bounded proof client");
     let created: serde_json::Value = rt.block_on(async {
-        let response = http
-            .post(format!("{base}/atelier/intake/batches"))
+        let response = proof_headers(http.post(format!("{base}/atelier/intake/batches")))
             .json(&serde_json::json!({
                 "idempotency_key": format!("mt033-{suffix}"),
                 "source_label": source_label.clone(),
@@ -2549,7 +2361,7 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
             }))
             .send()
             .await
-            .expect("POST managed Atelier batch");
+            .expect("POST owned-backend Atelier batch");
         assert_eq!(response.status(), reqwest::StatusCode::CREATED);
         response.json().await.expect("parse created batch")
     });
@@ -2557,30 +2369,46 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
         .as_str()
         .expect("created batch_id")
         .to_owned();
-    let mut cleanup = AtelierPgCleanup {
-        batch_id: batch_id.clone(),
-        corpus_action_id: corpus_action_id.clone(),
-        armed: true,
-    };
-    let item_id = run_psql(&format!(
-        "WITH inserted AS (INSERT INTO atelier_intake_item (batch_id, source_path, file_name, byte_len, content_hash, lane) \
-         VALUES ('{batch}'::uuid, '/mt033/{suffix}.png', 'mt033-{suffix}.png', 33, '{suffix}', 'pending') \
-         RETURNING item_id) SELECT item_id FROM inserted;",
-        batch = batch_id,
-    ))
-    .trim()
-    .to_owned();
-    uuid::Uuid::parse_str(&item_id).expect("backend database generated an item UUID");
-    let corpus_entry_id = run_psql(&format!(
-        "WITH inserted AS (INSERT INTO atelier_command_corpus_entry \
-           (action_id, corpus_source, owner, params_schema_ref, execution_class, receipt_shape, manual_anchor) \
-         VALUES ('{action}', 'preload', 'mt033-proof', 'hsk.mt033.proof@1', 'pure_projection', 'hsk.mt033.receipt@1', 'WP-KERNEL-012/MT-033') RETURNING entry_id) \
-         SELECT entry_id FROM inserted;",
-        action = corpus_action_id,
-    ))
-    .trim()
-    .to_owned();
-    uuid::Uuid::parse_str(&corpus_entry_id).expect("database generated corpus UUID");
+    let (item_id, corpus_entry_id) = rt.block_on(async {
+        let item_response = proof_headers(http.post(format!(
+            "{base}/atelier/intake/batches/{batch_id}/items"
+        )))
+        .json(&serde_json::json!({
+            "source_path": format!("source://mt033/{suffix}.png"),
+            "file_name": format!("mt033-{suffix}.png"),
+            "byte_len": 33,
+            "content_hash": suffix
+        }))
+        .send()
+        .await
+        .expect("POST owned-backend Atelier item");
+        assert_eq!(item_response.status(), reqwest::StatusCode::CREATED);
+        let item: serde_json::Value = item_response.json().await.expect("created item JSON");
+        let item_id = item["item_id"]
+            .as_str()
+            .expect("created item id")
+            .to_owned();
+        uuid::Uuid::parse_str(&item_id).expect("Atelier API generated an item UUID");
+
+        let corpus: serde_json::Value = http
+            .get(format!("{base}/atelier/command-corpus"))
+            .send()
+            .await
+            .expect("GET built-in Atelier command corpus")
+            .json()
+            .await
+            .expect("command corpus JSON");
+        let corpus_entry_id = corpus
+            .as_array()
+            .and_then(|rows| {
+                rows.iter()
+                    .find(|row| row["action_id"].as_str() == Some(corpus_action_id))
+            })
+            .and_then(|row| row["entry_id"].as_str())
+            .unwrap_or_else(|| panic!("built-in command corpus lacks {corpus_action_id}: {corpus}"))
+            .to_owned();
+        (item_id, corpus_entry_id)
+    });
 
     for generation in [1_u64, 2] {
         let client = AtelierClient::new(base.clone(), rt.handle().clone());
@@ -2594,9 +2422,9 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
                 }
                 delivered
             })
-            .expect("live PG panel fetch within 5s");
+            .expect("live backend panel fetch within 5s");
         assert_eq!(data.0, generation, "fresh reload generation identity");
-        let data = data.1.expect("live PG panel fetch ok (no mocks)");
+        let data = data.1.expect("live backend panel fetch ok (no mocks)");
         assert!(
             data.batches
                 .iter()
@@ -2607,7 +2435,7 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
             data.corpus
                 .iter()
                 .any(|row| row.action_id == corpus_action_id),
-            "AC-5 live: self-seeded command-corpus row survives reload"
+            "AC-5 live: built-in command-corpus row survives reload"
         );
     }
 
@@ -2623,12 +2451,12 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
                 }
                 delivered
             })
-            .expect("live PG items fetch within 5s");
+            .expect("live backend items fetch within 5s");
         assert_eq!((items.0, items.1.as_str()), (generation, batch_id.as_str()));
         assert!(
             items
                 .2
-                .expect("live PG items fetch ok")
+                .expect("live backend items fetch ok")
                 .iter()
                 .any(|row| row.item_id == item_id),
             "AC-5 live: self-seeded item is returned through a fresh production client"
@@ -2695,158 +2523,23 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
     );
     drop(harness);
 
-    let receipt = cleanup.cleanup();
-    assert_atelier_cleanup(&receipt, 1);
     println!(
-        "AC-5 live: self-seeded batch/item/corpus loaded twice from managed PG; cleanup={}",
-        receipt.trim()
+        "AC-5 live: API-created batch/item and built-in corpus loaded twice from owned SurrealDB"
     );
+    managed_backend.assert_cleanup();
 }
 
 #[cfg(feature = "integration")]
-struct WorkspacePgCleanup {
+struct WorkspaceBackendCleanup {
     base: String,
     workspace_id: String,
-    /// WP-KERNEL-012 MT-115: the CLIENT event ids, not the durable recorder ids. MT-109 keys the
-    /// EventLedger mirror rows `native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`
-    /// while `GET /api/flight_recorder` returns the DERIVED, workspace-scoped `event_id`. Cleaning up
-    /// on the derived id (or without the workspace segment) matches zero rows and still reports
-    /// success, which is how orphaned mirror rows survive a "clean" proof run.
-    native_fr_client_event_ids: Vec<String>,
-    save_receipt_event_ids: Vec<String>,
+    session_token: String,
     armed: bool,
 }
 
 #[cfg(feature = "integration")]
-impl WorkspacePgCleanup {
-    fn track_native_fr_client_event(&mut self, client_event_id: &str) {
-        uuid::Uuid::parse_str(client_event_id)
-            .expect("native Flight Recorder client event id is a UUID");
-        if !self
-            .native_fr_client_event_ids
-            .iter()
-            .any(|tracked| tracked == client_event_id)
-        {
-            self.native_fr_client_event_ids
-                .push(client_event_id.to_owned());
-        }
-    }
-
-    fn track_save_receipt(&mut self, event_id: &str) {
-        let uuid = event_id
-            .strip_prefix("KE-")
-            .expect("save receipt has the typed KE- prefix");
-        uuid::Uuid::parse_str(uuid).expect("save receipt carries a UUID after KE-");
-        if !self
-            .save_receipt_event_ids
-            .iter()
-            .any(|tracked| tracked == event_id)
-        {
-            self.save_receipt_event_ids.push(event_id.to_owned());
-        }
-    }
-
-    fn cleanup_owned_event_ledger(&mut self) -> String {
-        // Discover by the unique fixture workspace before consulting tracked ids. This closes the panic
-        // window where the backend has appended a save or native-FR row but HTTP/JSON readback fails
-        // before the test can learn its durable event id.
-        let workspace_id = self.workspace_id.replace('\'', "''");
-        // MT-115: read the CLIENT event id straight out of the stored envelope. `aggregate_id` is the
-        // MT-109 workspace-scoped derivation and can never reconstruct the mirror's idempotency key.
-        let discovered = run_psql(&format!(
-            "SELECT event_id || '|' || aggregate_type || '|' \
-                 || COALESCE(payload #>> '{{envelope,event_id}}', aggregate_id) \
-             FROM kernel_event_ledger \
-             WHERE (aggregate_type='native_editor_event' \
-                    AND payload #>> '{{envelope,workspace_id}}'='{workspace_id}') \
-                OR (aggregate_type='knowledge_rich_document' \
-                    AND aggregate_id IN (SELECT rich_document_id \
-                                         FROM knowledge_rich_documents \
-                                         WHERE workspace_id='{workspace_id}')) \
-             ORDER BY event_sequence;"
-        ));
-        for line in discovered.lines().filter(|line| !line.trim().is_empty()) {
-            let mut fields = line.splitn(3, '|');
-            let event_id = fields.next().expect("owned EventLedger event id");
-            let aggregate_type = fields.next().expect("owned EventLedger aggregate type");
-            let client_or_aggregate_id = fields.next().expect("owned EventLedger aggregate id");
-            match aggregate_type {
-                "native_editor_event" => self.track_native_fr_client_event(client_or_aggregate_id),
-                "knowledge_rich_document" => self.track_save_receipt(event_id),
-                other => panic!("unexpected owned EventLedger aggregate type {other}"),
-            }
-        }
-
-        let workspace_key_segment = self.workspace_id.clone();
-        let native_keys = self
-            .native_fr_client_event_ids
-            .iter()
-            .flat_map(|client_event_id| {
-                [
-                    format!("native-editor-fr-pending:{workspace_key_segment}:{client_event_id}"),
-                    format!("native-editor-fr-complete:{workspace_key_segment}:{client_event_id}"),
-                ]
-            })
-            .map(|key| format!("'{}'", key.replace('\'', "''")))
-            .collect::<Vec<_>>()
-            .join(",");
-        let save_ids = self
-            .save_receipt_event_ids
-            .iter()
-            .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
-            .collect::<Vec<_>>()
-            .join(",");
-        let native_predicate = if native_keys.is_empty() {
-            "FALSE".to_owned()
-        } else {
-            format!("idempotency_key IN ({native_keys})")
-        };
-        let save_predicate = if save_ids.is_empty() {
-            "FALSE".to_owned()
-        } else {
-            format!("event_id IN ({save_ids})")
-        };
-        let receipt = run_psql(&format!(
-            "BEGIN; DELETE FROM kernel_event_ledger \
-             WHERE ({native_predicate}) OR ({save_predicate}); \
-             DO $mt033_native_fr_cleanup$ BEGIN \
-             IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                        WHERE (aggregate_type='native_editor_event' \
-                               AND payload #>> '{{envelope,workspace_id}}'='{workspace_id}') \
-                           OR (aggregate_type='knowledge_rich_document' \
-                               AND aggregate_id IN (SELECT rich_document_id \
-                                                    FROM knowledge_rich_documents \
-                                                    WHERE workspace_id='{workspace_id}'))) \
-             THEN RAISE EXCEPTION 'MT-033 owned EventLedger cleanup left rows'; \
-             END IF; \
-             IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                        WHERE idempotency_key LIKE 'native-editor-fr-pending:{workspace_id}:%' \
-                           OR idempotency_key LIKE 'native-editor-fr-complete:{workspace_id}:%') \
-             THEN RAISE EXCEPTION 'MT-033 workspace-partitioned native FR mirror rows survived cleanup'; \
-             END IF; END $mt033_native_fr_cleanup$; COMMIT; \
-             SELECT json_build_object('native_fr_client_event_ids', ARRAY[{event_ids}]::text[], \
-             'save_receipt_event_ids', ARRAY[{save_event_ids}]::text[], \
-             'ledger_rows_absent', true);",
-            event_ids = self
-                .native_fr_client_event_ids
-                .iter()
-                .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
-                .collect::<Vec<_>>()
-                .join(","),
-            save_event_ids = self
-                .save_receipt_event_ids
-                .iter()
-                .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
-                .collect::<Vec<_>>()
-                .join(","),
-        ));
-        self.native_fr_client_event_ids.clear();
-        self.save_receipt_event_ids.clear();
-        receipt
-    }
-
+impl WorkspaceBackendCleanup {
     async fn cleanup(&mut self, client: &reqwest::Client) -> String {
-        let owned_event_ledger = self.cleanup_owned_event_ledger();
         let response = workspace_write_headers(
             client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
         )
@@ -2867,27 +2560,43 @@ impl WorkspacePgCleanup {
             .is_some_and(|rows| rows.iter().any(|row| {
                 row.get("id").and_then(|value| value.as_str()) == Some(self.workspace_id.as_str())
             })));
+        let flight_recorder: serde_json::Value = client
+            .get(format!(
+                "{}/api/flight_recorder?wsid={}",
+                self.base, self.workspace_id
+            ))
+            .header("x-hsk-session-token", &self.session_token)
+            .send()
+            .await
+            .expect("read scoped Flight Recorder after workspace cleanup")
+            .json()
+            .await
+            .expect("Flight Recorder cleanup JSON");
+        assert!(
+            flight_recorder
+                .as_array()
+                .is_some_and(|rows| rows.is_empty()),
+            "workspace DELETE must remove scoped Flight Recorder projection: {flight_recorder}"
+        );
         self.armed = false;
         serde_json::json!({
             "workspace_id": self.workspace_id.clone(),
             "delete_status": 204,
             "workspace_absent": true,
-            "owned_event_ledger": owned_event_ledger
+            "flight_recorder_absent": true,
+            "surrealdb_containment": "fixture-owned root is reaped after backend shutdown"
         })
         .to_string()
     }
 }
 
 #[cfg(feature = "integration")]
-impl Drop for WorkspacePgCleanup {
+impl Drop for WorkspaceBackendCleanup {
     fn drop(&mut self) {
         if !self.armed {
             return;
         }
         let already_panicking = std::thread::panicking();
-        let ledger_cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.cleanup_owned_event_ledger()
-        }));
         let base = self.base.clone();
         let workspace_id = self.workspace_id.clone();
         let workspace_cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
@@ -2936,15 +2645,6 @@ impl Drop for WorkspacePgCleanup {
             .join()
             .expect("join owned MT-033 workspace cleanup");
         }));
-        if let Err(payload) = ledger_cleanup {
-            if already_panicking {
-                eprintln!(
-                    "MT-033 EventLedger cleanup failed during unwind; owned residue may remain"
-                );
-            } else {
-                std::panic::resume_unwind(payload);
-            }
-        }
         if let Err(payload) = workspace_cleanup {
             if already_panicking {
                 eprintln!(
@@ -2957,11 +2657,11 @@ impl Drop for WorkspacePgCleanup {
     }
 }
 
-/// AC-2 + AC-3 against real managed PG. Owns its workspace/document/Atelier item/canvas, drives the
+/// AC-2 + AC-3 against a fixture-owned SurrealDB backend. Owns its workspace/document/Atelier item/canvas, drives the
 /// production editor transform and canonical save + MT-026 placement routes, then cleans exact ids.
 #[test]
 #[cfg(feature = "integration")]
-fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
+fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
     use handshake_native::command_registry::CMD_EDITOR_FILE_SAVE;
     use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 
@@ -2970,10 +2670,10 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
     // redirected app-data root and resolves the SAME `swarm_mcp_binding.json`. This is also what lets
     // the mounted shell's own event emitter reach the capability-gated ingestion route. Nothing is
     // weakened: an absent, forged, or stale binding still fails closed at the middleware.
-    let native_binding = pg_proof_support::RealNativeMcpBinding::publish();
+    let native_binding = backend_proof_support::RealNativeMcpBinding::publish();
     let session_token = native_binding.token().to_owned();
-    let mut managed_backend = pg_proof_support::require_live_backend();
-    let managed_base = managed_backend.base.clone();
+    let mut live_backend = backend_proof_support::require_live_backend();
+    let managed_base = live_backend.base.clone();
     let runtime = tokio::runtime::Runtime::new().expect("integration runtime");
     runtime.block_on(async {
         let base = managed_base;
@@ -2999,11 +2699,10 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         assert_eq!(response.status(), reqwest::StatusCode::CREATED);
         let workspace: serde_json::Value = response.json().await.expect("workspace JSON");
         let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
-        let mut workspace_cleanup = WorkspacePgCleanup {
+        let mut workspace_cleanup = WorkspaceBackendCleanup {
             base: base.clone(),
             workspace_id: workspace_id.clone(),
-            native_fr_client_event_ids: Vec::new(),
-            save_receipt_event_ids: Vec::new(),
+            session_token: session_token.to_owned(),
             armed: true,
         };
 
@@ -3033,18 +2732,25 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         assert_eq!(response.status(), reqwest::StatusCode::CREATED);
         let batch: serde_json::Value = response.json().await.expect("batch JSON");
         let batch_id = batch["batch_id"].as_str().expect("batch id").to_owned();
-        let mut atelier_cleanup = AtelierPgCleanup {
-            batch_id: batch_id.clone(),
-            corpus_action_id: format!("mt033.no-corpus.{suffix}"),
-            armed: true,
-        };
-        let item_id = run_psql(&format!(
-            "WITH inserted AS (INSERT INTO atelier_intake_item \
-             (batch_id,source_path,file_name,byte_len,content_hash,lane) VALUES \
-             ('{batch_id}'::uuid,'/mt033/ac23/{suffix}.png','atelier-{suffix}.png',33,'{suffix}','pending') \
-             RETURNING item_id) SELECT item_id FROM inserted;"
-        )).trim().to_owned();
-        uuid::Uuid::parse_str(&item_id).expect("database-generated item UUID");
+        let item_response = proof_headers(client.post(format!(
+            "{base}/atelier/intake/batches/{batch_id}/items"
+        )))
+        .json(&serde_json::json!({
+            "source_path": format!("source://mt033/ac23/{suffix}.png"),
+            "file_name": format!("atelier-{suffix}.png"),
+            "byte_len": 33,
+            "content_hash": suffix
+        }))
+        .send()
+        .await
+        .expect("create Atelier item through product API");
+        assert_eq!(item_response.status(), reqwest::StatusCode::CREATED);
+        let item: serde_json::Value = item_response.json().await.expect("Atelier item JSON");
+        let item_id = item["item_id"]
+            .as_str()
+            .expect("Atelier item id")
+            .to_owned();
+        uuid::Uuid::parse_str(&item_id).expect("Atelier API generated an item UUID");
 
         // Publish a real canonical media asset + Loom block first. The native resolver is intentionally
         // forbidden from fabricating an empty file block for a raw intake row.
@@ -3202,41 +2908,47 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         };
-        workspace_cleanup.track_save_receipt(&save_receipt_event_id);
-        let save_receipt = run_psql(&format!(
-            "SELECT (payload || jsonb_build_object(\
-                 '_event_id', event_id, \
-                 '_event_type', event_type, \
-                 '_aggregate_type', aggregate_type, \
-                 '_aggregate_id', aggregate_id\
-             ))::text \
-             FROM kernel_event_ledger \
-             WHERE event_id='{}';",
-            save_receipt_event_id.replace('\'', "''")
-        ));
-        let save_receipt: serde_json::Value = serde_json::from_str(save_receipt.trim())
-            .expect("save receipt exact EventLedger row is valid JSON");
+        let save_events: serde_json::Value = client
+            .get(format!(
+                "{base}/kernel/events/aggregates/knowledge_rich_document/{document_id}"
+            ))
+            .send()
+            .await
+            .expect("read save aggregate through product API")
+            .json()
+            .await
+            .expect("save aggregate JSON");
+        let save_receipt = save_events
+            .as_array()
+            .and_then(|events| {
+                events.iter().find(|event| {
+                    event["event_id"].as_str() == Some(save_receipt_event_id.as_str())
+                })
+            })
+            .unwrap_or_else(|| {
+                panic!("save aggregate lacks receipt {save_receipt_event_id}: {save_events}")
+            });
         assert_eq!(
-            save_receipt["_event_id"].as_str(),
+            save_receipt["event_id"].as_str(),
             Some(save_receipt_event_id.as_str())
         );
         assert_eq!(
-            save_receipt["_event_type"].as_str(),
+            save_receipt["event_type"].as_str(),
             Some("KNOWLEDGE_RICH_DOCUMENT_SAVED")
         );
         assert_eq!(
-            save_receipt["_aggregate_type"].as_str(),
+            save_receipt["aggregate_type"].as_str(),
             Some("knowledge_rich_document")
         );
         assert_eq!(
-            save_receipt["_aggregate_id"].as_str(),
+            save_receipt["aggregate_id"].as_str(),
             Some(document_id.as_str())
         );
         assert_eq!(
-            save_receipt["workspace_id"].as_str(),
+            save_receipt["payload"]["workspace_id"].as_str(),
             Some(workspace_id.as_str())
         );
-        assert_eq!(save_receipt["event"].as_str(), Some("saved"));
+        assert_eq!(save_receipt["payload"]["event"].as_str(), Some("saved"));
 
         // Route the same mounted, freshly-saved document through the real Editors menu. This keeps the
         // CKC drag, save, Stage surface, EventLedger producer, and Flight Recorder readback in one
@@ -3321,7 +3033,8 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         );
         // Arm panic/drop cleanup as soon as the durable identity becomes observable. Every later
         // assertion may fail independently, but none may strand either exact EventLedger row.
-        workspace_cleanup.track_native_fr_client_event(&route_client_event_id);
+        uuid::Uuid::parse_str(&route_client_event_id)
+            .expect("route Flight Recorder client event id is a UUID");
         let route_causal_action_id = route_row["payload"]["native_payload"]["causal_action_id"]
             .as_str()
             .expect("route Flight Recorder causal action id")
@@ -3342,19 +3055,29 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
-        // MT-115: MT-109's mirror keys carry the AUTHENTICATED workspace plus the CLIENT event id.
-        // The previously asserted unpartitioned key matched zero rows in both counters, so a missing
-        // mirror and a present one were indistinguishable — this assertion could only ever have
-        // passed by returning "0|0", which it did not assert against.
-        let ledger_counts = run_psql(&format!(
-            "SELECT COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-pending:{workspace_id}:{route_client_event_id}') \
-             || '|' || COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-complete:{workspace_id}:{route_client_event_id}') \
-             FROM kernel_event_ledger;"
-        ));
+        let route_events: serde_json::Value = client
+            .get(format!(
+                "{base}/kernel/events/aggregates/native_editor_event/{route_event_id}"
+            ))
+            .send()
+            .await
+            .expect("read native editor aggregate through product API")
+            .json()
+            .await
+            .expect("native editor aggregate JSON");
+        let route_keys = route_events
+            .as_array()
+            .expect("native editor aggregate returns an array")
+            .iter()
+            .filter_map(|event| event["idempotency_key"].as_str().map(str::to_owned))
+            .collect::<std::collections::HashSet<_>>();
         assert_eq!(
-            ledger_counts.trim(),
-            "1|1",
-            "canonical route has exact pending and complete EventLedger rows"
+            route_keys,
+            std::collections::HashSet::from([
+                format!("native-editor-fr-pending:{workspace_id}:{route_client_event_id}"),
+                format!("native-editor-fr-complete:{workspace_id}:{route_client_event_id}"),
+            ]),
+            "canonical route has exact pending and complete EventLedger rows through the product aggregate API"
         );
         println!(
             "MT-033 receipts save={save_receipt_event_id} route={route_event_id} causal={route_causal_action_id}"
@@ -3567,15 +3290,12 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         );
         tokio::task::block_in_place(|| drop(harness));
 
-        let atelier_receipt = atelier_cleanup.cleanup();
-        assert_atelier_cleanup(&atelier_receipt, 0);
         let workspace_receipt = workspace_cleanup.cleanup(&client).await;
         println!(
-            "AC-2/3 document={document_id} item={item_id} canvas={canvas_id} placement={placement_id} atelier_cleanup={} workspace_cleanup={workspace_receipt}",
-            atelier_receipt.trim()
+            "AC-2/3 document={document_id} item={item_id} canvas={canvas_id} placement={placement_id} workspace_cleanup={workspace_receipt}"
         );
     });
-    managed_backend.assert_cleanup();
+    live_backend.assert_cleanup();
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────────────────────────────

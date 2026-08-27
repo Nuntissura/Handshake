@@ -10,9 +10,16 @@ use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
 use handshake_core::process_ledger::{
-    spawn_staleness_reclaim_task, KillError, KillOutcome, ProcessEngineKind, ProcessStop, Reclaim,
+    spawn_staleness_reclaim_task, KillError, ProcessEngineKind, ProcessStop, Reclaim,
     ReclaimProcessStore, ReclaimStopWriter, ReclaimTrigger, ReclaimableProcess, SandboxKill,
-    StaleSessionSource, StalenessReclaimConfig, POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
+    StaleSessionSource, StalenessReclaimConfig, SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY,
+};
+#[cfg(feature = "surreal-test-support")]
+use handshake_core::{
+    process_ledger::{LedgerEvent, ProcessLedgerStore, ProcessStart, SurrealProcessLedgerStore},
+    storage::surreal::{
+        bootstrap_mt137_process_ledger_test_schema, SurrealStorage, SurrealStorageConfig,
+    },
 };
 
 #[tokio::test]
@@ -33,7 +40,7 @@ async fn close_reclaim_with_no_open_processes_kills_nothing() {
 }
 
 #[tokio::test]
-async fn failure_reclaim_kills_pending_processes_and_writes_stop_even_when_kill_fails() {
+async fn failure_reclaim_fails_loud_and_does_not_terminalize_a_surviving_process() {
     let process_a = reclaimable("SR-FAIL", ProcessEngineKind::SandboxContainer);
     let process_b = reclaimable("SR-FAIL", ProcessEngineKind::HelperSubprocess);
     let fixture = Fixture::new(
@@ -44,39 +51,26 @@ async fn failure_reclaim_kills_pending_processes_and_writes_stop_even_when_kill_
         HashSet::from([process_b.process_uuid]),
     );
 
-    let report = fixture
+    let error = fixture
         .reclaim
         .run("SR-FAIL", ReclaimTrigger::Failure)
         .await
-        .expect("failure reclaim");
-
-    assert_eq!(report.processes_reclaimed.len(), 2);
-    assert_eq!(
-        report
-            .processes_reclaimed
-            .iter()
-            .filter(|entry| entry.kill_result == KillOutcome::Killed)
-            .count(),
-        1
-    );
-    assert_eq!(
-        report
-            .processes_reclaimed
-            .iter()
-            .filter(|entry| matches!(entry.kill_result, KillOutcome::Failed { .. }))
-            .count(),
-        1
-    );
+        .expect_err("a surviving owned process must fail reclaim loud");
+    assert!(error
+        .to_string()
+        .contains(&process_b.process_uuid.to_string()));
+    assert!(error
+        .to_string()
+        .contains("external reclaim cleanup failed"));
 
     let stops = fixture.stop_writer.stops();
-    assert_eq!(stops.len(), 2);
+    assert_eq!(stops.len(), 1);
     assert!(stops.iter().all(|stop| stop.exit_code == Some(-1)));
-    assert!(stops
-        .iter()
-        .any(|stop| stop.process_uuid == process_a.process_uuid));
-    assert!(stops
-        .iter()
-        .any(|stop| stop.process_uuid == process_b.process_uuid));
+    assert_eq!(stops[0].process_uuid, process_a.process_uuid);
+    assert_ne!(
+        stops[0].process_uuid, process_b.process_uuid,
+        "the surviving process must remain non-terminal for retry"
+    );
 }
 
 #[tokio::test]
@@ -133,45 +127,48 @@ async fn staleness_background_task_reclaims_after_ttl_scan() {
 }
 
 #[test]
-fn postgres_reclaim_query_uses_row_lock_and_open_process_filter() {
-    let sql = POSTGRES_ACTIVE_RECLAIM_QUERY_SQL;
-    assert!(sql.contains("FROM kernel_process_lifecycle"));
-    assert!(sql.contains("parent_session_id = $1"));
-    assert!(sql.contains("stopped_at IS NULL"));
-    assert!(sql.contains("FOR UPDATE"));
-    assert!(!sql.to_ascii_lowercase().contains("sqlite"));
+fn surreal_reclaim_query_atomically_claims_open_processes_for_one_session() {
+    let query = SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY;
+    assert!(query.starts_with("UPDATE kernel_process_lifecycle SET"));
+    assert!(query.contains("parent_session_id = $session_id"));
+    assert!(query.contains("stopped_at = NONE"));
+    assert!(query.contains("ELSE { $claimed_at }"));
+    assert!(query.contains("ELSE { $claim_reason }"));
+    assert!(query.contains("stop_reason = $killed_reason { stop_reason }"));
+    assert!(query.contains("RETURN BEFORE"));
+    assert!(!query.to_ascii_lowercase().contains("for update"));
+    assert!(!query.to_ascii_lowercase().contains("postgres"));
 }
 
-// MT-008: the FOR UPDATE row lock must cover the rows being reclaimed for the
-// duration of the reclaim decision. The fix collapses the read-modify-write into
-// a single atomic `UPDATE ... RETURNING` guarded by `FOR UPDATE`, so a concurrent
-// reclaim sees the rows already claimed (stopped_at no longer NULL) and cannot
-// double-act. This test asserts the query shape that guarantees that property.
+// The claim is one SurrealDB statement: it stamps every newly matched row and
+// returns the pre-claim values needed by the cleanup path. A same-owner retry
+// may preserve an existing cleanup-completed marker, but the row remains
+// non-open and the original sentinel timestamp continues to guard finalization.
 #[test]
-fn postgres_reclaim_query_atomically_claims_rows_under_lock() {
-    let sql = POSTGRES_ACTIVE_RECLAIM_QUERY_SQL.to_ascii_lowercase();
-    // Lock the candidate rows...
-    assert!(sql.contains("for update"), "must take row locks");
-    // ...and mutate stopped_at in the SAME statement so the claim is atomic.
+fn surreal_reclaim_query_claim_and_readback_are_one_statement() {
+    let query = SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY.to_ascii_lowercase();
     assert!(
-        sql.contains("update kernel_process_lifecycle"),
-        "claim must be an UPDATE, not a bare SELECT that releases the lock on commit"
+        query.starts_with("update kernel_process_lifecycle set"),
+        "claim must begin with the row mutation"
     );
     assert!(
-        sql.contains("set stopped_at"),
-        "claim must mark stopped_at so concurrent reclaims see the row as taken"
+        query.contains("else { $claimed_at }"),
+        "a new claim must mark stopped_at so concurrent reclaims see the row as taken"
     );
     assert!(
-        sql.contains("returning"),
-        "claimed rows must be RETURNING-ed so the caller acts on exactly what it claimed"
+        query.contains("return before"),
+        "the caller must act on exactly the rows claimed by the update"
     );
-    // The candidate filter still only targets un-stopped rows.
-    assert!(sql.contains("stopped_at is null"));
+    assert_eq!(
+        query.matches(';').count(),
+        1,
+        "claim and readback must remain one SurrealDB statement"
+    );
 }
 
-// MT-008 (logic-level serialization proof): model the atomic-claim semantics with
-// an in-memory store that drains each session's active rows under a lock on the
-// FIRST call (mirroring the Postgres UPDATE...RETURNING claim), and prove that two
+// Logic-level serialization proof: model the atomic-claim semantics with an
+// in-memory store that drains each session's active rows under a lock on the
+// first call (mirroring the SurrealDB UPDATE ... RETURN BEFORE claim), and prove that two
 // concurrent reclaims of the same session reclaim each process exactly once: no
 // double-reclaim, no missed row.
 #[tokio::test]
@@ -224,7 +221,10 @@ async fn concurrent_reclaims_claim_each_process_exactly_once() {
         unique.len(),
         "no process may be reclaimed twice (double-reclaim)"
     );
-    assert_eq!(unique, expected, "every active process must be reclaimed once (no missed row)");
+    assert_eq!(
+        unique, expected,
+        "every active process must be reclaimed once (no missed row)"
+    );
 
     // Stop events: exactly one per process, no duplicates.
     let stops = stop_writer.stops();
@@ -239,48 +239,85 @@ async fn concurrent_reclaims_claim_each_process_exactly_once() {
     assert_eq!(killed_ids, expected);
 }
 
-// MT-008 (Postgres-gated): exercises the real atomic-claim SQL against a live
-// database. Run with `cargo test ... -- --ignored` and HANDSHAKE_TEST_DATABASE_URL
-// set. Two concurrent reclaims against the same session must together claim each
-// active row exactly once.
+// Exercises the real SurrealDB atomic claim against the authoritative embedded
+// process-ledger schema slice. Two concurrent calls from the same process boot
+// must produce one exact owner for every active row. The losing caller must
+// surface the outstanding same-boot claim rather than falsely reporting that
+// the session has no reclaim work.
+#[cfg(feature = "surreal-test-support")]
 #[tokio::test]
-#[ignore = "requires a live Postgres instance via HANDSHAKE_TEST_DATABASE_URL"]
-async fn postgres_concurrent_reclaim_claims_each_row_once() {
-    use handshake_core::process_ledger::PostgresProcessLedgerStore;
-    use sqlx::postgres::PgPoolOptions;
-
-    let url = std::env::var("HANDSHAKE_TEST_DATABASE_URL")
-        .expect("HANDSHAKE_TEST_DATABASE_URL must be set for the ignored Postgres reclaim test");
-    let pool = PgPoolOptions::new()
-        .max_connections(8)
-        .connect(&url)
+async fn surreal_concurrent_reclaim_claims_each_row_once() {
+    let temp = tempfile::tempdir().expect("SurrealDB reclaim tempdir");
+    let storage = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(temp.path()).expect("valid SurrealDB test path"),
+    )
+    .await
+    .expect("open embedded SurrealDB reclaim store");
+    bootstrap_mt137_process_ledger_test_schema(&storage)
         .await
-        .expect("connect to test Postgres");
-    let store = Arc::new(PostgresProcessLedgerStore::new(pool));
-    store.apply_migration().await.expect("apply migration");
+        .expect("bootstrap authoritative process-ledger schema");
+    let store = Arc::new(SurrealProcessLedgerStore::new(storage));
 
-    let session = format!("SR-PG-RACE-{}", Uuid::now_v7());
-    // Insert N active rows via the public writer path (not asserted here; this is
-    // a smoke-level concurrency check that the SQL serializes claims).
-    // The detailed row-setup uses the same Postgres store; if no rows exist the
-    // test still validates that concurrent claims do not error or double-return.
+    let session = format!("SR-SURREAL-RACE-{}", Uuid::now_v7());
+    let starts: Vec<ProcessStart> = (0..4)
+        .map(|offset| {
+            ProcessStart::new(
+                ProcessEngineKind::HelperSubprocess,
+                "mt137-surreal-race-test",
+                Some("WP-KERNEL-012".to_owned()),
+            )
+            .with_parent_session_id(session.clone())
+            .with_os_pid(40_000 + offset)
+        })
+        .collect();
+    let expected: HashSet<Uuid> = starts.iter().map(|start| start.process_uuid).collect();
+    ProcessLedgerStore::write_batch(
+        store.as_ref(),
+        starts.into_iter().map(LedgerEvent::Start).collect(),
+    )
+    .await
+    .expect("seed active SurrealDB process rows");
+
     let a = Arc::clone(&store);
     let b = Arc::clone(&store);
     let sa = session.clone();
     let sb = session.clone();
     let ra = tokio::spawn(async move { a.active_processes_for_session(&sa).await });
     let rb = tokio::spawn(async move { b.active_processes_for_session(&sb).await });
-    let claimed_a = ra.await.unwrap().expect("claim a");
-    let claimed_b = rb.await.unwrap().expect("claim b");
+    let mut successful_claims = Vec::new();
+    let mut convergence_errors = Vec::new();
+    for result in [ra.await.unwrap(), rb.await.unwrap()] {
+        match result {
+            Ok(claimed) => successful_claims.push(claimed),
+            Err(error) => convergence_errors.push(error),
+        }
+    }
+    assert_eq!(
+        successful_claims.len(),
+        1,
+        "exactly one concurrent caller must own the durable claims"
+    );
+    assert_eq!(
+        convergence_errors.len(),
+        1,
+        "the losing caller must not translate outstanding same-boot claims into zero work"
+    );
+    assert!(convergence_errors[0]
+        .to_string()
+        .contains("same-boot reclaim claims have not converged"));
+    let claimed = successful_claims.pop().expect("one successful claim");
 
-    let mut ids: HashSet<Uuid> = HashSet::new();
-    for p in claimed_a.iter().chain(claimed_b.iter()) {
+    let claimed: Vec<Uuid> = claimed.iter().map(|process| process.process_uuid).collect();
+    let mut ids = HashSet::new();
+    for process_uuid in &claimed {
         assert!(
-            ids.insert(p.process_uuid),
+            ids.insert(*process_uuid),
             "process {} was claimed by both concurrent reclaims (double-claim)",
-            p.process_uuid
+            process_uuid
         );
     }
+    assert_eq!(claimed.len(), expected.len(), "no active row may be missed");
+    assert_eq!(ids, expected);
 }
 
 fn reclaimable(session_id: &str, engine_kind: ProcessEngineKind) -> ReclaimableProcess {
@@ -302,6 +339,10 @@ fn reclaimable(session_id: &str, engine_kind: ProcessEngineKind) -> ReclaimableP
         mt_id: Some("MT-053".to_string()),
         sandbox_capabilities_snapshot: serde_json::json!({"adapter_id": "sandbox-adapter-test"}),
         metadata_jsonb: serde_json::json!({}),
+        reclaim_claimed_at: Utc::now(),
+        reclaim_expected_reason: "reclaim_claimed:integration-fixture".to_owned(),
+        reclaim_expected_killed_reason: "reclaim_killed:integration-fixture".to_owned(),
+        reclaim_cleanup_completed: false,
     }
 }
 
@@ -354,14 +395,28 @@ impl ReclaimProcessStore for MemoryReclaimStore {
             .cloned()
             .unwrap_or_default())
     }
+
+    async fn mark_cleanup_completed(
+        &self,
+        _process: &ReclaimableProcess,
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn abandon(
+        &self,
+        _processes: &[ReclaimableProcess],
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        Ok(())
+    }
 }
 
 /// In-memory model of the MT-008 atomic-claim semantics: the FIRST reclaim to
 /// reach a session under the lock drains that session's active rows; any
 /// concurrent reclaim then observes an empty active set (the rows are already
-/// claimed, `stopped_at` no longer NULL). This mirrors the Postgres
-/// `UPDATE ... RETURNING` guarded by `FOR UPDATE` and lets the serialization
-/// decision be proven without a live database.
+/// claimed, `stopped_at` no longer `NONE`). This mirrors the SurrealDB
+/// `UPDATE ... RETURN BEFORE` claim and lets the serialization decision be
+/// proven without a real embedded store in every test configuration.
 struct ClaimingReclaimStore {
     active: Mutex<HashMap<String, Vec<ReclaimableProcess>>>,
 }
@@ -385,6 +440,20 @@ impl ReclaimProcessStore for ClaimingReclaimStore {
         // reclaim cannot see them again.
         let mut guard = self.active.lock().unwrap();
         Ok(guard.remove(session_id).unwrap_or_default())
+    }
+
+    async fn mark_cleanup_completed(
+        &self,
+        _process: &ReclaimableProcess,
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn abandon(
+        &self,
+        _processes: &[ReclaimableProcess],
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        Ok(())
     }
 }
 
@@ -419,8 +488,9 @@ impl RecordingStopWriter {
     }
 }
 
+#[async_trait]
 impl ReclaimStopWriter for RecordingStopWriter {
-    fn append_reclaim_stop(
+    async fn append_reclaim_stop(
         &self,
         stop: ProcessStop,
     ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {

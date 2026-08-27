@@ -5,8 +5,8 @@
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-008/014/015 pattern)
 //!
-//! AC1/AC2 and the LIVE-PG variants of PROOF2/PROOF3 require a running Handshake-managed PostgreSQL
-//! with a self-seeded PostgreSQL workspace (`GET /loom/views/all` as the count oracle plus the canonical
+//! AC1/AC2 and the LIVE-SURREALDB variants of PROOF2/PROOF3 require a running Handshake-managed SurrealDB
+//! with a self-seeded SurrealDB workspace (`GET /loom/views/all` as the count oracle plus the canonical
 //! `/loom/graph/global` and `/loom/graph/local` projections). The live proof is gated only by the
 //! `integration` feature and is deliberately NOT ignored: a governed integration run must exercise it.
 //! They NEVER fake the backend.
@@ -586,7 +586,7 @@ fn graph_view_error_label() {
     println!("AC8: backend-error state renders an error overlay, no crash");
 }
 
-// ── PROOF2/PROOF3 LIVE PG: self-seeded canonical local/global graph ─────────────────────────────────
+// ── PROOF2/PROOF3 LIVE SURREALDB: self-seeded canonical local/global graph ─────────────────────────────────
 
 #[cfg(feature = "integration")]
 struct LiveWorkspaceCleanup<'a> {
@@ -601,7 +601,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204 | 404),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         self.cleaned = true;
     }
@@ -621,7 +621,7 @@ fn await_live_graph(
     cell: &handshake_native::backend_client::LoomGraphCell,
     expected: &handshake_native::backend_client::LoomGraphRequestIdentity,
 ) -> handshake_native::backend_client::LoomGraphData {
-    await_graph_delivery(cell, expected).expect("managed-PG graph request must succeed")
+    await_graph_delivery(cell, expected).expect("managed-SurrealDB graph request must succeed")
 }
 
 #[cfg(feature = "integration")]
@@ -633,24 +633,24 @@ fn await_graph_delivery(
         if let Some(delivery) = cell.lock().unwrap().pop_front() {
             assert_eq!(
                 &delivery.request, expected,
-                "managed-PG completion preserves workspace/mode/focus/depth generation identity"
+                "managed-SurrealDB completion preserves workspace/mode/focus/depth generation identity"
             );
             return delivery.result;
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    panic!("managed-PG graph request did not resolve within 10 seconds");
+    panic!("managed-SurrealDB graph request did not resolve within 10 seconds");
 }
 
-/// AC1-AC8 / PROOF2+3 against a REAL Handshake-managed PostgreSQL. This proof creates its own isolated
+/// AC1-AC8 / PROOF2+3 against a REAL Handshake-managed SurrealDB. This proof creates its own isolated
 /// workspace, seeds four LoomBlocks plus two LoomEdges through production HTTP routes, compares the
 /// canonical global projection with the independent `views/all` count, then loads a distinct local
 /// neighbourhood and drives the live AccessKit node surface. It is feature-gated but NOT ignored, so
-/// `cargo test --features integration --test test_graph_view graph_view_live_pg_self_seeds_local_global`
+/// `cargo test --features integration --test test_graph_view graph_view_live_surrealdb_self_seeds_local_global`
 /// cannot silently omit the required resource proof.
 #[test]
 #[cfg(feature = "integration")]
-fn graph_view_live_pg_self_seeds_local_global() {
+fn graph_view_live_surrealdb_self_seeds_local_global() {
     use handshake_native::backend_client::{
         LoomGraphCell, LoomGraphClient, LoomGraphRequestIdentity,
     };
@@ -689,7 +689,7 @@ fn graph_view_live_pg_self_seeds_local_global() {
     let empty = await_live_graph(&empty_cell, &empty_request);
     assert!(
         empty.nodes.is_empty() && empty.edges.is_empty(),
-        "AC7: a real unseeded PostgreSQL workspace returns an empty graph projection"
+        "AC7: a real unseeded SurrealDB workspace returns an empty graph projection"
     );
 
     let seed_block = |title: &str| {
@@ -859,7 +859,7 @@ fn graph_view_live_pg_self_seeds_local_global() {
     let beta_author_id = handshake_native::graph::graph_view::node_author_id(&beta);
     assert!(
         ids.contains(&beta_author_id),
-        "PROOF2: focused real-PG node is in the live AccessKit tree"
+        "PROOF2: focused real-SurrealDB node is in the live AccessKit tree"
     );
 
     let beta_node_id = harness
@@ -869,7 +869,7 @@ fn graph_view_live_pg_self_seeds_local_global() {
             let accesskit = node.accesskit_node();
             (accesskit.author_id() == Some(beta_author_id.as_str())).then(|| accesskit.id())
         })
-        .expect("focused real-PG AccessKit identity has a dispatchable node id");
+        .expect("focused real-SurrealDB AccessKit identity has a dispatchable node id");
     harness.event(egui::Event::AccessKitActionRequest(
         egui::accesskit::ActionRequest {
             action: egui::accesskit::Action::Click,
@@ -885,11 +885,11 @@ fn graph_view_live_pg_self_seeds_local_global() {
             .unwrap()
             .iter()
             .any(|event| matches!(event, GraphEvent::OpenNode { block_id } if block_id == &beta)),
-        "AC5/PROOF3: clicking the real-PG AccessKit node opens its exact block id"
+        "AC5/PROOF3: clicking the real-SurrealDB AccessKit node opens its exact block id"
     );
 
     println!(
-        "MT-021 LIVE PG PASS workspace={workspace_id} seeded=[{alpha},{beta},{gamma},{isolated}] \
+        "MT-021 LIVE SURREALDB PASS workspace={workspace_id} seeded=[{alpha},{beta},{gamma},{isolated}] \
          views_all={} global_nodes={} global_edges=2 local_nodes=3 local_edges=2 accesskit_node={beta_author_id}",
         all_blocks.len(),
         global.nodes.len()

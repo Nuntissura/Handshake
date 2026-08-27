@@ -166,7 +166,7 @@ fn sample_update(
         update_id,
         update_seq,
         update_bytes,
-        update_bytes_ref: &format!("postgres://kernel_crdt_updates/{update_id}/update_bytes"),
+        update_bytes_ref: &format!("surreal://kernel_crdt_updates/{update_id}/update_bytes"),
         session_id: "session-kernel-builder",
         trace_id: &format!("trace-{update_id}"),
         state_vector_before,

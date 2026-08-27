@@ -17,7 +17,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::storage::knowledge::KnowledgeStore;
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 /// A single assembled evidence snippet (a projection; authority stays in the
@@ -54,7 +54,7 @@ pub struct EvidenceSnippet {
 /// an explicit unsupported marker rather than an error, so a citation to a span
 /// the index no longer holds is visible.
 pub async fn assemble_span_snippet(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     span_id: &str,
 ) -> StorageResult<EvidenceSnippet> {
     let Some(span) = db.get_knowledge_span(span_id).await? else {
@@ -110,7 +110,7 @@ pub async fn assemble_span_snippet(
 /// contract): the claim is surfaced but flagged as something the index cannot
 /// prove.
 pub async fn assemble_claim_snippets(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     claim_id: &str,
 ) -> StorageResult<Vec<EvidenceSnippet>> {
     let Some(_claim) = db.get_knowledge_claim(claim_id).await? else {

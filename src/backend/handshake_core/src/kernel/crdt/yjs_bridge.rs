@@ -38,11 +38,11 @@ use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::Database;
 
 use super::actor_site::{
-    KnowledgeActorIdError, KnowledgeActorIdV1, derive_knowledge_site_id, knowledge_crdt_identity,
+    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdError, KnowledgeActorIdV1,
 };
 use super::persistence::{
-    CrdtReplayMetadataV1, CrdtUpdateRecordInputV1, CrdtUpdateRecordV1, new_crdt_update_record,
-    sha256_hex,
+    new_crdt_update_record, sha256_hex, CrdtReplayMetadataV1, CrdtUpdateRecordInputV1,
+    CrdtUpdateRecordV1,
 };
 use super::state_vector::{
     KnowledgeStateVectorOrdering, KnowledgeStateVectorParseError, KnowledgeStateVectorV1,
@@ -343,7 +343,7 @@ pub fn envelope_to_update_record(
         update_seq,
         update_bytes: &validated.update_bytes,
         update_bytes_ref: &format!(
-            "postgres://kernel_crdt_updates/{}/{}/update_bytes",
+            "surreal://kernel_crdt_updates/{}/{}/update_bytes",
             envelope.crdt_document_id, envelope.update_id
         ),
         session_id: &envelope.session_id,

@@ -233,6 +233,20 @@ pub struct ProcessStop {
     pub mt_id: Option<String>,
     pub sandbox_capabilities_snapshot: Value,
     pub metadata_jsonb: Value,
+    /// Exact durable claim stamp required to finalize a reclaim sentinel.
+    /// Ordinary STOP events leave this unset and cannot consume another
+    /// reclaimer's claim.
+    #[serde(default)]
+    pub reclaim_claimed_at: Option<DateTime<Utc>>,
+    /// Exact owner-qualified durable sentinel reason paired with
+    /// `reclaim_claimed_at`. A reclaim STOP must match both values before it
+    /// may terminalize the row.
+    #[serde(default)]
+    pub reclaim_expected_reason: Option<String>,
+    /// Owner-qualified post-cleanup sentinel paired with the expected claim
+    /// reason. Exact reclaim STOP accepts either phase for the same owner.
+    #[serde(default)]
+    pub reclaim_expected_killed_reason: Option<String>,
 }
 
 impl ProcessStop {
@@ -258,6 +272,9 @@ impl ProcessStop {
             mt_id: start.mt_id.clone(),
             sandbox_capabilities_snapshot: start.sandbox_capabilities_snapshot.clone(),
             metadata_jsonb: start.metadata_jsonb.clone(),
+            reclaim_claimed_at: None,
+            reclaim_expected_reason: None,
+            reclaim_expected_killed_reason: None,
         }
     }
 

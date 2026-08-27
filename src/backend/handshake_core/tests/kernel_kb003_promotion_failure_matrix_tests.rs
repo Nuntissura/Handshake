@@ -158,7 +158,7 @@ fn stale_candidate_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.latest_known_run_id = Some("SBX-fresher".into());
 
@@ -182,7 +182,7 @@ fn duplicate_idempotency_key_rejection_does_not_mutate_authority_second_time() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
 
     // First call lands an ACCEPTED receipt (this is the authority baseline).
     let first = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
@@ -228,7 +228,7 @@ fn validation_failure_rejection_does_not_mutate_authority() {
         ValidationStatus::fail("wrote outside workspace").unwrap(),
     ));
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     assert_rejection_reason(&out.decision, "REJECTED_VALIDATION_FAILURE");
     match out.decision.outcome.rejection_reason().unwrap() {
@@ -262,7 +262,7 @@ fn policy_denial_rejection_does_not_mutate_authority() {
         "fetch https://example.com",
         "default_deny NETWORK",
     );
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.denial = Some(&denial);
     let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
@@ -291,7 +291,7 @@ fn missing_approval_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.approval = OperatorApprovalEvidence::new(
         "",
@@ -319,7 +319,7 @@ fn missing_artifact_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_postgres_primary();
+    let mut store = InMemoryKb003Storage::new_surreal_primary();
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.required_artifact_refs = vec!["kb003://promotion_receipt/never_present".into()];
     let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
@@ -356,7 +356,7 @@ struct StorageRefusingDecisionInsert {
 impl StorageRefusingDecisionInsert {
     fn new() -> Self {
         Self {
-            mode: AuthorityMode::PostgresPrimary,
+            mode: AuthorityMode::SurrealPrimary,
             receipts: Vec::new(),
             decisions: Vec::new(),
         }
@@ -498,7 +498,7 @@ fn postgres_failure_with_total_outage_yields_none_stored_receipt_id() {
     let report = pass_report();
     let bun = bundle_for(&run);
     let mut store = StorageRefusingAllWrites {
-        mode: AuthorityMode::PostgresPrimary,
+        mode: AuthorityMode::SurrealPrimary,
     };
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     // Rejection is typed and returned to the caller.
@@ -540,7 +540,7 @@ fn projection_rebuild_failure_variant_is_typed_and_serialisable() {
     // Building a PromotionDecisionV1::rejected with this reason does NOT
     // touch the authority sink at all — authority mutation is gated on
     // PromotionGate::evaluate, which we are NOT calling here.
-    let inert_store = InMemoryKb003Storage::new_postgres_primary();
+    let inert_store = InMemoryKb003Storage::new_surreal_primary();
     assert!(
         inert_store.promotion_receipts.is_empty(),
         "constructing a rejection must not mutate any authority sink"
@@ -800,13 +800,13 @@ fn postgres_failure_retry_is_idempotent() {
     let bun = bundle_for(&run);
 
     let mut store1 = StorageRefusingDecisionInsertWithMessage {
-        mode: AuthorityMode::PostgresPrimary,
+        mode: AuthorityMode::SurrealPrimary,
         next_message: "deadlock detected on tx 991 at line 412".into(),
     };
     let out1 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store1).unwrap();
 
     let mut store2 = StorageRefusingDecisionInsertWithMessage {
-        mode: AuthorityMode::PostgresPrimary,
+        mode: AuthorityMode::SurrealPrimary,
         next_message: "Deadlock Detected on tx 1004 at line 538".into(),
     };
     let out2 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store2).unwrap();

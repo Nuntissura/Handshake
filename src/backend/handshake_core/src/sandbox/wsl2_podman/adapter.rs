@@ -4,20 +4,23 @@ use std::{
 };
 
 use async_trait::async_trait;
+use chrono::Utc;
+use uuid::Uuid;
 
 use super::gpu_probe::{probe_gpu_passthrough, GpuProbeCache};
 use super::podman_cli::{
     parse_podman_exit_code, parse_podman_rootless_info, parse_podman_status, podman_exec_args,
-    podman_run_args, run_podman_command, windows_path_to_wsl_mount_path,
+    podman_run_args_for_container, run_podman_command, windows_path_to_wsl_mount_path,
 };
 use super::wsl_detection::{default_wsl_exe, verify_wsl2_distro};
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
     IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
+    RestartCleanupOutcome, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
 };
 
 pub const WSL2_PODMAN_ADAPTER_ID: &str = "wsl2_podman";
+pub(super) const PODMAN_PROCESS_OWNER_LABEL: &str = "io.handshake.process-id";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Wsl2PodmanConfig {
@@ -108,6 +111,28 @@ impl Wsl2PodmanAdapter {
         }
     }
 
+    fn restart_cleanup_args(container_id: &str) -> Option<Vec<String>> {
+        if !is_valid_durable_container_id(container_id) {
+            return None;
+        }
+        Some(vec![
+            "--remote=false".to_string(),
+            "rm".to_string(),
+            "--force".to_string(),
+            container_id.to_string(),
+        ])
+    }
+
+    fn restart_owner_inspect_args(container_id: &str) -> Vec<String> {
+        vec![
+            "--remote=false".to_string(),
+            "inspect".to_string(),
+            "--format".to_string(),
+            format!("{{{{ index .Config.Labels \"{PODMAN_PROCESS_OWNER_LABEL}\" }}}}"),
+            container_id.to_string(),
+        ]
+    }
+
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
         if handle.adapter_id != AdapterId::new(WSL2_PODMAN_ADAPTER_ID) {
             return Err(SandboxAdapterError::ProcessHandleStale {
@@ -127,7 +152,9 @@ impl Wsl2PodmanAdapter {
 impl SandboxAdapter for Wsl2PodmanAdapter {
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
         self.ensure_runtime_available().await?;
-        let args = podman_run_args(&spec)?;
+        let process_id = Uuid::now_v7();
+        let container_name = durable_container_owner(process_id);
+        let args = podman_run_args_for_container(&spec, &container_name)?;
         let output = run_podman_command(
             &self.config,
             &args,
@@ -142,14 +169,18 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
             )));
         }
         let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if container_id.is_empty() {
-            return Err(spawn_failed("podman run did not return a container id"));
+        if !is_valid_durable_container_id(&container_id) {
+            return Err(spawn_failed(
+                "podman run did not return a full lowercase container id",
+            ));
         }
-        Ok(ProcessHandle::new(
-            AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
-            None,
-            container_id,
-        ))
+        Ok(ProcessHandle {
+            id: process_id,
+            adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+            pid: None,
+            sandbox_internal_id: container_id,
+            spawned_at_utc: Utc::now(),
+        })
     }
 
     async fn exec(
@@ -331,6 +362,64 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
         }
     }
 
+    async fn cleanup_after_restart(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<RestartCleanupOutcome, SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        if !is_valid_durable_container_id(&handle.sandbox_internal_id) {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        let inspect_args = Self::restart_owner_inspect_args(&handle.sandbox_internal_id);
+        let inspection = run_podman_command(
+            &self.config,
+            &inspect_args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
+        if inspection.exit_code != 0 {
+            let detail = inspection.stderr_text();
+            if restart_cleanup_target_absent(&detail) {
+                return Ok(RestartCleanupOutcome::AlreadyAbsent);
+            }
+            return Err(spawn_failed(format!(
+                "podman restart ownership inspection failed for durable container {}: {detail}",
+                handle.sandbox_internal_id
+            )));
+        }
+        if !restart_owner_matches(handle.id, &inspection.stdout) {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        let rm_args = Self::restart_cleanup_args(&handle.sandbox_internal_id).ok_or(
+            SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            },
+        )?;
+        let cleanup = run_podman_command(
+            &self.config,
+            &rm_args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
+        if cleanup.exit_code == 0 {
+            return Ok(RestartCleanupOutcome::Terminated);
+        }
+        let detail = cleanup.stderr_text();
+        if restart_cleanup_target_absent(&detail) {
+            return Ok(RestartCleanupOutcome::AlreadyAbsent);
+        }
+        Err(spawn_failed(format!(
+            "podman restart cleanup failed for durable container {}: {detail}",
+            handle.sandbox_internal_id
+        )))
+    }
+
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
         self.ensure_handle(handle)?;
         let status_args = vec![
@@ -476,6 +565,28 @@ fn signal_kill_args(container_id: &str, signal: &str) -> Vec<String> {
     ]
 }
 
+fn restart_cleanup_target_absent(detail: &str) -> bool {
+    let detail = detail.to_ascii_lowercase();
+    detail.contains("no such container") || detail.contains("no such object")
+}
+
+fn durable_container_owner(process_id: Uuid) -> String {
+    format!("hsk-{}", process_id.simple())
+}
+
+fn restart_owner_matches(process_id: Uuid, stdout: &[u8]) -> bool {
+    std::str::from_utf8(stdout).ok().is_some_and(|value| {
+        value.trim_end_matches(['\r', '\n']) == durable_container_owner(process_id)
+    })
+}
+
+fn is_valid_durable_container_id(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
 fn spawn_failed(reason: impl ToString) -> SandboxAdapterError {
     SandboxAdapterError::SpawnFailed {
         adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
@@ -487,5 +598,74 @@ fn net_policy_failed(reason: impl ToString) -> SandboxAdapterError {
     SandboxAdapterError::NetPolicyApplyFailed {
         adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
         reason: reason.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod restart_cleanup_tests {
+    use super::*;
+
+    #[test]
+    fn restart_cleanup_is_force_remove_by_durable_id_and_absence_is_idempotent() {
+        let durable_id = "a".repeat(64);
+        assert_eq!(
+            Wsl2PodmanAdapter::restart_cleanup_args(&durable_id).expect("valid durable id"),
+            vec!["--remote=false", "rm", "--force", durable_id.as_str()]
+        );
+        assert!(restart_cleanup_target_absent(
+            "Error: no such container podman-container-1"
+        ));
+        assert!(!restart_cleanup_target_absent("connection refused"));
+    }
+
+    #[test]
+    fn restart_cleanup_rejects_malformed_or_option_like_container_ids() {
+        for candidate in [
+            "podman-container-1".to_string(),
+            "--all".to_string(),
+            "A".repeat(64),
+            format!("{}g", "a".repeat(63)),
+            "a".repeat(63),
+            "a".repeat(65),
+            format!("{}\n", "a".repeat(64)),
+            format!("{}\0", "a".repeat(63)),
+        ] {
+            assert!(Wsl2PodmanAdapter::restart_cleanup_args(&candidate).is_none());
+        }
+    }
+
+    #[test]
+    fn restart_cleanup_ownership_probe_is_bound_to_process_uuid() {
+        let process_id = Uuid::now_v7();
+        let durable_id = "b".repeat(64);
+        assert_eq!(
+            durable_container_owner(process_id),
+            format!("hsk-{}", process_id.simple())
+        );
+        assert_eq!(
+            Wsl2PodmanAdapter::restart_owner_inspect_args(&durable_id),
+            vec![
+                "--remote=false",
+                "inspect",
+                "--format",
+                "{{ index .Config.Labels \"io.handshake.process-id\" }}",
+                durable_id.as_str(),
+            ]
+        );
+        let owner = durable_container_owner(process_id);
+        assert!(restart_owner_matches(
+            process_id,
+            format!("{owner}\r\n").as_bytes()
+        ));
+        let other_owner = durable_container_owner(Uuid::now_v7());
+        for untrusted in [
+            "",
+            "<no value>",
+            " hsk-unrelated",
+            "hsk-unrelated ",
+            other_owner.as_str(),
+        ] {
+            assert!(!restart_owner_matches(process_id, untrusted.as_bytes()));
+        }
     }
 }

@@ -246,8 +246,8 @@ pub fn is_abliteration_target_module(key: &str) -> bool {
 ///
 /// `ledger` is optional: production callers pass a live
 /// `LedgerBatcher` so the abliteration job appears in the
-/// ProcessOwnershipLedger; the CLI on a host without an attached
-/// Postgres writer can pass `None`. The integration test exercises the
+/// ProcessOwnershipLedger; the CLI on a host without an attached durable
+/// ledger writer can pass `None`. The integration test exercises the
 /// `Some` path so the engine_kind=AbliterationTool row registration is
 /// actually written, not just declared.
 #[cfg(feature = "candle-runtime-engine")]

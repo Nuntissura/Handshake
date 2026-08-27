@@ -3,10 +3,10 @@
 //! These proofs drive the REAL `HandshakeApp` headlessly via egui_kittest and prove the Editor settings
 //! sections persist through canonical WP-012 PreferenceRecords
 //! (`GET`/`PUT /workspaces/:id/preferences/:pref_id` and
-//! `POST /workspaces/:id/preferences/:pref_id/reset`) — there is NO SQLite and no opaque editor-settings
+//! `POST /workspaces/:id/preferences/:pref_id/reset`) — there is NO alternate local store and no opaque editor-settings
 //! blob. A scriptable preference transport records writes + serves scripted loads, so the open -> change
 //! -> persist round-trip is provable with no live server. The managed proof in this file additionally
-//! exercises the real PostgreSQL preference routes, a real HTTP 503 first-save failure with exact Retry,
+//! exercises the real SurrealDB preference routes, a real HTTP 503 first-save failure with exact Retry,
 //! and a fresh-app reopen.
 //!
 //! - AC-001: every current Editor preference, every syntax swatch, and code/rich keymap overrides issue
@@ -18,7 +18,7 @@
 //! - AC-009: the ONLY persistence calls are the canonical PreferenceRecord routes — the stub transport is
 //!   the sole unit-test I/O surface; no opaque editor-settings blob is exercised.
 
-mod pg_proof_support;
+mod backend_proof_support;
 
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -513,12 +513,12 @@ fn drive_argus_control(
 }
 
 // MT-072 (FAIL_V2) — retry-after-failure on the canonical PreferenceRecord authority. This SUPERSEDES the
-// retired `editor_settings_persist_managed_postgres_all_fields_retry_and_reopen_round_trip`, which drove
+// retired `editor_settings_persist_managed_surrealdb_all_fields_retry_and_reopen_round_trip`, which drove
 // the editor widgets but asserted persistence through the opaque `/settings` PUT/GET blob — dead routing
 // after editor settings migrated to per-id preference PUTs (the `/settings` save is never called by an
 // editor edit, so that test could not pass against a live backend). The behaviors it uniquely proved are
 // now covered against the correct authority:
-//   * live set/reset/history/receipt/EventLedger round-trip → test_editor_preference_records.rs (live PG)
+//   * live set/reset/history/receipt/EventLedger round-trip → test_editor_preference_records.rs (live SurrealDB)
 //   * Argus widget → canonical PUT + AccessKit ids → argus_set_value_on_mounted_font_size_reaches_...
 //   * close/reopen hydrate from canonical state → opening_settings_hydrates_editor_prefs_from_the_projection
 //   * transient failure surfaces visibly + edit retained → backend_unavailable_preference_write_degrades_...
@@ -1007,7 +1007,7 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
     );
 
     // AC-001 / AC-009: the change persists via the canonical PreferenceRecord PUTs (the ONLY editor save
-    // surface — no opaque /settings write, no SQLite, no new endpoint).
+    // surface — no opaque /settings write, no alternate local store, no new endpoint).
     let sets: std::collections::HashMap<String, Value> = stub.sets().into_iter().collect();
     assert_eq!(
         sets.get(PREF_EDITOR_FONT_SIZE).and_then(Value::as_f64),
@@ -1761,7 +1761,7 @@ fn user_wrap_toggle_persists_and_is_not_clobbered_by_sync() {
 //  * hydrate-on-open reads resolved values from the projection (SET-REC-003);
 //  * a canonical Argus set_value on a real mounted control reaches the PUT boundary.
 //
-// The LIVE managed-PostgreSQL round-trip for this surface is the separate proof
+// The LIVE managed-SurrealDB round-trip for this surface is the separate proof
 // test_editor_preference_records.rs (require_live_backend). Here the stub is the
 // sole I/O surface so the UI wiring is provable with no live server.
 // ===========================================================================

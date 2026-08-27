@@ -19,7 +19,7 @@
 //! - AC-006: a kittest collapses a node, adds an unrelated heading, and asserts the collapsed node stays
 //!   collapsed across the live rebuild.
 //! - AC-007: this test set passes with no failures and the outline reads ONLY the in-memory DocModel
-//!   (no backend / PostgreSQL / EventLedger / SQLite call — the module has no such dependency).
+//!   (no backend / SurrealDB / EventLedger / alternate local store call — the module has no such dependency).
 //! - HBR-VIS: a kittest screenshot of the rendered outline, saved to the EXTERNAL Handshake_Artifacts
 //!   root (CX-212E, never repo-local).
 
@@ -377,7 +377,7 @@ fn ac006_collapse_state_survives_live_rebuild() {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // AC-007: the outline reads ONLY the in-memory DocModel — build_outline is a pure function over a
-// hand-built doc with no backend/PG/EventLedger/SQLite involvement (it has no such dependency at all).
+// hand-built doc with no backend/SurrealDB/EventLedger/alternate local store involvement (it has no such dependency at all).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]

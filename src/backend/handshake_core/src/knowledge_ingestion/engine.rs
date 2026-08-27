@@ -2,7 +2,7 @@
 //! writes, and EventLedger receipts for the SourceIngestionAndEvidence group.
 //!
 //! The engine writes THROUGH the existing storage layer
-//! (`storage::knowledge::KnowledgeStore` on `PostgresDatabase`) for the
+//! (`storage::knowledge::KnowledgeStore` on `SurrealDatabase`) for the
 //! pre-existing knowledge tables, and through [`KnowledgeIngestionStore`] for
 //! the ingestion-owned tables (0160-0169). Every mutation leaves an
 //! EventLedger receipt carrying actor, session, and correlation ids
@@ -16,8 +16,6 @@ use std::time::Instant;
 use futures_util::stream::{self, StreamExt};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{query, Row};
-use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
@@ -26,8 +24,8 @@ use crate::storage::knowledge::{
     KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
     NewKnowledgeSourceRoot,
 };
-use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
-use crate::storage::{Database, StorageError};
+use crate::storage::surreal::SurrealDatabase;
+use crate::storage::Database;
 
 use super::allowlist::{CompiledRootPolicy, RootRegistrationPolicy};
 use super::backpressure::IngestionLimits;
@@ -89,10 +87,10 @@ pub struct RootRegistrationRequest {
 }
 
 /// The ingestion engine. Cheap to construct per request: both handles wrap
-/// pooled connections.
+/// lifecycle-managed embedded handles.
 #[derive(Clone)]
 pub struct IngestionEngine {
-    db: Arc<PostgresDatabase>,
+    db: Arc<SurrealDatabase>,
     store: KnowledgeIngestionStore,
 }
 
@@ -136,14 +134,14 @@ pub(crate) fn prepare_code_nav_file(
 }
 
 impl IngestionEngine {
-    pub fn new(db: Arc<PostgresDatabase>, store: KnowledgeIngestionStore) -> Self {
+    pub fn new(db: Arc<SurrealDatabase>, store: KnowledgeIngestionStore) -> Self {
         Self { db, store }
     }
 
-    /// Build an engine over one PostgreSQL handle: the ingestion store reuses
-    /// the same pool (no second connection pool, no reconnect).
-    pub fn from_database(db: Arc<PostgresDatabase>) -> Self {
-        let store = KnowledgeIngestionStore::new(db.pool().clone());
+    /// Build an engine over one SurrealDB handle: the ingestion store reuses
+    /// the same lifecycle-managed embedded store (no reconnect).
+    pub fn from_database(db: Arc<SurrealDatabase>) -> Self {
+        let store = KnowledgeIngestionStore::new(Arc::clone(&db));
         Self { db, store }
     }
 
@@ -151,7 +149,7 @@ impl IngestionEngine {
         &self.store
     }
 
-    pub fn knowledge(&self) -> &PostgresDatabase {
+    pub fn knowledge(&self) -> &SurrealDatabase {
         &self.db
     }
 
@@ -188,15 +186,16 @@ impl IngestionEngine {
                 path: absolute.display().to_string(),
                 detail: err.to_string(),
             })?;
-            prepared.push(prepare_code_nav_file(root.root_kind, &normalized, &bytes, limits)?);
+            prepared.push(prepare_code_nav_file(
+                root.root_kind,
+                &normalized,
+                &bytes,
+                limits,
+            )?);
         }
         Ok((prepared, skipped))
     }
 
-    /// Persist prepared code-nav extraction records in one PostgreSQL
-    /// transaction. EventLedger events remain per-file (each source/receipt
-    /// keeps its own immutable evidence id); only the commit boundary is
-    /// shared to remove autocommit latency.
     pub(crate) async fn persist_code_nav_batch(
         &self,
         ctx: &IngestionContext,
@@ -205,249 +204,87 @@ impl IngestionEngine {
         prepared: &[PreparedCodeNavFile],
     ) -> IngestionResult<Vec<(String, String)>> {
         ctx.validate()?;
-        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
-        let start_event = NewKernelEvent::builder(
-            ctx.kernel_task_run_id.clone(),
-            ctx.session_run_id.clone(),
-            KernelEventType::ValidationRecorded,
-            ctx.actor.clone(),
-        )
-        .aggregate("knowledge_ingestion_run", run_token)
-        .source_component("knowledge_ingestion")
-        .payload(json!({"kind":"ingestion_run_started","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token}))
-        .build()
-        .map_err(|err| IngestionError::Kernel(err.to_string()))?;
-        let start_event_id = append_kernel_event_with_executor(&mut *tx, start_event)
-            .await
-            .map_err(IngestionError::from)?
-            .event_id;
-        let result: IngestionResult<Vec<(String, String)>> = async {
-            let mut sources = Vec::with_capacity(prepared.len());
-            for file in prepared {
-            // Resolve the canonical source row before emitting the receipt. The
-            // root/path unique key is the idempotency boundary for re-indexing;
-            // retries must reuse the existing source_id so all child receipts,
-            // spans, and code-index rows continue to point at the same source.
-            let candidate_source_id = format!("KSRC-{}", Uuid::now_v7().simple());
-            let parser_status = match file.extraction.status {
-                ExtractionStatus::Success | ExtractionStatus::Partial => "parsed",
-                ExtractionStatus::Failed => "failed",
-                _ => "pending",
-            };
-            let extraction_status = match file.extraction.status {
-                ExtractionStatus::Success | ExtractionStatus::Partial => "extracted",
-                ExtractionStatus::Failed => "failed",
-                _ => "pending",
-            };
-            let source_id: String = query(
-                "INSERT INTO knowledge_sources (source_id,workspace_id,root_id,source_kind,relative_path,content_hash,size_bytes,provenance,permission_scope,redaction_state,parser_status,extraction_status,last_index_receipt_event_id) VALUES ($1,$2,$3,'file',$4,$5,$6,$7,'workspace',$8,$9,$10,NULL) ON CONFLICT (root_id,relative_path) WHERE relative_path IS NOT NULL DO UPDATE SET workspace_id=EXCLUDED.workspace_id,content_hash=EXCLUDED.content_hash,size_bytes=EXCLUDED.size_bytes,provenance=EXCLUDED.provenance,redaction_state=EXCLUDED.redaction_state,parser_status=EXCLUDED.parser_status,extraction_status=EXCLUDED.extraction_status,stale=FALSE,updated_at=NOW() RETURNING source_id",
-            )
-            .bind(&candidate_source_id)
-            .bind(&root.workspace_id)
-            .bind(&root.root_id)
-            .bind(&file.relative_path)
-            .bind(&file.content_hash)
-            .bind(file.size_bytes)
-            .bind(json!({"discovered_by":"knowledge_code_nav_batch","run_token":run_token}))
-            .bind(file.extraction.redaction_state.as_str())
-            .bind(parser_status)
-            .bind(extraction_status)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(StorageError::from)?
-            .try_get("source_id")
-            .map_err(StorageError::from)?;
-            let receipt_id = new_ingestion_id("KIRC");
-            let event = NewKernelEvent::builder(
-                ctx.kernel_task_run_id.clone(),
-                ctx.session_run_id.clone(),
+        let start_event_id = self
+            .append_receipt_event(
+                ctx,
                 KernelEventType::ValidationRecorded,
-                ctx.actor.clone(),
+                "knowledge_ingestion_run",
+                run_token,
+                json!({"kind":"ingestion_run_started","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token}),
             )
-            .aggregate("knowledge_ingestion_receipt", &source_id)
-            .source_component("knowledge_ingestion")
-            .payload(json!({
-                "kind": "extraction_receipt",
-                "workspace_id": root.workspace_id,
-                "root_id": root.root_id,
-                "source_id": source_id,
-                "relative_path": file.relative_path,
-                "status": file.extraction.status.as_str(),
-                "spans_produced": file.extraction.spans.len(),
-                "run_token": run_token,
-            }))
-            .build()
-            .map_err(|err| IngestionError::Kernel(err.to_string()))?;
-            let event_id = append_kernel_event_with_executor(&mut *tx, event)
-                .await
-                .map_err(IngestionError::from)?
-                .event_id;
-            query("UPDATE knowledge_sources SET last_index_receipt_event_id=$1,updated_at=NOW() WHERE source_id=$2")
-                .bind(&event_id)
-                .bind(&source_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(StorageError::from)?;
-            query("INSERT INTO knowledge_ingestion_receipts (receipt_id,workspace_id,source_id,ingestion_run_token,extractor_id,extractor_version,status,error_class,error_detail,spans_produced,spans_failed,redaction_count,content_hash,duration_ms,receipt_event_id) VALUES ($1,$2,$3,$4,'code_file_windows','v1',$5,$6,$7,$8,$9,$10,$11,$12,$13)")
-                .bind(&receipt_id).bind(&root.workspace_id).bind(&source_id).bind(run_token)
-                .bind(file.extraction.status.as_str()).bind(file.extraction.error_class.map(|e| e.as_str()))
-                .bind(&file.extraction.error_detail).bind(file.extraction.spans.len() as i32)
-                .bind(file.extraction.spans_failed).bind(file.extraction.redaction_count as i32)
-                .bind(&file.content_hash).bind(file.duration_ms).bind(&event_id)
-                .execute(&mut *tx).await.map_err(StorageError::from)?;
-            for (index, span) in file.extraction.spans.iter().enumerate() {
-                let span_id = new_ingestion_id("KISP");
-                query("INSERT INTO knowledge_ingestion_spans (span_id,workspace_id,source_id,receipt_id,span_index,anchor_kind,anchor,byte_start,byte_end,content,content_hash,redaction_state,link_candidates) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)")
-                    .bind(&span_id).bind(&root.workspace_id).bind(&source_id).bind(&receipt_id)
-                    .bind(index as i32).bind(span.anchor.kind_str()).bind(span.anchor.to_json())
-                    .bind(span.byte_start).bind(span.byte_end).bind(&span.content)
-                    .bind(hex::encode(Sha256::digest(span.content.as_bytes()))).bind(span.redaction.as_str())
-                    .bind(serde_json::json!(span.link_candidates)).execute(&mut *tx).await.map_err(StorageError::from)?;
-            }
-                sources.push((source_id, file.relative_path.clone()));
-            }
-            // Reconcile sources that belonged to this root on the prior pass but were not
-            // observed in the current canonical walk. The optimized code-nav batch must retain
-            // the same deleted/moved lifecycle semantics as the general ingestion path: both the
-            // KnowledgeSource authority row and its served code-file index state become stale in
-            // the same transaction, so nav can never continue reporting the old symbol as fresh.
-            let seen_paths: Vec<String> = prepared
-                .iter()
-                .map(|file| file.relative_path.clone())
-                .collect();
-            let stale_candidates = query(
-                "SELECT source_id, relative_path, content_hash
-                 FROM knowledge_sources
-                 WHERE root_id = $1
-                   AND relative_path IS NOT NULL
-                   AND stale = FALSE
-                   AND NOT (relative_path = ANY($2::text[]))
-                 ORDER BY relative_path
-                 FOR UPDATE",
-            )
-            .bind(&root.root_id)
-            .bind(&seen_paths)
-            .fetch_all(&mut *tx)
-            .await
-            .map_err(StorageError::from)?;
-            let stale_marked = stale_candidates.len();
-            for candidate in stale_candidates {
-                let source_id: String = candidate
-                    .try_get("source_id")
-                    .map_err(StorageError::from)?;
-                let relative_path: String = candidate
-                    .try_get("relative_path")
-                    .map_err(StorageError::from)?;
-                let content_hash: String = candidate
-                    .try_get("content_hash")
-                    .map_err(StorageError::from)?;
-                let moved_to = prepared
-                    .iter()
-                    .find(|file| {
-                        file.content_hash == content_hash && file.relative_path != relative_path
-                    })
-                    .map(|file| file.relative_path.clone());
-                let disposition = if moved_to.is_some() {
-                    "moved"
-                } else {
-                    "deleted"
-                };
+            .await?;
 
-                query(
-                    "UPDATE knowledge_sources
-                     SET stale = TRUE, updated_at = NOW()
-                     WHERE source_id = $1",
-                )
-                .bind(&source_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(StorageError::from)?;
-                query(
-                    "UPDATE knowledge_code_files
-                     SET stale = TRUE, updated_at = NOW()
-                     WHERE source_id = $1",
-                )
-                .bind(&source_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(StorageError::from)?;
-
-                let mut stale_event = NewKernelEvent::builder(
-                    ctx.kernel_task_run_id.clone(),
-                    ctx.session_run_id.clone(),
-                    KernelEventType::ValidationRecorded,
-                    ctx.actor.clone(),
-                )
-                .aggregate("knowledge_source_lifecycle", &source_id)
-                .source_component("knowledge_ingestion")
-                .payload(json!({
-                    "kind": "source_stale_marked",
-                    "disposition": disposition,
-                    "workspace_id": root.workspace_id,
-                    "root_id": root.root_id,
-                    "source_id": source_id,
-                    "relative_path": relative_path,
-                    "moved_to": moved_to,
-                    "run_token": run_token,
-                }));
-                if let Some(correlation_id) = &ctx.correlation_id {
-                    stale_event = stale_event.correlation_id(correlation_id.clone());
-                }
-                let stale_event = stale_event
-                    .build()
-                    .map_err(|err| IngestionError::Kernel(err.to_string()))?;
-                append_kernel_event_with_executor(&mut *tx, stale_event)
-                    .await
-                    .map_err(IngestionError::from)?;
-            }
-
-            let finish_event = NewKernelEvent::builder(
-            ctx.kernel_task_run_id.clone(),
-            ctx.session_run_id.clone(),
-            KernelEventType::ValidationRecorded,
-            ctx.actor.clone(),
-        )
-        .aggregate("knowledge_ingestion_run", run_token)
-        .causation_id(start_event_id.clone())
-        .source_component("knowledge_ingestion")
-        .payload(json!({
-            "kind": "ingestion_run_finished",
-            "workspace_id": root.workspace_id,
-            "root_id": root.root_id,
-            "run_token": run_token,
-            "files_ingested": sources.len(),
-            "stale_marked": stale_marked,
-        }))
-        .build()
-        .map_err(|err| IngestionError::Kernel(err.to_string()))?;
-            append_kernel_event_with_executor(&mut *tx, finish_event)
-                .await
-                .map_err(IngestionError::from)?;
-            Ok(sources)
-        }
-        .await;
-
-        match result {
-            Ok(sources) => {
-                tx.commit().await.map_err(StorageError::from)?;
-                Ok(sources)
-            }
-            Err(error) => {
-                // Roll back all partial source/receipt/span writes before
-                // recording a terminal failure against the already committed
-                // start event. The caller still receives the original error.
-                let _ = tx.rollback().await;
-                self.append_ingestion_failure_receipt(
+        let mut sources = Vec::with_capacity(prepared.len());
+        for file in prepared {
+            let hashes = compute_content_hashes(&file.content);
+            match self
+                .persist_attempt(
                     ctx,
                     root,
+                    &file.relative_path,
+                    &hashes,
+                    file.size_bytes,
                     run_token,
-                    &start_event_id,
-                    &error,
+                    file.extraction.clone(),
+                    file.duration_ms,
+                    false,
                 )
-                .await;
-                Err(error)
+                .await
+            {
+                Ok(outcome) => sources.push((outcome.source.source_id, file.relative_path.clone())),
+                Err(error) => {
+                    self.append_ingestion_failure_receipt(
+                        ctx,
+                        root,
+                        run_token,
+                        &start_event_id,
+                        &error,
+                    )
+                    .await;
+                    return Err(error);
+                }
             }
         }
+
+        let seen_paths: HashSet<&str> = prepared
+            .iter()
+            .map(|file| file.relative_path.as_str())
+            .collect();
+        let mut stale_marked = 0usize;
+        for source in self
+            .db
+            .list_knowledge_sources_for_root(&root.root_id)
+            .await?
+        {
+            let Some(relative_path) = source.relative_path.as_deref() else {
+                continue;
+            };
+            if source.stale || seen_paths.contains(relative_path) {
+                continue;
+            }
+            self.db
+                .mark_knowledge_source_stale(&source.source_id)
+                .await?;
+            stale_marked += 1;
+            self.append_receipt_event(
+                ctx,
+                KernelEventType::ValidationRecorded,
+                "knowledge_source_lifecycle",
+                &source.source_id,
+                json!({"kind":"source_stale_marked","workspace_id":root.workspace_id,"root_id":root.root_id,"source_id":source.source_id,"relative_path":relative_path,"run_token":run_token}),
+            )
+            .await?;
+        }
+
+        self.append_receipt_event(
+            ctx,
+            KernelEventType::ValidationRecorded,
+            "knowledge_ingestion_run",
+            run_token,
+            json!({"kind":"ingestion_run_finished","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token,"files_ingested":sources.len(),"stale_marked":stale_marked,"causation_id":start_event_id}),
+        )
+        .await?;
+        Ok(sources)
     }
 
     /// Append one ingestion EventLedger receipt event.
@@ -954,14 +791,8 @@ impl IngestionEngine {
                 detail: "registered root does not exist on disk under the runtime anchor"
                     .to_string(),
             };
-            self.append_ingestion_failure_receipt(
-                ctx,
-                &root,
-                &run_token,
-                &start_event_id,
-                &error,
-            )
-            .await;
+            self.append_ingestion_failure_receipt(ctx, &root, &run_token, &start_event_id, &error)
+                .await;
             return Err(error);
         }
 
@@ -1001,7 +832,7 @@ impl IngestionEngine {
         let root_for_tasks = root.clone();
         let run_token_for_tasks = run_token.clone();
         let limits_for_tasks = *limits;
-        let ingestion_concurrency = crate::storage::configured_postgres_parallelism();
+        let ingestion_concurrency = crate::storage::configured_surreal_operation_concurrency();
         let ingest_results = stream::iter(ingest_inputs)
             .map(|(normalized, abs_path, size)| {
                 let engine = engine.clone();
@@ -1036,14 +867,8 @@ impl IngestionEngine {
             }
         }
         if let Some(error) = first_ingestion_error {
-            self.append_ingestion_failure_receipt(
-                ctx,
-                &root,
-                &run_token,
-                &start_event_id,
-                &error,
-            )
-            .await;
+            self.append_ingestion_failure_receipt(ctx, &root, &run_token, &start_event_id, &error)
+                .await;
             return Err(error);
         }
 
@@ -1275,6 +1100,7 @@ impl IngestionEngine {
 // ---------------------------------------------------------------------------
 
 /// Outcome of the pure extraction phase.
+#[derive(Clone)]
 struct ExtractionOutput {
     kind: Option<IngestionSourceKind>,
     status: ExtractionStatus,
@@ -1465,25 +1291,25 @@ fn run_extraction(
     // the span-level redaction pass below, so MEDIUM findings that straddle a
     // window boundary (#1) are caught — they are visible to the whole-file
     // scan even when no single window holds the whole secret.
-    let whole_file_report: Option<SecretScanReport> =
-        if spec.capabilities.secret_scan && needs_text {
-            let report = scan_text(text);
-            if report.must_block() {
-                return ExtractionOutput {
-                    kind: Some(kind),
-                    status: ExtractionStatus::Blocked,
-                    error_class: Some(IngestionErrorClass::SecretBlocked),
-                    error_detail: Some(secret_block_detail(&report)),
-                    spans: Vec::new(),
-                    spans_failed: 0,
-                    redaction_count: report.redaction_count() as i32,
-                    redaction_state: KnowledgeRedactionState::Redacted,
-                };
-            }
-            Some(report)
-        } else {
-            None
-        };
+    let whole_file_report: Option<SecretScanReport> = if spec.capabilities.secret_scan && needs_text
+    {
+        let report = scan_text(text);
+        if report.must_block() {
+            return ExtractionOutput {
+                kind: Some(kind),
+                status: ExtractionStatus::Blocked,
+                error_class: Some(IngestionErrorClass::SecretBlocked),
+                error_detail: Some(secret_block_detail(&report)),
+                spans: Vec::new(),
+                spans_failed: 0,
+                redaction_count: report.redaction_count() as i32,
+                redaction_state: KnowledgeRedactionState::Redacted,
+            };
+        }
+        Some(report)
+    } else {
+        None
+    };
 
     // Per-kind extraction over the RAW text (anchors reference the source;
     // redaction below only rewrites stored content).

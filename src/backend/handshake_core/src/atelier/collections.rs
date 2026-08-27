@@ -7,20 +7,19 @@
 //! `addImagesToCollection`, `removeImagesFromCollection`, `listCollectionImages`,
 //! `createContactSheet`, `listContactSheets`) and `app/backend/db.js`
 //! (`Collection`, `CollectionItem`, `ContactSheet` tables). Schema/behavior
-//! intent only -- storage is the single Handshake store, never the legacy source
-//! SQLite layer. The bodies still bind `sqlx` and are PENDING the SurrealDB
-//! port -- see the `atelier` module header (MT-138).
+//! intent only -- storage is the single embedded Handshake SurrealDB store,
+//! never the legacy SQLite or PostgreSQL layers.
 //! MT ids: MT-003 (module boundary), MT-005 (event coverage), MT-018 (this fold-in).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, Row, Transaction};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    event_ref_for_text, reject_legacy_runtime_ref, search::normalize_tag, AtelierError,
-    AtelierResult, AtelierStore,
+    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, search::normalize_tag,
+    AtelierError, AtelierResult, AtelierStore,
 };
 
 /// A named, ordered image set. Membership is ordered (`sort_order`) and may be
@@ -194,141 +193,169 @@ fn require_collection_ref_text<'a>(field: &str, value: &'a str) -> AtelierResult
     Ok(trimmed)
 }
 
-fn collection_from_row(row: &sqlx::postgres::PgRow) -> Collection {
-    let tags_json: serde_json::Value = row.get("tags_json");
-    let tags = tags_json
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-    Collection {
-        collection_id: row.get("collection_id"),
-        name: row.get("name"),
-        notes: row.get("notes"),
-        tags,
-        character_internal_id: row.get("character_internal_id"),
-        sheet_version_id: row.get("sheet_version_id"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+#[derive(SurrealValue)]
+struct CollectionRow {
+    collection_id: SurrealUuid,
+    name: String,
+    notes: String,
+    tags_json: Vec<String>,
+    character_internal_id: Option<SurrealUuid>,
+    sheet_version_id: Option<SurrealUuid>,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+impl From<CollectionRow> for Collection {
+    fn from(row: CollectionRow) -> Self {
+        Self {
+            collection_id: row.collection_id.into(),
+            name: row.name,
+            notes: row.notes,
+            tags: row.tags_json,
+            character_internal_id: row.character_internal_id.map(Into::into),
+            sheet_version_id: row.sheet_version_id.map(Into::into),
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        }
     }
 }
 
-fn media_asset_tag_from_row(row: &sqlx::postgres::PgRow) -> MediaAssetTag {
-    MediaAssetTag {
-        asset_id: row.get("asset_id"),
-        tag_id: row.get("tag_id"),
-        text: row.get("text"),
-        source: row.get("source"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct CollectionMemberRow {
+    collection_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    content_hash: String,
+    sort_order: i64,
+    added_at_utc: Datetime,
+}
+
+impl From<CollectionMemberRow> for CollectionMember {
+    fn from(row: CollectionMemberRow) -> Self {
+        Self {
+            collection_id: row.collection_id.into(),
+            asset_id: row.asset_id.into(),
+            content_hash: row.content_hash,
+            sort_order: row.sort_order,
+            added_at_utc: row.added_at_utc.into(),
+        }
     }
 }
 
-fn collection_metadata_application_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> CollectionMetadataApplication {
-    let applied_tags_json: serde_json::Value = row.get("applied_tags_json");
-    let removed_tags_json: serde_json::Value = row.get("removed_tags_json");
-    let applied_tags = applied_tags_json
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-    let removed_tags = removed_tags_json
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-    CollectionMetadataApplication {
-        application_id: row.get("application_id"),
-        collection_id: row.get("collection_id"),
-        requested_by: row.get("requested_by"),
-        applied_tags,
-        removed_tags,
-        affected_asset_count: row.get("affected_asset_count"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct MediaAssetTagRow {
+    asset_id: SurrealUuid,
+    tag_id: SurrealUuid,
+    text: String,
+    source: String,
+    created_at_utc: Datetime,
+}
+
+impl From<MediaAssetTagRow> for MediaAssetTag {
+    fn from(row: MediaAssetTagRow) -> Self {
+        Self {
+            asset_id: row.asset_id.into(),
+            tag_id: row.tag_id.into(),
+            text: row.text,
+            source: row.source,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn member_from_row(row: &sqlx::postgres::PgRow) -> CollectionMember {
-    CollectionMember {
-        collection_id: row.get("collection_id"),
-        asset_id: row.get("asset_id"),
-        content_hash: row.get("content_hash"),
-        sort_order: row.get("sort_order"),
-        added_at_utc: row.get("added_at_utc"),
+#[derive(SurrealValue)]
+struct CollectionMetadataApplicationRow {
+    application_id: SurrealUuid,
+    collection_id: SurrealUuid,
+    requested_by: String,
+    applied_tags_json: Vec<String>,
+    removed_tags_json: Vec<String>,
+    affected_asset_count: i64,
+    created_at_utc: Datetime,
+}
+
+impl From<CollectionMetadataApplicationRow> for CollectionMetadataApplication {
+    fn from(row: CollectionMetadataApplicationRow) -> Self {
+        Self {
+            application_id: row.application_id.into(),
+            collection_id: row.collection_id.into(),
+            requested_by: row.requested_by,
+            applied_tags: row.applied_tags_json,
+            removed_tags: row.removed_tags_json,
+            affected_asset_count: row.affected_asset_count,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-async fn ensure_tag_in_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    text: &str,
-) -> AtelierResult<(Uuid, String)> {
-    let normalized = normalize_tag(text);
-    if normalized.is_empty() {
-        return Err(AtelierError::Validation(
-            "tag text must not be empty".into(),
-        ));
-    }
-    let row = sqlx::query(
-        r#"INSERT INTO atelier_tag (text)
-           VALUES ($1)
-           ON CONFLICT (text) DO UPDATE SET text = EXCLUDED.text
-           RETURNING tag_id, text"#,
-    )
-    .bind(&normalized)
-    .fetch_one(&mut **tx)
-    .await?;
-    Ok((row.get("tag_id"), row.get("text")))
+#[derive(SurrealValue)]
+struct ContactSheetRow {
+    sheet_id: SurrealUuid,
+    name: String,
+    source_type: String,
+    source_id: Option<String>,
+    tags_json: Vec<String>,
+    character_internal_id: Option<SurrealUuid>,
+    sheet_version_id: Option<SurrealUuid>,
+    manifest: serde_json::Value,
+    image_count: i64,
+    created_at_utc: Datetime,
 }
 
-fn contact_sheet_from_row(row: &sqlx::postgres::PgRow) -> ContactSheet {
-    let tags_json: serde_json::Value = row.get("tags_json");
-    let tags = tags_json
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-    ContactSheet {
-        sheet_id: row.get("sheet_id"),
-        name: row.get("name"),
-        source_type: row.get("source_type"),
-        source_id: row.get("source_id"),
-        tags,
-        character_internal_id: row.get("character_internal_id"),
-        sheet_version_id: row.get("sheet_version_id"),
-        manifest: row.get("manifest"),
-        image_count: row.get("image_count"),
-        created_at_utc: row.get("created_at_utc"),
+impl From<ContactSheetRow> for ContactSheet {
+    fn from(row: ContactSheetRow) -> Self {
+        Self {
+            sheet_id: row.sheet_id.into(),
+            name: row.name,
+            source_type: row.source_type,
+            source_id: row.source_id,
+            tags: row.tags_json,
+            character_internal_id: row.character_internal_id.map(Into::into),
+            sheet_version_id: row.sheet_version_id.map(Into::into),
+            manifest: row.manifest,
+            image_count: row.image_count,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
-fn contact_sheet_svg_artifact_from_row(row: &sqlx::postgres::PgRow) -> ContactSheetSvgArtifact {
-    ContactSheetSvgArtifact {
-        svg_artifact_id: row.get("svg_artifact_id"),
-        sheet_id: row.get("sheet_id"),
-        manifest_hash: row.get("manifest_hash"),
-        content_hash: row.get("content_hash"),
-        artifact_ref: row.get("artifact_ref"),
-        svg_text: row.get("svg_text"),
-        image_count: row.get("image_count"),
-        created_at_utc: row.get("created_at_utc"),
+#[derive(SurrealValue)]
+struct ContactSheetSvgArtifactRow {
+    svg_artifact_id: SurrealUuid,
+    sheet_id: SurrealUuid,
+    manifest_hash: String,
+    content_hash: String,
+    artifact_ref: String,
+    svg_text: String,
+    image_count: i64,
+    created_at_utc: Datetime,
+}
+
+impl From<ContactSheetSvgArtifactRow> for ContactSheetSvgArtifact {
+    fn from(row: ContactSheetSvgArtifactRow) -> Self {
+        Self {
+            svg_artifact_id: row.svg_artifact_id.into(),
+            sheet_id: row.sheet_id.into(),
+            manifest_hash: row.manifest_hash,
+            content_hash: row.content_hash,
+            artifact_ref: row.artifact_ref,
+            svg_text: row.svg_text,
+            image_count: row.image_count,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
 fn sha256_ref(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn deterministic_uuid(seed: &[u8]) -> Uuid {
+    let digest = Sha256::digest(seed);
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x50;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes)
 }
 
 fn escape_xml(value: &str) -> String {
@@ -461,6 +488,382 @@ fn render_contact_sheet_svg_text(sheet: &ContactSheet) -> AtelierResult<(String,
     Ok((svg, image_count))
 }
 
+macro_rules! collection_select {
+    () => {
+        "collection_id, name, notes, tags_json, \
+         IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } \
+           AS character_internal_id, \
+         IF sheet_version_id = NONE { NONE } ELSE { record::id(sheet_version_id) } \
+           AS sheet_version_id, \
+         created_at_utc, updated_at_utc"
+    };
+}
+
+macro_rules! collection_member_select {
+    () => {
+        "record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+         asset_id.content_hash AS content_hash, sort_order, added_at_utc"
+    };
+}
+
+macro_rules! contact_sheet_select {
+    () => {
+        "sheet_id, name, source_type, source_id, tags_json, \
+         IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } \
+           AS character_internal_id, \
+         IF sheet_version_id = NONE { NONE } ELSE { record::id(sheet_version_id) } \
+           AS sheet_version_id, \
+         manifest, image_count, created_at_utc"
+    };
+}
+
+macro_rules! svg_artifact_select {
+    () => {
+        "svg_artifact_id, record::id(sheet_id) AS sheet_id, manifest_hash, content_hash, \
+         artifact_ref, svg_text, image_count, created_at_utc"
+    };
+}
+
+#[derive(Clone, SurrealValue)]
+struct CreateCollectionBindings {
+    collection_rid: RecordId,
+    collection_id: SurrealUuid,
+    name: String,
+    notes: String,
+    tags_json: Vec<String>,
+    character_ref: Option<RecordId>,
+    sheet_version_ref: Option<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct CollectionIdBinding {
+    collection_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct CollectionRefBinding {
+    collection_ref: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpdateCollectionBindings {
+    collection_rid: RecordId,
+    name: Option<String>,
+    notes: Option<String>,
+    tags_json: Option<Vec<String>>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct CollectionItemInput {
+    asset_ref: RecordId,
+    pair_key: Vec<SurrealUuid>,
+    order_offset: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct AddImagesBindings {
+    collection_ref: RecordId,
+    asset_refs: Vec<RecordId>,
+    items: Vec<CollectionItemInput>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RemoveImagesBindings {
+    collection_ref: RecordId,
+    asset_refs: Vec<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct AssetIdBinding {
+    asset_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct AssetRefBinding {
+    asset_ref: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct TagMediaAssetBindings {
+    asset_ref: RecordId,
+    tag_rid: RecordId,
+    tag_id: SurrealUuid,
+    text: String,
+    source: String,
+}
+
+#[derive(SurrealValue)]
+struct UntagMediaAssetBindings {
+    asset_ref: RecordId,
+    text: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct MetadataTagCandidate {
+    tag_rid: RecordId,
+    tag_id: SurrealUuid,
+    text: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ApplyCollectionMetadataBindings {
+    application_rid: RecordId,
+    application_id: SurrealUuid,
+    collection_ref: RecordId,
+    requested_by: String,
+    applied_tags: Vec<MetadataTagCandidate>,
+    applied_tags_json: Vec<String>,
+    removed_tags_json: Vec<String>,
+    tag_source: String,
+}
+
+#[derive(SurrealValue)]
+struct AssetIdsBinding {
+    asset_ids: Vec<SurrealUuid>,
+}
+
+#[derive(SurrealValue)]
+struct AssetHashRow {
+    asset_id: SurrealUuid,
+    content_hash: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct CreateContactSheetBindings {
+    sheet_rid: RecordId,
+    sheet_id: SurrealUuid,
+    name: String,
+    source_type: String,
+    source_id: Option<String>,
+    tags_json: Vec<String>,
+    character_ref: Option<RecordId>,
+    sheet_version_ref: Option<RecordId>,
+    manifest: serde_json::Value,
+    image_count: i64,
+}
+
+#[derive(SurrealValue)]
+struct SheetIdBinding {
+    sheet_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct SourceTypeBinding {
+    source_type: Option<String>,
+}
+
+#[derive(SurrealValue)]
+struct FindSvgArtifactBindings {
+    sheet_ref: RecordId,
+    manifest_hash: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct CreateSvgArtifactBindings {
+    artifact_rid: RecordId,
+    svg_artifact_id: SurrealUuid,
+    sheet_ref: RecordId,
+    manifest_hash: String,
+    content_hash: String,
+    artifact_ref: String,
+    svg_text: String,
+    image_count: i64,
+}
+
+#[derive(SurrealValue)]
+struct SvgArtifactWriteResult {
+    artifact: Vec<ContactSheetSvgArtifactRow>,
+    created: bool,
+}
+
+const CREATE_COLLECTION_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.collection_rid; ",
+    atelier_event_sql!(),
+    " CREATE $rid CONTENT { \
+         collection_id: $domain.collection_id, name: $domain.name, notes: $domain.notes, \
+         tags_json: $domain.tags_json, character_internal_id: $domain.character_ref, \
+         sheet_version_id: $domain.sheet_version_ref \
+       }; RETURN (SELECT ",
+    collection_select!(),
+    " FROM $rid); };"
+);
+
+const GET_COLLECTION_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_select!(),
+    " FROM atelier_collection WHERE collection_id = $collection_id LIMIT 1;"
+);
+
+const LIST_COLLECTIONS_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_select!(),
+    " FROM atelier_collection ORDER BY updated_at_utc DESC, collection_id ASC;"
+);
+
+const UPDATE_COLLECTION_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.collection_rid; ",
+    atelier_event_sql!(),
+    " UPDATE $rid SET name = $domain.name ?? name, notes = $domain.notes ?? notes, \
+         tags_json = $domain.tags_json ?? tags_json, updated_at_utc = time::now(); \
+       RETURN (SELECT ",
+    collection_select!(),
+    " FROM $rid); };"
+);
+
+const ADD_IMAGES_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $existing = count(SELECT id FROM atelier_collection_item \
+                            WHERE collection_id = $domain.collection_ref \
+                              AND asset_id IN $domain.asset_refs); \
+       LET $next_order = (array::max((SELECT VALUE sort_order FROM atelier_collection_item \
+                                     WHERE collection_id = $domain.collection_ref)) ?? -1) + 1; ",
+    atelier_event_sql!(),
+    " FOR $item IN $domain.items { \
+         LET $rid = type::record('atelier_collection_item', $item.pair_key); \
+         IF !record::exists($rid) { \
+           CREATE $rid CONTENT { collection_id: $domain.collection_ref, \
+             asset_id: $item.asset_ref, sort_order: $next_order + $item.order_offset }; \
+         }; \
+       }; \
+       LET $inserted = array::len($domain.items) - $existing; \
+       IF $inserted > 0 { UPDATE $domain.collection_ref SET updated_at_utc = time::now(); }; \
+       RETURN $inserted; };"
+);
+
+const REMOVE_IMAGES_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $removed = count(SELECT id FROM atelier_collection_item \
+                            WHERE collection_id = $domain.collection_ref \
+                              AND asset_id IN $domain.asset_refs); ",
+    atelier_event_sql!(),
+    " DELETE atelier_collection_item WHERE collection_id = $domain.collection_ref \
+           AND asset_id IN $domain.asset_refs; \
+       IF $removed > 0 { UPDATE $domain.collection_ref SET updated_at_utc = time::now(); }; \
+       RETURN $removed; };"
+);
+
+const LIST_COLLECTION_IMAGES_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_member_select!(),
+    " FROM atelier_collection_item WHERE collection_id = $collection_ref \
+      ORDER BY sort_order ASC, added_at_utc ASC;"
+);
+
+const TAG_MEDIA_ASSET_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $existing_tag = (SELECT VALUE id FROM atelier_tag \
+                            WHERE text = $domain.text LIMIT 1); \
+       IF $existing_tag = [] { \
+         CREATE $domain.tag_rid CONTENT { tag_id: $domain.tag_id, text: $domain.text }; \
+       }; \
+       LET $tag_ref = (SELECT VALUE id FROM atelier_tag WHERE text = $domain.text LIMIT 1)[0]; \
+       LET $rid = type::record('atelier_media_asset_tag', \
+                              [record::id($domain.asset_ref), record::id($tag_ref)]); ",
+    atelier_event_sql!(),
+    " UPSERT $rid SET asset_id = $domain.asset_ref, tag_id = $tag_ref, source = $domain.source; \
+       RETURN (SELECT record::id(asset_id) AS asset_id, record::id(tag_id) AS tag_id, \
+                      tag_id.text AS text, source, created_at_utc FROM $rid); };"
+);
+
+const UNTAG_MEDIA_ASSET_STATEMENT: &str = "RETURN { \
+       LET $tag_refs = (SELECT VALUE id FROM atelier_tag WHERE text = $text); \
+       LET $removed = count(SELECT id FROM atelier_media_asset_tag \
+                            WHERE asset_id = $asset_ref AND tag_id IN $tag_refs); \
+       DELETE atelier_media_asset_tag WHERE asset_id = $asset_ref AND tag_id IN $tag_refs; \
+       RETURN $removed > 0; };";
+
+const LIST_MEDIA_ASSET_TAGS_STATEMENT: &str =
+    "SELECT record::id(asset_id) AS asset_id, record::id(tag_id) AS tag_id, \
+            tag_id.text AS text, source, created_at_utc \
+     FROM atelier_media_asset_tag WHERE asset_id = $asset_ref \
+     ORDER BY text ASC, tag_id ASC;";
+
+const APPLY_COLLECTION_METADATA_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $members = (SELECT VALUE asset_id FROM atelier_collection_item \
+                       WHERE collection_id = $domain.collection_ref \
+                       ORDER BY sort_order ASC, added_at_utc ASC); \
+       FOR $tag IN $domain.applied_tags { \
+         LET $existing = (SELECT VALUE id FROM atelier_tag WHERE text = $tag.text LIMIT 1); \
+         IF $existing = [] { CREATE $tag.tag_rid CONTENT { tag_id: $tag.tag_id, text: $tag.text }; }; \
+       }; \
+       LET $applied_tag_refs = (SELECT VALUE id FROM atelier_tag \
+                               WHERE text IN $domain.applied_tags_json); \
+       FOR $asset_ref IN $members { \
+         FOR $tag_ref IN $applied_tag_refs { \
+           LET $rid = type::record('atelier_media_asset_tag', \
+                                  [record::id($asset_ref), record::id($tag_ref)]); \
+           IF !record::exists($rid) { \
+             CREATE $rid CONTENT { asset_id: $asset_ref, tag_id: $tag_ref, \
+                                   source: $domain.tag_source }; \
+           }; \
+         }; \
+       }; \
+       LET $removed_tag_refs = (SELECT VALUE id FROM atelier_tag \
+                               WHERE text IN $domain.removed_tags_json); \
+       DELETE atelier_media_asset_tag WHERE asset_id IN $members \
+                                        AND tag_id IN $removed_tag_refs; ",
+    atelier_event_sql!(),
+    " CREATE $domain.application_rid CONTENT { \
+         application_id: $domain.application_id, collection_id: $domain.collection_ref, \
+         requested_by: $domain.requested_by, applied_tags_json: $domain.applied_tags_json, \
+         removed_tags_json: $domain.removed_tags_json, \
+         affected_asset_count: array::len($members) \
+       }; \
+       RETURN (SELECT application_id, record::id(collection_id) AS collection_id, requested_by, \
+                      applied_tags_json, removed_tags_json, affected_asset_count, created_at_utc \
+               FROM $domain.application_rid); };"
+);
+
+const ASSET_HASHES_STATEMENT: &str =
+    "SELECT asset_id, content_hash FROM atelier_media_asset WHERE asset_id IN $asset_ids;";
+
+const CREATE_CONTACT_SHEET_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.sheet_rid; ",
+    atelier_event_sql!(),
+    " CREATE $rid CONTENT { sheet_id: $domain.sheet_id, name: $domain.name, \
+         source_type: $domain.source_type, source_id: $domain.source_id, \
+         tags_json: $domain.tags_json, character_internal_id: $domain.character_ref, \
+         sheet_version_id: $domain.sheet_version_ref, manifest: $domain.manifest, \
+         image_count: $domain.image_count \
+       }; RETURN (SELECT ",
+    contact_sheet_select!(),
+    " FROM $rid); };"
+);
+
+const GET_CONTACT_SHEET_STATEMENT: &str = concat!(
+    "SELECT ",
+    contact_sheet_select!(),
+    " FROM atelier_contact_sheet WHERE sheet_id = $sheet_id LIMIT 1;"
+);
+
+const LIST_CONTACT_SHEETS_STATEMENT: &str = concat!(
+    "SELECT ",
+    contact_sheet_select!(),
+    " FROM atelier_contact_sheet \
+      WHERE $source_type = NONE OR source_type = $source_type \
+      ORDER BY created_at_utc DESC, sheet_id ASC;"
+);
+
+const FIND_SVG_ARTIFACT_STATEMENT: &str = concat!(
+    "SELECT ",
+    svg_artifact_select!(),
+    " FROM atelier_contact_sheet_svg_artifact \
+      WHERE sheet_id = $sheet_ref AND manifest_hash = $manifest_hash LIMIT 1;"
+);
+
+const CREATE_SVG_ARTIFACT_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $created = !record::exists($artifact_rid); \
+       IF $created { \
+         CREATE $artifact_rid CONTENT { svg_artifact_id: $svg_artifact_id, \
+           sheet_id: $sheet_ref, manifest_hash: $manifest_hash, content_hash: $content_hash, \
+           artifact_ref: $artifact_ref, svg_text: $svg_text, image_count: $image_count }; \
+       }; RETURN { created: $created, artifact: (SELECT ",
+    svg_artifact_select!(),
+    " FROM $artifact_rid) }; };"
+);
+
 impl AtelierStore {
     /// Create a named collection. `name` must be non-empty and is unique. Tags
     /// are trimmed and de-duplicated. Optional character/sheet links are FK
@@ -473,63 +876,63 @@ impl AtelierStore {
             ));
         }
         let tags = clean_tags(&new.tags);
-        let tags_json = serde_json::Value::from(tags.clone());
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_collection
-                 (name, notes, tags_json, character_internal_id, sheet_version_id)
-               VALUES ($1, $2, $3, $4, $5)
-               RETURNING collection_id, name, notes, tags_json,
-                         character_internal_id, sheet_version_id,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(name)
-        .bind(&new.notes)
-        .bind(&tags_json)
-        .bind(new.character_internal_id)
-        .bind(new.sheet_version_id)
-        .fetch_one(self.pool())
-        .await?;
-        let collection = collection_from_row(&row);
-        self.record_event(
-            collections_event_family::COLLECTION_CREATED,
-            "atelier_collection",
-            &collection.collection_id.to_string(),
-            serde_json::json!({
-                "name": collection.name,
-                "tags": collection.tags,
-                "character_scoped": collection.character_internal_id.is_some(),
-            }),
-        )
-        .await?;
-        Ok(collection)
+        let collection_id = Uuid::now_v7();
+        let bindings = CreateCollectionBindings {
+            collection_rid: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
+            collection_id: SurrealUuid::from(collection_id),
+            name: name.to_owned(),
+            notes: new.notes.clone(),
+            tags_json: tags.clone(),
+            character_ref: new
+                .character_internal_id
+                .map(|id| RecordId::new("atelier_character", SurrealUuid::from(id))),
+            sheet_version_ref: new
+                .sheet_version_id
+                .map(|id| RecordId::new("atelier_sheet_version", SurrealUuid::from(id))),
+        };
+        let row: Option<CollectionRow> = self
+            .write_with_event(
+                CREATE_COLLECTION_STATEMENT,
+                bindings,
+                collections_event_family::COLLECTION_CREATED,
+                "atelier_collection",
+                &collection_id.to_string(),
+                serde_json::json!({
+                    "name": name,
+                    "tags": tags,
+                    "character_scoped": new.character_internal_id.is_some(),
+                }),
+            )
+            .await?;
+        row.map(Collection::from).ok_or_else(|| {
+            AtelierError::Internal("creating a collection returned no row".to_owned())
+        })
     }
 
     /// Fetch a collection by id.
     pub async fn get_collection(&self, collection_id: Uuid) -> AtelierResult<Collection> {
-        let row = sqlx::query(
-            r#"SELECT collection_id, name, notes, tags_json,
-                      character_internal_id, sheet_version_id,
-                      created_at_utc, updated_at_utc
-               FROM atelier_collection WHERE collection_id = $1"#,
-        )
-        .bind(collection_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("collection_id={collection_id}")))?;
-        Ok(collection_from_row(&row))
+        let bindings = CollectionIdBinding {
+            collection_id: SurrealUuid::from(collection_id),
+        };
+        let row: Option<CollectionRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_COLLECTION_STATEMENT, bindings).await })
+            })
+            .await?;
+        row.map(Collection::from)
+            .ok_or_else(|| AtelierError::NotFound(format!("collection_id={collection_id}")))
     }
 
     /// List collections (most recently updated first).
     pub async fn list_collections(&self) -> AtelierResult<Vec<Collection>> {
-        let rows = sqlx::query(
-            r#"SELECT collection_id, name, notes, tags_json,
-                      character_internal_id, sheet_version_id,
-                      created_at_utc, updated_at_utc
-               FROM atelier_collection ORDER BY updated_at_utc DESC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(collection_from_row).collect())
+        let rows: Vec<CollectionRow> = self
+            .store()
+            .with_data_operation(|ctx| {
+                Box::pin(async move { ctx.query_values(LIST_COLLECTIONS_STATEMENT, ()).await })
+            })
+            .await?;
+        Ok(rows.into_iter().map(Collection::from).collect())
     }
 
     /// Update mutable fields of a collection (name, notes, tags). `None` leaves
@@ -548,40 +951,29 @@ impl AtelierStore {
                 ));
             }
         }
+        self.get_collection(collection_id).await?;
         let tags_cleaned = tags.map(clean_tags);
-        let tags_json = tags_cleaned
-            .as_ref()
-            .map(|t| serde_json::Value::from(t.clone()));
-        let row = sqlx::query(
-            r#"UPDATE atelier_collection
-               SET name           = COALESCE($2, name),
-                   notes          = COALESCE($3, notes),
-                   tags_json      = COALESCE($4, tags_json),
-                   updated_at_utc = NOW()
-               WHERE collection_id = $1
-               RETURNING collection_id, name, notes, tags_json,
-                         character_internal_id, sheet_version_id,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(collection_id)
-        .bind(name.map(|s| s.trim()))
-        .bind(notes)
-        .bind(&tags_json)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("collection_id={collection_id}")))?;
-        let collection = collection_from_row(&row);
-        self.record_event(
-            collections_event_family::COLLECTION_UPDATED,
-            "atelier_collection",
-            &collection.collection_id.to_string(),
-            serde_json::json!({
-                "name": collection.name,
-                "tags": collection.tags,
-            }),
-        )
-        .await?;
-        Ok(collection)
+        let bindings = UpdateCollectionBindings {
+            collection_rid: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
+            name: name.map(|value| value.trim().to_owned()),
+            notes: notes.map(ToOwned::to_owned),
+            tags_json: tags_cleaned.clone(),
+        };
+        let row: Option<CollectionRow> = self
+            .write_with_event(
+                UPDATE_COLLECTION_STATEMENT,
+                bindings,
+                collections_event_family::COLLECTION_UPDATED,
+                "atelier_collection",
+                &collection_id.to_string(),
+                serde_json::json!({
+                    "name": name.map(str::trim),
+                    "tags": tags_cleaned,
+                }),
+            )
+            .await?;
+        row.map(Collection::from)
+            .ok_or_else(|| AtelierError::NotFound(format!("collection_id={collection_id}")))
     }
 
     /// Append media assets to a collection in the given order. Existing
@@ -594,55 +986,51 @@ impl AtelierStore {
     ) -> AtelierResult<i64> {
         // Validate the collection exists (clear error vs. an FK violation).
         self.get_collection(collection_id).await?;
-
-        let mut tx = self.pool().begin().await?;
-        let mut next_order: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM atelier_collection_item WHERE collection_id = $1",
-        )
-        .bind(collection_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let mut inserted: i64 = 0;
+        let mut unique = Vec::new();
         for asset_id in asset_ids {
-            let affected = sqlx::query(
-                r#"INSERT INTO atelier_collection_item (collection_id, asset_id, sort_order)
-                   VALUES ($1, $2, $3)
-                   ON CONFLICT (collection_id, asset_id) DO NOTHING"#,
-            )
-            .bind(collection_id)
-            .bind(asset_id)
-            .bind(next_order)
-            .execute(&mut *tx)
-            .await?
-            .rows_affected();
-            if affected > 0 {
-                inserted += 1;
-                next_order += 1;
+            if !unique.contains(asset_id) {
+                unique.push(*asset_id);
             }
         }
-
-        if inserted > 0 {
-            sqlx::query(
-                "UPDATE atelier_collection SET updated_at_utc = NOW() WHERE collection_id = $1",
+        let collection_ref = RecordId::new("atelier_collection", SurrealUuid::from(collection_id));
+        let asset_refs: Vec<RecordId> = unique
+            .iter()
+            .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(*id)))
+            .collect();
+        let items = unique
+            .iter()
+            .zip(asset_refs.iter())
+            .enumerate()
+            .map(|(offset, (asset_id, asset_ref))| CollectionItemInput {
+                asset_ref: asset_ref.clone(),
+                pair_key: vec![
+                    SurrealUuid::from(collection_id),
+                    SurrealUuid::from(*asset_id),
+                ],
+                order_offset: offset as i64,
+            })
+            .collect();
+        let bindings = AddImagesBindings {
+            collection_ref,
+            asset_refs,
+            items,
+        };
+        let inserted: Option<i64> = self
+            .write_with_event(
+                ADD_IMAGES_STATEMENT,
+                bindings,
+                collections_event_family::COLLECTION_IMAGES_ADDED,
+                "atelier_collection",
+                &collection_id.to_string(),
+                serde_json::json!({
+                    "requested": asset_ids.len(),
+                    "unique_requested": unique.len(),
+                }),
             )
-            .bind(collection_id)
-            .execute(&mut *tx)
             .await?;
-        }
-        tx.commit().await?;
-
-        self.record_event(
-            collections_event_family::COLLECTION_IMAGES_ADDED,
-            "atelier_collection",
-            &collection_id.to_string(),
-            serde_json::json!({
-                "requested": asset_ids.len(),
-                "inserted": inserted,
-            }),
-        )
-        .await?;
-        Ok(inserted)
+        inserted.ok_or_else(|| {
+            AtelierError::Internal("adding collection images returned no count".to_owned())
+        })
     }
 
     /// Remove media assets from a collection. Returns the number removed. Bumps
@@ -652,40 +1040,36 @@ impl AtelierStore {
         collection_id: Uuid,
         asset_ids: &[Uuid],
     ) -> AtelierResult<i64> {
-        let mut tx = self.pool().begin().await?;
-        let mut removed: i64 = 0;
+        self.get_collection(collection_id).await?;
+        let mut unique = Vec::new();
         for asset_id in asset_ids {
-            let affected = sqlx::query(
-                "DELETE FROM atelier_collection_item WHERE collection_id = $1 AND asset_id = $2",
-            )
-            .bind(collection_id)
-            .bind(asset_id)
-            .execute(&mut *tx)
-            .await?
-            .rows_affected();
-            removed += affected as i64;
+            if !unique.contains(asset_id) {
+                unique.push(*asset_id);
+            }
         }
-        if removed > 0 {
-            sqlx::query(
-                "UPDATE atelier_collection SET updated_at_utc = NOW() WHERE collection_id = $1",
+        let bindings = RemoveImagesBindings {
+            collection_ref: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
+            asset_refs: unique
+                .iter()
+                .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(*id)))
+                .collect(),
+        };
+        let removed: Option<i64> = self
+            .write_with_event(
+                REMOVE_IMAGES_STATEMENT,
+                bindings,
+                collections_event_family::COLLECTION_IMAGES_REMOVED,
+                "atelier_collection",
+                &collection_id.to_string(),
+                serde_json::json!({
+                    "requested": asset_ids.len(),
+                    "unique_requested": unique.len(),
+                }),
             )
-            .bind(collection_id)
-            .execute(&mut *tx)
             .await?;
-        }
-        tx.commit().await?;
-
-        self.record_event(
-            collections_event_family::COLLECTION_IMAGES_REMOVED,
-            "atelier_collection",
-            &collection_id.to_string(),
-            serde_json::json!({
-                "requested": asset_ids.len(),
-                "removed": removed,
-            }),
-        )
-        .await?;
-        Ok(removed)
+        removed.ok_or_else(|| {
+            AtelierError::Internal("removing collection images returned no count".to_owned())
+        })
     }
 
     /// List a collection's members in membership order, resolved to their media
@@ -694,18 +1078,19 @@ impl AtelierStore {
         &self,
         collection_id: Uuid,
     ) -> AtelierResult<Vec<CollectionMember>> {
-        let rows = sqlx::query(
-            r#"SELECT ci.collection_id, ci.asset_id, ma.content_hash,
-                      ci.sort_order, ci.added_at_utc
-               FROM atelier_collection_item ci
-               JOIN atelier_media_asset ma ON ma.asset_id = ci.asset_id
-               WHERE ci.collection_id = $1
-               ORDER BY ci.sort_order ASC, ci.added_at_utc ASC"#,
-        )
-        .bind(collection_id)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(member_from_row).collect())
+        let bindings = CollectionRefBinding {
+            collection_ref: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
+        };
+        let rows: Vec<CollectionMemberRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_COLLECTION_IMAGES_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(CollectionMember::from).collect())
     }
 
     /// Attach one normalized tag directly to a media asset. This is the
@@ -717,46 +1102,55 @@ impl AtelierStore {
         source: &str,
     ) -> AtelierResult<MediaAssetTag> {
         let source = require_collection_ref_text("source", source)?;
-        let tag = self.ensure_tag(text).await?;
-        let asset_exists: Option<Uuid> =
-            sqlx::query_scalar("SELECT asset_id FROM atelier_media_asset WHERE asset_id = $1")
-                .bind(asset_id)
-                .fetch_optional(self.pool())
-                .await?;
-        if asset_exists.is_none() {
+        let normalized = normalize_tag(text);
+        if normalized.is_empty() {
+            return Err(AtelierError::Validation(
+                "tag text must not be empty".into(),
+            ));
+        }
+        let exists_bindings = AssetIdBinding {
+            asset_id: SurrealUuid::from(asset_id),
+        };
+        let asset_exists: Option<bool> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "RETURN record::exists(type::record('atelier_media_asset', $asset_id));",
+                        exists_bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        if !asset_exists.unwrap_or(false) {
             return Err(AtelierError::NotFound(format!("media asset_id={asset_id}")));
         }
-        let row = sqlx::query(
-            r#"WITH upserted AS (
-                 INSERT INTO atelier_media_asset_tag (asset_id, tag_id, source)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (asset_id, tag_id)
-                   DO UPDATE SET source = EXCLUDED.source
-                 RETURNING asset_id, tag_id, source, created_at_utc
-               )
-               SELECT u.asset_id, u.tag_id, t.text, u.source, u.created_at_utc
-               FROM upserted u
-               JOIN atelier_tag t ON t.tag_id = u.tag_id"#,
-        )
-        .bind(asset_id)
-        .bind(tag.tag_id)
-        .bind(source)
-        .fetch_one(self.pool())
-        .await?;
-        let asset_tag = media_asset_tag_from_row(&row);
-        self.record_event(
-            collections_event_family::MEDIA_ASSET_TAGGED,
-            "atelier_media_asset_tag",
-            &event_ref_for_text(&format!("media-asset-tag:{}:{}", asset_id, tag.tag_id)),
-            serde_json::json!({
-                "asset_id": asset_id,
-                "tag_id": tag.tag_id,
-                "text": asset_tag.text,
-                "tag_source_ref": event_ref_for_text(source),
-            }),
-        )
-        .await?;
-        Ok(asset_tag)
+        let tag_id = Uuid::now_v7();
+        let bindings = TagMediaAssetBindings {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+            tag_rid: RecordId::new("atelier_tag", SurrealUuid::from(tag_id)),
+            tag_id: SurrealUuid::from(tag_id),
+            text: normalized.clone(),
+            source: source.to_owned(),
+        };
+        let row: Option<MediaAssetTagRow> = self
+            .write_with_event(
+                TAG_MEDIA_ASSET_STATEMENT,
+                bindings,
+                collections_event_family::MEDIA_ASSET_TAGGED,
+                "atelier_media_asset_tag",
+                &event_ref_for_text(&format!("media-asset-tag:{asset_id}:{normalized}")),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "text": normalized,
+                    "tag_source_ref": event_ref_for_text(source),
+                }),
+            )
+            .await?;
+        row.map(MediaAssetTag::from).ok_or_else(|| {
+            AtelierError::Internal("tagging a media asset returned no row".to_owned())
+        })
     }
 
     /// Remove one tag from a media asset. Returns `true` only when a row was
@@ -768,18 +1162,19 @@ impl AtelierStore {
                 "tag text must not be empty".into(),
             ));
         }
-        let removed = sqlx::query(
-            r#"DELETE FROM atelier_media_asset_tag mat
-               USING atelier_tag t
-               WHERE mat.tag_id = t.tag_id
-                 AND mat.asset_id = $1
-                 AND t.text = $2"#,
-        )
-        .bind(asset_id)
-        .bind(&normalized)
-        .execute(self.pool())
-        .await?;
-        if removed.rows_affected() == 0 {
+        let bindings = UntagMediaAssetBindings {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+            text: normalized.clone(),
+        };
+        let removed: Option<bool> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(
+                    async move { ctx.query_first(UNTAG_MEDIA_ASSET_STATEMENT, bindings).await },
+                )
+            })
+            .await?;
+        if !removed.unwrap_or(false) {
             return Ok(false);
         }
         self.record_event(
@@ -797,18 +1192,19 @@ impl AtelierStore {
 
     /// List direct tags on one media asset, ordered by normalized tag text.
     pub async fn list_media_asset_tags(&self, asset_id: Uuid) -> AtelierResult<Vec<MediaAssetTag>> {
-        let rows = sqlx::query(
-            r#"SELECT mat.asset_id, mat.tag_id, t.text, mat.source,
-                      mat.created_at_utc
-               FROM atelier_media_asset_tag mat
-               JOIN atelier_tag t ON t.tag_id = mat.tag_id
-               WHERE mat.asset_id = $1
-               ORDER BY t.text ASC"#,
-        )
-        .bind(asset_id)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(media_asset_tag_from_row).collect())
+        let bindings = AssetRefBinding {
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+        };
+        let rows: Vec<MediaAssetTagRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_MEDIA_ASSET_TAGS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(MediaAssetTag::from).collect())
     }
 
     /// Apply a collection's tags to every current member photo as a durable
@@ -822,94 +1218,54 @@ impl AtelierStore {
         let collection = self.get_collection(request.collection_id).await?;
         let applied_tags = normalize_media_tags(&collection.tags);
         let removed_tags = normalize_media_tags(&request.remove_tags);
-        let applied_tags_json = serde_json::Value::from(applied_tags.clone());
-        let removed_tags_json = serde_json::Value::from(removed_tags.clone());
-        let mut tx = self.pool().begin().await?;
-
-        let member_rows = sqlx::query(
-            r#"SELECT asset_id
-               FROM atelier_collection_item
-               WHERE collection_id = $1
-               ORDER BY sort_order ASC, added_at_utc ASC"#,
-        )
-        .bind(request.collection_id)
-        .fetch_all(&mut *tx)
-        .await?;
-        let member_asset_ids: Vec<Uuid> =
-            member_rows.iter().map(|row| row.get("asset_id")).collect();
-        let tag_source = format!("collection:{}", request.collection_id);
-
-        let mut applied_tag_ids = Vec::new();
-        for tag_text in &applied_tags {
-            let (tag_id, _) = ensure_tag_in_tx(&mut tx, tag_text).await?;
-            applied_tag_ids.push(tag_id);
-        }
-
-        for asset_id in &member_asset_ids {
-            for tag_id in &applied_tag_ids {
-                sqlx::query(
-                    r#"INSERT INTO atelier_media_asset_tag (asset_id, tag_id, source)
-                       VALUES ($1, $2, $3)
-                       ON CONFLICT (asset_id, tag_id) DO NOTHING"#,
-                )
-                .bind(asset_id)
-                .bind(tag_id)
-                .bind(&tag_source)
-                .execute(&mut *tx)
-                .await?;
-            }
-
-            for tag_text in &removed_tags {
-                sqlx::query(
-                    r#"DELETE FROM atelier_media_asset_tag mat
-                       USING atelier_tag t
-                       WHERE mat.tag_id = t.tag_id
-                         AND mat.asset_id = $1
-                         AND t.text = $2"#,
-                )
-                .bind(asset_id)
-                .bind(tag_text)
-                .execute(&mut *tx)
-                .await?;
-            }
-        }
-
-        let affected_asset_count = i64::try_from(member_asset_ids.len()).map_err(|_| {
-            AtelierError::Validation("collection member count exceeds i64 range".into())
-        })?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_collection_metadata_application
-                 (collection_id, requested_by, applied_tags_json,
-                  removed_tags_json, affected_asset_count)
-               VALUES ($1, $2, $3, $4, $5)
-               RETURNING application_id, collection_id, requested_by,
-                         applied_tags_json, removed_tags_json,
-                         affected_asset_count, created_at_utc"#,
-        )
-        .bind(request.collection_id)
-        .bind(requested_by)
-        .bind(&applied_tags_json)
-        .bind(&removed_tags_json)
-        .bind(affected_asset_count)
-        .fetch_one(&mut *tx)
-        .await?;
-        let application = collection_metadata_application_from_row(&row);
-        tx.commit().await?;
-
-        self.record_event(
-            collections_event_family::COLLECTION_METADATA_APPLIED,
-            "atelier_collection",
-            &request.collection_id.to_string(),
-            serde_json::json!({
-                "application_id": application.application_id,
-                "requested_by": application.requested_by,
-                "affected_asset_count": application.affected_asset_count,
-                "applied_tags": &application.applied_tags,
-                "removed_tags": &application.removed_tags,
-            }),
-        )
-        .await?;
-        Ok(application)
+        let application_id = Uuid::now_v7();
+        let candidates = applied_tags
+            .iter()
+            .map(|text| {
+                let tag_id = Uuid::now_v7();
+                MetadataTagCandidate {
+                    tag_rid: RecordId::new("atelier_tag", SurrealUuid::from(tag_id)),
+                    tag_id: SurrealUuid::from(tag_id),
+                    text: text.clone(),
+                }
+            })
+            .collect();
+        let bindings = ApplyCollectionMetadataBindings {
+            application_rid: RecordId::new(
+                "atelier_collection_metadata_application",
+                SurrealUuid::from(application_id),
+            ),
+            application_id: SurrealUuid::from(application_id),
+            collection_ref: RecordId::new(
+                "atelier_collection",
+                SurrealUuid::from(request.collection_id),
+            ),
+            requested_by: requested_by.to_owned(),
+            applied_tags: candidates,
+            applied_tags_json: applied_tags.clone(),
+            removed_tags_json: removed_tags.clone(),
+            tag_source: format!("collection:{}", request.collection_id),
+        };
+        let row: Option<CollectionMetadataApplicationRow> = self
+            .write_with_event(
+                APPLY_COLLECTION_METADATA_STATEMENT,
+                bindings,
+                collections_event_family::COLLECTION_METADATA_APPLIED,
+                "atelier_collection",
+                &request.collection_id.to_string(),
+                serde_json::json!({
+                    "application_id": application_id,
+                    "requested_by": requested_by,
+                    "applied_tags": applied_tags,
+                    "removed_tags": removed_tags,
+                }),
+            )
+            .await?;
+        row.map(CollectionMetadataApplication::from).ok_or_else(|| {
+            AtelierError::Internal(
+                "applying collection metadata returned no receipt row".to_owned(),
+            )
+        })
     }
 
     /// Capture a contact sheet from an explicit list of media assets, or from a
@@ -939,15 +1295,23 @@ impl AtelierStore {
         // Resolve membership: explicit ids win; otherwise pull from a source
         // collection's ordered membership (mirrors legacy source `createContactSheet`).
         let members: Vec<(Uuid, String)> = if !asset_ids.is_empty() {
+            let bindings = AssetIdsBinding {
+                asset_ids: asset_ids.iter().copied().map(SurrealUuid::from).collect(),
+            };
+            let rows: Vec<AssetHashRow> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(
+                        async move { ctx.query_values(ASSET_HASHES_STATEMENT, bindings).await },
+                    )
+                })
+                .await?;
             let mut resolved = Vec::with_capacity(asset_ids.len());
             for asset_id in asset_ids {
-                let hash: Option<String> = sqlx::query_scalar(
-                    "SELECT content_hash FROM atelier_media_asset WHERE asset_id = $1",
-                )
-                .bind(asset_id)
-                .fetch_optional(self.pool())
-                .await?;
-                let hash = hash
+                let hash = rows
+                    .iter()
+                    .find(|row| Uuid::from(row.asset_id) == *asset_id)
+                    .map(|row| row.content_hash.clone())
                     .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
                 resolved.push((*asset_id, hash));
             }
@@ -975,8 +1339,9 @@ impl AtelierStore {
 
         let source_id = source_collection_id.map(|c| c.to_string());
         let tags_cleaned = clean_tags(tags);
-        let tags_json = serde_json::Value::from(tags_cleaned.clone());
-        let image_count = members.len() as i64;
+        let image_count = i64::try_from(members.len()).map_err(|_| {
+            AtelierError::Validation("contact sheet image count exceeds i64 range".into())
+        })?;
 
         let manifest = serde_json::json!({
             "schema": CONTACT_SHEET_MANIFEST_SCHEMA,
@@ -999,54 +1364,56 @@ impl AtelierStore {
             name.trim().to_string()
         };
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_contact_sheet
-                 (name, source_type, source_id, tags_json, character_internal_id,
-                  sheet_version_id, manifest, image_count)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               RETURNING sheet_id, name, source_type, source_id, tags_json,
-                         character_internal_id, sheet_version_id, manifest,
-                         image_count, created_at_utc"#,
-        )
-        .bind(&final_name)
-        .bind(&st)
-        .bind(&source_id)
-        .bind(&tags_json)
-        .bind(character_internal_id)
-        .bind(sheet_version_id)
-        .bind(&manifest)
-        .bind(image_count)
-        .fetch_one(self.pool())
-        .await?;
-        let sheet = contact_sheet_from_row(&row);
-        self.record_event(
-            collections_event_family::CONTACT_SHEET_CREATED,
-            "atelier_contact_sheet",
-            &sheet.sheet_id.to_string(),
-            serde_json::json!({
-                "name": sheet.name,
-                "source_type": sheet.source_type,
-                "source_id": sheet.source_id,
-                "image_count": sheet.image_count,
-            }),
-        )
-        .await?;
-        Ok(sheet)
+        let sheet_id = Uuid::now_v7();
+        let bindings = CreateContactSheetBindings {
+            sheet_rid: RecordId::new("atelier_contact_sheet", SurrealUuid::from(sheet_id)),
+            sheet_id: SurrealUuid::from(sheet_id),
+            name: final_name.clone(),
+            source_type: st.clone(),
+            source_id: source_id.clone(),
+            tags_json: tags_cleaned,
+            character_ref: character_internal_id
+                .map(|id| RecordId::new("atelier_character", SurrealUuid::from(id))),
+            sheet_version_ref: sheet_version_id
+                .map(|id| RecordId::new("atelier_sheet_version", SurrealUuid::from(id))),
+            manifest,
+            image_count,
+        };
+        let row: Option<ContactSheetRow> = self
+            .write_with_event(
+                CREATE_CONTACT_SHEET_STATEMENT,
+                bindings,
+                collections_event_family::CONTACT_SHEET_CREATED,
+                "atelier_contact_sheet",
+                &sheet_id.to_string(),
+                serde_json::json!({
+                    "name": final_name,
+                    "source_type": st,
+                    "source_id": source_id,
+                    "image_count": image_count,
+                }),
+            )
+            .await?;
+        row.map(ContactSheet::from).ok_or_else(|| {
+            AtelierError::Internal("creating a contact sheet returned no row".to_owned())
+        })
     }
 
     /// Fetch a contact sheet by id (manifest included).
     pub async fn get_contact_sheet(&self, sheet_id: Uuid) -> AtelierResult<ContactSheet> {
-        let row = sqlx::query(
-            r#"SELECT sheet_id, name, source_type, source_id, tags_json,
-                      character_internal_id, sheet_version_id, manifest,
-                      image_count, created_at_utc
-               FROM atelier_contact_sheet WHERE sheet_id = $1"#,
-        )
-        .bind(sheet_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("contact_sheet sheet_id={sheet_id}")))?;
-        Ok(contact_sheet_from_row(&row))
+        let bindings = SheetIdBinding {
+            sheet_id: SurrealUuid::from(sheet_id),
+        };
+        let row: Option<ContactSheetRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(
+                    async move { ctx.query_first(GET_CONTACT_SHEET_STATEMENT, bindings).await },
+                )
+            })
+            .await?;
+        row.map(ContactSheet::from)
+            .ok_or_else(|| AtelierError::NotFound(format!("contact_sheet sheet_id={sheet_id}")))
     }
 
     /// List contact sheets, optionally filtered by source type, most recent
@@ -1056,18 +1423,19 @@ impl AtelierStore {
         source_type: Option<&str>,
     ) -> AtelierResult<Vec<ContactSheet>> {
         let filter = source_type.map(|s| s.trim().to_ascii_lowercase());
-        let rows = sqlx::query(
-            r#"SELECT sheet_id, name, source_type, source_id, tags_json,
-                      character_internal_id, sheet_version_id, manifest,
-                      image_count, created_at_utc
-               FROM atelier_contact_sheet
-               WHERE $1::text IS NULL OR source_type = $1
-               ORDER BY created_at_utc DESC"#,
-        )
-        .bind(filter)
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(contact_sheet_from_row).collect())
+        let bindings = SourceTypeBinding {
+            source_type: filter,
+        };
+        let rows: Vec<ContactSheetRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_CONTACT_SHEETS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(ContactSheet::from).collect())
     }
 
     /// Materialize a deterministic SVG artifact from a persisted contact-sheet
@@ -1088,44 +1456,62 @@ impl AtelierStore {
             "artifact://atelier/contact-sheet-svg/{}",
             content_hash.trim_start_matches("sha256:")
         );
+        let existing_bindings = FindSvgArtifactBindings {
+            sheet_ref: RecordId::new("atelier_contact_sheet", SurrealUuid::from(sheet_id)),
+            manifest_hash: manifest_hash.clone(),
+        };
+        let existing: Option<ContactSheetSvgArtifactRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(FIND_SVG_ARTIFACT_STATEMENT, existing_bindings)
+                        .await
+                })
+            })
+            .await?;
+        if let Some(row) = existing {
+            return Ok(row.into());
+        }
 
-        let inserted = sqlx::query(
-            r#"INSERT INTO atelier_contact_sheet_svg_artifact
-                 (sheet_id, manifest_hash, content_hash, artifact_ref, svg_text, image_count)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (sheet_id, manifest_hash) DO NOTHING
-               RETURNING svg_artifact_id, sheet_id, manifest_hash, content_hash, artifact_ref,
-                         svg_text, image_count, created_at_utc"#,
-        )
-        .bind(sheet_id)
-        .bind(&manifest_hash)
-        .bind(&content_hash)
-        .bind(&artifact_ref)
-        .bind(&svg_text)
-        .bind(image_count)
-        .fetch_optional(self.pool())
-        .await?;
-
-        let (artifact, created) = if let Some(row) = inserted {
-            (contact_sheet_svg_artifact_from_row(&row), true)
-        } else {
-            let row = sqlx::query(
-                r#"SELECT svg_artifact_id, sheet_id, manifest_hash, content_hash, artifact_ref,
-                          svg_text, image_count, created_at_utc
-                   FROM atelier_contact_sheet_svg_artifact
-                   WHERE sheet_id = $1 AND manifest_hash = $2"#,
-            )
-            .bind(sheet_id)
-            .bind(&manifest_hash)
-            .fetch_optional(self.pool())
-            .await?
+        let svg_artifact_id = deterministic_uuid(
+            format!("atelier-contact-sheet-svg:{sheet_id}:{manifest_hash}").as_bytes(),
+        );
+        let bindings = CreateSvgArtifactBindings {
+            artifact_rid: RecordId::new(
+                "atelier_contact_sheet_svg_artifact",
+                SurrealUuid::from(svg_artifact_id),
+            ),
+            svg_artifact_id: SurrealUuid::from(svg_artifact_id),
+            sheet_ref: RecordId::new("atelier_contact_sheet", SurrealUuid::from(sheet_id)),
+            manifest_hash: manifest_hash.clone(),
+            content_hash: content_hash.clone(),
+            artifact_ref: artifact_ref.clone(),
+            svg_text,
+            image_count,
+        };
+        let result: Option<SvgArtifactWriteResult> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(CREATE_SVG_ARTIFACT_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        let result = result.ok_or_else(|| {
+            AtelierError::Internal("rendering contact sheet SVG returned no result".to_owned())
+        })?;
+        let artifact: ContactSheetSvgArtifact = result
+            .artifact
+            .into_iter()
+            .next()
             .ok_or_else(|| {
                 AtelierError::NotFound(format!(
                     "contact sheet SVG artifact sheet_id={sheet_id} manifest_hash={manifest_hash}"
                 ))
-            })?;
-            (contact_sheet_svg_artifact_from_row(&row), false)
-        };
+            })?
+            .into();
+        let created = result.created;
 
         if created {
             self.record_event(
@@ -1144,5 +1530,192 @@ impl AtelierStore {
         }
 
         Ok(artifact)
+    }
+}
+
+#[cfg(test)]
+mod embedded_store_tests {
+    use super::*;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+
+    #[derive(SurrealValue)]
+    struct SeedAssetBindings {
+        asset_rid: RecordId,
+        asset_id: SurrealUuid,
+        content_hash: String,
+        artifact_ref: String,
+    }
+
+    async fn seed_media_asset(store: &SurrealStorage, asset_id: Uuid, content_hash: &str) {
+        let bindings = SeedAssetBindings {
+            asset_rid: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+            asset_id: SurrealUuid::from(asset_id),
+            content_hash: content_hash.to_owned(),
+            artifact_ref: format!("artifact://atelier/test/{asset_id}"),
+        };
+        let created: Option<bool> = store
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "RETURN { \
+                           CREATE $asset_rid CONTENT { asset_id: $asset_id, \
+                             content_hash: $content_hash, mime: 'image/png', byte_len: 1, \
+                             artifact_ref: $artifact_ref }; \
+                           RETURN true; };",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("seed media asset");
+        assert_eq!(created, Some(true));
+    }
+
+    #[tokio::test]
+    async fn collection_batch_rolls_back_and_reopens_idempotently() {
+        let temp = tempfile::tempdir().expect("create temporary collection store");
+        let config = SurrealStorageConfig::for_data_dir(temp.path()).expect("configure store");
+        let storage = SurrealStorage::open(config).await.expect("open store");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap schema first pass");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap schema idempotent second pass");
+        let atelier = AtelierStore::new(storage.clone());
+        atelier.ensure_schema().await.expect("atelier schema ready");
+
+        let collection = atelier
+            .create_collection(&NewCollection {
+                name: "collection-reopen-proof".to_owned(),
+                notes: "embedded rollback and reopen".to_owned(),
+                tags: vec!["hero".to_owned(), " hero ".to_owned()],
+                character_internal_id: None,
+                sheet_version_id: None,
+            })
+            .await
+            .expect("create collection");
+        let retained_asset = Uuid::now_v7();
+        let rollback_asset = Uuid::now_v7();
+        seed_media_asset(&storage, retained_asset, "sha256:retained").await;
+        seed_media_asset(&storage, rollback_asset, "sha256:rollback").await;
+
+        assert_eq!(
+            atelier
+                .add_images_to_collection(collection.collection_id, &[retained_asset])
+                .await
+                .expect("add retained asset"),
+            1
+        );
+        assert_eq!(
+            atelier
+                .add_images_to_collection(collection.collection_id, &[retained_asset])
+                .await
+                .expect("idempotent membership replay"),
+            0
+        );
+        let events_before_failure = atelier
+            .count_events_for_aggregate(
+                collections_event_family::COLLECTION_IMAGES_ADDED,
+                "atelier_collection",
+                &collection.collection_id.to_string(),
+            )
+            .await
+            .expect("count events before rollback proof");
+
+        let missing_asset = Uuid::now_v7();
+        assert!(atelier
+            .add_images_to_collection(collection.collection_id, &[rollback_asset, missing_asset],)
+            .await
+            .is_err());
+        let members = atelier
+            .list_collection_images(collection.collection_id)
+            .await
+            .expect("list after rejected batch");
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].asset_id, retained_asset);
+        assert_eq!(
+            atelier
+                .count_events_for_aggregate(
+                    collections_event_family::COLLECTION_IMAGES_ADDED,
+                    "atelier_collection",
+                    &collection.collection_id.to_string(),
+                )
+                .await
+                .expect("count events after rollback proof"),
+            events_before_failure,
+            "the failed membership batch and its event must roll back together"
+        );
+
+        storage.shutdown().await.expect("close first store");
+        let reopened = SurrealStorage::open(
+            SurrealStorageConfig::for_data_dir(temp.path()).expect("configure reopened store"),
+        )
+        .await
+        .expect("reopen store");
+        bootstrap_schema(&reopened)
+            .await
+            .expect("bootstrap reopened store idempotently");
+        let reopened_atelier = AtelierStore::new(reopened.clone());
+        reopened_atelier
+            .ensure_schema()
+            .await
+            .expect("atelier schema remains ready after reopen");
+        reopened_atelier
+            .ensure_schema()
+            .await
+            .expect("atelier readiness gate is idempotent after reopen");
+
+        let defined_atelier_tables: std::collections::BTreeSet<String> = reopened
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values::<String, ()>(
+                        "RETURN array::sort(object::keys((INFO FOR DB).tables));",
+                        (),
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("inspect reopened schema")
+            .into_iter()
+            .filter(|table| table.starts_with("atelier_"))
+            .collect();
+        let readiness_inventory: std::collections::BTreeSet<String> =
+            crate::atelier::ATELIER_TABLES
+                .iter()
+                .map(|table| (*table).to_owned())
+                .collect();
+        assert_eq!(
+            readiness_inventory, defined_atelier_tables,
+            "Atelier readiness must cover every canonical atelier_* table and no stale table"
+        );
+
+        let reopened_members = reopened_atelier
+            .list_collection_images(collection.collection_id)
+            .await
+            .expect("list persisted members after reopen");
+        assert_eq!(reopened_members.len(), 1);
+        assert_eq!(reopened_members[0].asset_id, retained_asset);
+
+        let first_tag = reopened_atelier
+            .tag_media_asset(retained_asset, " Hero ", "test://collections-reopen")
+            .await
+            .expect("tag asset");
+        let replayed_tag = reopened_atelier
+            .tag_media_asset(retained_asset, "hero", "test://collections-reopen")
+            .await
+            .expect("idempotent tag replay");
+        assert_eq!(first_tag.tag_id, replayed_tag.tag_id);
+        assert_eq!(
+            reopened_atelier
+                .list_media_asset_tags(retained_asset)
+                .await
+                .expect("list persisted asset tags")
+                .len(),
+            1
+        );
+        reopened.shutdown().await.expect("close reopened store");
     }
 }

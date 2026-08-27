@@ -9,16 +9,16 @@ use chrono::{DateTime, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, Row, Transaction};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::downloader::{
     validate_media_downloader_capability_grant, MEDIA_DOWNLOADER_BATCH_PROTOCOL_ID,
 };
 use super::{
-    event_family, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
-    AtelierStore, NewMediaAsset,
+    atelier_event_sql, event_family, event_ref_for_text, reject_legacy_runtime_ref,
+    uuid_from_record_link, AtelierError, AtelierResult, AtelierStore, NewMediaAsset,
 };
 
 const URL_IMPORT_REDIRECT_POLICY: &str = "disabled_until_revalidated";
@@ -90,29 +90,61 @@ fn canonical_sha256_content_hash(content_hash: &str) -> AtelierResult<String> {
     Ok(hex.to_ascii_lowercase())
 }
 
-fn image_import_from_row(row: &sqlx::postgres::PgRow) -> ImageImportRecord {
-    ImageImportRecord {
-        import_id: row.get("import_id"),
-        idempotency_key: row.get("idempotency_key"),
-        source_kind: row.get("source_kind"),
-        status: row.get("status"),
-        requested_by: row.get("requested_by"),
-        normalized_url: row.get("normalized_url"),
-        source_url_hash: row
-            .get::<Option<String>, _>("source_url_hash")
-            .unwrap_or_default(),
-        source_host: row.get("source_host"),
-        source_label: row.get("source_label"),
-        expected_mime: row.get("expected_mime"),
-        capability_profile_id: row.get("capability_profile_id"),
-        capability_grant_ref: row.get("capability_grant_ref"),
-        required_capabilities: row.get("required_capabilities"),
-        asset_id: row.get("asset_id"),
-        artifact_ref: row.get("artifact_ref"),
-        source_provenance: row.get("source_provenance"),
-        preflight: row.get("preflight"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+/// One `atelier_image_import_request` row as the store returns it. The asset
+/// link stays raw so a missing link maps cleanly to `None`.
+#[derive(SurrealValue)]
+struct ImageImportRow {
+    import_id: SurrealUuid,
+    idempotency_key: String,
+    source_kind: String,
+    status: String,
+    requested_by: String,
+    normalized_url: Option<String>,
+    source_url_hash: Option<String>,
+    source_host: Option<String>,
+    source_label: Option<String>,
+    expected_mime: Option<String>,
+    capability_profile_id: Option<String>,
+    capability_grant_ref: Option<String>,
+    required_capabilities: serde_json::Value,
+    asset_id: Option<RecordId>,
+    artifact_ref: Option<String>,
+    source_provenance: String,
+    preflight: serde_json::Value,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+impl TryFrom<ImageImportRow> for ImageImportRecord {
+    type Error = AtelierError;
+
+    fn try_from(row: ImageImportRow) -> AtelierResult<Self> {
+        let asset_id = row
+            .asset_id
+            .as_ref()
+            .map(|link| uuid_from_record_link("asset_id", link))
+            .transpose()?;
+        Ok(ImageImportRecord {
+            import_id: row.import_id.into(),
+            idempotency_key: row.idempotency_key,
+            source_kind: row.source_kind,
+            status: row.status,
+            requested_by: row.requested_by,
+            normalized_url: row.normalized_url,
+            source_url_hash: row.source_url_hash.unwrap_or_default(),
+            source_host: row.source_host,
+            source_label: row.source_label,
+            expected_mime: row.expected_mime,
+            capability_profile_id: row.capability_profile_id,
+            capability_grant_ref: row.capability_grant_ref,
+            required_capabilities: row.required_capabilities,
+            asset_id,
+            artifact_ref: row.artifact_ref,
+            source_provenance: row.source_provenance,
+            preflight: row.preflight,
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        })
     }
 }
 
@@ -322,38 +354,147 @@ fn require_matching_url_replay(
     }
 }
 
-const IMAGE_IMPORT_COLUMNS: &str = "import_id, idempotency_key, source_kind, status, \
-    requested_by, normalized_url, source_url_hash, source_host, source_label, expected_mime, \
-    capability_profile_id, capability_grant_ref, required_capabilities, asset_id, artifact_ref, \
-    source_provenance, preflight, created_at_utc, updated_at_utc";
+const IMAGE_IMPORT_BY_KEY_STATEMENT: &str = concat!(
+    "SELECT ",
+    "import_id, idempotency_key, source_kind, status, requested_by, normalized_url, \
+     source_url_hash, source_host, source_label, expected_mime, capability_profile_id, \
+     capability_grant_ref, required_capabilities, asset_id, artifact_ref, \
+     source_provenance, preflight, created_at_utc, updated_at_utc",
+    " FROM atelier_image_import_request WHERE idempotency_key = $idempotency_key LIMIT 1;"
+);
+
+#[derive(SurrealValue)]
+struct IdempotencyKeyBinding {
+    idempotency_key: String,
+}
+
+#[derive(SurrealValue)]
+struct MediaAssetIdBinding {
+    asset_id: SurrealUuid,
+}
+
+/// The media-asset fields the clipboard replay check compares.
+#[derive(SurrealValue)]
+struct MediaAssetReplayRow {
+    content_hash: String,
+    mime: String,
+    byte_len: i64,
+}
+
+const MEDIA_ASSET_REPLAY_STATEMENT: &str =
+    "SELECT content_hash, mime, byte_len FROM atelier_media_asset \
+     WHERE asset_id = $asset_id LIMIT 1;";
+
+#[derive(Clone, SurrealValue)]
+struct CreateClipboardImportBindings {
+    record_id: RecordId,
+    import_id: SurrealUuid,
+    idempotency_key: String,
+    requested_by: String,
+    asset_ref: RecordId,
+    artifact_ref: String,
+    source_provenance: String,
+    preflight: serde_json::Value,
+}
+
+const CREATE_CLIPBOARD_IMPORT_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " CREATE $rid CONTENT { \
+         import_id: $domain.import_id, \
+         idempotency_key: $domain.idempotency_key, \
+         source_kind: 'clipboard', \
+         status: 'materialized', \
+         requested_by: $domain.requested_by, \
+         required_capabilities: [], \
+         asset_id: $domain.asset_ref, \
+         artifact_ref: $domain.artifact_ref, \
+         source_provenance: $domain.source_provenance, \
+         preflight: $domain.preflight \
+       }; \
+       RETURN (SELECT ",
+    "import_id, idempotency_key, source_kind, status, requested_by, normalized_url, \
+     source_url_hash, source_host, source_label, expected_mime, capability_profile_id, \
+     capability_grant_ref, required_capabilities, asset_id, artifact_ref, \
+     source_provenance, preflight, created_at_utc, updated_at_utc",
+    " FROM $rid); };"
+);
+
+#[derive(Clone, SurrealValue)]
+struct CreateUrlImportBindings {
+    record_id: RecordId,
+    import_id: SurrealUuid,
+    idempotency_key: String,
+    requested_by: String,
+    normalized_url: String,
+    source_url_hash: String,
+    source_host: String,
+    source_label: Option<String>,
+    expected_mime: Option<String>,
+    capability_profile_id: String,
+    capability_grant_ref: String,
+    required_capabilities: serde_json::Value,
+    source_provenance: String,
+    preflight: serde_json::Value,
+}
+
+const CREATE_URL_IMPORT_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " CREATE $rid CONTENT { \
+         import_id: $domain.import_id, \
+         idempotency_key: $domain.idempotency_key, \
+         source_kind: 'url', \
+         status: 'queued', \
+         requested_by: $domain.requested_by, \
+         normalized_url: $domain.normalized_url, \
+         source_url_hash: $domain.source_url_hash, \
+         source_host: $domain.source_host, \
+         source_label: $domain.source_label, \
+         expected_mime: $domain.expected_mime, \
+         capability_profile_id: $domain.capability_profile_id, \
+         capability_grant_ref: $domain.capability_grant_ref, \
+         required_capabilities: $domain.required_capabilities, \
+         source_provenance: $domain.source_provenance, \
+         preflight: $domain.preflight \
+       }; \
+       RETURN (SELECT ",
+    "import_id, idempotency_key, source_kind, status, requested_by, normalized_url, \
+     source_url_hash, source_host, source_label, expected_mime, capability_profile_id, \
+     capability_grant_ref, required_capabilities, asset_id, artifact_ref, \
+     source_provenance, preflight, created_at_utc, updated_at_utc",
+    " FROM $rid); };"
+);
+
+fn is_idempotency_key_conflict(error: &AtelierError) -> bool {
+    let text = error.to_string();
+    text.contains("uq_atelier_image_import_request_1") || text.contains("already contains")
+}
 
 impl AtelierStore {
-    async fn lock_image_import_key_in_tx(
-        tx: &mut Transaction<'_, Postgres>,
-        idempotency_key: &str,
-    ) -> AtelierResult<()> {
-        sqlx::query("SELECT pg_advisory_xact_lock(25025, hashtext($1))")
-            .bind(idempotency_key)
-            .execute(&mut **tx)
-            .await?;
-        Ok(())
-    }
-
-    async fn image_import_by_key_in_tx(
-        tx: &mut Transaction<'_, Postgres>,
+    async fn image_import_by_key(
+        &self,
         idempotency_key: &str,
     ) -> AtelierResult<Option<ImageImportRecord>> {
-        let row = sqlx::query(&format!(
-            "SELECT {IMAGE_IMPORT_COLUMNS} FROM atelier_image_import_request WHERE idempotency_key = $1"
-        ))
-        .bind(idempotency_key)
-        .fetch_optional(&mut **tx)
-        .await?;
-        Ok(row.as_ref().map(image_import_from_row))
+        let bindings = IdempotencyKeyBinding {
+            idempotency_key: idempotency_key.to_owned(),
+        };
+        let row: Option<ImageImportRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(IMAGE_IMPORT_BY_KEY_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        row.map(ImageImportRecord::try_from).transpose()
     }
 
-    async fn require_matching_clipboard_replay_in_tx(
-        tx: &mut Transaction<'_, Postgres>,
+    async fn require_matching_clipboard_replay(
+        &self,
         existing: &ImageImportRecord,
         input: &ClipboardImageImportRequest,
         content_hash: &str,
@@ -367,15 +508,20 @@ impl AtelierStore {
         let Some(asset_id) = existing.asset_id else {
             return Err(idempotency_mismatch());
         };
-        let row = sqlx::query(
-            r#"SELECT content_hash, mime, byte_len, source_provenance, artifact_ref
-               FROM atelier_media_asset
-               WHERE asset_id = $1"#,
-        )
-        .bind(asset_id)
-        .fetch_optional(&mut **tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
+        let bindings = MediaAssetIdBinding {
+            asset_id: SurrealUuid::from(asset_id),
+        };
+        let asset: Option<MediaAssetReplayRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(MEDIA_ASSET_REPLAY_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        let asset =
+            asset.ok_or_else(|| AtelierError::NotFound(format!("media asset_id={asset_id}")))?;
         let matches = existing.status == "materialized"
             && existing.requested_by == input.requested_by
             && existing.normalized_url.is_none()
@@ -388,9 +534,9 @@ impl AtelierStore {
             && existing.required_capabilities == serde_json::json!([])
             && existing.artifact_ref.as_deref() == Some(input.artifact_ref.as_str())
             && existing.source_provenance == source_provenance
-            && row.get::<String, _>("content_hash") == content_hash
-            && row.get::<String, _>("mime") == input.mime
-            && row.get::<i64, _>("byte_len") == input.byte_len;
+            && asset.content_hash == content_hash
+            && asset.mime == input.mime
+            && asset.byte_len == input.byte_len;
         if matches {
             Ok(())
         } else {
@@ -408,27 +554,21 @@ impl AtelierStore {
         let content_hash = canonical_sha256_content_hash(&input.content_hash)?;
         let source_application = source_application_token(input.source_application.as_deref())?;
         let source_provenance = format!("clipboard:{source_application}");
-        let mut tx = self.pool().begin().await?;
-        Self::lock_image_import_key_in_tx(&mut tx, &input.idempotency_key).await?;
 
-        if let Some(existing) =
-            Self::image_import_by_key_in_tx(&mut tx, &input.idempotency_key).await?
-        {
-            Self::require_matching_clipboard_replay_in_tx(
-                &mut tx,
+        if let Some(existing) = self.image_import_by_key(&input.idempotency_key).await? {
+            self.require_matching_clipboard_replay(
                 &existing,
                 input,
                 &content_hash,
                 &source_provenance,
             )
             .await?;
-            tx.commit().await?;
             return Ok(existing);
         }
 
         let asset = self
             .materialize_media_asset(&NewMediaAsset {
-                content_hash,
+                content_hash: content_hash.clone(),
                 mime: input.mime.clone(),
                 byte_len: input.byte_len,
                 source_provenance: Some(source_provenance.clone()),
@@ -440,42 +580,59 @@ impl AtelierStore {
             "source_application": source_application,
             "artifact_store_binding_verified": true,
         });
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_image_import_request
-                 (idempotency_key, source_kind, status, requested_by,
-                  required_capabilities, asset_id, artifact_ref, source_provenance, preflight)
-               VALUES ($1, 'clipboard', 'materialized', $2, '[]'::jsonb, $3, $4, $5, $6)
-               RETURNING {IMAGE_IMPORT_COLUMNS}"#
-        ))
-        .bind(&input.idempotency_key)
-        .bind(&input.requested_by)
-        .bind(asset.asset_id)
-        .bind(&input.artifact_ref)
-        .bind(&source_provenance)
-        .bind(preflight)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = image_import_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::IMAGE_IMPORT_RECORDED,
-            "atelier_image_import_request",
-            &record.import_id.to_string(),
-            serde_json::json!({
-                "import_id": record.import_id,
-                "source_kind": "clipboard",
-                "status": "materialized",
-                "requested_by": record.requested_by,
-                "asset_id": record.asset_id,
-                "artifact_ref": record.artifact_ref,
-                "source_provenance": record.source_provenance,
-                "source_application": source_application,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let import_id = Uuid::now_v7();
+        let bindings = CreateClipboardImportBindings {
+            record_id: RecordId::new("atelier_image_import_request", SurrealUuid::from(import_id)),
+            import_id: SurrealUuid::from(import_id),
+            idempotency_key: input.idempotency_key.clone(),
+            requested_by: input.requested_by.clone(),
+            asset_ref: RecordId::new("atelier_media_asset", SurrealUuid::from(asset.asset_id)),
+            artifact_ref: input.artifact_ref.clone(),
+            source_provenance: source_provenance.clone(),
+            preflight: preflight.clone(),
+        };
+        let written: AtelierResult<Option<ImageImportRow>> = self
+            .write_with_event(
+                CREATE_CLIPBOARD_IMPORT_STATEMENT,
+                bindings,
+                event_family::IMAGE_IMPORT_RECORDED,
+                "atelier_image_import_request",
+                &import_id.to_string(),
+                serde_json::json!({
+                    "import_id": import_id,
+                    "source_kind": "clipboard",
+                    "status": "materialized",
+                    "requested_by": input.requested_by,
+                    "asset_id": asset.asset_id,
+                    "artifact_ref": input.artifact_ref,
+                    "source_provenance": source_provenance,
+                    "source_application": source_application,
+                }),
+            )
+            .await;
+        match written {
+            Ok(Some(row)) => row.try_into(),
+            Ok(None) => Err(AtelierError::Internal(
+                "recording a clipboard image import returned no row".to_owned(),
+            )),
+            Err(error) if is_idempotency_key_conflict(&error) => {
+                // A concurrent writer claimed the key first; validate against
+                // its record exactly as the replay path does.
+                let existing = self
+                    .image_import_by_key(&input.idempotency_key)
+                    .await?
+                    .ok_or(error)?;
+                self.require_matching_clipboard_replay(
+                    &existing,
+                    input,
+                    &content_hash,
+                    &source_provenance,
+                )
+                .await?;
+                Ok(existing)
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub async fn record_url_image_import(
@@ -505,12 +662,8 @@ impl AtelierStore {
             "redirect_policy": URL_IMPORT_REDIRECT_POLICY,
             "ssrf_preflight": "passed",
         });
-        let mut tx = self.pool().begin().await?;
-        Self::lock_image_import_key_in_tx(&mut tx, &input.idempotency_key).await?;
 
-        if let Some(existing) =
-            Self::image_import_by_key_in_tx(&mut tx, &input.idempotency_key).await?
-        {
+        if let Some(existing) = self.image_import_by_key(&input.idempotency_key).await? {
             require_matching_url_replay(
                 &existing,
                 input,
@@ -518,59 +671,71 @@ impl AtelierStore {
                 &required_capabilities_json,
                 &source_provenance,
             )?;
-            tx.commit().await?;
             return Ok(existing);
         }
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_image_import_request
-                 (idempotency_key, source_kind, status, requested_by,
-                  normalized_url, source_url_hash, source_host, source_label, expected_mime,
-                  capability_profile_id, capability_grant_ref, required_capabilities,
-                  source_provenance, preflight)
-               VALUES ($1, 'url', 'queued', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-               RETURNING {IMAGE_IMPORT_COLUMNS}"#
-        ))
-        .bind(&input.idempotency_key)
-        .bind(&input.requested_by)
-        .bind(&preflight.normalized_url)
-        .bind(&preflight.source_url_hash)
-        .bind(&preflight.source_host)
-        .bind(&input.source_label)
-        .bind(&input.expected_mime)
-        .bind(&input.capability_profile_id)
-        .bind(&input.capability_grant_ref)
-        .bind(&required_capabilities_json)
-        .bind(&source_provenance)
-        .bind(&preflight_json)
-        .fetch_one(&mut *tx)
-        .await?;
-        let record = image_import_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            event_family::IMAGE_IMPORT_RECORDED,
-            "atelier_image_import_request",
-            &record.import_id.to_string(),
-            serde_json::json!({
-                "import_id": record.import_id,
-                "source_kind": "url",
-                "status": "queued",
-                "requested_by": record.requested_by,
-                "source_url_ref": preflight.source_url_hash,
-                "source_host": preflight.source_host,
-                "source_label_ref": input.source_label.as_ref().map(|value| event_ref_for_text(value)),
-                "expected_mime": input.expected_mime,
-                "capability_profile_id": input.capability_profile_id,
-                "capability_grant_ref_ref": event_ref_for_text(&input.capability_grant_ref),
-                "required_capabilities": record.required_capabilities,
-                "network_fetch_allowed": false,
-                "requires_fetch_worker_revalidation": true,
-                "redirect_policy": URL_IMPORT_REDIRECT_POLICY,
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(record)
+        let import_id = Uuid::now_v7();
+        let bindings = CreateUrlImportBindings {
+            record_id: RecordId::new("atelier_image_import_request", SurrealUuid::from(import_id)),
+            import_id: SurrealUuid::from(import_id),
+            idempotency_key: input.idempotency_key.clone(),
+            requested_by: input.requested_by.clone(),
+            normalized_url: preflight.normalized_url.clone(),
+            source_url_hash: preflight.source_url_hash.clone(),
+            source_host: preflight.source_host.clone(),
+            source_label: input.source_label.clone(),
+            expected_mime: input.expected_mime.clone(),
+            capability_profile_id: input.capability_profile_id.clone(),
+            capability_grant_ref: input.capability_grant_ref.clone(),
+            required_capabilities: required_capabilities_json.clone(),
+            source_provenance: source_provenance.clone(),
+            preflight: preflight_json,
+        };
+        let written: AtelierResult<Option<ImageImportRow>> = self
+            .write_with_event(
+                CREATE_URL_IMPORT_STATEMENT,
+                bindings,
+                event_family::IMAGE_IMPORT_RECORDED,
+                "atelier_image_import_request",
+                &import_id.to_string(),
+                serde_json::json!({
+                    "import_id": import_id,
+                    "source_kind": "url",
+                    "status": "queued",
+                    "requested_by": input.requested_by,
+                    "source_url_ref": preflight.source_url_hash,
+                    "source_host": preflight.source_host,
+                    "source_label_ref": input.source_label.as_ref().map(|value| event_ref_for_text(value)),
+                    "expected_mime": input.expected_mime,
+                    "capability_profile_id": input.capability_profile_id,
+                    "capability_grant_ref_ref": event_ref_for_text(&input.capability_grant_ref),
+                    "required_capabilities": required_capabilities_json,
+                    "network_fetch_allowed": false,
+                    "requires_fetch_worker_revalidation": true,
+                    "redirect_policy": URL_IMPORT_REDIRECT_POLICY,
+                }),
+            )
+            .await;
+        match written {
+            Ok(Some(row)) => row.try_into(),
+            Ok(None) => Err(AtelierError::Internal(
+                "recording a url image import returned no row".to_owned(),
+            )),
+            Err(error) if is_idempotency_key_conflict(&error) => {
+                let existing = self
+                    .image_import_by_key(&input.idempotency_key)
+                    .await?
+                    .ok_or(error)?;
+                require_matching_url_replay(
+                    &existing,
+                    input,
+                    &preflight,
+                    &required_capabilities_json,
+                    &source_provenance,
+                )?;
+                Ok(existing)
+            }
+            Err(error) => Err(error),
+        }
     }
 }

@@ -23,7 +23,7 @@
 //!   - `POST /loom/edges` body { source_block_id, target_block_id, edge_type:"tag", created_by:"user" }
 //!     (the backend rejects a non-tag_hub target -> the hub is the edge TARGET).
 //!
-//! AC1/AC4/AC6 have one integration-gated, unignored managed-PostgreSQL proof. It creates an isolated
+//! AC1/AC4/AC6 have one integration-gated, unignored managed-SurrealDB proof. It creates an isolated
 //! workspace, proves the mounted pane's real empty state, seeds three tag hubs and two documents, drives
 //! list/filter/open/add through the mounted [`HandshakeApp`], verifies rename/removal through a fresh
 //! [`LoomTagClient`], proves bounded backend loss, and deterministically deletes the workspace. It never
@@ -611,7 +611,7 @@ fn tag_hub_screenshot() {
     assert_no_local_artifact_dir();
 }
 
-// ── LIVE-PG: one self-seeded, mounted, unignored round trip ──────────────────────────────────────────
+// ── LIVE-SURREALDB: one self-seeded, mounted, unignored round trip ──────────────────────────────────────────
 
 #[cfg(feature = "integration")]
 struct LiveWorkspaceCleanup<'a> {
@@ -626,7 +626,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204 | 404),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         self.cleaned = true;
     }
@@ -731,9 +731,9 @@ fn live_patch_json(
     let (status, text) = runtime.block_on(async {
         let response = client
             .patch(&url)
-            .header("x-hsk-actor-id", "mt023-live-pg")
-            .header("x-hsk-kernel-task-run-id", "mt023-live-pg-run")
-            .header("x-hsk-session-run-id", "mt023-live-pg-session")
+            .header("x-hsk-actor-id", "mt023-live-surrealdb")
+            .header("x-hsk-kernel-task-run-id", "mt023-live-surrealdb-run")
+            .header("x-hsk-session-run-id", "mt023-live-surrealdb-session")
             .header("x-hsk-actor-kind", "operator")
             .json(body)
             .timeout(std::time::Duration::from_secs(5))
@@ -747,12 +747,12 @@ fn live_patch_json(
         .unwrap_or_else(|error| panic!("PATCH {path} response is not JSON ({error}): {text}"))
 }
 
-/// AC1-AC8 / PROOF2-5 against real managed PostgreSQL and the real mounted `HandshakeApp` Tags pane.
+/// AC1-AC8 / PROOF2-5 against real managed SurrealDB and the real mounted `HandshakeApp` Tags pane.
 /// The proof is feature-gated but deliberately NOT ignored. It owns fixture creation and teardown and
 /// verifies persistence again with a newly constructed `LoomTagClient`, excluding panel-local cache.
 #[test]
 #[cfg(feature = "integration")]
-fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
+fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
     use handshake_native::app::{HandshakeApp, HealthDisplayState};
     use handshake_native::backend_client::{
         HealthInfo, LoomTagClient, TagHubDetailCell, TagListCell,
@@ -765,7 +765,7 @@ fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
     };
 
     let receipt_dir = external_artifact_dir("wp-kernel-012-mt-023");
-    let receipt_path = receipt_dir.join("MT-023-live-pg-seed.json");
+    let receipt_path = receipt_dir.join("MT-023-live-surrealdb-seed.json");
     match std::fs::remove_file(&receipt_path) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -1111,7 +1111,7 @@ fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
     // Publish the single owned receipt only after workspace/backend cleanup has succeeded.
     std::fs::create_dir_all(&receipt_dir).expect("create external MT-023 receipt directory");
     let receipt = serde_json::json!({
-        "schema_id": "hsk.wp_kernel_012.mt_023.live_pg_receipt@1",
+        "schema_id": "hsk.wp_kernel_012.mt_023.live_surrealdb_receipt@1",
         "proof_run_id": unique,
         "workspace_id": workspace_id,
         "tag_hub_ids": [rust_hub, rustaceans_hub, python_hub],
@@ -1155,7 +1155,7 @@ fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
         "owned MT-023 live receipt was freshly published after proof start"
     );
     println!(
-        "MT-023 LIVE PG PASS workspace={workspace_id} hubs=[{rust_hub},{rustaceans_hub},{python_hub}] \
+        "MT-023 LIVE SURREALDB PASS workspace={workspace_id} hubs=[{rust_hub},{rustaceans_hub},{python_hub}] \
          documents=[{first_note},{second_note}] seeded_edge={seeded_edge_id} add_count=2 final_count=1 \
          receipt={} cleanup_verified=true",
         receipt_path.display()

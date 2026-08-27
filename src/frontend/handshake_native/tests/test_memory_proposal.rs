@@ -1,7 +1,7 @@
 //! FEMS memory-write PROPOSAL proofs — WP-KERNEL-012 MT-064 (cluster E9).
 //!
 //! This suite proves the editor→FEMS proposal path at unit/widget/client boundaries. The current backend
-//! owns the live review-gated proposal route and native-editor Flight Recorder ingestion; managed-PG
+//! owns the live review-gated proposal route and native-editor Flight Recorder ingestion; managed-SurrealDB
 //! correlation proofs live in `test_fems_interop_proofs`. The 404 typed-blocker remains covered so an
 //! older or capability-restricted backend never triggers a direct-write fallback.
 //!
@@ -12,14 +12,14 @@
 //!   editor path sets it false (no direct-commit call site — MC-001/002).
 //! - PT-003 / AC-004: `propose_creates_proposal_via_endpoint` submits a proposal to an in-process mock
 //!   "proposal endpoint" (200 → ProposalAck) and asserts the FR-EVT-MEM-001 event SHAPE the MT-036
-//!   emitter would post. The LIVE PG record + LIVE FR ingestion is the double-gate blocker (recorded).
+//!   emitter would post. The live SurrealDB record + live FR ingestion is the double-gate blocker.
 //! - PT-004 / AC-005: `missing_endpoint_blocker` — a 404 from the mock maps to
 //!   `MemoryProposalError::MissingEndpoint` (the typed blocker), with NO commit and NO silent fallback.
 //! - PT-005 / AC-007: `propose_dialog_accesskit_nodes_present` dumps the live AccessKit tree and asserts
 //!   `fems-propose-dialog` (Dialog), `fems-class-{episodic|semantic|procedural}` (RadioButton), and
 //!   `fems-propose-confirm` (Button) present with the correct roles; saves a screenshot to the EXTERNAL
 //!   root.
-//! - AC-009 (no backend / no SQLite) + MC-001 (no direct-commit call site): `read_no_direct_commit_site`
+//! - AC-009 (no alternate store) + MC-001 (no direct-commit call site): `read_no_direct_commit_site`
 //!   greps the production source for any direct memory-commit/write route and asserts the only write
 //!   path is the proposal POST; `assert_no_local_artifact_dir` guards artifact hygiene (CX-212E).
 
@@ -328,7 +328,7 @@ impl EventLedgerTransport for CapturingTransport {
 
 #[test]
 fn propose_creates_proposal_via_endpoint() {
-    // A mock endpoint isolates the wire shape; the managed-PG suite separately proves durable correlation.
+    // A mock endpoint isolates the wire shape; the managed-SurrealDB suite separately proves durable correlation.
     let runtime = rt();
     let (base_url, server) = spawn_mock(
         "HTTP/1.1 200 OK",
@@ -598,8 +598,7 @@ fn propose_dialog_accesskit_nodes_present() {
 fn read_no_direct_commit_site() {
     // Grep the production module for any direct memory-commit/write route. The ONLY write verb that may
     // appear is the proposal POST (`/memory/proposals`); a `/memory/commit` or a direct memory-write
-    // route is forbidden (MC-001, AC-002). PostgreSQL/EventLedger is the only durable authority — there
-    // is no SQLite anywhere (AC-009).
+    // route is forbidden (MC-001, AC-002). SurrealDB/EventLedger is the only durable authority.
     let src = std::fs::read_to_string("src/fems/memory_proposal.rs").expect("read module source");
 
     // The only POST path string is the proposal route.
@@ -616,7 +615,7 @@ fn read_no_direct_commit_site() {
     ] {
         assert!(
             !src.to_lowercase().contains(forbidden),
-            "MC-001/AC-009: no direct memory-commit/write or SQLite token may appear ('{forbidden}')"
+            "MC-001/AC-009: no direct memory-commit/write or detected legacy-store token may appear ('{forbidden}')"
         );
     }
     // The review-gated invariant is exposed by behavior rather than a brittle source spelling: every
@@ -641,7 +640,7 @@ fn read_no_direct_commit_site() {
         !src.contains("review_gated: false") && !src.contains("review_gated = false"),
         "MC-002/AC-002: review_gated is NEVER set false from the editor"
     );
-    println!("MC-001/AC-009 OK: only write path is the proposal POST; no direct-commit, no SQLite; review_gated hard-true");
+    println!("MC-001/AC-009 OK: only write path is the proposal POST; no direct-commit or alternate-store client; review_gated hard-true");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

@@ -170,7 +170,7 @@ fn indexed_source_fixture() -> SourceFixture {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-06 — Open code block from note (LIVE-PG PASS): a real rendered `[[code:symbol]]` chip is clicked by
+// IC-06 — Open code block from note (LIVE-SURREALDB PASS): a real rendered `[[code:symbol]]` chip is clicked by
 // stable AccessKit id. The mounted shell resolves it against the managed code-nav index, opens the exact
 // source file in the real code pane, focuses that pane, and places the caret on the definition line.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -325,7 +325,7 @@ fn interconnect_ic06_open_code_block_from_note() {
     }));
     assert_no_local_artifact_dir();
     println!(
-        "IC-06 LIVE-PG PASS: AccessKit code chip opened the indexed source and focused my_function"
+        "IC-06 LIVE-SURREALDB PASS: AccessKit code chip opened the indexed source and focused my_function"
     );
 }
 
@@ -334,7 +334,7 @@ fn interconnect_ic06_open_code_block_from_note() {
 // 'Copy as note reference' is activated from the mounted code editor's real context menu. The mounted
 // pane factory drains the staged `[[code:...]]` ref into the app-owned InteractionBus clipboard. The test
 // then switches to the mounted rich pane, focuses its AccessKit text surface, and sends Ctrl+V through the
-// production key route; Paste materializes the canonical code wikilink as an hsLink which round-trips PG.
+// production key route; Paste materializes the canonical code wikilink as an hsLink which round-trips SurrealDB.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -620,7 +620,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         );
     }
 
-    // Restore the producer's canonical payload and selected range, then paste again for the durable PG
+    // Restore the producer's canonical payload and selected range, then paste again for the durable SurrealDB
     // round-trip below. The proof therefore persists the same product outcome that passed Ctrl+Z.
     InteractionBus::get_or_init(&harness.ctx)
         .lock()
@@ -667,7 +667,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         "IC-07: mounted Paste materialized the symbol key as the hsLink refValue"
     );
 
-    // (4) Real managed-PostgreSQL KRD save + GET reload through the production native SaveManager.
+    // (4) Real managed-SurrealDB KRD save + GET reload through the production native SaveManager.
     // Create link-free content first so only this save can introduce the code reference.
     let created = be.post_json(
         "/knowledge/documents",
@@ -704,9 +704,14 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         persisted_text.contains("\"hsLink\"")
             && persisted_text.contains("\"refKind\":\"code\"")
             && persisted_text.contains(symbol_key),
-        "IC-07: managed-PG GET preserves hsLink(code,{symbol_key}); got {persisted_text}"
+        "IC-07: managed-SurrealDB GET preserves hsLink(code,{symbol_key}); got {persisted_text}"
     );
-    let receipt_payload = event_ledger_payload(&save.save_receipt_event_id);
+    let receipt_payload = event_ledger_payload(
+        &be,
+        "knowledge_rich_document",
+        &document_id,
+        &save.save_receipt_event_id,
+    );
     assert_eq!(
         receipt_payload["workspace_id"].as_str(),
         Some(workspace_id.as_str()),
@@ -737,14 +742,14 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         "receipt_reference_target": receipt_reference_target,
         "saved_doc_version": save.doc_version,
         "save_receipt_event_id": save.save_receipt_event_id,
-        "managed_pg_get_round_trip": true,
+        "managed_store_get_round_trip": true,
     }));
     assert_no_local_artifact_dir();
-    println!("IC-07 LIVE-PG PASS: 'Copy as note reference' -> clipboard {note_ref} -> hsLink(code) persisted through production SaveManager + GET");
+    println!("IC-07 LIVE-SURREALDB PASS: 'Copy as note reference' -> clipboard {note_ref} -> hsLink(code) persisted through production SaveManager + GET");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-08 — Shared global find across code and note (LIVE-PG PASS, the load-bearing CTRL-1 proof): the
+// IC-08 — Shared global find across code and note (LIVE-SURREALDB PASS, the load-bearing CTRL-1 proof): the
 // operator-facing Find in Files command opens the real MT-029 pane. Its rendered query + real graph-search
 // rows and the mounted rich-document find converge through ONE InteractionBus; no hand-built result/count
 // can satisfy the assertions.
@@ -974,7 +979,7 @@ fn interconnect_ic08_shared_find_replace() {
     attempt.pass(evidence);
     assert_no_local_artifact_dir();
     println!(
-        "IC-08 LIVE-PG PASS: real MT-029 global Find returned the managed code file + rich note and \
+        "IC-08 LIVE-SURREALDB PASS: real MT-029 global Find returned the managed code file + rich note and \
          drove the mounted rich-document find through one InteractionBus"
     );
 }
@@ -999,7 +1004,7 @@ fn interconnect_ic09_diagnostic_note_reference() {
                 "type": "doc",
                 "content": [{
                     "type": "paragraph",
-                    "content": [{"type": "text", "text": "Diagnostic explanation loaded from PostgreSQL"}]
+                    "content": [{"type": "text", "text": "Diagnostic explanation loaded from SurrealDB"}]
                 }]
             }
         }),

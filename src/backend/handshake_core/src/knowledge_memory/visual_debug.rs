@@ -15,9 +15,9 @@
 //! one workspace, bounded by a `limit`. Re-rendering it never mutates anything.
 
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row};
+use surrealdb::types::{SurrealValue, Value};
 
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 use super::projection::{
@@ -74,19 +74,17 @@ pub const MEMORY_GRAPH_VISUAL_DEBUG_SCHEMA_ID: &str = "hsk.memory_graph_visual_d
 /// three graph projections and the claim/fact/conflict counts. `trusted_only`
 /// is forwarded to the fact graph (a "stable view" vs the full view).
 pub async fn build_memory_graph_visual_debug(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
     workspace_id: &str,
     trusted_only: bool,
     limit: i64,
 ) -> StorageResult<MemoryGraphVisualDebugPayload> {
-    let ontology_graph = build_ontology_graph(pool, workspace_id, false, limit).await?;
-    let fact_graph = build_fact_graph(db, pool, workspace_id, trusted_only, limit).await?;
-    let passage_evidence_graph =
-        build_passage_evidence_graph(db, pool, workspace_id, limit).await?;
-    let claim_state_counts = claim_state_counts(pool, workspace_id).await?;
-    let fact_label_counts = fact_label_counts(pool, workspace_id).await?;
-    let open_conflict_count = open_conflict_count(pool, workspace_id).await?;
+    let ontology_graph = build_ontology_graph(db, workspace_id, false, limit).await?;
+    let fact_graph = build_fact_graph(db, workspace_id, trusted_only, limit).await?;
+    let passage_evidence_graph = build_passage_evidence_graph(db, workspace_id, limit).await?;
+    let claim_state_counts = claim_state_counts(db, workspace_id).await?;
+    let fact_label_counts = fact_label_counts(db, workspace_id).await?;
+    let open_conflict_count = open_conflict_count(db, workspace_id).await?;
 
     Ok(MemoryGraphVisualDebugPayload {
         workspace_id: workspace_id.to_string(),
@@ -102,27 +100,34 @@ pub async fn build_memory_graph_visual_debug(
 }
 
 /// Count claims by lifecycle state in a workspace.
-async fn claim_state_counts(pool: &PgPool, workspace_id: &str) -> StorageResult<ClaimStateCounts> {
-    let rows = sqlx::query(
-        r#"
-        SELECT lifecycle_state, COUNT(*) AS n
-        FROM knowledge_claims
-        WHERE workspace_id = $1
-        GROUP BY lifecycle_state
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_all(pool)
-    .await?;
+async fn claim_state_counts(
+    db: &SurrealDatabase,
+    workspace_id: &str,
+) -> StorageResult<ClaimStateCounts> {
+    let bindings = WorkspaceBindings {
+        workspace_id: workspace_id.to_owned(),
+    };
+    let rows: Vec<CountByToken> = db
+        .storage()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(
+                    "SELECT lifecycle_state AS token, count() AS n FROM knowledge_claims \
+                     WHERE workspace_id = type::record('workspaces', $workspace_id) \
+                     GROUP BY lifecycle_state;",
+                    bindings,
+                )
+                .await
+            })
+        })
+        .await?;
     let mut counts = ClaimStateCounts::default();
-    for row in &rows {
-        let state: String = row.get("lifecycle_state");
-        let n: i64 = row.get("n");
-        match state.as_str() {
-            "proposed" => counts.proposed = n,
-            "accepted" => counts.accepted = n,
-            "conflicted" => counts.conflicted = n,
-            "retired" => counts.retired = n,
+    for row in rows {
+        match row.token.as_str() {
+            "proposed" => counts.proposed = row.n,
+            "accepted" => counts.accepted = row.n,
+            "conflicted" => counts.conflicted = row.n,
+            "retired" => counts.retired = row.n,
             _ => {}
         }
     }
@@ -130,30 +135,37 @@ async fn claim_state_counts(pool: &PgPool, workspace_id: &str) -> StorageResult<
 }
 
 /// Count memory facts by authority label in a workspace.
-async fn fact_label_counts(pool: &PgPool, workspace_id: &str) -> StorageResult<FactLabelCounts> {
-    let rows = sqlx::query(
-        r#"
-        SELECT authority_label, COUNT(*) AS n
-        FROM knowledge_memory_facts
-        WHERE workspace_id = $1
-        GROUP BY authority_label
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_all(pool)
-    .await?;
+async fn fact_label_counts(
+    db: &SurrealDatabase,
+    workspace_id: &str,
+) -> StorageResult<FactLabelCounts> {
+    let bindings = WorkspaceBindings {
+        workspace_id: workspace_id.to_owned(),
+    };
+    let rows: Vec<CountByToken> = db
+        .storage()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values(
+                    "SELECT authority_label AS token, count() AS n FROM knowledge_memory_facts \
+                     WHERE workspace_id = type::record('workspaces', $workspace_id) \
+                     GROUP BY authority_label;",
+                    bindings,
+                )
+                .await
+            })
+        })
+        .await?;
     let mut counts = FactLabelCounts::default();
-    for row in &rows {
-        let label: String = row.get("authority_label");
-        let n: i64 = row.get("n");
-        match label.as_str() {
-            "source" => counts.source = n,
-            "derived" => counts.derived = n,
-            "model_suggested" => counts.model_suggested = n,
-            "operator_approved" => counts.operator_approved = n,
-            "deprecated" => counts.deprecated = n,
-            "superseded" => counts.superseded = n,
-            "unsupported" => counts.unsupported = n,
+    for row in rows {
+        match row.token.as_str() {
+            "source" => counts.source = row.n,
+            "derived" => counts.derived = row.n,
+            "model_suggested" => counts.model_suggested = row.n,
+            "operator_approved" => counts.operator_approved = row.n,
+            "deprecated" => counts.deprecated = row.n,
+            "superseded" => counts.superseded = row.n,
+            "unsupported" => counts.unsupported = row.n,
             _ => {}
         }
     }
@@ -162,17 +174,34 @@ async fn fact_label_counts(pool: &PgPool, workspace_id: &str) -> StorageResult<F
 
 /// Count open (unresolved) claim conflicts in a workspace — the repair-queue
 /// signal. A conflict is open while `resolved_at IS NULL`.
-async fn open_conflict_count(pool: &PgPool, workspace_id: &str) -> StorageResult<i64> {
-    let row = sqlx::query(
-        r#"
-        SELECT COUNT(*) AS n
-        FROM knowledge_claim_conflicts kcc
-        JOIN knowledge_claims kc ON kc.claim_id = kcc.claim_id
-        WHERE kc.workspace_id = $1 AND kcc.resolved_at IS NULL
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await?;
-    Ok(row.get::<i64, _>("n"))
+async fn open_conflict_count(db: &SurrealDatabase, workspace_id: &str) -> StorageResult<i64> {
+    let bindings = WorkspaceBindings {
+        workspace_id: workspace_id.to_owned(),
+    };
+    let count = db
+        .storage()
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(
+                    "RETURN count(SELECT id FROM knowledge_claim_conflicts \
+                     WHERE resolved_at = NONE \
+                     AND claim_id.workspace_id = type::record('workspaces', $workspace_id));",
+                    bindings,
+                )
+                .await
+            })
+        })
+        .await?;
+    Ok(count.unwrap_or(0))
+}
+
+#[derive(Clone, SurrealValue)]
+struct WorkspaceBindings {
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CountByToken {
+    token: String,
+    n: i64,
 }

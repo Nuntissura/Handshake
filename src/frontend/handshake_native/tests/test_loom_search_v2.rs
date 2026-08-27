@@ -19,13 +19,13 @@
 //!     SAME builders, so a stale URL / mis-shaped body can never reach the real backend unnoticed).
 //!   - PROOF7 (PT-4, HBR-VIS): a screenshot of the rendered panel (query bar + 2 facets + 3 rows with
 //!     visible highlight coloring) to the EXTERNAL artifact root.
-//!   - PT-1/PT-2 (real-PG integration): a nonignored `integration`-feature proof owns an isolated
+//!   - PT-1/PT-2 (real-SurrealDB integration): a nonignored `integration`-feature proof owns an isolated
 //!     workspace, self-seeds three differing block types, drives the mounted HandshakeApp panel, saves
 //!     and reloads a real view definition, proves error/rebind behavior, and verifies canonical cleanup.
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-022..027 pattern)
 //!
-//! AC-2 (a real query populates a real response) requires a running handshake_core backed by PostgreSQL;
+//! AC-2 (a real query populates a real response) requires a running handshake_core backed by SurrealDB;
 //! the feature-gated proof below creates and removes its own fixture and is deliberately not ignored.
 //! The standalone rendering + parser + state-machine + request-builder proofs remain deterministic,
 //! GPU/backend-free regression evidence.
@@ -757,7 +757,7 @@ fn pane_opens_via_registry_and_renders_real_panel() {
 /// A real loopback reverse proxy used only by the managed mounted proof. Its public base contains a
 /// path prefix that the production default does not have. The mounted product client sends genuine
 /// HTTP traffic to that distinct address; the proxy records it, strips the proof prefix, forwards the
-/// same request to the managed handshake_core/PostgreSQL backend, and relays the real response.
+/// same request to the managed handshake_core/SurrealDB backend, and relays the real response.
 /// Therefore a factory that silently kept `BACKEND_BASE_URL` could still render backend data, but the
 /// required prefixed captures would be absent and the proof would fail.
 #[cfg(feature = "integration")]
@@ -1512,7 +1512,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
 
     // A canonical title mutation must atomically refresh the derived search row: the old query loses
     // this exact note id, the new query gains the same id under the same facet, and restoring the title
-    // reverses both observations. This is a real PATCH -> PostgreSQL -> search-v2 counterfactual.
+    // reverses both observations. This is a real PATCH -> SurrealDB -> search-v2 counterfactual.
     let renamed_needle = "zephyrquartzvexingfjord".to_owned();
     let note_block_id = seeded["note"].clone();
     let renamed = live.patch_json(
@@ -2027,7 +2027,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     assert!(!persisted_ids.contains(seeded["tag_hub"].as_str()));
 
     // A canonical run forces a fixture-owned current-source backend. Restart that exact owned process
-    // on its existing PostgreSQL authority, then prove the persisted view remains reloadable. The
+    // on its existing SurrealDB authority, then prove the persisted view remains reloadable. The
     // cleanup guard is temporarily released only around the mutable restart and is reconstructed
     // before any panic can leave this scope.
     let canonical_restart = if std::env::var_os("HANDSHAKE_ARGUS_MATRIX_RUN_ID").is_some() {

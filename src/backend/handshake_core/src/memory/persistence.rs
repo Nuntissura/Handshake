@@ -1,23 +1,37 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::{future::Future, sync::Arc};
 use thiserror::Error;
 use uuid::Uuid;
 
 use super::capsule::{CapsuleAuditLog, MemoryCapsule, RetrievalPolicy, TaskType};
+use super::hygiene::{
+    hygiene_submission, HygieneActionSubmitter, HygieneCandidate, HygieneError,
+    ProceduralPromotion, HYGIENE_CONSOLIDATION_ACTION_ID, HYGIENE_FLAG_ACTION_ID,
+    HYGIENE_PAYLOAD_SCHEMA_ID, HYGIENE_PROMOTE_ACTION_ID, HYGIENE_PRUNE_ACTION_ID,
+    MEMORY_HYGIENE_SOURCE_COMPONENT,
+};
+use super::pinned_core::{
+    MEMORY_PIN_AGGREGATE_TYPE, MEMORY_PIN_SOURCE_COMPONENT, PIN_MEMORY_ACTION_ID,
+    PIN_MEMORY_PAYLOAD_SCHEMA_ID, UNPIN_MEMORY_ACTION_ID,
+};
 use crate::kernel::{
+    action_catalog::{kernel002_action_catalog, KernelActionCatalogV1, KernelCatalogActionV1},
     action_envelope::{
-        ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef, KernelActionRequestV1,
-        KernelActorRef, KernelSessionRef, KernelTargetRef, ValidationRequirement,
-        validate_kernel_action_request,
+        validate_kernel_action_request, ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef,
+        KernelActionRequestV1, KernelActorRef, KernelSessionRef, KernelTargetRef,
+        ValidationRequirement,
     },
     context_bundle::{canonical_json_bytes, sha256_hex},
     write_boxes::{
-        MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef,
-        WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef, WriteBoxValidationState,
-        WriteBoxValidationStatus, validate_write_box_common,
+        validate_write_box_common, MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState,
+        WriteBoxOwnerRef, WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef,
+        WriteBoxValidationState, WriteBoxValidationStatus,
     },
+    KernelActor, KernelEventType, NewKernelEvent,
 };
+use crate::storage::{Database, StorageError};
 
 pub const MEMORY_CAPSULE_RECORD_ACTION_ID: &str = "kernel.memory_capsule.record";
 pub const MEMORY_CAPSULE_RECORD_INPUT_SCHEMA_ID: &str = "hsk.kernel.memory_capsule_record_input@1";
@@ -25,6 +39,8 @@ pub const MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID: &str = "hsk.memory_capsule.re
 pub const KERNEL_ACTION_REQUEST_SCHEMA_ID: &str = "hsk.kernel_action_request@1";
 pub const WRITE_BOX_V1_ENVELOPE_SCHEMA_ID: &str = "hsk.write_box_v1_envelope@1";
 pub const MEMORY_WRITE_BOX_SCHEMA_ID: &str = "hsk.write_box.memory@1";
+pub const MEMORY_CAPSULE_AGGREGATE_TYPE: &str = "memory_capsule";
+pub const MEMORY_CAPSULE_SOURCE_COMPONENT: &str = "memory_capsule_kernel_action_catalog";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case", tag = "status")]
@@ -111,6 +127,350 @@ impl std::error::Error for KernelActionRejection {}
 
 pub trait KernelActionSubmitter {
     fn submit(&self, submission: KernelActionSubmission) -> Result<(), KernelActionRejection>;
+}
+
+fn block_on_storage<F>(future: F) -> F::Output
+where
+    F: Future + Send,
+    F::Output: Send,
+{
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle)
+            if matches!(
+                handle.runtime_flavor(),
+                tokio::runtime::RuntimeFlavor::MultiThread
+            ) =>
+        {
+            tokio::task::block_in_place(|| handle.block_on(future))
+        }
+        Ok(_) => std::thread::scope(|scope| {
+            scope
+                .spawn(move || {
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .expect("tokio current-thread runtime must build")
+                        .block_on(future)
+                })
+                .join()
+                .expect("dedicated storage runtime thread must not panic")
+        }),
+        Err(_) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tokio current-thread runtime must build")
+            .block_on(future),
+    }
+}
+
+/// Synchronous kernel-action adapter backed by Handshake's embedded Surreal EventLedger.
+pub struct SurrealKernelActionSubmitter {
+    db: Arc<dyn Database>,
+    catalog: KernelActionCatalogV1,
+}
+
+impl SurrealKernelActionSubmitter {
+    pub fn with_db(db: Arc<dyn Database>) -> Self {
+        Self {
+            db,
+            catalog: kernel002_action_catalog(),
+        }
+    }
+
+    pub fn with_catalog(db: Arc<dyn Database>, catalog: KernelActionCatalogV1) -> Self {
+        Self { db, catalog }
+    }
+
+    pub fn catalog(&self) -> &KernelActionCatalogV1 {
+        &self.catalog
+    }
+
+    fn submit_hygiene_candidate(&self, candidate: HygieneCandidate) -> Result<Uuid, HygieneError> {
+        let receipt = RecordReceipt {
+            record_id: Uuid::now_v7(),
+            write_box_envelope_id: Uuid::now_v7(),
+            persisted_at_utc: Utc::now(),
+        };
+        let submission = hygiene_submission(&candidate, &receipt)?;
+        self.submit(submission)
+            .map_err(|error| HygieneError::Rejected {
+                code: error.code,
+                reason: error.reason,
+            })?;
+        Ok(receipt.record_id)
+    }
+}
+
+impl KernelActionSubmitter for SurrealKernelActionSubmitter {
+    fn submit(&self, submission: KernelActionSubmission) -> Result<(), KernelActionRejection> {
+        let action = self
+            .catalog
+            .action(&submission.request.action_id)
+            .ok_or_else(|| KernelActionRejection {
+                code: "kernel_action_unknown".to_owned(),
+                reason: format!(
+                    "action_id {} is not registered in KernelActionCatalogV1 catalog {}",
+                    submission.request.action_id, self.catalog.catalog_id
+                ),
+            })?;
+        validate_submission_against_catalog(action, &submission)?;
+
+        let target = primary_action_target(&submission)?;
+        let aggregate_type = aggregate_type_for_target_kind(&target.target_kind)?;
+        let event = build_catalog_action_event(&submission, action)?;
+        let db = Arc::clone(&self.db);
+        match block_on_storage(async move { db.append_kernel_event(event).await }) {
+            Ok(_) => Ok(()),
+            Err(error) if is_kernel_event_idempotency_conflict(&error) => {
+                let db = Arc::clone(&self.db);
+                let idempotency_key = submission.request.idempotency_key.clone();
+                let aggregate_id = target.target_id.clone();
+                let events = block_on_storage(async move {
+                    db.list_kernel_events_for_aggregate(aggregate_type, &aggregate_id)
+                        .await
+                })
+                .map_err(|lookup_error| KernelActionRejection {
+                    code: "kernel_event_ledger_idempotency_lookup_failed".to_owned(),
+                    reason: format!(
+                        "checking duplicate memory action in EventLedger failed: {lookup_error}"
+                    ),
+                })?;
+                if events.iter().any(|event| {
+                    event.idempotency_key == idempotency_key
+                        && same_submission_semantics(&event.payload, &submission)
+                }) {
+                    Ok(())
+                } else {
+                    Err(KernelActionRejection {
+                        code: "kernel_event_ledger_append_failed".to_owned(),
+                        reason: format!("appending memory action to EventLedger failed: {error}"),
+                    })
+                }
+            }
+            Err(error) => Err(KernelActionRejection {
+                code: "kernel_event_ledger_append_failed".to_owned(),
+                reason: format!("appending memory action to EventLedger failed: {error}"),
+            }),
+        }
+    }
+}
+
+impl HygieneActionSubmitter for SurrealKernelActionSubmitter {
+    fn submit_consolidation_candidate(
+        &self,
+        left: Uuid,
+        right: Uuid,
+    ) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::Consolidation { left, right })
+    }
+
+    fn submit_prune(
+        &self,
+        memory_id: Uuid,
+        at: chrono::DateTime<Utc>,
+    ) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::Prune {
+            memory_id,
+            requested_invalidated_at: at,
+        })
+    }
+
+    fn submit_contradiction_flag(&self, left: Uuid, right: Uuid) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::ContradictionFlag { left, right })
+    }
+
+    fn submit_procedural_promotion(
+        &self,
+        candidate: ProceduralPromotion,
+    ) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::ProceduralPromotion { candidate })
+    }
+}
+
+fn is_kernel_event_idempotency_conflict(error: &StorageError) -> bool {
+    matches!(
+        error,
+        StorageError::Conflict(
+            "kernel event idempotency key was reused with different event content"
+        )
+    ) || matches!(
+        error,
+        StorageError::Validation(message)
+            if message.starts_with("kernel event idempotency conflict")
+    )
+}
+
+fn same_submission_semantics(stored_payload: &Value, submission: &KernelActionSubmission) -> bool {
+    stored_payload
+        .get("catalog_action_id")
+        .and_then(Value::as_str)
+        == Some(submission.request.action_id.as_str())
+        && stored_payload
+            .get("request")
+            .and_then(|request| request.get("idempotency_key"))
+            .and_then(Value::as_str)
+            == Some(submission.request.idempotency_key.as_str())
+        && semantic_write_box_payload(
+            stored_payload
+                .get("write_box_envelope")
+                .and_then(|envelope| envelope.get("payload")),
+        ) == semantic_write_box_payload(Some(&submission.write_box_envelope.payload))
+}
+
+fn semantic_write_box_payload(payload: Option<&Value>) -> Option<Value> {
+    let payload = payload?;
+    match payload.get("schema_id").and_then(Value::as_str)? {
+        "hsk.memory_capsule.record_payload@1" => Some(json!({
+            "schema_id": "hsk.memory_capsule.record_payload@1",
+            "record": payload.get("record")?,
+        })),
+        "hsk.memory_capsule.outcome_payload@1" => {
+            let attribution = payload.get("attribution")?;
+            Some(json!({
+                "schema_id": "hsk.memory_capsule.outcome_payload@1",
+                "capsule_id": attribution.get("capsule_id")?,
+                "outcome": attribution.get("outcome")?,
+            }))
+        }
+        PIN_MEMORY_PAYLOAD_SCHEMA_ID => Some(json!({
+            "schema_id": PIN_MEMORY_PAYLOAD_SCHEMA_ID,
+            "pinned_item": payload.get("pinned_item")?,
+            "flight_recorder_event_id": payload.get("flight_recorder_event_id")?,
+        })),
+        HYGIENE_PAYLOAD_SCHEMA_ID => Some(json!({
+            "schema_id": HYGIENE_PAYLOAD_SCHEMA_ID,
+            "action_id": payload.get("action_id")?,
+            "candidate": payload.get("candidate")?,
+        })),
+        _ => Some(payload.clone()),
+    }
+}
+
+fn validate_submission_against_catalog(
+    action: &KernelCatalogActionV1,
+    submission: &KernelActionSubmission,
+) -> Result<(), KernelActionRejection> {
+    if action.authority_effect != submission.request.authority_effect {
+        return Err(KernelActionRejection {
+            code: "kernel_action_authority_effect_mismatch".to_owned(),
+            reason: format!(
+                "submission authority_effect {:?} does not match catalog action {} expected {:?}",
+                submission.request.authority_effect, action.action_id, action.authority_effect
+            ),
+        });
+    }
+    if action.approval_posture != submission.request.approval_posture {
+        return Err(KernelActionRejection {
+            code: "kernel_action_approval_posture_mismatch".to_owned(),
+            reason: format!(
+                "submission approval_posture {:?} does not match catalog action {} expected {:?}",
+                submission.request.approval_posture, action.action_id, action.approval_posture
+            ),
+        });
+    }
+    if !matches!(
+        action.authority_effect,
+        AuthorityEffect::PrePromotionEvidenceOnly
+    ) || !matches!(
+        action.approval_posture,
+        ApprovalPosture::RequiresPromotionGate
+    ) {
+        return Err(KernelActionRejection {
+            code: "kernel_action_unsupported_posture".to_owned(),
+            reason: format!(
+                "SurrealKernelActionSubmitter only persists PrePromotionEvidenceOnly + RequiresPromotionGate actions; got {} ({:?}/{:?})",
+                action.action_id, action.authority_effect, action.approval_posture
+            ),
+        });
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct ActionTarget {
+    target_id: String,
+    target_kind: String,
+}
+
+fn primary_action_target(
+    submission: &KernelActionSubmission,
+) -> Result<ActionTarget, KernelActionRejection> {
+    submission
+        .request
+        .target_ids
+        .iter()
+        .find(|target| {
+            target.target_kind == "memory_capsule" || target.target_kind == "memory_item"
+        })
+        .map(|target| ActionTarget {
+            target_id: target.target_id.clone(),
+            target_kind: target.target_kind.clone(),
+        })
+        .ok_or_else(|| KernelActionRejection {
+            code: "kernel_action_missing_supported_target".to_owned(),
+            reason:
+                "memory action submission must reference a memory_capsule or memory_item target_id"
+                    .to_owned(),
+        })
+}
+
+fn aggregate_type_for_target_kind(
+    target_kind: &str,
+) -> Result<&'static str, KernelActionRejection> {
+    match target_kind {
+        "memory_capsule" => Ok(MEMORY_CAPSULE_AGGREGATE_TYPE),
+        "memory_item" => Ok(MEMORY_PIN_AGGREGATE_TYPE),
+        _ => Err(KernelActionRejection {
+            code: "kernel_action_unsupported_target_kind".to_owned(),
+            reason: format!("unsupported memory action target_kind {target_kind}"),
+        }),
+    }
+}
+
+fn source_component_for_action(action_id: &str) -> &'static str {
+    match action_id {
+        PIN_MEMORY_ACTION_ID | UNPIN_MEMORY_ACTION_ID => MEMORY_PIN_SOURCE_COMPONENT,
+        HYGIENE_CONSOLIDATION_ACTION_ID
+        | HYGIENE_PRUNE_ACTION_ID
+        | HYGIENE_FLAG_ACTION_ID
+        | HYGIENE_PROMOTE_ACTION_ID => MEMORY_HYGIENE_SOURCE_COMPONENT,
+        _ => MEMORY_CAPSULE_SOURCE_COMPONENT,
+    }
+}
+
+fn build_catalog_action_event(
+    submission: &KernelActionSubmission,
+    action: &KernelCatalogActionV1,
+) -> Result<NewKernelEvent, KernelActionRejection> {
+    let target = primary_action_target(submission)?;
+    NewKernelEvent::builder(
+        format!("KTR-MEMORY-ACTION-{}", target.target_id),
+        format!("SR-MEMORY-ACTION-{}", target.target_id),
+        KernelEventType::ArtifactProposed,
+        KernelActor::ModelAdapter(submission.request.actor.actor_id.clone()),
+    )
+    .aggregate(
+        aggregate_type_for_target_kind(&target.target_kind)?,
+        target.target_id,
+    )
+    .idempotency_key(submission.request.idempotency_key.clone())
+    .correlation_id(submission.request.trace_id.clone())
+    .event_version("kernel_event_v1")
+    .source_component(source_component_for_action(action.action_id))
+    .payload(json!({
+        "schema_id": "hsk.memory_capsule.kernel_action_catalog_payload@1",
+        "catalog_action_id": action.action_id,
+        "catalog_input_schema_id": action.input_schema_id,
+        "catalog_result_schema_id": action.result_schema_id,
+        "request": submission.request,
+        "write_box_envelope": submission.write_box_envelope,
+        "proposed_receipt": submission.proposed_receipt,
+    }))
+    .build()
+    .map_err(|error| KernelActionRejection {
+        code: "kernel_action_event_build_failed".to_owned(),
+        reason: format!("failed to build kernel event for memory action: {error}"),
+    })
 }
 
 pub struct CapsuleRecorder<'a> {

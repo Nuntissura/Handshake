@@ -366,13 +366,13 @@ fn mt088_manual_documents_backend_down_operation_and_recovery() {
         "fixed safety bounds, not operator preferences",
         "keep editing local buffers",
         "verify BackendRecovered before retrying a mutation",
-        "backend_down_responsive_real_pg_palmistry_argus",
+        "backend_down_responsive_real_surrealdb_palmistry_argus",
         "configured single",
         "never set CARGO_TARGET_DIR or pass --target-dir to another",
         "absolute_path",
         "MSVC MAX_PATH",
         "normalized absolute form of that exact canonical root",
-        "HANDSHAKE_TEST_PG_DSN",
+        "HANDSHAKE_DATA_DIR",
         "HSK_TEST_BACKEND_BIN",
         "HANDSHAKE_PALMISTRY_EXE",
         "canonical localhost Argus",
@@ -1709,7 +1709,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "truncated",
             "suppressed_hub_ids",
             "LoomGraphView::set_graph_projection",
-            "graph_view_live_pg_self_seeds_local_global",
+            "graph_view_live_surrealdb_self_seeds_local_global",
             "0 nodes",
             "Graph error:",
             "list_widgets",
@@ -1726,7 +1726,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "PATCH /workspaces/{id}/loom/folders/{folder_id}",
             "Change color",
             "No folders",
-            "folder_tree_live_pg_self_seeded_round_trip",
+            "folder_tree_live_surrealdb_self_seeded_round_trip",
             "cleanup_verified=true",
         ],
         "Tags and Tag Hubs" => &[
@@ -1745,7 +1745,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "tag-hub.add-tag.{block_id}",
             "TagsPanelEvent::OpenTag",
             "No tags",
-            "tags_tag_hub_live_pg_self_seeds_mounted_round_trip",
+            "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip",
             "mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve",
             "argus.inspect",
             "argus.click",
@@ -1809,7 +1809,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "Tier 2 internal_diagnostics = WIRED at the shared backend-health boundary",
             "Tier 3 Palmistry = WIRED through the shared diagnostic ring",
             "HSK_TEST_BACKEND_BIN",
-            "HANDSHAKE_TEST_PG_DSN",
+            "HANDSHAKE_DATA_DIR",
             "HANDSHAKE_ARTIFACTS_ROOT",
             "loom_search_v2_managed_mounted_search_facet_save_reload_cleanup",
             "not canonical Argus reopened-view closure",
@@ -1961,7 +1961,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "typed StalledOperation diagnostic",
             "Tier 3 Palmistry = WIRED",
             "shared process-global diagnostic ring",
-            "live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof",
+            "live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof",
             "ReqwestWikilinkBackend/WikilinkRuntime",
             "MT-032-canvas-live-B.png",
             "every already-mounted backlink panel",
@@ -2187,7 +2187,7 @@ fn mt021_knowledge_graph_manual_documents_live_ids_and_recovery() {
         "AddEdge",
         "RemoveEdge",
         "LoomGraphView::set_graph_projection",
-        "graph_view_live_pg_self_seeds_local_global",
+        "graph_view_live_surrealdb_self_seeds_local_global",
         "real pre-seed 0-node Global projection",
         "bounded typed transport failure",
         "cleanup guard removes the seeded workspace",
@@ -2248,7 +2248,7 @@ fn mt022_folder_tree_manual_documents_live_ids_routes_and_recovery() {
         "Retry",
         "Handshake-managed embedded SurrealDB backend",
         "Flight Recorder/EventLedger",
-        "folder_tree_live_pg_self_seeded_round_trip",
+        "folder_tree_live_surrealdb_self_seeded_round_trip",
         "cleanup_verified=true",
         "argus.inspect",
         "argus.click",
@@ -2569,7 +2569,7 @@ fn wave6_editor_settings_topic_documents_live_font_and_palette_effects() {
     );
     assert!(
         !body.to_lowercase().contains("sqlite"),
-        "no SQLite in the settings topic"
+        "no detected legacy local-store name in the settings topic"
     );
 }
 

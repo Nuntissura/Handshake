@@ -3,7 +3,7 @@
 //!
 //! Three-way comparison:
 //! * seed corpus (compiled into THIS binary — what the manual should say),
-//! * `user_manual_*` PostgreSQL rows (what the manual DOES say),
+//! * `user_manual_*` embedded SurrealDB rows (what the manual DOES say),
 //! * [`registry::wp009_surface_registry`] (what the product DOES serve;
 //!   runtime-probed by the doc-vs-runtime tests).
 //!
@@ -33,7 +33,7 @@ use super::registry::wp009_surface_registry;
 use super::seed::{corpus_hash, seed_corpus};
 use super::store::{UserManualStore, LIST_CAP};
 use super::USER_MANUAL_VERSION;
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -95,7 +95,7 @@ pub struct FreshnessReport {
 }
 
 /// Run the full freshness check against the live database.
-pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessReport> {
+pub async fn check_freshness(db: &SurrealDatabase) -> StorageResult<FreshnessReport> {
     let store = UserManualStore::new(db);
     let corpus = seed_corpus();
     let seed_hash = corpus_hash(&corpus);

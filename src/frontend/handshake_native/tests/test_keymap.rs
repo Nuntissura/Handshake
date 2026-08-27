@@ -246,7 +246,7 @@ fn keymap_override() {
     );
 
     // The override file is plain serde JSON (round-trips), proving the same authority can be read by
-    // MT-072's PG settings surface later (one logical authority, two transports).
+    // MT-072's SurrealDB settings surface later (one logical authority, two transports).
     let json = serde_json::to_string(&settings).expect("serialize");
     let back: KeymapSettings = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back, settings, "settings round-trip as JSON");

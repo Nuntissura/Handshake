@@ -122,7 +122,7 @@ mod mt_067_yjs_bridge {
         assert_eq!(record.update_sha256, env.update_sha256);
         assert!(record
             .update_bytes_ref
-            .starts_with("postgres://kernel_crdt_updates/"));
+            .starts_with("surreal://kernel_crdt_updates/"));
         before.increment(&site.site_id);
     }
 
@@ -227,7 +227,7 @@ mod mt_067_yjs_bridge {
         assert_eq!(body["receipt"]["operation"], "push_update");
         assert_eq!(
             body["receipt"]["target_authority_ref"],
-            format!("postgres://kernel_crdt_updates/{crdt_doc}")
+            format!("surreal://kernel_crdt_updates/{crdt_doc}")
         );
 
         // Push update 2 (model) on the new head.

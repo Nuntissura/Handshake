@@ -12,7 +12,7 @@
 //! handles the caller already holds) and produces a [`QueryPlan`]. It is
 //! deterministic: the same request yields the same plan. EVERY handle kind
 //! (entity, work-packet, micro-task, source, relationship) is CONFIRMED
-//! against the ProjectKnowledgeIndex with a real PostgreSQL read before it may
+//! against the ProjectKnowledgeIndex with a real embedded-store read before it may
 //! anchor `direct_load`/`exact_lookup` (adversarial-v2 MT-130) — a dangling
 //! handle degrades the plan to a broader mode AND is recorded in
 //! [`PlannedRetrieval::dangling_handles`] rather than producing a plan that
@@ -28,7 +28,7 @@ use uuid::Uuid;
 
 use crate::memory::retrieval_mode::{NonHybridReason, QueryKind, QueryRetrievalMode};
 use crate::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 use super::plan::{
@@ -39,7 +39,7 @@ use super::plan::{
 /// of these is what lets the planner skip hybrid retrieval (spec A0.2).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuthoritativeHandle {
-    /// A ProjectKnowledgeIndex entity id (confirmed against PG before use).
+    /// A ProjectKnowledgeIndex entity id (confirmed in SurrealDB before use).
     EntityId(String),
     /// A typed entity identity (kind + key) resolved to an entity id.
     EntityIdentity {
@@ -178,14 +178,14 @@ impl DanglingHandle {
 
 /// The cheapest-authoritative-path planner. Confirms entity/source handles
 /// against the ProjectKnowledgeIndex through the committed `KnowledgeStore`
-/// (the `PostgresDatabase`); it needs no separate pool because every read it
+/// (the `SurrealDatabase`); it needs no separate pool because every read it
 /// performs is a `KnowledgeStore` method.
 pub struct CheapestAuthoritativePathPlanner<'a> {
-    db: &'a PostgresDatabase,
+    db: &'a SurrealDatabase,
 }
 
 impl<'a> CheapestAuthoritativePathPlanner<'a> {
-    pub fn new(db: &'a PostgresDatabase) -> Self {
+    pub fn new(db: &'a SurrealDatabase) -> Self {
         Self { db }
     }
 
@@ -327,7 +327,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
             return Ok(None);
         };
         let routing = super::semantic_catalog::routing_for(
-            self.db.pool(),
+            self.db.storage(),
             &request.workspace_id,
             name,
             request.budgets.max_candidates_total,

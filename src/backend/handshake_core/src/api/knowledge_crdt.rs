@@ -17,10 +17,8 @@
 //! the kernel CRDT stores; these handlers never hold draft authority in
 //! process memory.
 //!
-//! PENDING SURREALDB PORT (WP-KERNEL-012 MT-136): the `knowledge_crdt_*` reads
-//! and writes still bind `sqlx` against the deleted relational backend, so this
-//! module does not compile today. Handshake's only database is the embedded
-//! SurrealDB store.
+//! The `knowledge_crdt_*` reads and writes use the application's embedded
+//! SurrealDB authority and share its EventLedger.
 
 use std::sync::Arc;
 
@@ -42,24 +40,24 @@ use crate::kernel::crdt::yjs_bridge::{
     YjsUpdateEnvelopeV1, YjsUpdatePullResponseV1, YJS_PUSH_DENIAL_SCHEMA_ID,
 };
 use crate::storage::knowledge_crdt::list_denial_receipts_for_document;
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::Database;
 use crate::AppState;
 
 /// Narrow state for the knowledge CRDT routes: the Database trait object for
-/// EventLedger + kernel CRDT stores, plus the shared relational pool for the
-/// WP-009 `knowledge_crdt_*` tables (pending the SurrealDB port). Tests
-/// construct this directly from the storage test fixture; the app constructs it
-/// from [`AppState`].
+/// EventLedger + kernel CRDT stores, plus the shared embedded store for the
+/// WP-009 `knowledge_crdt_*` tables. Tests construct this directly from the
+/// storage test fixture; the app constructs it from [`AppState`].
 #[derive(Clone)]
 pub struct KnowledgeCrdtApiState {
     pub db: Arc<dyn Database>,
-    pub pool: sqlx::PgPool,
+    pub pool: SurrealStorage,
 }
 
 pub fn routes(state: AppState) -> Router {
     router_with_state(KnowledgeCrdtApiState {
         db: state.storage.clone(),
-        pool: state.postgres_pool.clone(),
+        pool: state.surreal.clone(),
     })
 }
 
@@ -152,7 +150,7 @@ async fn push_update(
         &envelope.session_id,
         &envelope.trace_id,
         format!(
-            "postgres://kernel_crdt_updates/{}",
+            "surreal://kernel_crdt_updates/{}",
             envelope.crdt_document_id
         ),
         "push_update",
@@ -299,7 +297,7 @@ async fn pull_updates(
         &query.actor_id,
         &query.session_id,
         &query.correlation_id,
-        format!("postgres://kernel_crdt_updates/{}", query.crdt_document_id),
+        format!("surreal://kernel_crdt_updates/{}", query.crdt_document_id),
         "pull_updates",
     );
     Ok(Json(PullUpdatesResponse { result, receipt }))
@@ -365,7 +363,7 @@ async fn conflict_state(
         &query.session_id,
         &query.correlation_id,
         format!(
-            "postgres://knowledge_crdt_denial_receipts/{}",
+            "surreal://knowledge_crdt_denial_receipts/{}",
             query.crdt_document_id
         ),
         "conflict_state",

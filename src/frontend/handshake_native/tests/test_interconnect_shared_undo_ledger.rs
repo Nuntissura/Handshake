@@ -1,6 +1,6 @@
 //! WP-KERNEL-012 MT-046 — INTERCONNECTION EDGE 4: shared undo + event-ledger across surfaces (IC-15..IC-18).
 //!
-//! IC-15/IC-16/IC-18 are MELT-TOGETHER SUBSTRATE proofs that are PROVABLE NOW in-process (no PG): they prove
+//! IC-15/IC-16/IC-18 are MELT-TOGETHER SUBSTRATE proofs that are PROVABLE NOW in-process (no SurrealDB): they prove
 //! the code editor and the rich-text editor share ONE undo stack — the SAME `Arc<Mutex<InteractionBus>>`
 //! undo scope instance — so an undo reverts an edit recorded by either surface, and the per-pane scope policy
 //! (POLICY-1 local-first) holds. The LOAD-BEARING anti-RISK-1/anti-RISK-4 control (CTRL-1/CTRL-4): each
@@ -376,7 +376,7 @@ fn supplemental_mt046_argus_ic18_scoped_undo() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-15 — Undo crosses rich editor edit (LIVE-PG PASS): persist EDIT_A, route the Ctrl+Z operation through
+// IC-15 — Undo crosses rich editor edit (LIVE-SURREALDB PASS): persist EDIT_A, route the Ctrl+Z operation through
 // the ONE shared bus undo scope, persist the restored snapshot, and GET backend authority to prove EDIT_A
 // is absent. The SAME `Arc<Mutex<InteractionBus>>` instance holds the scope (CTRL-1).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -531,7 +531,7 @@ fn interconnect_ic15_undo_rich_editor() {
         "versions": [base_version, edit_version, undo_version],
     }));
     assert_no_local_artifact_dir();
-    println!("IC-15 LIVE-PG PASS: EDIT_A saved, Ctrl+Z restored, and backend GET confirms absence");
+    println!("IC-15 LIVE-SURREALDB PASS: EDIT_A saved, Ctrl+Z restored, and backend GET confirms absence");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -799,7 +799,7 @@ fn interconnect_ic17_event_ledger_records() {
         .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
         .or_else(|| created.get("id").and_then(|v| v.as_str()))
         .expect(
-            "requires_pg: created document returns a rich_document_id (document.rich_document_id)",
+            "requires_surrealdb: created document returns a rich_document_id (document.rich_document_id)",
         )
         .to_owned();
     let mut version = created
@@ -934,7 +934,7 @@ fn interconnect_ic17_event_ledger_records() {
         "negative_missing_aggregate_count": 0,
     }));
     println!(
-        "IC-17 LIVE-PG PASS: {} KNOWLEDGE_RICH_DOCUMENT_SAVED events recorded for the note",
+        "IC-17 LIVE-SURREALDB PASS: {} KNOWLEDGE_RICH_DOCUMENT_SAVED events recorded for the note",
         saved.len()
     );
 }

@@ -19,20 +19,20 @@
 //! itself only depends on committed WP-009 surfaces (leases 0151, denial
 //! receipts 0150).
 
+use crate::storage::surreal::SurrealStorage;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
-    AgentLaneLeaseRow, NewKnowledgeCrdtDenialReceipt, insert_denial_receipt, new_denial_receipt_id,
+    insert_denial_receipt, new_denial_receipt_id, AgentLaneLeaseRow, NewKnowledgeCrdtDenialReceipt,
 };
+use crate::storage::Database;
 
 use super::actor_site::KnowledgeActorIdV1;
 use super::agent_lease::{
-    KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1, LeaseFlowError, claim_lease,
-    release_lease,
+    claim_lease, release_lease, KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1,
+    LeaseFlowError,
 };
 
 pub const INDEX_RUN_SLOT_REJECTION_SCHEMA_ID: &str =
@@ -83,7 +83,7 @@ pub enum IndexRunSlotOutcomeV1 {
 /// Claim the single active index-run slot for a source root.
 pub async fn claim_index_run_slot(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     request: IndexRunSlotRequestV1,
 ) -> Result<IndexRunSlotOutcomeV1, LeaseFlowError> {
     let claim = claim_lease(
@@ -183,7 +183,7 @@ pub async fn claim_index_run_slot(
 /// Release the index-run slot when the run completes or aborts.
 pub async fn release_index_run_slot(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     lease_id: &str,
     actor: &KnowledgeActorIdV1,
 ) -> Result<Option<AgentLaneLeaseRow>, LeaseFlowError> {

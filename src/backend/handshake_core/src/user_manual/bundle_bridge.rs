@@ -22,7 +22,7 @@ use crate::storage::knowledge::{
     KnowledgeBundleItemRefKind, KnowledgeEntity, KnowledgeEntityKind, KnowledgeStore,
     NewKnowledgeEntity,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::StorageResult;
 
 /// The citation base for a manual page: `usermanual:<slug>@<version>#<anchor>`.
@@ -34,7 +34,7 @@ pub fn manual_citation_base(slug: &str, manual_version: &str, anchor: &str) -> S
 /// Mirror a manual page into the workspace's knowledge graph (idempotent on
 /// (workspace, user_manual_page, slug)) so bundles can cite it as an entity.
 pub async fn ensure_manual_page_entity(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     workspace_id: &str,
     page: &UserManualPage,
 ) -> StorageResult<KnowledgeEntity> {

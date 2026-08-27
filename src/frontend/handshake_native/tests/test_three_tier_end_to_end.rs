@@ -28,7 +28,7 @@
 //!
 //! # Honest gating (AC-016-6) + bounded tests (packet `palmistry_test_bound_policy`)
 //!
-//! The FR-forward LIVE round-trip (MT-093) needs a managed PostgreSQL/backend; it is gated and recorded
+//! The FR-forward LIVE round-trip (MT-093) needs a managed SurrealDB/backend; it is gated and recorded
 //! `NEEDS_MANAGED_RESOURCE_PROOF` (the palmistry support test proves it returns a typed blocker, not a
 //! faked success). The LIVE cross-process spawn of the real `palmistry.exe` (the known IPC hazard) is the
 //! ONLY test here that spawns a child; it is hard-bounded AND `#[ignore]`d (run with `--include-ignored`
@@ -460,8 +460,8 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
     );
 
     let mut open_gates = vec![
-        "FR-forward LIVE round-trip (MT-093 §6.13.7): needs a managed PostgreSQL/backend on \
-         127.0.0.1:37501; gated requires_pg; the kept-as-is route returns a typed blocker (AC-016-6)."
+        "FR-forward LIVE round-trip (MT-093 §6.13.7): needs a managed SurrealDB/backend on \
+         127.0.0.1:37501; gated requires_surrealdb; the kept-as-is route returns a typed blocker (AC-016-6)."
             .to_string(),
     ];
     if freeze_artifact.is_none() || crash_artifact.is_none() {
@@ -531,7 +531,7 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
                 name: "HONEST GATING (FR-forward live half)",
                 verdict: "NEEDS_MANAGED_RESOURCE_PROOF".to_string(),
                 proof: "palmistry fr_forward_live_half_is_an_honest_typed_blocker_not_faked (typed blocker, \
-                        not faked); live round-trip needs managed PostgreSQL/backend"
+                        not faked); live round-trip needs managed SurrealDB/backend"
                     .to_string(),
             },
         ],
@@ -577,8 +577,8 @@ fn whole_wp_three_tier_record() -> ThreeTierDiagnosticWiringRecord {
             TierWiring::deferred(
                 DiagTier::FlightRecorder,
                 "FR-forward recovery path is wired (MT-093) and returns an HONEST typed blocker against \
-                 the kept-as-is route; the LIVE round-trip needs managed PostgreSQL/backend \
-                 (NEEDS_MANAGED_RESOURCE_PROOF, gated requires_pg) — proven by palmistry \
+                 the kept-as-is route; the LIVE round-trip needs managed SurrealDB/backend \
+                 (NEEDS_MANAGED_RESOURCE_PROOF, gated requires_surrealdb) — proven by palmistry \
                  fr_forward_live_half_is_an_honest_typed_blocker_not_faked",
             ),
             // Tier 2: internal_diagnostics proven end-to-end on the real app (heartbeat, backend-down, panel).

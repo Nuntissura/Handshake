@@ -1,16 +1,16 @@
 // WP-KERNEL-009 / MT-253 — offline source-control panel runtime proof.
 //
-// Spawns the mt253_source_control_fixture (real temp git repo + real PG-backed
-// source-control routes against isolated PostgreSQL), serves the BUILT
+// Spawns the mt253_source_control_fixture (real temp git repo + real
+// source-control routes against isolated embedded SurrealDB), serves the BUILT
 // SourceControlPanel harness from loopback, and drives the REAL panel:
 // status -> diff (real Monaco diff editor) -> stage -> commit -> branch -> log
 // -> blame. Proves the commit lands in real `git log` with the correct message
-// and that write ops appended EventLedger receipts to real PostgreSQL. The
+// and that write ops appended EventLedger receipts to real SurrealDB. The
 // negative case proves discard demands explicit confirm and a cancel leaves the
 // worktree untouched. All non-loopback network is blocked and asserted empty.
 
 import { expect, test } from "@playwright/test";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -104,14 +104,25 @@ function startFixture(): Promise<FixtureHandle> {
       cwd: repoRoot,
       env: { ...process.env, RUST_BACKTRACE: "1" },
       windowsHide: true,
+      detached: process.platform !== "win32",
     },
   );
   let stdoutBuffer = "";
   let stderr = "";
   return new Promise((resolve, reject) => {
+    let settled = false;
     const timeout = setTimeout(() => {
-      child.kill();
-      reject(new Error(`MT-253 fixture did not become ready within 600s. stderr:\n${stderr}`));
+      if (settled) return;
+      settled = true;
+      void terminateFixtureProcess(child).then(
+        () => reject(new Error(`MT-253 fixture did not become ready within 600s. stderr:\n${stderr}`)),
+        (teardownError) =>
+          reject(
+            new Error(
+              `MT-253 fixture did not become ready within 600s. Startup teardown failed: ${String(teardownError)}. stderr:\n${stderr}`,
+            ),
+          ),
+      );
     }, 600_000);
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
@@ -122,11 +133,15 @@ function startFixture(): Promise<FixtureHandle> {
       stdoutBuffer = lines.pop() ?? "";
       for (const line of lines) {
         if (line.startsWith("MT253_FIXTURE_SKIP ")) {
+          if (settled) return;
+          settled = true;
           clearTimeout(timeout);
           resolve({ kind: "skip", reason: line.slice("MT253_FIXTURE_SKIP ".length) });
           return;
         }
         if (line.startsWith("MT253_FIXTURE_READY ")) {
+          if (settled) return;
+          settled = true;
           clearTimeout(timeout);
           resolve({
             kind: "ready",
@@ -139,32 +154,110 @@ function startFixture(): Promise<FixtureHandle> {
       }
     });
     child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
       reject(error);
     });
-    child.once("exit", (code) => {
-      if (code !== null && code !== 0) {
-        clearTimeout(timeout);
-        reject(new Error(`MT-253 fixture exited before ready with code ${code}. stderr:\n${stderr}`));
-      }
+    child.once("exit", (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(
+        new Error(
+          `MT-253 fixture exited before ready with code ${code} and signal ${signal}. stderr:\n${stderr}`,
+        ),
+      );
     });
   });
 }
 
+function waitForFixtureExit(
+  child: ChildProcessWithoutNullStreams,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+    const timeout = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    child.once("exit", onExit);
+    if (child.exitCode !== null || child.signalCode !== null) {
+      child.off("exit", onExit);
+      clearTimeout(timeout);
+      resolve(true);
+    }
+  });
+}
+
+async function terminateFixtureProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (process.platform === "win32" && child.pid !== undefined) {
+    const result = spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      encoding: "utf8",
+      timeout: 7_000,
+      windowsHide: true,
+    });
+    if (await waitForFixtureExit(child, 2_000)) return;
+    throw new Error(
+      `fixture process tree did not exit after taskkill; pid=${child.pid}; status=${result.status}; signal=${result.signal}; error=${result.error?.message ?? "none"}; stderr=${result.stderr}`,
+    );
+  }
+  try {
+    if (child.pid !== undefined) process.kill(-child.pid, "SIGTERM");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+  }
+  if (await waitForFixtureExit(child, 5_000)) return;
+  try {
+    if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+  }
+  if (await waitForFixtureExit(child, 2_000)) return;
+  throw new Error(
+    `fixture process did not exit after bounded TERM/KILL; pid=${child.pid ?? "unknown"}`,
+  );
+}
+
 async function stopFixture(handle: FixtureHandle | null): Promise<void> {
   if (!handle || handle.kind !== "ready") return;
-  if (handle.child.exitCode !== null) return;
-  handle.child.kill();
-  await new Promise<void>((resolve) => {
-    const timeout = setTimeout(() => {
-      handle.child.kill("SIGKILL");
-      resolve();
-    }, 5_000);
-    handle.child.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
+  if (handle.child.exitCode !== null || handle.child.signalCode !== null) {
+    if (handle.child.exitCode === 0) return;
+    throw new Error(
+      `Fixture exited before shutdown: exitCode=${handle.child.exitCode} signal=${handle.child.signalCode}. stderr:\n${handle.stderr()}`,
+    );
+  }
+
+  const controller = new AbortController();
+  const requestTimeout = setTimeout(() => controller.abort(), 2_000);
+  try {
+    await fetch(`${handle.ready.base_url}/__fixture/shutdown`, {
+      method: "POST",
+      signal: controller.signal,
     });
-  });
+  } catch {
+    // A failed request is handled by the bounded process-stop fallback below.
+  } finally {
+    clearTimeout(requestTimeout);
+  }
+
+  if (await waitForFixtureExit(handle.child, 10_000)) {
+    if (handle.child.exitCode === 0) return;
+    throw new Error(
+      `Fixture graceful shutdown failed: exitCode=${handle.child.exitCode} signal=${handle.child.signalCode}. stderr:\n${handle.stderr()}`,
+    );
+  }
+
+  await terminateFixtureProcess(handle.child);
+  throw new Error(
+    `Fixture graceful shutdown timed out and required forced termination. stderr:\n${handle.stderr()}`,
+  );
 }
 
 async function fixtureProof(ready: FixtureReady): Promise<FixtureProof> {

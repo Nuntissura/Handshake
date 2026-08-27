@@ -1,1 +1,0 @@
-DROP INDEX IF EXISTS ux_loom_daily_journal_workspace_date;

@@ -20,8 +20,8 @@
       * requires the live scenario to report exactly `1 passed; 0 failed`,
       * binds the canonical evidence JSON to THIS run (fresh mtime + exact source SHA) and re-verifies
         all four PNG digests and dimensions from disk,
-      * queries PostgreSQL DIRECTLY for fixture and MT-109 workspace-partitioned Flight Recorder ledger
-        residue after the run, because a passing run writing `*_rows_zero: true` is not proof.
+      * independently verifies the product cleanup projection and that no embedded store directory
+        survives below the supervisor-owned runtime root.
 
     Exit code 0 only when every one of those holds.
 
@@ -45,7 +45,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $TEST_BINARY = 'test_locus_interop'
-$LIVE_SCENARIO = 'resolve_locus_ref_against_real_pg_live'
+$LIVE_SCENARIO = 'resolve_locus_ref_against_real_surrealdb_live'
 
 function Get-FileSha256 {
     param([Parameter(Mandatory)][string]$Path)
@@ -131,7 +131,7 @@ if ($dirtyRows.Count -ne 0) {
 # ── Scenario declaration gate (source side) ──────────────────────────────────────────────────────
 # The MT's own file must declare EXACTLY ONE runner-only scenario, and it must be the live proof. The
 # expected COUNTS deliberately do NOT come from here: this binary also compiles `#[path]`-included
-# support modules (`pg_proof_support` contributes its own unit tests), so a source regex over one file
+# support modules (`backend_proof_support` contributes its own unit tests), so a source regex over one file
 # would silently undercount. The authoritative inventory is taken from the built binary below.
 $testSourcePath = Join-Path $PSScriptRoot "$TEST_BINARY.rs"
 $testSource = Get-Content -LiteralPath $testSourcePath -Raw
@@ -164,20 +164,15 @@ $wholeRunDeadline = $runStartedAtUtc.AddSeconds($WholeRunTimeoutSeconds)
 
 # ── Embedded store identity (opened and closed by the backend, never by this script) ──────────────
 # Handshake's database runs INSIDE the backend process. There is no listener to
-# find, no owning process to identify, and no psql to locate: the store is a
+# find, no owning process to identify, and no direct_db_client to locate: the store is a
 # directory under this run's root, held under an exclusive RocksDB lock for as
 # long as the backend lives.
 $storeRoot = Join-Path $runRoot 'backend-runtime'
 [void][IO.Directory]::CreateDirectory($storeRoot)
 $storeIdentity = [IO.Path]::GetFullPath($storeRoot)
 
-# Invoke-ProofSql is GONE and deliberately has no replacement here. It existed so
-# this supervisor could interrogate the database itself after the run, because -
-# as this file's own header says - a passing run writing `*_rows_zero: true` is
-# not proof of its own cleanliness. An embedded in-process store cannot be
-# queried from outside the backend, so that independence cannot be reconstructed
-# from PowerShell. See the residue section below: the check is downgraded and
-# labelled, not silently kept.
+# Direct database access is deliberately absent. Product APIs prove exact record lifecycle while the
+# supervisor independently verifies that the run-owned embedded store cannot survive cleanup.
 
 # ── Reviewed MT-045 Windows Job Object containment (extracted, never duplicated) ──────────────────
 $jobHelperPath = Join-Path $PSScriptRoot 'run_mt045_perf_proof.ps1'
@@ -268,7 +263,7 @@ try {
     $backendPath = Join-Path $targetRoot 'debug\handshake_core.exe'
     $backendSha256 = Get-FileSha256 $backendPath
 
-    # ── Proof environment (external artifacts only; real PostgreSQL; GPU frames) ──────────────────
+    # ── Proof environment (external artifacts only; real SurrealDB; GPU frames) ──────────────────
     $env:CARGO_TARGET_DIR = $targetRoot
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
     $env:HANDSHAKE_TEST_ARTIFACTS_ROOT = $testArtifactRoot
@@ -396,29 +391,23 @@ try {
         throw "MT-068 requires exactly four canonical frames (WP before/after, MT before/after); got $($frames.Count)"
     }
 
-    # ── Residue verification: DOWNGRADED, and this is the honest statement of it ──────────────
-    # This section used to interrogate the database directly after the run,
-    # precisely because the run's own claims are not evidence. That independent
-    # check is NOT possible against an embedded in-process store from here.
-    #
-    # What remains is the fixture-owned containment proof in the Rust harness:
-    # the run's store lives inside a fixture-owned runtime root and goes away
-    # with it. That proves the run cannot have written outside its own store; it
-    # does NOT prove the per-table row counts the old probe asserted.
-    #
-    # Restoring the original strength needs an out-of-process verifier that opens
-    # the store AFTER the backend exits and releases the RocksDB lock. That is
-    # deferred to its own microtask rather than faked here.
-    $residue = 'containment_only:per_table_row_counts_not_independently_verified'
-    # Recorded, not gated: any OTHER ledger row carrying this workspace id. MT-068 owns neither the
-    # workspace lifecycle events nor another edge's rows, so silently deleting them would be a
-    # cross-owner mutation; surfacing the exact count keeps the observation honest either way.
-    $otherLedgerRows = [int]([string](Invoke-ProofSql -Label 'workspace-scoped ledger observation' -Sql @"
-SELECT COUNT(*) FROM kernel_event_ledger
- WHERE payload->>'workspace_id' = '$ws'
-   AND idempotency_key NOT LIKE 'native-editor-fr-pending:${ws}:%'
-   AND idempotency_key NOT LIKE 'native-editor-fr-complete:${ws}:%'
-"@ | Select-Object -First 1))
+    # ── Independent product-cleanup + embedded-store containment verification ───────────────────
+    foreach ($field in @('workspace_absent', 'persisted_document_absent', 'work_packet_rows_zero',
+            'microtask_rows_zero', 'eventledger_mirror_rows_zero', 'flight_recorder_rows_zero')) {
+        if (-not [bool]$evidence.cleanup.$field) {
+            throw "Canonical product cleanup projection did not prove '$field'"
+        }
+    }
+    $survivingStoreDirectories = if (Test-Path -LiteralPath $storeIdentity -PathType Container) {
+        @(Get-ChildItem -LiteralPath $storeIdentity -Recurse -Directory -Filter 'handshake-surreal' |
+            ForEach-Object { $_.FullName })
+    } else {
+        @()
+    }
+    if ($survivingStoreDirectories.Count -ne 0) {
+        throw "Fixture-owned embedded store survived cleanup: $($survivingStoreDirectories -join ', ')"
+    }
+    $residue = 'product_absence_proven_and_run_owned_store_removed'
 
     $aggregateStatus = 'PASS'
     $terminalReason = 'ORDINARY_AND_RUNNER_ONLY_SCENARIOS_BOTH_TERMINALIZED_WITH_ZERO_RESIDUE'
@@ -460,11 +449,12 @@ SELECT COUNT(*) FROM kernel_event_ledger
         canonical_evidence_sha256 = Get-FileSha256 $evidencePath
         canonical_frames = @($frames)
         store_residue_probe = $residue
-        workspace_scoped_other_ledger_rows = $otherLedgerRows
+        canonical_cleanup_projection = $evidence.cleanup
+        surviving_store_directories = @($survivingStoreDirectories)
         commands = @($scenarioReceipts)
     }
     Write-JsonAtomic -Path $summaryPath -Value $summary
-    Write-Output "MT-068 AGGREGATE PASS run_id=$RunId source_sha=$sourceSha ordinary=$($ordinaryCounts.passed)/$($ordinaryCounts.failed)/$($ordinaryCounts.ignored) live=$($liveCounts.passed)/$($liveCounts.failed)/$($liveCounts.ignored) frames=$($frames.Count) residue='$residue' other_workspace_ledger_rows=$otherLedgerRows summary=$summaryPath"
+    Write-Output "MT-068 AGGREGATE PASS run_id=$RunId source_sha=$sourceSha ordinary=$($ordinaryCounts.passed)/$($ordinaryCounts.failed)/$($ordinaryCounts.ignored) live=$($liveCounts.passed)/$($liveCounts.failed)/$($liveCounts.ignored) frames=$($frames.Count) residue='$residue' summary=$summaryPath"
     exit 0
 }
 catch {

@@ -22,7 +22,7 @@
 //! machine are FULLY proven here with mock HTTP + a mock clock — NO live backend. The real-backend
 //! save/409/draft round-trip is the `#[ignore]` integration test (`test_real_save_conflict`), which
 //! needs a live Handshake-managed backend on 127.0.0.1:37501 with a seeded document; absent that it
-//! is NEEDS_MANAGED_RESOURCE_PROOF (run with `--features integration -- --ignored` against a live PG).
+//! is NEEDS_MANAGED_RESOURCE_PROOF (run with `--features integration -- --ignored` against a live SurrealDB).
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -97,7 +97,7 @@ fn collect_author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<St
 
 // ── Mock backends (no live backend) ──────────────────────────────────────────────────────────────
 
-/// A mock save backend returning a staged result (so a test stages a 200 or a 409 without a live PG).
+/// A mock save backend returning a staged result (so a test stages a 200 or a 409 without a live SurrealDB).
 struct MockSaveBackend {
     result: Mutex<Option<Result<RichDocSaveResult, SaveError>>>,
 }

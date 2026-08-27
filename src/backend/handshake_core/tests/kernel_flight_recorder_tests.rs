@@ -63,7 +63,7 @@ fn flight_recorder_kernel_mirror_is_diagnostic_not_authority() {
         .expect("valid Flight Recorder diagnostic event");
     assert_eq!(mirror.event_type, FlightRecorderEventType::Diagnostic);
     assert_eq!(mirror.payload["diagnostic_id"], "kernel_event_mirror");
-    assert_eq!(mirror.payload["authority_source"], "postgres_event_ledger");
+    assert_eq!(mirror.payload["authority_source"], "surreal_event_ledger");
     assert_eq!(mirror.payload["projection_only"], true);
     assert_eq!(mirror.payload["kernel_event_id"], kernel_event.event_id);
     assert_eq!(mirror.payload["kernel_task_run_id"], "KTR-FR-MIRROR");

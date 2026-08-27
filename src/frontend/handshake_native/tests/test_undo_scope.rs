@@ -30,7 +30,7 @@
 //! - AC-4 (POLICY-4 canvas compensating): the compensating-DELETE REQUEST SHAPE against the verified
 //!   MT-026 placement route is proven without a live backend. The live host drain registers a
 //!   cross-pane compensating undo after a created-placement response, and the full create -> undo ->
-//!   reload round-trip is proven against managed PostgreSQL whenever the integration feature is selected.
+//!   reload round-trip is proven against managed SurrealDB whenever the integration feature is selected.
 //!   V3 additionally drives the cross-pane undo through canonical Argus, proves in-flight compensation
 //!   blocks reentry without reordering, focused local undo remains pane-scoped, and fresh app restart state
 //!   cannot replay interrupted in-memory history.
@@ -47,8 +47,8 @@ use egui_kittest::kittest::NodeT;
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
 #[cfg(feature = "integration")]
-#[path = "pg_proof_support/mod.rs"]
-mod pg_proof_support;
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use canonical_argus_driver::{ArgusObservation, CanonicalArgusDriver};
@@ -109,7 +109,7 @@ fn assert_no_local_artifact_dir() {
 #[cfg(feature = "integration")]
 fn mt035_proof_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
     request
-        .header("x-hsk-actor-id", "mt035-live-pg")
+        .header("x-hsk-actor-id", "mt035-live-surrealdb")
         .header("x-hsk-actor-kind", "operator")
         .header("x-hsk-kernel-task-run-id", "WP-KERNEL-012-MT-035")
         .header("x-hsk-session-run-id", "MT-035-integration")
@@ -118,7 +118,7 @@ fn mt035_proof_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuil
 #[cfg(feature = "integration")]
 fn mt035_workspace_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
     request
-        .header("x-hsk-actor-id", "mt035-live-pg")
+        .header("x-hsk-actor-id", "mt035-live-surrealdb")
         .header("x-hsk-actor-kind", "human")
 }
 
@@ -181,11 +181,11 @@ async fn mt035_dispatch_created_placement(
     client.dispatch_created_placement(spec, Arc::clone(&cell));
     for _ in 0..600 {
         if let Some(result) = cell.lock().unwrap().take() {
-            return result.expect("managed-PG placement create");
+            return result.expect("managed-SurrealDB placement create");
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    panic!("managed-PG placement create did not resolve within six seconds");
+    panic!("managed-SurrealDB placement create did not resolve within six seconds");
 }
 
 fn pane(id: &str) -> PaneId {
@@ -848,7 +848,7 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
 // - Canvas placement/card creation responses now register push_canvas_placement_undo through the mounted
 //   app drain after the backend-minted placement id is known.
 // - The canvas compensating DELETE request shape passes below; the full create -> undo -> reload absence
-//   proof is complemented by the managed-PostgreSQL integration run below.
+//   proof is complemented by the managed-SurrealDB integration run below.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -2255,7 +2255,10 @@ fn fresh_scope_is_empty_and_session_scoped() {
 /// !Serialize>()` is not expressible on stable Rust, so the source guard is the field-correct proof.)
 #[test]
 fn undo_scope_does_not_implement_serialize() {
-    let src = std::fs::read_to_string("src/undo_stack.rs").expect("read src/undo_stack.rs");
+    let source_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/undo_stack.rs");
+    let src = std::fs::read_to_string(&source_path).unwrap_or_else(|error| {
+        panic!("read {}: {error}", source_path.display())
+    });
     // Scan only CODE lines (skip `//`/`///` doc comments — the module DOCUMENTS the no-Serialize policy
     // in prose, which must be allowed; what is forbidden is an actual derive / impl / serde import).
     let code: String = src
@@ -2445,7 +2448,7 @@ fn live_shell_header_undo_count_tracks_shared_bus_depth() {
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-4 — POLICY-4 canvas compensating undo. The request-SHAPE binding is proven here without a live
-// backend; the integration-feature proof below runs the round-trip against real PostgreSQL.
+// backend; the integration-feature proof below runs the round-trip against real SurrealDB.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// The compensating-undo request shape: a canvas placement undo must DELETE the created placement via the
@@ -2483,15 +2486,15 @@ fn canvas_compensating_undo_uses_verified_delete_route() {
 }
 
 /// AC-4 full round-trip: self-seed an owned workspace, two canonical blocks, a Canvas, and two
-/// placements against Handshake-managed PostgreSQL. Drive the real shell Ctrl+Shift+Z consumer, then
+/// placements against Handshake-managed SurrealDB. Drive the real shell Ctrl+Shift+Z consumer, then
 /// prove the exact owned placement is absent after a fresh board reload while the unrelated placement
 /// remains. Run with `cargo test --features integration --test test_undo_scope -- --test-threads=1`.
 #[test]
 #[cfg(feature = "integration")]
-fn canvas_placement_undo_round_trip_live_pg() {
+fn canvas_placement_undo_round_trip_live_surrealdb() {
     use handshake_native::backend_client::{CanvasBoardClient, CreatedCanvasPlacement};
 
-    let mut managed_backend = pg_proof_support::require_reachable_backend();
+    let mut managed_backend = backend_proof_support::require_reachable_backend();
     let backend_binding = managed_backend.owned_backend_binding_receipt();
     println!("MT-035 owned backend binding: {backend_binding}");
     let runtime = tokio::runtime::Builder::new_multi_thread()

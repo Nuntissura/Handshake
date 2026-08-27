@@ -3,7 +3,7 @@
 //!
 //! ## Mock-server fixture provenance (SPEC-REALISM GATE — the load-bearing rule)
 //!
-//! This MT is fully provable WITHOUT a live PostgreSQL/handshake_core: every AC runs against an
+//! This MT is fully provable WITHOUT a live SurrealDB/handshake_core: every AC runs against an
 //! in-process mock HTTP server (the PROVEN MT-020/037 `std::net::TcpListener` capture pattern — NO new
 //! dependency). The mock JSON RESPONSES below are REAL backend response shapes — field-verified against
 //! the handshake_core source READ-ONLY (NOT self-serialized from the client's own Rust types, which
@@ -50,7 +50,7 @@ fn receipt_body(operation: &str) -> Value {
         "actor_id": "operator:ilja",
         "session_id": "SESS-1",
         "correlation_id": "CORR-1",
-        "target_authority_ref": "postgres://kernel_crdt_updates/KCRDT-1",
+        "target_authority_ref": "surrealdb://kernel_crdt_updates/KCRDT-1",
         "operation": operation,
         "served_at_utc": "2026-06-23T00:00:00+00:00"
     })
@@ -521,7 +521,7 @@ fn receipt_all_seven_fields_preserved_on_push() {
     assert_eq!(r.correlation_id, "CORR-1");
     assert_eq!(
         r.target_authority_ref,
-        "postgres://kernel_crdt_updates/KCRDT-1"
+        "surrealdb://kernel_crdt_updates/KCRDT-1"
     );
     assert_eq!(r.operation, "push_update");
     assert_eq!(r.served_at_utc, "2026-06-23T00:00:00+00:00");

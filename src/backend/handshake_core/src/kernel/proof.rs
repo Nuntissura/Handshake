@@ -2,18 +2,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use super::context_bundle::{canonical_json_bytes, sha256_hex};
 use super::{
-    ArtifactRecord, ContextBundle, KernelActor, KernelError, KernelEvent, KernelEventType,
-    KernelResult, KernelTaskRun, ModelAdapter, ModelAdapterRequest, NewKernelEvent,
-    OperatorPromotionApproval, PromotionDecisionKind, PromotionGate, SessionRun, SessionRunState,
-    ToolDecisionKind, ToolDecisionRecord, TraceProjection, ValidationOutcome, ValidationRunner,
-    flight_recorder_mirror_event,
+    flight_recorder_mirror_event, ArtifactRecord, ContextBundle, KernelActor, KernelError,
+    KernelEvent, KernelEventType, KernelResult, KernelTaskRun, ModelAdapter, ModelAdapterRequest,
+    NewKernelEvent, OperatorPromotionApproval, PromotionDecisionKind, PromotionGate, SessionRun,
+    SessionRunState, ToolDecisionKind, ToolDecisionRecord, TraceProjection, ValidationOutcome,
+    ValidationRunner,
 };
 use crate::flight_recorder::FlightRecorder;
-use crate::mcp::gate::{KernelMcpToolGateRequest, evaluate_kernel_tool_gate_decision};
+use crate::mcp::gate::{evaluate_kernel_tool_gate_decision, KernelMcpToolGateRequest};
 use crate::storage::{
     Database, ModelSessionState, NewModelSession, NewSessionMessage, SessionMessage,
     SessionMessageRole,
@@ -99,7 +99,7 @@ impl KernelProofRunner {
                 json!({
                     "intent": task.intent_payload,
                     "kernel_task_run_id": task.kernel_task_run_id,
-                    "authority": "postgres_event_ledger"
+                    "authority": super::SURREAL_EVENT_LEDGER_AUTHORITY_SOURCE
                 }),
             )
             .await?;
@@ -418,7 +418,7 @@ impl KernelProofRunner {
                     json!({
                         "mirrored_kernel_event_id": promotion_event.event_id,
                         "mirrored_kernel_event_type": promotion_event.event_type.as_str(),
-                        "authority_source": "postgres_event_ledger",
+                        "authority_source": super::SURREAL_EVENT_LEDGER_AUTHORITY_SOURCE,
                         "mirror_sink": "flight_recorder",
                         "projection_only": true
                     }),

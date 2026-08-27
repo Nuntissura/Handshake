@@ -1,33 +1,33 @@
 //! WP-KERNEL-012 E3 MT-021 remediation (FAIL_V2): canonical Argus inspect / safe-steer / re-observe
-//! proof for the MOUNTED local/global Loom graph view over REAL PostgreSQL data.
+//! proof for the MOUNTED local/global Loom graph view over REAL SurrealDB data.
 //!
 //! `validation_v2` failed MT-021 because "Local/global graph UI states have no current canonical Argus
-//! action and post-action observation covering populated real-PostgreSQL graph data. AccessKit or fixture
+//! action and post-action observation covering populated real-SurrealDB graph data. AccessKit or fixture
 //! rendering alone does not satisfy the mandatory visual/steering gate." The existing
-//! `test_graph_view.rs::graph_view_live_pg_self_seeds_local_global` drives the graph WIDGET (`build_ui`)
+//! `test_graph_view.rs::graph_view_live_surrealdb_self_seeds_local_global` drives the graph WIDGET (`build_ui`)
 //! and dispatches raw AccessKit events — it never drives the MOUNTED `HandshakeApp` through the real
 //! localhost `SwarmMcpServer` transport (`argus.inspect` / `argus.click`) the way an out-of-process swarm
 //! agent does, and it never re-observes the mounted tree after a canonical action. This test closes that
 //! exact gap:
 //!
-//!   1. seeds a REAL Handshake-managed PostgreSQL workspace with four LoomBlocks + two LoomEdges through
+//!   1. seeds a REAL Handshake-managed SurrealDB workspace with four LoomBlocks + two LoomEdges through
 //!      the production HTTP routes (`POST /loom/blocks`, `POST /loom/edges`),
 //!   2. mounts the production `HandshakeApp` shell with the Graph View pane and lets the app's OWN
 //!      per-frame feed (`drive_graph_and_canvas_feeds`) fetch the Global projection from that live
 //!      workspace and drain it into the mounted `LoomGraphView` (no injected fixture),
 //!   3. binds the CANONICAL Argus driver (real localhost JSON-RPC) to the mounted app,
-//!   4. `argus.inspect` proves each real-PG graph node is addressable by its stable author_id
+//!   4. `argus.inspect` proves each real-SurrealDB graph node is addressable by its stable author_id
 //!      (`graph.node.{sanitized_block_id}`) plus the fixed global controls,
 //!   5. drives ONE safe, reversible action (`graph.relayout`) through the real Argus transport, and
-//!   6. FRESH `argus.inspect` re-observes the post-action tree (the real-PG nodes remain addressable — the
+//!   6. FRESH `argus.inspect` re-observes the post-action tree (the real-SurrealDB nodes remain addressable — the
 //!      re-layout was additive), then writes before/after tree evidence + a screenshot marker (headless
 //!      DEFERRED is an acceptable typed outcome) and deletes the workspace.
 //!
-//! A second test proves the empty real-PG workspace renders and inspects through canonical Argus with no
+//! A second test proves the empty real-SurrealDB workspace renders and inspects through canonical Argus with no
 //! graph nodes and no panic (AC7).
 //!
 //! Requires the `integration` feature and a reachable managed backend (attach on 37501, or an owned
-//! `HSK_TEST_BACKEND_BIN` + `HANDSHAKE_TEST_PG_DSN`). It is feature-gated but NOT ignored.
+//! `HSK_TEST_BACKEND_BIN` + `HANDSHAKE_DATA_DIR`). It is feature-gated but NOT ignored.
 #![cfg(feature = "integration")]
 
 use std::path::{Path, PathBuf};
@@ -99,7 +99,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204 | 404),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         self.cleaned = true;
     }
@@ -169,7 +169,7 @@ fn graph_shell(base: &str, workspace_id: &str) -> (HandshakeApp, tokio::runtime:
     app.set_backend_base_url_for_test(base, runtime.handle().clone());
     assert!(
         app.switch_project(workspace_id),
-        "switch to the seeded managed-PG workspace"
+        "switch to the seeded managed-SurrealDB workspace"
     );
     assert!(
         app.dispatch_palette_action_for_test(CMD_VIEW_GRAPH),
@@ -287,24 +287,24 @@ fn mt021_mounted_graph_canonical_argus_inspect_steer_reobserve() {
         &mut harness,
         &graph_view,
         |g| g.nodes.len() == 4 && !g.loading && g.error.is_none() && g.layout_stable(),
-        "mounted graph self-fetches and lays out the four real-PG nodes from the live Global projection",
+        "mounted graph self-fetches and lays out the four real-SurrealDB nodes from the live Global projection",
     );
     assert_eq!(
         graph_view.lock().unwrap().edges.len(),
         2,
-        "the mounted graph carries the two real persisted LoomEdges (relationships from real PG)"
+        "the mounted graph carries the two real persisted LoomEdges (relationships from real SurrealDB)"
     );
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-021-graph");
 
-    // (1) Canonical inspect: every real-PG graph node is addressable by stable author_id, and the fixed
+    // (1) Canonical inspect: every real-SurrealDB graph node is addressable by stable author_id, and the fixed
     // global controls are present regardless of content (AC6).
     let before = argus.inspect(&mut harness);
     for block_id in &seeded {
         let author = node_author_id(block_id);
         assert!(
             json_has_author_id(&before, &author),
-            "canonical argus.inspect must see the mounted real-PG graph node '{author}'"
+            "canonical argus.inspect must see the mounted real-SurrealDB graph node '{author}'"
         );
     }
     for control in [
@@ -457,8 +457,8 @@ fn mt021_mounted_graph_canonical_argus_inspect_steer_reobserve() {
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
-        "MT-021 canonical Argus mounted graph (LIVE PG workspace={workspace_id}): \
-         inspect(4 real-PG nodes + 5 controls) -> click({RELAYOUT_AUTHOR_ID}) \
+        "MT-021 canonical Argus mounted graph (LIVE SURREALDB workspace={workspace_id}): \
+         inspect(4 real-SurrealDB nodes + 5 controls) -> click({RELAYOUT_AUTHOR_ID}) \
          -> exact +1 stable generation={} digest={} with 4 nodes; receipt={} agent={} screenshot={} tree={}",
         terminal_generation,
         terminal_digest,
@@ -473,7 +473,7 @@ fn mt021_mounted_graph_canonical_argus_inspect_steer_reobserve() {
 #[test]
 fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
     // V2 R1 (distinct local vs global queries) + R2 (safe switching): drive the local/global mode control
-    // through canonical Argus and prove the switch produces a DISTINCT real-PostgreSQL query result, not a
+    // through canonical Argus and prove the switch produces a DISTINCT real-SurrealDB query result, not a
     // client-side re-render. Global returns all 4 seeded nodes; Local (focused on beta) returns only
     // beta's real neighbourhood {alpha,beta,gamma} — the disconnected `isolated` block is a real seeded
     // node that a client-side filter could not remove but a distinct backend /loom/graph/local query does.
@@ -529,7 +529,7 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
         &mut harness,
         &graph_view,
         |g| g.nodes.len() == 4 && !g.loading && g.error.is_none(),
-        "mounted graph self-fetches the four real-PG Global nodes",
+        "mounted graph self-fetches the four real-SurrealDB Global nodes",
     );
 
     let mut argus =
@@ -588,10 +588,10 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
                 && g.nodes.len() == 3
                 && g.nodes.iter().all(|n| n.block_id != isolated_for_local)
         },
-        "canonical local switch issues a distinct real-PG neighbourhood query (3 nodes, no isolated)",
+        "canonical local switch issues a distinct real-SurrealDB neighbourhood query (3 nodes, no isolated)",
     );
 
-    // (3) Bind the Local action to the DISTINCT terminal real-PG projection and stable layout.
+    // (3) Bind the Local action to the DISTINCT terminal real-SurrealDB projection and stable layout.
     let local_expected = [author(&alpha), author(&beta), author(&gamma)];
     let local_isolated = author(&isolated);
     let local_graph = Arc::clone(&graph_view);
@@ -631,7 +631,7 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
     assert!(
         !json_has_author_id(&local_tree, &author(&isolated)),
         "Local canonical inspect must NOT see the disconnected 'isolated' node — the switch produced a \
-         distinct real-PG neighbourhood query, not a re-render of the global set"
+         distinct real-SurrealDB neighbourhood query, not a re-render of the global set"
     );
 
     // (4) Canonically SWITCH back to Global; the distinct query restores the full set incl. isolated.
@@ -648,7 +648,7 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
         &mut harness,
         &graph_view,
         |g| g.nodes.len() == 4 && !g.loading && g.error.is_none(),
-        "canonical global switch re-queries the full real-PG projection (4 nodes)",
+        "canonical global switch re-queries the full real-SurrealDB projection (4 nodes)",
     );
     let isolated_author = author(&isolated);
     let global_graph = Arc::clone(&graph_view);
@@ -676,7 +676,7 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
     );
     assert!(
         json_has_author_id(&global_after, &author(&isolated)),
-        "switching back to Global re-queries real PG and the disconnected 'isolated' node returns"
+        "switching back to Global re-queries real SurrealDB and the disconnected 'isolated' node returns"
     );
 
     let select_receipt = select_beta.receipt_status.clone();
@@ -704,9 +704,9 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
     assert!(tree_path.is_file());
 
     println!(
-        "MT-021 canonical Argus local/global switch (LIVE PG workspace={workspace_id}): \
+        "MT-021 canonical Argus local/global switch (LIVE SURREALDB workspace={workspace_id}): \
          Global inspect(4 incl isolated) -> select-node(beta) + click({MODE_LOCAL_AUTHOR_ID}) \
-         -> Local inspect(3 neighbourhood, isolated ABSENT = distinct real-PG query) \
+         -> Local inspect(3 neighbourhood, isolated ABSENT = distinct real-SurrealDB query) \
          -> click({MODE_GLOBAL_AUTHOR_ID}) -> Global inspect(isolated returns). tree={}",
         tree_path.display()
     );
@@ -715,7 +715,7 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
 
 #[test]
 fn mt021_mounted_graph_empty_state_canonical_argus() {
-    // AC7 against a REAL unseeded managed-PG workspace: the mounted panel renders + inspects through
+    // AC7 against a REAL unseeded managed-SurrealDB workspace: the mounted panel renders + inspects through
     // canonical Argus with no graph nodes and no panic.
     let live = interconnect_support::require_reachable_backend();
     let unique = format!("mt021-argus-empty-{}", unique_suffix());
@@ -740,7 +740,7 @@ fn mt021_mounted_graph_empty_state_canonical_argus() {
         &mut harness,
         &graph_view,
         |g| g.nodes.is_empty() && !g.loading && g.error.is_none(),
-        "mounted graph self-fetches an empty projection from a fresh real-PG workspace",
+        "mounted graph self-fetches an empty projection from a fresh real-SurrealDB workspace",
     );
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-021-graph-empty");
@@ -750,7 +750,7 @@ fn mt021_mounted_graph_empty_state_canonical_argus() {
     collect_author_ids(&tree, &mut ids);
     assert!(
         !ids.iter().any(|id| id.starts_with("graph.node.")),
-        "empty real-PG workspace mounted graph must expose NO graph nodes through canonical Argus; got {:?}",
+        "empty real-SurrealDB workspace mounted graph must expose NO graph nodes through canonical Argus; got {:?}",
         ids.iter().filter(|id| id.starts_with("graph.")).collect::<Vec<_>>()
     );
     // The fixed global controls are still present at zero blocks (AC6/AC-042-08).
@@ -760,7 +760,7 @@ fn mt021_mounted_graph_empty_state_canonical_argus() {
     );
 
     println!(
-        "MT-021 canonical Argus empty graph (LIVE PG workspace={workspace_id}): inspect() returned {} \
+        "MT-021 canonical Argus empty graph (LIVE SURREALDB workspace={workspace_id}): inspect() returned {} \
          author_ids, 0 graph.node.* (AC7)",
         ids.len()
     );

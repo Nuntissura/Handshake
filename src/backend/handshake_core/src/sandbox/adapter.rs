@@ -149,6 +149,16 @@ pub fn default_no_op_capabilities() -> AdapterCapabilities {
     }
 }
 
+/// Result of reconciling a sandbox identity recorded by a prior Handshake
+/// process boot. Unlike [`SandboxAdapter::kill`], restart cleanup must not rely
+/// on the current adapter instance's in-memory handle registry and must be safe
+/// to repeat after a kill succeeded but the ledger STOP did not commit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RestartCleanupOutcome {
+    Terminated,
+    AlreadyAbsent,
+}
+
 #[async_trait]
 pub trait SandboxAdapter: Send + Sync {
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError>;
@@ -175,6 +185,22 @@ pub trait SandboxAdapter: Send + Sync {
 
     async fn kill(&self, handle: &ProcessHandle, signal: Signal)
         -> Result<(), SandboxAdapterError>;
+
+    /// Reconcile a handle persisted by a previous backend boot.
+    ///
+    /// The default fails closed because ordinary `kill` implementations may
+    /// authorize handles through process-local maps. Production adapters that
+    /// can prove restart-safe cleanup override this method with an idempotent
+    /// external-identity or containment-backed implementation.
+    async fn cleanup_after_restart(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<RestartCleanupOutcome, SandboxAdapterError> {
+        Err(SandboxAdapterError::AdapterUnavailable {
+            adapter_id: handle.adapter_id.clone(),
+            reason: "adapter has no restart-safe cleanup implementation".to_string(),
+        })
+    }
 
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError>;
 

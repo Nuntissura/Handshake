@@ -3,13 +3,13 @@
 //! This module layers the cluster-X durable Role Mailbox primitives on top of
 //! the legacy KERNEL-002 `crate::role_mailbox` projection layer. The legacy
 //! module remains the operator-facing DuckDB export surface; this module owns
-//! the authoritative Postgres-backed thread + message + lease + handoff state
+//! the authoritative embedded-SurrealDB thread + message + lease + handoff state
 //! per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD
 //! v02.173] and [ADD v02.176].
 //!
 //! Cluster X.1 MTs implemented here:
 //!  - MT-176: `thread` + `message` + `lifecycle` typed primitives
-//!  - MT-177: `repo` (Postgres-backed transactional CRUD)
+//!  - MT-177: `repo` (embedded-SurrealDB transactional CRUD)
 //!  - MT-178: `exporter` (deterministic repo export)
 //!  - MT-179: `families` (10 Phase-1 message family payloads)
 //!  - MT-180: `lease` (RoleMailboxClaimLeaseV1 + LeaseManager)

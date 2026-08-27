@@ -23,20 +23,20 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeRebuildStatus, KnowledgeStore, KnowledgeWikiProjection,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 
 use super::compiler::{
-    FileBundle, ModulePart, ProjectWikiCompiler, WikiCompileContext, concept_page_title,
-    render_concept_page, render_decision_page, render_entity_page, render_module_page,
+    concept_page_title, render_concept_page, render_decision_page, render_entity_page,
+    render_module_page, FileBundle, ModulePart, ProjectWikiCompiler, WikiCompileContext,
 };
 use super::{
-    CitedSourceKind, DEFAULT_FANOUT_BUDGET, MAX_FANOUT_BUDGET, WikiCompileError, WikiCompileResult,
-    WikiCompileStamp, WikiPageType, entity_content_hash, loom_block_state_content_hash,
+    entity_content_hash, loom_block_state_content_hash, CitedSourceKind, WikiCompileError,
+    WikiCompileResult, WikiCompileStamp, WikiPageType, DEFAULT_FANOUT_BUDGET, MAX_FANOUT_BUDGET,
 };
 
 /// One fan-out request: the changed source + the explicit budget.
@@ -102,12 +102,12 @@ pub struct WikiFanOutOutcome {
 
 /// The MT-243 fan-out engine.
 pub struct WikiFanOutEngine {
-    db: Arc<PostgresDatabase>,
+    db: Arc<SurrealDatabase>,
     compiler: ProjectWikiCompiler,
 }
 
 impl WikiFanOutEngine {
-    pub fn new(db: Arc<PostgresDatabase>) -> Self {
+    pub fn new(db: Arc<SurrealDatabase>) -> Self {
         Self {
             compiler: ProjectWikiCompiler::new(db.clone()),
             db,

@@ -92,7 +92,7 @@ impl SourceControlEventRecorder for KernelSourceControlEventRecorder {
             "paths": record.paths,
             "commit_message": record.commit_message,
             "phase": "pre_git_write",
-            "authority_source": "postgres_event_ledger",
+            "authority_source": crate::kernel::SURREAL_EVENT_LEDGER_AUTHORITY_SOURCE,
         }));
 
         if let Some(correlation_id) = record.correlation_id {
@@ -121,9 +121,7 @@ pub fn routes(state: AppState) -> Router {
 /// Exposed so real-store tests can drive write ops through the SAME recorder the
 /// product uses (instead of a recording test double) and then read the appended
 /// kernel event back from the EventLedger.
-pub fn kernel_event_recorder(
-    storage: Arc<dyn Database>,
-) -> Arc<dyn SourceControlEventRecorder> {
+pub fn kernel_event_recorder(storage: Arc<dyn Database>) -> Arc<dyn SourceControlEventRecorder> {
     Arc::new(KernelSourceControlEventRecorder { storage })
 }
 

@@ -20,7 +20,7 @@
 //! - [`skip_all`] — the explicit whole-suite operator skip. Storage-binding scenarios run by default
 //!   through the shared managed product-backend fixture (no mocks and no operator-preseeded rows).
 //!   That fixture now binds the product to its Handshake-managed EMBEDDED SurrealDB store, isolated
-//!   per owned backend by `HANDSHAKE_DATA_DIR`; there is no database server, DSN, or `psql` anywhere
+//!   per owned backend by `HANDSHAKE_DATA_DIR`; there is no external database server or `direct_db_client` anywhere
 //!   in the MT-045 path.
 //!
 //! This module is only ever compiled into the test binaries (it lives under `tests/`), so it never
@@ -39,7 +39,7 @@ use std::time::{Duration, Instant};
 use sha2::{Digest, Sha256};
 
 /// Embedded-store contract mirrored from `handshake_core::storage` and pinned by the MT-045 fixture
-/// (`pg_proof_support::spawn_backend_at`). Duplicated here rather than imported because the native
+/// (`backend_proof_support::spawn_backend_at`). Duplicated here rather than imported because the native
 /// crate does not depend on `handshake_core`, and because not every binary that compiles this module
 /// also compiles the fixture module.
 const EMBEDDED_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
@@ -485,7 +485,7 @@ const SOURCE_BINDING_PATHS: [&str; 22] = [
     "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
-    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/test_heartbeat.rs",
     "src/frontend/handshake_native/tests/test_diagnostics_panel.rs",
     "src/frontend/handshake_native/tests/test_perf_large_code.rs",
@@ -637,7 +637,7 @@ fn canonical_run_provenance() -> serde_json::Value {
         backend_binary.starts_with(artifact_root.join("handshake-cargo-target")),
         "MT-045 backend binary must come from the existing canonical Cargo target"
     );
-    // Storage authority. There is no DSN, no host, and no port to pin any more: the product opens a
+    // Storage authority. There is no external database host or port to pin: the product opens a
     // Handshake-managed EMBEDDED SurrealDB store inside its own process, and the MT-045 fixture gives
     // every owned backend its own `HANDSHAKE_DATA_DIR` beneath the canonical backend-runtime root.
     // What the canonical run must therefore prove is that the store roots the fixture will hand out
@@ -677,7 +677,7 @@ fn canonical_run_provenance() -> serde_json::Value {
         // GAP (typed, not fabricated): the active SurrealDB NAMESPACE and DATABASE are chosen inside
         // the backend and are published by no route, so they are `null` here with
         // `identity_observability` naming the missing surface. The old block could name a database
-        // because the DSN carried it; an embedded store carries it nowhere observable.
+        // because the former external connection carried it; an embedded store exposes no server name.
         "embedded_store_authority": {
             "storage_mode": EMBEDDED_STORAGE_MODE,
             "storage_mode_env": EMBEDDED_STORAGE_MODE_ENV,

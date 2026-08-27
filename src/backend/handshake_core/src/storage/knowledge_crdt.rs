@@ -71,7 +71,6 @@ fn optional_link(table: &'static str, id: Option<&str>) -> Option<RecordId> {
     id.map(|value| RecordId::new(table, value))
 }
 
-
 // ---------------------------------------------------------------------------
 // MT-070 denial receipts (shared by MT-069/071/074/076 denial paths).
 // ---------------------------------------------------------------------------
@@ -263,7 +262,7 @@ pub async fn insert_denial_receipt(
                              RETURN $existing \
                            } ELSE { \
                              RETURN CREATE \
-                               type::thing('knowledge_crdt_denial_receipts', $receipt_id) \
+                               type::record('knowledge_crdt_denial_receipts', $receipt_id) \
                                CONTENT { receipt_id: $receipt_id, receipt_kind: $receipt_kind, \
                                  workspace_id: $workspace_id, document_id: $document_id, \
                                  crdt_document_id: $crdt_document_id, scope_ref: $scope_ref, \
@@ -598,7 +597,7 @@ pub async fn insert_lease(
                              RETURN { inserted: false, lease: $held[0] } \
                            } ELSE { \
                              LET $created = (CREATE \
-                               type::thing('knowledge_crdt_agent_lane_leases', $lease_id) \
+                               type::record('knowledge_crdt_agent_lane_leases', $lease_id) \
                                CONTENT { lease_id: $lease_id, lane_id: $lane_id, \
                                  actor_id: $actor_id, actor_kind: $actor_kind, \
                                  session_id: $session_id, correlation_id: $correlation_id, \
@@ -628,12 +627,9 @@ pub async fn insert_lease(
         })
         .await
         .map_err(map_err)?;
-    let outcome = outcomes
-        .into_iter()
-        .next()
-        .ok_or(StorageError::Database(
-            "lease claim produced no outcome".to_owned(),
-        ))?;
+    let outcome = outcomes.into_iter().next().ok_or(StorageError::Database(
+        "lease claim produced no outcome".to_owned(),
+    ))?;
     let row = outcome.lease.into_row()?;
     if outcome.inserted {
         Ok(LeaseInsertOutcome::Inserted(Box::new(row)))
@@ -752,7 +748,11 @@ pub async fn renew_lease(
         })
         .await
         .map_err(map_err)?;
-    records.into_iter().next().map(LeaseRecord::into_row).transpose()
+    records
+        .into_iter()
+        .next()
+        .map(LeaseRecord::into_row)
+        .transpose()
 }
 
 /// Release an own lease (allowed after expiry as cleanup; expiry only blocks
@@ -791,7 +791,11 @@ pub async fn release_lease(
         })
         .await
         .map_err(map_err)?;
-    records.into_iter().next().map(LeaseRecord::into_row).transpose()
+    records
+        .into_iter()
+        .next()
+        .map(LeaseRecord::into_row)
+        .transpose()
 }
 
 /// Server-side expiry sweep: stamp every overdue unreleased lease exactly
@@ -895,7 +899,7 @@ pub async fn takeover_lease(
                                                     ELSE { expired_at_utc } \
                                WHERE lease_id = $prior_lease_id; \
                              LET $created = (CREATE \
-                               type::thing('knowledge_crdt_agent_lane_leases', $lease_id) \
+                               type::record('knowledge_crdt_agent_lane_leases', $lease_id) \
                                CONTENT { lease_id: $lease_id, lane_id: $lane_id, \
                                  actor_id: $actor_id, actor_kind: $actor_kind, \
                                  session_id: $session_id, correlation_id: $correlation_id, \
@@ -903,7 +907,7 @@ pub async fn takeover_lease(
                                  claimed_at_utc: $now, \
                                  expires_at_utc: $now + duration::from::secs($ttl_seconds), \
                                  renewal_count: 0, \
-                                 takeover_of: type::thing( \
+                                 takeover_of: type::record( \
                                    'knowledge_crdt_agent_lane_leases', $prior_lease_id) })[0]; \
                              RETURN { status: 'taken_over', expires_at_utc: NONE, lease: { \
                                lease_id: $created.lease_id, lane_id: $created.lane_id, \
@@ -927,12 +931,9 @@ pub async fn takeover_lease(
         })
         .await
         .map_err(map_err)?;
-    let outcome = outcomes
-        .into_iter()
-        .next()
-        .ok_or(StorageError::Database(
-            "lease takeover produced no outcome".to_owned(),
-        ))?;
+    let outcome = outcomes.into_iter().next().ok_or(StorageError::Database(
+        "lease takeover produced no outcome".to_owned(),
+    ))?;
     match outcome.status.as_str() {
         "not_found" => Ok(Err(LeaseTakeoverFailure::PriorLeaseNotFound)),
         "already_released" => Ok(Err(LeaseTakeoverFailure::PriorLeaseAlreadyReleased)),
@@ -1154,7 +1155,7 @@ pub async fn insert_graph_proposal(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_crdt_graph_proposals', $proposal_id) \
+                        "CREATE type::record('knowledge_crdt_graph_proposals', $proposal_id) \
                          CONTENT { proposal_id: $proposal_id, workspace_id: $workspace_id, \
                            mutation_kind: $mutation_kind, \
                            mutation_payload: $mutation_payload, \
@@ -1587,7 +1588,7 @@ struct PromotedFactProposalBindings {
 /// JSON is decoded here rather than being written as an untyped blob. A
 /// non-string-array value is refused instead of silently degrading the
 /// evidence the 0190 span-evidence guard depends on.
-fn span_refs_from_json(value: &Value) -> StorageResult<Vec<String>> {
+pub(crate) fn span_refs_from_json(value: &Value) -> StorageResult<Vec<String>> {
     let array = value.as_array().ok_or(StorageError::Validation(
         "promoted fact source_span_refs must be a JSON array",
     ))?;
@@ -1673,7 +1674,7 @@ pub(crate) const PROMOTED_FACT_UPSERT_STATEMENT: &str = "{ \
      IF array::len($existing) > 0 { \
        RETURN $existing \
      } ELSE { \
-       RETURN CREATE type::thing('knowledge_crdt_promoted_facts', $fact_id) \
+       RETURN CREATE type::record('knowledge_crdt_promoted_facts', $fact_id) \
          CONTENT { fact_id: $fact_id, proposal_id: $proposal_id, \
            workspace_id: $workspace_id, mutation_kind: $mutation_kind, \
            fact_payload: $fact_payload, source_span_refs: $source_span_refs, \
@@ -1752,7 +1753,7 @@ pub async fn materialize_promoted_fact_from_existing_events(
                            LET $existing = (SELECT * FROM knowledge_crdt_promoted_facts \
                              WHERE proposal_id = $proposal_id); \
                            IF array::len($existing) = 0 { \
-                             CREATE type::thing('knowledge_crdt_promoted_facts', $fact_id) \
+                             CREATE type::record('knowledge_crdt_promoted_facts', $fact_id) \
                                CONTENT { fact_id: $fact_id, proposal_id: $proposal_id, \
                                  workspace_id: $workspace_id, mutation_kind: $mutation_kind, \
                                  fact_payload: $fact_payload, \
@@ -2002,7 +2003,7 @@ pub async fn insert_ai_edit_proposal(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_crdt_ai_edit_proposals', $proposal_id) \
+                        "CREATE type::record('knowledge_crdt_ai_edit_proposals', $proposal_id) \
                          CONTENT { proposal_id: $proposal_id, workspace_id: $workspace_id, \
                            document_id: $document_id, crdt_document_id: $crdt_document_id, \
                            base_update_seq: $base_update_seq, \
@@ -2141,10 +2142,7 @@ pub async fn mark_ai_edit_proposal_promoted(
 ) -> StorageResult<Option<AiEditProposalRow>> {
     let bindings = AiEditPromoteBindings {
         proposal_id: proposal_id.to_owned(),
-        promotion_requested_event_id: link(
-            KERNEL_EVENT_LEDGER_TABLE,
-            promotion_requested_event_id,
-        ),
+        promotion_requested_event_id: link(KERNEL_EVENT_LEDGER_TABLE, promotion_requested_event_id),
         promotion_accepted_event_id: link(KERNEL_EVENT_LEDGER_TABLE, promotion_accepted_event_id),
     };
     let records: Vec<AiEditProposalRecord> = storage
@@ -2384,7 +2382,7 @@ pub async fn insert_swarm_checkpoint(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_crdt_swarm_checkpoints', $checkpoint_id) \
+                        "CREATE type::record('knowledge_crdt_swarm_checkpoints', $checkpoint_id) \
                          CONTENT { checkpoint_id: $checkpoint_id, session_id: $session_id, \
                            actor_id: $actor_id, lane_id: $lane_id, lease_id: $lease_id, \
                            scope_ref: $scope_ref, resume_pointer: $resume_pointer, \
@@ -2557,7 +2555,7 @@ pub async fn insert_recovery_receipt(
             Box::pin(async move {
                 database
                     .query_values(
-                        "CREATE type::thing('knowledge_crdt_recovery_receipts', $receipt_id) \
+                        "CREATE type::record('knowledge_crdt_recovery_receipts', $receipt_id) \
                          CONTENT { receipt_id: $receipt_id, checkpoint_id: $checkpoint_id, \
                            prior_session_id: $prior_session_id, \
                            new_session_id: $new_session_id, new_actor_id: $new_actor_id, \

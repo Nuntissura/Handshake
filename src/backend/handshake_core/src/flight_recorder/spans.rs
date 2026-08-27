@@ -2,8 +2,8 @@
 //!
 //! Submodules-by-section in this file:
 //!  - `ModelSessionSpan` + `ActivitySpan` types (MT-196)
-//!  - Span Postgres binding (MT-197) — schema lives in
-//!    `migrations/0024_session_checkpoint.sql`
+//!  - Span store binding (MT-197) — schema lives in
+//!    `storage/surreal/schema.surql`
 //!  - FR-EVT-* event registry (MT-198) — see `fr_event_registry.rs` sibling
 //!  - `SpanFrEmitter` lifecycle hooks (MT-199)
 //!  - `SessionAggregateQueries` multi-session visibility surface (MT-200)
@@ -13,10 +13,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
+use surrealdb::types::{RecordId, SurrealValue};
 use thiserror::Error;
 use uuid::Uuid;
 
 use super::fr_event_registry::FrEventId;
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 pub const SPAN_ATTRIBUTE_MAX_COUNT: usize = 16;
 pub const SPAN_ATTRIBUTE_MAX_BYTES: usize = 1024;
@@ -341,7 +343,7 @@ impl Drop for SpanGuard {
 
 // ----- Multi-session aggregate (MT-200) query surface -----
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, SurrealValue)]
 pub struct ActivityRow {
     pub span_id: Uuid,
     pub parent_span_id: Option<Uuid>,
@@ -353,7 +355,7 @@ pub struct ActivityRow {
     pub status: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionSummary {
     pub session_id: Uuid,
     pub model_session_id: Uuid,
@@ -362,7 +364,7 @@ pub struct SessionSummary {
     pub ended_at_utc: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, SurrealValue)]
 pub struct SpanLatencyRow {
     pub span_id: Uuid,
     pub session_id: Uuid,
@@ -379,7 +381,7 @@ pub struct SwarmSnapshot {
     pub captured_at_utc: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, SurrealValue)]
 pub struct SessionTimelineEntry {
     pub kind: String,
     pub at_utc: DateTime<Utc>,
@@ -441,27 +443,27 @@ pub struct AggregateQueryFixture {
 pub enum AggregateQueryError {
     #[error("query time range is invalid: from_utc is after to_utc")]
     InvalidTimeRange,
-    #[error("postgres aggregate query failed: {0}")]
-    Postgres(#[from] sqlx::Error),
+    #[error("aggregate query failed: {0}")]
+    Storage(#[from] SurrealStorageError),
     #[error("aggregate query count overflow: {field}={value}")]
     CountOverflow { field: &'static str, value: i64 },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SessionAggregateQueries {
     backend: AggregateQueryBackend,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum AggregateQueryBackend {
     Fixture(AggregateQueryFixture),
-    Postgres(sqlx::PgPool),
+    Surreal(SurrealStorage),
 }
 
 impl SessionAggregateQueries {
-    pub fn new(pool: sqlx::PgPool) -> Self {
+    pub fn new(storage: SurrealStorage) -> Self {
         Self {
-            backend: AggregateQueryBackend::Postgres(pool),
+            backend: AggregateQueryBackend::Surreal(storage),
         }
     }
 
@@ -514,34 +516,49 @@ impl SessionAggregateQueries {
                     .collect();
                 Ok(rows)
             }
-            AggregateQueryBackend::Postgres(pool) => sqlx::query_as::<_, ActivityRow>(
-                r#"SELECT
-                       a.span_id,
-                       a.parent_span_id,
-                       s.model_session_id,
-                       s.session_id,
-                       a.activity_kind,
-                       a.started_at_utc,
-                       a.ended_at_utc,
-                       a.status
-                   FROM kernel_activity_span a
-                   INNER JOIN kernel_model_session_span s
-                       ON s.span_id = a.parent_span_id
-                   WHERE s.model_session_id = $1
-                     AND a.started_at_utc >= $2
-                     AND a.started_at_utc <= $3
-                   ORDER BY a.started_at_utc ASC, a.span_id ASC
-                   LIMIT $4
-                   OFFSET $5"#,
-            )
-            .bind(model_session_id)
-            .bind(from_utc)
-            .bind(to_utc)
-            .bind(limit.as_usize() as i64)
-            .bind(offset.as_usize() as i64)
-            .fetch_all(pool)
-            .await
-            .map_err(AggregateQueryError::from),
+            AggregateQueryBackend::Surreal(storage) => {
+                #[derive(SurrealValue)]
+                struct Bindings {
+                    model_session_id: Uuid,
+                    from_utc: DateTime<Utc>,
+                    to_utc: DateTime<Utc>,
+                    limit: i64,
+                    offset: i64,
+                }
+
+                let bindings = Bindings {
+                    model_session_id,
+                    from_utc,
+                    to_utc,
+                    limit: limit.as_usize() as i64,
+                    offset: offset.as_usize() as i64,
+                };
+                // The previous SQL join is expressed as record-link traversal
+                // through `parent_span_id`.
+                storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_values(
+                                    "SELECT span_id, \
+                                     record::id(parent_span_id) AS parent_span_id, \
+                                     parent_span_id.model_session_id AS model_session_id, \
+                                     parent_span_id.session_id AS session_id, \
+                                     activity_kind, started_at_utc, ended_at_utc, status \
+                                     FROM kernel_activity_span \
+                                     WHERE parent_span_id.model_session_id = $model_session_id \
+                                       AND started_at_utc >= $from_utc \
+                                       AND started_at_utc <= $to_utc \
+                                     ORDER BY started_at_utc ASC, span_id ASC \
+                                     LIMIT $limit START $offset;",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await
+                    .map_err(AggregateQueryError::from)
+            }
         }
     }
 
@@ -582,32 +599,84 @@ impl SessionAggregateQueries {
                     .collect();
                 Ok(rows)
             }
-            AggregateQueryBackend::Postgres(pool) => sqlx::query_as::<_, SessionSummary>(
-                r#"SELECT
-                       s.session_id,
-                       s.model_session_id,
-                       j.wp_id AS wp_id,
-                       MIN(s.started_at_utc) AS started_at_utc,
-                       MAX(s.ended_at_utc) AS ended_at_utc
-                   FROM kernel_micro_task_job j
-                   INNER JOIN kernel_model_session_span s
-                       ON s.session_id = j.claimed_by_session
-                   WHERE j.wp_id = $1
-                     AND s.started_at_utc <= $3
-                     AND COALESCE(s.ended_at_utc, $3) >= $2
-                   GROUP BY s.session_id, s.model_session_id, j.wp_id
-                   ORDER BY MIN(s.started_at_utc) ASC, s.session_id ASC
-                   LIMIT $4
-                   OFFSET $5"#,
-            )
-            .bind(wp_id)
-            .bind(from_utc)
-            .bind(to_utc)
-            .bind(limit.as_usize() as i64)
-            .bind(offset.as_usize() as i64)
-            .fetch_all(pool)
-            .await
-            .map_err(AggregateQueryError::from),
+            AggregateQueryBackend::Surreal(storage) => {
+                #[derive(SurrealValue)]
+                struct SpanBindings {
+                    wp_id: String,
+                    from_utc: DateTime<Utc>,
+                    to_utc: DateTime<Utc>,
+                }
+
+                #[derive(SurrealValue)]
+                struct SpanRow {
+                    session_id: Uuid,
+                    model_session_id: Uuid,
+                    started_at_utc: DateTime<Utc>,
+                    ended_at_utc: Option<DateTime<Utc>>,
+                }
+
+                // The previous single SQL statement joined jobs to spans and
+                // grouped server-side. The subquery keeps the wp filter
+                // server-side; MIN/MAX grouping with PostgreSQL's
+                // NULL-ignoring MAX semantics is reproduced client-side.
+                // `COALESCE(ended, $to) >= $from` reduces to
+                // `ended = NONE OR ended >= $from` because the validated
+                // range guarantees `$to >= $from`.
+                let bindings = SpanBindings {
+                    wp_id: wp_id.to_string(),
+                    from_utc,
+                    to_utc,
+                };
+                let rows: Vec<SpanRow> = storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_values(
+                                    "SELECT session_id, model_session_id, started_at_utc, \
+                                     ended_at_utc FROM kernel_model_session_span \
+                                     WHERE session_id IN \
+                                       (SELECT VALUE claimed_by_session \
+                                        FROM kernel_micro_task_job \
+                                        WHERE wp_id = $wp_id \
+                                          AND claimed_by_session != NONE) \
+                                       AND started_at_utc <= $to_utc \
+                                       AND (ended_at_utc = NONE OR ended_at_utc >= $from_utc);",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await?;
+
+                let mut grouped: BTreeMap<(Uuid, Uuid), SessionSummary> = BTreeMap::new();
+                for row in rows {
+                    let entry = grouped
+                        .entry((row.session_id, row.model_session_id))
+                        .or_insert_with(|| SessionSummary {
+                            session_id: row.session_id,
+                            model_session_id: row.model_session_id,
+                            wp_id: Some(wp_id.to_string()),
+                            started_at_utc: row.started_at_utc,
+                            ended_at_utc: None,
+                        });
+                    entry.started_at_utc = entry.started_at_utc.min(row.started_at_utc);
+                    // SQL MAX ignores NULLs: an open span does not clear an
+                    // already-observed end time.
+                    if let Some(ended) = row.ended_at_utc {
+                        entry.ended_at_utc = Some(match entry.ended_at_utc {
+                            Some(existing) => existing.max(ended),
+                            None => ended,
+                        });
+                    }
+                }
+                let mut summaries: Vec<SessionSummary> = grouped.into_values().collect();
+                summaries.sort_by_key(|row| (row.started_at_utc, row.session_id));
+                Ok(summaries
+                    .into_iter()
+                    .skip(offset.as_usize())
+                    .take(limit.as_usize())
+                    .collect())
+            }
         }
     }
 
@@ -654,28 +723,42 @@ impl SessionAggregateQueries {
                     .collect();
                 Ok(rows)
             }
-            AggregateQueryBackend::Postgres(pool) => sqlx::query_as::<_, SpanLatencyRow>(
-                r#"SELECT
-                       a.span_id,
-                       s.session_id,
-                       a.activity_kind,
-                       ((EXTRACT(EPOCH FROM (a.ended_at_utc - a.started_at_utc)) * 1000)::BIGINT)
-                           AS duration_ms
-                   FROM kernel_activity_span a
-                   INNER JOIN kernel_model_session_span s
-                       ON s.span_id = a.parent_span_id
-                   WHERE a.activity_kind = $1
-                     AND a.ended_at_utc IS NOT NULL
-                   ORDER BY duration_ms DESC, a.span_id ASC
-                   LIMIT $2
-                   OFFSET $3"#,
-            )
-            .bind(activity_kind)
-            .bind(limit.as_usize() as i64)
-            .bind(offset.as_usize() as i64)
-            .fetch_all(pool)
-            .await
-            .map_err(AggregateQueryError::from),
+            AggregateQueryBackend::Surreal(storage) => {
+                #[derive(SurrealValue)]
+                struct Bindings {
+                    activity_kind: String,
+                    limit: i64,
+                    offset: i64,
+                }
+
+                let bindings = Bindings {
+                    activity_kind: activity_kind.to_string(),
+                    limit: limit.as_usize() as i64,
+                    offset: offset.as_usize() as i64,
+                };
+                storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_values(
+                                    "SELECT span_id, \
+                                     parent_span_id.session_id AS session_id, \
+                                     activity_kind, \
+                                     duration::millis(ended_at_utc - started_at_utc) \
+                                         AS duration_ms \
+                                     FROM kernel_activity_span \
+                                     WHERE activity_kind = $activity_kind \
+                                       AND ended_at_utc != NONE \
+                                     ORDER BY duration_ms DESC, span_id ASC \
+                                     LIMIT $limit START $offset;",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await
+                    .map_err(AggregateQueryError::from)
+            }
         }
     }
 
@@ -720,72 +803,88 @@ impl SessionAggregateQueries {
                     entries,
                 })
             }
-            AggregateQueryBackend::Postgres(pool) => {
-                let entries = sqlx::query_as::<_, SessionTimelineEntry>(
-                    r#"SELECT kind, at_utc, summary
-                       FROM (
-                         SELECT
-                           'event'::TEXT AS kind,
-                           e.created_at AT TIME ZONE 'UTC' AS at_utc,
-                           e.event_type::TEXT AS summary
-                         FROM kernel_event_ledger e
-                         WHERE e.session_run_id = ($1::UUID)::TEXT
-                           AND e.created_at AT TIME ZONE 'UTC' >= $2
-                           AND e.created_at AT TIME ZONE 'UTC' <= $3
-                         UNION ALL
-                         SELECT
-                           'span'::TEXT AS kind,
-                           a.started_at_utc AS at_utc,
-                           a.activity_kind::TEXT AS summary
-                         FROM kernel_activity_span a
-                         INNER JOIN kernel_model_session_span s
-                           ON s.span_id = a.parent_span_id
-                         WHERE s.session_id = $1
-                           AND a.started_at_utc >= $2
-                           AND a.started_at_utc <= $3
-                         UNION ALL
-                         SELECT
-                           'checkpoint'::TEXT AS kind,
-                           c.created_at_utc AS at_utc,
-                           CONCAT(c.state_kind, ':', c.last_event_ledger_seq)::TEXT AS summary
-                         FROM kernel_session_checkpoint c
-                         WHERE c.session_id = $1
-                           AND c.created_at_utc >= $2
-                           AND c.created_at_utc <= $3
-                         UNION ALL
-                         SELECT
-                           'mailbox_message'::TEXT AS kind,
-                           m.created_at_utc AS at_utc,
-                           m.message_type::TEXT AS summary
-                         FROM kernel_micro_task_job j
-                         INNER JOIN role_mailbox_message m
-                           ON m.thread_id = j.mailbox_thread_id
-                         WHERE j.claimed_by_session = $1
-                           AND m.created_at_utc >= $2
-                           AND m.created_at_utc <= $3
-                         UNION ALL
-                         SELECT
-                           'mt_outcome'::TEXT AS kind,
-                           o.recorded_at_utc AS at_utc,
-                           o.outcome_kind::TEXT AS summary
-                         FROM kernel_micro_task_job j
-                         INNER JOIN kernel_mt_outcome o
-                           ON o.job_id = j.job_id
-                         WHERE j.claimed_by_session = $1
-                           AND o.recorded_at_utc >= $2
-                           AND o.recorded_at_utc <= $3
-                       ) timeline
-                       ORDER BY at_utc ASC, kind ASC, summary ASC
-                       LIMIT $4
-                       OFFSET $5"#,
-                )
-                .bind(session_id)
-                .bind(from_utc)
-                .bind(to_utc)
-                .bind(limit.as_usize() as i64)
-                .bind(offset.as_usize() as i64)
-                .fetch_all(pool)
-                .await?;
+            AggregateQueryBackend::Surreal(storage) => {
+                // SurrealQL has no UNION, so one explicit transaction reads
+                // all five bounded sources from the same database snapshot.
+                // The client then merges and pages that snapshot exactly as
+                // the historical SQL outer query did. A row past
+                // `offset + limit` in any one source cannot reach the final
+                // requested page.
+                #[derive(SurrealValue)]
+                struct SourceBindings {
+                    session_id: Uuid,
+                    session_run_id: String,
+                    from_utc: DateTime<Utc>,
+                    to_utc: DateTime<Utc>,
+                    cap: i64,
+                }
+
+                let bindings = SourceBindings {
+                    session_id,
+                    session_run_id: session_id.to_string(),
+                    from_utc,
+                    to_utc,
+                    cap: (offset.as_usize() + limit.as_usize()) as i64,
+                };
+
+                const TIMELINE_SNAPSHOT: &str = "BEGIN TRANSACTION; \
+                    SELECT 'event' AS kind, created_at AS at_utc, event_type AS summary \
+                     FROM kernel_event_ledger WHERE session_run_id = $session_run_id \
+                       AND created_at >= $from_utc AND created_at <= $to_utc \
+                     ORDER BY at_utc ASC, summary ASC LIMIT $cap; \
+                    SELECT 'span' AS kind, started_at_utc AS at_utc, activity_kind AS summary \
+                     FROM kernel_activity_span \
+                     WHERE parent_span_id.session_id = $session_id \
+                       AND started_at_utc >= $from_utc AND started_at_utc <= $to_utc \
+                     ORDER BY at_utc ASC, summary ASC LIMIT $cap; \
+                    SELECT 'checkpoint' AS kind, created_at_utc AS at_utc, \
+                     string::concat(state_kind, ':', <string>last_event_ledger_seq) AS summary \
+                     FROM kernel_session_checkpoint WHERE session_id = $session_id \
+                       AND created_at_utc >= $from_utc AND created_at_utc <= $to_utc \
+                     ORDER BY at_utc ASC, summary ASC LIMIT $cap; \
+                    SELECT 'mailbox_message' AS kind, created_at_utc AS at_utc, \
+                     message_type AS summary FROM role_mailbox_message \
+                     WHERE record::id(thread_id) IN \
+                       (SELECT VALUE mailbox_thread_id FROM kernel_micro_task_job \
+                        WHERE claimed_by_session = $session_id \
+                          AND mailbox_thread_id != NONE) \
+                       AND created_at_utc >= $from_utc AND created_at_utc <= $to_utc \
+                     ORDER BY at_utc ASC, summary ASC LIMIT $cap; \
+                    SELECT 'mt_outcome' AS kind, recorded_at_utc AS at_utc, \
+                     outcome_kind AS summary FROM kernel_mt_outcome \
+                     WHERE job_id.claimed_by_session = $session_id \
+                       AND recorded_at_utc >= $from_utc AND recorded_at_utc <= $to_utc \
+                     ORDER BY at_utc ASC, summary ASC LIMIT $cap; \
+                    COMMIT TRANSACTION;";
+
+                let [events, spans, checkpoints, mailbox_messages, mt_outcomes]: [Vec<
+                    SessionTimelineEntry,
+                >;
+                    5] = storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_five_values_at(TIMELINE_SNAPSHOT, bindings, [1, 2, 3, 4, 5])
+                                .await
+                        })
+                    })
+                    .await?;
+                let mut entries = events;
+                entries.extend(spans);
+                entries.extend(checkpoints);
+                entries.extend(mailbox_messages);
+                entries.extend(mt_outcomes);
+                entries.sort_by(|a, b| {
+                    a.at_utc
+                        .cmp(&b.at_utc)
+                        .then_with(|| a.kind.cmp(&b.kind))
+                        .then_with(|| a.summary.cmp(&b.summary))
+                });
+                let entries = entries
+                    .into_iter()
+                    .skip(offset.as_usize())
+                    .take(limit.as_usize())
+                    .collect();
 
                 Ok(SessionTimeline {
                     session_id,
@@ -817,39 +916,67 @@ impl SessionAggregateQueries {
                 pending_mailbox_messages: fixture.pending_mailbox_messages,
                 captured_at_utc: now,
             }),
-            AggregateQueryBackend::Postgres(pool) => {
-                let (active_sessions, active_leases, in_flight_micro_tasks, pending_mailbox_messages) =
-                    sqlx::query_as::<_, (i64, i64, i64, i64)>(
-                        r#"SELECT
-                              (SELECT COUNT(DISTINCT session_id)
-                               FROM kernel_model_session_span
-                               WHERE started_at_utc <= $1
-                                 AND (ended_at_utc IS NULL OR ended_at_utc > $1)) AS active_sessions,
-                              (SELECT COUNT(*)
-                               FROM role_mailbox_claim_lease
-                               WHERE released_at_utc IS NULL
-                                 AND expires_at_utc > $1) AS active_leases,
-                              (SELECT COUNT(*)
-                               FROM kernel_micro_task_job
-                               WHERE state IN ('claimed', 'running', 'in_progress', 'blocked')) AS in_flight_micro_tasks,
-                              (SELECT COUNT(*)
-                               FROM role_mailbox_message
-                               WHERE delivery_state IN ('pending', 'queued', 'delivered')) AS pending_mailbox_messages"#,
-                    )
-                    .bind(now)
-                    .fetch_one(pool)
+            AggregateQueryBackend::Surreal(storage) => {
+                #[derive(SurrealValue)]
+                struct NowBinding {
+                    now: DateTime<Utc>,
+                }
+
+                #[derive(SurrealValue)]
+                struct SnapshotCounts {
+                    active_sessions: i64,
+                    active_leases: i64,
+                    in_flight_micro_tasks: i64,
+                    pending_mailbox_messages: i64,
+                }
+
+                // One RETURN statement evaluates all four subqueries in a
+                // single statement (one transaction), preserving the
+                // single-snapshot property of the previous SQL statement.
+                let counts: Option<SnapshotCounts> = storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_first(
+                                    "RETURN { \
+                                     active_sessions: array::len(array::distinct(( \
+                                         SELECT VALUE session_id FROM kernel_model_session_span \
+                                         WHERE started_at_utc <= $now \
+                                           AND (ended_at_utc = NONE OR ended_at_utc > $now)))), \
+                                     active_leases: array::len(( \
+                                         SELECT VALUE lease_id FROM role_mailbox_claim_lease \
+                                         WHERE released_at_utc = NONE \
+                                           AND expires_at_utc > $now)), \
+                                     in_flight_micro_tasks: array::len(( \
+                                         SELECT VALUE job_id FROM kernel_micro_task_job \
+                                         WHERE state IN \
+                                           ['claimed', 'running', 'in_progress', 'blocked'])), \
+                                     pending_mailbox_messages: array::len(( \
+                                         SELECT VALUE message_id FROM role_mailbox_message \
+                                         WHERE delivery_state IN \
+                                           ['pending', 'queued', 'delivered'])) \
+                                     };",
+                                    NowBinding { now },
+                                )
+                                .await
+                        })
+                    })
                     .await?;
+                let counts = counts.ok_or(AggregateQueryError::CountOverflow {
+                    field: "snapshot",
+                    value: -1,
+                })?;
 
                 Ok(SwarmSnapshot {
-                    active_sessions: count_to_u32("active_sessions", active_sessions)?,
-                    active_leases: count_to_u32("active_leases", active_leases)?,
+                    active_sessions: count_to_u32("active_sessions", counts.active_sessions)?,
+                    active_leases: count_to_u32("active_leases", counts.active_leases)?,
                     in_flight_micro_tasks: count_to_u32(
                         "in_flight_micro_tasks",
-                        in_flight_micro_tasks,
+                        counts.in_flight_micro_tasks,
                     )?,
                     pending_mailbox_messages: count_to_u32(
                         "pending_mailbox_messages",
-                        pending_mailbox_messages,
+                        counts.pending_mailbox_messages,
                     )?,
                     captured_at_utc: now,
                 })
@@ -887,6 +1014,7 @@ fn session_overlaps(row: &SessionSummary, from_utc: DateTime<Utc>, to_utc: DateT
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorageConfig};
 
     #[test]
     fn span_guard_emits_started_and_ended() {
@@ -976,5 +1104,256 @@ mod tests {
                 FrEventId::SpanEnded,
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn mt137_timeline_reads_cross_source_pairs_from_one_snapshot() {
+        #[derive(SurrealValue)]
+        struct PairBindings {
+            event_id: String,
+            checkpoint_record_id: String,
+            checkpoint_id: Uuid,
+            session_id: Uuid,
+            session_run_id: String,
+            model_session_id: Uuid,
+            event_type: String,
+            state_kind: String,
+            at_utc: DateTime<Utc>,
+            pair_index: i64,
+        }
+
+        #[derive(SurrealValue)]
+        struct TieBindings {
+            first_event_id: String,
+            second_event_id: String,
+            session_run_id: String,
+            first_summary: String,
+            second_summary: String,
+            at_utc: DateTime<Utc>,
+        }
+
+        fn assert_complete_pairs(timeline: &SessionTimeline) {
+            let events: std::collections::BTreeSet<_> = timeline
+                .entries
+                .iter()
+                .filter_map(|entry| entry.summary.strip_prefix("event-").map(str::to_owned))
+                .collect();
+            let checkpoints: std::collections::BTreeSet<_> = timeline
+                .entries
+                .iter()
+                .filter_map(|entry| {
+                    entry
+                        .summary
+                        .strip_prefix("checkpoint-")
+                        .and_then(|value| value.strip_suffix(":0"))
+                        .map(str::to_owned)
+                })
+                .collect();
+            assert_eq!(
+                events, checkpoints,
+                "one timeline read must never mix snapshots across event and checkpoint sources"
+            );
+        }
+
+        let directory = tempfile::tempdir().expect("temporary timeline snapshot root");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::with_path(&directory.path().join("store"))
+                .expect("valid timeline snapshot path"),
+        )
+        .await
+        .expect("open timeline snapshot store");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap timeline snapshot schema");
+
+        let session_id = Uuid::now_v7();
+        let session_run_id = session_id.to_string();
+        let model_session_id = Uuid::now_v7();
+        let base = Utc::now();
+        let queries = SessionAggregateQueries::new(storage.clone());
+        let writer_storage = storage.clone();
+        let writer_session_run_id = session_run_id.clone();
+        let start_barrier = Arc::new(tokio::sync::Barrier::new(2));
+        let writer_barrier = Arc::clone(&start_barrier);
+        let writer = tokio::spawn(async move {
+            writer_barrier.wait().await;
+            for pair_index in 0..1_i64 {
+                let checkpoint_id = Uuid::now_v7();
+                let marker = format!("{pair_index:03}");
+                let bindings = PairBindings {
+                    event_id: format!("mt137-timeline-{session_id}-{marker}"),
+                    checkpoint_record_id: checkpoint_id.to_string(),
+                    checkpoint_id,
+                    session_id,
+                    session_run_id: writer_session_run_id.clone(),
+                    model_session_id,
+                    event_type: format!("event-{marker}"),
+                    state_kind: format!("checkpoint-{marker}"),
+                    at_utc: base + chrono::Duration::milliseconds(pair_index),
+                    pair_index,
+                };
+                let applied: Option<bool> = writer_storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_first(
+                                    "RETURN { \
+                                     CREATE type::record('kernel_event_ledger', $event_id) CONTENT { \
+                                         event_id: $event_id, event_version: 'v1', \
+                                         kernel_task_run_id: 'mt137-timeline-proof', \
+                                         session_run_id: $session_run_id, aggregate_type: 'session', \
+                                         aggregate_id: $session_run_id, idempotency_key: $event_id, \
+                                         event_type: $event_type, actor_kind: 'test', actor_id: 'mt137', \
+                                         causation_id: NONE, correlation_id: NONE, \
+                                         payload_hash: $event_id, source_component: 'mt137-timeline-proof', \
+                                         payload: { pair_index: $pair_index }, created_at: $at_utc \
+                                     } RETURN NONE; \
+                                     CREATE type::record('kernel_session_checkpoint', $checkpoint_record_id) CONTENT { \
+                                         checkpoint_id: $checkpoint_id, session_id: $session_id, \
+                                         model_session_id: $model_session_id, last_event_ledger_seq: 0, \
+                                         compact_state: { pair_index: $pair_index }, state_kind: $state_kind, \
+                                         pending_artifacts: [], created_at_utc: $at_utc, \
+                                         created_by_process: 1, schema_version: 1 \
+                                     } RETURN NONE; \
+                                     RETURN true; \
+                                     };",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await
+                    .expect("append atomic event/checkpoint pair");
+                assert_eq!(applied, Some(true));
+                tokio::task::yield_now().await;
+            }
+        });
+
+        start_barrier.wait().await;
+        for _ in 0..1 {
+            let timeline = queries
+                .session_timeline(
+                    session_id,
+                    base - chrono::Duration::seconds(1),
+                    base + chrono::Duration::minutes(1),
+                    Limit::new(1000),
+                )
+                .await
+                .expect("read timeline snapshot while pairs are committed");
+            assert_complete_pairs(&timeline);
+            if writer.is_finished() {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        writer.await.expect("timeline pair writer joins");
+
+        let final_timeline = queries
+            .session_timeline(
+                session_id,
+                base - chrono::Duration::seconds(1),
+                base + chrono::Duration::minutes(1),
+                Limit::new(1000),
+            )
+            .await
+            .expect("read final timeline snapshot");
+        assert_complete_pairs(&final_timeline);
+        assert_eq!(
+            final_timeline
+                .entries
+                .iter()
+                .filter(|entry| entry.kind == "event")
+                .count(),
+            1
+        );
+        assert_eq!(
+            final_timeline
+                .entries
+                .iter()
+                .filter(|entry| entry.kind == "checkpoint")
+                .count(),
+            1
+        );
+
+        // Per-source caps must preserve the historical global tie-break order
+        // before the client applies OFFSET/LIMIT. Otherwise cap=1 could pick
+        // either same-timestamp event and make pagination nondeterministic.
+        let tie_at = base + chrono::Duration::seconds(10);
+        let tie_bindings = TieBindings {
+            first_event_id: format!("mt137-timeline-tie-a-{session_id}"),
+            second_event_id: format!("mt137-timeline-tie-z-{session_id}"),
+            session_run_id: session_run_id.clone(),
+            first_summary: "a-tie".to_owned(),
+            second_summary: "z-tie".to_owned(),
+            at_utc: tie_at,
+        };
+        let tied_rows_created: Option<bool> = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            "RETURN { \
+                             CREATE type::record('kernel_event_ledger', $first_event_id) CONTENT { \
+                                 event_id: $first_event_id, event_version: 'v1', \
+                                 kernel_task_run_id: 'mt137-timeline-tie-proof', \
+                                 session_run_id: $session_run_id, aggregate_type: 'session', \
+                                 aggregate_id: $session_run_id, idempotency_key: $first_event_id, \
+                                 event_type: $first_summary, actor_kind: 'test', actor_id: 'mt137', \
+                                 causation_id: NONE, correlation_id: NONE, \
+                                 payload_hash: $first_event_id, source_component: 'mt137-timeline-tie-proof', \
+                                 payload: {}, created_at: $at_utc \
+                             } RETURN NONE; \
+                             CREATE type::record('kernel_event_ledger', $second_event_id) CONTENT { \
+                                 event_id: $second_event_id, event_version: 'v1', \
+                                 kernel_task_run_id: 'mt137-timeline-tie-proof', \
+                                 session_run_id: $session_run_id, aggregate_type: 'session', \
+                                 aggregate_id: $session_run_id, idempotency_key: $second_event_id, \
+                                 event_type: $second_summary, actor_kind: 'test', actor_id: 'mt137', \
+                                 causation_id: NONE, correlation_id: NONE, \
+                                 payload_hash: $second_event_id, source_component: 'mt137-timeline-tie-proof', \
+                                 payload: {}, created_at: $at_utc \
+                             } RETURN NONE; \
+                             RETURN true; \
+                             };",
+                            tie_bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .expect("append same-timestamp tie rows");
+        assert_eq!(tied_rows_created, Some(true));
+
+        let first_tie_page = queries
+            .session_timeline_page(session_id, tie_at, tie_at, Offset::new(0), Limit::new(1))
+            .await
+            .expect("read first same-timestamp timeline page");
+        assert_eq!(
+            first_tie_page
+                .entries
+                .iter()
+                .map(|entry| entry.summary.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a-tie"]
+        );
+
+        let second_tie_page = queries
+            .session_timeline_page(session_id, tie_at, tie_at, Offset::new(1), Limit::new(1))
+            .await
+            .expect("read second same-timestamp timeline page");
+        assert_eq!(
+            second_tie_page
+                .entries
+                .iter()
+                .map(|entry| entry.summary.as_str())
+                .collect::<Vec<_>>(),
+            vec!["z-tie"]
+        );
+
+        drop(queries);
+        storage
+            .shutdown()
+            .await
+            .expect("close timeline snapshot store");
     }
 }

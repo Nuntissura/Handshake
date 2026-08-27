@@ -1,5 +1,5 @@
 //! WP-KERNEL-012 E3 MT-024 remediation (FAIL_V4): canonical Argus inspect / safe-steer / re-observe
-//! proof for the MOUNTED pins / favorites / backlinks / unlinked sidebar over REAL PostgreSQL.
+//! proof for the MOUNTED pins / favorites / backlinks / unlinked sidebar over REAL SurrealDB.
 //!
 //! ## What FAIL_V4 said
 //!
@@ -10,7 +10,7 @@
 //!
 //! ## What this test now proves
 //!
-//!   1. A REAL Handshake-managed PostgreSQL workspace is seeded through production HTTP routes with
+//!   1. A REAL Handshake-managed SurrealDB workspace is seeded through production HTTP routes with
 //!      two pins, one favorite, one inbound mention edge, and one unlinked mention.
 //!   2. The production `HandshakeApp` shell mounts the Sidebar pane and the app's OWN per-frame feed
 //!      loads every section from that live workspace (no injected fixture).
@@ -23,7 +23,7 @@
 //!        * the backend's own single authoritative operation receipt reports a persisted removal
 //!          (workspace id, block id, mutation revision, HTTP outcome, EventLedger correlation, and the
 //!          final persisted pin-order revision), and
-//!        * the AUTHORITATIVE refreshed PostgreSQL pin list no longer contains the block.
+//!        * the AUTHORITATIVE refreshed SurrealDB pin list no longer contains the block.
 //!      Target disappearance alone can never satisfy it: the flexible observer form additionally
 //!      requires `Applied` <=> the Remove control is gone and `Failed` <=> the Remove control is still
 //!      mounted (the rollback preserved the pin).
@@ -143,7 +143,7 @@ fn retype_pane_a_to_sidebar(app: &mut HandshakeApp) {
     }
 }
 
-// ── MT-024 FAIL_V4: canonical Argus over REAL PostgreSQL ────────────────────────────────────────────
+// ── MT-024 FAIL_V4: canonical Argus over REAL SurrealDB ────────────────────────────────────────────
 
 #[cfg(feature = "integration")]
 mod live {
@@ -167,7 +167,7 @@ mod live {
             let status = self.backend.delete_workspace(&self.workspace_id);
             assert!(
                 matches!(status, 200 | 202 | 204 | 404),
-                "managed-PG workspace cleanup returned HTTP {status}"
+                "managed-SurrealDB workspace cleanup returned HTTP {status}"
             );
             self.cleaned = true;
         }
@@ -245,7 +245,7 @@ mod live {
             cleaned: false,
         };
 
-        // ── Seed REAL PostgreSQL through the production Loom routes ───────────────────────────────
+        // ── Seed REAL SurrealDB through the production Loom routes ───────────────────────────────
         let create_block = |content_type: &str, title: &str, pinned: bool| {
             live.post_json(
                 &format!("/workspaces/{workspace_id}/loom/blocks"),
@@ -298,7 +298,7 @@ mod live {
         app.set_sidebar_backend_base_url_for_test(live.base.clone());
         assert!(
             app.switch_project(&workspace_id),
-            "switch to the seeded managed-PG workspace"
+            "switch to the seeded managed-SurrealDB workspace"
         );
         assert!(
             app.dispatch_palette_action_for_test(CMD_VIEW_SIDEBAR),
@@ -313,7 +313,7 @@ mod live {
             &mut harness,
             &panel,
             |panel| panel.pins.len() == 2 && panel.favorites.len() == 1,
-            "the mounted host loads both seeded pins and the seeded favorite from real PostgreSQL",
+            "the mounted host loads both seeded pins and the seeded favorite from real SurrealDB",
         );
 
         // Bind the active block so Backlinks + Unlinked load from the live workspace too, then reopen
@@ -351,7 +351,7 @@ mod live {
         ] {
             assert!(
                 json_has_author_id(&before, &author),
-                "canonical argus.inspect must see mounted live-PG node '{author}'"
+                "canonical argus.inspect must see mounted live-SurrealDB node '{author}'"
             );
         }
 
@@ -448,7 +448,7 @@ mod live {
                     && receipt["event_ledger_event_id"]
                         .as_str()
                         .is_some_and(|value| value.starts_with("KE-"))
-                    // The AUTHORITATIVE refreshed PostgreSQL pin list, not the vanished row.
+                    // The AUTHORITATIVE refreshed SurrealDB pin list, not the vanished row.
                     && detail["authoritative_refresh_contains_block"]
                         == serde_json::Value::Bool(false)
                     && detail["authoritative_refreshed_pin_count"].as_u64() == Some(1)
@@ -591,7 +591,7 @@ mod live {
             Err(deferred) => format!("DEFERRED (headless): {deferred}"),
         };
         println!(
-            "MT-024 canonical Argus mounted sidebar (LIVE PG workspace={workspace_id}): \
+            "MT-024 canonical Argus mounted sidebar (LIVE SURREALDB workspace={workspace_id}): \
              inspect(pins/favorites/backlinks/unlinked/breadcrumb/remove/header/observer) -> \
              click({remove_target}) -> TERMINAL receipt={} with persisted receipt \
              (revision={:?} ledger={ledger_event_id} pin_order_cleared=true) and authoritative \

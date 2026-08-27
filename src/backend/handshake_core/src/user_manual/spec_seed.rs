@@ -36,7 +36,7 @@ const SEED_ROWS: &[SpecEnrichmentSeedRow] = &[
         target_anchor: "10.15.8 UserManual migration bridge",
         seed_kind: "amend",
         proposed_wording_md: "UserManualRecord authority is implemented as the `user_manual_*` \
-            PostgreSQL tables (pages, sections, anchors, tool entries, feature entries, \
+            embedded SurrealDB tables (pages, sections, anchors, tool entries, feature entries, \
             versions, legacy aliases; migration 0310) seeded idempotently from a compiled-in \
             corpus with `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` receipts per changed page. The \
             canonical read surface is `/usermanual/*`; anonymous reads are permitted because \

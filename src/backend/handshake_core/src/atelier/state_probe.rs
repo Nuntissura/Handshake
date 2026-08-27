@@ -5,14 +5,16 @@
 //! before visual inspection, then persists that list in the durable store and
 //! mirrors the snapshot through the Atelier EventLedger family.
 //!
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
+//! Persistence uses the embedded SurrealDB authority shared by Atelier.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 pub mod state_probe_event_family {
     pub const STATE_PROBE_CATALOG_RECORDED: &str = "atelier.state_probe.catalog_recorded";
@@ -313,14 +315,14 @@ fn state_probe_entry(
         probe_id: probe_id.to_string(),
         surface,
         probe_label: probe_label.to_string(),
-        read_model: "postgres_event_ledger_projection".to_string(),
+        read_model: "surreal_event_ledger_projection".to_string(),
         inspection_phase: "pre_visual_inspection".to_string(),
         required_before_visual_inspection: true,
         status: "ready".to_string(),
         probe_fields: json!({
             "schema": "hsk.atelier.state_probe.fields@1",
             "fields": fields,
-            "state_authority": "postgres",
+            "state_authority": "surrealdb",
             "event_authority": "kernel_event_ledger",
         }),
         evidence_refs: evidence_refs
@@ -329,6 +331,52 @@ fn state_probe_entry(
             .collect(),
     }
 }
+
+#[derive(Clone, SurrealValue)]
+struct StateProbeCatalogWriteEntry {
+    probe_id: String,
+    surface: String,
+    probe_label: String,
+    read_model: String,
+    inspection_phase: String,
+    required_before_visual_inspection: bool,
+    status: String,
+    probe_fields: Value,
+    evidence_refs: Vec<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct StateProbeCatalogWriteBindings {
+    catalog_id: String,
+    probe_ids: Vec<String>,
+    entries: Vec<StateProbeCatalogWriteEntry>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct StateProbeCatalogBinding {
+    catalog_id: String,
+}
+
+#[derive(SurrealValue)]
+struct StateProbeCatalogRow {
+    catalog_id: String,
+    probe_id: String,
+    surface: String,
+    probe_label: String,
+    read_model: String,
+    inspection_phase: String,
+    required_before_visual_inspection: bool,
+    status: String,
+    probe_fields: Value,
+    evidence_refs: Vec<String>,
+    updated_at_utc: Datetime,
+}
+
+const WRITE_STATE_PROBE_CATALOG_STATEMENT: &str = concat!(
+    "RETURN { DELETE atelier_state_probe_catalog_entry WHERE catalog_id = $domain.catalog_id AND probe_id NOT IN $domain.probe_ids RETURN NONE; FOR $entry IN $domain.entries { UPSERT atelier_state_probe_catalog_entry SET catalog_id = $domain.catalog_id, probe_id = $entry.probe_id, surface = $entry.surface, probe_label = $entry.probe_label, read_model = $entry.read_model, inspection_phase = $entry.inspection_phase, required_before_visual_inspection = $entry.required_before_visual_inspection, status = $entry.status, probe_fields = $entry.probe_fields, evidence_refs = $entry.evidence_refs, updated_at_utc = time::now() WHERE catalog_id = $domain.catalog_id AND probe_id = $entry.probe_id RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " RETURN true; };"
+);
 
 impl AtelierStore {
     pub async fn record_state_probe_catalog(
@@ -342,74 +390,52 @@ impl AtelierStore {
             .filter(|entry| entry.required_before_visual_inspection)
             .count();
 
-        let mut tx = self.pool().begin().await?;
         let probe_ids = input
             .entries
             .iter()
             .map(|entry| entry.probe_id.clone())
             .collect::<Vec<_>>();
-        sqlx::query(
-            r#"DELETE FROM atelier_state_probe_catalog_entry
-               WHERE catalog_id = $1
-                 AND NOT (probe_id = ANY($2::text[]))"#,
-        )
-        .bind(&input.catalog_id)
-        .bind(&probe_ids)
-        .execute(&mut *tx)
-        .await?;
-
-        for entry in &input.entries {
-            let evidence_refs = serde_json::to_value(&entry.evidence_refs)
-                .map_err(|err| AtelierError::Validation(err.to_string()))?;
-            sqlx::query(
-                r#"INSERT INTO atelier_state_probe_catalog_entry (
-                       catalog_id, probe_id, surface, probe_label, read_model,
-                       inspection_phase, required_before_visual_inspection, status,
-                       probe_fields, evidence_refs, updated_at_utc
-                   )
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, NOW())
-                   ON CONFLICT (catalog_id, probe_id) DO UPDATE SET
-                       surface = EXCLUDED.surface,
-                       probe_label = EXCLUDED.probe_label,
-                       read_model = EXCLUDED.read_model,
-                       inspection_phase = EXCLUDED.inspection_phase,
-                       required_before_visual_inspection =
-                           EXCLUDED.required_before_visual_inspection,
-                       status = EXCLUDED.status,
-                       probe_fields = EXCLUDED.probe_fields,
-                       evidence_refs = EXCLUDED.evidence_refs,
-                       updated_at_utc = NOW()"#,
-            )
-            .bind(&input.catalog_id)
-            .bind(&entry.probe_id)
-            .bind(entry.surface.as_token())
-            .bind(&entry.probe_label)
-            .bind(&entry.read_model)
-            .bind(&entry.inspection_phase)
-            .bind(entry.required_before_visual_inspection)
-            .bind(&entry.status)
-            .bind(&entry.probe_fields)
-            .bind(evidence_refs)
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        self.record_event_in_tx(
-            &mut tx,
-            state_probe_event_family::STATE_PROBE_CATALOG_RECORDED,
-            "atelier_state_probe_catalog",
-            &input.catalog_id,
-            json!({
+        let entries = input
+            .entries
+            .iter()
+            .map(|entry| StateProbeCatalogWriteEntry {
+                probe_id: entry.probe_id.clone(),
+                surface: entry.surface.as_token().to_owned(),
+                probe_label: entry.probe_label.clone(),
+                read_model: entry.read_model.clone(),
+                inspection_phase: entry.inspection_phase.clone(),
+                required_before_visual_inspection: entry.required_before_visual_inspection,
+                status: entry.status.clone(),
+                probe_fields: entry.probe_fields.clone(),
+                evidence_refs: entry.evidence_refs.clone(),
+            })
+            .collect();
+        let written: Option<bool> = self
+            .write_with_event(
+                WRITE_STATE_PROBE_CATALOG_STATEMENT,
+                StateProbeCatalogWriteBindings {
+                    catalog_id: input.catalog_id.clone(),
+                    probe_ids,
+                    entries,
+                },
+                state_probe_event_family::STATE_PROBE_CATALOG_RECORDED,
+                "atelier_state_probe_catalog",
+                &input.catalog_id,
+                json!({
                 "catalog_id": input.catalog_id,
                 "recorded_by": input.recorded_by,
                 "surface_count": input.entries.len(),
                 "required_before_visual_inspection_count":
                     required_before_visual_inspection_count,
                 "schema": "hsk.atelier.state_probe_catalog@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
+                }),
+            )
+            .await?;
+        if written != Some(true) {
+            return Err(AtelierError::Internal(
+                "state probe catalog write returned no result".to_owned(),
+            ));
+        }
 
         self.get_state_probe_catalog(&input.catalog_id).await
     }
@@ -419,17 +445,20 @@ impl AtelierStore {
         catalog_id: &str,
     ) -> AtelierResult<StateProbeCatalog> {
         let catalog_id = validate_token("catalog_id", catalog_id)?;
-        let rows = sqlx::query(
-            r#"SELECT catalog_id, probe_id, surface, probe_label, read_model,
-                      inspection_phase, required_before_visual_inspection, status,
-                      probe_fields, evidence_refs, updated_at_utc
-               FROM atelier_state_probe_catalog_entry
-               WHERE catalog_id = $1
-               ORDER BY surface, probe_id"#,
-        )
-        .bind(&catalog_id)
-        .fetch_all(self.pool())
-        .await?;
+        let rows: Vec<StateProbeCatalogRow> = self
+            .with_data({
+                let catalog_id = catalog_id.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_values(
+                            "SELECT catalog_id, probe_id, surface, probe_label, read_model, inspection_phase, required_before_visual_inspection, status, probe_fields, evidence_refs, updated_at_utc FROM atelier_state_probe_catalog_entry WHERE catalog_id = $catalog_id ORDER BY surface, probe_id;",
+                            StateProbeCatalogBinding { catalog_id },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
 
         if rows.is_empty() {
             return Err(AtelierError::NotFound(format!(
@@ -440,17 +469,17 @@ impl AtelierStore {
         let mut entries = Vec::with_capacity(rows.len());
         for row in rows {
             entries.push(StateProbeCatalogEntry {
-                catalog_id: row.get("catalog_id"),
-                probe_id: row.get("probe_id"),
-                surface: StateProbeSurface::from_token(row.get("surface"))?,
-                probe_label: row.get("probe_label"),
-                read_model: row.get("read_model"),
-                inspection_phase: row.get("inspection_phase"),
-                required_before_visual_inspection: row.get("required_before_visual_inspection"),
-                status: row.get("status"),
-                probe_fields: row.get("probe_fields"),
-                evidence_refs: jsonb_string_array(row.get("evidence_refs"))?,
-                updated_at_utc: row.get("updated_at_utc"),
+                catalog_id: row.catalog_id,
+                probe_id: row.probe_id,
+                surface: StateProbeSurface::from_token(&row.surface)?,
+                probe_label: row.probe_label,
+                read_model: row.read_model,
+                inspection_phase: row.inspection_phase,
+                required_before_visual_inspection: row.required_before_visual_inspection,
+                status: row.status,
+                probe_fields: row.probe_fields,
+                evidence_refs: row.evidence_refs,
+                updated_at_utc: row.updated_at_utc.into(),
             });
         }
 
@@ -481,9 +510,9 @@ fn validate_state_probe_catalog(input: &NewStateProbeCatalog) -> AtelierResult<(
                 expected_probe_id
             )));
         }
-        if entry.read_model != "postgres_event_ledger_projection" {
+        if entry.read_model != "surreal_event_ledger_projection" {
             return Err(AtelierError::Validation(format!(
-                "{} must use read_model postgres_event_ledger_projection",
+                "{} must use read_model surreal_event_ledger_projection",
                 entry.probe_id
             )));
         }
@@ -558,9 +587,9 @@ fn validate_probe_fields(
             "{probe_id} must use hsk.atelier.state_probe.fields@1"
         )));
     }
-    if value.get("state_authority").and_then(Value::as_str) != Some("postgres") {
+    if value.get("state_authority").and_then(Value::as_str) != Some("surrealdb") {
         return Err(AtelierError::Validation(format!(
-            "{probe_id} must use postgres state_authority"
+            "{probe_id} must use surrealdb state_authority"
         )));
     }
     if value.get("event_authority").and_then(Value::as_str) != Some("kernel_event_ledger") {
@@ -764,18 +793,13 @@ fn validate_ref_list(field: &str, values: &[String]) -> AtelierResult<()> {
     Ok(())
 }
 
-fn jsonb_string_array(value: Value) -> AtelierResult<Vec<String>> {
-    serde_json::from_value(value)
-        .map_err(|err| AtelierError::Validation(format!("expected JSON string array: {err}")))
-}
-
 // ---------------------------------------------------------------------------
 // WP-KERNEL-005 MT-171..MT-180, MT-182, MT-195: diagnostics "validation matrix".
 //
 // Each row asserts that one required check on a model-workflow diagnostic
 // surface is REQUIRED, COVERED, or DEFERRED. This is the typed runtime surface
-// that turns "diagnostics are covered" into a real PostgreSQL row + EventLedger
-// event, never governance markdown. The catalog
+// that turns "diagnostics are covered" into a real embedded-store row plus an
+// EventLedger event, never governance markdown. The catalog
 // [`diagnostics_validation_matrix_catalog`] carries the real check rows for all
 // MT areas, grounded in the existing product modules they cite.
 // ---------------------------------------------------------------------------
@@ -898,24 +922,55 @@ pub struct DiagnosticsValidationRow {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const DIAGNOSTICS_VALIDATION_ROW_COLUMNS: &str =
-    "row_id, matrix_kind, surface, check_id, requirement, status, evidence_ref, created_at_utc";
+#[derive(SurrealValue)]
+struct DiagnosticsValidationDbRow {
+    row_id: String,
+    matrix_kind: String,
+    surface: String,
+    check_id: String,
+    requirement: String,
+    status: String,
+    evidence_ref: Option<String>,
+    created_at_utc: Datetime,
+}
 
 fn diagnostics_validation_row_from_row(
-    row: &sqlx::postgres::PgRow,
+    row: DiagnosticsValidationDbRow,
 ) -> AtelierResult<DiagnosticsValidationRow> {
-    let status: String = row.get("status");
     Ok(DiagnosticsValidationRow {
-        row_id: row.get("row_id"),
-        matrix_kind: row.get("matrix_kind"),
-        surface: row.get("surface"),
-        check_id: row.get("check_id"),
-        requirement: row.get("requirement"),
-        status: DiagnosticsValidationStatus::from_token(&status)?,
-        evidence_ref: row.get("evidence_ref"),
-        created_at_utc: row.get("created_at_utc"),
+        row_id: row.row_id,
+        matrix_kind: row.matrix_kind,
+        surface: row.surface,
+        check_id: row.check_id,
+        requirement: row.requirement,
+        status: DiagnosticsValidationStatus::from_token(&row.status)?,
+        evidence_ref: row.evidence_ref,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
+
+#[derive(Clone, SurrealValue)]
+struct DiagnosticsValidationWriteBindings {
+    record_id: RecordId,
+    row_id: String,
+    matrix_kind: String,
+    surface: String,
+    check_id: String,
+    requirement: String,
+    status: String,
+    evidence_ref: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct OptionalMatrixKindBinding {
+    matrix_kind: Option<String>,
+}
+
+const WRITE_DIAGNOSTICS_VALIDATION_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { row_id: $domain.row_id, matrix_kind: $domain.matrix_kind, surface: $domain.surface, check_id: $domain.check_id, requirement: $domain.requirement, status: $domain.status, evidence_ref: $domain.evidence_ref } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
 
 /// MT-182 probe: a red-team automation-authority row is only valid when its
 /// requirement states a negative invariant (a prohibition), so an
@@ -1099,7 +1154,7 @@ pub fn diagnostics_validation_matrix_catalog() -> Vec<NewDiagnosticsValidationRo
             kind::SESSION_LEASE_HEARTBEAT,
             "role_mailbox",
             "role_mailbox.lease_persistence",
-            "Role-mailbox lease + heartbeat state must persist in PostgreSQL, not in-memory only.",
+            "Role-mailbox lease + heartbeat state must persist in the embedded SurrealDB store, not in-memory only.",
             "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
         ),
         // ---- MT-173: command log + error class + state probe.
@@ -1292,8 +1347,8 @@ pub fn diagnostics_validation_matrix_catalog() -> Vec<NewDiagnosticsValidationRo
             kind::AI_TAGGING,
             "ai_tagging",
             "ai_tagging.apply_evidence",
-            "Every tag apply must commit a durable receipt and an EventLedger event in the same \
-             PostgreSQL transaction as the mutation.",
+            "Every tag apply must commit a durable receipt and an EventLedger event atomically \
+             with the embedded SurrealDB mutation.",
             "src/backend/handshake_core/src/atelier/bulk.rs",
         ),
         // ---- MT-179: build diagnostics + packaging/release evidence.
@@ -1330,7 +1385,7 @@ pub fn diagnostics_validation_matrix_catalog() -> Vec<NewDiagnosticsValidationRo
             "packaging",
             "package.release_evidence",
             "Each export/release must persist a durable request -> result -> manifest-entry graph \
-             in PostgreSQL as release evidence.",
+             in the embedded SurrealDB store as release evidence.",
             "src/backend/handshake_core/src/atelier/exports.rs",
         ),
         // ---- MT-180: no-focus synthetic input + parallel coordination.
@@ -1471,50 +1526,42 @@ impl AtelierStore {
     ) -> AtelierResult<DiagnosticsValidationRow> {
         validate_diagnostics_validation_row(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_diagnostics_validation_matrix
-                 (row_id, matrix_kind, surface, check_id, requirement, status, evidence_ref)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (row_id) DO UPDATE SET
-                 matrix_kind = EXCLUDED.matrix_kind,
-                 surface = EXCLUDED.surface,
-                 check_id = EXCLUDED.check_id,
-                 requirement = EXCLUDED.requirement,
-                 status = EXCLUDED.status,
-                 evidence_ref = EXCLUDED.evidence_ref
-               RETURNING {DIAGNOSTICS_VALIDATION_ROW_COLUMNS}"#
-        ))
-        .bind(&new.row_id)
-        .bind(&new.matrix_kind)
-        .bind(&new.surface)
-        .bind(&new.check_id)
-        .bind(&new.requirement)
-        .bind(new.status.as_token())
-        .bind(&new.evidence_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let recorded = diagnostics_validation_row_from_row(&row)?;
-        self.record_event_in_tx(
-            &mut tx,
-            state_probe_event_family::DIAGNOSTICS_VALIDATION_ROW_RECORDED,
-            "atelier_diagnostics_validation_matrix",
-            &recorded.row_id,
-            json!({
-                "row_id": recorded.row_id,
-                "matrix_kind": recorded.matrix_kind,
-                "surface": recorded.surface,
-                "check_id": recorded.check_id,
-                "requirement": recorded.requirement,
-                "status": recorded.status.as_token(),
-                "evidence_ref": recorded.evidence_ref,
+        let row: Option<DiagnosticsValidationDbRow> = self
+            .write_with_event(
+                WRITE_DIAGNOSTICS_VALIDATION_STATEMENT,
+                DiagnosticsValidationWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_diagnostics_validation_matrix",
+                        new.row_id.clone(),
+                    ),
+                    row_id: new.row_id.clone(),
+                    matrix_kind: new.matrix_kind.clone(),
+                    surface: new.surface.clone(),
+                    check_id: new.check_id.clone(),
+                    requirement: new.requirement.clone(),
+                    status: new.status.as_token().to_owned(),
+                    evidence_ref: new.evidence_ref.clone(),
+                },
+                state_probe_event_family::DIAGNOSTICS_VALIDATION_ROW_RECORDED,
+                "atelier_diagnostics_validation_matrix",
+                &new.row_id,
+                json!({
+                "row_id": new.row_id,
+                "matrix_kind": new.matrix_kind,
+                "surface": new.surface,
+                "check_id": new.check_id,
+                "requirement": new.requirement,
+                "status": new.status.as_token(),
+                "evidence_ref": new.evidence_ref,
                 "schema": "hsk.atelier.diagnostics_validation_row@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+                }),
+            )
+            .await?;
+        row.map(diagnostics_validation_row_from_row)
+            .transpose()?
+            .ok_or_else(|| {
+                AtelierError::Internal("diagnostics validation write returned no row".to_owned())
+            })
     }
 
     /// List diagnostics validation-matrix rows, optionally filtered by
@@ -1523,29 +1570,19 @@ impl AtelierStore {
         &self,
         matrix_kind: Option<&str>,
     ) -> AtelierResult<Vec<DiagnosticsValidationRow>> {
-        let rows = match matrix_kind {
-            Some(kind) => {
-                sqlx::query(&format!(
-                    r#"SELECT {DIAGNOSTICS_VALIDATION_ROW_COLUMNS}
-                       FROM atelier_diagnostics_validation_matrix
-                       WHERE matrix_kind = $1
-                       ORDER BY row_id ASC"#
-                ))
-                .bind(kind)
-                .fetch_all(self.pool())
-                .await?
-            }
-            None => {
-                sqlx::query(&format!(
-                    r#"SELECT {DIAGNOSTICS_VALIDATION_ROW_COLUMNS}
-                       FROM atelier_diagnostics_validation_matrix
-                       ORDER BY row_id ASC"#
-                ))
-                .fetch_all(self.pool())
-                .await?
-            }
-        };
-        rows.iter()
+        let matrix_kind = matrix_kind.map(ToOwned::to_owned);
+        let rows: Vec<DiagnosticsValidationDbRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT row_id, matrix_kind, surface, check_id, requirement, status, evidence_ref, created_at_utc FROM atelier_diagnostics_validation_matrix WHERE $matrix_kind = NONE OR matrix_kind = $matrix_kind ORDER BY row_id ASC;",
+                        OptionalMatrixKindBinding { matrix_kind },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter()
             .map(diagnostics_validation_row_from_row)
             .collect()
     }
@@ -1555,11 +1592,9 @@ impl AtelierStore {
 // WP-KERNEL-005 MT-147 / MT-148 / MT-153 / MT-167: typed diagnostics projection
 // surfaces.
 //
-// These are TYPED RUNTIME surfaces (PostgreSQL rows + EventLedger events), never
-// governance markdown. Tables are created by migration
-// `0115_atelier_diagnostics_projections.sql` (wired into
-// `AtelierStore::ensure_schema`). Storage authority is
-// PostgreSQL only (AtelierStore::pool()); SQLite is forbidden (MT-004).
+// These are typed runtime surfaces (embedded SurrealDB rows + EventLedger
+// events), never governance markdown. Their schema is part of the canonical
+// embedded store bootstrap validated by `AtelierStore::ensure_schema`.
 // ===========================================================================
 
 /// Event families for the MT-147/148/153/167 diagnostics projection surfaces.
@@ -1636,20 +1671,32 @@ pub struct WorkStateProjection {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const WORK_STATE_PROJECTION_COLUMNS: &str = "projection_id, active_mt, owner, status, blocker, \
-                                             receipts_ref, next_action, evidence_ref, created_at_utc";
+#[derive(SurrealValue)]
+struct WorkStateProjectionRow {
+    projection_id: String,
+    active_mt: String,
+    owner: String,
+    status: String,
+    blocker: Option<String>,
+    receipts_ref: Option<String>,
+    next_action: Option<String>,
+    evidence_ref: Option<String>,
+    created_at_utc: Datetime,
+}
 
-fn work_state_projection_from_row(row: &sqlx::postgres::PgRow) -> WorkStateProjection {
-    WorkStateProjection {
-        projection_id: row.get("projection_id"),
-        active_mt: row.get("active_mt"),
-        owner: row.get("owner"),
-        status: row.get("status"),
-        blocker: row.get("blocker"),
-        receipts_ref: row.get("receipts_ref"),
-        next_action: row.get("next_action"),
-        evidence_ref: row.get("evidence_ref"),
-        created_at_utc: row.get("created_at_utc"),
+impl From<WorkStateProjectionRow> for WorkStateProjection {
+    fn from(row: WorkStateProjectionRow) -> Self {
+        WorkStateProjection {
+            projection_id: row.projection_id,
+            active_mt: row.active_mt,
+            owner: row.owner,
+            status: row.status,
+            blocker: row.blocker,
+            receipts_ref: row.receipts_ref,
+            next_action: row.next_action,
+            evidence_ref: row.evidence_ref,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
@@ -1742,15 +1789,20 @@ pub struct DccPanelProjection {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const DCC_PANEL_PROJECTION_COLUMNS: &str = "panel_id, panel_kind, state_json, created_at_utc";
+#[derive(SurrealValue)]
+struct DccPanelProjectionRow {
+    panel_id: String,
+    panel_kind: String,
+    state_json: Value,
+    created_at_utc: Datetime,
+}
 
-fn dcc_panel_projection_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DccPanelProjection> {
-    let kind_token: String = row.get("panel_kind");
+fn dcc_panel_projection_from_row(row: DccPanelProjectionRow) -> AtelierResult<DccPanelProjection> {
     Ok(DccPanelProjection {
-        panel_id: row.get("panel_id"),
-        panel_kind: DccPanelKind::from_token(&kind_token)?,
-        state_json: row.get("state_json"),
-        created_at_utc: row.get("created_at_utc"),
+        panel_id: row.panel_id,
+        panel_kind: DccPanelKind::from_token(&row.panel_kind)?,
+        state_json: row.state_json,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
 
@@ -1819,29 +1871,54 @@ pub struct ScreenshotArtifactStorage {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const SCREENSHOT_ARTIFACT_STORAGE_COLUMNS: &str =
-    "storage_id, capture_id, artifact_manifest_id, content_sha256, mime, width_px, height_px, \
-     byte_len, label, retention_ttl_days, pinned, retention_class, exportable, \
-     redaction_applied, created_at_utc";
+#[derive(SurrealValue)]
+struct ScreenshotArtifactStorageRow {
+    storage_id: String,
+    capture_id: SurrealUuid,
+    artifact_manifest_id: String,
+    content_sha256: String,
+    mime: String,
+    width_px: Option<i64>,
+    height_px: Option<i64>,
+    byte_len: Option<i64>,
+    label: Option<String>,
+    retention_ttl_days: Option<i64>,
+    pinned: bool,
+    retention_class: String,
+    exportable: bool,
+    redaction_applied: bool,
+    created_at_utc: Datetime,
+}
 
-fn screenshot_artifact_storage_from_row(row: &sqlx::postgres::PgRow) -> ScreenshotArtifactStorage {
-    ScreenshotArtifactStorage {
-        storage_id: row.get("storage_id"),
-        capture_id: row.get("capture_id"),
-        artifact_manifest_id: row.get("artifact_manifest_id"),
-        content_sha256: row.get("content_sha256"),
-        mime: row.get("mime"),
-        width_px: row.get("width_px"),
-        height_px: row.get("height_px"),
-        byte_len: row.get("byte_len"),
-        label: row.get("label"),
-        retention_ttl_days: row.get("retention_ttl_days"),
-        pinned: row.get("pinned"),
-        retention_class: row.get("retention_class"),
-        exportable: row.get("exportable"),
-        redaction_applied: row.get("redaction_applied"),
-        created_at_utc: row.get("created_at_utc"),
+fn screenshot_artifact_storage_from_row(
+    row: ScreenshotArtifactStorageRow,
+) -> AtelierResult<ScreenshotArtifactStorage> {
+    fn narrow(field: &str, value: Option<i64>) -> AtelierResult<Option<i32>> {
+        value
+            .map(|value| {
+                i32::try_from(value).map_err(|_| {
+                    AtelierError::Validation(format!("{field} value {value} exceeds i32"))
+                })
+            })
+            .transpose()
     }
+    Ok(ScreenshotArtifactStorage {
+        storage_id: row.storage_id,
+        capture_id: row.capture_id.into(),
+        artifact_manifest_id: row.artifact_manifest_id,
+        content_sha256: row.content_sha256,
+        mime: row.mime,
+        width_px: narrow("width_px", row.width_px)?,
+        height_px: narrow("height_px", row.height_px)?,
+        byte_len: row.byte_len,
+        label: row.label,
+        retention_ttl_days: narrow("retention_ttl_days", row.retention_ttl_days)?,
+        pinned: row.pinned,
+        retention_class: row.retention_class,
+        exportable: row.exportable,
+        redaction_applied: row.redaction_applied,
+        created_at_utc: row.created_at_utc.into(),
+    })
 }
 
 fn validate_screenshot_artifact_storage(new: &NewScreenshotArtifactStorage) -> AtelierResult<()> {
@@ -1917,17 +1994,26 @@ pub struct SpecDriftFinding {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const SPEC_DRIFT_FINDING_COLUMNS: &str =
-    "finding_id, doc_ref, spec_ref, drift_kind, detail, created_at_utc";
+#[derive(SurrealValue)]
+struct SpecDriftFindingRow {
+    finding_id: String,
+    doc_ref: String,
+    spec_ref: String,
+    drift_kind: String,
+    detail: String,
+    created_at_utc: Datetime,
+}
 
-fn spec_drift_finding_from_row(row: &sqlx::postgres::PgRow) -> SpecDriftFinding {
-    SpecDriftFinding {
-        finding_id: row.get("finding_id"),
-        doc_ref: row.get("doc_ref"),
-        spec_ref: row.get("spec_ref"),
-        drift_kind: row.get("drift_kind"),
-        detail: row.get("detail"),
-        created_at_utc: row.get("created_at_utc"),
+impl From<SpecDriftFindingRow> for SpecDriftFinding {
+    fn from(row: SpecDriftFindingRow) -> Self {
+        SpecDriftFinding {
+            finding_id: row.finding_id,
+            doc_ref: row.doc_ref,
+            spec_ref: row.spec_ref,
+            drift_kind: row.drift_kind,
+            detail: row.detail,
+            created_at_utc: row.created_at_utc.into(),
+        }
     }
 }
 
@@ -1948,6 +2034,99 @@ fn validate_spec_drift_finding(new: &NewSpecDriftFinding) -> AtelierResult<()> {
     Ok(())
 }
 
+#[derive(Clone, SurrealValue)]
+struct StateProbeNoBindings {}
+
+#[derive(Clone, SurrealValue)]
+struct WorkStateWriteBindings {
+    record_id: RecordId,
+    projection_id: String,
+    active_mt: String,
+    owner: String,
+    status: String,
+    blocker: Option<String>,
+    receipts_ref: Option<String>,
+    next_action: Option<String>,
+    evidence_ref: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct DccPanelWriteBindings {
+    record_id: RecordId,
+    panel_id: String,
+    panel_kind: String,
+    state_json: Value,
+}
+
+#[derive(Clone, SurrealValue)]
+struct DccPanelKindBinding {
+    panel_kind: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ScreenshotWriteBindings {
+    record_id: RecordId,
+    storage_id: String,
+    capture_id: SurrealUuid,
+    artifact_manifest_id: String,
+    content_sha256: String,
+    mime: String,
+    width_px: Option<i64>,
+    height_px: Option<i64>,
+    byte_len: Option<i64>,
+    label: Option<String>,
+    retention_ttl_days: Option<i64>,
+    pinned: bool,
+    retention_class: String,
+    exportable: bool,
+    redaction_applied: bool,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ScreenshotDeleteBindings {
+    record_id: RecordId,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SpecDriftWriteBindings {
+    record_id: RecordId,
+    finding_id: String,
+    doc_ref: String,
+    spec_ref: String,
+    drift_kind: String,
+    detail: String,
+}
+
+const WRITE_WORK_STATE_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { projection_id: $domain.projection_id, active_mt: $domain.active_mt, owner: $domain.owner, status: $domain.status, blocker: $domain.blocker, receipts_ref: $domain.receipts_ref, next_action: $domain.next_action, evidence_ref: $domain.evidence_ref } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const WRITE_DCC_PANEL_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { panel_id: $domain.panel_id, panel_kind: $domain.panel_kind, state_json: $domain.state_json } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const WRITE_SCREENSHOT_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_screenshot_artifact_storage WHERE capture_id = $domain.capture_id LIMIT 1)[0]; LET $target = IF $existing = NONE { $domain.record_id } ELSE { $existing }; LET $row = (UPSERT $target CONTENT { storage_id: record::id($target), capture_id: $domain.capture_id, artifact_manifest_id: $domain.artifact_manifest_id, content_sha256: $domain.content_sha256, mime: $domain.mime, width_px: $domain.width_px, height_px: $domain.height_px, byte_len: $domain.byte_len, label: $domain.label, retention_ttl_days: $domain.retention_ttl_days, pinned: $domain.pinned, retention_class: $domain.retention_class, exportable: $domain.exportable, redaction_applied: $domain.redaction_applied } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const DELETE_SCREENSHOT_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (DELETE $domain.record_id RETURN BEFORE)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
+const WRITE_SPEC_DRIFT_STATEMENT: &str = concat!(
+    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { finding_id: $domain.finding_id, doc_ref: $domain.doc_ref, spec_ref: $domain.spec_ref, drift_kind: $domain.drift_kind, detail: $domain.detail } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $row; };"
+);
+
 impl AtelierStore {
     /// Record one model work-state projection row (MT-147).
     ///
@@ -1959,63 +2138,55 @@ impl AtelierStore {
     ) -> AtelierResult<WorkStateProjection> {
         validate_work_state_projection(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_work_state_projection
-                 (projection_id, active_mt, owner, status, blocker, receipts_ref,
-                  next_action, evidence_ref)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (projection_id) DO UPDATE SET
-                 active_mt = EXCLUDED.active_mt,
-                 owner = EXCLUDED.owner,
-                 status = EXCLUDED.status,
-                 blocker = EXCLUDED.blocker,
-                 receipts_ref = EXCLUDED.receipts_ref,
-                 next_action = EXCLUDED.next_action,
-                 evidence_ref = EXCLUDED.evidence_ref
-               RETURNING {WORK_STATE_PROJECTION_COLUMNS}"#
-        ))
-        .bind(&new.projection_id)
-        .bind(&new.active_mt)
-        .bind(&new.owner)
-        .bind(&new.status)
-        .bind(&new.blocker)
-        .bind(&new.receipts_ref)
-        .bind(&new.next_action)
-        .bind(&new.evidence_ref)
-        .fetch_one(&mut *tx)
-        .await?;
-        let recorded = work_state_projection_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
-            "atelier_work_state_projection",
-            &recorded.projection_id,
-            json!({
-                "projection_id": recorded.projection_id,
-                "active_mt": recorded.active_mt,
-                "owner": recorded.owner,
-                "status": recorded.status,
-                "has_blocker": recorded.blocker.is_some(),
+        let row: Option<WorkStateProjectionRow> = self
+            .write_with_event(
+                WRITE_WORK_STATE_STATEMENT,
+                WorkStateWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_work_state_projection",
+                        new.projection_id.clone(),
+                    ),
+                    projection_id: new.projection_id.clone(),
+                    active_mt: new.active_mt.clone(),
+                    owner: new.owner.clone(),
+                    status: new.status.clone(),
+                    blocker: new.blocker.clone(),
+                    receipts_ref: new.receipts_ref.clone(),
+                    next_action: new.next_action.clone(),
+                    evidence_ref: new.evidence_ref.clone(),
+                },
+                diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
+                "atelier_work_state_projection",
+                &new.projection_id,
+                json!({
+                "projection_id": new.projection_id,
+                "active_mt": new.active_mt,
+                "owner": new.owner,
+                "status": new.status,
+                "has_blocker": new.blocker.is_some(),
                 "schema": "hsk.atelier.work_state_projection@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+                }),
+            )
+            .await?;
+        row.map(Into::into).ok_or_else(|| {
+            AtelierError::Internal("work-state projection write returned no row".to_owned())
+        })
     }
 
     /// List model work-state projection rows, newest first.
     pub async fn list_work_state_projections(&self) -> AtelierResult<Vec<WorkStateProjection>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {WORK_STATE_PROJECTION_COLUMNS}
-               FROM atelier_work_state_projection
-               ORDER BY created_at_utc DESC, projection_id ASC"#
-        ))
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(work_state_projection_from_row).collect())
+        let rows: Vec<WorkStateProjectionRow> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT projection_id, active_mt, owner, status, blocker, receipts_ref, next_action, evidence_ref, created_at_utc FROM atelier_work_state_projection ORDER BY created_at_utc DESC, projection_id ASC;",
+                        StateProbeNoBindings {},
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 
     /// Record one DCC panel projection row (MT-148).
@@ -2031,37 +2202,30 @@ impl AtelierStore {
             ));
         }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_dcc_panel_projection
-                 (panel_id, panel_kind, state_json)
-               VALUES ($1, $2, $3::jsonb)
-               ON CONFLICT (panel_id) DO UPDATE SET
-                 panel_kind = EXCLUDED.panel_kind,
-                 state_json = EXCLUDED.state_json
-               RETURNING {DCC_PANEL_PROJECTION_COLUMNS}"#
-        ))
-        .bind(&new.panel_id)
-        .bind(new.panel_kind.as_token())
-        .bind(&new.state_json)
-        .fetch_one(&mut *tx)
-        .await?;
-        let recorded = dcc_panel_projection_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
-            "atelier_dcc_panel_projection",
-            &recorded.panel_id,
-            json!({
-                "panel_id": recorded.panel_id,
-                "panel_kind": recorded.panel_kind.as_token(),
+        let row: Option<DccPanelProjectionRow> = self
+            .write_with_event(
+                WRITE_DCC_PANEL_STATEMENT,
+                DccPanelWriteBindings {
+                    record_id: RecordId::new("atelier_dcc_panel_projection", new.panel_id.clone()),
+                    panel_id: new.panel_id.clone(),
+                    panel_kind: new.panel_kind.as_token().to_owned(),
+                    state_json: new.state_json.clone(),
+                },
+                diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
+                "atelier_dcc_panel_projection",
+                &new.panel_id,
+                json!({
+                "panel_id": new.panel_id,
+                "panel_kind": new.panel_kind.as_token(),
                 "schema": "hsk.atelier.dcc_panel_projection@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+                }),
+            )
+            .await?;
+        row.map(dcc_panel_projection_from_row)
+            .transpose()?
+            .ok_or_else(|| {
+                AtelierError::Internal("dcc panel projection write returned no row".to_owned())
+            })
     }
 
     /// List DCC panel projection rows for a given panel kind, newest first
@@ -2070,16 +2234,21 @@ impl AtelierStore {
         &self,
         panel_kind: DccPanelKind,
     ) -> AtelierResult<Vec<DccPanelProjection>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {DCC_PANEL_PROJECTION_COLUMNS}
-               FROM atelier_dcc_panel_projection
-               WHERE panel_kind = $1
-               ORDER BY created_at_utc DESC, panel_id ASC"#
-        ))
-        .bind(panel_kind.as_token())
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(dcc_panel_projection_from_row).collect()
+        let panel_kind = panel_kind.as_token().to_owned();
+        let rows: Vec<DccPanelProjectionRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT panel_id, panel_kind, state_json, created_at_utc FROM atelier_dcc_panel_projection WHERE panel_kind = $panel_kind ORDER BY created_at_utc DESC, panel_id ASC;",
+                        DccPanelKindBinding { panel_kind },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(dcc_panel_projection_from_row)
+            .collect()
     }
 
     /// Store a stealth screenshot capture as a governed, retained artifact with
@@ -2096,68 +2265,52 @@ impl AtelierStore {
     ) -> AtelierResult<ScreenshotArtifactStorage> {
         validate_screenshot_artifact_storage(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_screenshot_artifact_storage
-                 (storage_id, capture_id, artifact_manifest_id, content_sha256, mime,
-                  width_px, height_px, byte_len, label, retention_ttl_days, pinned,
-                  retention_class, exportable, redaction_applied)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-               ON CONFLICT (capture_id) DO UPDATE SET
-                 artifact_manifest_id = EXCLUDED.artifact_manifest_id,
-                 content_sha256 = EXCLUDED.content_sha256,
-                 mime = EXCLUDED.mime,
-                 width_px = EXCLUDED.width_px,
-                 height_px = EXCLUDED.height_px,
-                 byte_len = EXCLUDED.byte_len,
-                 label = EXCLUDED.label,
-                 retention_ttl_days = EXCLUDED.retention_ttl_days,
-                 pinned = EXCLUDED.pinned,
-                 retention_class = EXCLUDED.retention_class,
-                 exportable = EXCLUDED.exportable,
-                 redaction_applied = EXCLUDED.redaction_applied
-               RETURNING {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}"#
-        ))
-        .bind(&new.storage_id)
-        .bind(new.capture_id)
-        .bind(&new.artifact_manifest_id)
-        .bind(&new.content_sha256)
-        .bind(&new.mime)
-        .bind(new.width_px)
-        .bind(new.height_px)
-        .bind(new.byte_len)
-        .bind(&new.label)
-        .bind(new.retention_ttl_days)
-        .bind(new.pinned)
-        .bind(&new.retention_class)
-        .bind(new.exportable)
-        .bind(new.redaction_applied)
-        .fetch_one(&mut *tx)
-        .await?;
-        let recorded = screenshot_artifact_storage_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
-            "atelier_screenshot_artifact_storage",
-            &recorded.storage_id,
-            json!({
-                "storage_id": recorded.storage_id,
-                "capture_id": recorded.capture_id,
-                "artifact_manifest_id": recorded.artifact_manifest_id,
-                "content_sha256": recorded.content_sha256,
-                "mime": recorded.mime,
-                "retention_ttl_days": recorded.retention_ttl_days,
-                "pinned": recorded.pinned,
-                "retention_class": recorded.retention_class,
-                "exportable": recorded.exportable,
-                "redaction_applied": recorded.redaction_applied,
+        let row: Option<ScreenshotArtifactStorageRow> = self
+            .write_with_event(
+                WRITE_SCREENSHOT_STATEMENT,
+                ScreenshotWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_screenshot_artifact_storage",
+                        new.storage_id.clone(),
+                    ),
+                    storage_id: new.storage_id.clone(),
+                    capture_id: new.capture_id.into(),
+                    artifact_manifest_id: new.artifact_manifest_id.clone(),
+                    content_sha256: new.content_sha256.clone(),
+                    mime: new.mime.clone(),
+                    width_px: new.width_px.map(i64::from),
+                    height_px: new.height_px.map(i64::from),
+                    byte_len: new.byte_len,
+                    label: new.label.clone(),
+                    retention_ttl_days: new.retention_ttl_days.map(i64::from),
+                    pinned: new.pinned,
+                    retention_class: new.retention_class.clone(),
+                    exportable: new.exportable,
+                    redaction_applied: new.redaction_applied,
+                },
+                diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+                "atelier_screenshot_artifact_storage",
+                &new.storage_id,
+                json!({
+                "storage_id": new.storage_id,
+                "capture_id": new.capture_id,
+                "artifact_manifest_id": new.artifact_manifest_id,
+                "content_sha256": new.content_sha256,
+                "mime": new.mime,
+                "retention_ttl_days": new.retention_ttl_days,
+                "pinned": new.pinned,
+                "retention_class": new.retention_class,
+                "exportable": new.exportable,
+                "redaction_applied": new.redaction_applied,
                 "schema": "hsk.atelier.screenshot_artifact_storage@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+                }),
+            )
+            .await?;
+        row.map(screenshot_artifact_storage_from_row)
+            .transpose()?
+            .ok_or_else(|| {
+                AtelierError::Internal("screenshot storage write returned no row".to_owned())
+            })
     }
 
     /// List screenshot artifact-storage rows for a window's captures, newest
@@ -2166,17 +2319,20 @@ impl AtelierStore {
     pub async fn list_screenshot_artifact_storage(
         &self,
     ) -> AtelierResult<Vec<ScreenshotArtifactStorage>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}
-               FROM atelier_screenshot_artifact_storage
-               ORDER BY created_at_utc DESC, storage_id ASC"#
-        ))
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows
-            .iter()
+        let rows: Vec<ScreenshotArtifactStorageRow> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT storage_id, capture_id, artifact_manifest_id, content_sha256, mime, width_px, height_px, byte_len, label, retention_ttl_days, pinned, retention_class, exportable, redaction_applied, created_at_utc FROM atelier_screenshot_artifact_storage ORDER BY created_at_utc DESC, storage_id ASC;",
+                        StateProbeNoBindings {},
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter()
             .map(screenshot_artifact_storage_from_row)
-            .collect())
+            .collect()
     }
 
     /// Prune expired, unpinned screenshot artifact-storage rows (MT-158).
@@ -2189,39 +2345,41 @@ impl AtelierStore {
     pub async fn cleanup_expired_screenshot_artifacts(
         &self,
     ) -> AtelierResult<Vec<ScreenshotArtifactStorage>> {
-        let mut tx = self.pool().begin().await?;
-        let rows = sqlx::query(&format!(
-            r#"DELETE FROM atelier_screenshot_artifact_storage
-               WHERE pinned = FALSE
-                 AND retention_ttl_days IS NOT NULL
-                 AND created_at_utc + make_interval(days => retention_ttl_days) <= NOW()
-               RETURNING {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}"#
-        ))
-        .fetch_all(&mut *tx)
-        .await?;
-        let cleaned: Vec<ScreenshotArtifactStorage> = rows
-            .iter()
-            .map(screenshot_artifact_storage_from_row)
-            .collect();
-
-        for row in &cleaned {
-            self.record_event_in_tx(
-                &mut tx,
-                diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_RETENTION_CLEANED,
-                "atelier_screenshot_artifact_storage",
-                &row.storage_id,
-                json!({
+        let now = Utc::now();
+        let candidates = self.list_screenshot_artifact_storage().await?;
+        let mut cleaned = Vec::new();
+        for row in candidates.into_iter().filter(|row| {
+            !row.pinned
+                && row.retention_ttl_days.is_some_and(|days| {
+                    row.created_at_utc + chrono::Duration::days(i64::from(days)) <= now
+                })
+        }) {
+            let deleted: Option<ScreenshotArtifactStorageRow> = self
+                .write_with_event(
+                    DELETE_SCREENSHOT_STATEMENT,
+                    ScreenshotDeleteBindings {
+                        record_id: RecordId::new(
+                            "atelier_screenshot_artifact_storage",
+                            row.storage_id.clone(),
+                        ),
+                    },
+                    diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_RETENTION_CLEANED,
+                    "atelier_screenshot_artifact_storage",
+                    &row.storage_id,
+                    json!({
                     "storage_id": row.storage_id,
                     "capture_id": row.capture_id,
                     "artifact_manifest_id": row.artifact_manifest_id,
                     "retention_class": row.retention_class,
                     "retention_ttl_days": row.retention_ttl_days,
                     "schema": "hsk.atelier.screenshot_artifact_retention_cleanup@1",
-                }),
-            )
-            .await?;
+                    }),
+                )
+                .await?;
+            if let Some(deleted) = deleted {
+                cleaned.push(screenshot_artifact_storage_from_row(deleted)?);
+            }
         }
-        tx.commit().await?;
         Ok(cleaned)
     }
 
@@ -2234,55 +2392,48 @@ impl AtelierStore {
     ) -> AtelierResult<SpecDriftFinding> {
         validate_spec_drift_finding(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_spec_drift_finding
-                 (finding_id, doc_ref, spec_ref, drift_kind, detail)
-               VALUES ($1, $2, $3, $4, $5)
-               ON CONFLICT (finding_id) DO UPDATE SET
-                 doc_ref = EXCLUDED.doc_ref,
-                 spec_ref = EXCLUDED.spec_ref,
-                 drift_kind = EXCLUDED.drift_kind,
-                 detail = EXCLUDED.detail
-               RETURNING {SPEC_DRIFT_FINDING_COLUMNS}"#
-        ))
-        .bind(&new.finding_id)
-        .bind(&new.doc_ref)
-        .bind(&new.spec_ref)
-        .bind(&new.drift_kind)
-        .bind(&new.detail)
-        .fetch_one(&mut *tx)
-        .await?;
-        let recorded = spec_drift_finding_from_row(&row);
-
-        self.record_event_in_tx(
-            &mut tx,
-            diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
-            "atelier_spec_drift_finding",
-            &recorded.finding_id,
-            json!({
-                "finding_id": recorded.finding_id,
-                "doc_ref": recorded.doc_ref,
-                "spec_ref": recorded.spec_ref,
-                "drift_kind": recorded.drift_kind,
+        let row: Option<SpecDriftFindingRow> = self
+            .write_with_event(
+                WRITE_SPEC_DRIFT_STATEMENT,
+                SpecDriftWriteBindings {
+                    record_id: RecordId::new("atelier_spec_drift_finding", new.finding_id.clone()),
+                    finding_id: new.finding_id.clone(),
+                    doc_ref: new.doc_ref.clone(),
+                    spec_ref: new.spec_ref.clone(),
+                    drift_kind: new.drift_kind.clone(),
+                    detail: new.detail.clone(),
+                },
+                diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
+                "atelier_spec_drift_finding",
+                &new.finding_id,
+                json!({
+                "finding_id": new.finding_id,
+                "doc_ref": new.doc_ref,
+                "spec_ref": new.spec_ref,
+                "drift_kind": new.drift_kind,
                 "schema": "hsk.atelier.spec_drift_finding@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+                }),
+            )
+            .await?;
+        row.map(Into::into).ok_or_else(|| {
+            AtelierError::Internal("spec drift finding write returned no row".to_owned())
+        })
     }
 
     /// List doc/spec drift findings, newest first (MT-167).
     pub async fn list_spec_drift_findings(&self) -> AtelierResult<Vec<SpecDriftFinding>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {SPEC_DRIFT_FINDING_COLUMNS}
-               FROM atelier_spec_drift_finding
-               ORDER BY created_at_utc DESC, finding_id ASC"#
-        ))
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(spec_drift_finding_from_row).collect())
+        let rows: Vec<SpecDriftFindingRow> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT finding_id, doc_ref, spec_ref, drift_kind, detail, created_at_utc FROM atelier_spec_drift_finding ORDER BY created_at_utc DESC, finding_id ASC;",
+                        StateProbeNoBindings {},
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 
     /// Detect doc/spec drift and record a finding ONLY when they differ (MT-167).

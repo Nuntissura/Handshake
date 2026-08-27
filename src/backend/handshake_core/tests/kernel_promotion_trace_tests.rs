@@ -345,7 +345,7 @@ fn trace_projection_replays_kernel_run_from_events_not_diagnostics() {
     assert_eq!(projection.session_run_id, "SR-EXAMPLE");
     assert!(projection.contains_event_type(KernelEventType::PromotionDecided));
     assert_eq!(
-        projection.authority_source, "postgres_event_ledger",
+        projection.authority_source, "surreal_event_ledger",
         "Flight Recorder and diagnostics must remain projections"
     );
 }

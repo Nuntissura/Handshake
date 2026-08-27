@@ -14,9 +14,9 @@
 //!
 //! ## HONEST PROOF FRAMING (KERNEL_BUILDER gate 2026-06-24)
 //!
-//! The full end-to-end (spawn the WHOLE Handshake app + assert real PostgreSQL rows) has TWO real
+//! The full end-to-end (spawn the WHOLE Handshake app + assert real embedded-store rows) has TWO real
 //! constraints the contract names: (1) the editor panes are NOT mounted in `app.rs` yet (E11/MT-069 —
-//! the rich/code editors are not in the live shell), and (2) NO live Handshake-managed PostgreSQL is
+//! the rich/code editors are not in the live shell), and (2) NO live Handshake-managed embedded SurrealDB store is
 //! available (every prior MT gated DB round-trips as `NEEDS_MANAGED_RESOURCE_PROOF`).
 //! So MT-043's RUNNABLE proof mounts the editor + knowledge WIDGETS in egui_kittest (the
 //! `RichEditorWidget` / `LoomSearchV2` / graph panes ARE kittest-mountable, as MT-041/042 proved), drives
@@ -24,7 +24,7 @@
 //! AccessKit ROUTING + ACTION COVERAGE + (for STEP 1) the AGENT-PRODUCED content + the backend REQUEST
 //! SHAPE the save produces (via a backend SPY capturing the E6-client request — provable NOW). The
 //! The standalone test remains an explicitly non-authoritative surface diagnostic. The non-ignored
-//! `integration` test creates its own isolated managed-PostgreSQL workspace and is the only live-verdict
+//! `integration` test creates its own isolated managed embedded-store workspace and is the only live-verdict
 //! path; it does not consume seeded operator data and never substitutes a mock database.
 //!
 //! ## Spec-Realism Gate: agent-PRODUCED content, never implementer-injected (adversarial-review fix)
@@ -53,7 +53,7 @@
 //! dispatches a RAW `egui::Event::AccessKitActionRequest { action: SetValue, target: <resolved
 //! code_editor_text node id>, data: Value(<agent code>) }` (the MT-080 shape — a genuine AccessKit-by-id
 //! write, NOT key-simulation, NOT an app-code change), and asserts `panel.buffer()` carries the
-//! agent-produced code. Only the live-PG `editor_edit` row is GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
+//! agent-produced code. Only the live-SurrealDB `editor_edit` row is GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
 //!
 //! STEP 3 (add a backlink — an `hsLink` atom carrying a SPECIFIC target `refValue`, the loom_edges edge
 //! AC-043-04 names) now PASSES too. MT-110 gave the RICH editor the SAME out-of-process swarm-edit surface
@@ -66,12 +66,12 @@
 //! dispatches a RAW `AccessKitActionRequest { action: SetValue, target: <resolved wikilink-chip node id>,
 //! data: Value(<agent-chosen loom_edges target id>) }`, and asserts the hsLink atom now carries the
 //! AGENT-CHOSEN target `refValue` — the backlink is AGENT-produced (the specific target is the agent's
-//! pick, not implementer-injected; the Spec-Realism Gate holds). Only the live-PG `loom_edges` row stays
+//! pick, not implementer-injected; the Spec-Realism Gate holds). Only the live-SurrealDB `loom_edges` row stays
 //! GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
 //!
 //! The standalone widget proof is deliberately NON-AUTHORITATIVE: gated or seeded observations can
 //! never produce `PROOF_PASS`. Only the integration proof may write that terminal marker, and only
-//! after its managed-PostgreSQL edit/conflict/merge/search/refetch/reload/attribution assertions pass.
+//! after its managed embedded-store edit/conflict/merge/search/refetch/reload/attribution assertions pass.
 
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
@@ -353,14 +353,19 @@ fn timeout_workspace_path(parent_pid: &str) -> PathBuf {
         .join(format!("active_workspace_{parent_pid}.txt"))
 }
 
-fn publish_timeout_workspace(workspace_id: &str) -> PathBuf {
+fn publish_timeout_workspace(workspace_id: &str, backend_base: &str) -> PathBuf {
     let parent_pid = std::env::var(MT043_PARENT_PID_ENV)
         .expect("bounded MT-043 child receives its parent process id");
     let path = timeout_workspace_path(&parent_pid);
     std::fs::create_dir_all(path.parent().expect("timeout workspace path parent"))
         .expect("create MT-043 timeout workspace directory");
     let temporary = path.with_extension(format!("tmp.{}", std::process::id()));
-    std::fs::write(&temporary, workspace_id).expect("write MT-043 timeout workspace sidecar");
+    // Line 1: workspace id. Line 2: the fixture-owned backend base URL, so the PARENT process can run
+    // its pre-reap witness and crash-window cleanup through the product HTTP surface. The embedded
+    // SurrealDB store is open only inside the fixture-owned backend process, so HTTP is the only
+    // second-process read path — there is no external database a helper client could query.
+    std::fs::write(&temporary, format!("{workspace_id}\n{backend_base}"))
+        .expect("write MT-043 timeout workspace sidecar");
     if path.exists() {
         std::fs::remove_file(&path).expect("replace prior MT-043 timeout workspace sidecar");
     }
@@ -372,13 +377,21 @@ fn publish_timeout_workspace(workspace_id: &str) -> PathBuf {
 fn timeout_workspace_id(path: &Path) -> Option<String> {
     std::fs::read_to_string(path)
         .ok()
-        .map(|value| value.trim().to_owned())
+        .and_then(|value| value.lines().next().map(|line| line.trim().to_owned()))
         .filter(|workspace_id| {
             !workspace_id.is_empty()
                 && workspace_id
                     .chars()
                     .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
         })
+}
+
+/// The fixture-owned backend base URL from the sidecar's second line, when published.
+fn timeout_backend_base(path: &Path) -> Option<String> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|value| value.lines().nth(1).map(|line| line.trim().to_owned()))
+        .filter(|base| base.starts_with("http://") || base.starts_with("https://"))
 }
 
 #[derive(Clone, Debug)]
@@ -544,7 +557,7 @@ fn cleanup_timeout_workspace_via_api(path: &Path, budget: Duration) -> bool {
         let request = reqwest::Client::new()
             .delete(format!("{base}/workspaces/{workspace_id}"))
             .header(HSK_HEADER_ACTOR_ID, "mt043-timeout-parent")
-            .header(HSK_HEADER_ACTOR_KIND, "operator")
+            .header(HSK_HEADER_ACTOR_KIND, "human")
             .header(HSK_HEADER_KERNEL_TASK_RUN_ID, "mt043-timeout-cleanup")
             .header(HSK_HEADER_SESSION_RUN_ID, "mt043-timeout-cleanup")
             .header(HSK_HEADER_CORRELATION_ID, "mt043-timeout-cleanup");
@@ -556,12 +569,39 @@ fn cleanup_timeout_workspace_via_api(path: &Path, budget: Duration) -> bool {
 }
 
 /// Crash/timeout cleanup by exact workspace id or, if termination landed between workspace creation
-/// and sidecar publication, by the attempt-unique workspace name. The command and reap are bounded.
+/// and sidecar publication, by the attempt-unique workspace name. Every request and the whole pass
+/// are bounded by the caller's deadline.
 fn cleanup_timeout_workspace(path: &Path, attempt_id: &str, budget: Duration) {
-    cleanup_timeout_workspace_before(path, attempt_id, Instant::now() + budget);
+    cleanup_timeout_workspace_before(path, attempt_id, Instant::now() + budget, None);
 }
 
-fn cleanup_timeout_workspace_before(path: &Path, attempt_id: &str, absolute_deadline: Instant) {
+fn cleanup_timeout_workspace_at_base(
+    path: &Path,
+    attempt_id: &str,
+    budget: Duration,
+    backend_base: &str,
+) {
+    cleanup_timeout_workspace_before(
+        path,
+        attempt_id,
+        Instant::now() + budget,
+        Some(backend_base),
+    );
+}
+
+/// Runs entirely through the product HTTP surface. The embedded SurrealDB store is open only inside
+/// the fixture-owned backend process, so there is no external database client to shell out to:
+/// while the backend is reachable the cleanup DELETEs canonically (Flight Recorder purge included)
+/// and then FAILS CLOSED by re-listing; when the backend is gone the residue is CONTAINED by
+/// construction — the workspace row lives inside the per-run `<data_dir>/handshake-surreal` store
+/// owned by this run's fixture, which is removed with its runtime root and which no later run can
+/// open, observe, or inherit. Sweeping a shared external cluster is a retired concern from the pre-embedded-store era.
+fn cleanup_timeout_workspace_before(
+    path: &Path,
+    attempt_id: &str,
+    absolute_deadline: Instant,
+    fallback_base: Option<&str>,
+) {
     assert!(
         !attempt_id.is_empty()
             && attempt_id
@@ -570,87 +610,113 @@ fn cleanup_timeout_workspace_before(path: &Path, attempt_id: &str, absolute_dead
         "timeout cleanup attempt id is unsafe"
     );
     let workspace_id = timeout_workspace_id(path);
-    let database_url = [
-        "HANDSHAKE_TEST_PG_DSN",
-        "HSK_PROOF_DATABASE_URL",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-    .into_iter()
-    .find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    })
-    .expect("timeout cleanup requires the managed PostgreSQL DSN");
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let workspace_predicate = workspace_id
-        .as_deref()
-        .map(|workspace_id| {
-            format!(
-                "id = {} OR name = {}",
-                sql_literal(workspace_id),
-                sql_literal(&format!("mt043-{attempt_id}"))
-            )
-        })
-        .unwrap_or_else(|| format!("name = {}", sql_literal(&format!("mt043-{attempt_id}"))));
-    let sql = format!(
-        "DO $$ BEGIN DELETE FROM workspaces WHERE {workspace_predicate}; IF EXISTS (SELECT 1 FROM workspaces WHERE {workspace_predicate}) THEN RAISE EXCEPTION 'MT-043 timeout cleanup left workspace'; END IF; END $$;"
-    );
-    let mut command = Command::new(psql);
-    command
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--dbname")
-        .arg(database_url)
-        .arg("--command")
-        .arg(sql)
-        .env("PGCONNECT_TIMEOUT", "1")
-        .stdin(Stdio::null())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let mut cleanup = command
-        .spawn()
-        .expect("start bounded MT-043 PostgreSQL timeout cleanup");
-    let command_deadline = absolute_deadline
-        .checked_sub(Duration::from_millis(250))
-        .unwrap_or_else(Instant::now);
-    let status = loop {
-        match cleanup.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if Instant::now() < command_deadline => {
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Ok(None) => {
-                let _ = cleanup.kill();
-                let reaped = mt128_wait_for_process_before(&mut cleanup, absolute_deadline);
+    let base = timeout_backend_base(path)
+        .or_else(|| fallback_base.map(str::to_owned))
+        .or_else(|| std::env::var("HSK_TEST_BASE").ok())
+        .unwrap_or_else(|| interconnect_support::DEFAULT_BASE.to_owned());
+    let attempt_name = format!("mt043-{attempt_id}");
+    let remaining = |absolute_deadline: Instant| {
+        absolute_deadline
+            .checked_duration_since(Instant::now())
+            .unwrap_or(Duration::from_millis(1))
+    };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build bounded MT-043 timeout-cleanup runtime");
+    let backend_reachable = runtime.block_on(async {
+        let client = reqwest::Client::new();
+        let list_workspaces = |client: reqwest::Client, base: String| async move {
+            client
+                .get(format!("{base}/workspaces"))
+                .header(HSK_HEADER_ACTOR_ID, "mt043-timeout-parent")
+                .header(HSK_HEADER_ACTOR_KIND, "human")
+                .header(HSK_HEADER_KERNEL_TASK_RUN_ID, "mt043-timeout-cleanup")
+                .header(HSK_HEADER_SESSION_RUN_ID, "mt043-timeout-cleanup")
+                .header(HSK_HEADER_CORRELATION_ID, "mt043-timeout-cleanup")
+                .send()
+                .await
+                .ok()?
+                .json::<serde_json::Value>()
+                .await
+                .ok()
+        };
+        let matches_attempt = |workspace: &serde_json::Value| {
+            workspace["id"].as_str() == workspace_id.as_deref()
+                || workspace["name"].as_str() == Some(attempt_name.as_str())
+        };
+        let Ok(Some(listed)) = tokio::time::timeout(
+            remaining(absolute_deadline),
+            list_workspaces(client.clone(), base.clone()),
+        )
+        .await
+        else {
+            // Backend unreachable: the reap path already took the backend (and with it the only
+            // open handle on the per-run embedded store) down. Containment holds by construction.
+            return false;
+        };
+        for target in listed
+            .as_array()
+            .map(|rows| rows.iter().filter(|row| matches_attempt(row)))
+            .into_iter()
+            .flatten()
+        {
+            let Some(target_id) = target["id"].as_str() else {
+                continue;
+            };
+            loop {
+                let delete = client
+                    .delete(format!("{base}/workspaces/{target_id}"))
+                    .header(HSK_HEADER_ACTOR_ID, "mt043-timeout-parent")
+                    .header(HSK_HEADER_ACTOR_KIND, "human")
+                    .header(HSK_HEADER_KERNEL_TASK_RUN_ID, "mt043-timeout-cleanup")
+                    .header(HSK_HEADER_SESSION_RUN_ID, "mt043-timeout-cleanup")
+                    .header(HSK_HEADER_CORRELATION_ID, "mt043-timeout-cleanup")
+                    .send();
+                let failure = match tokio::time::timeout(remaining(absolute_deadline), delete).await {
+                    Ok(Ok(response)) => {
+                        let status = response.status();
+                        if status.is_success() || status == reqwest::StatusCode::NOT_FOUND {
+                            break;
+                        }
+                        let body = response.text().await.unwrap_or_default();
+                        format!("returned {status}: {body}")
+                    }
+                    Ok(Err(error)) => error.to_string(),
+                    Err(_) => "request exceeded the remaining bounded budget".to_owned(),
+                };
                 assert!(
-                    reaped,
-                    "MT-043 PostgreSQL timeout cleanup helper was not reaped before the absolute deadline"
+                    Instant::now() < absolute_deadline,
+                    "MT-043 timeout cleanup DELETE for {target_id} failed within its bounded budget: {failure}"
                 );
-                panic!("MT-043 PostgreSQL timeout cleanup exceeded its bounded execution budget");
-            }
-            Err(error) => {
-                let _ = cleanup.kill();
-                let reaped = mt128_wait_for_process_before(&mut cleanup, absolute_deadline);
-                assert!(
-                    reaped,
-                    "MT-043 PostgreSQL timeout cleanup helper was not reaped after poll failure"
-                );
-                panic!("poll MT-043 PostgreSQL timeout cleanup: {error}");
+                tokio::time::sleep(Duration::from_millis(25)).await;
             }
         }
-    };
-    assert!(
-        status.success(),
-        "MT-043 PostgreSQL timeout cleanup failed with {status}"
-    );
+        // Fail closed exactly as the retired external-database sweep did: after the deletes, the
+        // attempt must be invisible to a canonical re-list.
+        let Ok(Some(relisted)) = tokio::time::timeout(
+            remaining(absolute_deadline),
+            list_workspaces(client, base),
+        )
+        .await
+        else {
+            panic!("MT-043 timeout cleanup could not re-list workspaces to verify absence");
+        };
+        assert!(
+            !relisted
+                .as_array()
+                .is_some_and(|rows| rows.iter().any(|row| matches_attempt(row))),
+            "MT-043 timeout cleanup left workspace"
+        );
+        true
+    });
+    if !backend_reachable {
+        println!(
+            "MT128_TIMEOUT_CLEANUP_CONTAINED backend_unreachable=true workspace_id={} attempt_name={attempt_name} \
+             residue_scope=per-run-embedded-store",
+            workspace_id.as_deref().unwrap_or("-"),
+        );
+    }
     if path.exists() {
         std::fs::remove_file(path).expect("remove MT-043 timeout workspace sidecar after cleanup");
     }
@@ -659,6 +725,11 @@ fn cleanup_timeout_workspace_before(path: &Path, attempt_id: &str, absolute_dead
 /// A short, read-only canonical witness used immediately before tree termination. It proves that the
 /// forced-stall workspace was real without deleting it or extending the PID-observation window by more
 /// than the caller's small deadline. Failure is returned, never panicked through the reap path.
+///
+/// The witness is a bounded product HTTP read against the fixture-owned backend recorded in the
+/// sidecar (the stalled child sleeps; its backend keeps serving). The embedded SurrealDB store is
+/// open only inside that backend process, so HTTP is the only second-process read path; there is no
+/// helper client process to spawn or reap, hence `helper_reaped` is trivially true on every return.
 struct Mt128WorkspaceProbe {
     exists: bool,
     helper_reaped: bool,
@@ -675,83 +746,52 @@ fn probe_timeout_workspace_exists_before(
             helper_reaped: true,
         };
     };
-    let Some(database_url) = [
-        "HANDSHAKE_TEST_PG_DSN",
-        "HSK_PROOF_DATABASE_URL",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-    .into_iter()
-    .find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    }) else {
+    let Some(base) = timeout_backend_base(path).or_else(|| std::env::var("HSK_TEST_BASE").ok())
+    else {
         return Mt128WorkspaceProbe {
             exists: false,
             helper_reaped: true,
         };
     };
-    let workspace_predicate = format!(
-        "id = {} OR name = {}",
-        sql_literal(&workspace_id),
-        sql_literal(&format!("mt043-{attempt_id}"))
-    );
-    let sql = format!(
-        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM workspaces WHERE {workspace_predicate}) THEN RAISE EXCEPTION 'MT-128 forced-stall workspace missing before reap'; END IF; END $$;"
-    );
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let mut command = Command::new(psql);
-    command
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--dbname")
-        .arg(database_url)
-        .arg("--command")
-        .arg(sql)
-        .env("PGCONNECT_TIMEOUT", "1")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let Ok(mut probe) = command.spawn() else {
+    let attempt_name = format!("mt043-{attempt_id}");
+    let budget = absolute_deadline
+        .checked_duration_since(Instant::now())
+        .unwrap_or(Duration::from_millis(1));
+    let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    else {
         return Mt128WorkspaceProbe {
             exists: false,
             helper_reaped: true,
         };
     };
-    let command_deadline = absolute_deadline
-        .checked_sub(Duration::from_millis(100))
-        .unwrap_or_else(Instant::now);
-    loop {
-        match probe.try_wait() {
-            Ok(Some(status)) => {
-                return Mt128WorkspaceProbe {
-                    exists: status.success(),
-                    helper_reaped: true,
-                };
-            }
-            Ok(None) if Instant::now() < command_deadline => {
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            Ok(None) | Err(_) => {
-                let _ = probe.kill();
-                return Mt128WorkspaceProbe {
-                    exists: false,
-                    helper_reaped: mt128_wait_for_process_before(&mut probe, absolute_deadline),
-                };
-            }
-        }
+    let exists = runtime.block_on(async {
+        let request = reqwest::Client::new()
+            .get(format!("{base}/workspaces"))
+            .header(HSK_HEADER_ACTOR_ID, "mt128-pre-reap-witness")
+            .header(HSK_HEADER_ACTOR_KIND, "human")
+            .header(HSK_HEADER_KERNEL_TASK_RUN_ID, "mt128-pre-reap-witness")
+            .header(HSK_HEADER_SESSION_RUN_ID, "mt128-pre-reap-witness")
+            .header(HSK_HEADER_CORRELATION_ID, "mt128-pre-reap-witness")
+            .send();
+        let Ok(Ok(response)) = tokio::time::timeout(budget, request).await else {
+            return false;
+        };
+        let Ok(listed) = response.json::<serde_json::Value>().await else {
+            return false;
+        };
+        listed.as_array().is_some_and(|rows| {
+            rows.iter().any(|workspace| {
+                workspace["id"].as_str() == Some(workspace_id.as_str())
+                    || workspace["name"].as_str() == Some(attempt_name.as_str())
+            })
+        })
+    });
+    Mt128WorkspaceProbe {
+        exists,
+        helper_reaped: true,
     }
-}
-
-fn sql_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
 }
 
 struct Mt128TimeoutCleanup {
@@ -797,14 +837,14 @@ fn mt128_cleanup_timed_out_attempt(
         exists: false,
         helper_reaped: true,
     });
-    // Reap first. Reserve enough of the same absolute deadline for the unconditional PostgreSQL
+    // Reap first. Reserve enough of the same absolute deadline for the unconditional workspace
     // delete-and-absence assertion that follows, even if taskkill/root/tree verification fails.
     let reap_deadline = absolute_deadline
         .checked_sub(Duration::from_millis(2_250))
         .unwrap_or(absolute_deadline);
     let reap = terminate_observed_child_tree_before(child, tree_before, reap_deadline);
     let workspace_cleanup = std::panic::catch_unwind(|| {
-        cleanup_timeout_workspace_before(workspace_sidecar, attempt_id, absolute_deadline)
+        cleanup_timeout_workspace_before(workspace_sidecar, attempt_id, absolute_deadline, None)
     });
     let workspace_cleanup_verified = workspace_cleanup.is_ok();
     Mt128TimeoutCleanup {
@@ -893,7 +933,7 @@ impl ProofLog {
             attempt_id: attempt_id.to_owned(),
             generation,
         };
-        log.note("authoritative managed-PostgreSQL attempt started");
+        log.note("authoritative managed-embedded-store attempt started");
         log.flush();
         log
     }
@@ -916,7 +956,7 @@ impl ProofLog {
             attempt_id: attempt_id.to_owned(),
             generation,
         };
-        log.note("authoritative managed-PostgreSQL attempt started");
+        log.note("authoritative managed-embedded-store attempt started");
         log.lines.push(format!("PROOF_FAIL: {reason}"));
         log.flush_with_lock_budget(lock_budget);
     }
@@ -991,7 +1031,7 @@ impl ProofLog {
     /// the proof artifact. Print them only.
     fn finish_surface_only(mut self) {
         self.lines
-            .push("PROOF_NOT_RUN: managed PostgreSQL scenario required".to_owned());
+            .push("PROOF_NOT_RUN: managed embedded-store scenario required".to_owned());
         let body = self.lines.join("\n") + "\n";
         assert!(!body.contains("PROOF_PASS"));
         println!("--- MT-043 standalone surface diagnostics (non-authoritative) ---\n{body}");
@@ -1749,7 +1789,7 @@ fn assert_tree_nonempty(harness: &mut Harness<'_, ()>, step: &str) {
 /// is the EDITOR'S REAL save-output seam (the `SaveBackend` trait the production reqwest impl also
 /// satisfies), so the capture proves the BACKEND REQUEST SHAPE each step would send to
 /// `PUT /knowledge/documents/{id}/save` — the provable-now half. The live 200/row-write is GATED (no
-/// managed PG). The spy returns a canned 200 so the manager's state machine completes deterministically
+/// managed SurrealDB). The spy returns a canned 200 so the manager's state machine completes deterministically
 /// (a real backend would return the same shape).
 #[derive(Default)]
 struct SaveSpy {
@@ -2022,7 +2062,7 @@ fn swarm_edit_proof_all_steps() {
     assert!(
         created_a_heading,
         "STEP1/AC-043-02: the saved content_json carries the AGENT-PRODUCED heading block created via the \
-         editor.rich.format-heading-1 Click (the knowledge_rich_documents INSERT shape; the live SELECT is GATED); got {}",
+         editor.rich.format-heading-1 Click (the canonical document mutation shape; live product readback is gated); got {}",
         content_json["content"]
     );
     log.response(
@@ -2030,8 +2070,8 @@ fn swarm_edit_proof_all_steps() {
         DbResult::Gated,
     );
     log.note(
-        "STEP 1 GATED-half: SELECT FROM knowledge_rich_documents WHERE title LIKE 'SwarmProofNote-%' \
-         needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven agent-driven shape, gated row",
+        "STEP 1 GATED-half: exact GET /knowledge/documents/{id} readback needs the managed embedded-store \
+         backend (NEEDS_MANAGED_RESOURCE_PROOF) — proven agent-driven shape, gated product projection",
     );
 
     // ── STEP 2: EDIT CODE — AccessKit SetValue on the code_editor_text node (MT-080 swarm-author) ──
@@ -2165,7 +2205,7 @@ fn swarm_edit_proof_all_steps() {
         assert_tree_nonempty(&mut rich_harness, "STEP-3-add-backlink");
 
         // Snapshot the live AccessKit tree; MT-110 made the plain wikilink chip advertise SetValue (the
-        // headless wikilink-target-by-id surface — NO live backend search, so it resolves with no PG).
+        // headless wikilink-target-by-id surface — NO live backend search, so it resolves with no SurrealDB).
         let snap = snapshot_harness(&mut rich_harness);
         // Generic wikilink chips use the collision-safe occurrence identity introduced by
         // MT-041.  This link is the second leaf in the first block, so its canonical
@@ -2297,7 +2337,7 @@ fn swarm_edit_proof_all_steps() {
         .expect("swarm agent thread joined cleanly");
 
     // This standalone surface sequence contains gated/seeded observations and therefore cannot issue
-    // a live verdict. The managed-PG integration scenario below owns PROOF_PASS authority.
+    // a live verdict. The managed-SurrealDB integration scenario below owns PROOF_PASS authority.
     assert_no_local_artifact_dir();
     assert!(
         log.action_line_count() >= 6,
@@ -2312,14 +2352,14 @@ fn swarm_edit_proof_all_steps() {
     );
 }
 
-/// The only MT-043 success authority. Every datum is created inside one isolated managed-PG
+/// The only MT-043 success authority. Every datum is created inside one isolated managed-SurrealDB
 /// workspace, all editor mutations originate at stable AccessKit nodes, both agents race the same
 /// optimistic version, the loser refetches and merges, and success is written only after durable
 /// reload, live search, attribution, EventLedger/Flight-Recorder idempotency, and cleanup pass.
 /// WP-KERNEL-012 MT-115: an isolated app-data root for this bounded child's native-MCP binding.
 ///
 /// It MUST be installed before the managed backend is selected. Setting
-/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` forces `pg_proof_support` to OWN its backend child, and only an
+/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` forces `backend_proof_support` to OWN its backend child, and only an
 /// owned child inherits the redirected app-data root that makes the app, this proof, and the backend
 /// resolve one `swarm_mcp_binding.json`. It never touches the operator's live app data.
 struct Mt043NativeBindingRoot {
@@ -2370,7 +2410,7 @@ impl Drop for Mt043NativeBindingRoot {
     }
 }
 
-fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
+fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
     let started = Instant::now();
     let child_budget = mt128_child_budget();
     let deadline = started + child_budget;
@@ -2391,7 +2431,7 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     let title = format!("SwarmProofNote-{nonce}");
     let workspace = live.create_workspace(&format!("mt043-{nonce}"));
     let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
-    let timeout_workspace_sidecar = publish_timeout_workspace(&workspace_id);
+    let timeout_workspace_sidecar = publish_timeout_workspace(&workspace_id, &live.base);
     // MT-128's RED path is deliberately non-vacuous: the fixture-owned current-source backend is
     // healthy and the real workspace has been created and published before the injected stall begins.
     // The parent consumes the append-only readiness record to prove those owned resources existed,
@@ -2519,22 +2559,25 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .unwrap_or(&document_id)
         .to_owned();
     let mut initial_version = created.document["doc_version"].as_i64().unwrap_or(1);
-    live.run_fixture_sql(
-        "mt043-created-rich-documents-assert",
-        &format!(
-            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM knowledge_rich_documents WHERE workspace_id = {workspace} AND rich_document_id = {source_id} AND title = {source_title}) THEN RAISE EXCEPTION 'missing exact MT-043 source rich document'; END IF; IF NOT EXISTS (SELECT 1 FROM knowledge_rich_documents WHERE workspace_id = {workspace} AND rich_document_id = {target_id} AND title = {target_title}) THEN RAISE EXCEPTION 'missing exact MT-043 target rich document'; END IF; END $$;",
-            workspace = sql_literal(&workspace_id),
-            source_id = sql_literal(&document_id),
-            source_title = sql_literal(&title),
-            target_id = sql_literal(&target_document_id),
-            target_title = sql_literal(&target_title),
-        ),
+    // Canonical-row witness for the two slash-created documents. The product API serves straight
+    // from the embedded SurrealDB store — the authoritative reads above ARE the canonical rows, so
+    // assert their exact identity/title content instead of re-querying through a second client (no
+    // second process can open the embedded store, and none is needed).
+    assert_eq!(
+        created.document["title"].as_str(),
+        Some(title.as_str()),
+        "canonical source rich document must carry the exact slash-created title"
+    );
+    assert_eq!(
+        target.document["title"].as_str(),
+        Some(target_title.as_str()),
+        "canonical target rich document must carry the exact slash-created title"
     );
     println!(
-        "PROOF-043-C PostgreSQL knowledge_rich_documents: workspace={workspace_id} source=({document_id},{title}) target=({target_document_id},{target_title})"
+        "PROOF-043-C embedded-store knowledge rich documents: workspace={workspace_id} source=({document_id},{title}) target=({target_document_id},{target_title})"
     );
     live_log.response(
-        "exact slash-created source and target rows exist in canonical knowledge_rich_documents",
+        "exact slash-created source and target rows exist in the canonical embedded knowledge store",
         DbResult::Pass,
     );
 
@@ -3384,8 +3427,18 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         merge_native_payload["correlation_id"].as_str(),
         merge_attribution.correlation_id.as_deref()
     );
-    let app_ledger_payload = interconnect_support::event_ledger_payload(&app_receipt);
-    let merge_ledger_payload = interconnect_support::event_ledger_payload(&merge_receipt);
+    let app_ledger_payload = interconnect_support::event_ledger_payload(
+        &live,
+        "knowledge_rich_document",
+        &document_id,
+        &app_receipt,
+    );
+    let merge_ledger_payload = interconnect_support::event_ledger_payload(
+        &live,
+        "knowledge_rich_document",
+        &document_id,
+        &merge_receipt,
+    );
     for (payload, expected_version) in [
         (&app_ledger_payload, app_version),
         (
@@ -3400,36 +3453,70 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         );
         assert_eq!(payload["doc_version"].as_u64(), Some(expected_version));
     }
-    live.run_fixture_sql(
-        "mt043-exact-event-ledger-attribution-assert",
-        &format!(
-            "DO $$ BEGIN \
-             IF (SELECT COUNT(*) FROM kernel_event_ledger WHERE event_id = {a_event} AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_SAVED' AND aggregate_type = 'knowledge_rich_document' AND aggregate_id = {document} AND actor_id = {a_actor} AND actor_kind = 'operator' AND kernel_task_run_id = {a_task} AND session_run_id = {a_session} AND correlation_id = {a_correlation} AND source_component = 'knowledge_documents_api') <> 1 THEN RAISE EXCEPTION 'missing or duplicate exact actor-A MT-043 EventLedger receipt'; END IF; \
-             IF (SELECT COUNT(*) FROM kernel_event_ledger WHERE event_id = {b_event} AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_SAVED' AND aggregate_type = 'knowledge_rich_document' AND aggregate_id = {document} AND actor_id = {b_actor} AND actor_kind = 'operator' AND kernel_task_run_id = {b_task} AND session_run_id = {b_session} AND correlation_id = {b_correlation} AND source_component = 'knowledge_documents_api') <> 1 THEN RAISE EXCEPTION 'missing or duplicate exact actor-B MT-043 EventLedger receipt'; END IF; \
-             END $$;",
-            a_event = sql_literal(&app_receipt),
-            b_event = sql_literal(&merge_receipt),
-            document = sql_literal(&document_id),
-            a_actor = sql_literal(&app_attribution.actor_id),
-            b_actor = sql_literal(&merge_attribution.actor_id),
-            a_task = sql_literal(&app_attribution.kernel_task_run_id),
-            b_task = sql_literal(&merge_attribution.kernel_task_run_id),
-            a_session = sql_literal(&app_attribution.session_run_id),
-            b_session = sql_literal(&merge_attribution.session_run_id),
-            a_correlation = sql_literal(
-                app_attribution
-                    .correlation_id
-                    .as_deref()
-                    .expect("actor A correlation id"),
-            ),
-            b_correlation = sql_literal(
-                merge_attribution
-                    .correlation_id
-                    .as_deref()
-                    .expect("actor B correlation id"),
-            ),
-        ),
-    );
+    // Exact-one canonical EventLedger receipt per actor, read back through the authoritative kernel
+    // aggregate endpoint (the same durable Flight Recorder authority the retired external-database
+    // count queried, served straight from the embedded store).
+    {
+        let ledger_rows = live.get_json(&format!(
+            "/kernel/events/aggregates/knowledge_rich_document/{document_id}"
+        ));
+        let ledger_rows = ledger_rows
+            .as_array()
+            .expect("kernel aggregate endpoint returns the event rows for the saved document");
+        let field = |event: &serde_json::Value, name: &str| -> Option<String> {
+            event
+                .get(name)
+                .or_else(|| {
+                    (name == "actor_id")
+                        .then(|| event.get("actor").and_then(|actor| actor.get("id")))
+                        .flatten()
+                })
+                .or_else(|| event.get("payload").and_then(|payload| payload.get(name)))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        };
+        for (label, event_id, attribution) in [
+            ("actor-A", &app_receipt, &app_attribution),
+            ("actor-B", &merge_receipt, &merge_attribution),
+        ] {
+            let matches: Vec<&serde_json::Value> = ledger_rows
+                .iter()
+                .filter(|event| field(event, "event_id").as_deref() == Some(event_id.as_str()))
+                .collect();
+            assert_eq!(
+                matches.len(),
+                1,
+                "missing or duplicate exact {label} MT-043 EventLedger receipt {event_id}: {} rows",
+                matches.len()
+            );
+            let event = matches[0];
+            assert_eq!(
+                field(event, "event_type").as_deref(),
+                Some("KNOWLEDGE_RICH_DOCUMENT_SAVED"),
+                "{label} EventLedger receipt event_type"
+            );
+            assert_eq!(
+                field(event, "actor_id").as_deref(),
+                Some(attribution.actor_id.as_str()),
+                "{label} EventLedger receipt actor_id"
+            );
+            assert_eq!(
+                field(event, "kernel_task_run_id").as_deref(),
+                Some(attribution.kernel_task_run_id.as_str()),
+                "{label} EventLedger receipt kernel_task_run_id"
+            );
+            assert_eq!(
+                field(event, "session_run_id").as_deref(),
+                Some(attribution.session_run_id.as_str()),
+                "{label} EventLedger receipt session_run_id"
+            );
+            assert_eq!(
+                field(event, "correlation_id"),
+                attribution.correlation_id.clone(),
+                "{label} EventLedger receipt correlation_id"
+            );
+        }
+    }
     live_log.response(
         "both actors have distinct exact-one canonical EventLedger receipts and automatic attributed Flight Recorder rows",
         DbResult::Pass,
@@ -3441,20 +3528,33 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
             .expect("serialize actor-B Flight Recorder evidence")
     ));
 
-    // AC-043-04: prove the final save projected the exact source->target backlink into canonical
-    // PostgreSQL. A content_json string match is not enough: this DO block fails unless the precise
-    // loom_edges identity exists after the winner+loser merge was durably reloaded.
-    live.run_fixture_sql(
-        "mt043-final-backlink-assert",
-        &format!(
-            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM loom_edges WHERE workspace_id = {workspace} \
-             AND source_block_id = {source} AND target_block_id = {target}) THEN \
-             RAISE EXCEPTION 'missing exact MT-043 loom_edges source->target row'; END IF; END $$;",
-            workspace = sql_literal(&workspace_id),
-            source = sql_literal(&block_id),
-            target = sql_literal(&target_block_id),
-        ),
-    );
+    // AC-043-04: prove the final save projected the exact source->target backlink into the canonical
+    // embedded store. A content_json string match is not enough: the canonical global graph projection
+    // must name both exact endpoints after the winner+loser merge was durably reloaded (same loom-edge
+    // authority the retired direct-store row check queried). Rich-document ids are valid graph endpoint
+    // ids but are not standalone Loom blocks, so the block-scoped backlinks route is not their read API.
+    {
+        let graph = live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/graph/global?node_limit=200"
+        ));
+        let rows = graph["edges"]
+            .as_array()
+            .expect("canonical global graph projection returns edge rows");
+        assert!(
+            rows.iter().any(|row| {
+                row.get("edge")
+                    .and_then(|edge| edge.get("source_block_id"))
+                    .and_then(serde_json::Value::as_str)
+                    == Some(block_id.as_str())
+                    && row
+                        .get("edge")
+                        .and_then(|edge| edge.get("target_block_id"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some(target_block_id.as_str())
+            }),
+            "missing exact MT-043 loom source->target graph edge for {block_id} -> {target_block_id}: {graph}"
+        );
+    }
     live_log.response(
         "exact canonical loom_edges source->target row exists after final save",
         DbResult::Pass,
@@ -3585,16 +3685,41 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
             "cleanup DELETE for {cleanup_document_id} returned {status}"
         );
     }
-    live.run_fixture_sql(
-        "mt043-document-and-edge-cleanup-assert",
-        &format!(
-            "DO $$ BEGIN IF (SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = {workspace} AND rich_document_id IN ({source_document}, {target_document}) AND deleted_at IS NOT NULL) <> 2 THEN RAISE EXCEPTION 'MT-043 document cleanup did not tombstone both documents'; END IF; IF EXISTS (SELECT 1 FROM loom_edges WHERE workspace_id = {workspace} AND (source_block_id IN ({source_block}, {target_block}) OR target_block_id IN ({source_block}, {target_block}))) THEN RAISE EXCEPTION 'MT-043 cleanup left a graph edge'; END IF; END $$;",
-            workspace = sql_literal(&workspace_id),
-            source_document = sql_literal(&document_id),
-            target_document = sql_literal(&target_document_id),
-            source_block = sql_literal(&block_id),
-            target_block = sql_literal(&target_block_id),
-        ),
+    // Canonical cleanup witness through the product surface: a tombstoned document must no longer be
+    // served by an authoritative load, and the canonical backlinks projection for either block must
+    // not retain a cross edge (same authority the retired external-database tombstone/edge count
+    // queried, served from the embedded store).
+    for (label, cleaned_document_id) in [
+        ("source", document_id.as_str()),
+        ("target", target_document_id.as_str()),
+    ] {
+        assert!(
+            runtime
+                .block_on(docs_a.load_document(&actor_a, cleaned_document_id))
+                .is_err(),
+            "MT-043 document cleanup did not tombstone the {label} document {cleaned_document_id}"
+        );
+    }
+    let cleanup_graph = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/graph/global?node_limit=200"
+    ));
+    let retained_edge = cleanup_graph["edges"]
+        .as_array()
+        .expect("canonical cleanup graph projection returns edge rows")
+        .iter()
+        .any(|row| {
+            let source = row
+                .pointer("/edge/source_block_id")
+                .and_then(serde_json::Value::as_str);
+            let target = row
+                .pointer("/edge/target_block_id")
+                .and_then(serde_json::Value::as_str);
+            (source == Some(block_id.as_str()) && target == Some(target_block_id.as_str()))
+                || (source == Some(target_block_id.as_str()) && target == Some(block_id.as_str()))
+        });
+    assert!(
+        !retained_edge,
+        "MT-043 cleanup retained the exact source/target graph edge: {cleanup_graph}"
     );
     dispatch_from_spawned_agent(
         &mut graph_harness,
@@ -3634,29 +3759,15 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         "complete MT-043 scenario exceeded its MT-128 child budget of {}ms",
         child_budget.as_millis()
     );
-    // MT-115: the native-editor EventLedger MIRROR rows are keyed
-    // `native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}` and carry no
-    // `workspace_id` COLUMN, so the workspace DELETE below cascades nothing for them. Sweep the whole
-    // workspace key prefix while the workspace still exists, then fail closed. Without this the
-    // automatic `document_saved` rows this proof just produced survive as orphaned residue.
-    live.run_fixture_sql(
-        "mt043-native-fr-ledger-workspace-sweep",
-        &format!(
-            "BEGIN; \
-             DELETE FROM kernel_event_ledger \
-             WHERE idempotency_key LIKE {pending_like} OR idempotency_key LIKE {complete_like}; \
-             DO $mt043_fr_sweep$ BEGIN \
-               IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                          WHERE idempotency_key LIKE {pending_like} \
-                             OR idempotency_key LIKE {complete_like}) THEN \
-                 RAISE EXCEPTION 'MT-043 workspace-partitioned native FR ledger sweep left rows behind'; \
-               END IF; \
-             END $mt043_fr_sweep$; \
-             COMMIT;",
-            pending_like = sql_literal(&format!("native-editor-fr-pending:{workspace_id}:%")),
-            complete_like = sql_literal(&format!("native-editor-fr-complete:{workspace_id}:%")),
-        ),
-    );
+    // MT-115 HISTORY: on the retired shared external cluster, the native-editor EventLedger MIRROR
+    // rows (`native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`) had to be swept
+    // here because rows left by one run leaked into every later run against the same database. The
+    // embedded SurrealDB store removes that reachability: these ledger rows live only inside this
+    // run's private `<data_dir>/handshake-surreal` store, which is discarded with the fixture-owned
+    // runtime root, so no later run can observe them and there is no shared cluster to protect.
+    // Deleting durable EventLedger authority rows through a side-channel would also be exactly the
+    // kind of out-of-band mutation the ledger exists to prevent. Residue containment replaces the
+    // sweep; no delete is issued.
     assert!(matches!(
         live.delete_workspace(&workspace_id),
         200 | 202 | 204
@@ -3668,17 +3779,26 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .expect("workspace list")
         .iter()
         .all(|workspace| workspace["id"].as_str() != Some(workspace_id.as_str())));
-    live.run_fixture_sql(
-        "mt043-workspace-cascade-cleanup-assert",
-        &format!(
-            "DO $$ BEGIN IF EXISTS (SELECT 1 FROM knowledge_rich_documents WHERE workspace_id = {workspace}) THEN RAISE EXCEPTION 'MT-043 workspace cleanup left rich documents'; END IF; IF EXISTS (SELECT 1 FROM loom_edges WHERE workspace_id = {workspace}) THEN RAISE EXCEPTION 'MT-043 workspace cleanup left graph edges'; END IF; END $$;",
-            workspace = sql_literal(&workspace_id),
-        ),
-    );
+    // Workspace-cascade witness through the product surface: after the canonical workspace DELETE
+    // (asserted absent from the /workspaces list above), the documents of the deleted workspace must
+    // no longer be served by an authoritative load. Row-level residue inside the store is contained
+    // by construction — the embedded store is private to this run and discarded with its runtime
+    // root, which is the same guarantee the retired shared-cluster row sweep existed to restore.
+    for (label, cascaded_document_id) in [
+        ("source", document_id.as_str()),
+        ("target", target_document_id.as_str()),
+    ] {
+        assert!(
+            runtime
+                .block_on(docs_a.load_document(&actor_a, cascaded_document_id))
+                .is_err(),
+            "MT-043 workspace cascade left the {label} document {cascaded_document_id} loadable"
+        );
+    }
     cleanup_timeout_workspace(&timeout_workspace_sidecar, &nonce, Duration::from_secs(2));
 
     // Exercise the crash window where the child created its uniquely named workspace but was killed
-    // before publishing the sidecar. The bounded SQL fallback must find that canonical workspace by
+    // before publishing the sidecar. The bounded product-API fallback must find that canonical workspace by
     // attempt name, remove it, and leave no visible workspace behind.
     let timeout_probe_attempt = format!("timeout-probe-{nonce}");
     let timeout_probe = live.create_workspace(&format!("mt043-{timeout_probe_attempt}"));
@@ -3691,10 +3811,11 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .expect("MT-043 proof path parent")
         .join(format!("never-published-{nonce}.txt"));
     assert!(!absent_probe_sidecar.exists());
-    cleanup_timeout_workspace(
+    cleanup_timeout_workspace_at_base(
         &absent_probe_sidecar,
         &timeout_probe_attempt,
         Duration::from_secs(2),
+        &live.base,
     );
     assert!(live
         .get_json("/workspaces")
@@ -3729,12 +3850,12 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
 }
 
 /// Enforce AC-043-09 as a genuine whole-scenario deadline. The child contains fixture acquisition,
-/// backend startup, PostgreSQL, both mounted hosts, reload/search/receipts, and cleanup. A timeout reaps
+/// backend startup, the embedded store, both mounted hosts, reload/search/receipts, and cleanup. A timeout reaps
 /// only the process tree this test started and replaces any in-progress artifact with a terminal failure.
 #[test]
-fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
+fn swarm_edit_live_conflict_merge_search_and_receipts() {
     if std::env::var_os(MT043_LIVE_CHILD_ENV).as_deref() == Some(std::ffi::OsStr::new("1")) {
-        run_swarm_edit_live_pg_conflict_merge_search_and_receipts();
+        run_swarm_edit_live_conflict_merge_search_and_receipts();
         return;
     }
 
@@ -3769,7 +3890,7 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     let mut command = Command::new(executable);
     command
         .arg("--exact")
-        .arg("swarm_edit_live_pg_conflict_merge_search_and_receipts")
+        .arg("swarm_edit_live_conflict_merge_search_and_receipts")
         .arg("--nocapture")
         .env(MT043_LIVE_CHILD_ENV, "1")
         .env(MT043_PARENT_PID_ENV, &parent_pid)
@@ -3866,7 +3987,7 @@ fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
                 );
                 assert!(
                     cleanup.probe_helper_reaped,
-                    "{diagnostic}; read-only PostgreSQL pre-reap probe helper was not fully reaped"
+                    "{diagnostic}; read-only pre-reap workspace witness was not fully settled"
                 );
                 assert!(
                     cleanup.reap.taskkill_reaped,

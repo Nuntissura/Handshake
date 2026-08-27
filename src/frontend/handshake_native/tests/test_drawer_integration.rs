@@ -1,4 +1,4 @@
-//! WP-KERNEL-011 MT-023 (C6) — PROOF-023-3 live integration against a REAL PostgreSQL-backed
+//! WP-KERNEL-011 MT-023 (C6) — PROOF-023-3 live integration against a REAL SurrealDB-backed
 //! handshake_core server. `#[ignore]` by default; run with a live backend on 127.0.0.1:37501:
 //!
 //! ```text
@@ -9,7 +9,7 @@
 //! `content_type = "note"` (the contract's example uses a `list`, but `list` is not a real
 //! `LoomBlockContentType` — the verified note view is the honest equivalent; see the MT-023 deviation
 //! notes). Asserts the Notes card badge count is >= 1 within 3 seconds, proving the REAL off-thread
-//! fetch path resolves against the real PostgreSQL/EventLedger backend.
+//! fetch path resolves against the real SurrealDB/EventLedger backend.
 //!
 //! HBR-INT: this is the integration test the MT-023 contract mandates, marked `#[ignore]` so the default
 //! `cargo test` run (no backend) does not depend on a running server.
@@ -23,8 +23,8 @@ use std::time::{Duration, Instant};
 const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 
 #[test]
-#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and HSK_TEST_WORKSPACE_ID"]
-fn notes_card_badge_count_is_at_least_one_from_real_pg() {
+#[ignore = "needs a live handshake_core + SurrealDB on 127.0.0.1:37501 and HSK_TEST_WORKSPACE_ID"]
+fn notes_card_badge_count_is_at_least_one_from_real_surrealdb() {
     let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
         .expect("set HSK_TEST_WORKSPACE_ID to a workspace with at least one note block");
 
@@ -61,12 +61,12 @@ fn notes_card_badge_count_is_at_least_one_from_real_pg() {
         data.badge_count
     );
     println!(
-        "PASS: Notes card badge_count = {} from real PG-backed /loom/views/all?content_type=note",
+        "PASS: Notes card badge_count = {} from real SurrealDB-backed /loom/views/all?content_type=note",
         data.badge_count
     );
 }
 
-/// WP-KERNEL-011 MT-024 (C6) — PROOF-024-3: the REAL Stow dispatch path against a live PostgreSQL-backed
+/// WP-KERNEL-011 MT-024 (C6) — PROOF-024-3: the REAL Stow dispatch path against a live SurrealDB-backed
 /// handshake_core. Tags a known block into the workspace `stash` TagHub via `POST /loom/edges` and
 /// asserts the backend accepts it (2xx). `#[ignore]` by default; run with a live backend:
 ///
@@ -77,8 +77,8 @@ fn notes_card_badge_count_is_at_least_one_from_real_pg() {
 /// Requires env `HSK_TEST_WORKSPACE_ID` (a workspace) and `HSK_TEST_BLOCK_ID` (a block in it to stow).
 /// HBR-INT: the integration test the MT-024 contract mandates for a persisting card action.
 #[test]
-#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501, HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID"]
-fn stow_dispatch_tags_block_into_stash_hub_on_real_pg() {
+#[ignore = "needs a live handshake_core + SurrealDB on 127.0.0.1:37501, HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID"]
+fn stow_dispatch_tags_block_into_stash_hub_on_real_surrealdb() {
     let workspace_id =
         std::env::var("HSK_TEST_WORKSPACE_ID").expect("set HSK_TEST_WORKSPACE_ID to a workspace");
     let block_id =
@@ -109,6 +109,6 @@ fn stow_dispatch_tags_block_into_stash_hub_on_real_pg() {
 
     delivered.expect("Stow tag-edge POST succeeded against the real backend (2xx)");
     println!(
-        "PASS: Stow tagged block {block_id} into the stash hub via real PG-backed POST /loom/edges"
+        "PASS: Stow tagged block {block_id} into the stash hub via real SurrealDB-backed POST /loom/edges"
     );
 }

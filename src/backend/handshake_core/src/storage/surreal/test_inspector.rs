@@ -415,12 +415,12 @@ impl SurrealTestInspector {
                 return Err(SurrealTestInspectorError::InvalidRow(format!(
                     "negative count {}",
                     row.count
-                )))
+                )));
             }
             _ => {
                 return Err(SurrealTestInspectorError::InvalidRow(
                     "count query returned multiple aggregate rows".to_owned(),
-                ))
+                ));
             }
         };
         Ok(count)

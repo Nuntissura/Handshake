@@ -11,11 +11,14 @@ use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::documents::CharacterDocumentType;
-use super::{event_ref_for_text, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, event_ref_for_text, uuid_from_record_link, AtelierError, AtelierResult,
+    AtelierStore,
+};
 
 pub const MOODBOARD_SCHEMA_ID: &str = "hsk.atelier.moodboard@1";
 const MOODBOARD_SCHEMA_VERSION: i64 = 1;
@@ -835,61 +838,116 @@ fn require_layer(
     Ok(())
 }
 
-fn snapshot_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<MoodboardSnapshot> {
-    let moodboard_json: Value = row.get("moodboard_json");
-    let moodboard: MoodboardDocument =
-        serde_json::from_value(moodboard_json.clone()).map_err(|err| {
-            AtelierError::Validation(format!("stored moodboard JSON did not match model: {err}"))
-        })?;
-    Ok(MoodboardSnapshot {
-        snapshot_id: row.get("snapshot_id"),
-        document_id: row.get("document_id"),
-        document_version_id: row.get("document_version_id"),
-        schema_id: row.get("schema_id"),
-        schema_version: row.get("schema_version"),
-        raw_json_text: row.get("raw_json_text"),
-        moodboard_json,
-        moodboard,
-        content_sha256: row.get("content_sha256"),
-        author: row.get("author"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct MoodboardSnapshotRow {
+    snapshot_id: SurrealUuid,
+    document_id: SurrealUuid,
+    document_version_id: SurrealUuid,
+    schema_id: String,
+    schema_version: i64,
+    raw_json_text: String,
+    moodboard_json: Value,
+    content_sha256: String,
+    author: String,
+    created_at_utc: Datetime,
+    doc_type: Option<String>,
+    version_document_id: Option<SurrealUuid>,
 }
 
-fn operation_receipt_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<MoodboardOperationReceipt> {
-    let operation_kind_token: String = row.get("operation_kind");
-    Ok(MoodboardOperationReceipt {
-        operation_id: row.get("operation_id"),
-        snapshot_id: row.get("snapshot_id"),
-        document_id: row.get("document_id"),
-        document_version_id: row.get("document_version_id"),
-        operation_kind: MoodboardOperationKind::from_token(&operation_kind_token)?,
-        operation_payload: row.get("operation_payload"),
-        operation_payload_sha256: row.get("operation_payload_sha256"),
-        receipt_json: row.get("receipt_json"),
-        actor: row.get("actor"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+impl TryFrom<MoodboardSnapshotRow> for MoodboardSnapshot {
+    type Error = AtelierError;
+
+    fn try_from(row: MoodboardSnapshotRow) -> AtelierResult<Self> {
+        let moodboard_json = row.moodboard_json;
+        let moodboard: MoodboardDocument =
+            serde_json::from_value(moodboard_json.clone()).map_err(|err| {
+                AtelierError::Validation(format!(
+                    "stored moodboard JSON did not match model: {err}"
+                ))
+            })?;
+        Ok(MoodboardSnapshot {
+            snapshot_id: row.snapshot_id.into(),
+            document_id: row.document_id.into(),
+            document_version_id: row.document_version_id.into(),
+            schema_id: row.schema_id,
+            schema_version: row.schema_version,
+            raw_json_text: row.raw_json_text,
+            moodboard_json,
+            moodboard,
+            content_sha256: row.content_sha256,
+            author: row.author,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
-fn export_request_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<MoodboardExportRequest> {
-    let format_token: String = row.get("format");
-    let status_token: String = row.get("status");
-    Ok(MoodboardExportRequest {
-        export_id: row.get("export_id"),
-        snapshot_id: row.get("snapshot_id"),
-        document_id: row.get("document_id"),
-        document_version_id: row.get("document_version_id"),
-        format: MoodboardExportFormat::from_token(&format_token)?,
-        status: MoodboardExportStatus::from_token(&status_token)?,
-        label: row.get("label"),
-        manifest_json: row.get("manifest_json"),
-        receipt_json: row.get("receipt_json"),
-        requested_by: row.get("requested_by"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+#[derive(SurrealValue)]
+struct MoodboardOperationReceiptRow {
+    operation_id: SurrealUuid,
+    snapshot_id: SurrealUuid,
+    document_id: SurrealUuid,
+    document_version_id: SurrealUuid,
+    operation_kind: String,
+    operation_payload: Value,
+    operation_payload_sha256: String,
+    receipt_json: Value,
+    actor: String,
+    created_at_utc: Datetime,
+}
+
+impl TryFrom<MoodboardOperationReceiptRow> for MoodboardOperationReceipt {
+    type Error = AtelierError;
+
+    fn try_from(row: MoodboardOperationReceiptRow) -> AtelierResult<Self> {
+        Ok(MoodboardOperationReceipt {
+            operation_id: row.operation_id.into(),
+            snapshot_id: row.snapshot_id.into(),
+            document_id: row.document_id.into(),
+            document_version_id: row.document_version_id.into(),
+            operation_kind: MoodboardOperationKind::from_token(&row.operation_kind)?,
+            operation_payload: row.operation_payload,
+            operation_payload_sha256: row.operation_payload_sha256,
+            receipt_json: row.receipt_json,
+            actor: row.actor,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct MoodboardExportRequestRow {
+    export_id: SurrealUuid,
+    snapshot_id: SurrealUuid,
+    document_id: SurrealUuid,
+    document_version_id: SurrealUuid,
+    format: String,
+    status: String,
+    label: Option<String>,
+    manifest_json: Value,
+    receipt_json: Value,
+    requested_by: String,
+    created_at_utc: Datetime,
+    inserted: Option<bool>,
+}
+
+impl TryFrom<MoodboardExportRequestRow> for MoodboardExportRequest {
+    type Error = AtelierError;
+
+    fn try_from(row: MoodboardExportRequestRow) -> AtelierResult<Self> {
+        Ok(MoodboardExportRequest {
+            export_id: row.export_id.into(),
+            snapshot_id: row.snapshot_id.into(),
+            document_id: row.document_id.into(),
+            document_version_id: row.document_version_id.into(),
+            format: MoodboardExportFormat::from_token(&row.format)?,
+            status: MoodboardExportStatus::from_token(&row.status)?,
+            label: row.label,
+            manifest_json: row.manifest_json,
+            receipt_json: row.receipt_json,
+            requested_by: row.requested_by,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
 fn moodboard_counts_json(snapshot: &MoodboardSnapshot) -> Value {
@@ -996,42 +1054,201 @@ fn validate_snapshot_join_invariants(
     Ok(())
 }
 
+#[derive(SurrealValue)]
+struct UuidBinding {
+    id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct DocumentIdBinding {
+    document_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct SnapshotIdBinding {
+    snapshot_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ExportLookupBinding {
+    snapshot_id: RecordId,
+    format: String,
+}
+
+#[derive(SurrealValue)]
+struct DocumentHeadRow {
+    doc_type: String,
+    current_version_id: Option<RecordId>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct MoodboardSnapshotBindings {
+    record_id: RecordId,
+    snapshot_id: SurrealUuid,
+    document_id: RecordId,
+    document_version_id: RecordId,
+    schema_id: String,
+    schema_version: i64,
+    raw_json_text: String,
+    moodboard_json: Value,
+    content_sha256: String,
+    author: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct MoodboardOperationBindings {
+    record_id: RecordId,
+    operation_id: SurrealUuid,
+    snapshot_id: RecordId,
+    document_id: RecordId,
+    document_version_id: RecordId,
+    operation_kind: String,
+    operation_payload: Value,
+    operation_payload_sha256: String,
+    receipt_json: Value,
+    actor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct MoodboardExportBindings {
+    record_id: RecordId,
+    export_id: SurrealUuid,
+    snapshot_id: RecordId,
+    document_id: RecordId,
+    document_version_id: RecordId,
+    format: String,
+    status: String,
+    label: Option<String>,
+    manifest_json: Value,
+    receipt_json: Value,
+    requested_by: String,
+}
+
+macro_rules! snapshot_columns {
+    () => {
+        "snapshot_id, record::id(document_id) AS document_id, \
+         record::id(document_version_id) AS document_version_id, schema_id, schema_version, \
+         raw_json_text, moodboard_json, content_sha256, author, created_at_utc"
+    };
+}
+macro_rules! operation_columns {
+    () => {
+        "operation_id, record::id(snapshot_id) AS snapshot_id, \
+         record::id(document_id) AS document_id, \
+         record::id(document_version_id) AS document_version_id, operation_kind, \
+         operation_payload, operation_payload_sha256, receipt_json, actor, created_at_utc"
+    };
+}
+macro_rules! export_columns {
+    () => {
+        "export_id, record::id(snapshot_id) AS snapshot_id, \
+         record::id(document_id) AS document_id, \
+         record::id(document_version_id) AS document_version_id, format, status, label, \
+         manifest_json, receipt_json, requested_by, created_at_utc"
+    };
+}
+
+const GET_SNAPSHOT_STATEMENT: &str = concat!(
+    "SELECT ",
+    snapshot_columns!(),
+    ", document_id.doc_type AS doc_type, \
+       record::id(document_version_id.document_id) AS version_document_id \
+     FROM atelier_moodboard WHERE snapshot_id = $id LIMIT 1;"
+);
+const LATEST_SNAPSHOT_STATEMENT: &str = concat!(
+    "SELECT ",
+    snapshot_columns!(),
+    ", document_id.doc_type AS doc_type, \
+       record::id(document_version_id.document_id) AS version_document_id \
+     FROM atelier_moodboard WHERE document_id = $document_id \
+     ORDER BY created_at_utc DESC, snapshot_id DESC LIMIT 1;"
+);
+const FIND_SNAPSHOT_STATEMENT: &str = concat!(
+    "SELECT ",
+    snapshot_columns!(),
+    " FROM atelier_moodboard WHERE document_id = $document_id \
+      AND document_version_id = $document_version_id \
+      AND content_sha256 = $content_sha256 LIMIT 1;"
+);
+const RECORD_SNAPSHOT_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $rid CONTENT { \
+       snapshot_id: $domain.snapshot_id, document_id: $domain.document_id, \
+       document_version_id: $domain.document_version_id, schema_id: $domain.schema_id, \
+       schema_version: $domain.schema_version, raw_json_text: $domain.raw_json_text, \
+       moodboard_json: $domain.moodboard_json, content_sha256: $domain.content_sha256, \
+       author: $domain.author })[0]; };"
+);
+const RECORD_OPERATION_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " RETURN (CREATE $rid CONTENT { \
+       operation_id: $domain.operation_id, snapshot_id: $domain.snapshot_id, \
+       document_id: $domain.document_id, document_version_id: $domain.document_version_id, \
+       operation_kind: $domain.operation_kind, operation_payload: $domain.operation_payload, \
+       operation_payload_sha256: $domain.operation_payload_sha256, \
+       receipt_json: $domain.receipt_json, actor: $domain.actor })[0]; };"
+);
+const LIST_OPERATIONS_STATEMENT: &str = concat!(
+    "SELECT ",
+    operation_columns!(),
+    " FROM atelier_moodboard_operation_receipt WHERE snapshot_id = $snapshot_id \
+      ORDER BY created_at_utc ASC, operation_id ASC;"
+);
+const RECORD_EXPORT_STATEMENT: &str = concat!(
+    "RETURN { LET $rid = $domain.record_id; ",
+    atelier_event_sql!(),
+    " LET $created = (CREATE $rid CONTENT { \
+       export_id: $domain.export_id, snapshot_id: $domain.snapshot_id, \
+       document_id: $domain.document_id, document_version_id: $domain.document_version_id, \
+       format: $domain.format, status: $domain.status, label: $domain.label, \
+       manifest_json: $domain.manifest_json, receipt_json: $domain.receipt_json, \
+       requested_by: $domain.requested_by })[0]; RETURN $created; };"
+);
+const FIND_EXPORT_STATEMENT: &str = concat!(
+    "SELECT ",
+    export_columns!(),
+    " FROM atelier_moodboard_export_request WHERE snapshot_id = $snapshot_id \
+      AND format = $format LIMIT 1;"
+);
+const LIST_EXPORTS_STATEMENT: &str = concat!(
+    "SELECT ",
+    export_columns!(),
+    " FROM atelier_moodboard_export_request WHERE snapshot_id = $snapshot_id \
+      ORDER BY created_at_utc ASC, format ASC;"
+);
+
 impl AtelierStore {
     async fn jsonb_text_sha256(&self, value: &Value) -> AtelierResult<String> {
-        Ok(
-            sqlx::query_scalar("SELECT encode(sha256(convert_to($1::jsonb::text, 'UTF8')), 'hex')")
-                .bind(value)
-                .fetch_one(self.pool())
-                .await?,
-        )
+        let bytes = serde_json::to_vec(value)
+            .map_err(|err| AtelierError::Validation(format!("invalid JSON payload: {err}")))?;
+        Ok(hex::encode(Sha256::digest(bytes)))
     }
 
     async fn moodboard_snapshot_by_id(
         &self,
         snapshot_id: Uuid,
     ) -> AtelierResult<MoodboardSnapshot> {
-        let row = sqlx::query(
-            r#"SELECT m.snapshot_id, m.document_id, m.document_version_id, m.schema_id,
-                      m.schema_version, m.raw_json_text, m.moodboard_json, m.content_sha256,
-                      m.author, m.created_at_utc, d.doc_type AS doc_type,
-                      v.document_id AS version_document_id
-               FROM atelier_moodboard m
-               JOIN atelier_character_document d
-                 ON d.document_id = m.document_id
-               JOIN atelier_character_document_version v
-                 ON v.version_id = m.document_version_id
-               WHERE m.snapshot_id = $1"#,
-        )
-        .bind(snapshot_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("moodboard snapshot {snapshot_id}")))?;
-        let snapshot = snapshot_from_row(&row)?;
-        validate_snapshot_join_invariants(
-            &snapshot,
-            &row.get::<String, _>("doc_type"),
-            row.get("version_document_id"),
-        )?;
+        let binding = UuidBinding {
+            id: SurrealUuid::from(snapshot_id),
+        };
+        let row: MoodboardSnapshotRow = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_SNAPSHOT_STATEMENT, binding).await })
+            })
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("moodboard snapshot {snapshot_id}")))?;
+        let doc_type = row.doc_type.clone().ok_or_else(|| {
+            AtelierError::Internal(format!("moodboard snapshot {snapshot_id} has no document"))
+        })?;
+        let version_document_id = row.version_document_id.map(Into::into).ok_or_else(|| {
+            AtelierError::Internal(format!(
+                "moodboard snapshot {snapshot_id} has no version document"
+            ))
+        })?;
+        let snapshot: MoodboardSnapshot = row.try_into()?;
+        validate_snapshot_join_invariants(&snapshot, &doc_type, version_document_id)?;
         Ok(snapshot)
     }
 
@@ -1043,78 +1260,84 @@ impl AtelierStore {
         let (moodboard_json, moodboard) = parse_and_validate_moodboard(&new.raw_json_text)?;
         let content_sha256 = sha256_hex(new.raw_json_text.as_bytes());
 
-        let mut tx = self.pool().begin().await?;
-        let doc_row = sqlx::query(
-            r#"SELECT doc_type, current_version_id
-               FROM atelier_character_document
-               WHERE document_id = $1
-               FOR UPDATE"#,
-        )
-        .bind(new.document_id)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("character document {}", new.document_id)))?;
-        let doc_type_token: String = doc_row.get("doc_type");
-        if CharacterDocumentType::from_token(&doc_type_token)? != CharacterDocumentType::Moodboard {
+        let document_id = RecordId::new(
+            "atelier_character_document",
+            SurrealUuid::from(new.document_id),
+        );
+        let doc_binding = DocumentIdBinding {
+            document_id: document_id.clone(),
+        };
+        let doc_row: DocumentHeadRow = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT doc_type, current_version_id FROM $document_id LIMIT 1;",
+                        doc_binding,
+                    )
+                    .await
+                })
+            })
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("character document {}", new.document_id))
+            })?;
+        if CharacterDocumentType::from_token(&doc_row.doc_type)? != CharacterDocumentType::Moodboard
+        {
             return Err(AtelierError::Validation(format!(
                 "document {} must be a moodboard document",
                 new.document_id
             )));
         }
-        let document_version_id: Uuid = doc_row
-            .get::<Option<Uuid>, _>("current_version_id")
-            .ok_or_else(|| {
-                AtelierError::Validation(format!(
-                    "moodboard document {} has no current version",
-                    new.document_id
-                ))
-            })?;
-
-        let inserted_row = sqlx::query(
-            r#"INSERT INTO atelier_moodboard
-                 (document_id, document_version_id, schema_id, schema_version,
-                  raw_json_text, moodboard_json, content_sha256, author)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (document_id, document_version_id, content_sha256)
-               DO NOTHING
-               RETURNING snapshot_id, document_id, document_version_id, schema_id,
-                         schema_version, raw_json_text, moodboard_json, content_sha256,
-                         author, created_at_utc"#,
-        )
-        .bind(new.document_id)
-        .bind(document_version_id)
-        .bind(MOODBOARD_SCHEMA_ID)
-        .bind(MOODBOARD_SCHEMA_VERSION)
-        .bind(&new.raw_json_text)
-        .bind(&moodboard_json)
-        .bind(&content_sha256)
-        .bind(&author)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let (snapshot, inserted) = if let Some(row) = inserted_row {
-            (snapshot_from_row(&row)?, true)
-        } else {
-            let row = sqlx::query(
-                r#"SELECT snapshot_id, document_id, document_version_id, schema_id,
-                          schema_version, raw_json_text, moodboard_json, content_sha256,
-                          author, created_at_utc
-                   FROM atelier_moodboard
-                   WHERE document_id = $1
-                     AND document_version_id = $2
-                     AND content_sha256 = $3"#,
-            )
-            .bind(new.document_id)
-            .bind(document_version_id)
-            .bind(&content_sha256)
-            .fetch_one(&mut *tx)
-            .await?;
-            (snapshot_from_row(&row)?, false)
+        let document_version_link = doc_row.current_version_id.ok_or_else(|| {
+            AtelierError::Validation(format!(
+                "moodboard document {} has no current version",
+                new.document_id
+            ))
+        })?;
+        let document_version_id = uuid_from_record_link(
+            "atelier_character_document.current_version_id",
+            &document_version_link,
+        )?;
+        #[derive(SurrealValue)]
+        struct ExistingBinding {
+            document_id: RecordId,
+            document_version_id: RecordId,
+            content_sha256: String,
+        }
+        let existing_binding = ExistingBinding {
+            document_id: document_id.clone(),
+            document_version_id: document_version_link.clone(),
+            content_sha256: content_sha256.clone(),
         };
+        let existing: Option<MoodboardSnapshotRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(FIND_SNAPSHOT_STATEMENT, existing_binding)
+                        .await
+                })
+            })
+            .await?;
+        if let Some(existing) = existing {
+            return existing.try_into();
+        }
 
-        if inserted {
-            self.record_event_in_tx(
-                &mut tx,
+        let snapshot_id = Uuid::now_v7();
+        let bindings = MoodboardSnapshotBindings {
+            record_id: RecordId::new("atelier_moodboard", SurrealUuid::from(snapshot_id)),
+            snapshot_id: SurrealUuid::from(snapshot_id),
+            document_id,
+            document_version_id: document_version_link,
+            schema_id: MOODBOARD_SCHEMA_ID.to_owned(),
+            schema_version: MOODBOARD_SCHEMA_VERSION,
+            raw_json_text: new.raw_json_text.clone(),
+            moodboard_json,
+            content_sha256: content_sha256.clone(),
+            author,
+        };
+        let row: Option<MoodboardSnapshotRow> = self
+            .write_with_event(
+                RECORD_SNAPSHOT_STATEMENT,
+                bindings,
                 moodboard_event_family::MOODBOARD_SNAPSHOT_RECORDED,
                 "atelier_character_document",
                 &new.document_id.to_string(),
@@ -1134,44 +1357,39 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        }
-
-        tx.commit().await?;
-        Ok(snapshot)
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording a moodboard snapshot returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     pub async fn latest_moodboard_snapshot(
         &self,
         document_id: Uuid,
     ) -> AtelierResult<Option<MoodboardSnapshot>> {
-        let row = sqlx::query(
-            r#"SELECT m.snapshot_id, m.document_id, m.document_version_id, m.schema_id,
-                      m.schema_version, m.raw_json_text, m.moodboard_json, m.content_sha256,
-                      m.author, m.created_at_utc, d.doc_type AS doc_type,
-                      v.document_id AS version_document_id
-               FROM atelier_moodboard m
-               JOIN atelier_character_document d
-                 ON d.document_id = m.document_id
-               JOIN atelier_character_document_version v
-                 ON v.version_id = m.document_version_id
-               WHERE m.document_id = $1
-               ORDER BY m.created_at_utc DESC, m.snapshot_id DESC
-               LIMIT 1"#,
-        )
-        .bind(document_id)
-        .fetch_optional(self.pool())
-        .await?;
-        row.as_ref()
-            .map(|row| {
-                let snapshot = snapshot_from_row(row)?;
-                validate_snapshot_join_invariants(
-                    &snapshot,
-                    &row.get::<String, _>("doc_type"),
-                    row.get("version_document_id"),
-                )?;
-                Ok(snapshot)
+        let binding = DocumentIdBinding {
+            document_id: RecordId::new(
+                "atelier_character_document",
+                SurrealUuid::from(document_id),
+            ),
+        };
+        let row: Option<MoodboardSnapshotRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(LATEST_SNAPSHOT_STATEMENT, binding).await })
             })
-            .transpose()
+            .await?;
+        row.map(|row| {
+            let doc_type = row.doc_type.clone().ok_or_else(|| {
+                AtelierError::Internal("moodboard snapshot has no document".to_owned())
+            })?;
+            let version_document_id = row.version_document_id.map(Into::into).ok_or_else(|| {
+                AtelierError::Internal("moodboard snapshot has no version document".to_owned())
+            })?;
+            let snapshot: MoodboardSnapshot = row.try_into()?;
+            validate_snapshot_join_invariants(&snapshot, &doc_type, version_document_id)?;
+            Ok(snapshot)
+        })
+        .transpose()
     }
 
     pub async fn record_moodboard_operation(
@@ -1195,50 +1413,53 @@ impl AtelierStore {
             &actor,
         );
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_moodboard_operation_receipt
-                 (operation_id, snapshot_id, document_id, document_version_id,
-                  operation_kind, operation_payload, operation_payload_sha256,
-                  receipt_json, actor)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-               RETURNING operation_id, snapshot_id, document_id, document_version_id,
-                         operation_kind, operation_payload, operation_payload_sha256,
-                         receipt_json, actor, created_at_utc"#,
-        )
-        .bind(operation_id)
-        .bind(snapshot.snapshot_id)
-        .bind(snapshot.document_id)
-        .bind(snapshot.document_version_id)
-        .bind(new.operation_kind.as_token())
-        .bind(&new.operation_payload)
-        .bind(&operation_payload_sha256)
-        .bind(&receipt_json)
-        .bind(&actor)
-        .fetch_one(&mut *tx)
-        .await?;
-        let operation = operation_receipt_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            moodboard_event_family::MOODBOARD_OPERATION_RECORDED,
-            "atelier_moodboard",
-            &snapshot.snapshot_id.to_string(),
-            serde_json::json!({
-                "operation_id": operation.operation_id,
-                "operation_kind": operation.operation_kind.as_token(),
-                "operation_payload_sha256": operation.operation_payload_sha256,
-                "document_id_ref": event_ref_for_text(&operation.document_id.to_string()),
-                "document_version_id_ref": event_ref_for_text(
-                    &operation.document_version_id.to_string()
-                ),
-                "source_content_sha256": snapshot.content_sha256,
-            }),
-        )
-        .await?;
-
-        tx.commit().await?;
-        Ok(operation)
+        let bindings = MoodboardOperationBindings {
+            record_id: RecordId::new(
+                "atelier_moodboard_operation_receipt",
+                SurrealUuid::from(operation_id),
+            ),
+            operation_id: SurrealUuid::from(operation_id),
+            snapshot_id: RecordId::new(
+                "atelier_moodboard",
+                SurrealUuid::from(snapshot.snapshot_id),
+            ),
+            document_id: RecordId::new(
+                "atelier_character_document",
+                SurrealUuid::from(snapshot.document_id),
+            ),
+            document_version_id: RecordId::new(
+                "atelier_character_document_version",
+                SurrealUuid::from(snapshot.document_version_id),
+            ),
+            operation_kind: new.operation_kind.as_token().to_owned(),
+            operation_payload: new.operation_payload.clone(),
+            operation_payload_sha256: operation_payload_sha256.clone(),
+            receipt_json,
+            actor,
+        };
+        let row: Option<MoodboardOperationReceiptRow> = self
+            .write_with_event(
+                RECORD_OPERATION_STATEMENT,
+                bindings,
+                moodboard_event_family::MOODBOARD_OPERATION_RECORDED,
+                "atelier_moodboard",
+                &snapshot.snapshot_id.to_string(),
+                serde_json::json!({
+                    "operation_id": operation_id,
+                    "operation_kind": new.operation_kind.as_token(),
+                    "operation_payload_sha256": operation_payload_sha256,
+                    "document_id_ref": event_ref_for_text(&snapshot.document_id.to_string()),
+                    "document_version_id_ref": event_ref_for_text(
+                        &snapshot.document_version_id.to_string()
+                    ),
+                    "source_content_sha256": snapshot.content_sha256,
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording a moodboard operation returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     pub async fn list_moodboard_operations(
@@ -1246,18 +1467,15 @@ impl AtelierStore {
         snapshot_id: Uuid,
     ) -> AtelierResult<Vec<MoodboardOperationReceipt>> {
         let _ = self.moodboard_snapshot_by_id(snapshot_id).await?;
-        let rows = sqlx::query(
-            r#"SELECT operation_id, snapshot_id, document_id, document_version_id,
-                      operation_kind, operation_payload, operation_payload_sha256,
-                      receipt_json, actor, created_at_utc
-               FROM atelier_moodboard_operation_receipt
-               WHERE snapshot_id = $1
-               ORDER BY created_at_utc ASC, operation_id ASC"#,
-        )
-        .bind(snapshot_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(operation_receipt_from_row).collect()
+        let binding = SnapshotIdBinding {
+            snapshot_id: RecordId::new("atelier_moodboard", SurrealUuid::from(snapshot_id)),
+        };
+        let rows: Vec<MoodboardOperationReceiptRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_OPERATIONS_STATEMENT, binding).await })
+            })
+            .await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 
     pub async fn request_moodboard_export(
@@ -1283,69 +1501,67 @@ impl AtelierStore {
         let manifest_json = build_export_manifest_json(export_id, &snapshot, new.format);
         let receipt_json =
             build_export_receipt_json(export_id, &snapshot, new.format, &requested_by);
+        let snapshot_link =
+            RecordId::new("atelier_moodboard", SurrealUuid::from(snapshot.snapshot_id));
+        let lookup = ExportLookupBinding {
+            snapshot_id: snapshot_link.clone(),
+            format: new.format.as_token().to_owned(),
+        };
+        let existing: Option<MoodboardExportRequestRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(FIND_EXPORT_STATEMENT, lookup).await })
+            })
+            .await?;
+        if let Some(existing) = existing {
+            return existing.try_into();
+        }
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"WITH inserted AS (
-                 INSERT INTO atelier_moodboard_export_request
-                   (export_id, snapshot_id, document_id, document_version_id,
-                    format, status, label, manifest_json, receipt_json, requested_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                 ON CONFLICT (snapshot_id, format) DO NOTHING
-                 RETURNING export_id, snapshot_id, document_id, document_version_id,
-                           format, status, label, manifest_json, receipt_json,
-                           requested_by, created_at_utc
-               )
-               SELECT TRUE AS inserted, export_id, snapshot_id, document_id,
-                      document_version_id, format, status, label, manifest_json,
-                      receipt_json, requested_by, created_at_utc
-               FROM inserted
-               UNION ALL
-               SELECT FALSE AS inserted, export_id, snapshot_id, document_id,
-                      document_version_id, format, status, label, manifest_json,
-                      receipt_json, requested_by, created_at_utc
-               FROM atelier_moodboard_export_request
-               WHERE snapshot_id = $2 AND format = $5
-               LIMIT 1"#,
-        )
-        .bind(export_id)
-        .bind(snapshot.snapshot_id)
-        .bind(snapshot.document_id)
-        .bind(snapshot.document_version_id)
-        .bind(new.format.as_token())
-        .bind(status.as_token())
-        .bind(&label)
-        .bind(&manifest_json)
-        .bind(&receipt_json)
-        .bind(&requested_by)
-        .fetch_one(&mut *tx)
-        .await?;
-        let inserted: bool = row.get("inserted");
-        let request = export_request_from_row(&row)?;
-
-        if inserted {
-            self.record_event_in_tx(
-                &mut tx,
+        let bindings = MoodboardExportBindings {
+            record_id: RecordId::new(
+                "atelier_moodboard_export_request",
+                SurrealUuid::from(export_id),
+            ),
+            export_id: SurrealUuid::from(export_id),
+            snapshot_id: snapshot_link,
+            document_id: RecordId::new(
+                "atelier_character_document",
+                SurrealUuid::from(snapshot.document_id),
+            ),
+            document_version_id: RecordId::new(
+                "atelier_character_document_version",
+                SurrealUuid::from(snapshot.document_version_id),
+            ),
+            format: new.format.as_token().to_owned(),
+            status: status.as_token().to_owned(),
+            label,
+            manifest_json,
+            receipt_json,
+            requested_by,
+        };
+        let row: Option<MoodboardExportRequestRow> = self
+            .write_with_event(
+                RECORD_EXPORT_STATEMENT,
+                bindings,
                 moodboard_event_family::MOODBOARD_EXPORT_REQUESTED,
                 "atelier_moodboard",
                 &snapshot.snapshot_id.to_string(),
                 serde_json::json!({
-                    "export_id": request.export_id,
-                    "format": request.format.as_token(),
-                    "status": request.status.as_token(),
-                    "document_id_ref": event_ref_for_text(&request.document_id.to_string()),
+                    "export_id": export_id,
+                    "format": new.format.as_token(),
+                    "status": status.as_token(),
+                    "document_id_ref": event_ref_for_text(&snapshot.document_id.to_string()),
                     "document_version_id_ref": event_ref_for_text(
-                        &request.document_version_id.to_string()
+                        &snapshot.document_version_id.to_string()
                     ),
                     "source_content_sha256": snapshot.content_sha256,
                     "output_artifact": "not_produced",
                 }),
             )
             .await?;
-        }
-
-        tx.commit().await?;
-        Ok(request)
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording a moodboard export returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     pub async fn list_moodboard_export_requests(
@@ -1353,17 +1569,14 @@ impl AtelierStore {
         snapshot_id: Uuid,
     ) -> AtelierResult<Vec<MoodboardExportRequest>> {
         let _ = self.moodboard_snapshot_by_id(snapshot_id).await?;
-        let rows = sqlx::query(
-            r#"SELECT export_id, snapshot_id, document_id, document_version_id,
-                      format, status, label, manifest_json, receipt_json,
-                      requested_by, created_at_utc
-               FROM atelier_moodboard_export_request
-               WHERE snapshot_id = $1
-               ORDER BY created_at_utc ASC, format ASC"#,
-        )
-        .bind(snapshot_id)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(export_request_from_row).collect()
+        let binding = SnapshotIdBinding {
+            snapshot_id: RecordId::new("atelier_moodboard", SurrealUuid::from(snapshot_id)),
+        };
+        let rows: Vec<MoodboardExportRequestRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_values(LIST_EXPORTS_STATEMENT, binding).await })
+            })
+            .await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 }

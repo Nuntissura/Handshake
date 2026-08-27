@@ -50,9 +50,10 @@ use handshake_native::theme::HsTheme;
 
 use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use interconnect_support::{
-    assert_no_local_artifact_dir, author_ids, event_ledger_payload, loom_ai_residue_counts,
-    require_live_backend, save_rich_document_via_production_manager, write_immutable_external_json,
-    LiveBackend, ScenarioAttempt,
+    assert_loom_ai_no_model_write_containment, assert_no_local_artifact_dir, author_ids,
+    event_ledger_payload, loom_ai_residue_counts, require_live_backend,
+    save_rich_document_via_production_manager, write_immutable_external_json, LiveBackend,
+    ScenarioAttempt,
 };
 use screenshot_harness::ScreenshotHarness;
 
@@ -98,7 +99,7 @@ fn created_doc_id(created: &serde_json::Value) -> String {
         .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
         .or_else(|| created.get("id").and_then(|v| v.as_str()))
         .expect(
-            "requires_pg: created document returns a rich_document_id (document.rich_document_id)",
+            "requires_surrealdb: created document returns a rich_document_id (document.rich_document_id)",
         )
         .to_owned()
 }
@@ -176,7 +177,7 @@ fn persist_note_link_via_native_save(
     }
 }
 
-/// Create a Loom block of the given content_type; return its block id. (requires_pg helper.)
+/// Create a Loom block of the given content_type; return its block id. (requires_surrealdb helper.)
 fn create_block(be: &LiveBackend, content_type: &str, title: &str) -> String {
     let ws = &be.workspace_id;
     let block = be.post_json(
@@ -186,7 +187,7 @@ fn create_block(be: &LiveBackend, content_type: &str, title: &str) -> String {
     block["block_id"]
         .as_str()
         .or_else(|| block["id"].as_str())
-        .expect("requires_pg: created block id")
+        .expect("requires_surrealdb: created block id")
         .to_owned()
 }
 
@@ -247,8 +248,8 @@ fn is_typed_no_model_response(status: u16, body: &serde_json::Value) -> bool {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-10 — Backlink registered on save (requires_pg): saving note A (with a wikilink to block B) registers a
-// backlink edge B<-A in PG. CTRL-2: also assert the save body CARRIES the wikilink atom (the call-site
+// IC-10 — Backlink registered on save (requires_surrealdb): saving note A (with a wikilink to block B) registers a
+// backlink edge B<-A in SurrealDB. CTRL-2: also assert the save body CARRIES the wikilink atom (the call-site
 // contract), so the proof is not trivially passing on an empty save.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -302,11 +303,11 @@ fn interconnect_ic10_backlink_cross_surface() {
         "event_ledger_event_id": save_event_id,
         "negative_missing_target_status": negative_status,
     }));
-    println!("IC-10 LIVE-PG PASS: backlinks of loom_B contain loom_A after save (save-calls-backlink CTRL-2 ok)");
+    println!("IC-10 LIVE-SURREALDB PASS: backlinks of loom_B contain loom_A after save (save-calls-backlink CTRL-2 ok)");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-11 — Loom Search v2 across surfaces (requires_pg, CTRL-6 poll): a note + a code-file block both
+// IC-11 — Loom Search v2 across surfaces (requires_surrealdb, CTRL-6 poll): a note + a code-file block both
 // containing XSEARCH_PROBE both appear in POST /loom/search-v2 hits; facets contain both content types.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -402,18 +403,18 @@ fn interconnect_ic11_search_v2_across_surfaces() {
         "content_type_facets": native_response.content_type_facets,
         "negative_absent_hit_count": 0,
     }));
-    println!("IC-11 LIVE-PG PASS: search-v2 surfaced BOTH the note + code-file blocks for {PROBE} ({} hits)", hits.len());
+    println!("IC-11 LIVE-SURREALDB PASS: search-v2 surfaced BOTH the note + code-file blocks for {PROBE} ({} hits)", hits.len());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-12 — Graph view shows cross-surface edges (requires_pg): GET /loom/graph depth=2 from loom_A returns
+// IC-12 — Graph view shows cross-surface edges (requires_surrealdb): GET /loom/graph depth=2 from loom_A returns
 // both loom_A and loom_B with a connecting edge; the native force-directed layout renders both at distinct
 // positions without panic. The render-doesn't-panic half is ALSO proven in-process below (structural).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// In-process structural complement: the native graph surface renders TWO nodes without panic and emits a
-/// distinct AccessKit node per block (the layout half of IC-12 that needs no PG). The cross-surface EDGE
-/// topology comes from the default managed-PostgreSQL proof below.
+/// distinct AccessKit node per block (the layout half of IC-12 that needs no SurrealDB). The cross-surface EDGE
+/// topology comes from the default managed-SurrealDB proof below.
 #[test]
 fn ic12_graph_renders_two_nodes_without_panic() {
     use handshake_native::context_menu_surfaces::LoomNodeState;
@@ -604,7 +605,7 @@ fn interconnect_ic12_graph_cross_surface_edges() {
          note={note_position:?} code={code_position:?}"
     );
 
-    // Render this exact live-PG graph through the shipped LoomGraphView, then inspect its AccessKit tree.
+    // Render this exact live-SurrealDB graph through the shipped LoomGraphView, then inspect its AccessKit tree.
     // The earlier structural complement cannot satisfy this assertion because its synthetic ids differ.
     let palette = HsTheme::Dark.palette();
     let mut graph_harness = Harness::builder()
@@ -622,7 +623,12 @@ fn interconnect_ic12_graph_cross_surface_edges() {
         rendered_ids.contains(&native_graph_node_author_id(&loom_b)),
         "IC-12: rendered live graph exposes the exact persisted code id; got {rendered_ids:?}"
     );
-    let save_event_payload = event_ledger_payload(&linked.save_receipt_event_id);
+    let save_event_payload = event_ledger_payload(
+        &be,
+        "knowledge_rich_document",
+        &linked.document_id,
+        &linked.save_receipt_event_id,
+    );
     assert!(
         save_event_payload
             .pointer("/reference_targets")
@@ -652,7 +658,7 @@ fn interconnect_ic12_graph_cross_surface_edges() {
         "negative_missing_root_status": negative_status,
     }));
     println!(
-        "IC-12 LIVE-PG PASS: graph/local max_depth=2 from loom_A has {} nodes + {} edges",
+        "IC-12 LIVE-SURREALDB PASS: graph/local max_depth=2 from loom_A has {} nodes + {} edges",
         nodes.len(),
         edges.len()
     );
@@ -715,7 +721,7 @@ fn interconnect_ic13_ai_link_suggestion() {
             .is_some_and(|content| content.to_string().contains("my_function")),
         "IC-13: descriptive KRD content is durably saved before link_suggest"
     );
-    let residue_before = loom_ai_residue_counts(&ws);
+    let residue_before = loom_ai_residue_counts(&be, &ws);
     assert_eq!(
         residue_before.suggestion_rows, 0,
         "IC-13: owned workspace must start with zero AI suggestion rows"
@@ -735,20 +741,16 @@ fn interconnect_ic13_ai_link_suggestion() {
         }),
     );
     if is_typed_no_model_response(job_status, &job) {
-        let residue_after = loom_ai_residue_counts(&ws);
+        let residue_after = loom_ai_residue_counts(&be, &ws);
         assert_eq!(
             residue_after.suggestion_rows, 0,
-            "IC-13 typed no-model branch must leave zero PostgreSQL suggestions"
+            "IC-13 typed no-model branch must leave zero SurrealDB suggestions"
         );
         assert_eq!(
             residue_after.recorded_event_rows, 0,
             "IC-13 typed no-model branch must leave zero workspace EventLedger residue"
         );
-        assert_eq!(
-            residue_after.fixture_session_recorded_events,
-            residue_before.fixture_session_recorded_events,
-            "IC-13 typed no-model branch must not append an orphan AI proposal event in the owned fixture session"
-        );
+        assert_loom_ai_no_model_write_containment();
         let _ = be.delete(&format!("/knowledge/documents/{note_document_id}"));
         let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{code_block}"));
         be.assert_cleanup();
@@ -768,8 +770,7 @@ fn interconnect_ic13_ai_link_suggestion() {
                 "suggestion_rows_after": residue_after.suggestion_rows,
                 "workspace_recorded_events_before": residue_before.recorded_event_rows,
                 "workspace_recorded_events_after": residue_after.recorded_event_rows,
-                "fixture_session_events_before": residue_before.fixture_session_recorded_events,
-                "fixture_session_events_after": residue_after.fixture_session_recorded_events,
+                "no_model_write_containment_verified": true,
                 "seeded_blocks_cleaned": true,
             }),
         );
@@ -860,7 +861,7 @@ fn interconnect_ic13_ai_link_suggestion() {
         "accepted_edge_read_back": true,
     }));
     println!(
-        "IC-13 LIVE AI+PG PASS: job={job_id} suggestion={suggestion_id} persisted note->code edge"
+        "IC-13 LIVE AI+SurrealDB PASS: job={job_id} suggestion={suggestion_id} persisted note->code edge"
     );
 }
 
@@ -885,7 +886,7 @@ fn typed_no_model_skip_classifier_is_fail_closed() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-14 — Quick-switcher surfaces items from both editors (requires_pg). The product's q-driven
+// IC-14 — Quick-switcher surfaces items from both editors (requires_surrealdb). The product's q-driven
 // cross-surface query uses GET /workspaces/{ws}/loom/graph-search with explicit source-kind filters.
 // This scenario consumes the same typed hits and routes them through the native quick-switcher target
 // mapper, rather than treating a generic backend search response as proof of quick-switcher behavior.
@@ -987,7 +988,7 @@ fn interconnect_ic14_quick_switcher_both_editors() {
         "result_count": results.len(),
         "negative_absent_result_count": negative_results,
     }));
-    println!("IC-14 LIVE-PG PASS: the quick-switcher q-route returned BOTH the note + code block with full fields");
+    println!("IC-14 LIVE-SURREALDB PASS: the quick-switcher q-route returned BOTH the note + code block with full fields");
 }
 
 /// Canonical mounted Argus producer for the IC-14 Loom/search/quick-switcher lane. Kept outside the

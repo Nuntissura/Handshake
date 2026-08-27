@@ -12,15 +12,15 @@
 //! 80-bit OS-CSPRNG randomness) per the seed's `lease_id (ULID)` requirement;
 //! the encoder lives here (pure Rust, no new dependency).
 
+use crate::storage::surreal::SurrealStorage;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::knowledge_crdt::{
-    self, AgentLaneLeaseRow, LeaseInsertOutcome, LeaseTakeoverFailure, NewAgentLaneLease,
-    NewKnowledgeCrdtDenialReceipt, insert_denial_receipt, new_denial_receipt_id,
+    self, insert_denial_receipt, new_denial_receipt_id, AgentLaneLeaseRow, LeaseInsertOutcome,
+    LeaseTakeoverFailure, NewAgentLaneLease, NewKnowledgeCrdtDenialReceipt,
 };
 use crate::storage::{Database, StorageError};
 
@@ -178,7 +178,7 @@ fn lease_payload(lease: &AgentLaneLeaseRow, transition: &str) -> serde_json::Val
 /// Claim a lane lease (KNOWLEDGE_CRDT_LEASE_CLAIMED on success).
 pub async fn claim_lease(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     request: LeaseClaimRequestV1,
 ) -> Result<LeaseClaimOutcomeV1, LeaseFlowError> {
     let lease_id = new_ulid();
@@ -226,7 +226,7 @@ pub async fn claim_lease(
 /// durable denial.
 pub async fn renew_lease(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     lease_id: &str,
     actor: &KnowledgeActorIdV1,
     ttl_seconds: i64,
@@ -252,7 +252,7 @@ pub async fn renew_lease(
 /// Release an own lease (KNOWLEDGE_CRDT_LEASE_RELEASED).
 pub async fn release_lease(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     lease_id: &str,
     actor: &KnowledgeActorIdV1,
 ) -> Result<Option<AgentLaneLeaseRow>, LeaseFlowError> {
@@ -275,7 +275,7 @@ pub async fn release_lease(
 /// stamps each lease exactly once).
 pub async fn expire_due_leases(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
 ) -> Result<Vec<AgentLaneLeaseRow>, LeaseFlowError> {
     let expired = knowledge_crdt::sweep_expired_leases(pool).await?;
     for lease in &expired {
@@ -302,7 +302,7 @@ pub enum LeaseTakeoverOutcomeV1 {
 /// The new lease records `takeover_of = prior lease id` lineage.
 pub async fn takeover_lease(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     prior_lease_id: &str,
     request: LeaseClaimRequestV1,
 ) -> Result<LeaseTakeoverOutcomeV1, LeaseFlowError> {
@@ -392,7 +392,7 @@ pub enum LeaseWriteGuardOutcomeV1 {
 /// `knowledge_crdt_denial_receipts` row.
 pub async fn guard_lease_for_write(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     lease_id: &str,
     writer: &KnowledgeActorIdV1,
     writer_session_id: &str,

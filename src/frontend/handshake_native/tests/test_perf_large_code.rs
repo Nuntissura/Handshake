@@ -5,17 +5,17 @@
 //! LC-01..LC-05, LC-07, LC-08 are FRONTEND-ONLY: they exercise the REAL native
 //! `handshake_native::code_editor::*` impls (ropey `TextBuffer`, the tree-sitter `Highlighter`, the
 //! virtualized `CodeEditorPanel`, `CursorSet::insert_at_all`, `FindEngine`, `Minimap`, the gutter
-//! diagnostic store) with NO PostgreSQL and REAL measured timings on this host. They write external,
+//! diagnostic store) with NO SurrealDB and REAL measured timings on this host. They write external,
 //! machine-readable measurements without mutating the protected scenario catalog.
 //!
 //! LC-06 (large-codebase index, 500 files) BINDS the handshake_core code-nav indexer. In THIS crate the
 //! code-nav surface is a backend CLIENT (`code_editor::code_nav::CodeNavClient`) — there is NO in-process
-//! workspace indexer; symbols are produced by handshake_core behind PostgreSQL. LC-06 therefore runs by
+//! workspace indexer; symbols are produced by handshake_core behind SurrealDB. LC-06 therefore runs by
 //! default through the shared managed product-backend fixture and self-seeds its own workspace/files.
 //!
 //! ## No mock smuggling (RISK-2 / CTRL-2)
 //!
-//! Every frontend proof calls a real native impl by its fully-qualified Rust path. There is NO sqlite,
+//! Every frontend proof calls a real native impl by its fully-qualified Rust path. There is NO alternate_local_store,
 //! NO in-memory backend stub, and NO hard-coded result substituted for a real impl call. The
 //! `Instant::now()` brackets each contract-named operation after unrelated fixture generation. LC-01
 //! deliberately includes real rope buffer construction and the completed tree-sitter highlight pass,
@@ -28,7 +28,7 @@
 //! `--nocapture` to see the printed `measured=…ms … PASS` lines the proof_targets grep for.
 
 mod perf_proof_support;
-mod pg_proof_support;
+mod backend_proof_support;
 
 use perf_proof_support::{
     assert_no_local_artifact_dir, measure_rss_delta_worst, measurement, Budget, ScenarioAttempt,
@@ -643,13 +643,13 @@ fn perf_proof_perf_lc05_memory() {
     );
 }
 
-// ── LC-06: large-codebase index, 500 files — REQUIRES_PG (code-nav is a backend client) ───────────
+// ── LC-06: large-codebase index, 500 files — REQUIRES_SURREALDB (code-nav is a backend client) ───────────
 
 #[test]
 fn perf_proof_perf_lc06_codebase_index() {
     // In this crate the code-nav surface is a CLIENT to handshake_core
     // (`code_editor::code_nav::CodeNavClient`); the actual symbol indexer lives in the backend behind
-    // PostgreSQL. There is NO in-process workspace indexer to time frontend-only. So this scenario binds
+    // SurrealDB. There is NO in-process workspace indexer to time frontend-only. So this scenario binds
     // the live backend: it writes 500 synthetic ~200-line Rust files to a temp dir, drives the backend
     // code-nav index route, and asserts symbol_count >= 500 with the index completing <= 10 s. With no
     // unavailable backend fixture fails closed; the scenario never substitutes a mock.
@@ -659,17 +659,17 @@ fn perf_proof_perf_lc06_codebase_index() {
     else {
         return;
     };
-    let mut be = pg_proof_support::require_live_backend();
+    let mut be = backend_proof_support::require_live_backend();
 
     // FIXTURE (NOT timed): write 500 synthetic ~200-line Rust files to a UUID-named temp subdir, removed
     // in a Drop guard so the run is idempotent (impl note 2).
-    let dir = pg_proof_support::external_artifact_root()
+    let dir = backend_proof_support::external_artifact_root()
         .join("mt-045")
         .join("fixtures")
         .join(format!("lc06-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("LC-06: create temp codebase dir");
     let _cleanup = TempDirGuard(dir.clone());
-    let setup_deadline = pg_proof_support::SetupDeadline::begin("LC-06");
+    let setup_deadline = backend_proof_support::SetupDeadline::begin("LC-06");
     for f in 0..500usize {
         setup_deadline.check();
         // Keep the contract-sized 500 x 200-line (~100k-line) workload while exposing only the one
@@ -773,7 +773,7 @@ fn perf_proof_perf_lc06_codebase_index() {
     );
 
     println!(
-        "LC-06 measured={elapsed_ms}ms (<= {}ms) PASS — 500-file codebase index, symbol_count={symbol_count} (live PG)",
+        "LC-06 measured={elapsed_ms}ms (<= {}ms) PASS — 500-file codebase index, symbol_count={symbol_count} (live SurrealDB)",
         budget.ceiling
     );
     _cleanup.assert_cleanup();

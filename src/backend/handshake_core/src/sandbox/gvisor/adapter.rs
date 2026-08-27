@@ -15,7 +15,8 @@ use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
     IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
+    ResourceLimits, RestartCleanupOutcome, SandboxAdapter, SandboxAdapterError, Signal,
+    ThroughputClass,
 };
 
 #[cfg(windows)]
@@ -235,7 +236,7 @@ impl GvisorAdapter {
     /// Build the proven `wsl.exe ... runsc ... do sh -c "<cmd>"` argv for one
     /// ephemeral sandbox. `command_line` is the joined guest shell command line
     /// (with any env-overlay exports prefixed).
-    fn exec_args(&self, command_line: &str) -> Vec<String> {
+    fn exec_args(&self, sandbox_internal_id: &str, command_line: &str) -> Vec<String> {
         let mut args = vec![
             "-d".to_string(),
             self.config.distro.clone(),
@@ -254,7 +255,10 @@ impl GvisorAdapter {
         args.push("do".to_string());
         args.push("sh".to_string());
         args.push("-c".to_string());
-        args.push(command_line.to_string());
+        args.push(format!(
+            "HSK_SANDBOX_ID={}; export HSK_SANDBOX_ID; {command_line}",
+            shell_quote(sandbox_internal_id)
+        ));
         args
     }
 }
@@ -309,7 +313,7 @@ impl SandboxAdapter for GvisorAdapter {
         // command's environment inside the `sh -c` shell.
         let command_line = build_command_line(&cmd);
         let timeout_ms = cmd.timeout_ms.unwrap_or(self.config.command_timeout_ms);
-        let exec_args = self.exec_args(&command_line);
+        let exec_args = self.exec_args(&handle.sandbox_internal_id, &command_line);
 
         let start = Instant::now();
         let output = run_host_command(
@@ -403,6 +407,56 @@ impl SandboxAdapter for GvisorAdapter {
         Ok(())
     }
 
+    async fn cleanup_after_restart(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<RestartCleanupOutcome, SandboxAdapterError> {
+        if handle.adapter_id != AdapterId::new(GVISOR_ADAPTER_ID)
+            || !is_valid_durable_sandbox_id(&handle.sandbox_internal_id)
+        {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        let pattern = process_match_pattern(&handle.sandbox_internal_id);
+        let script = restart_cleanup_script(&pattern);
+        let output = run_host_command(
+            self.config.wsl_exe(),
+            &[
+                "-d".to_string(),
+                self.config.distro().to_string(),
+                "-u".to_string(),
+                self.config.user().to_string(),
+                "-e".to_string(),
+                "sh".to_string(),
+                "-c".to_string(),
+                script,
+            ],
+            None,
+            Some(PROBE_TIMEOUT_MS),
+            handle.id,
+        )
+        .await?;
+        if output.exit_code != 0 {
+            return Err(spawn_failed(format!(
+                "gVisor restart cleanup could not prove process absence for {}: {}",
+                handle.sandbox_internal_id,
+                output.stderr_text()
+            )));
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("HSK_RESTART_TERMINATED") {
+            Ok(RestartCleanupOutcome::Terminated)
+        } else if stdout.contains("HSK_RESTART_ABSENT") {
+            Ok(RestartCleanupOutcome::AlreadyAbsent)
+        } else {
+            Err(spawn_failed(format!(
+                "gVisor restart cleanup returned no verified outcome for {}",
+                handle.sandbox_internal_id
+            )))
+        }
+    }
+
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
         self.ensure_handle(handle)?;
         let status = self
@@ -479,6 +533,53 @@ fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+/// `pgrep -f`/`pkill -f` pattern that matches the literal durable token without
+/// matching the cleanup command's own argv (which contains the bracket form).
+fn process_match_pattern(value: &str) -> String {
+    debug_assert!(is_valid_durable_sandbox_id(value));
+    format!("[h]{}", escape_posix_ere_literal(&value[1..]))
+}
+
+fn is_valid_durable_sandbox_id(value: &str) -> bool {
+    value.strip_prefix("hsk-gvisor-").is_some_and(|suffix| {
+        suffix.len() == 32
+            && suffix
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+fn escape_posix_ere_literal(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        if matches!(
+            character,
+            '.' | '[' | ']' | '\\' | '*' | '^' | '$' | '+' | '?' | '{' | '}' | '|' | '(' | ')'
+        ) {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
+}
+
+fn restart_cleanup_script(pattern: &str) -> String {
+    let quoted = shell_quote(pattern);
+    format!(
+        "command -v pgrep >/dev/null 2>&1 || exit 74; \
+         command -v pkill >/dev/null 2>&1 || exit 75; \
+         pgrep -f -- {quoted} >/dev/null 2>&1; probe_rc=$?; \
+         if [ \"$probe_rc\" -eq 0 ]; then \
+           pkill -KILL -f -- {quoted} >/dev/null 2>&1 || true; \
+           pgrep -f -- {quoted} >/dev/null 2>&1; verify_rc=$?; \
+           if [ \"$verify_rc\" -eq 0 ]; then exit 73; \
+           elif [ \"$verify_rc\" -eq 1 ]; then echo HSK_RESTART_TERMINATED; \
+           else exit 76; fi; \
+         elif [ \"$probe_rc\" -eq 1 ]; then echo HSK_RESTART_ABSENT; \
+         else exit 77; fi"
+    )
+}
+
 async fn verify_available(config: &GvisorConfig) -> Result<(), SandboxAdapterError> {
     // 1. wsl.exe + distro registered.
     let distros = run_host_command(
@@ -520,7 +621,10 @@ async fn verify_available(config: &GvisorConfig) -> Result<(), SandboxAdapterErr
             "-e".to_string(),
             "sh".to_string(),
             "-c".to_string(),
-            format!("test -x '{}' && echo RUNSC_PRESENT", config.runsc_bin()),
+            format!(
+                "test -x '{}' && command -v pgrep >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1 && echo RUNSC_PRESENT",
+                config.runsc_bin()
+            ),
         ],
         None,
         Some(PROBE_TIMEOUT_MS),
@@ -532,7 +636,7 @@ async fn verify_available(config: &GvisorConfig) -> Result<(), SandboxAdapterErr
         || !String::from_utf8_lossy(&bin_probe.stdout).contains("RUNSC_PRESENT")
     {
         return Err(unavailable(format!(
-            "runsc binary not executable in WSL distro `{}` at `{}`: {}",
+            "runsc, pgrep, or pkill unavailable in WSL distro `{}` (runsc path `{}`): {}",
             config.distro(),
             config.runsc_bin(),
             bin_probe.stderr_text()
@@ -785,7 +889,8 @@ mod tests {
             config,
             handles: Arc::new(Mutex::new(HashMap::new())),
         };
-        let args = adapter.exec_args("echo hi");
+        let sandbox_id = "hsk-gvisor-0123456789abcdef0123456789abcdef";
+        let args = adapter.exec_args(sandbox_id, "echo hi");
         assert!(args.contains(&"--network=none".to_string()));
         assert!(args.contains(&"--platform=systrap".to_string()));
         assert!(args.contains(&"do".to_string()));
@@ -793,8 +898,50 @@ mod tests {
         // `-u <user>` must be present so runsc runs as the privileged user.
         let u_idx = args.iter().position(|a| a == "-u").expect("`-u` present");
         assert_eq!(args[u_idx + 1], "root");
-        // The joined shell command line is the final argument.
-        assert_eq!(args.last().unwrap(), "echo hi");
+        // The durable sandbox identity is present in the host command line so a
+        // fresh adapter can find an in-flight prior-boot `runsc do` process.
+        assert_eq!(
+            args.last().unwrap(),
+            "HSK_SANDBOX_ID=hsk-gvisor-0123456789abcdef0123456789abcdef; export HSK_SANDBOX_ID; echo hi"
+        );
+        assert_eq!(
+            process_match_pattern(sandbox_id),
+            "[h]sk-gvisor-0123456789abcdef0123456789abcdef"
+        );
+        let cleanup = restart_cleanup_script(&process_match_pattern(sandbox_id));
+        assert!(cleanup.contains("command -v pgrep"));
+        assert!(cleanup.contains("command -v pkill"));
+        assert!(cleanup.contains("probe_rc"));
+        assert!(cleanup.contains("verify_rc"));
+        assert!(cleanup.contains("elif [ \"$probe_rc\" -eq 1 ]"));
+    }
+
+    #[test]
+    fn restart_cleanup_accepts_only_exact_generated_durable_id_grammar() {
+        let valid = "hsk-gvisor-0123456789abcdef0123456789abcdef";
+        assert!(is_valid_durable_sandbox_id(valid));
+
+        for invalid in [
+            "hsk-gvisor-.*",
+            "hsk-gvisor-[a-f]",
+            "hsk-gvisor-0123456789abcdef0123456789abcde ",
+            "hsk-gvisor-0123456789abcdef0123456789abcde\n",
+            "hsk-gvisor-0123456789abcdef0123456789abcdef0",
+            "hsk-gvisor-0123456789ABCDEF0123456789ABCDEF",
+        ] {
+            assert!(
+                !is_valid_durable_sandbox_id(invalid),
+                "invalid durable id must be rejected before invoking pgrep/pkill: {invalid:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn posix_ere_literal_escaping_covers_process_match_metacharacters() {
+        assert_eq!(
+            escape_posix_ere_literal("a.*[b](c){2}+?$^|\\z"),
+            "a\\.\\*\\[b\\]\\(c\\)\\{2\\}\\+\\?\\$\\^\\|\\\\z"
+        );
     }
 
     #[test]
@@ -813,7 +960,7 @@ mod tests {
             config,
             handles: Arc::new(Mutex::new(HashMap::new())),
         };
-        let args = adapter.exec_args("true");
+        let args = adapter.exec_args("hsk-gvisor-test", "true");
         assert!(args.contains(&"--ignore-cgroups".to_string()));
     }
 

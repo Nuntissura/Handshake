@@ -1,22 +1,22 @@
 //! WP-KERNEL-012 E3 MT-026 remediation (FAIL_V2): canonical Argus inspect / safe-steer / mutate /
-//! re-observe proof for the MOUNTED Loom canvas board over REAL persisted PostgreSQL data.
+//! re-observe proof for the MOUNTED Loom canvas board over REAL persisted SurrealDB data.
 //!
 //! `validation_v2` failed MT-026 because "no current canonical Argus run proves mounted placement,
 //! movement, grouping, semantic/visual edges, deletion, and post-action state against real persisted
 //! data." The existing `test_canvas_board.rs` proves the mutation/reload/removal suite against real
-//! PostgreSQL, but it clicks the mounted controls via raw AccessKit action requests — it never drives the
+//! SurrealDB, but it clicks the mounted controls via raw AccessKit action requests — it never drives the
 //! MOUNTED `HandshakeApp` through the real localhost `SwarmMcpServer` transport (`argus.inspect` /
 //! `argus.click`) the way an out-of-process swarm agent does, and it never re-observes the mounted tree
 //! through canonical Argus after a mutation. This test closes that exact gap:
 //!
-//!   1. seeds a REAL Handshake-managed PostgreSQL workspace with two source LoomBlocks, one canvas board,
+//!   1. seeds a REAL Handshake-managed SurrealDB workspace with two source LoomBlocks, one canvas board,
 //!      and two placements through the production HTTP routes (`POST /loom/blocks`,
 //!      `POST /loom/canvas-boards`, `POST /loom/canvas-boards/{id}/placements`),
 //!   2. mounts the production `HandshakeApp` shell with the Canvas pane bound to that seeded board and lets
 //!      the app's OWN per-frame feed fetch the board projection and drain it into the mounted
 //!      `LoomCanvasBoard` (no injected fixture),
 //!   3. binds the CANONICAL Argus driver (real localhost JSON-RPC) to the mounted app,
-//!   4. `argus.inspect` proves each real-PG placement card is addressable by its stable author_id
+//!   4. `argus.inspect` proves each real-SurrealDB placement card is addressable by its stable author_id
 //!      (`canvas.placement.{sanitized_placement_id}`) plus the fixed toolbar controls,
 //!   5. drives a SAFE control action (`canvas.zoom-in`) through the real Argus transport and re-observes
 //!      that the placements remain addressable and the zoom-value control is present,
@@ -136,7 +136,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204 | 404),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         self.cleaned = true;
     }
@@ -174,7 +174,7 @@ fn canvas_shell(
     app.set_backend_base_url_for_test(base, runtime.handle().clone());
     assert!(
         app.switch_project(workspace_id),
-        "switch to the seeded managed-PG workspace"
+        "switch to the seeded managed-SurrealDB workspace"
     );
     let board = app.mounted_canvas_board();
     {
@@ -275,7 +275,7 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         &mut harness,
         &board,
         |b| b.placements.len() == 2 && !b.loading && b.error.is_none(),
-        "mounted canvas self-fetches the two real-PG placements",
+        "mounted canvas self-fetches the two real-SurrealDB placements",
     );
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
@@ -283,14 +283,14 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas");
 
-    // (1) Canonical inspect: both real-PG placement cards are addressable, plus the fixed toolbar controls.
+    // (1) Canonical inspect: both real-SurrealDB placement cards are addressable, plus the fixed toolbar controls.
     let author_one = placement_author_id(&placement_one);
     let author_two = placement_author_id(&placement_two);
     let before = argus.inspect(&mut harness);
     for author in [&author_one, &author_two] {
         assert!(
             json_has_author_id(&before, author),
-            "canonical argus.inspect must see the mounted real-PG placement card '{author}'"
+            "canonical argus.inspect must see the mounted real-SurrealDB placement card '{author}'"
         );
     }
     for control in [
@@ -339,7 +339,7 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
     for author in [&author_one, &author_two] {
         assert!(
             json_has_author_id(&zoom.after, author),
-            "after the safe zoom-in the real-PG placement '{author}' remains addressable"
+            "after the safe zoom-in the real-SurrealDB placement '{author}' remains addressable"
         );
     }
     assert!(
@@ -454,7 +454,7 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
     );
     assert!(
         json_has_author_id(&after_remove, &author_two),
-        "the sibling real-PG placement card '{author_two}' remains addressable after the removal"
+        "the sibling real-SurrealDB placement card '{author_two}' remains addressable after the removal"
     );
     // Source retention: the placement removal keeps the source LoomBlock (getLoomBlock still 200).
     let source_status = live.get_status(&format!(
@@ -581,8 +581,8 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
-        "MT-026 canonical Argus mounted canvas (LIVE PG workspace={workspace_id} board={canvas_id}): \
-         inspect(2 real-PG placements + controls) -> click({ZOOM_IN_AUTHOR_ID}) -> \
+        "MT-026 canonical Argus mounted canvas (LIVE SURREALDB workspace={workspace_id} board={canvas_id}): \
+         inspect(2 real-SurrealDB placements + controls) -> click({ZOOM_IN_AUTHOR_ID}) -> \
          click({remove_author}) -> reinspect(placement one gone, placement two present, source kept); \
          zoom_receipt={} remove_receipt={} screenshot={} tree={}",
         zoom_observation.receipt_status,
@@ -597,7 +597,7 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
     assert_no_local_artifact_dir();
 }
 
-/// Fetch the current Global-graph edge count from real PG through the real Loom graph client.
+/// Fetch the current Global-graph edge count from real SurrealDB through the real Loom graph client.
 fn global_edge_count(client: &LoomGraphClient, workspace_id: &str, generation: u64) -> usize {
     let cell: LoomGraphCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     client.fetch_global(workspace_id, generation, Arc::clone(&cell));
@@ -610,7 +610,7 @@ fn global_edge_count(client: &LoomGraphClient, workspace_id: &str, generation: u
             );
             return delivery
                 .result
-                .expect("global graph fetch from real PG succeeds")
+                .expect("global graph fetch from real SurrealDB succeeds")
                 .edges
                 .len();
         }
@@ -622,7 +622,7 @@ fn global_edge_count(client: &LoomGraphClient, workspace_id: &str, generation: u
 #[test]
 fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     // V2 (edges): prove SEMANTIC and VISUAL canvas edges between placements through canonical Argus over
-    // real PostgreSQL. Both are driven by a single parameterized swarm dispatch `canvas.add-edge`
+    // real SurrealDB. Both are driven by a single parameterized swarm dispatch `canvas.add-edge`
     // (`{source_id,target_id,edge_mode}`) — the real localhost MCP transport, not event injection.
     let live = interconnect_support::require_reachable_backend();
     let unique = format!("mt026-argus-edges-{}", unique_suffix());
@@ -679,14 +679,14 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         &mut harness,
         &board,
         |b| b.placements.len() == 2 && !b.loading && b.error.is_none(),
-        "mounted canvas self-fetches the two real-PG placements",
+        "mounted canvas self-fetches the two real-SurrealDB placements",
     );
 
     // Baseline: no loom edges and no visual edges yet.
     assert_eq!(
         global_edge_count(&graph_client, &workspace_id, 1),
         0,
-        "baseline: real PG has zero loom edges before the semantic-edge dispatch"
+        "baseline: real SurrealDB has zero loom edges before the semantic-edge dispatch"
     );
     assert_eq!(
         board.lock().unwrap().visual_edges.len(),
@@ -723,7 +723,7 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         "the canonical semantic add-edge receipt is terminal: {}",
         semantic.receipt_status
     );
-    // Drive the host until the real POST /loom/edges persists, observed via a fresh real-PG graph fetch.
+    // Drive the host until the real POST /loom/edges persists, observed via a fresh real-SurrealDB graph fetch.
     let mut generation = 2u64;
     let deadline = Instant::now() + Duration::from_secs(30);
     let semantic_edges = loop {
@@ -735,24 +735,24 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         }
         assert!(
             Instant::now() < deadline,
-            "canonical semantic edge did not persist to real PG within 30s (edges={count})"
+            "canonical semantic edge did not persist to real SurrealDB within 30s (edges={count})"
         );
         std::thread::sleep(Duration::from_millis(25));
     };
     assert_eq!(
         semantic_edges, 1,
-        "canonical Argus semantic add-edge persisted exactly one real loom edge in PostgreSQL"
+        "canonical Argus semantic add-edge persisted exactly one real loom edge in SurrealDB"
     );
     // Bind the canonical action to a terminal re-observation. The CAUSAL proof for this action is the
-    // real-PG edge count asserted above (carried as evidence); the tree predicate pins that the exact
+    // real-SurrealDB edge count asserted above (carried as evidence); the tree predicate pins that the exact
     // endpoint cards and the dispatching control survive the mutation in the authoritative terminal tree.
     let semantic_endpoint_one = placement_author_id(&placement_one);
     let semantic_endpoint_two = placement_author_id(&placement_two);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
-        "mt026.semantic-edge.persisted-in-real-pg",
+        "mt026.semantic-edge.persisted-in-surrealdb",
         serde_json::json!({
-            "loom_edges_in_real_pg": semantic_edges,
+            "loom_edges_in_surrealdb": semantic_edges,
             "source_block_one": source_one,
             "source_block_two": source_two,
         }),
@@ -782,7 +782,7 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         &mut harness,
         &board,
         |b| b.visual_edges.len() == 1 && !b.loading,
-        "mounted canvas re-fetch reflects the persisted visual edge from real PG",
+        "mounted canvas re-fetch reflects the persisted visual edge from real SurrealDB",
     );
     // Independent backend confirmation of the persisted visual edge.
     let board_json = live.get_json(&format!(
@@ -800,9 +800,9 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     let visual_endpoint_two = placement_author_id(&placement_two);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
-        "mt026.visual-edge.persisted-in-real-pg",
+        "mt026.visual-edge.persisted-in-surrealdb",
         serde_json::json!({
-            "visual_edges_in_real_pg": visual_count,
+            "visual_edges_in_surrealdb": visual_count,
             "from_placement_id": placement_one,
             "to_placement_id": placement_two,
         }),
@@ -836,7 +836,7 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     assert!(tree_path.is_file());
 
     println!(
-        "MT-026 canonical Argus canvas edges (LIVE PG workspace={workspace_id} board={canvas_id}): \
+        "MT-026 canonical Argus canvas edges (LIVE SURREALDB workspace={workspace_id} board={canvas_id}): \
          click(canvas.add-edge semantic) -> real loom edge persisted (edges={semantic_edges}); \
          click(canvas.add-edge visual) -> persisted visual edge (backend visual_edges={visual_count}). tree={}",
         tree_path.display()
@@ -863,7 +863,7 @@ fn backend_placement(board_json: &serde_json::Value, placement_id: &str) -> serd
 #[test]
 fn mt026_mounted_canvas_canonical_argus_move_placement() {
     // V2 (movement): reposition a placement through canonical Argus (`canvas.move-placement`
-    // click-with-payload) and prove the new x/y PERSIST to real PostgreSQL via an independent backend GET.
+    // click-with-payload) and prove the new x/y PERSIST to real SurrealDB via an independent backend GET.
     let live = interconnect_support::require_reachable_backend();
     let unique = format!("mt026-argus-move-{}", unique_suffix());
     let workspace = live.create_workspace(&unique);
@@ -922,7 +922,7 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
         &mut harness,
         &board,
         |b| b.placements.len() == 1 && !b.loading && b.error.is_none(),
-        "mounted canvas self-fetches the real-PG placement",
+        "mounted canvas self-fetches the real-SurrealDB placement",
     );
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
@@ -968,7 +968,7 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
         }
         assert!(
             Instant::now() < deadline,
-            "canonical move did not persist to real PG within 30s (x={x}, y={y})"
+            "canonical move did not persist to real SurrealDB within 30s (x={x}, y={y})"
         );
         std::thread::sleep(Duration::from_millis(25));
     };
@@ -978,7 +978,7 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
     let moved_author = author.clone();
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
-        "mt026.move-placement.persisted-in-real-pg",
+        "mt026.move-placement.persisted-in-surrealdb",
         serde_json::json!({
             "placement_id": placement_id,
             "persisted_x": persisted["x"],
@@ -1013,7 +1013,7 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
     assert!(tree_path.is_file());
 
     println!(
-        "MT-026 canonical Argus move (LIVE PG workspace={workspace_id} board={canvas_id}): \
+        "MT-026 canonical Argus move (LIVE SURREALDB workspace={workspace_id} board={canvas_id}): \
          click(canvas.move-placement {{{new_x},{new_y}}}) -> persisted x={} y={} (baseline x=40,y=40). tree={}",
         persisted["x"], persisted["y"], tree_path.display()
     );
@@ -1026,7 +1026,7 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
 #[test]
 fn mt026_mounted_canvas_canonical_argus_group_placements() {
     // V2 (grouping): group two placements through canonical Argus (`canvas.group` click-with-payload) and
-    // prove the shared group id PERSISTS to real PostgreSQL via an independent backend GET.
+    // prove the shared group id PERSISTS to real SurrealDB via an independent backend GET.
     let live = interconnect_support::require_reachable_backend();
     let unique = format!("mt026-argus-group-{}", unique_suffix());
     let workspace = live.create_workspace(&unique);
@@ -1078,7 +1078,7 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
         &mut harness,
         &board,
         |b| b.placements.len() == 2 && !b.loading && b.error.is_none(),
-        "mounted canvas self-fetches the two real-PG placements",
+        "mounted canvas self-fetches the two real-SurrealDB placements",
     );
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
@@ -1110,7 +1110,7 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
         grp.receipt_status
     );
 
-    // Drive the host until both placements carry the SAME non-null group id in real PG.
+    // Drive the host until both placements carry the SAME non-null group id in real SurrealDB.
     let deadline = Instant::now() + Duration::from_secs(30);
     let (g1, g2) = loop {
         harness.run_steps(2);
@@ -1132,7 +1132,7 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
     };
     assert_eq!(
         g1, g2,
-        "both placements persist the SAME group id in real PG"
+        "both placements persist the SAME group id in real SurrealDB"
     );
 
     // Bind the canonical group action to a terminal re-observation whose predicate is recomputable from
@@ -1186,7 +1186,7 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
     assert!(tree_path.is_file());
 
     println!(
-        "MT-026 canonical Argus group (LIVE PG workspace={workspace_id} board={canvas_id}): \
+        "MT-026 canonical Argus group (LIVE SURREALDB workspace={workspace_id} board={canvas_id}): \
          click(canvas.group-placements [p1,p2]) -> both placements persist shared group_id={g1}. tree={}",
         tree_path.display()
     );
@@ -1198,7 +1198,7 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
 
 #[test]
 fn mt026_mounted_canvas_empty_state_canonical_argus() {
-    // AC10 against a REAL managed-PG canvas board with zero placements: renders + inspects through
+    // AC10 against a REAL managed-SurrealDB canvas board with zero placements: renders + inspects through
     // canonical Argus with no placement cards and no panic.
     let live = interconnect_support::require_reachable_backend();
     let unique = format!("mt026-argus-empty-{}", unique_suffix());
@@ -1229,7 +1229,7 @@ fn mt026_mounted_canvas_empty_state_canonical_argus() {
         &mut harness,
         &board,
         |b| b.placements.is_empty() && !b.loading && b.error.is_none(),
-        "mounted canvas self-fetches a confirmed empty real-PG board",
+        "mounted canvas self-fetches a confirmed empty real-SurrealDB board",
     );
 
     let mut argus =
@@ -1240,7 +1240,7 @@ fn mt026_mounted_canvas_empty_state_canonical_argus() {
     collect_author_ids(&tree, &mut ids);
     assert!(
         !ids.iter().any(|id| id.starts_with("canvas.placement.")),
-        "empty real-PG canvas board must expose NO placement cards through canonical Argus; got {:?}",
+        "empty real-SurrealDB canvas board must expose NO placement cards through canonical Argus; got {:?}",
         ids.iter().filter(|id| id.starts_with("canvas.")).collect::<Vec<_>>()
     );
     assert!(
@@ -1249,7 +1249,7 @@ fn mt026_mounted_canvas_empty_state_canonical_argus() {
     );
 
     println!(
-        "MT-026 canonical Argus empty canvas (LIVE PG workspace={workspace_id} board={canvas_id}): \
+        "MT-026 canonical Argus empty canvas (LIVE SURREALDB workspace={workspace_id} board={canvas_id}): \
          inspect() returned {} author_ids, 0 canvas.placement.* (AC10)",
         ids.len()
     );

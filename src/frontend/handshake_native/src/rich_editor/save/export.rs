@@ -306,9 +306,9 @@ fn hs_link_text(l: &crate::rich_editor::document_model::node::HsLinkNode) -> Str
 
 /// The read-only projection disclaimer embedded in the ProseMirror JSON export envelope — a
 /// reminder that the canonical authority is the SurrealDB RichDocument record `handshake_core`
-/// holds in its embedded store, never this exported file. (The original MT contract text named
-/// Postgres; that engine no longer exists in Handshake, so the operator-visible wording follows the
-/// real storage authority instead of the stale contract string.)
+/// holds in its embedded store, never this exported file. (The original MT contract text named a
+/// since-removed external database engine; the operator-visible wording follows the real storage
+/// authority instead of the stale contract string.)
 pub const PROJECTION_DISCLAIMER: &str =
     "This is a read-only export projection. The canonical authority is the SurrealDB RichDocument record.";
 

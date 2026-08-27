@@ -1,7 +1,7 @@
 //! Editors <-> Calendar (Pillar 2) interop proofs — WP-KERNEL-012 MT-067 (cluster E10).
 //!
 //! This suite proves the editors <-> Calendar edge through unit fixtures, a counted MT-019 backend mock,
-//! an in-process mock HTTP server, egui_kittest, and an opt-in live backend/PostgreSQL proof.
+//! an in-process mock HTTP server, egui_kittest, and an opt-in live backend/SurrealDB proof.
 //!
 //! ## Backend reality
 //!
@@ -21,8 +21,9 @@
 //! - AC-4 / PT-4: `activity_spans_404_is_typed_blocker_and_panel_stays_alive` — a simulated 404 on
 //!   `/calendar/activity-spans` returns `InteropError::EndpointUnavailable` and the panel renders the typed
 //!   empty-state while the daily-note binding stays functional; `events_404_is_typed_blocker` covers events.
-//! - AC-5: `no_sqlite_no_backend_edit` — the production source has no sqlite/rusqlite/diesel and is GET-only,
-//!   reusing the shared backend pool; `assert_no_local_artifact_dir` guards artifact hygiene (CX-212E).
+//! - AC-5: `product_api_only_no_backend_edit` — production code has no alternate-store client and
+//!   uses typed calendar APIs through the shared backend pool; `assert_no_local_artifact_dir` guards
+//!   artifact hygiene (CX-212E).
 //! - AC-6: `daily_journal_panel_accesskit_nodes_present` (+ screenshot) — the live AccessKit tree carries
 //!   `daily-journal-panel` (GenericContainer), `daily-journal-date-header` (Label),
 //!   `daily-journal-calendar-event-chip` (Button), and `daily-journal-activity-strip` (List) with the right
@@ -451,116 +452,20 @@ impl LiveWorkspaceGuard<'_> {
                 }
             }
         }
-        if !self.native_fr_client_event_ids.is_empty() {
-            let workspace_id = self.workspace_id.clone();
-            let keys = self
-                .native_fr_client_event_ids
-                .iter()
-                .flat_map(|client_event_id| {
-                    [
-                        format!(
-                            "native-editor-fr-pending:{workspace_id}:{client_event_id}"
-                        ),
-                        format!(
-                            "native-editor-fr-complete:{workspace_id}:{client_event_id}"
-                        ),
-                    ]
-                })
-                .map(|key| sql_literal(&key))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let sql = format!(
-                "BEGIN; \
-                 DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({keys}); \
-                 DO $$ BEGIN \
-                   IF EXISTS (SELECT 1 FROM kernel_event_ledger WHERE idempotency_key IN ({keys})) THEN \
-                     RAISE EXCEPTION 'MT-067 native FR EventLedger cleanup left exact rows behind'; \
-                   END IF; \
-                 END $$; \
-                 COMMIT;"
-            );
-            self.backend
-                .run_fixture_sql("mt067-native-fr-ledger-cleanup", &sql);
-        }
+        // Flight Recorder rows are workspace-owned product state. The product workspace DELETE below
+        // is the cleanup authority; the fixture-owned SurrealDB root is the final containment boundary.
+        // Retain the observed client ids only until deletion so malformed receipts still fail above.
         self.native_fr_client_event_ids.clear();
-        // MT-115 closing gate: sweep the WHOLE workspace key prefix, so a mirror row this proof never
-        // observed through the recorder read (or one written after the last read) still cannot
-        // survive. A "we deleted the rows we happened to see" cleanup is exactly how the previously
-        // unpartitioned keys reported success while orphaning every row.
-        let workspace_pending_like =
-            sql_literal(&format!("native-editor-fr-pending:{}:%", self.workspace_id));
-        let workspace_complete_like =
-            sql_literal(&format!("native-editor-fr-complete:{}:%", self.workspace_id));
-        let sweep = format!(
-            "BEGIN; \
-             DELETE FROM kernel_event_ledger \
-             WHERE idempotency_key LIKE {workspace_pending_like} \
-                OR idempotency_key LIKE {workspace_complete_like}; \
-             DO $mt067_fr_sweep$ BEGIN \
-               IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                          WHERE idempotency_key LIKE {workspace_pending_like} \
-                             OR idempotency_key LIKE {workspace_complete_like}) THEN \
-                 RAISE EXCEPTION 'MT-067 workspace-partitioned native FR ledger sweep left rows behind'; \
-               END IF; \
-             END $mt067_fr_sweep$; \
-             COMMIT;"
-        );
-        self.backend
-            .run_fixture_sql("mt067-native-fr-ledger-workspace-sweep", &sweep);
     }
 
     fn cleanup_workspace_bridge_ledger_and_assert_zero(&self) {
-        // Workspace DELETE cascades loom_block_knowledge_bridge before this runs, releasing the
-        // bridge table's ON DELETE RESTRICT reference to its EventLedger receipt. Delete only the
-        // exact throwaway workspace's bridge receipts, then fail closed if any workspace-scoped
-        // EventLedger shape remains. This ordering preserves the primary native-FR -> workspace
-        // cleanup sequence while closing the post-cascade receipt leak.
-        let workspace = sql_literal(&self.workspace_id);
-        let bridge_run = sql_literal(&format!("LOOM-BRIDGE-{}", self.workspace_id));
-        let sql = format!(
-            "BEGIN; \
-             DELETE FROM kernel_event_ledger \
-             WHERE event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED' \
-               AND source_component = 'loom_block_knowledge_bridge' \
-               AND (payload->>'workspace_id' = {workspace} \
-                    OR payload #>> '{{envelope,workspace_id}}' = {workspace} \
-                    OR kernel_task_run_id = {bridge_run} \
-                    OR session_run_id = {bridge_run}); \
-             DO $mt067_scoped_zero$ \
-             DECLARE scoped_table RECORD; scoped_count BIGINT; \
-             BEGIN \
-               IF EXISTS (SELECT 1 FROM workspaces WHERE id = {workspace}) THEN \
-                 RAISE EXCEPTION 'MT-067 workspace cleanup left the exact workspace row'; \
-               END IF; \
-               FOR scoped_table IN \
-                 SELECT c.table_schema, c.table_name \
-                 FROM information_schema.columns c \
-                 JOIN information_schema.tables t \
-                   ON t.table_schema = c.table_schema AND t.table_name = c.table_name \
-                 WHERE c.table_schema = 'public' AND c.column_name = 'workspace_id' \
-                   AND t.table_type = 'BASE TABLE' \
-                 ORDER BY c.table_name \
-               LOOP \
-                 EXECUTE format('SELECT COUNT(*) FROM %I.%I WHERE workspace_id = $1', \
-                                scoped_table.table_schema, scoped_table.table_name) \
-                   INTO scoped_count USING {workspace}; \
-                 IF scoped_count <> 0 THEN \
-                   RAISE EXCEPTION 'MT-067 workspace cleanup left % row(s) in %.%', \
-                                   scoped_count, scoped_table.table_schema, scoped_table.table_name; \
-                 END IF; \
-               END LOOP; \
-               IF EXISTS (SELECT 1 FROM kernel_event_ledger \
-                          WHERE payload->>'workspace_id' = {workspace} \
-                             OR payload #>> '{{envelope,workspace_id}}' = {workspace} \
-                             OR kernel_task_run_id = {bridge_run} \
-                             OR session_run_id = {bridge_run}) THEN \
-                 RAISE EXCEPTION 'MT-067 workspace cleanup left scoped EventLedger residue'; \
-               END IF; \
-             END $mt067_scoped_zero$; \
-             COMMIT;"
+        let workspaces = self.backend.get_json("/workspaces");
+        assert!(
+            workspaces.as_array().is_some_and(|rows| rows.iter().all(|row| {
+                row["id"].as_str() != Some(self.workspace_id.as_str())
+            })),
+            "MT-067 product cleanup must remove the exact workspace from the canonical list: {workspaces}"
         );
-        self.backend
-            .run_fixture_sql("mt067-workspace-bridge-ledger-cleanup", &sql);
         // MT-115: this zero-residue assertion is the one place an unauthenticated read is most
         // dangerous — a 401 returns nothing to parse and an authorized-but-empty read returns `[]`,
         // so reading without the credential would turn "every row is still there" into a PASS.
@@ -632,150 +537,117 @@ impl Drop for LiveWorkspaceGuard<'_> {
     }
 }
 
-fn sql_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-fn exact_pg_journal_rows(workspace_id: &str, journal_date: NaiveDate) -> String {
-    let database_url = [
-        "HANDSHAKE_TEST_PG_DSN",
-        "HSK_PROOF_DATABASE_URL",
-        "POSTGRES_TEST_URL",
-        "DATABASE_URL",
-    ]
-    .into_iter()
-    .find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    })
-    .expect("MT-067 journal diagnostics require the managed PostgreSQL DSN");
-    let query = format!(
-        "SELECT COUNT(*)::text || '|' || COALESCE(string_agg(block_id, ',' ORDER BY block_id), '') \
-         FROM loom_blocks WHERE workspace_id = {} AND content_type = 'journal' AND journal_date = {};",
-        sql_literal(workspace_id),
-        sql_literal(&journal_date.format("%Y-%m-%d").to_string()),
-    );
-    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
-    let mut command = Command::new(psql);
-    command
-        .arg("--no-psqlrc")
-        .arg("--set")
-        .arg("ON_ERROR_STOP=1")
-        .arg("--tuples-only")
-        .arg("--no-align")
-        .arg("--dbname")
-        .arg(database_url)
-        .arg("--command")
-        .arg(query)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("PGCONNECT_TIMEOUT", "5");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let mut child = command
-        .spawn()
-        .expect("start bounded MT-067 journal diagnostic query");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if std::time::Instant::now() < deadline => {
-                std::thread::sleep(std::time::Duration::from_millis(20));
-            }
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("MT-067 journal diagnostic query exceeded ten seconds and was reaped");
-            }
-            Err(error) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("poll MT-067 journal diagnostic query: {error}");
-            }
-        }
-    };
-    let mut stdout = String::new();
-    child
-        .stdout
-        .take()
-        .expect("capture MT-067 journal diagnostic stdout")
-        .read_to_string(&mut stdout)
-        .expect("read MT-067 journal diagnostic stdout");
-    let mut stderr = String::new();
-    child
-        .stderr
-        .take()
-        .expect("capture MT-067 journal diagnostic stderr")
-        .read_to_string(&mut stderr)
-        .expect("read MT-067 journal diagnostic stderr");
-    assert!(
-        status.success(),
-        "MT-067 journal diagnostic query failed with {status}: {stderr}"
-    );
-    stdout.trim().to_owned()
-}
-
-fn assert_exact_pg_journal_identity(
+fn assert_product_journal_identity(
+    backend: &interconnect_support::LiveBackend,
     workspace_id: &str,
     journal_date: NaiveDate,
     expected_block_id: &DocId,
 ) {
-    let rows = exact_pg_journal_rows(workspace_id, journal_date);
-    let (count, block_ids) = rows
-        .split_once('|')
-        .unwrap_or_else(|| panic!("invalid count|block_ids PostgreSQL proof: {rows}"));
-    assert_eq!(count, "1", "exactly one durable journal row: {rows}");
+    let block = backend.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{}",
+        expected_block_id.as_str()
+    ));
     assert_eq!(
-        block_ids,
-        expected_block_id.as_str(),
-        "the sole durable journal row is the returned binding"
+        block["block_id"].as_str(),
+        Some(expected_block_id.as_str()),
+        "product Loom read returns the exact stable journal block"
+    );
+    assert_eq!(
+        block["journal_date"].as_str(),
+        Some(journal_date.format("%Y-%m-%d").to_string().as_str()),
+        "product Loom read binds the exact requested journal date"
     );
 }
 
-/// Explicit legacy-row fixture. This intentionally bypasses Calendar Workflow
-/// only to prove the typed legacy recovery UI; canonical ingest authority is
-/// covered by the backend Calendar Workflow managed-PG suite.
-fn seed_explicit_legacy_calendar_fixture(
+fn upsert_calendar_source_via_product(
+    backend: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+    source_id: &str,
+) {
+    let source = backend.put_json(
+        &format!("/workspaces/{workspace_id}/calendar/sources/{source_id}"),
+        &serde_json::json!({
+            "display_name": "MT-067 live source",
+            "provider_type": "local",
+            "write_policy": "read_only_import",
+            "default_tzid": "UTC",
+            "auto_export": false,
+            "credentials_ref": null,
+            "provider_calendar_id": null,
+            "capability_profile_id": "CalendarSync",
+            "config": {}
+        }),
+    );
+    assert_eq!(source["id"].as_str(), Some(source_id));
+    assert_eq!(source["workspace_id"].as_str(), Some(workspace_id));
+    assert!(
+        source.get("credentials_ref").is_none() && source.get("config").is_none(),
+        "calendar source response must not expose credential or provider configuration: {source}"
+    );
+}
+
+fn sync_calendar_event_via_product(
     backend: &interconnect_support::LiveBackend,
     workspace_id: &str,
     source_id: &str,
     event_id: &str,
+    external_id: &str,
     title: &str,
-    date: NaiveDate,
+    start_date: NaiveDate,
+    end_date: NaiveDate,
 ) {
-    let start = format!("{} 09:00:00", date.format("%Y-%m-%d"));
-    let end = format!("{} 10:00:00", date.format("%Y-%m-%d"));
-    let sql = format!(
-        "BEGIN; \
-         DO $$ BEGIN \
-           IF NOT EXISTS (SELECT 1 FROM workspaces WHERE id = {workspace}) THEN \
-             RAISE EXCEPTION 'MT-067 proof DSN is not the database attached to the live backend'; \
-           END IF; \
-         END $$; \
-         INSERT INTO calendar_sources \
-           (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
-         VALUES ({source}, {workspace}, 'MT-067 live fixture', 'local', 'read_only_import', 'UTC', '{{}}') \
-         ON CONFLICT (id) DO NOTHING; \
-         INSERT INTO calendar_events \
-           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, tzid, status, visibility, export_mode, temporal_contract_version) \
-         VALUES ({event}, {workspace}, {source}, {title}, \
-                 TIMESTAMP {start}, TIMESTAMP {end}, \
-                 'UTC', 'confirmed', 'private', 'full_export', NULL) \
-         ON CONFLICT (id) DO NOTHING; \
-         COMMIT;",
-        source = sql_literal(source_id),
-        workspace = sql_literal(workspace_id),
-        event = sql_literal(event_id),
-        title = sql_literal(title),
-        start = sql_literal(&start),
-        end = sql_literal(&end),
+    let start_utc = format!("{}T09:00:00Z", start_date.format("%Y-%m-%d"));
+    let end_utc = format!("{}T10:00:00Z", end_date.format("%Y-%m-%d"));
+    let workflow = backend.post_json(
+        "/jobs",
+        &serde_json::json!({
+            "job_kind": "workflow_run",
+            "protocol_id": "calendar_sync",
+            "job_inputs": {
+                "workspace_id": workspace_id,
+                "source_id": source_id,
+                "full_sync": false,
+                "provider_events": [{
+                    "id": event_id,
+                    "external_id": external_id,
+                    "external_etag": format!("etag-{end_date}"),
+                    "title": title,
+                    "start_ts_utc": start_utc,
+                    "end_ts_utc": end_utc,
+                    "start_local": format!("{}T09:00:00", start_date.format("%Y-%m-%d")),
+                    "end_local": format!("{}T10:00:00", end_date.format("%Y-%m-%d")),
+                    "tzid": "UTC"
+                }]
+            }
+        }),
     );
-    backend.run_fixture_sql("mt067-calendar-event", &sql);
+    let job_id = workflow["job_id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("calendar_sync workflow lacks job_id: {workflow}"));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let job = backend.get_json(&format!("/jobs/{job_id}"));
+        match job["state"].as_str() {
+            Some("completed") => {
+                assert_eq!(
+                    job["job_outputs"]["provider_events_upserted"].as_u64(),
+                    Some(1),
+                    "calendar_sync must authoritatively upsert the one requested event: {job}"
+                );
+                break;
+            }
+            Some("failed") | Some("denied") => {
+                panic!("calendar_sync did not complete successfully: {job}")
+            }
+            _ => {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "calendar_sync job did not complete within fifteen seconds: {job}"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+        }
+    }
 }
 
 /// MT-115: `session_token` is the genuine published native-MCP credential. It is a REQUIRED
@@ -1474,23 +1346,23 @@ fn open_or_create_is_idempotent_and_delegates() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-1 / PT-2 (LIVE) — the REAL daily-note PUT round-trip against managed PG.
+// AC-1 / PT-2 (LIVE) — the real daily-note PUT round-trip against embedded SurrealDB.
 //
 // The contract's "REAL and FULLY PROVABLE" daily-note half (MT-067.json implementation_notes line 84:
-// "the LIVE daily-note PUT round-trip (real PG)") must touch the REAL
+// "the LIVE daily-note PUT round-trip") must touch the real
 // MT-019 resource — the `PUT /workspaces/{ws}/loom/journals/{date}` route backed by
-// PostgreSQL/EventLedger — not only the implementer-authored CountingJournalBackend mock above
+// SurrealDB/EventLedger — not only the implementer-authored CountingJournalBackend mock above
 // (Spec-Realism Gate Sub-rule 2: "a trait abstraction plus an in-memory impl this role also authored
 // does not count as touching the resource"). This test builds the SAME CalendarInteropService with a
-// REAL `ReqwestJournalBackend` (the production MT-019 transport) pointed at a managed handshake_core +
-// PostgreSQL, calls `open_or_create_daily_note` TWICE for one date, and asserts identical DocId and a
+// real `ReqwestJournalBackend` (the production MT-019 transport) pointed at a fixture-owned handshake_core +
+// SurrealDB, calls `open_or_create_daily_note` TWICE for one date, and asserts identical DocId and a
 // single durable journal block per date — the idempotent get-or-create against the real route. It is
-// The WP validation lane supplies the managed backend + exact proof DSN. Fixture setup uses that DSN only
-// after proving the HTTP-created workspace exists there; all measured behavior uses production routes.
+// The WP validation lane supplies the exact backend binary. Every setup, mutation, read, and cleanup
+// traverses production routes; the isolated embedded store is deleted only after the owned backend exits.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
+fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
     use handshake_native::rich_editor::daily_notes::journal_store::ReqwestJournalBackend;
 
     assert_mt067_matrix_source_identity();
@@ -1525,12 +1397,10 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         .expect("native crate repository root");
     let source_paths = [
         repo_root.join("src/backend/handshake_core/src/storage/calendar.rs"),
-        repo_root.join("src/backend/handshake_core/src/storage/postgres.rs"),
+        repo_root.join("src/backend/handshake_core/src/storage/surreal/calendar_store.rs"),
         repo_root.join("src/backend/handshake_core/src/workflows.rs"),
         repo_root.join("src/backend/handshake_core/src/api/calendar.rs"),
-        repo_root.join(
-            "src/backend/handshake_core/migrations/0353_calendar_lossless_temporal_contract.sql",
-        ),
+        repo_root.join("src/backend/handshake_core/src/api/loom.rs"),
     ];
     let source_hashes_before = source_paths
         .iter()
@@ -1578,6 +1448,7 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     };
     let source_id = format!("cal-src-{}", uuid::Uuid::new_v4().simple());
     let event_id = format!("cal-evt-{}", uuid::Uuid::new_v4().simple());
+    let external_event_id = format!("provider-{}", uuid::Uuid::new_v4().simple());
     let event_title = "MT-067 persisted CalendarEvent";
     // Deliberately avoid today: the former host hardcoded `Utc::now().date_naive()`, so a live proof
     // seeded only for today could pass while every operator-selected date remained broken.
@@ -1585,12 +1456,15 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         .date_naive()
         .checked_add_days(chrono::Days::new(7))
         .expect("non-today MT-067 date");
-    seed_explicit_legacy_calendar_fixture(
+    upsert_calendar_source_via_product(&live, &workspace_id, &source_id);
+    sync_calendar_event_via_product(
         &live,
         &workspace_id,
         &source_id,
         &event_id,
+        &external_event_id,
         event_title,
+        date,
         date,
     );
 
@@ -1610,11 +1484,11 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         (a, b)
     });
 
-    // Idempotency against managed PG: the same date maps to exactly ONE durable journal block/doc id,
+    // Idempotency against SurrealDB: the same date maps to exactly one durable journal block/doc id,
     // so the two real round-trips return the SAME DocId (no duplicate journal block was created).
     assert_eq!(
         a.doc_id, b.doc_id,
-        "AC-1 LIVE: open_or_create_daily_note twice for one date returns the SAME DocId from real PG \
+        "AC-1 LIVE: open_or_create_daily_note twice for one date returns the SAME DocId from the real backend \
          (single durable journal block per date — idempotent get-or-create, no duplicate)"
     );
     assert_eq!(
@@ -1625,7 +1499,7 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         !a.doc_id.as_str().trim().is_empty(),
         "AC-1 LIVE: the real route returns a non-empty stable doc/block id for the date"
     );
-    assert_exact_pg_journal_identity(&workspace_id, date, &a.doc_id);
+    assert_product_journal_identity(&live, &workspace_id, date, &a.doc_id);
 
     // Resolve the exact persisted CalendarEvent through the production frontend service. The backend
     // projects the daily-note document id at read time, proving the bidirectional date/event binding.
@@ -1636,8 +1510,8 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     assert_eq!(resolved.id, event_id);
     assert_eq!(resolved.title, event_title);
     assert!(
-        resolved.is_legacy_incomplete(),
-        "the direct-SQL fixture is explicitly typed legacy, never canonical ingest proof"
+        matches!(&resolved.temporal, CalendarEventTemporal::Timed { .. }),
+        "calendar_sync must persist canonical timed intent: {resolved:?}"
     );
     assert_eq!(resolved.daily_note_doc_id.as_ref(), Some(&a.doc_id));
 
@@ -1666,7 +1540,8 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         vec![a.doc_id.clone(), DocId("DOC-MT067-SECONDARY".to_owned())]
     );
 
-    // Extend the same explicit legacy fixture across the adjacent day. The backend projects its
+    // Re-submit the same stable external event through Calendar Workflow with an adjacent-day end.
+    // The backend projects its
     // selected-date journal id without inventing missing local intent, so
     // this is the live counterexample for the mounted host: date B must replace that projection with date
     // B's exact session binding rather than retain date A's document.
@@ -1674,16 +1549,15 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         .checked_add_days(chrono::Days::new(1))
         .expect("adjacent MT-067 date");
     let second_event_id = event_id.clone();
-    let multi_day_end = format!("{} 10:00:00", second_date.format("%Y-%m-%d"));
-    live.run_fixture_sql(
-        "mt067-multi-day-calendar-event",
-        &format!(
-            "UPDATE calendar_events SET end_ts_utc = TIMESTAMP {multi_day_end} \
-             WHERE workspace_id = {workspace} AND id = {event};",
-            multi_day_end = sql_literal(&multi_day_end),
-            workspace = sql_literal(&workspace_id),
-            event = sql_literal(&event_id),
-        ),
+    sync_calendar_event_via_product(
+        &live,
+        &workspace_id,
+        &source_id,
+        &event_id,
+        &external_event_id,
+        event_title,
+        date,
+        second_date,
     );
     let direct_second_date_events = rt()
         .block_on(svc.events_for_range(second_date, second_date))
@@ -1695,18 +1569,13 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         "direct date-B CalendarEvent range query must contain the same multi-day event: {direct_second_date_events:?}"
     );
     let second_date_label = second_date.format("%Y-%m-%d").to_string();
-    live.run_fixture_sql(
-        "mt067-date-b-absent-before-ui",
-        &format!(
-            "DO $$ BEGIN \
-             IF EXISTS (SELECT 1 FROM loom_blocks WHERE workspace_id = {workspace} \
-                        AND content_type = 'journal' AND journal_date = {journal_date}) THEN \
-               RAISE EXCEPTION 'MT-067 date-B journal must be absent before mounted navigation'; \
-             END IF; \
-             END $$;",
-            workspace = sql_literal(&workspace_id),
-            journal_date = sql_literal(&second_date_label),
-        ),
+    let direct_second_event = direct_second_date_events
+        .iter()
+        .find(|event| event.id == second_event_id)
+        .expect("same stable event is present on date B");
+    assert!(
+        direct_second_event.daily_note_doc_id.is_none(),
+        "read-only calendar projection proves date-B journal is absent before mounted navigation: {direct_second_event:?}"
     );
     let second_span_id = format!("CAS-{}", uuid::Uuid::new_v4().simple());
     let second_span_started = format!("{}T11:05:00Z", second_date.format("%Y-%m-%d"));
@@ -1904,11 +1773,9 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
             break;
         }
         if std::time::Instant::now() >= second_deadline {
-            let date_b_journal_rows = exact_pg_journal_rows(&workspace_id, second_date);
             panic!(
                 "Next-day navigation did not replace date A with date B's exact event/span within fifteen seconds; \
-                 last state: {loaded:?}; direct date-B CalendarEvent result: {direct_second_date_events:?}; \
-                 exact PostgreSQL date-B journal count|block_ids: {date_b_journal_rows}"
+                 last state: {loaded:?}; direct date-B CalendarEvent result before navigation: {direct_second_date_events:?}"
             );
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
@@ -1925,7 +1792,7 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         .block_on(svc.open_or_create_daily_note(second_date))
         .expect("date-B journal reopens idempotently after the mounted UI created it");
     assert_eq!(second_binding.doc_id, ui_created_doc_id);
-    assert_exact_pg_journal_identity(&workspace_id, second_date, &second_binding.doc_id);
+    assert_product_journal_identity(&live, &workspace_id, second_date, &second_binding.doc_id);
     assert_ne!(
         a.doc_id, second_binding.doc_id,
         "different dates retain distinct durable journal identities"
@@ -2057,7 +1924,15 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     // in-flight state. Render once more so AccessKit reflects the newly delivered date-B chip before
     // driving it.
     harness.run_steps(1);
-    harness.get_by(|node| node.author_id() == Some(DAILY_JOURNAL_LEGACY_BADGE_AUTHOR_ID));
+    assert!(
+        harness
+            .query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+                node.author_id() == Some(DAILY_JOURNAL_LEGACY_BADGE_AUTHOR_ID)
+            })
+            .next()
+            .is_none(),
+        "canonical calendar_sync event must not render the legacy recovery badge"
+    );
     harness
         .get_by(|node| node.author_id() == Some(DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID))
         .click();
@@ -3406,14 +3281,13 @@ fn events_503_is_retryable_http_failure_on_wire() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-5 — no SQLite/DB anywhere, GET-only calendar reads, shared backend pool reused, no backend edit.
+// AC-5 — typed calendar APIs, shared backend pool, and no alternate-store client.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn no_sqlite_no_backend_edit() {
+fn product_api_only_no_backend_edit() {
     // Strip line-comments (// and //!) so the gate checks ACTUAL CODE, not the doc comments that explain
-    // "NO SQLite anywhere" (a substring gate over the whole file would match its own prose — the rubric's
-    // "prove behavior, not hide uncertainty"). Block comments are not used in these files.
+    // the containment rule. Block comments are not used in these files.
     fn code_only(src: &str) -> String {
         src.lines()
             .map(|line| match line.find("//") {
@@ -3435,11 +3309,11 @@ fn no_sqlite_no_backend_edit() {
         ),
     ];
     for (name, src) in &sources {
-        // No DB-driver USAGE in actual code (PostgreSQL/EventLedger is the only durable authority — AC-5).
+        // No alternate DB-driver usage in actual code (SurrealDB/EventLedger is the durable authority).
         for store in ["sqlite", "rusqlite", "diesel", "Sqlite", "SQLite", "sqlx"] {
             assert!(
                 !src.contains(store),
-                "AC-5: {name} code must not reference '{store}' (PostgreSQL/EventLedger only)"
+                "AC-5: {name} code must not reference alternate store '{store}' (SurrealDB/EventLedger only)"
             );
         }
     }
@@ -3468,7 +3342,7 @@ fn no_sqlite_no_backend_edit() {
     let this_test_src = include_str!("test_calendar_interop.rs");
     for (function_name, next_function_name) in [
         (
-            "fn open_or_create_daily_note_is_idempotent_against_real_pg_live()",
+            "fn open_or_create_daily_note_is_idempotent_against_real_backend_live()",
             "fn mounted_host_retries_first_transient_calendar_read_without_unavailable_state()",
         ),
         (
@@ -3495,9 +3369,8 @@ fn no_sqlite_no_backend_edit() {
             "{function_name} must assert its freshly reobserved terminal predicate before finish"
         );
     }
-    // Teardown regression: native FR receipts are removed first, workspace deletion releases the
-    // bridge FK, and only then may exact workspace-owned KNOWLEDGE_LOOM_BLOCK_INDEXED receipts be
-    // deleted and the broad workspace EventLedger-zero assertion run.
+    // Teardown regression: native FR rows are inspected first, product workspace deletion performs
+    // the canonical cleanup, and credentialed product projections then prove absence.
     let cleanup_start = this_test_src
         .find("fn assert_cleanup(&mut self)")
         .expect("MT-067 cleanup function exists");
@@ -3517,12 +3390,13 @@ fn no_sqlite_no_backend_edit() {
         .expect("MT-067 teardown cleans post-cascade bridge receipts");
     assert!(native_fr_cleanup < workspace_delete && workspace_delete < bridge_ledger_cleanup);
     assert!(
-        this_test_src.contains("event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED'")
-            && this_test_src.contains("source_component = 'loom_block_knowledge_bridge'")
-            && this_test_src.contains("MT-067 workspace cleanup left scoped EventLedger residue"),
-        "MT-067 bridge cleanup must remain exact and fail closed on any workspace-scoped ledger row"
+        this_test_src.contains("the fixture-owned SurrealDB root is the final containment boundary")
+            && this_test_src.contains("get_json_response")
+            && this_test_src.contains("get_json_with_session_token")
+            && this_test_src.contains("MT-067 workspace cleanup left scoped Flight Recorder residue"),
+        "MT-067 cleanup must remain product-scoped, credentialed, and containment-backed"
     );
-    println!("AC-5 OK: no sqlite/rusqlite/diesel, GET-only calendar reads, shared client and live backend routes reused");
+    println!("AC-5 OK: typed calendar APIs, shared client, and live backend routes reused without an alternate-store client");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

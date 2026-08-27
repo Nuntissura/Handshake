@@ -1585,7 +1585,7 @@ fn malformed_successful_create_payloads_fail_closed() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE-PG: isolated, self-seeding, non-ignored product-client + mounted-widget round trip.
+// LIVE-SURREALDB: isolated, self-seeding, non-ignored product-client + mounted-widget round trip.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[cfg(feature = "integration")]
@@ -1601,7 +1601,7 @@ impl LiveWorkspaceCleanup<'_> {
         let status = self.backend.delete_workspace(&self.workspace_id);
         assert!(
             matches!(status, 200 | 202 | 204 | 404),
-            "managed-PG workspace cleanup returned HTTP {status}"
+            "managed-SurrealDB workspace cleanup returned HTTP {status}"
         );
         let workspaces = self.backend.get_json("/workspaces");
         let rows = workspaces
@@ -1636,12 +1636,12 @@ fn block_on_cell_result<T: Clone>(
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    panic!("managed-PG product-client operation did not land within 10s");
+    panic!("managed-SurrealDB product-client operation did not land within 10s");
 }
 
 #[cfg(feature = "integration")]
 fn block_on_cell<T: Clone>(cell: &Arc<Mutex<Option<Result<T, String>>>>) -> T {
-    block_on_cell_result(cell).expect("managed-PG product-client operation must succeed")
+    block_on_cell_result(cell).expect("managed-SurrealDB product-client operation must succeed")
 }
 
 #[cfg(feature = "integration")]
@@ -1693,11 +1693,11 @@ fn live_create_view(
             }
             delivery
         })
-        .expect("managed-PG create delivery did not land within 10s");
+        .expect("managed-SurrealDB create delivery did not land within 10s");
     assert_eq!(delivery.workspace_id, workspace_id);
     assert_eq!(delivery.generation, 1);
     assert!(delivery.expected_bound_view_id.is_none());
-    let view_id = delivery.result.expect("managed-PG create must succeed");
+    let view_id = delivery.result.expect("managed-SurrealDB create must succeed");
     assert!(!view_id.is_empty(), "created view id must be non-empty");
     view_id
 }
@@ -1727,12 +1727,12 @@ fn live_dispatch(
             }
             delivery
         })
-        .expect("managed-PG mutation delivery did not land within 10s");
+        .expect("managed-SurrealDB mutation delivery did not land within 10s");
     assert_eq!(delivery.workspace_id, workspace_id);
     assert_eq!(delivery.generation, 1);
     assert_eq!(delivery.expected_bound_view_id.as_deref(), Some(view_id));
     assert_eq!(
-        delivery.result.expect("managed-PG mutation must succeed"),
+        delivery.result.expect("managed-SurrealDB mutation must succeed"),
         view_id
     );
 }
@@ -1778,7 +1778,7 @@ fn json_node_by_author_id<'a>(
 // verifiable without trusting the test process.
 
 /// An INDEPENDENT authoritative re-read of the saved view through a fresh product client. This is the
-/// "authoritative backend revision/readback" the receipt carries: it is taken from PostgreSQL through
+/// "authoritative backend revision/readback" the receipt carries: it is taken from SurrealDB through
 /// the real routes, not from the widget's own projection.
 #[cfg(feature = "integration")]
 fn backend_readback(
@@ -2055,15 +2055,15 @@ fn old_workspace_create_delivery_cannot_switch_current_workspace_view() {
     assert_eq!(view.workspace_id, "ws-b");
 }
 
-/// AC1-AC10 / PROOF2-PROOF6 against REAL Handshake-managed PostgreSQL. The test owns every row it
+/// AC1-AC10 / PROOF2-PROOF6 against REAL Handshake-managed SurrealDB. The test owns every row it
 /// creates, drives the production `BlockViewClient` transport, mounts the returned projections through
 /// the real `BlockCollectionView`, and leaves no workspace behind. Feature-gated, but deliberately NOT
 /// ignored: the integration command cannot silently pass while omitting the required resource proof.
 #[test]
 #[cfg(feature = "integration")]
-fn block_collection_views_live_pg_self_seed_full_round_trip() {
+fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     let receipt_dir = external_artifact_dir("wp-kernel-012-mt-027");
-    let receipt_path = receipt_dir.join("managed-pg-receipt.json");
+    let receipt_path = receipt_dir.join("managed-store-receipt.json");
     match std::fs::remove_file(&receipt_path) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -3163,7 +3163,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         "duplicate queued Retry events must persist exactly one view with the retained title"
     );
 
-    // Real-PG constrained/empty projection through the mounted host and a fresh canonical inspection.
+    // Real-SurrealDB constrained/empty projection through the mounted host and a fresh canonical inspection.
     let mut empty_def = BlockViewDefinition::of_kind(BlockViewKind::Table);
     // Use a schema-valid type deliberately absent from this isolated fixture. An invented
     // `code_file` token would only prove that request deserialization correctly rejects it.
@@ -3269,7 +3269,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         "canonical empty calendar projection exposes the exact empty-state text"
     );
 
-    // Flight Recorder shares the busy managed-PG backend with parallel WP proofs. Use an explicit
+    // Flight Recorder shares the busy managed-SurrealDB backend with parallel WP proofs. Use an explicit
     // bounded read here rather than the fixture helper's general 5s CRUD timeout; the endpoint remains
     // real and identity-stamped, while transient backend contention cannot erase completed actor proof.
     let recorder_url = format!("{}/api/flight_recorder?wsid={workspace_id}", live.base);
@@ -3280,9 +3280,9 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
             // token. The backend re-reads the binding file and re-verifies the publishing process's
             // birth identity, so this is a real authenticated read, not a bypass.
             .header("x-hsk-session-token", stage_session_hex.as_str())
-            .header("x-hsk-actor-id", "mt046-live-pg")
-            .header("x-hsk-kernel-task-run-id", "mt046-live-pg-run")
-            .header("x-hsk-session-run-id", "mt046-live-pg-sess")
+            .header("x-hsk-actor-id", "mt046-live-surrealdb")
+            .header("x-hsk-kernel-task-run-id", "mt046-live-surrealdb-run")
+            .header("x-hsk-session-run-id", "mt046-live-surrealdb-sess")
             .header("x-hsk-actor-kind", "operator")
             .timeout(std::time::Duration::from_secs(30))
             .send()
@@ -3361,7 +3361,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     // Receipt only after every persistence, retry, mounted AccessKit, cleanup, and fresh-absence check.
     std::fs::create_dir_all(&receipt_dir).expect("create external MT-027 receipt directory");
     let receipt = serde_json::json!({
-        "schema_id": "hsk.mt027_managed_pg_proof@1",
+        "schema_id": "hsk.mt027_managed_store_proof@1",
         "backend_binding": backend_binding,
         "workspace_id": workspace_id,
         "view_ids": { "table": table_id, "kanban": kanban_id, "calendar": calendar_id },
@@ -3386,8 +3386,8 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     });
     std::fs::write(
         receipt_path,
-        serde_json::to_vec_pretty(&receipt).expect("serialize managed-PG receipt"),
+        serde_json::to_vec_pretty(&receipt).expect("serialize managed-SurrealDB receipt"),
     )
-    .expect("write external managed-PG receipt");
+    .expect("write external managed-SurrealDB receipt");
     assert_no_local_artifact_dir();
 }

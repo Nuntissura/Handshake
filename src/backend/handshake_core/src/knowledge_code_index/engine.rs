@@ -28,8 +28,8 @@
 //! syntax errors but still yields symbols is `partial`. The run continues and
 //! returns a per-file summary.
 //!
-//! No SQLite, no external LSP. The engine reuses the shared AppState pool (one
-//! `PostgresDatabase`, no second pool).
+//! No SQLite, no external LSP. The engine reuses the shared embedded
+//! [`SurrealDatabase`] handle.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -38,19 +38,18 @@ use std::time::Instant;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, QueryBuilder, Row, Transaction};
-use uuid::Uuid;
+use surrealdb::types::{RecordId, SurrealValue};
 
-use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
+use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
     KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType,
-    KnowledgeEntityKind, KnowledgeExtractionStatus, KnowledgeIndexRunOutcome,
-    KnowledgeParserStatus, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind,
-    KnowledgeSpanKind, KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge,
-    NewKnowledgeEntity, NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
-    derive_knowledge_relationship_id,
+    KnowledgeEntityKind, KnowledgeExtractionStatus, KnowledgeIndexRunCounts,
+    KnowledgeIndexRunOutcome, KnowledgeParserStatus, KnowledgePermissionScope,
+    KnowledgeRedactionState, KnowledgeSourceKind, KnowledgeSpanKind, KnowledgeStore,
+    NewKnowledgeCodeRepairEntry, NewKnowledgeEdge, NewKnowledgeEntity, NewKnowledgeIndexRun,
+    NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
 };
-use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
     AgentCapability, AgentLaneIdentity, ClaimScope, IndexingLeaseRecord, IndexingLeaseRequest,
@@ -97,8 +96,81 @@ impl CodeIndexContext {
 
 /// The code-index engine. Cheap to construct; wraps a pooled handle.
 pub struct CodeIndexEngine {
-    db: Arc<PostgresDatabase>,
+    db: Arc<SurrealDatabase>,
 }
+
+fn stage_error<E>(
+    stage: &'static str,
+    workspace_id: &str,
+    source_id: Option<&str>,
+    error: E,
+) -> CodeIndexError
+where
+    E: Into<CodeIndexError>,
+{
+    let error = error.into();
+    tracing::error!(
+        target: "handshake_core::code_nav_index",
+        stage,
+        workspace_id,
+        source_id = source_id.unwrap_or(""),
+        error = %error,
+        "knowledge_code_index_stage_failed"
+    );
+    error
+}
+
+#[derive(SurrealValue)]
+struct CodeFileStateBindings {
+    new_rid: RecordId,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    file_entity_id: Option<RecordId>,
+    language: String,
+    indexed_content_hash: String,
+    parser_version: String,
+    parse_status: String,
+    symbols_indexed: i64,
+    edges_indexed: i64,
+    failure_detail: Option<Value>,
+    last_indexed_in_run: Option<RecordId>,
+    last_index_receipt_event_id: Option<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct CodeRepairBindings {
+    new_rid: RecordId,
+    code_repair_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    relative_path: String,
+    reason_class: String,
+    reason_detail: Value,
+    enqueue_event_id: Option<RecordId>,
+}
+
+const UPSERT_CODE_FILE_STATE: &str = "BEGIN TRANSACTION; \
+    LET $existing = (SELECT VALUE id FROM knowledge_code_files WHERE source_id = $source_id LIMIT 1)[0]; \
+    LET $rid = $existing ?? $new_rid; \
+    IF $existing IS NONE { \
+      CREATE $new_rid CONTENT { code_file_id: record::id($new_rid), workspace_id: $workspace_id, source_id: $source_id, file_entity_id: $file_entity_id, language: $language, indexed_content_hash: $indexed_content_hash, parser_version: $parser_version, parse_status: $parse_status, stale: false, symbols_indexed: $symbols_indexed, edges_indexed: $edges_indexed, failure_detail: $failure_detail, last_indexed_in_run: $last_indexed_in_run, last_index_receipt_event_id: $last_index_receipt_event_id }; \
+    } ELSE { \
+      UPDATE $rid SET file_entity_id = $file_entity_id ?? file_entity_id, language = $language, indexed_content_hash = $indexed_content_hash, parser_version = $parser_version, parse_status = $parse_status, stale = false, symbols_indexed = $symbols_indexed, edges_indexed = $edges_indexed, failure_detail = $failure_detail, last_indexed_in_run = $last_indexed_in_run ?? last_indexed_in_run, last_index_receipt_event_id = $last_index_receipt_event_id ?? last_index_receipt_event_id, updated_at = time::now(); \
+    }; \
+    COMMIT TRANSACTION;";
+
+const ENQUEUE_CODE_REPAIR: &str = "BEGIN TRANSACTION; \
+    LET $open = (SELECT VALUE id FROM knowledge_code_repair_queue WHERE source_id = $source_id AND state IN ['queued', 'retrying'] ORDER BY updated_at DESC LIMIT 1)[0]; \
+    LET $dead = (SELECT VALUE id FROM knowledge_code_repair_queue WHERE source_id = $source_id AND state = 'dead_letter' ORDER BY updated_at DESC, code_repair_id DESC LIMIT 1)[0]; \
+    LET $rid = $open ?? $dead ?? $new_rid; \
+    IF $open != NONE { \
+      UPDATE $rid SET reason_class = $reason_class, reason_detail = $reason_detail, relative_path = $relative_path, enqueue_event_id = $enqueue_event_id ?? enqueue_event_id, updated_at = time::now(); \
+    } ELSE IF $dead != NONE { \
+      UPDATE $rid SET state = 'queued', attempts = 0, reason_class = $reason_class, reason_detail = $reason_detail, relative_path = $relative_path, enqueue_event_id = $enqueue_event_id ?? enqueue_event_id, resolved_receipt_event_id = NONE, updated_at = time::now(); \
+    } ELSE { \
+      CREATE $rid CONTENT { code_repair_id: $code_repair_id, workspace_id: $workspace_id, source_id: $source_id, relative_path: $relative_path, reason_class: $reason_class, reason_detail: $reason_detail, enqueue_event_id: $enqueue_event_id }; \
+    }; \
+    COMMIT TRANSACTION;";
 
 /// The outcome of indexing one code file.
 #[derive(Debug, Clone)]
@@ -125,50 +197,110 @@ pub struct QuietCodeIndexRun {
     pub quiet_receipt: QuietBackgroundWorkRecord,
 }
 
-struct BatchParsedCodeFile {
-    source_id: String,
-    relative_path: String,
-    language: CodeLanguage,
-    parser_version: String,
-    content_hash: String,
-    symbols: Vec<ExtractedSymbol>,
-    receipt: NewKernelEvent,
-    perf_failure: Option<Value>,
-}
-
-struct BatchSpan {
-    span_id: String,
-    source_id: String,
-    range_start: i64,
-    range_end: i64,
-    line_start: i32,
-    line_end: i32,
-    section_path: String,
-    content_sha256: String,
-    parser_version: String,
-    receipt_event_id: String,
-    index_run_id: String,
-}
-
-fn batch_id(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::now_v7().simple())
-}
-
-fn new_code_index_run_id() -> String {
-    format!("KIR-{}", Uuid::now_v7().simple())
-}
-
 impl CodeIndexEngine {
-    pub fn new(db: Arc<PostgresDatabase>) -> Self {
+    pub fn new(db: Arc<SurrealDatabase>) -> Self {
         Self { db }
     }
 
-    pub fn from_database(db: Arc<PostgresDatabase>) -> Self {
+    pub fn from_database(db: Arc<SurrealDatabase>) -> Self {
         Self { db }
     }
 
-    pub fn db(&self) -> &PostgresDatabase {
+    pub fn db(&self) -> &SurrealDatabase {
         &self.db
+    }
+
+    async fn persist_code_file_state(
+        &self,
+        upsert: UpsertKnowledgeCodeFile,
+    ) -> CodeIndexResult<()> {
+        if upsert.indexed_content_hash.len() != 64
+            || !upsert
+                .indexed_content_hash
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(StorageError::Validation(
+                "knowledge code file indexed_content_hash must be a lowercase sha256 hex digest",
+            )
+            .into());
+        }
+        if upsert.parser_version.trim().is_empty() {
+            return Err(
+                StorageError::Validation("knowledge code file parser_version is required").into(),
+            );
+        }
+
+        let code_file_id = format!("KCF-{}", &sha256_hex(upsert.source_id.as_bytes())[..32]);
+        let bindings = CodeFileStateBindings {
+            new_rid: RecordId::new("knowledge_code_files", code_file_id),
+            workspace_id: RecordId::new("workspaces", upsert.workspace_id),
+            source_id: RecordId::new("knowledge_sources", upsert.source_id),
+            file_entity_id: upsert
+                .file_entity_id
+                .map(|id| RecordId::new("knowledge_entities", id)),
+            language: upsert.language.as_str().to_owned(),
+            indexed_content_hash: upsert.indexed_content_hash,
+            parser_version: upsert.parser_version,
+            parse_status: upsert.parse_status.as_str().to_owned(),
+            symbols_indexed: i64::from(upsert.symbols_indexed),
+            edges_indexed: i64::from(upsert.edges_indexed),
+            failure_detail: upsert.failure_detail,
+            last_indexed_in_run: upsert
+                .last_indexed_in_run
+                .map(|id| RecordId::new("knowledge_index_runs", id)),
+            last_index_receipt_event_id: upsert
+                .last_index_receipt_event_id
+                .map(|id| RecordId::new("kernel_event_ledger", id)),
+        };
+        self.db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<surrealdb::types::Value, _>(
+                            UPSERT_CODE_FILE_STATE,
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?;
+        Ok(())
+    }
+
+    async fn enqueue_code_repair(&self, entry: NewKnowledgeCodeRepairEntry) -> CodeIndexResult<()> {
+        let identity = format!(
+            "{}:{}",
+            entry.source_id,
+            entry.enqueue_event_id.as_deref().unwrap_or("no-event")
+        );
+        let code_repair_id = format!("KCRQ-{}", &sha256_hex(identity.as_bytes())[..32]);
+        let bindings = CodeRepairBindings {
+            new_rid: RecordId::new("knowledge_code_repair_queue", code_repair_id.clone()),
+            code_repair_id,
+            workspace_id: RecordId::new("workspaces", entry.workspace_id),
+            source_id: RecordId::new("knowledge_sources", entry.source_id),
+            relative_path: entry.relative_path,
+            reason_class: entry.reason_class.as_str().to_owned(),
+            reason_detail: entry.reason_detail,
+            enqueue_event_id: entry
+                .enqueue_event_id
+                .map(|id| RecordId::new("kernel_event_ledger", id)),
+        };
+        self.db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<surrealdb::types::Value, _>(ENQUEUE_CODE_REPAIR, bindings)
+                        .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?;
+        Ok(())
     }
 
     /// Append one EventLedger receipt event carrying the backend-navigation
@@ -236,10 +368,45 @@ impl CodeIndexEngine {
         root_id: Option<&str>,
     ) -> CodeIndexResult<String> {
         ctx.validate()?;
-        let index_run_id = new_code_index_run_id();
-        self.start_run_with_id(ctx, &index_run_id, workspace_id, root_id)
-            .await?;
-        Ok(index_run_id)
+        let start_event = self.build_receipt_event(
+            ctx,
+            KernelEventType::KnowledgeIndexRunStarted,
+            "knowledge_code_index_run",
+            workspace_id,
+            json!({
+                "kind": "code_index_run_started",
+                "workspace_id": workspace_id,
+                "root_id": root_id,
+                "extractor_version": CODE_EXTRACTOR_VERSION,
+            }),
+        )?;
+        let start_event_id = self
+            .db
+            .append_kernel_event(start_event)
+            .await
+            .map_err(|error| {
+                stage_error("start_run.append_start_receipt", workspace_id, None, error)
+            })?
+            .event_id;
+        let run = self
+            .db
+            .start_knowledge_index_run(NewKnowledgeIndexRun {
+                workspace_id: workspace_id.to_string(),
+                root_id: root_id.map(str::to_string),
+                scope: json!({
+                    "index_kind": "code",
+                    "extractor_version": CODE_EXTRACTOR_VERSION,
+                }),
+                actor_kind: ctx.actor.actor_kind().to_string(),
+                actor_id: ctx.actor.actor_id().to_string(),
+                worktree_id: None,
+                start_receipt_event_id: Some(start_event_id),
+            })
+            .await
+            .map_err(|error| {
+                stage_error("start_run.create_index_run", workspace_id, None, error)
+            })?;
+        Ok(run.index_run_id)
     }
 
     /// Finish a code-index run with a terminal EventLedger receipt. Routes that
@@ -267,14 +434,16 @@ impl CodeIndexEngine {
         };
         let finish_receipt_event_id = self
             .append_terminal_receipt_event(ctx, event_type, index_run_id, kind)
-            .await?;
+            .await
+            .map_err(|error| stage_error("finish_run.append_terminal_receipt", "", None, error))?;
         self.db
             .finish_knowledge_index_run(
                 index_run_id,
                 outcome,
                 Some(finish_receipt_event_id.as_str()),
             )
-            .await?;
+            .await
+            .map_err(|error| stage_error("finish_run.update_index_run", "", None, error))?;
         Ok(())
     }
 
@@ -324,11 +493,9 @@ impl CodeIndexEngine {
         }
     }
 
-    /// Try the low-round-trip code-index writer used by the large-code
-    /// navigation route. The guard is deliberately narrow: only clean code
-    /// files with no relationship/doc/test/operator passages use it. Any
-    /// richer input returns `Ok(None)` so the established per-file writer
-    /// remains the semantic fallback.
+    /// The canonical embedded path uses the established per-file SurrealDB
+    /// writer. Returning `None` selects that writer and preserves the full
+    /// indexing semantics.
     pub(crate) async fn try_index_prepared_batch(
         &self,
         ctx: &CodeIndexContext,
@@ -337,272 +504,15 @@ impl CodeIndexEngine {
         persisted_sources: &[(String, String)],
         index_run_id: &str,
     ) -> CodeIndexResult<Option<Vec<CodeFileIndexOutcome>>> {
-        ctx.validate()?;
-        if prepared.is_empty() || prepared.len() != persisted_sources.len() {
-            return Ok(None);
-        }
-
-        let mut parsed = Vec::with_capacity(prepared.len());
-        for (file, (source_id, relative_path)) in prepared.iter().zip(persisted_sources) {
-            if &file.relative_path != relative_path {
-                return Ok(None);
-            }
-            let Some(language) = super::parser::detect_code_language(relative_path) else {
-                return Ok(None);
-            };
-            let Ok(text) = std::str::from_utf8(&file.content) else {
-                return Ok(None);
-            };
-            let adapter = CodeParserAdapter::new(language);
-            let parser_version = adapter.parser_version();
-            let started = Instant::now();
-            let Ok(tree) = adapter.parse(text) else {
-                return Ok(None);
-            };
-            if tree.root_has_error {
-                return Ok(None);
-            }
-            let symbols = extract_symbols(&tree, text);
-            let mut docs = extract_doc_passages(text);
-            let operators = extract_operator_strings(&tree, text);
-            let relationships = extract_relationships(&tree, text, &symbols);
-            let test_mappings = extract_test_mappings(&tree, text, &symbols);
-            docs.extend(operators);
-            if !docs.is_empty() || !relationships.is_empty() || !test_mappings.is_empty() {
-                return Ok(None);
-            }
-            let perf = PerfSample::measure(
-                &CodeIndexBudget::default(),
-                relative_path,
-                text.lines().count(),
-                started.elapsed().as_secs_f64() * 1000.0,
-            );
-            let perf_failure = (!perf.within_budget).then(|| {
-                perf_sample_json(&perf, &CodeIndexBudget::default())
-            });
-            let mut builder = NewKernelEvent::builder(
-                ctx.kernel_task_run_id.clone(),
-                ctx.session_run_id.clone(),
-                KernelEventType::KnowledgeValidationRecorded,
-                ctx.actor.clone(),
-            )
-            .aggregate("knowledge_code_index_file", source_id)
-            .source_component("knowledge_code_index")
-            .payload(json!({
-                "kind": "code_file_indexed",
-                "workspace_id": workspace_id,
-                "source_id": source_id,
-                "relative_path": relative_path,
-                "language": language.as_str(),
-                "parser_version": &parser_version,
-                "parse_status": KnowledgeCodeParseStatus::Parsed.as_str(),
-                "symbols": symbols.len(),
-                "doc_passages": 0,
-                "operator_strings": 0,
-                "relationships": 0,
-                "content_hash": &file.content_hash,
-                "extractor_version": CODE_EXTRACTOR_VERSION,
-                "perf_budget": perf_failure.clone(),
-            }));
-            if let Some(correlation_id) = &ctx.correlation_id {
-                builder = builder.correlation_id(correlation_id.clone());
-            }
-            parsed.push(BatchParsedCodeFile {
-                source_id: source_id.clone(),
-                relative_path: relative_path.clone(),
-                language,
-                parser_version,
-                content_hash: file.content_hash.clone(),
-                symbols,
-                receipt: builder
-                    .build()
-                    .map_err(|err| CodeIndexError::Kernel(err.to_string()))?,
-                perf_failure,
-            });
-        }
-
-        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
-        let result = self
-            .persist_prepared_batch_tx(&mut tx, workspace_id, index_run_id, parsed)
-            .await;
-        match result {
-            Ok(outcomes) => {
-                tx.commit().await.map_err(StorageError::from)?;
-                Ok(Some(outcomes))
-            }
-            Err(error) => {
-                let _ = tx.rollback().await;
-                Err(error)
-            }
-        }
-    }
-
-    async fn persist_prepared_batch_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        workspace_id: &str,
-        index_run_id: &str,
-        parsed: Vec<BatchParsedCodeFile>,
-    ) -> CodeIndexResult<Vec<CodeFileIndexOutcome>> {
-        let events = parsed.iter().map(|item| item.receipt.clone()).collect::<Vec<_>>();
-        let receipt_ids = append_batch_events(tx, &events).await?;
-
-        let mut spans = Vec::new();
-        let mut span_by_source = HashMap::new();
-        for item in &parsed {
-            let receipt_id = receipt_ids
-                .get(&item.receipt.idempotency_key)
-                .ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("code receipt event")))?;
-            for symbol in &item.symbols {
-                let span_id = batch_id("KSP");
-                span_by_source.insert((item.source_id.clone(), symbol.symbol_path.clone()), span_id.clone());
-                spans.push(BatchSpan {
-                    span_id,
-                    source_id: item.source_id.clone(),
-                    range_start: symbol.start_byte as i64,
-                    range_end: symbol.end_byte as i64,
-                    line_start: symbol.start_line as i32,
-                    line_end: symbol.end_line as i32,
-                    section_path: symbol.symbol_path.clone(),
-                    content_sha256: sha256_hex(format!("{}|{}|{}", symbol.node_kind, symbol.symbol_path, symbol.start_byte).as_bytes()),
-                    parser_version: item.parser_version.clone(),
-                    receipt_event_id: receipt_id.clone(),
-                    index_run_id: index_run_id.to_string(),
-                });
-            }
-        }
-        insert_batch_spans(tx, &spans).await?;
-
-        let mut entity_rows = Vec::new();
-        for item in &parsed {
-            entity_rows.push((
-                item.source_id.clone(),
-                KnowledgeEntityKind::File,
-                format!("file:{}", item.relative_path),
-                item.relative_path.clone(),
-                json!({"extractor":"knowledge_code_index","extractor_version":CODE_EXTRACTOR_VERSION,"language":item.language.as_str()}),
-                Some(item.source_id.clone()),
-            ));
-            for symbol in &item.symbols {
-                entity_rows.push((
-                    item.source_id.clone(),
-                    KnowledgeEntityKind::Symbol,
-                    symbol.entity_key(item.language, &item.relative_path),
-                    symbol.name.clone(),
-                    json!({"extractor":"knowledge_code_index","extractor_version":CODE_EXTRACTOR_VERSION,"language":item.language.as_str(),"symbol_kind":symbol.kind.as_str(),"node_kind":symbol.node_kind,"symbol_path":symbol.symbol_path}),
-                    Some(item.source_id.clone()),
-                ));
-            }
-        }
-        let entity_ids = insert_batch_entities(tx, workspace_id, index_run_id, &entity_rows).await?;
-
-        let mut entity_spans = Vec::new();
-        let mut edges = Vec::new();
-        let mut span_offset = 0usize;
-        for item in &parsed {
-            let file_key = format!("file:{}", item.relative_path);
-            let file_id = entity_ids.get(&(KnowledgeEntityKind::File.as_str().to_string(), file_key.clone())).cloned().ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("file entity")))?;
-            for symbol in &item.symbols {
-                let symbol_key = symbol.entity_key(item.language, &item.relative_path);
-                let symbol_id = entity_ids.get(&(KnowledgeEntityKind::Symbol.as_str().to_string(), symbol_key.clone())).cloned().ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("symbol entity")))?;
-                let span = spans.get(span_offset).ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("symbol span")))?;
-                span_offset += 1;
-                entity_spans.push((symbol_id.clone(), span.span_id.clone()));
-                let rel_id = derive_knowledge_relationship_id(KnowledgeEdgeType::Contains, KnowledgeEntityKind::File, &file_key, KnowledgeEntityKind::Symbol, &symbol_key);
-                edges.push((rel_id, file_id.clone(), symbol_id, span.span_id.clone()));
-            }
-        }
-        insert_batch_entity_spans(tx, index_run_id, &entity_spans).await?;
-        let edge_ids = insert_batch_edges(tx, workspace_id, index_run_id, &edges).await?;
-        insert_batch_edge_spans(tx, index_run_id, &edge_ids, &edges).await?;
-        insert_batch_code_files(tx, workspace_id, index_run_id, &parsed, &receipt_ids, &entity_ids).await?;
-        update_batch_sources(tx, &parsed, &receipt_ids).await?;
-
-        let mut outcomes = Vec::with_capacity(parsed.len());
-        for item in parsed {
-            let receipt_id = receipt_ids.get(&item.receipt.idempotency_key).cloned().ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("code receipt event")))?;
-            outcomes.push(CodeFileIndexOutcome {
-                source_id: item.source_id,
-                relative_path: item.relative_path,
-                language: Some(item.language),
-                parse_status: KnowledgeCodeParseStatus::Parsed,
-                symbols_indexed: item.symbols.len(),
-                edges_indexed: item.symbols.len(),
-                doc_passages_indexed: 0,
-                config_facts_indexed: 0,
-                failed: false,
-                failure_reason: None,
-                receipt_event_id: receipt_id,
-            });
-        }
-        Ok(outcomes)
-    }
-
-    async fn start_run_with_id(
-        &self,
-        ctx: &CodeIndexContext,
-        index_run_id: &str,
-        workspace_id: &str,
-        root_id: Option<&str>,
-    ) -> CodeIndexResult<()> {
-        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
-        if let Err(error) = self
-            .start_run_with_id_tx(&mut tx, ctx, index_run_id, workspace_id, root_id)
-            .await
-        {
-            let _ = tx.rollback().await;
-            return Err(error);
-        }
-        tx.commit().await.map_err(StorageError::from)?;
-        Ok(())
-    }
-
-    async fn start_run_with_id_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        ctx: &CodeIndexContext,
-        index_run_id: &str,
-        workspace_id: &str,
-        root_id: Option<&str>,
-    ) -> CodeIndexResult<()> {
-        let start_event = self.build_receipt_event(
+        let _ = (
+            self,
             ctx,
-            KernelEventType::KnowledgeIndexRunStarted,
-            "knowledge_code_index_run",
             workspace_id,
-            json!({
-                "kind": "code_index_run_started",
-                "workspace_id": workspace_id,
-                "root_id": root_id,
-                "extractor_version": CODE_EXTRACTOR_VERSION,
-            }),
-        )?;
-        let start_event_id = match append_kernel_event_with_executor(&mut **tx, start_event).await {
-            Ok(event) => event.event_id,
-            Err(error) => return Err(error.into()),
-        };
-        let inserted = sqlx::query(
-            r#"
-            INSERT INTO knowledge_index_runs
-                (index_run_id, workspace_id, root_id, scope, actor_kind,
-                 actor_id, worktree_id, start_receipt_event_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            "#,
-        )
-        .bind(index_run_id)
-        .bind(workspace_id)
-        .bind(root_id)
-        .bind(json!({"index_kind": "code", "extractor_version": CODE_EXTRACTOR_VERSION}))
-        .bind(ctx.actor.actor_kind())
-        .bind(ctx.actor.actor_id())
-        .bind(Option::<String>::None)
-        .bind(start_event_id)
-        .execute(&mut **tx)
-        .await;
-        if let Err(error) = inserted {
-            return Err(StorageError::from(error).into());
-        }
-        Ok(())
+            prepared,
+            persisted_sources,
+            index_run_id,
+        );
+        Ok(None)
     }
 
     fn build_receipt_event(
@@ -644,7 +554,6 @@ impl CodeIndexEngine {
         ttl_seconds: i64,
     ) -> CodeIndexResult<QuietCodeIndexRun> {
         ctx.validate()?;
-        let index_run_id = new_code_index_run_id();
         let source_root_id = root_id.unwrap_or(workspace_id).to_string();
         let scope = ClaimScope::IndexRun {
             workspace_id: workspace_id.to_string(),
@@ -666,6 +575,7 @@ impl CodeIndexEngine {
             .map_err(|err| {
                 CodeIndexError::Validation(format!("quiet indexing lease preflight failed: {err}"))
             })?;
+        let index_run_id = self.start_run(ctx, workspace_id, root_id).await?;
         let lease_request = IndexingLeaseRequest {
             workspace_id: workspace_id.to_string(),
             wp_id: wp_id.to_string(),
@@ -679,7 +589,7 @@ impl CodeIndexEngine {
             quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
         };
         let quiet_request = QuietBackgroundWorkRequest {
-            lane,
+            lane: lane.clone(),
             workspace_id: workspace_id.to_string(),
             wp_id: wp_id.to_string(),
             mt_id: mt_id.to_string(),
@@ -689,45 +599,60 @@ impl CodeIndexEngine {
             policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
             evidence_ref: format!("knowledge-index-run://{index_run_id}"),
         };
-        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
-        let indexing_lease = match swarm_state
-            .try_acquire_indexing_lease_tx(&mut tx, &lease_request)
-            .await
-        {
+        let indexing_lease = match swarm_state.try_acquire_indexing_lease(lease_request).await {
             Ok(Some(record)) => record,
             Ok(None) => {
-                let _ = tx.rollback().await;
+                let _ = self
+                    .finish_run_with_retry(
+                        ctx,
+                        &index_run_id,
+                        KnowledgeIndexRunOutcome::Cancelled {
+                            counts: KnowledgeIndexRunCounts::default(),
+                        },
+                    )
+                    .await;
                 return Err(CodeIndexError::Validation(format!(
                     "quiet indexing run {index_run_id} did not acquire index lease"
                 )));
             }
             Err(error) => {
-                let _ = tx.rollback().await;
+                let _ = self
+                    .finish_run_with_retry(
+                        ctx,
+                        &index_run_id,
+                        KnowledgeIndexRunOutcome::Cancelled {
+                            counts: KnowledgeIndexRunCounts::default(),
+                        },
+                    )
+                    .await;
                 return Err(CodeIndexError::Validation(format!(
                     "quiet indexing lease failed: {error}"
                 )));
             }
         };
-        if let Err(error) = self
-            .start_run_with_id_tx(&mut tx, ctx, &index_run_id, workspace_id, root_id)
-            .await
-        {
-            let _ = tx.rollback().await;
-            return Err(error);
-        }
         let quiet_receipt = match swarm_state
-            .record_quiet_background_work_tx(&mut tx, quiet_request)
+            .record_quiet_background_work(quiet_request)
             .await
         {
             Ok(record) => record,
             Err(error) => {
-                let _ = tx.rollback().await;
+                let _ = swarm_state
+                    .complete_indexing_lease(&indexing_lease.lease_id, &lane)
+                    .await;
+                let _ = self
+                    .finish_run_with_retry(
+                        ctx,
+                        &index_run_id,
+                        KnowledgeIndexRunOutcome::Cancelled {
+                            counts: KnowledgeIndexRunCounts::default(),
+                        },
+                    )
+                    .await;
                 return Err(CodeIndexError::Validation(format!(
                     "quiet indexing receipt failed: {error}"
                 )));
             }
         };
-        tx.commit().await.map_err(StorageError::from)?;
         Ok(QuietCodeIndexRun {
             index_run_id,
             indexing_lease,
@@ -882,7 +807,15 @@ impl CodeIndexEngine {
                     "perf_budget": perf_budget_json,
                 }),
             )
-            .await?;
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "index_code_file.append_file_receipt",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
 
         // The file entity (kind `file`).
         let file_entity = self
@@ -901,7 +834,15 @@ impl CodeIndexEngine {
                 detected_in_run: index_run_id.map(|s| s.to_string()),
                 evidence_span_ids: Vec::new(),
             })
-            .await?;
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "index_code_file.upsert_file_entity",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
 
         // Symbols: span + entity + contains edge each. Map symbol_path ->
         // (entity_id, span_id) so relationship resolution can wire edges.
@@ -920,7 +861,15 @@ impl CodeIndexEngine {
                     index_run_id,
                     symbol,
                 )
-                .await?;
+                .await
+                .map_err(|error| {
+                    stage_error(
+                        "index_code_file.write_symbol",
+                        workspace_id,
+                        Some(source_id),
+                        error,
+                    )
+                })?;
             // contains edge: file -> symbol (evidence = the symbol span).
             self.db
                 .upsert_knowledge_edge(NewKnowledgeEdge {
@@ -933,7 +882,15 @@ impl CodeIndexEngine {
                     detected_in_run: index_run_id.map(|s| s.to_string()),
                     evidence_span_ids: vec![resolved.span_id.clone()],
                 })
-                .await?;
+                .await
+                .map_err(|error| {
+                    stage_error(
+                        "index_code_file.upsert_contains_edge",
+                        workspace_id,
+                        Some(source_id),
+                        error,
+                    )
+                })?;
             if symbol.kind == SymbolKind::Test {
                 test_symbol_index.insert(symbol_identity_key(symbol), resolved.clone());
             }
@@ -1048,30 +1005,45 @@ impl CodeIndexEngine {
                 KnowledgeExtractionStatus::Extracted,
                 &receipt_event_id,
             )
-            .await?;
-        self.db
-            .upsert_knowledge_code_file(UpsertKnowledgeCodeFile {
-                workspace_id: workspace_id.to_string(),
-                source_id: source_id.to_string(),
-                file_entity_id: Some(file_entity.entity_id.clone()),
-                language: code_language_to_storage(language),
-                indexed_content_hash: content_hash,
-                parser_version,
-                parse_status,
-                symbols_indexed: symbols.len() as i32,
-                edges_indexed: edges_indexed as i32,
-                failure_detail: if perf_sample.within_budget {
-                    None
-                } else {
-                    Some(json!({
-                        "kind": "code_index_perf_budget_exceeded",
-                        "perf_budget": perf_sample_json(&perf_sample, &perf_budget),
-                    }))
-                },
-                last_indexed_in_run: index_run_id.map(|s| s.to_string()),
-                last_index_receipt_event_id: Some(receipt_event_id.clone()),
-            })
-            .await?;
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "index_code_file.record_source_receipt",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
+        self.persist_code_file_state(UpsertKnowledgeCodeFile {
+            workspace_id: workspace_id.to_string(),
+            source_id: source_id.to_string(),
+            file_entity_id: Some(file_entity.entity_id.clone()),
+            language: code_language_to_storage(language),
+            indexed_content_hash: content_hash,
+            parser_version,
+            parse_status,
+            symbols_indexed: symbols.len() as i32,
+            edges_indexed: edges_indexed as i32,
+            failure_detail: if perf_sample.within_budget {
+                None
+            } else {
+                Some(json!({
+                    "kind": "code_index_perf_budget_exceeded",
+                    "perf_budget": perf_sample_json(&perf_sample, &perf_budget),
+                }))
+            },
+            last_indexed_in_run: index_run_id.map(|s| s.to_string()),
+            last_index_receipt_event_id: Some(receipt_event_id.clone()),
+        })
+        .await
+        .map_err(|error| {
+            stage_error(
+                "index_code_file.persist_code_file_state",
+                workspace_id,
+                Some(source_id),
+                error,
+            )
+        })?;
 
         Ok(CodeFileIndexOutcome {
             source_id: source_id.to_string(),
@@ -1125,7 +1097,15 @@ impl CodeIndexEngine {
                 index_run_id: index_run_id.map(|s| s.to_string()),
                 display_snippet: Some(snippet.to_string()),
             })
-            .await?;
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "write_symbol.create_span",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
 
         let entity = self
             .db
@@ -1146,7 +1126,15 @@ impl CodeIndexEngine {
                 detected_in_run: index_run_id.map(|s| s.to_string()),
                 evidence_span_ids: vec![span.span_id.clone()],
             })
-            .await?;
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "write_symbol.upsert_entity",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
         self.db
             .replace_knowledge_entity_spans_for_source_kind(
                 &entity.entity_id,
@@ -1155,7 +1143,15 @@ impl CodeIndexEngine {
                 std::slice::from_ref(&span.span_id),
                 index_run_id,
             )
-            .await?;
+            .await
+            .map_err(|error| {
+                stage_error(
+                    "write_symbol.replace_entity_spans",
+                    workspace_id,
+                    Some(source_id),
+                    error,
+                )
+            })?;
 
         Ok(ResolvedSymbol {
             entity_id: entity.entity_id,
@@ -1420,43 +1416,41 @@ impl CodeIndexEngine {
         let storage_language = language
             .map(code_language_to_storage)
             .unwrap_or(KnowledgeCodeLanguage::Javascript);
-        self.db
-            .upsert_knowledge_code_file(UpsertKnowledgeCodeFile {
-                workspace_id: workspace_id.to_string(),
-                source_id: source_id.to_string(),
-                file_entity_id: None,
-                language: storage_language,
-                indexed_content_hash: content_hash.to_string(),
-                parser_version: parser_version.to_string(),
-                parse_status: KnowledgeCodeParseStatus::Failed,
-                symbols_indexed: 0,
-                edges_indexed: 0,
-                failure_detail: Some(json!({
-                    "reason": reason,
-                    "reason_class": reason_class.as_str(),
-                })),
-                last_indexed_in_run: index_run_id.map(|s| s.to_string()),
-                last_index_receipt_event_id: Some(receipt_event_id.clone()),
-            })
-            .await?;
+        self.persist_code_file_state(UpsertKnowledgeCodeFile {
+            workspace_id: workspace_id.to_string(),
+            source_id: source_id.to_string(),
+            file_entity_id: None,
+            language: storage_language,
+            indexed_content_hash: content_hash.to_string(),
+            parser_version: parser_version.to_string(),
+            parse_status: KnowledgeCodeParseStatus::Failed,
+            symbols_indexed: 0,
+            edges_indexed: 0,
+            failure_detail: Some(json!({
+                "reason": reason,
+                "reason_class": reason_class.as_str(),
+            })),
+            last_indexed_in_run: index_run_id.map(|s| s.to_string()),
+            last_index_receipt_event_id: Some(receipt_event_id.clone()),
+        })
+        .await?;
 
         // The durable repair surface: a re-failing file refreshes its open entry
         // (one per source); a previously dead-lettered file is reopened. This is
         // what holds the file for re-processing after the cause is fixed.
-        self.db
-            .enqueue_knowledge_code_repair(NewKnowledgeCodeRepairEntry {
-                workspace_id: workspace_id.to_string(),
-                source_id: source_id.to_string(),
-                relative_path: relative_path.to_string(),
-                reason_class,
-                reason_detail: json!({
-                    "reason": reason,
-                    "language": language.map(|l| l.as_str()),
-                    "parser_version": parser_version,
-                }),
-                enqueue_event_id: Some(receipt_event_id.clone()),
-            })
-            .await?;
+        self.enqueue_code_repair(NewKnowledgeCodeRepairEntry {
+            workspace_id: workspace_id.to_string(),
+            source_id: source_id.to_string(),
+            relative_path: relative_path.to_string(),
+            reason_class,
+            reason_detail: json!({
+                "reason": reason,
+                "language": language.map(|l| l.as_str()),
+                "parser_version": parser_version,
+            }),
+            enqueue_event_id: Some(receipt_event_id.clone()),
+        })
+        .await?;
 
         Ok(CodeFileIndexOutcome {
             source_id: source_id.to_string(),
@@ -1622,22 +1616,21 @@ impl CodeIndexEngine {
         // lens are blind to config sources. `edges_indexed` == contains edges
         // (one per fact); symbols_indexed stays 0 (config keys are entities, not
         // tree-sitter symbols).
-        self.db
-            .upsert_knowledge_code_file(UpsertKnowledgeCodeFile {
-                workspace_id: workspace_id.to_string(),
-                source_id: source_id.to_string(),
-                file_entity_id: Some(file_entity.entity_id.clone()),
-                language: KnowledgeCodeLanguage::Config,
-                indexed_content_hash: sha256_hex(text.as_bytes()),
-                parser_version: parser_version.clone(),
-                parse_status: KnowledgeCodeParseStatus::Parsed,
-                symbols_indexed: 0,
-                edges_indexed: count as i32,
-                failure_detail: None,
-                last_indexed_in_run: index_run_id.map(|s| s.to_string()),
-                last_index_receipt_event_id: Some(receipt_event_id.clone()),
-            })
-            .await?;
+        self.persist_code_file_state(UpsertKnowledgeCodeFile {
+            workspace_id: workspace_id.to_string(),
+            source_id: source_id.to_string(),
+            file_entity_id: Some(file_entity.entity_id.clone()),
+            language: KnowledgeCodeLanguage::Config,
+            indexed_content_hash: sha256_hex(text.as_bytes()),
+            parser_version: parser_version.clone(),
+            parse_status: KnowledgeCodeParseStatus::Parsed,
+            symbols_indexed: 0,
+            edges_indexed: count as i32,
+            failure_detail: None,
+            last_indexed_in_run: index_run_id.map(|s| s.to_string()),
+            last_index_receipt_event_id: Some(receipt_event_id.clone()),
+        })
+        .await?;
 
         Ok(CodeFileIndexOutcome {
             source_id: source_id.to_string(),
@@ -1723,271 +1716,6 @@ impl CodeIndexEngine {
             .await?;
         Ok(source.source_id)
     }
-}
-
-async fn append_batch_events(
-    tx: &mut Transaction<'_, Postgres>,
-    events: &[NewKernelEvent],
-) -> CodeIndexResult<HashMap<String, String>> {
-    let mut keys = Vec::with_capacity(events.len());
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO kernel_event_ledger (event_id,event_version,kernel_task_run_id,session_run_id,aggregate_type,aggregate_id,idempotency_key,event_type,actor_kind,actor_id,causation_id,correlation_id,payload_hash,source_component,payload,created_at) ",
-    );
-    query.push_values(events, |mut b, event| {
-        event
-            .validate()
-            .expect("validated kernel event builder output");
-        let kernel = KernelEvent::from_new(event.clone());
-        keys.push(event.idempotency_key.clone());
-        b.push_bind(kernel.event_id)
-            .push_bind(event.event_version.clone())
-            .push_bind(event.kernel_task_run_id.clone())
-            .push_bind(event.session_run_id.clone())
-            .push_bind(event.aggregate_type.clone())
-            .push_bind(event.aggregate_id.clone())
-            .push_bind(event.idempotency_key.clone())
-            .push_bind(event.event_type.as_str())
-            .push_bind(event.actor.actor_kind())
-            .push_bind(event.actor.actor_id())
-            .push_bind(event.causation_id.clone())
-            .push_bind(event.correlation_id.clone())
-            .push_bind(event.payload_hash.clone())
-            .push_bind(event.source_component.clone())
-            .push_bind(sqlx::types::Json(event.payload.clone()))
-            .push_bind(chrono::Utc::now());
-    });
-    query.push(" ON CONFLICT (idempotency_key) DO NOTHING");
-    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
-    let rows = sqlx::query(
-        "SELECT idempotency_key,event_id,event_version,kernel_task_run_id,session_run_id,aggregate_type,aggregate_id,event_type,actor_kind,actor_id,causation_id,correlation_id,payload_hash,source_component FROM kernel_event_ledger WHERE idempotency_key = ANY($1)",
-    )
-    .bind(&keys)
-    .fetch_all(&mut **tx)
-    .await
-    .map_err(StorageError::from)?;
-    let mut result = HashMap::with_capacity(rows.len());
-    let expected = events
-        .iter()
-        .map(|event| (event.idempotency_key.as_str(), event))
-        .collect::<HashMap<_, _>>();
-    for row in rows {
-        let key: String = row.get("idempotency_key");
-        let event = expected
-            .get(key.as_str())
-            .ok_or(StorageError::NotFound("kernel event idempotency key"))?;
-        let matches = row.get::<String, _>("event_version") == event.event_version
-            && row.get::<String, _>("kernel_task_run_id") == event.kernel_task_run_id
-            && row.get::<String, _>("session_run_id") == event.session_run_id
-            && row.get::<String, _>("aggregate_type") == event.aggregate_type
-            && row.get::<String, _>("aggregate_id") == event.aggregate_id
-            && row.get::<String, _>("event_type") == event.event_type.as_str()
-            && row.get::<String, _>("actor_kind") == event.actor.actor_kind()
-            && row.get::<String, _>("actor_id") == event.actor.actor_id()
-            && row.get::<Option<String>, _>("causation_id") == event.causation_id
-            && row.get::<Option<String>, _>("correlation_id") == event.correlation_id
-            && row.get::<String, _>("payload_hash") == event.payload_hash
-            && row.get::<String, _>("source_component") == event.source_component;
-        if !matches {
-            return Err(CodeIndexError::Storage(StorageError::Conflict(
-                "kernel event idempotency conflict",
-            )));
-        }
-        result.insert(key, row.get("event_id"));
-    }
-    Ok(result)
-}
-
-async fn insert_batch_spans(
-    tx: &mut Transaction<'_, Postgres>,
-    spans: &[BatchSpan],
-) -> CodeIndexResult<()> {
-    if spans.is_empty() {
-        return Ok(());
-    }
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO knowledge_spans (span_id,source_id,span_kind,range_start,range_end,line_start,line_end,section_path,content_sha256,parser_version,extraction_receipt_event_id,index_run_id,display_snippet) ",
-    );
-    query.push_values(spans, |mut b, span| {
-        b.push_bind(span.span_id.clone())
-            .push_bind(span.source_id.clone())
-            .push_bind(KnowledgeSpanKind::Ast.as_str())
-            .push_bind(span.range_start)
-            .push_bind(span.range_end)
-            .push_bind(span.line_start)
-            .push_bind(span.line_end)
-            .push_bind(Some(span.section_path.clone()))
-            .push_bind(span.content_sha256.clone())
-            .push_bind(span.parser_version.clone())
-            .push_bind(Some(span.receipt_event_id.clone()))
-            .push_bind(Some(span.index_run_id.clone()))
-            .push_bind(Some("symbol definition".to_string()));
-    });
-    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(())
-}
-
-type BatchEntityRow = (String, KnowledgeEntityKind, String, String, Value, Option<String>);
-
-async fn insert_batch_entities(
-    tx: &mut Transaction<'_, Postgres>,
-    workspace_id: &str,
-    index_run_id: &str,
-    rows: &[BatchEntityRow],
-) -> CodeIndexResult<HashMap<(String, String), String>> {
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO knowledge_entities (entity_id,workspace_id,entity_kind,entity_key,display_name,detection_provenance,primary_source_id,first_detected_in_run,last_detected_in_run) ",
-    );
-    query.push_values(rows, |mut b, row| {
-        b.push_bind(batch_id("KEN"))
-            .push_bind(workspace_id)
-            .push_bind(row.1.as_str())
-            .push_bind(row.2.clone())
-            .push_bind(row.3.clone())
-            .push_bind(row.4.clone())
-            .push_bind(row.5.clone())
-            .push_bind(Some(index_run_id))
-            .push_bind(Some(index_run_id));
-    });
-    query.push(" ON CONFLICT (workspace_id,entity_kind,entity_key) DO UPDATE SET display_name=EXCLUDED.display_name,detection_provenance=EXCLUDED.detection_provenance,primary_source_id=COALESCE(EXCLUDED.primary_source_id,knowledge_entities.primary_source_id),last_detected_in_run=COALESCE(EXCLUDED.last_detected_in_run,knowledge_entities.last_detected_in_run),lifecycle_state='active',updated_at=NOW() RETURNING entity_id,entity_kind,entity_key");
-    let result = query.build().fetch_all(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(result
-        .into_iter()
-        .map(|row| {
-            (
-                (row.get::<String, _>("entity_kind"), row.get::<String, _>("entity_key")),
-                row.get("entity_id"),
-            )
-        })
-        .collect())
-}
-
-async fn insert_batch_entity_spans(
-    tx: &mut Transaction<'_, Postgres>,
-    index_run_id: &str,
-    rows: &[(String, String)],
-) -> CodeIndexResult<()> {
-    if rows.is_empty() {
-        return Ok(());
-    }
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO knowledge_entity_spans (entity_id,span_id,detected_in_run) ",
-    );
-    query.push_values(rows, |mut b, row| {
-        b.push_bind(row.0.clone())
-            .push_bind(row.1.clone())
-            .push_bind(Some(index_run_id));
-    });
-    query.push(" ON CONFLICT (entity_id,span_id) DO UPDATE SET detected_in_run=EXCLUDED.detected_in_run");
-    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(())
-}
-
-async fn insert_batch_edges(
-    tx: &mut Transaction<'_, Postgres>,
-    workspace_id: &str,
-    index_run_id: &str,
-    rows: &[(String, String, String, String)],
-) -> CodeIndexResult<HashMap<String, String>> {
-    if rows.is_empty() {
-        return Ok(HashMap::new());
-    }
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO knowledge_edges (edge_id,workspace_id,relationship_id,edge_type,source_entity_id,target_entity_id,extractor_version,confidence,created_in_run,last_seen_in_run) ",
-    );
-    query.push_values(rows, |mut b, row| {
-        b.push_bind(batch_id("KED"))
-            .push_bind(workspace_id)
-            .push_bind(row.0.clone())
-            .push_bind(KnowledgeEdgeType::Contains.as_str())
-            .push_bind(row.1.clone())
-            .push_bind(row.2.clone())
-            .push_bind(CODE_EXTRACTOR_VERSION)
-            .push_bind(1.0_f64)
-            .push_bind(Some(index_run_id))
-            .push_bind(Some(index_run_id));
-    });
-    query.push(" ON CONFLICT (workspace_id,relationship_id) DO UPDATE SET confidence=EXCLUDED.confidence,extractor_version=EXCLUDED.extractor_version,last_seen_in_run=COALESCE(EXCLUDED.last_seen_in_run,knowledge_edges.last_seen_in_run),updated_at=NOW() RETURNING edge_id,relationship_id");
-    let result = query.build().fetch_all(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(result
-        .into_iter()
-        .map(|row| (row.get("relationship_id"), row.get("edge_id")))
-        .collect())
-}
-
-async fn insert_batch_edge_spans(
-    tx: &mut Transaction<'_, Postgres>,
-    index_run_id: &str,
-    edge_ids: &HashMap<String, String>,
-    rows: &[(String, String, String, String)],
-) -> CodeIndexResult<()> {
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO knowledge_edge_spans (edge_id,span_id,recorded_in_run) ",
-    );
-    let mut count = 0usize;
-    query.push(" VALUES ");
-    for row in rows {
-        let Some(edge_id) = edge_ids.get(&row.0) else { continue };
-        if count > 0 { query.push(","); }
-        query.push("(").push_bind(edge_id).push(",").push_bind(&row.3).push(",").push_bind(Some(index_run_id)).push(")");
-        count += 1;
-    }
-    if count == 0 { return Ok(()); }
-    query.push(" ON CONFLICT (edge_id,span_id) DO UPDATE SET recorded_in_run=EXCLUDED.recorded_in_run");
-    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(())
-}
-
-async fn insert_batch_code_files(
-    tx: &mut Transaction<'_, Postgres>,
-    workspace_id: &str,
-    index_run_id: &str,
-    parsed: &[BatchParsedCodeFile],
-    receipt_ids: &HashMap<String, String>,
-    entity_ids: &HashMap<(String, String), String>,
-) -> CodeIndexResult<()> {
-    let mut query = QueryBuilder::<Postgres>::new(
-        "INSERT INTO knowledge_code_files (code_file_id,workspace_id,source_id,file_entity_id,language,indexed_content_hash,parser_version,parse_status,stale,symbols_indexed,edges_indexed,failure_detail,last_indexed_in_run,last_index_receipt_event_id) ",
-    );
-    query.push_values(parsed, |mut b, item| {
-        let key = (KnowledgeEntityKind::File.as_str().to_string(), format!("file:{}", item.relative_path));
-        let receipt = receipt_ids.get(&item.receipt.idempotency_key).cloned();
-        b.push_bind(batch_id("KCF"))
-            .push_bind(workspace_id)
-            .push_bind(item.source_id.clone())
-            .push_bind(entity_ids.get(&key).cloned())
-            .push_bind(code_language_to_storage(item.language).as_str())
-            .push_bind(item.content_hash.clone())
-            .push_bind(item.parser_version.clone())
-            .push_bind(KnowledgeCodeParseStatus::Parsed.as_str())
-            .push_bind(false)
-            .push_bind(item.symbols.len() as i32)
-            .push_bind(item.symbols.len() as i32)
-            .push_bind(item.perf_failure.clone())
-            .push_bind(Some(index_run_id))
-            .push_bind(receipt);
-    });
-    query.push(" ON CONFLICT (source_id) DO UPDATE SET file_entity_id=COALESCE(EXCLUDED.file_entity_id,knowledge_code_files.file_entity_id),language=EXCLUDED.language,indexed_content_hash=EXCLUDED.indexed_content_hash,parser_version=EXCLUDED.parser_version,parse_status=EXCLUDED.parse_status,stale=FALSE,symbols_indexed=EXCLUDED.symbols_indexed,edges_indexed=EXCLUDED.edges_indexed,failure_detail=EXCLUDED.failure_detail,last_indexed_in_run=COALESCE(EXCLUDED.last_indexed_in_run,knowledge_code_files.last_indexed_in_run),last_index_receipt_event_id=COALESCE(EXCLUDED.last_index_receipt_event_id,knowledge_code_files.last_index_receipt_event_id),updated_at=NOW()");
-    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(())
-}
-
-async fn update_batch_sources(
-    tx: &mut Transaction<'_, Postgres>,
-    parsed: &[BatchParsedCodeFile],
-    receipt_ids: &HashMap<String, String>,
-) -> CodeIndexResult<()> {
-    let mut query = QueryBuilder::<Postgres>::new(
-        "UPDATE knowledge_sources AS s SET parser_status=v.parser_status,extraction_status=v.extraction_status,last_index_receipt_event_id=v.receipt_event_id,updated_at=NOW() FROM (",
-    );
-    query.push_values(parsed, |mut b, item| {
-        b.push_bind(item.source_id.clone())
-            .push_bind("parsed")
-            .push_bind("extracted")
-            .push_bind(receipt_ids.get(&item.receipt.idempotency_key).cloned());
-    });
-    query.push(") AS v(source_id,parser_status,extraction_status,receipt_event_id) WHERE s.source_id=v.source_id");
-    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
-    Ok(())
 }
 
 /// A symbol resolved to its durable ids.

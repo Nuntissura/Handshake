@@ -9,7 +9,7 @@ use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::preferences::{
     preference_changed_event_payload, value_hash_ref, PreferenceChangeReceipt,
     PreferenceProjectionRow, PreferenceRecord, PreferenceSchemaEntry, PreferenceScope,
-    PreferenceSource, RedactionClass, PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID,
+    PreferenceSource, PreferenceValueType, RedactionClass, PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID,
     PREFERENCE_RECORD_SCHEMA_ID,
 };
 use crate::storage::{StorageError, StorageResult, WriteContext};
@@ -17,6 +17,8 @@ use crate::storage::{StorageError, StorageResult, WriteContext};
 const PREFERENCE_RECORDS_TABLE: &str = "preference_records";
 const PREFERENCE_CHANGE_RECEIPTS_TABLE: &str = "preference_change_receipts";
 const KERNEL_EVENT_LEDGER_TABLE: &str = "kernel_event_ledger";
+const PREFERENCE_REVISION_CONFLICT: &str = "HSK-PREFERENCE-REVISION-CONFLICT";
+const PREFERENCE_WRITE_MAX_ATTEMPTS: usize = 8;
 
 #[derive(Debug, SurrealValue)]
 struct PreferenceRecordRow {
@@ -45,6 +47,7 @@ struct PreferenceReceiptRow {
     after_revision: i64,
     old_value: Option<Value>,
     new_value: Value,
+    value_type: String,
     source: String,
     actor: String,
     event_ledger_event_id: RecordId,
@@ -66,7 +69,11 @@ struct PreferenceWriteBindings {
     source: String,
     redaction_class: String,
     actor: String,
+    expected_before_revision: Option<i64>,
+    after_revision: i64,
+    old_value: Option<Value>,
     updated_at: Datetime,
+    event_id: String,
     event_version: String,
     kernel_task_run_id: String,
     session_run_id: String,
@@ -90,15 +97,17 @@ impl TryFrom<PreferenceRecordRow> for PreferenceRecord {
         require_string_key(row.id, PREFERENCE_RECORDS_TABLE)?;
         let event_ledger_event_id =
             require_string_key(row.event_ledger_event_id, KERNEL_EVENT_LEDGER_TABLE)?;
+        let value = normalize_preference_value(row.value, &row.value_type)?;
+        let default_value = normalize_preference_value(row.default_value, &row.value_type)?;
         Ok(Self {
             schema_id: PREFERENCE_RECORD_SCHEMA_ID.to_owned(),
             preference_id: row.preference_id,
             namespace: row.namespace,
             value_type: row.value_type,
-            value: row.value,
+            value,
             scope: row.scope_kind,
             scope_ref: row.scope_ref,
-            default_value: row.default_value,
+            default_value,
             source: row.source,
             revision: row.revision,
             redaction_class: row.redaction_class,
@@ -115,6 +124,11 @@ impl TryFrom<PreferenceReceiptRow> for PreferenceChangeReceipt {
         let receipt_id = require_string_key(row.id, PREFERENCE_CHANGE_RECEIPTS_TABLE)?;
         let event_ledger_event_id =
             require_string_key(row.event_ledger_event_id, KERNEL_EVENT_LEDGER_TABLE)?;
+        let old_value = row
+            .old_value
+            .map(|value| normalize_preference_value(value, &row.value_type))
+            .transpose()?;
+        let new_value = normalize_preference_value(row.new_value, &row.value_type)?;
         Ok(Self {
             schema_id: PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID.to_owned(),
             receipt_id,
@@ -123,14 +137,30 @@ impl TryFrom<PreferenceReceiptRow> for PreferenceChangeReceipt {
             scope_ref: row.scope_ref,
             before_revision: row.before_revision,
             after_revision: row.after_revision,
-            old_value: row.old_value,
-            new_value: row.new_value,
+            old_value,
+            new_value,
             source: row.source,
             actor: row.actor,
             event_ledger_event_id,
             created_at: row.created_at.into_inner().to_rfc3339(),
         })
     }
+}
+
+fn normalize_preference_value(
+    value: Value,
+    value_type: &str,
+) -> Result<Value, SurrealStorageError> {
+    if value_type != PreferenceValueType::Float.as_str() {
+        return Ok(value);
+    }
+    let numeric = value
+        .as_f64()
+        .and_then(serde_json::Number::from_f64)
+        .ok_or(SurrealStorageError::InvalidPreferenceRecord {
+            reason: "float preference contains a non-finite or non-numeric value",
+        })?;
+    Ok(Value::Number(numeric))
 }
 
 fn require_string_key(
@@ -157,7 +187,7 @@ fn preference_record_key(scope: &PreferenceScope, preference_id: &str) -> String
     digest.update(scope.scope_ref.as_bytes());
     digest.update([0]);
     digest.update(preference_id.as_bytes());
-    format!("{digest:x}")
+    format!("{:x}", digest.finalize())
 }
 
 impl SurrealDataContext<'_> {
@@ -167,10 +197,8 @@ impl SurrealDataContext<'_> {
         entry: &PreferenceSchemaEntry,
     ) -> Result<Option<PreferenceRecord>, SurrealStorageError> {
         let key = preference_record_key(scope, entry.preference_id);
-        let row: Option<PreferenceRecordRow> = self
-            .client
-            .select((PREFERENCE_RECORDS_TABLE, key))
-            .await?;
+        let row: Option<PreferenceRecordRow> =
+            self.client.select((PREFERENCE_RECORDS_TABLE, key)).await?;
         row.map(TryInto::try_into).transpose()
     }
 
@@ -182,8 +210,6 @@ impl SurrealDataContext<'_> {
         source: PreferenceSource,
         actor: &str,
     ) -> Result<(PreferenceRecord, PreferenceChangeReceipt), SurrealStorageError> {
-        let receipt_id = Uuid::now_v7().to_string();
-        let event_id = Uuid::now_v7().to_string();
         let preference_key = preference_record_key(scope, entry.preference_id);
         let aggregate_id = format!(
             "{}:{}:{}",
@@ -192,82 +218,22 @@ impl SurrealDataContext<'_> {
             entry.preference_id
         );
         let run_id = format!("PREFERENCE-{aggregate_id}");
-        let mut event_receipt = PreferenceChangeReceipt {
-            schema_id: PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID.to_owned(),
-            receipt_id: receipt_id.clone(),
-            preference_id: entry.preference_id.to_owned(),
-            scope: scope.kind.as_str().to_owned(),
-            scope_ref: scope.scope_ref.clone(),
-            before_revision: None,
-            after_revision: 0,
-            old_value: None,
-            new_value: value.clone(),
-            source: source.as_str().to_owned(),
-            actor: actor.to_owned(),
-            event_ledger_event_id: event_id.clone(),
-            created_at: Utc::now().to_rfc3339(),
-        };
-        let payload = preference_changed_event_payload(
-            &event_receipt,
-            entry.redaction_class,
-            entry.value_type(),
-        );
         let kernel_actor = if actor.trim().is_empty() {
             KernelActor::System("preferences".to_owned())
         } else {
             KernelActor::Operator(actor.to_owned())
         };
-        let event = NewKernelEvent::builder(
-            run_id.clone(),
-            run_id,
-            KernelEventType::PreferenceRecordChanged,
-            kernel_actor,
-        )
-        .aggregate("preference_record", aggregate_id)
-        .source_component("preferences")
-        .payload(payload)
-        .build()
-        .map_err(|_| SurrealStorageError::InvalidPreferenceRecord {
-            reason: "preference change event failed validation",
-        })?;
-
-        let now = Datetime::from(Utc::now());
-        let bindings = PreferenceWriteBindings {
-            preference_record: RecordId::new(PREFERENCE_RECORDS_TABLE, preference_key),
-            receipt_record: RecordId::new(PREFERENCE_CHANGE_RECEIPTS_TABLE, receipt_id.clone()),
-            event_record: RecordId::new(KERNEL_EVENT_LEDGER_TABLE, event_id),
-            preference_id: entry.preference_id.to_owned(),
-            scope_kind: scope.kind.as_str().to_owned(),
-            scope_ref: scope.scope_ref.clone(),
-            namespace: entry.namespace.to_owned(),
-            value_type: entry.value_type().as_str().to_owned(),
-            value,
-            default_value: entry.default_value.clone(),
-            source: source.as_str().to_owned(),
-            redaction_class: entry.redaction_class.as_str().to_owned(),
-            actor: actor.to_owned(),
-            updated_at: now,
-            event_version: event.event_version,
-            kernel_task_run_id: event.kernel_task_run_id,
-            session_run_id: event.session_run_id,
-            aggregate_type: event.aggregate_type,
-            aggregate_id: event.aggregate_id,
-            idempotency_key: event.idempotency_key,
-            event_type: event.event_type.as_str().to_owned(),
-            actor_kind: event.actor.actor_kind().to_owned(),
-            actor_id: event.actor.actor_id().to_owned(),
-            causation_id: event.causation_id,
-            correlation_id: event.correlation_id,
-            payload_hash: event.payload_hash,
-            source_component: event.source_component,
-            payload: event.payload,
-        };
-
         let statement = r#"
 BEGIN TRANSACTION;
-LET $before = SELECT ONLY value, revision FROM $preference_record;
-LET $after_revision = IF $before = NONE { 1 } ELSE { $before.revision + 1 };
+LET $before = SELECT * FROM ONLY $preference_record;
+IF $before = NONE AND $expected_before_revision != NONE {
+    THROW 'HSK-PREFERENCE-REVISION-CONFLICT';
+};
+IF $before != NONE AND ($expected_before_revision = NONE OR $before.revision != $expected_before_revision) {
+    THROW 'HSK-PREFERENCE-REVISION-CONFLICT';
+};
 CREATE ONLY $event_record SET
+    event_id = $event_id,
     event_version = $event_version,
     kernel_task_run_id = $kernel_task_run_id,
     session_run_id = $session_run_id,
@@ -300,9 +266,9 @@ CREATE ONLY $receipt_record SET
     preference_id = $preference_id,
     scope_kind = $scope_kind,
     scope_ref = $scope_ref,
-    before_revision = $before.revision,
+    before_revision = $expected_before_revision,
     after_revision = $after_revision,
-    old_value = $before.value,
+    old_value = $old_value,
     new_value = $value,
     value_type = $value_type,
     source = $source,
@@ -312,30 +278,119 @@ CREATE ONLY $receipt_record SET
     created_at = $updated_at;
 COMMIT TRANSACTION;
 "#;
-        self.client
-            .query(statement)
-            .bind(SurrealValue::into_value(bindings))
-            .await?
-            .check()?;
 
-        let record = self
-            .get_preference_record(scope, entry)
-            .await?
-            .ok_or(SurrealStorageError::InvalidPreferenceRecord {
-                reason: "committed preference record is missing",
+        for attempt in 0..PREFERENCE_WRITE_MAX_ATTEMPTS {
+            let before = self.get_preference_record(scope, entry).await?;
+            let expected_before_revision = before.as_ref().map(|record| record.revision);
+            let after_revision = expected_before_revision.unwrap_or(0) + 1;
+            let old_value = before.as_ref().map(|record| record.value.clone());
+            let receipt_id = Uuid::now_v7().to_string();
+            let event_id = format!("KE-{}", Uuid::now_v7());
+            let event_receipt = PreferenceChangeReceipt {
+                schema_id: PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID.to_owned(),
+                receipt_id: receipt_id.clone(),
+                preference_id: entry.preference_id.to_owned(),
+                scope: scope.kind.as_str().to_owned(),
+                scope_ref: scope.scope_ref.clone(),
+                before_revision: expected_before_revision,
+                after_revision,
+                old_value: old_value.clone(),
+                new_value: value.clone(),
+                source: source.as_str().to_owned(),
+                actor: actor.to_owned(),
+                event_ledger_event_id: event_id.clone(),
+                created_at: Utc::now().to_rfc3339(),
+            };
+            let payload = preference_changed_event_payload(
+                &event_receipt,
+                entry.redaction_class,
+                entry.value_type(),
+            );
+            let event = NewKernelEvent::builder(
+                run_id.clone(),
+                run_id.clone(),
+                KernelEventType::PreferenceRecordChanged,
+                kernel_actor.clone(),
+            )
+            .aggregate("preference_record", aggregate_id.clone())
+            .source_component("preferences")
+            .payload(payload)
+            .build()
+            .map_err(|_| SurrealStorageError::InvalidPreferenceRecord {
+                reason: "preference change event failed validation",
             })?;
-        let receipt_row: Option<PreferenceReceiptRow> = self
-            .client
-            .select((PREFERENCE_CHANGE_RECEIPTS_TABLE, receipt_id))
-            .await?;
-        let receipt = receipt_row
-            .ok_or(SurrealStorageError::InvalidPreferenceRecord {
-                reason: "committed preference receipt is missing",
-            })?
-            .try_into()?;
-        event_receipt.before_revision = receipt.before_revision;
-        event_receipt.after_revision = receipt.after_revision;
-        Ok((record, receipt))
+            let bindings = PreferenceWriteBindings {
+                preference_record: RecordId::new(PREFERENCE_RECORDS_TABLE, preference_key.clone()),
+                receipt_record: RecordId::new(
+                    PREFERENCE_CHANGE_RECEIPTS_TABLE,
+                    receipt_id.clone(),
+                ),
+                event_record: RecordId::new(KERNEL_EVENT_LEDGER_TABLE, event_id.clone()),
+                preference_id: entry.preference_id.to_owned(),
+                scope_kind: scope.kind.as_str().to_owned(),
+                scope_ref: scope.scope_ref.clone(),
+                namespace: entry.namespace.to_owned(),
+                value_type: entry.value_type().as_str().to_owned(),
+                value: value.clone(),
+                default_value: entry.default_value.clone(),
+                source: source.as_str().to_owned(),
+                redaction_class: entry.redaction_class.as_str().to_owned(),
+                actor: actor.to_owned(),
+                expected_before_revision,
+                after_revision,
+                old_value,
+                updated_at: Datetime::from(Utc::now()),
+                event_id,
+                event_version: event.event_version,
+                kernel_task_run_id: event.kernel_task_run_id,
+                session_run_id: event.session_run_id,
+                aggregate_type: event.aggregate_type,
+                aggregate_id: event.aggregate_id,
+                idempotency_key: event.idempotency_key,
+                event_type: event.event_type.as_str().to_owned(),
+                actor_kind: event.actor.actor_kind().to_owned(),
+                actor_id: event.actor.actor_id().to_owned(),
+                causation_id: event.causation_id,
+                correlation_id: event.correlation_id,
+                payload_hash: event.payload_hash,
+                source_component: event.source_component,
+                payload: event.payload,
+            };
+
+            let response = self
+                .client
+                .query(statement)
+                .bind(SurrealValue::into_value(bindings))
+                .await?;
+            if let Err(error) = response.check() {
+                if error.to_string().contains(PREFERENCE_REVISION_CONFLICT)
+                    && attempt + 1 < PREFERENCE_WRITE_MAX_ATTEMPTS
+                {
+                    continue;
+                }
+                return Err(error.into());
+            }
+
+            let record = self.get_preference_record(scope, entry).await?.ok_or(
+                SurrealStorageError::InvalidPreferenceRecord {
+                    reason: "committed preference record is missing",
+                },
+            )?;
+            let receipt_row: Option<PreferenceReceiptRow> = self
+                .client
+                .select((PREFERENCE_CHANGE_RECEIPTS_TABLE, receipt_id))
+                .await?;
+            let receipt = receipt_row
+                .ok_or(SurrealStorageError::InvalidPreferenceRecord {
+                    reason: "committed preference receipt is missing",
+                })?
+                .try_into()?;
+            return Ok((record, receipt));
+        }
+
+        Err(SurrealStorageError::InvalidPreferenceRecord {
+            reason: "preference write exhausted revision retries",
+        })
     }
 
     async fn preference_receipts(
@@ -366,9 +421,15 @@ impl SurrealStorage {
     ) -> StorageResult<PreferenceRecord> {
         let scope = scope.clone();
         let entry = entry.clone();
+        let scope_for_query = scope.clone();
+        let entry_for_query = entry.clone();
         let result = self
             .with_data_operation(move |database| {
-                Box::pin(async move { database.get_preference_record(&scope, &entry).await })
+                Box::pin(async move {
+                    database
+                        .get_preference_record(&scope_for_query, &entry_for_query)
+                        .await
+                })
             })
             .await
             .map_err(map_storage_error)?;
@@ -435,11 +496,7 @@ impl SurrealStorage {
         let scope = scope.clone();
         let preference_id = preference_id.to_owned();
         self.with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .preference_receipts(&scope, &preference_id)
-                    .await
-            })
+            Box::pin(async move { database.preference_receipts(&scope, &preference_id).await })
         })
         .await
         .map_err(map_storage_error)

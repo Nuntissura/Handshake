@@ -21,8 +21,6 @@
 
 use std::collections::HashMap;
 
-use sqlx::PgPool;
-
 use crate::storage::knowledge::{
     KnowledgeEdgeLifecycle, KnowledgeEdgeType, KnowledgeStore, NewKnowledgeEdge,
 };
@@ -30,7 +28,7 @@ use crate::storage::knowledge_memory::{
     entity_edge_degree, find_entity_cooccurrences, list_active_edge_endpoints,
     record_bridge_decision, BridgeDecision, BridgeDecisionRecord,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::{SurrealDatabase, SurrealStorage};
 use crate::storage::StorageResult;
 
 pub use crate::storage::knowledge_memory::list_bridge_decisions;
@@ -102,8 +100,8 @@ pub struct BridgeGenerationResult {
 ///
 /// `extractor_version` and `confidence` are stamped on the produced edges.
 pub async fn generate_bridge_edges(
-    db: &PostgresDatabase,
-    pool: &PgPool,
+    db: &SurrealDatabase,
+    pool: &SurrealStorage,
     workspace_id: &str,
     hub_degree_threshold: i32,
     confidence: f64,

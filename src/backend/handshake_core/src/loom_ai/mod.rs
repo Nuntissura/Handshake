@@ -22,7 +22,6 @@ pub mod promotion;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::kernel::crdt::actor_site::KnowledgeActorIdV1;
@@ -32,6 +31,7 @@ use crate::storage::loom_ai::{
     insert_loom_ai_suggestion, new_job_id, new_suggestion_id, LoomAiJobKind, LoomAiSuggestionRow,
     NewLoomAiSuggestion,
 };
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::{Database, LoomBlock, StorageError};
 
 pub const LOOM_AI_SUGGESTION_SCHEMA_ID: &str = "hsk.loom.ai_suggestion@1";
@@ -164,7 +164,12 @@ fn build_prompt(kind: LoomAiJobKind, block: &LoomBlock, req: &LoomAiJobRequest) 
 /// Returns `None` when the model gave nothing usable (e.g. blank, or a
 /// link target that matches no candidate) — that block simply gets no
 /// suggestion (never a fabricated one).
-fn parse_output(kind: LoomAiJobKind, block: &LoomBlock, req: &LoomAiJobRequest, raw: &str) -> Option<ParsedSuggestion> {
+fn parse_output(
+    kind: LoomAiJobKind,
+    block: &LoomBlock,
+    req: &LoomAiJobRequest,
+    raw: &str,
+) -> Option<ParsedSuggestion> {
     let cleaned = raw.trim().trim_matches('"').trim();
     if cleaned.is_empty() {
         return None;
@@ -220,7 +225,7 @@ fn parse_output(kind: LoomAiJobKind, block: &LoomBlock, req: &LoomAiJobRequest, 
 /// — the job declines loudly rather than fabricating output.
 pub async fn run_loom_ai_job(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    storage: &SurrealStorage,
     llm: &dyn LlmClient,
     req: LoomAiJobRequest,
 ) -> Result<LoomAiJobResult, LoomAiJobError> {
@@ -317,7 +322,7 @@ pub async fn run_loom_ai_job(
             .map_err(|err| LoomAiJobError::Internal(err.to_string()))?;
 
         let row = insert_loom_ai_suggestion(
-            pool,
+            storage,
             NewLoomAiSuggestion {
                 suggestion_id,
                 job_id: job_id.clone(),

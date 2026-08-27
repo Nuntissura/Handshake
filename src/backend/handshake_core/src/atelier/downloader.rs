@@ -9,8 +9,7 @@
 //! The SQLite/Electron/localhost/polling originals are NOT copied; only the
 //! governed DATA + RECEIPT contract is translated. Storage authority is the
 //! single Handshake store + EventLedger only (see
-//! [`super::assert_postgres_url`], MT-004). PENDING the SurrealDB port — see
-//! the `atelier` module header (MT-138).
+//! the embedded SurrealDB authority and EventLedger only (MT-004/MT-138).
 //!
 //! IMPORTANT BOUNDARY (Section 6.10.1 LAW-MDV2-EXEC-001..003): this module is a
 //! pure governed records/receipt repository. It NEVER opens a socket, spawns a
@@ -31,10 +30,22 @@
 use crate::capabilities::CapabilityRegistry;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sha2::{Digest, Sha256};
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
+
+fn stable_downloader_uuid(kind: &str, natural_key: &str) -> Uuid {
+    let digest = Sha256::digest(format!("atelier.downloader:{kind}:{natural_key}").as_bytes());
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x50;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes)
+}
 
 /// Media-downloader-v2 event families (MT-204, extends the MT-005 coverage set).
 ///
@@ -698,144 +709,342 @@ pub(crate) fn validate_media_downloader_capability_grant(
 // Row mappers
 // ---------------------------------------------------------------------------
 
-fn output_root_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<OutputRootConfig> {
-    let mode: String = row.get("materialization_mode");
+#[derive(SurrealValue)]
+struct OutputRootRow {
+    root_id: SurrealUuid,
+    configured_root: String,
+    materialization_mode: String,
+    per_mode_subdirs: serde_json::Value,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+fn output_root_from_row(row: OutputRootRow) -> AtelierResult<OutputRootConfig> {
     Ok(OutputRootConfig {
-        root_id: row.get("root_id"),
-        configured_root: row.get("configured_root"),
-        materialization_mode: MaterializationMode::from_token(&mode)?,
-        per_mode_subdirs: row.get("per_mode_subdirs"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        root_id: row.root_id.into(),
+        configured_root: row.configured_root,
+        materialization_mode: MaterializationMode::from_token(&row.materialization_mode)?,
+        per_mode_subdirs: row.per_mode_subdirs,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
-fn allowlist_from_row(row: &sqlx::postgres::PgRow) -> AllowlistPolicy {
+#[derive(SurrealValue)]
+struct AllowlistRow {
+    allowlist_policy_id: SurrealUuid,
+    name: String,
+    allowed_domains: serde_json::Value,
+    explicit_url_lists: serde_json::Value,
+    default_decision: String,
+    rate_limit: serde_json::Value,
+    max_pages: i64,
+    robots_posture: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+fn allowlist_from_row(row: AllowlistRow) -> AllowlistPolicy {
     AllowlistPolicy {
-        allowlist_policy_id: row.get("allowlist_policy_id"),
-        name: row.get("name"),
-        allowed_domains: row.get("allowed_domains"),
-        explicit_url_lists: row.get("explicit_url_lists"),
-        default_decision: row.get("default_decision"),
-        rate_limit: row.get("rate_limit"),
-        max_pages: row.get("max_pages"),
-        robots_posture: row.get("robots_posture"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        allowlist_policy_id: row.allowlist_policy_id.into(),
+        name: row.name,
+        allowed_domains: row.allowed_domains,
+        explicit_url_lists: row.explicit_url_lists,
+        default_decision: row.default_decision,
+        rate_limit: row.rate_limit,
+        max_pages: row.max_pages,
+        robots_posture: row.robots_posture,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     }
 }
 
-fn auth_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<AuthContext> {
-    let mode: String = row.get("auth_mode");
+#[derive(SurrealValue)]
+struct AuthRow {
+    auth_context_ref: SurrealUuid,
+    label: String,
+    auth_mode: String,
+    session_ref: Option<String>,
+    cookie_jar_artifact_ref: Option<String>,
+    header_secret_refs: serde_json::Value,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+fn auth_from_row(row: AuthRow) -> AtelierResult<AuthContext> {
     Ok(AuthContext {
-        auth_context_ref: row.get("auth_context_ref"),
-        label: row.get("label"),
-        auth_mode: AuthMode::from_token(&mode)?,
-        session_ref: row.get("session_ref"),
-        cookie_jar_artifact_ref: row.get("cookie_jar_artifact_ref"),
-        header_secret_refs: row.get("header_secret_refs"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        auth_context_ref: row.auth_context_ref.into(),
+        label: row.label,
+        auth_mode: AuthMode::from_token(&row.auth_mode)?,
+        session_ref: row.session_ref,
+        cookie_jar_artifact_ref: row.cookie_jar_artifact_ref,
+        header_secret_refs: row.header_secret_refs,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
-fn session_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DownloadSession> {
-    let source_kind: String = row.get("source_kind");
-    let stage: String = row.get("stage");
+#[derive(SurrealValue)]
+struct SessionRow {
+    session_id: SurrealUuid,
+    parent_job_id: String,
+    idempotency_key: String,
+    source_kind: String,
+    auth_context_ref: Option<SurrealUuid>,
+    allowlist_policy_id: SurrealUuid,
+    output_root_id: SurrealUuid,
+    protocol_id: String,
+    capability_profile_id: String,
+    capability_grant_ref: String,
+    stage: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+fn session_from_row(row: SessionRow) -> AtelierResult<DownloadSession> {
     Ok(DownloadSession {
-        session_id: row.get("session_id"),
-        parent_job_id: row.get("parent_job_id"),
-        idempotency_key: row.get("idempotency_key"),
-        source_kind: SourceKind::from_token(&source_kind)?,
-        auth_context_ref: row.get("auth_context_ref"),
-        allowlist_policy_id: row.get("allowlist_policy_id"),
-        output_root_id: row.get("output_root_id"),
-        protocol_id: row.get("protocol_id"),
-        capability_profile_id: row.get("capability_profile_id"),
-        capability_grant_ref: row.get("capability_grant_ref"),
-        stage: SessionStage::from_token(&stage)?,
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        session_id: row.session_id.into(),
+        parent_job_id: row.parent_job_id,
+        idempotency_key: row.idempotency_key,
+        source_kind: SourceKind::from_token(&row.source_kind)?,
+        auth_context_ref: row.auth_context_ref.map(Into::into),
+        allowlist_policy_id: row.allowlist_policy_id.into(),
+        output_root_id: row.output_root_id.into(),
+        protocol_id: row.protocol_id,
+        capability_profile_id: row.capability_profile_id,
+        capability_grant_ref: row.capability_grant_ref,
+        stage: SessionStage::from_token(&row.stage)?,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
-fn item_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ItemState> {
-    let stage: String = row.get("stage");
+#[derive(SurrealValue)]
+struct ItemRow {
+    item_id: SurrealUuid,
+    session_id: SurrealUuid,
+    normalized_url: String,
+    stable_source_id: Option<String>,
+    content_hash: Option<String>,
+    stage: String,
+    bytes_downloaded: i64,
+    bytes_total: Option<i64>,
+    part_path_ref: Option<String>,
+    attempt_count: i64,
+    last_error_code: Option<String>,
+    resume_token: Option<String>,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+fn item_from_row(row: ItemRow) -> AtelierResult<ItemState> {
     Ok(ItemState {
-        item_id: row.get("item_id"),
-        session_id: row.get("session_id"),
-        normalized_url: row.get("normalized_url"),
-        stable_source_id: row.get("stable_source_id"),
-        content_hash: row.get("content_hash"),
-        stage: ItemStage::from_token(&stage)?,
-        bytes_downloaded: row.get("bytes_downloaded"),
-        bytes_total: row.get("bytes_total"),
-        part_path_ref: row.get("part_path_ref"),
-        attempt_count: row.get("attempt_count"),
-        last_error_code: row.get("last_error_code"),
-        resume_token: row.get("resume_token"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        item_id: row.item_id.into(),
+        session_id: row.session_id.into(),
+        normalized_url: row.normalized_url,
+        stable_source_id: row.stable_source_id,
+        content_hash: row.content_hash,
+        stage: ItemStage::from_token(&row.stage)?,
+        bytes_downloaded: row.bytes_downloaded,
+        bytes_total: row.bytes_total,
+        part_path_ref: row.part_path_ref,
+        attempt_count: row.attempt_count,
+        last_error_code: row.last_error_code,
+        resume_token: row.resume_token,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
-fn checkpoint_from_row(row: &sqlx::postgres::PgRow) -> Checkpoint {
+#[derive(SurrealValue)]
+struct CheckpointRow {
+    checkpoint_id: SurrealUuid,
+    session_id: SurrealUuid,
+    item_id: Option<SurrealUuid>,
+    stage: String,
+    bytes_downloaded: i64,
+    bytes_total: Option<i64>,
+    resume_token: Option<String>,
+    created_at_utc: Datetime,
+}
+fn checkpoint_from_row(row: CheckpointRow) -> Checkpoint {
     Checkpoint {
-        checkpoint_id: row.get("checkpoint_id"),
-        session_id: row.get("session_id"),
-        item_id: row.get("item_id"),
-        stage: row.get("stage"),
-        bytes_downloaded: row.get("bytes_downloaded"),
-        bytes_total: row.get("bytes_total"),
-        resume_token: row.get("resume_token"),
-        created_at_utc: row.get("created_at_utc"),
+        checkpoint_id: row.checkpoint_id.into(),
+        session_id: row.session_id.into(),
+        item_id: row.item_id.map(Into::into),
+        stage: row.stage,
+        bytes_downloaded: row.bytes_downloaded,
+        bytes_total: row.bytes_total,
+        resume_token: row.resume_token,
+        created_at_utc: row.created_at_utc.into(),
     }
 }
 
-fn receipt_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<SessionReceipt> {
-    let source_kind: String = row.get("source_kind");
-    let terminal: String = row.get("terminal_stage");
+#[derive(SurrealValue)]
+struct ReceiptRow {
+    receipt_id: SurrealUuid,
+    session_id: SurrealUuid,
+    parent_job_id: String,
+    source_kind: String,
+    auth_context_ref: Option<SurrealUuid>,
+    allowlist_policy_id: SurrealUuid,
+    output_root_id: SurrealUuid,
+    item_count: i64,
+    succeeded: i64,
+    failed: i64,
+    skipped_deduped: i64,
+    materialized_paths: serde_json::Value,
+    manifest_artifact_ref: Option<String>,
+    started_at_utc: Option<Datetime>,
+    ended_at_utc: Option<Datetime>,
+    terminal_stage: String,
+    created_at_utc: Datetime,
+}
+fn receipt_from_row(row: ReceiptRow) -> AtelierResult<SessionReceipt> {
     Ok(SessionReceipt {
-        receipt_id: row.get("receipt_id"),
-        session_id: row.get("session_id"),
-        parent_job_id: row.get("parent_job_id"),
-        source_kind: SourceKind::from_token(&source_kind)?,
-        auth_context_ref: row.get("auth_context_ref"),
-        allowlist_policy_id: row.get("allowlist_policy_id"),
-        output_root_id: row.get("output_root_id"),
-        item_count: row.get("item_count"),
-        succeeded: row.get("succeeded"),
-        failed: row.get("failed"),
-        skipped_deduped: row.get("skipped_deduped"),
-        materialized_paths: row.get("materialized_paths"),
-        manifest_artifact_ref: row.get("manifest_artifact_ref"),
-        started_at_utc: row.get("started_at_utc"),
-        ended_at_utc: row.get("ended_at_utc"),
-        terminal_stage: TerminalStage::from_token(&terminal)?,
-        created_at_utc: row.get("created_at_utc"),
+        receipt_id: row.receipt_id.into(),
+        session_id: row.session_id.into(),
+        parent_job_id: row.parent_job_id,
+        source_kind: SourceKind::from_token(&row.source_kind)?,
+        auth_context_ref: row.auth_context_ref.map(Into::into),
+        allowlist_policy_id: row.allowlist_policy_id.into(),
+        output_root_id: row.output_root_id.into(),
+        item_count: row.item_count,
+        succeeded: row.succeeded,
+        failed: row.failed,
+        skipped_deduped: row.skipped_deduped,
+        materialized_paths: row.materialized_paths,
+        manifest_artifact_ref: row.manifest_artifact_ref,
+        started_at_utc: row.started_at_utc.map(Into::into),
+        ended_at_utc: row.ended_at_utc.map(Into::into),
+        terminal_stage: TerminalStage::from_token(&row.terminal_stage)?,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
 
-const OUTPUT_ROOT_COLUMNS: &str = "root_id, configured_root, materialization_mode, \
-                                   per_mode_subdirs, created_at_utc, updated_at_utc";
-const ALLOWLIST_COLUMNS: &str = "allowlist_policy_id, name, allowed_domains, explicit_url_lists, \
-                                 default_decision, rate_limit, max_pages, robots_posture, \
-                                 created_at_utc, updated_at_utc";
-const AUTH_COLUMNS: &str = "auth_context_ref, label, auth_mode, session_ref, \
-                            cookie_jar_artifact_ref, header_secret_refs, created_at_utc, \
-                            updated_at_utc";
-const SESSION_COLUMNS: &str = "session_id, parent_job_id, idempotency_key, source_kind, \
-                               auth_context_ref, allowlist_policy_id, output_root_id, \
-                               protocol_id, capability_profile_id, capability_grant_ref, stage, \
-                               created_at_utc, updated_at_utc";
-const ITEM_COLUMNS: &str = "item_id, session_id, normalized_url, stable_source_id, content_hash, \
-                            stage, bytes_downloaded, bytes_total, part_path_ref, attempt_count, \
-                            last_error_code, resume_token, created_at_utc, updated_at_utc";
-const RECEIPT_COLUMNS: &str = "receipt_id, session_id, parent_job_id, source_kind, \
-                               auth_context_ref, allowlist_policy_id, output_root_id, item_count, \
-                               succeeded, failed, skipped_deduped, materialized_paths, \
-                               manifest_artifact_ref, started_at_utc, ended_at_utc, \
-                               terminal_stage, created_at_utc";
+#[derive(Clone, SurrealValue)]
+struct UuidBinding {
+    value: SurrealUuid,
+}
+#[derive(Clone, SurrealValue)]
+struct StringBinding {
+    value: String,
+}
+#[derive(Clone, SurrealValue)]
+struct SessionUrlBinding {
+    download_session: RecordId,
+    normalized_url: String,
+}
+#[derive(Clone, SurrealValue)]
+struct OutputRootWrite {
+    record: RecordId,
+    root_id: SurrealUuid,
+    configured_root: String,
+    materialization_mode: String,
+    per_mode_subdirs: serde_json::Value,
+}
+#[derive(Clone, SurrealValue)]
+struct AllowlistWrite {
+    record: RecordId,
+    allowlist_policy_id: SurrealUuid,
+    name: String,
+    allowed_domains: serde_json::Value,
+    explicit_url_lists: serde_json::Value,
+    default_decision: String,
+    rate_limit: serde_json::Value,
+    max_pages: i64,
+    robots_posture: String,
+}
+#[derive(Clone, SurrealValue)]
+struct AuthWrite {
+    record: RecordId,
+    auth_context_ref: SurrealUuid,
+    label: String,
+    auth_mode: String,
+    session_ref: Option<String>,
+    cookie_jar_artifact_ref: Option<String>,
+    header_secret_refs: serde_json::Value,
+}
+#[derive(Clone, SurrealValue)]
+struct SessionWrite {
+    record: RecordId,
+    session_id: SurrealUuid,
+    parent_job_id: String,
+    idempotency_key: String,
+    source_kind: String,
+    auth_context_ref: Option<RecordId>,
+    allowlist_policy_id: RecordId,
+    output_root_id: RecordId,
+    protocol_id: String,
+    capability_profile_id: String,
+    capability_grant_ref: String,
+}
+#[derive(Clone, SurrealValue)]
+struct StageWrite {
+    download_session: RecordId,
+    checkpoint: RecordId,
+    checkpoint_id: SurrealUuid,
+    stage: String,
+    resume_token: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct ItemWrite {
+    record: RecordId,
+    item_id: SurrealUuid,
+    download_session: RecordId,
+    normalized_url: String,
+    stable_source_id: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct ItemListBinding {
+    download_session: RecordId,
+    stage: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct CheckpointWrite {
+    checkpoint: RecordId,
+    checkpoint_id: SurrealUuid,
+    download_session: RecordId,
+    item: Option<RecordId>,
+    stage: String,
+    bytes_downloaded: i64,
+    bytes_total: Option<i64>,
+    resume_token: Option<String>,
+}
+#[derive(Clone, SurrealValue)]
+struct CheckpointLookup {
+    download_session: RecordId,
+    item: Option<RecordId>,
+}
+#[derive(Clone, SurrealValue)]
+struct ReceiptLookup {
+    download_session: RecordId,
+    terminal_stage: String,
+}
+#[derive(Clone, SurrealValue)]
+struct ReceiptWrite {
+    record: RecordId,
+    receipt_id: SurrealUuid,
+    session: RecordId,
+    parent_job_id: String,
+    source_kind: String,
+    auth_context_ref: Option<RecordId>,
+    allowlist_policy_id: RecordId,
+    output_root_id: RecordId,
+    item_count: i64,
+    succeeded: i64,
+    failed: i64,
+    skipped_deduped: i64,
+    materialized_paths: serde_json::Value,
+    manifest_artifact_ref: Option<String>,
+    started_at_utc: Option<Datetime>,
+    ended_at_utc: Option<Datetime>,
+    terminal_stage: String,
+}
+
+const WRITE_OUTPUT_ROOT: &str = concat!("RETURN { LET $row = (UPSERT $domain.record CONTENT { root_id: $domain.root_id, configured_root: $domain.configured_root, materialization_mode: $domain.materialization_mode, per_mode_subdirs: $domain.per_mode_subdirs } RETURN AFTER)[0]; ", atelier_event_sql!(), " RETURN $row; };");
+const WRITE_ALLOWLIST: &str = concat!("RETURN { LET $row = (UPSERT $domain.record CONTENT { allowlist_policy_id: $domain.allowlist_policy_id, name: $domain.name, allowed_domains: $domain.allowed_domains, explicit_url_lists: $domain.explicit_url_lists, default_decision: $domain.default_decision, rate_limit: $domain.rate_limit, max_pages: $domain.max_pages, robots_posture: $domain.robots_posture } RETURN AFTER)[0]; ", atelier_event_sql!(), " RETURN $row; };");
+const WRITE_AUTH: &str = concat!("RETURN { LET $row = (UPSERT $domain.record CONTENT { auth_context_ref: $domain.auth_context_ref, label: $domain.label, auth_mode: $domain.auth_mode, session_ref: $domain.session_ref, cookie_jar_artifact_ref: $domain.cookie_jar_artifact_ref, header_secret_refs: $domain.header_secret_refs } RETURN AFTER)[0]; ", atelier_event_sql!(), " RETURN $row; };");
+const WRITE_SESSION: &str = concat!("RETURN { LET $existing = (SELECT protocol_id, capability_profile_id, capability_grant_ref FROM ONLY $domain.record); IF $existing != NONE AND ($existing.protocol_id != $domain.protocol_id OR $existing.capability_profile_id != $domain.capability_profile_id OR $existing.capability_grant_ref != $domain.capability_grant_ref) { THROW 'HSK-MD-IDEMPOTENCY-CAPABILITY-MISMATCH'; }; IF $existing = NONE { CREATE $domain.record CONTENT { session_id: $domain.session_id, parent_job_id: $domain.parent_job_id, idempotency_key: $domain.idempotency_key, source_kind: $domain.source_kind, auth_context_ref: $domain.auth_context_ref, allowlist_policy_id: $domain.allowlist_policy_id, output_root_id: $domain.output_root_id, protocol_id: $domain.protocol_id, capability_profile_id: $domain.capability_profile_id, capability_grant_ref: $domain.capability_grant_ref, stage: 'resolving' } RETURN NONE; }; ", atelier_event_sql!(), " RETURN (SELECT session_id, parent_job_id, idempotency_key, source_kind, IF auth_context_ref = NONE { NONE } ELSE { record::id(auth_context_ref) } AS auth_context_ref, record::id(allowlist_policy_id) AS allowlist_policy_id, record::id(output_root_id) AS output_root_id, protocol_id, capability_profile_id, capability_grant_ref, stage, created_at_utc, updated_at_utc FROM $domain.record)[0]; };");
+const ADVANCE_SESSION: &str = "RETURN { LET $updated = (UPDATE $download_session SET stage = $stage, updated_at_utc = time::now() RETURN AFTER)[0]; IF $updated = NONE { RETURN NONE; }; CREATE $checkpoint CONTENT { checkpoint_id: $checkpoint_id, session_id: $download_session, item_id: NONE, stage: $stage, bytes_downloaded: 0, bytes_total: NONE, resume_token: $resume_token } RETURN NONE; RETURN (SELECT session_id, parent_job_id, idempotency_key, source_kind, IF auth_context_ref = NONE { NONE } ELSE { record::id(auth_context_ref) } AS auth_context_ref, record::id(allowlist_policy_id) AS allowlist_policy_id, record::id(output_root_id) AS output_root_id, protocol_id, capability_profile_id, capability_grant_ref, stage, created_at_utc, updated_at_utc FROM $download_session)[0]; };";
+const CREATE_ITEM: &str = "RETURN { IF !record::exists($download_session) { RETURN NONE; }; LET $existing = (SELECT VALUE id FROM atelier_md_item_state WHERE session_id = $download_session AND normalized_url = $normalized_url LIMIT 1)[0]; LET $target = IF $existing = NONE { $record } ELSE { $existing }; IF $existing = NONE { CREATE $target CONTENT { item_id: $item_id, session_id: $download_session, normalized_url: $normalized_url, stable_source_id: $stable_source_id, content_hash: NONE, stage: 'enqueued', bytes_downloaded: 0, bytes_total: NONE, part_path_ref: NONE, attempt_count: 0, last_error_code: NONE, resume_token: NONE } RETURN NONE; }; UPDATE $download_session SET updated_at_utc = time::now() RETURN NONE; RETURN (SELECT item_id, record::id(session_id) AS session_id, normalized_url, stable_source_id, content_hash, stage, bytes_downloaded, bytes_total, part_path_ref, attempt_count, last_error_code, resume_token, created_at_utc, updated_at_utc FROM $target)[0]; };";
+const WRITE_CHECKPOINT: &str = "RETURN { IF !record::exists($download_session) { RETURN NONE; }; IF $item != NONE { LET $updated = (UPDATE $item SET stage = $stage, bytes_downloaded = $bytes_downloaded, bytes_total = $bytes_total, resume_token = $resume_token, updated_at_utc = time::now() WHERE session_id = $download_session RETURN AFTER); IF array::len($updated) = 0 { THROW 'HSK-MD-ITEM-NOT-FOUND'; }; }; CREATE $checkpoint CONTENT { checkpoint_id: $checkpoint_id, session_id: $download_session, item_id: $item, stage: $stage, bytes_downloaded: $bytes_downloaded, bytes_total: $bytes_total, resume_token: $resume_token } RETURN NONE; RETURN (SELECT checkpoint_id, record::id(session_id) AS session_id, IF item_id = NONE { NONE } ELSE { record::id(item_id) } AS item_id, stage, bytes_downloaded, bytes_total, resume_token, created_at_utc FROM $checkpoint)[0]; };";
+const WRITE_RECEIPT: &str = concat!("RETURN { IF record::exists($domain.record) { UPDATE $domain.record SET item_count = $domain.item_count RETURN NONE; } ELSE { CREATE $domain.record CONTENT { receipt_id: $domain.receipt_id, session_id: $domain.session, parent_job_id: $domain.parent_job_id, source_kind: $domain.source_kind, auth_context_ref: $domain.auth_context_ref, allowlist_policy_id: $domain.allowlist_policy_id, output_root_id: $domain.output_root_id, item_count: $domain.item_count, succeeded: $domain.succeeded, failed: $domain.failed, skipped_deduped: $domain.skipped_deduped, materialized_paths: $domain.materialized_paths, manifest_artifact_ref: $domain.manifest_artifact_ref, started_at_utc: $domain.started_at_utc, ended_at_utc: $domain.ended_at_utc, terminal_stage: $domain.terminal_stage } RETURN NONE; }; ", atelier_event_sql!(), " RETURN (SELECT receipt_id, record::id(session_id) AS session_id, parent_job_id, source_kind, IF auth_context_ref = NONE { NONE } ELSE { record::id(auth_context_ref) } AS auth_context_ref, record::id(allowlist_policy_id) AS allowlist_policy_id, record::id(output_root_id) AS output_root_id, item_count, succeeded, failed, skipped_deduped, materialized_paths, manifest_artifact_ref, started_at_utc, ended_at_utc, terminal_stage, created_at_utc FROM $domain.record)[0]; };");
 
 impl AtelierStore {
     // -----------------------------------------------------------------------
@@ -857,47 +1066,42 @@ impl AtelierStore {
         reject_legacy_runtime_ref("configured_root", &input.configured_root)?;
         reject_legacy_runtime_refs_in_json("per_mode_subdirs", &input.per_mode_subdirs)?;
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_md_output_root
-                 (configured_root, materialization_mode, per_mode_subdirs)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (configured_root) DO UPDATE
-                 SET materialization_mode = EXCLUDED.materialization_mode,
-                     per_mode_subdirs     = EXCLUDED.per_mode_subdirs,
-                     updated_at_utc       = NOW()
-               RETURNING {OUTPUT_ROOT_COLUMNS}"#
-        ))
-        .bind(&input.configured_root)
-        .bind(input.materialization_mode.as_token())
-        .bind(&input.per_mode_subdirs)
-        .fetch_one(self.pool())
-        .await?;
-        let config = output_root_from_row(&row)?;
-
-        self.record_event(
-            OUTPUT_ROOT_CONFIGURED,
-            "atelier_md_output_root",
-            &config.root_id.to_string(),
-            serde_json::json!({
-                "root_id": config.root_id,
-                "configured_root": config.configured_root,
-                "materialization_mode": config.materialization_mode.as_token(),
-            }),
-        )
-        .await?;
-        Ok(config)
+        let key = input.configured_root.clone();
+        let existing: Option<SurrealUuid> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT VALUE root_id FROM atelier_md_output_root WHERE configured_root = $value LIMIT 1;", StringBinding { value: key }).await })).await?;
+        let root_id: Uuid = existing
+            .map(Into::into)
+            .unwrap_or_else(|| stable_downloader_uuid("output-root", &input.configured_root));
+        let row: Option<OutputRootRow> = self
+            .write_with_event(
+                WRITE_OUTPUT_ROOT,
+                OutputRootWrite {
+                    record: RecordId::new("atelier_md_output_root", SurrealUuid::from(root_id)),
+                    root_id: root_id.into(),
+                    configured_root: input.configured_root.clone(),
+                    materialization_mode: input.materialization_mode.as_token().to_owned(),
+                    per_mode_subdirs: input.per_mode_subdirs.clone(),
+                },
+                OUTPUT_ROOT_CONFIGURED,
+                "atelier_md_output_root",
+                &root_id.to_string(),
+                serde_json::json!({
+                    "root_id": root_id,
+                    "configured_root": input.configured_root,
+                    "materialization_mode": input.materialization_mode.as_token(),
+                }),
+            )
+            .await?;
+        row.map(output_root_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::Internal("output root write returned no row".to_owned()))
     }
 
     /// Fetch an output-root config by id.
     pub async fn get_output_root_config(&self, root_id: Uuid) -> AtelierResult<OutputRootConfig> {
-        let row = sqlx::query(&format!(
-            "SELECT {OUTPUT_ROOT_COLUMNS} FROM atelier_md_output_root WHERE root_id = $1"
-        ))
-        .bind(root_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("output_root_id={root_id}")))?;
-        output_root_from_row(&row)
+        let row: Option<OutputRootRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT root_id, configured_root, materialization_mode, per_mode_subdirs, created_at_utc, updated_at_utc FROM atelier_md_output_root WHERE root_id = $value LIMIT 1;", UuidBinding { value: root_id.into() }).await })).await?;
+        row.map(output_root_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::NotFound(format!("output_root_id={root_id}")))
     }
 
     // -----------------------------------------------------------------------
@@ -924,46 +1128,14 @@ impl AtelierStore {
         }
         let max_pages = input.max_pages.clamp(1, 5000);
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_md_allowlist_policy
-                 (name, allowed_domains, explicit_url_lists, default_decision,
-                  rate_limit, max_pages, robots_posture)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (name) DO UPDATE
-                 SET allowed_domains    = EXCLUDED.allowed_domains,
-                     explicit_url_lists = EXCLUDED.explicit_url_lists,
-                     default_decision   = EXCLUDED.default_decision,
-                     rate_limit         = EXCLUDED.rate_limit,
-                     max_pages          = EXCLUDED.max_pages,
-                     robots_posture     = EXCLUDED.robots_posture,
-                     updated_at_utc     = NOW()
-               RETURNING {ALLOWLIST_COLUMNS}"#
-        ))
-        .bind(&input.name)
-        .bind(&input.allowed_domains)
-        .bind(&input.explicit_url_lists)
-        .bind(&input.default_decision)
-        .bind(&input.rate_limit)
-        .bind(max_pages)
-        .bind(&input.robots_posture)
-        .fetch_one(self.pool())
-        .await?;
-        let policy = allowlist_from_row(&row);
-
-        self.record_event(
-            ALLOWLIST_POLICY_SET,
-            "atelier_md_allowlist_policy",
-            &policy.allowlist_policy_id.to_string(),
-            serde_json::json!({
-                "allowlist_policy_id": policy.allowlist_policy_id,
-                "name": policy.name,
-                "default_decision": policy.default_decision,
-                "max_pages": policy.max_pages,
-                "robots_posture": policy.robots_posture,
-            }),
-        )
-        .await?;
-        Ok(policy)
+        let key = input.name.clone();
+        let existing: Option<SurrealUuid> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT VALUE allowlist_policy_id FROM atelier_md_allowlist_policy WHERE name = $value LIMIT 1;", StringBinding { value: key }).await })).await?;
+        let id: Uuid = existing
+            .map(Into::into)
+            .unwrap_or_else(|| stable_downloader_uuid("allowlist", &input.name));
+        let row: Option<AllowlistRow> = self.write_with_event(WRITE_ALLOWLIST, AllowlistWrite { record: RecordId::new("atelier_md_allowlist_policy", SurrealUuid::from(id)), allowlist_policy_id: id.into(), name: input.name.clone(), allowed_domains: input.allowed_domains.clone(), explicit_url_lists: input.explicit_url_lists.clone(), default_decision: input.default_decision.clone(), rate_limit: input.rate_limit.clone(), max_pages, robots_posture: input.robots_posture.clone() }, ALLOWLIST_POLICY_SET, "atelier_md_allowlist_policy", &id.to_string(), serde_json::json!({ "allowlist_policy_id": id, "name": input.name, "default_decision": input.default_decision, "max_pages": max_pages, "robots_posture": input.robots_posture })).await?;
+        row.map(allowlist_from_row)
+            .ok_or_else(|| AtelierError::Internal("allowlist write returned no row".to_owned()))
     }
 
     /// Fetch an allowlist policy by id.
@@ -971,16 +1143,10 @@ impl AtelierStore {
         &self,
         allowlist_policy_id: Uuid,
     ) -> AtelierResult<AllowlistPolicy> {
-        let row = sqlx::query(&format!(
-            "SELECT {ALLOWLIST_COLUMNS} FROM atelier_md_allowlist_policy WHERE allowlist_policy_id = $1"
-        ))
-        .bind(allowlist_policy_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| {
+        let row: Option<AllowlistRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT allowlist_policy_id, name, allowed_domains, explicit_url_lists, default_decision, rate_limit, max_pages, robots_posture, created_at_utc, updated_at_utc FROM atelier_md_allowlist_policy WHERE allowlist_policy_id = $value LIMIT 1;", UuidBinding { value: allowlist_policy_id.into() }).await })).await?;
+        row.map(allowlist_from_row).ok_or_else(|| {
             AtelierError::NotFound(format!("allowlist_policy_id={allowlist_policy_id}"))
-        })?;
-        Ok(allowlist_from_row(&row))
+        })
     }
 
     // -----------------------------------------------------------------------
@@ -1056,63 +1222,50 @@ impl AtelierStore {
             input.header_secret_refs.clone()
         };
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_md_auth_context
-                 (label, auth_mode, session_ref, cookie_jar_artifact_ref, header_secret_refs)
-               VALUES ($1, $2, $3, $4, $5)
-               ON CONFLICT (label) DO UPDATE
-                 SET auth_mode               = EXCLUDED.auth_mode,
-                     session_ref             = EXCLUDED.session_ref,
-                     cookie_jar_artifact_ref = EXCLUDED.cookie_jar_artifact_ref,
-                     header_secret_refs      = EXCLUDED.header_secret_refs,
-                     updated_at_utc          = NOW()
-               RETURNING {AUTH_COLUMNS}"#
-        ))
-        .bind(&input.label)
-        .bind(input.auth_mode.as_token())
-        .bind(&input.session_ref)
-        .bind(&input.cookie_jar_artifact_ref)
-        .bind(&header_refs)
-        .fetch_one(self.pool())
-        .await?;
-        let context = auth_from_row(&row)?;
-
-        // Event payload carries refs/mode only; never any secret value. The
-        // header-ref COUNT is surfaced, not the refs themselves.
-        let header_ref_count = context
-            .header_secret_refs
-            .as_array()
-            .map(|a| a.len())
-            .unwrap_or(0);
-        self.record_event(
-            AUTH_CONTEXT_REGISTERED,
-            "atelier_md_auth_context",
-            &context.auth_context_ref.to_string(),
-            serde_json::json!({
-                "auth_context_ref": context.auth_context_ref,
-                "label": context.label,
-                "auth_mode": context.auth_mode.as_token(),
-                "has_session_ref": context.session_ref.is_some(),
-                "has_cookie_jar": context.cookie_jar_artifact_ref.is_some(),
-                "header_secret_ref_count": header_ref_count,
-                "secret_values": REDACTED_PLACEHOLDER,
-            }),
-        )
-        .await?;
-        Ok(context)
+        let header_ref_count = header_refs.as_array().map(|a| a.len()).unwrap_or(0);
+        let key = input.label.clone();
+        let existing: Option<SurrealUuid> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT VALUE auth_context_ref FROM atelier_md_auth_context WHERE label = $value LIMIT 1;", StringBinding { value: key }).await })).await?;
+        let id: Uuid = existing
+            .map(Into::into)
+            .unwrap_or_else(|| stable_downloader_uuid("auth-context", &input.label));
+        let row: Option<AuthRow> = self
+            .write_with_event(
+                WRITE_AUTH,
+                AuthWrite {
+                    record: RecordId::new("atelier_md_auth_context", SurrealUuid::from(id)),
+                    auth_context_ref: id.into(),
+                    label: input.label.clone(),
+                    auth_mode: input.auth_mode.as_token().to_owned(),
+                    session_ref: input.session_ref.clone(),
+                    cookie_jar_artifact_ref: input.cookie_jar_artifact_ref.clone(),
+                    header_secret_refs: header_refs,
+                },
+                AUTH_CONTEXT_REGISTERED,
+                "atelier_md_auth_context",
+                &id.to_string(),
+                serde_json::json!({
+                    "auth_context_ref": id,
+                    "label": input.label,
+                    "auth_mode": input.auth_mode.as_token(),
+                    "has_session_ref": input.session_ref.is_some(),
+                    "has_cookie_jar": input.cookie_jar_artifact_ref.is_some(),
+                    "header_secret_ref_count": header_ref_count,
+                    "secret_values": REDACTED_PLACEHOLDER,
+                }),
+            )
+            .await?;
+        row.map(auth_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::Internal("auth context write returned no row".to_owned()))
     }
 
     /// Fetch an auth context by ref. Auth material remains by-reference; no
     /// secret value is stored to return.
     pub async fn get_auth_context(&self, auth_context_ref: Uuid) -> AtelierResult<AuthContext> {
-        let row = sqlx::query(&format!(
-            "SELECT {AUTH_COLUMNS} FROM atelier_md_auth_context WHERE auth_context_ref = $1"
-        ))
-        .bind(auth_context_ref)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("auth_context_ref={auth_context_ref}")))?;
-        auth_from_row(&row)
+        let row: Option<AuthRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT auth_context_ref, label, auth_mode, session_ref, cookie_jar_artifact_ref, header_secret_refs, created_at_utc, updated_at_utc FROM atelier_md_auth_context WHERE auth_context_ref = $value LIMIT 1;", UuidBinding { value: auth_context_ref.into() }).await })).await?;
+        row.map(auth_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::NotFound(format!("auth_context_ref={auth_context_ref}")))
     }
 
     // -----------------------------------------------------------------------
@@ -1167,48 +1320,55 @@ impl AtelierStore {
             let _ = self.get_auth_context(auth_ref).await?;
         }
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_md_download_session
-                 (parent_job_id, idempotency_key, source_kind, auth_context_ref,
-                  allowlist_policy_id, output_root_id, protocol_id,
-                  capability_profile_id, capability_grant_ref, stage)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'resolving')
-               ON CONFLICT (idempotency_key) DO UPDATE
-                 SET idempotency_key = EXCLUDED.idempotency_key
-               RETURNING {SESSION_COLUMNS}"#
-        ))
-        .bind(&input.parent_job_id)
-        .bind(&input.idempotency_key)
-        .bind(input.source_kind.as_token())
-        .bind(input.auth_context_ref)
-        .bind(input.allowlist_policy_id)
-        .bind(input.output_root_id)
-        .bind(&input.protocol_id)
-        .bind(&input.capability_profile_id)
-        .bind(&input.capability_grant_ref)
-        .fetch_one(self.pool())
-        .await?;
-        let session = session_from_row(&row)?;
-
-        self.record_event(
-            SESSION_OPENED,
-            "atelier_md_download_session",
-            &session.session_id.to_string(),
-            serde_json::json!({
-                "session_id": session.session_id,
-                "parent_job_id": session.parent_job_id,
-                "source_kind": session.source_kind.as_token(),
-                "allowlist_policy_id": session.allowlist_policy_id,
-                "output_root_id": session.output_root_id,
-                "auth_context_ref": session.auth_context_ref,
-                "protocol_id": session.protocol_id.clone(),
-                "capability_profile_id": session.capability_profile_id.clone(),
-                "capability_grant_ref": session.capability_grant_ref.clone(),
-                "required_capabilities": required_capabilities,
-                "stage": session.stage.as_token(),
-            }),
-        )
-        .await?;
+        let session_id = stable_downloader_uuid("session", &input.idempotency_key);
+        let row: Option<SessionRow> = self
+            .write_with_event(
+                WRITE_SESSION,
+                SessionWrite {
+                    record: RecordId::new(
+                        "atelier_md_download_session",
+                        SurrealUuid::from(session_id),
+                    ),
+                    session_id: session_id.into(),
+                    parent_job_id: input.parent_job_id.clone(),
+                    idempotency_key: input.idempotency_key.clone(),
+                    source_kind: input.source_kind.as_token().to_owned(),
+                    auth_context_ref: input
+                        .auth_context_ref
+                        .map(|id| RecordId::new("atelier_md_auth_context", SurrealUuid::from(id))),
+                    allowlist_policy_id: RecordId::new(
+                        "atelier_md_allowlist_policy",
+                        SurrealUuid::from(input.allowlist_policy_id),
+                    ),
+                    output_root_id: RecordId::new(
+                        "atelier_md_output_root",
+                        SurrealUuid::from(input.output_root_id),
+                    ),
+                    protocol_id: input.protocol_id.clone(),
+                    capability_profile_id: input.capability_profile_id.clone(),
+                    capability_grant_ref: input.capability_grant_ref.clone(),
+                },
+                SESSION_OPENED,
+                "atelier_md_download_session",
+                &session_id.to_string(),
+                serde_json::json!({
+                    "session_id": session_id,
+                    "parent_job_id": input.parent_job_id,
+                    "source_kind": input.source_kind.as_token(),
+                    "allowlist_policy_id": input.allowlist_policy_id,
+                    "output_root_id": input.output_root_id,
+                    "auth_context_ref": input.auth_context_ref,
+                    "protocol_id": input.protocol_id,
+                    "capability_profile_id": input.capability_profile_id,
+                    "capability_grant_ref": input.capability_grant_ref,
+                    "required_capabilities": required_capabilities,
+                    "stage": SessionStage::Resolving.as_token(),
+                }),
+            )
+            .await?;
+        let session = row.map(session_from_row).transpose()?.ok_or_else(|| {
+            AtelierError::Internal("download session write returned no row".to_owned())
+        })?;
         self.record_event(
             MEDIA_DOWNLOADER_JOB_STATE,
             "atelier_md_download_session",
@@ -1232,28 +1392,17 @@ impl AtelierStore {
         &self,
         idempotency_key: &str,
     ) -> AtelierResult<Option<DownloadSession>> {
-        let row = sqlx::query(&format!(
-            "SELECT {SESSION_COLUMNS} FROM atelier_md_download_session WHERE idempotency_key = $1"
-        ))
-        .bind(idempotency_key)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(session_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let value = idempotency_key.to_owned();
+        let row: Option<SessionRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT session_id, parent_job_id, idempotency_key, source_kind, IF auth_context_ref = NONE { NONE } ELSE { record::id(auth_context_ref) } AS auth_context_ref, record::id(allowlist_policy_id) AS allowlist_policy_id, record::id(output_root_id) AS output_root_id, protocol_id, capability_profile_id, capability_grant_ref, stage, created_at_utc, updated_at_utc FROM atelier_md_download_session WHERE idempotency_key = $value LIMIT 1;", StringBinding { value }).await })).await?;
+        row.map(session_from_row).transpose()
     }
 
     /// Fetch a session by id.
     pub async fn get_download_session(&self, session_id: Uuid) -> AtelierResult<DownloadSession> {
-        let row = sqlx::query(&format!(
-            "SELECT {SESSION_COLUMNS} FROM atelier_md_download_session WHERE session_id = $1"
-        ))
-        .bind(session_id)
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("session_id={session_id}")))?;
-        session_from_row(&row)
+        let row: Option<SessionRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT session_id, parent_job_id, idempotency_key, source_kind, IF auth_context_ref = NONE { NONE } ELSE { record::id(auth_context_ref) } AS auth_context_ref, record::id(allowlist_policy_id) AS allowlist_policy_id, record::id(output_root_id) AS output_root_id, protocol_id, capability_profile_id, capability_grant_ref, stage, created_at_utc, updated_at_utc FROM atelier_md_download_session WHERE session_id = $value LIMIT 1;", UuidBinding { value: session_id.into() }).await })).await?;
+        row.map(session_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::NotFound(format!("session_id={session_id}")))
     }
 
     /// Advance a session to a new stage (Section 6.10.3 staged lifecycle). Every
@@ -1266,34 +1415,26 @@ impl AtelierStore {
         stage: SessionStage,
         resume_token: Option<&str>,
     ) -> AtelierResult<DownloadSession> {
-        let mut tx = self.pool().begin().await?;
-
-        let row = sqlx::query(&format!(
-            r#"UPDATE atelier_md_download_session
-               SET stage = $2, updated_at_utc = NOW()
-               WHERE session_id = $1
-               RETURNING {SESSION_COLUMNS}"#
-        ))
-        .bind(session_id)
-        .bind(stage.as_token())
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AtelierError::NotFound(format!("session_id={session_id}")))?;
-        let session = session_from_row(&row)?;
-
-        // Bundled session-level checkpoint (recovery anchor).
-        sqlx::query(
-            r#"INSERT INTO atelier_md_checkpoint
-                 (session_id, item_id, stage, bytes_downloaded, bytes_total, resume_token)
-               VALUES ($1, NULL, $2, 0, NULL, $3)"#,
-        )
-        .bind(session_id)
-        .bind(stage.as_token())
-        .bind(resume_token)
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
+        let checkpoint_id = Uuid::now_v7();
+        let bindings = StageWrite {
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            checkpoint: RecordId::new("atelier_md_checkpoint", SurrealUuid::from(checkpoint_id)),
+            checkpoint_id: checkpoint_id.into(),
+            stage: stage.as_token().to_owned(),
+            resume_token: resume_token.map(ToOwned::to_owned),
+        };
+        let row: Option<SessionRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(ADVANCE_SESSION, bindings).await })
+            })
+            .await?;
+        let session = row
+            .map(session_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::NotFound(format!("session_id={session_id}")))?;
 
         self.record_event(
             SESSION_STAGE_CHANGED,
@@ -1352,43 +1493,27 @@ impl AtelierStore {
             return Ok(existing);
         }
 
-        let mut tx = self.pool().begin().await?;
-
-        // Guard the FK so a bad session_id is a clean validation error.
-        let session_exists: Option<Uuid> = sqlx::query_scalar(
-            "SELECT session_id FROM atelier_md_download_session WHERE session_id = $1",
-        )
-        .bind(session_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-        if session_exists.is_none() {
-            return Err(AtelierError::NotFound(format!("session_id={session_id}")));
-        }
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_md_item_state
-                 (session_id, normalized_url, stable_source_id, stage)
-               VALUES ($1, $2, $3, 'enqueued')
-               ON CONFLICT (session_id, normalized_url) DO UPDATE
-                 SET normalized_url = EXCLUDED.normalized_url
-               RETURNING {ITEM_COLUMNS}"#
-        ))
-        .bind(session_id)
-        .bind(&input.normalized_url)
-        .bind(&input.stable_source_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        sqlx::query(
-            "UPDATE atelier_md_download_session SET updated_at_utc = NOW() WHERE session_id = $1",
-        )
-        .bind(session_id)
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        let item = item_from_row(&row)?;
+        let item_id =
+            stable_downloader_uuid("item", &format!("{session_id}:{}", input.normalized_url));
+        let bindings = ItemWrite {
+            record: RecordId::new("atelier_md_item_state", SurrealUuid::from(item_id)),
+            item_id: item_id.into(),
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            normalized_url: input.normalized_url.clone(),
+            stable_source_id: input.stable_source_id.clone(),
+        };
+        let row: Option<ItemRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(CREATE_ITEM, bindings).await })
+            })
+            .await?;
+        let item = row
+            .map(item_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::NotFound(format!("session_id={session_id}")))?;
         self.record_event(
             ITEM_ENQUEUED,
             "atelier_md_item_state",
@@ -1410,18 +1535,15 @@ impl AtelierStore {
         session_id: Uuid,
         normalized_url: &str,
     ) -> AtelierResult<Option<ItemState>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {ITEM_COLUMNS} FROM atelier_md_item_state
-               WHERE session_id = $1 AND normalized_url = $2"#
-        ))
-        .bind(session_id)
-        .bind(normalized_url)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(item_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let bindings = SessionUrlBinding {
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            normalized_url: normalized_url.to_owned(),
+        };
+        let row: Option<ItemRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT item_id, record::id(session_id) AS session_id, normalized_url, stable_source_id, content_hash, stage, bytes_downloaded, bytes_total, part_path_ref, attempt_count, last_error_code, resume_token, created_at_utc, updated_at_utc FROM atelier_md_item_state WHERE session_id = $download_session AND normalized_url = $normalized_url LIMIT 1;", bindings).await })).await?;
+        row.map(item_from_row).transpose()
     }
 
     /// List items in a session in enqueue order, optionally filtered by stage.
@@ -1430,16 +1552,15 @@ impl AtelierStore {
         session_id: Uuid,
         stage: Option<ItemStage>,
     ) -> AtelierResult<Vec<ItemState>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {ITEM_COLUMNS} FROM atelier_md_item_state
-               WHERE session_id = $1 AND ($2::TEXT IS NULL OR stage = $2)
-               ORDER BY created_at_utc ASC"#
-        ))
-        .bind(session_id)
-        .bind(stage.map(|s| s.as_token()))
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(item_from_row).collect()
+        let bindings = ItemListBinding {
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            stage: stage.map(|value| value.as_token().to_owned()),
+        };
+        let rows: Vec<ItemRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_values("SELECT item_id, record::id(session_id) AS session_id, normalized_url, stable_source_id, content_hash, stage, bytes_downloaded, bytes_total, part_path_ref, attempt_count, last_error_code, resume_token, created_at_utc, updated_at_utc FROM atelier_md_item_state WHERE session_id = $download_session AND ($stage = NONE OR stage = $stage) ORDER BY created_at_utc ASC;", bindings).await })).await?;
+        rows.into_iter().map(item_from_row).collect()
     }
 
     // -----------------------------------------------------------------------
@@ -1463,65 +1584,30 @@ impl AtelierStore {
         // value cannot enter the recovery anchor.
         let item_stage = ItemStage::from_token(&input.stage)?;
 
-        let mut tx = self.pool().begin().await?;
-
-        // Guard the session FK.
-        let session_exists: Option<Uuid> = sqlx::query_scalar(
-            "SELECT session_id FROM atelier_md_download_session WHERE session_id = $1",
-        )
-        .bind(session_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-        if session_exists.is_none() {
-            return Err(AtelierError::NotFound(format!("session_id={session_id}")));
-        }
-
-        // If item-scoped, advance the live item state in the same transaction.
-        if let Some(item_id) = input.item_id {
-            let updated: Option<Uuid> = sqlx::query_scalar(
-                r#"UPDATE atelier_md_item_state
-                   SET stage           = $3,
-                       bytes_downloaded = $4,
-                       bytes_total      = $5,
-                       resume_token     = $6,
-                       updated_at_utc   = NOW()
-                   WHERE item_id = $1 AND session_id = $2
-                   RETURNING item_id"#,
-            )
-            .bind(item_id)
-            .bind(session_id)
-            .bind(&input.stage)
-            .bind(input.bytes_downloaded)
-            .bind(input.bytes_total)
-            .bind(&input.resume_token)
-            .fetch_optional(&mut *tx)
+        let checkpoint_id = Uuid::now_v7();
+        let bindings = CheckpointWrite {
+            checkpoint: RecordId::new("atelier_md_checkpoint", SurrealUuid::from(checkpoint_id)),
+            checkpoint_id: checkpoint_id.into(),
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            item: input
+                .item_id
+                .map(|id| RecordId::new("atelier_md_item_state", SurrealUuid::from(id))),
+            stage: input.stage.clone(),
+            bytes_downloaded: input.bytes_downloaded,
+            bytes_total: input.bytes_total,
+            resume_token: input.resume_token.clone(),
+        };
+        let row: Option<CheckpointRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(WRITE_CHECKPOINT, bindings).await })
+            })
             .await?;
-            if updated.is_none() {
-                return Err(AtelierError::NotFound(format!(
-                    "item_id={item_id} in session_id={session_id}"
-                )));
-            }
-        }
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_md_checkpoint
-                 (session_id, item_id, stage, bytes_downloaded, bytes_total, resume_token)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               RETURNING checkpoint_id, session_id, item_id, stage, bytes_downloaded,
-                         bytes_total, resume_token, created_at_utc"#,
-        )
-        .bind(session_id)
-        .bind(input.item_id)
-        .bind(&input.stage)
-        .bind(input.bytes_downloaded)
-        .bind(input.bytes_total)
-        .bind(&input.resume_token)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        let checkpoint = checkpoint_from_row(&row);
+        let checkpoint = row
+            .map(checkpoint_from_row)
+            .ok_or_else(|| AtelierError::NotFound(format!("session_id={session_id}")))?;
         self.record_event(
             ITEM_CHECKPOINTED,
             "atelier_md_checkpoint",
@@ -1596,20 +1682,15 @@ impl AtelierStore {
         session_id: Uuid,
         item_id: Option<Uuid>,
     ) -> AtelierResult<Option<Checkpoint>> {
-        let row = sqlx::query(
-            r#"SELECT checkpoint_id, session_id, item_id, stage, bytes_downloaded,
-                      bytes_total, resume_token, created_at_utc
-               FROM atelier_md_checkpoint
-               WHERE session_id = $1
-                 AND item_id IS NOT DISTINCT FROM $2::uuid
-               ORDER BY created_at_utc DESC
-               LIMIT 1"#,
-        )
-        .bind(session_id)
-        .bind(item_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(checkpoint_from_row))
+        let bindings = CheckpointLookup {
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            item: item_id.map(|id| RecordId::new("atelier_md_item_state", SurrealUuid::from(id))),
+        };
+        let row: Option<CheckpointRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT checkpoint_id, record::id(session_id) AS session_id, IF item_id = NONE { NONE } ELSE { record::id(item_id) } AS item_id, stage, bytes_downloaded, bytes_total, resume_token, created_at_utc FROM atelier_md_checkpoint WHERE session_id = $download_session AND item_id = $item ORDER BY created_at_utc DESC LIMIT 1;", bindings).await })).await?;
+        Ok(row.map(checkpoint_from_row))
     }
 
     // -----------------------------------------------------------------------
@@ -1635,57 +1716,76 @@ impl AtelierStore {
             reject_legacy_runtime_ref("manifest_artifact_ref", manifest_artifact_ref)?;
         }
 
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_md_session_receipt
-                 (session_id, parent_job_id, source_kind, auth_context_ref,
-                  allowlist_policy_id, output_root_id, item_count, succeeded, failed,
-                  skipped_deduped, materialized_paths, manifest_artifact_ref,
-                  started_at_utc, ended_at_utc, terminal_stage)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-               ON CONFLICT (session_id, terminal_stage) DO UPDATE
-                 SET item_count = EXCLUDED.item_count
-               RETURNING {RECEIPT_COLUMNS}"#
-        ))
-        .bind(session_id)
-        .bind(&session.parent_job_id)
-        .bind(session.source_kind.as_token())
-        .bind(session.auth_context_ref)
-        .bind(session.allowlist_policy_id)
-        .bind(session.output_root_id)
-        .bind(input.item_count)
-        .bind(input.succeeded)
-        .bind(input.failed)
-        .bind(input.skipped_deduped)
-        .bind(&input.materialized_paths)
-        .bind(&input.manifest_artifact_ref)
-        .bind(input.started_at_utc)
-        .bind(input.ended_at_utc)
-        .bind(input.terminal_stage.as_token())
-        .fetch_one(self.pool())
-        .await?;
-        let receipt = receipt_from_row(&row)?;
-
-        self.record_event(
-            SESSION_RECEIPT_EMITTED,
-            "atelier_md_session_receipt",
-            &receipt.receipt_id.to_string(),
-            serde_json::json!({
-                "receipt_id": receipt.receipt_id,
-                "session_id": receipt.session_id,
-                "parent_job_id": receipt.parent_job_id,
-                "source_kind": receipt.source_kind.as_token(),
-                "item_count": receipt.item_count,
-                "succeeded": receipt.succeeded,
-                "failed": receipt.failed,
-                "skipped_deduped": receipt.skipped_deduped,
-                "terminal_stage": receipt.terminal_stage.as_token(),
-                // Auth carried by ref only; never a secret value.
-                "auth_context_ref": receipt.auth_context_ref,
-                "secret_values": REDACTED_PLACEHOLDER,
-            }),
-        )
-        .await?;
-        Ok(receipt)
+        let existing = self
+            .get_session_receipt(session_id, input.terminal_stage)
+            .await?;
+        let receipt_id = existing
+            .as_ref()
+            .map(|row| row.receipt_id)
+            .unwrap_or_else(|| {
+                stable_downloader_uuid(
+                    "receipt",
+                    &format!("{session_id}:{}", input.terminal_stage.as_token()),
+                )
+            });
+        let row: Option<ReceiptRow> = self
+            .write_with_event(
+                WRITE_RECEIPT,
+                ReceiptWrite {
+                    record: RecordId::new(
+                        "atelier_md_session_receipt",
+                        SurrealUuid::from(receipt_id),
+                    ),
+                    receipt_id: receipt_id.into(),
+                    session: RecordId::new(
+                        "atelier_md_download_session",
+                        SurrealUuid::from(session_id),
+                    ),
+                    parent_job_id: session.parent_job_id.clone(),
+                    source_kind: session.source_kind.as_token().to_owned(),
+                    auth_context_ref: session
+                        .auth_context_ref
+                        .map(|id| RecordId::new("atelier_md_auth_context", SurrealUuid::from(id))),
+                    allowlist_policy_id: RecordId::new(
+                        "atelier_md_allowlist_policy",
+                        SurrealUuid::from(session.allowlist_policy_id),
+                    ),
+                    output_root_id: RecordId::new(
+                        "atelier_md_output_root",
+                        SurrealUuid::from(session.output_root_id),
+                    ),
+                    item_count: input.item_count,
+                    succeeded: input.succeeded,
+                    failed: input.failed,
+                    skipped_deduped: input.skipped_deduped,
+                    materialized_paths: input.materialized_paths.clone(),
+                    manifest_artifact_ref: input.manifest_artifact_ref.clone(),
+                    started_at_utc: input.started_at_utc.map(Datetime::from),
+                    ended_at_utc: input.ended_at_utc.map(Datetime::from),
+                    terminal_stage: input.terminal_stage.as_token().to_owned(),
+                },
+                SESSION_RECEIPT_EMITTED,
+                "atelier_md_session_receipt",
+                &receipt_id.to_string(),
+                serde_json::json!({
+                    "receipt_id": receipt_id,
+                    "session_id": session_id,
+                    "parent_job_id": session.parent_job_id,
+                    "source_kind": session.source_kind.as_token(),
+                    "item_count": input.item_count,
+                    "succeeded": input.succeeded,
+                    "failed": input.failed,
+                    "skipped_deduped": input.skipped_deduped,
+                    "terminal_stage": input.terminal_stage.as_token(),
+                    // Auth carried by ref only; never a secret value.
+                    "auth_context_ref": session.auth_context_ref,
+                    "secret_values": REDACTED_PLACEHOLDER,
+                }),
+            )
+            .await?;
+        row.map(receipt_from_row).transpose()?.ok_or_else(|| {
+            AtelierError::Internal("session receipt write returned no row".to_owned())
+        })
     }
 
     /// Fetch a session's terminal receipt for a given terminal stage, if emitted.
@@ -1694,17 +1794,14 @@ impl AtelierStore {
         session_id: Uuid,
         terminal_stage: TerminalStage,
     ) -> AtelierResult<Option<SessionReceipt>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {RECEIPT_COLUMNS} FROM atelier_md_session_receipt
-               WHERE session_id = $1 AND terminal_stage = $2"#
-        ))
-        .bind(session_id)
-        .bind(terminal_stage.as_token())
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(receipt_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let bindings = ReceiptLookup {
+            download_session: RecordId::new(
+                "atelier_md_download_session",
+                SurrealUuid::from(session_id),
+            ),
+            terminal_stage: terminal_stage.as_token().to_owned(),
+        };
+        let row: Option<ReceiptRow> = self.with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT receipt_id, record::id(session_id) AS session_id, parent_job_id, source_kind, IF auth_context_ref = NONE { NONE } ELSE { record::id(auth_context_ref) } AS auth_context_ref, record::id(allowlist_policy_id) AS allowlist_policy_id, record::id(output_root_id) AS output_root_id, item_count, succeeded, failed, skipped_deduped, materialized_paths, manifest_artifact_ref, started_at_utc, ended_at_utc, terminal_stage, created_at_utc FROM atelier_md_session_receipt WHERE session_id = $download_session AND terminal_stage = $terminal_stage LIMIT 1;", bindings).await })).await?;
+        row.map(receipt_from_row).transpose()
     }
 }

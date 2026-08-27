@@ -9,19 +9,19 @@
 //! (takeover chain) — reconstructable from PostgreSQL alone, with no chat
 //! history dependency.
 
+use crate::storage::surreal::SurrealStorage;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
     self, NewRecoveryReceipt, NewSwarmCheckpoint, RecoveryReceiptRow, SwarmCheckpointRow,
 };
+use crate::storage::Database;
 
 use super::actor_site::KnowledgeActorIdV1;
-use super::agent_lease::{LeaseFlowError, new_ulid};
+use super::agent_lease::{new_ulid, LeaseFlowError};
 use super::persistence::sha256_hex;
 
 pub const SWARM_CHECKPOINT_SCHEMA_ID: &str = "hsk.kernel.knowledge_swarm_checkpoint@1";
@@ -67,7 +67,7 @@ pub struct SwarmCheckpointRequestV1 {
 /// `payload_sha256` is computed over the canonical JSON payload bytes.
 pub async fn write_swarm_checkpoint(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     request: SwarmCheckpointRequestV1,
 ) -> Result<SwarmCheckpointRow, LeaseFlowError> {
     let checkpoint_id = new_ulid();
@@ -185,7 +185,7 @@ pub struct CrdtRecoveryV1 {
 ///   4. insert the durable recovery receipt row.
 pub async fn recover_from_checkpoint(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     checkpoint_id: &str,
     new_session_id: &str,
     new_actor: &KnowledgeActorIdV1,

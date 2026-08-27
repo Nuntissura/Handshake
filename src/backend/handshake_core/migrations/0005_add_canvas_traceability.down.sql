@@ -1,2 +1,0 @@
--- No-op rollback.
--- Replay-safe normalization: traceability columns are created in `0001_init.sql`.

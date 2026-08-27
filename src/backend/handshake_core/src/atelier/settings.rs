@@ -3,8 +3,7 @@
 //! Translates the legacy source "Global Settings" surface
 //! (`src/ui/views/SettingsView.tsx`, `app/main.js` JSON config blob with
 //! `libraryRoot` and runtime settings, saved via `saveConfig`) into a typed,
-//! scoped preference store in the single Handshake database (PENDING the
-//! SurrealDB port — see the `atelier` module header, MT-138). legacy source
+//! scoped preference store in Handshake's embedded SurrealDB. The legacy source
 //! stored an untyped JSON file on
 //! the local filesystem; Handshake forbids that (no SQLite, no localhost
 //! authority). Here every preference is a typed record with an explicit value
@@ -26,10 +25,10 @@ use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{atelier_event_sql, AtelierError, AtelierResult, AtelierStore};
 
 /// Event families emitted by the settings/preferences domain (MT-200, MT-005).
 ///
@@ -558,33 +557,106 @@ fn validate_portable_path_identifier(value: &str) -> AtelierResult<()> {
     Ok(())
 }
 
-fn preference_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<Preference> {
-    let scope_kind: String = row.get("scope_kind");
-    let character_id: Option<Uuid> = row.get("character_internal_id");
-    let value_type_raw: String = row.get("value_type");
-    let source_raw: String = row.get("source");
+#[derive(SurrealValue)]
+struct PreferenceRow {
+    preference_id: SurrealUuid,
+    scope_kind: String,
+    character_internal_id: Option<SurrealUuid>,
+    key: String,
+    value_type: String,
+    value: String,
+    redacted: bool,
+    namespace: String,
+    name: String,
+    default_value: Option<String>,
+    source: String,
+    updated_by: Option<String>,
+    revision: i64,
+    redaction_class: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+fn preference_from_row(row: PreferenceRow) -> AtelierResult<Preference> {
     Ok(Preference {
-        preference_id: row.get("preference_id"),
-        scope: PreferenceScope::from_parts(&scope_kind, character_id)?,
-        key: row.get("key"),
-        namespace: row.get("namespace"),
-        name: row.get("name"),
-        value_type: PreferenceType::from_str(&value_type_raw)?,
-        value: row.get("value"),
-        default_value: row.get("default_value"),
-        source: PreferenceValueSource::from_str(&source_raw)?,
-        redacted: row.get("redacted"),
-        updated_by: row.get("updated_by"),
-        revision: row.get("revision"),
-        redaction_class: row.get("redaction_class"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+        preference_id: row.preference_id.into(),
+        scope: PreferenceScope::from_parts(
+            &row.scope_kind,
+            row.character_internal_id.map(Into::into),
+        )?,
+        key: row.key,
+        namespace: row.namespace,
+        name: row.name,
+        value_type: PreferenceType::from_str(&row.value_type)?,
+        value: row.value,
+        default_value: row.default_value,
+        source: PreferenceValueSource::from_str(&row.source)?,
+        redacted: row.redacted,
+        updated_by: row.updated_by,
+        revision: row.revision,
+        redaction_class: row.redaction_class,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
     })
 }
 
-const PREF_COLUMNS: &str = "preference_id, scope_kind, character_internal_id, key, value_type, \
-                            value, redacted, namespace, name, default_value, source, updated_by, \
-                            revision, redaction_class, created_at_utc, updated_at_utc";
+const GET_PREFERENCE_STATEMENT: &str = "SELECT preference_id, scope_kind, record::id(character_internal_id) AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM atelier_preference WHERE scope_kind = $scope_kind AND character_internal_id = $character_internal_id AND key = $key LIMIT 1;";
+const LIST_PREFERENCES_STATEMENT: &str = "SELECT preference_id, scope_kind, record::id(character_internal_id) AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM atelier_preference WHERE scope_kind = $scope_kind AND character_internal_id = $character_internal_id ORDER BY key ASC;";
+
+#[derive(Clone, SurrealValue)]
+struct PreferenceScopeKeyBindings {
+    scope_kind: String,
+    character_internal_id: Option<RecordId>,
+    key: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct PreferenceScopeBindings {
+    scope_kind: String,
+    character_internal_id: Option<RecordId>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct PreferenceWriteBindings {
+    record_id: RecordId,
+    preference_id: SurrealUuid,
+    scope_kind: String,
+    character_internal_id: Option<RecordId>,
+    key: String,
+    namespace: String,
+    name: String,
+    value_type: String,
+    value: String,
+    redacted: bool,
+    default_value: Option<String>,
+    source: String,
+    revision: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RecordBinding {
+    record_id: RecordId,
+}
+
+fn character_record(scope: PreferenceScope) -> Option<RecordId> {
+    scope
+        .character_id()
+        .map(|id| RecordId::new("atelier_character", SurrealUuid::from(id)))
+}
+
+const WRITE_PREFERENCE_STATEMENT: &str = concat!(
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_preference WHERE scope_kind = $domain.scope_kind AND character_internal_id = $domain.character_internal_id AND key = $domain.key LIMIT 1)[0]; \
+     LET $target = IF $existing = NONE { $domain.record_id } ELSE { $existing }; \
+     IF $existing = NONE { CREATE $target CONTENT { preference_id: $domain.preference_id, scope_kind: $domain.scope_kind, character_internal_id: $domain.character_internal_id, key: $domain.key, namespace: $domain.namespace, name: $domain.name, value_type: $domain.value_type, value: $domain.value, redacted: $domain.redacted, default_value: $domain.default_value, source: $domain.source, updated_by: NONE, revision: $domain.revision, redaction_class: 'public' } RETURN NONE; } ELSE { UPDATE $target SET namespace = $domain.namespace, name = $domain.name, value_type = $domain.value_type, value = $domain.value, redacted = $domain.redacted, default_value = $domain.default_value, source = $domain.source, updated_by = NONE, revision = $domain.revision, redaction_class = 'public', updated_at_utc = time::now() RETURN NONE; }; ",
+    atelier_event_sql!(),
+    " RETURN (SELECT preference_id, scope_kind, record::id(character_internal_id) AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM $target)[0]; };"
+);
+
+const DELETE_PREFERENCE_STATEMENT: &str = concat!(
+    "RETURN { LET $deleted = (DELETE $domain.record_id RETURN BEFORE)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $deleted.preference_id; };"
+);
 
 fn effective_from_preference(preference: Preference, redact: bool) -> EffectivePreference {
     let value = if redact {
@@ -661,42 +733,65 @@ impl AtelierStore {
         validate_defined_preference_value(&input.key, &input.value)?;
         let default_value = definition.map(|definition| definition.default_value.to_string());
         let before = self.get_preference(input.scope, &input.key).await?;
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_preference
-                 (scope_kind, character_internal_id, key, namespace, name, value_type, value,
-                  redacted, default_value, source, updated_by, revision, redaction_class)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, 1, 'public')
-               ON CONFLICT (scope_kind, character_internal_id, key)
-               DO UPDATE SET value      = EXCLUDED.value,
-                             namespace  = EXCLUDED.namespace,
-                             name       = EXCLUDED.name,
-                             value_type = EXCLUDED.value_type,
-                             redacted   = EXCLUDED.redacted,
-                             default_value = EXCLUDED.default_value,
-                             source     = EXCLUDED.source,
-                             updated_by = EXCLUDED.updated_by,
-                             revision   = atelier_preference.revision + 1,
-                             redaction_class = EXCLUDED.redaction_class,
-                             updated_at_utc = NOW()
-               RETURNING {PREF_COLUMNS}"#
-        ))
-        .bind(input.scope.kind())
-        .bind(input.scope.character_id())
-        .bind(&input.key)
-        .bind(namespace)
-        .bind(name)
-        .bind(input.value_type.as_str())
-        .bind(&input.value)
-        .bind(input.redacted)
-        .bind(default_value.clone())
-        .bind(PreferenceValueSource::Operator.as_str())
-        .fetch_one(self.pool())
-        .await?;
-
-        let preference = preference_from_row(&row)?;
+        let preference_id = before
+            .as_ref()
+            .map(|preference| preference.preference_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let revision = before
+            .as_ref()
+            .map_or(1, |preference| preference.revision + 1);
+        let receipt_id = Uuid::now_v7();
+        let row: Option<PreferenceRow> = self
+            .write_with_event(
+                WRITE_PREFERENCE_STATEMENT,
+                PreferenceWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_preference",
+                        SurrealUuid::from(preference_id),
+                    ),
+                    preference_id: preference_id.into(),
+                    scope_kind: input.scope.kind().to_owned(),
+                    character_internal_id: character_record(input.scope),
+                    key: input.key.clone(),
+                    namespace: namespace.to_owned(),
+                    name: name.to_owned(),
+                    value_type: input.value_type.as_str().to_owned(),
+                    value: input.value.clone(),
+                    redacted: input.redacted,
+                    default_value: default_value.clone(),
+                    source: PreferenceValueSource::Operator.as_str().to_owned(),
+                    revision,
+                },
+                settings_event_family::PREFERENCE_SET,
+                "atelier_preference",
+                &preference_id.to_string(),
+                serde_json::json!({
+                    "preference_id": preference_id,
+                    "receipt_id": receipt_id,
+                    "scope_kind": input.scope.kind(),
+                    "character_scoped": input.scope.character_id().is_some(),
+                    "key": input.key,
+                    "namespace": namespace,
+                    "name": name,
+                    "value_type": input.value_type.as_str(),
+                    "redacted": input.redacted,
+                    "source": PreferenceValueSource::Operator.as_str(),
+                    "revision_before": before.as_ref().map(|p| p.revision),
+                    "revision_after": revision,
+                    "value_before": before.as_ref().map(|p| p.value.clone()),
+                    "value_after": input.value,
+                    "source_before": before.as_ref().map(|p| p.source.as_str()),
+                    "source_after": PreferenceValueSource::Operator.as_str(),
+                    "default_value": default_value,
+                    "value": if input.redacted { REDACTED_PLACEHOLDER } else { input.value.as_str() },
+                }),
+            )
+            .await?;
+        let preference = preference_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("writing preference returned no row".to_owned())
+        })?)?;
         let receipt = PreferenceChangeReceipt {
-            receipt_id: Uuid::now_v7(),
+            receipt_id,
             event_family: settings_event_family::PREFERENCE_SET.to_string(),
             revision_before: before.as_ref().map(|preference| preference.revision),
             revision_after: preference.revision,
@@ -706,33 +801,6 @@ impl AtelierStore {
             source_after: preference.source,
             preference: preference.clone(),
         };
-        self.record_event(
-            settings_event_family::PREFERENCE_SET,
-            "atelier_preference",
-            &preference.preference_id.to_string(),
-            serde_json::json!({
-                "preference_id": preference.preference_id,
-                "receipt_id": receipt.receipt_id,
-                "scope_kind": preference.scope.kind(),
-                "character_scoped": preference.scope.character_id().is_some(),
-                "key": preference.key.clone(),
-                "namespace": preference.namespace.clone(),
-                "name": preference.name.clone(),
-                "value_type": preference.value_type.as_str(),
-                "redacted": preference.redacted,
-                "source": preference.source.as_str(),
-                "revision_before": receipt.revision_before,
-                "revision_after": receipt.revision_after,
-                "value_before": receipt.value_before.clone(),
-                "value_after": receipt.value_after.clone(),
-                "source_before": receipt.source_before.map(|source| source.as_str()),
-                "source_after": receipt.source_after.as_str(),
-                "default_value": preference.default_value.clone(),
-                // Redacted projection: never leak secret values into the ledger.
-                "value": preference.redacted_value(),
-            }),
-        )
-        .await?;
         Ok(receipt)
     }
 
@@ -742,22 +810,17 @@ impl AtelierStore {
         scope: PreferenceScope,
         key: &str,
     ) -> AtelierResult<Option<Preference>> {
-        let row = sqlx::query(&format!(
-            r#"SELECT {PREF_COLUMNS}
-               FROM atelier_preference
-               WHERE scope_kind = $1
-                 AND character_internal_id IS NOT DISTINCT FROM $2::uuid
-                 AND key = $3"#
-        ))
-        .bind(scope.kind())
-        .bind(scope.character_id())
-        .bind(key)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(preference_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let bindings = PreferenceScopeKeyBindings {
+            scope_kind: scope.kind().to_owned(),
+            character_internal_id: character_record(scope),
+            key: key.to_owned(),
+        };
+        let row: Option<PreferenceRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_PREFERENCE_STATEMENT, bindings).await })
+            })
+            .await?;
+        row.map(preference_from_row).transpose()
     }
 
     /// Fetch an effective preference. If a defined preference is unset, returns
@@ -803,19 +866,19 @@ impl AtelierStore {
         scope: PreferenceScope,
         redact: bool,
     ) -> AtelierResult<Vec<Preference>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {PREF_COLUMNS}
-               FROM atelier_preference
-               WHERE scope_kind = $1
-                 AND character_internal_id IS NOT DISTINCT FROM $2::uuid
-               ORDER BY key ASC"#
-        ))
-        .bind(scope.kind())
-        .bind(scope.character_id())
-        .fetch_all(self.pool())
-        .await?;
+        let bindings = PreferenceScopeBindings {
+            scope_kind: scope.kind().to_owned(),
+            character_internal_id: character_record(scope),
+        };
+        let rows: Vec<PreferenceRow> = self
+            .with_data(move |ctx| {
+                Box::pin(
+                    async move { ctx.query_values(LIST_PREFERENCES_STATEMENT, bindings).await },
+                )
+            })
+            .await?;
         let mut out = Vec::with_capacity(rows.len());
-        for row in &rows {
+        for row in rows {
             let pref = preference_from_row(row)?;
             out.push(if redact {
                 pref.redacted_projection()
@@ -869,41 +932,62 @@ impl AtelierStore {
         })?;
         definition.value_type.validate(definition.default_value)?;
         let before = self.get_preference(scope, key).await?;
-
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_preference
-                 (scope_kind, character_internal_id, key, namespace, name, value_type, value,
-                  redacted, default_value, source, updated_by, revision, redaction_class)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, NULL, 1, 'public')
-               ON CONFLICT (scope_kind, character_internal_id, key)
-               DO UPDATE SET value      = EXCLUDED.value,
-                             namespace  = EXCLUDED.namespace,
-                             name       = EXCLUDED.name,
-                             value_type = EXCLUDED.value_type,
-                             redacted   = FALSE,
-                             default_value = EXCLUDED.default_value,
-                             source     = EXCLUDED.source,
-                             updated_by = NULL,
-                             revision   = atelier_preference.revision + 1,
-                             redaction_class = EXCLUDED.redaction_class,
-                             updated_at_utc = NOW()
-               RETURNING {PREF_COLUMNS}"#
-        ))
-        .bind(scope.kind())
-        .bind(scope.character_id())
-        .bind(definition.key)
-        .bind(definition.namespace)
-        .bind(definition.name)
-        .bind(definition.value_type.as_str())
-        .bind(definition.default_value)
-        .bind(definition.default_value)
-        .bind(PreferenceValueSource::Default.as_str())
-        .fetch_one(self.pool())
-        .await?;
-
-        let preference = preference_from_row(&row)?;
+        let preference_id = before
+            .as_ref()
+            .map(|preference| preference.preference_id)
+            .unwrap_or_else(Uuid::now_v7);
+        let revision = before
+            .as_ref()
+            .map_or(1, |preference| preference.revision + 1);
+        let receipt_id = Uuid::now_v7();
+        let row: Option<PreferenceRow> = self
+            .write_with_event(
+                WRITE_PREFERENCE_STATEMENT,
+                PreferenceWriteBindings {
+                    record_id: RecordId::new(
+                        "atelier_preference",
+                        SurrealUuid::from(preference_id),
+                    ),
+                    preference_id: preference_id.into(),
+                    scope_kind: scope.kind().to_owned(),
+                    character_internal_id: character_record(scope),
+                    key: definition.key.to_owned(),
+                    namespace: definition.namespace.to_owned(),
+                    name: definition.name.to_owned(),
+                    value_type: definition.value_type.as_str().to_owned(),
+                    value: definition.default_value.to_owned(),
+                    redacted: false,
+                    default_value: Some(definition.default_value.to_owned()),
+                    source: PreferenceValueSource::Default.as_str().to_owned(),
+                    revision,
+                },
+                settings_event_family::PREFERENCE_RESET_TO_DEFAULT,
+                "atelier_preference",
+                &preference_id.to_string(),
+                serde_json::json!({
+                    "preference_id": preference_id,
+                    "receipt_id": receipt_id,
+                    "scope_kind": scope.kind(),
+                    "character_scoped": scope.character_id().is_some(),
+                    "key": definition.key,
+                    "namespace": definition.namespace,
+                    "name": definition.name,
+                    "value_type": definition.value_type.as_str(),
+                    "revision_before": before.as_ref().map(|p| p.revision),
+                    "revision_after": revision,
+                    "value_before": before.as_ref().map(|p| p.value.clone()),
+                    "value_after": definition.default_value,
+                    "source_before": before.as_ref().map(|p| p.source.as_str()),
+                    "source_after": PreferenceValueSource::Default.as_str(),
+                    "default_value": definition.default_value,
+                }),
+            )
+            .await?;
+        let preference = preference_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("resetting preference returned no row".to_owned())
+        })?)?;
         let receipt = PreferenceChangeReceipt {
-            receipt_id: Uuid::now_v7(),
+            receipt_id,
             event_family: settings_event_family::PREFERENCE_RESET_TO_DEFAULT.to_string(),
             revision_before: before.as_ref().map(|preference| preference.revision),
             revision_after: preference.revision,
@@ -913,31 +997,6 @@ impl AtelierStore {
             source_after: preference.source,
             preference: preference.clone(),
         };
-
-        self.record_event(
-            settings_event_family::PREFERENCE_RESET_TO_DEFAULT,
-            "atelier_preference",
-            &preference.preference_id.to_string(),
-            serde_json::json!({
-                "preference_id": preference.preference_id,
-                "receipt_id": receipt.receipt_id,
-                "scope_kind": preference.scope.kind(),
-                "character_scoped": preference.scope.character_id().is_some(),
-                "key": preference.key.clone(),
-                "namespace": preference.namespace.clone(),
-                "name": preference.name.clone(),
-                "value_type": preference.value_type.as_str(),
-                "revision_before": receipt.revision_before,
-                "revision_after": receipt.revision_after,
-                "value_before": receipt.value_before.clone(),
-                "value_after": receipt.value_after.clone(),
-                "source_before": receipt.source_before.map(|source| source.as_str()),
-                "source_after": receipt.source_after.as_str(),
-                "default_value": preference.default_value.clone(),
-            }),
-        )
-        .await?;
-
         Ok(receipt)
     }
 
@@ -1030,43 +1089,34 @@ impl AtelierStore {
         scope: PreferenceScope,
         key: &str,
     ) -> AtelierResult<bool> {
-        let deleted_id: Option<Uuid> = sqlx::query_scalar(
-            r#"DELETE FROM atelier_preference
-               WHERE scope_kind = $1
-                 AND character_internal_id IS NOT DISTINCT FROM $2::uuid
-                 AND key = $3
-               RETURNING preference_id"#,
-        )
-        .bind(scope.kind())
-        .bind(scope.character_id())
-        .bind(key)
-        .fetch_optional(self.pool())
-        .await?;
-
-        match deleted_id {
-            Some(id) => {
-                self.record_event(
-                    settings_event_family::PREFERENCE_DELETED,
-                    "atelier_preference",
-                    &id.to_string(),
-                    serde_json::json!({
-                        "preference_id": id,
-                        "scope_kind": scope.kind(),
-                        "character_scoped": scope.character_id().is_some(),
-                        "key": key,
-                    }),
-                )
-                .await?;
-                Ok(true)
-            }
-            None => Ok(false),
-        }
+        let Some(existing) = self.get_preference(scope, key).await? else {
+            return Ok(false);
+        };
+        let id = existing.preference_id;
+        let deleted: Option<SurrealUuid> = self
+            .write_with_event(
+                DELETE_PREFERENCE_STATEMENT,
+                RecordBinding {
+                    record_id: RecordId::new("atelier_preference", SurrealUuid::from(id)),
+                },
+                settings_event_family::PREFERENCE_DELETED,
+                "atelier_preference",
+                &id.to_string(),
+                serde_json::json!({
+                    "preference_id": id,
+                    "scope_kind": scope.kind(),
+                    "character_scoped": scope.character_id().is_some(),
+                    "key": key,
+                }),
+            )
+            .await?;
+        Ok(deleted.is_some())
     }
 }
 
 // ---------------------------------------------------------------------------
 // MT-160 / MT-163 / MT-169 (WP-KERNEL-005): typed Model-Workflow-Diagnostics
-// runtime surfaces. These are GOVERNED product/runtime surfaces (PostgreSQL
+// runtime surfaces. These are GOVERNED product/runtime surfaces (SurrealDB
 // rows + EventLedger events), never governance markdown.
 //
 // They are appended here (the only source file this MT is permitted to edit)
@@ -1081,7 +1131,7 @@ impl AtelierStore {
 //     typeText preserved as governed, attributed, auditable rows requiring
 //     authorization, so synthetic input is never silent.
 //
-// Storage authority is PostgreSQL only (AtelierStore::pool()); SQLite is
+// Storage authority is the embedded SurrealDB store; SQLite is
 // forbidden (MT-004). base_url / suggestion_ref / target_ref cross the
 // persistence boundary through `reject_legacy_runtime_ref`, which also rejects
 // localhost / direct-LLM authorities so the config is Handshake-native.
@@ -1320,6 +1370,99 @@ pub struct NewSyntheticInput {
     pub authorized: bool,
 }
 
+#[derive(SurrealValue)]
+struct ModelConfigRow {
+    config_id: String,
+    base_url: String,
+    model: String,
+    api_key_ref: String,
+    system_prompt: String,
+    timeout_ms: i64,
+    created_at_utc: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct ModelApplyRow {
+    apply_id: String,
+    suggestion_ref: String,
+    state: String,
+    evidence_ref: Option<String>,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct SyntheticInputRow {
+    guard_id: String,
+    op: String,
+    target_ref: String,
+    authorized: bool,
+    created_at_utc: Datetime,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ModelConfigBindings {
+    record_id: RecordId,
+    config_id: String,
+    base_url: String,
+    model: String,
+    api_key_ref: String,
+    system_prompt: String,
+    timeout_ms: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ModelApplyDraftBindings {
+    record_id: RecordId,
+    apply_id: String,
+    suggestion_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ModelApplyAdvanceBindings {
+    record_id: RecordId,
+    state: String,
+    evidence_ref: Option<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct SyntheticInputBindings {
+    record_id: RecordId,
+    guard_id: String,
+    op: String,
+    target_ref: String,
+    authorized: bool,
+}
+
+#[derive(Clone, SurrealValue)]
+struct StringIdBinding {
+    id: String,
+}
+
+const WRITE_MODEL_CONFIG_STATEMENT: &str = concat!(
+    "RETURN { LET $config = IF record::exists($domain.record_id) { (UPDATE $domain.record_id SET base_url = $domain.base_url, model = $domain.model, api_key_ref = $domain.api_key_ref, system_prompt = $domain.system_prompt, timeout_ms = $domain.timeout_ms RETURN AFTER)[0] } ELSE { (CREATE $domain.record_id CONTENT { config_id: $domain.config_id, base_url: $domain.base_url, model: $domain.model, api_key_ref: $domain.api_key_ref, system_prompt: $domain.system_prompt, timeout_ms: $domain.timeout_ms } RETURN AFTER)[0] }; ",
+    atelier_event_sql!(),
+    " RETURN $config; };"
+);
+
+const CREATE_MODEL_APPLY_STATEMENT: &str = concat!(
+    "RETURN { LET $apply = (CREATE $domain.record_id CONTENT { apply_id: $domain.apply_id, suggestion_ref: $domain.suggestion_ref, state: 'DRAFT', evidence_ref: NONE } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $apply; };"
+);
+
+const ADVANCE_MODEL_APPLY_STATEMENT: &str = concat!(
+    "RETURN { LET $apply = (UPDATE $domain.record_id SET state = $domain.state, evidence_ref = IF $domain.evidence_ref = NONE { evidence_ref } ELSE { $domain.evidence_ref }, updated_at_utc = time::now() RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $apply; };"
+);
+
+const CREATE_SYNTHETIC_INPUT_STATEMENT: &str = concat!(
+    "RETURN { LET $guard = (CREATE $domain.record_id CONTENT { guard_id: $domain.guard_id, op: $domain.op, target_ref: $domain.target_ref, authorized: $domain.authorized } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $guard; };"
+);
+
 impl AtelierStore {
     // ---- MT-160: model config -------------------------------------------
 
@@ -1330,75 +1473,69 @@ impl AtelierStore {
     /// `MODEL_CONFIG_RECORDED`.
     pub async fn record_model_config(&self, new: &NewModelConfig) -> AtelierResult<ModelConfig> {
         let api_key_ref = validate_new_model_config(new)?;
-
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_model_config
-                 (config_id, base_url, model, api_key_ref, system_prompt, timeout_ms)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (config_id)
-               DO UPDATE SET base_url      = EXCLUDED.base_url,
-                             model         = EXCLUDED.model,
-                             api_key_ref   = EXCLUDED.api_key_ref,
-                             system_prompt = EXCLUDED.system_prompt,
-                             timeout_ms    = EXCLUDED.timeout_ms
-               RETURNING config_id, base_url, model, api_key_ref, system_prompt,
-                         timeout_ms, created_at_utc"#,
-        )
-        .bind(&new.config_id)
-        .bind(&new.base_url)
-        .bind(&new.model)
-        .bind(&api_key_ref)
-        .bind(&new.system_prompt)
-        .bind(new.timeout_ms)
-        .fetch_one(self.pool())
-        .await?;
-
-        let config = model_config_from_row(&row);
-
-        self.record_event(
-            model_workflow_event_family::MODEL_CONFIG_RECORDED,
-            "atelier_model_config",
-            &config.config_id,
-            serde_json::json!({
-                "config_id": config.config_id,
-                "base_url": config.base_url,
-                "model": config.model,
-                // Only the redacted ref is ever emitted; never the raw key.
-                "api_key_ref": config.api_key_ref,
-                "api_key": MODEL_CONFIG_REDACTED_PLACEHOLDER,
-                "timeout_ms": config.timeout_ms,
-            }),
-        )
-        .await?;
-
-        Ok(config)
+        let row: Option<ModelConfigRow> = self
+            .write_with_event(
+                WRITE_MODEL_CONFIG_STATEMENT,
+                ModelConfigBindings {
+                    record_id: RecordId::new("atelier_model_config", new.config_id.clone()),
+                    config_id: new.config_id.clone(),
+                    base_url: new.base_url.clone(),
+                    model: new.model.clone(),
+                    api_key_ref: api_key_ref.clone(),
+                    system_prompt: new.system_prompt.clone(),
+                    timeout_ms: i64::from(new.timeout_ms),
+                },
+                model_workflow_event_family::MODEL_CONFIG_RECORDED,
+                "atelier_model_config",
+                &new.config_id,
+                serde_json::json!({
+                    "config_id": new.config_id,
+                    "base_url": new.base_url,
+                    "model": new.model,
+                    "api_key_ref": api_key_ref,
+                    "api_key": MODEL_CONFIG_REDACTED_PLACEHOLDER,
+                    "timeout_ms": new.timeout_ms,
+                }),
+            )
+            .await?;
+        model_config_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("recording model config returned no row".to_owned())
+        })?)
     }
 
     /// Fetch a model config by id.
     pub async fn get_model_config(&self, config_id: &str) -> AtelierResult<Option<ModelConfig>> {
-        let row = sqlx::query(
-            r#"SELECT config_id, base_url, model, api_key_ref, system_prompt,
-                      timeout_ms, created_at_utc
-               FROM atelier_model_config
-               WHERE config_id = $1"#,
-        )
-        .bind(config_id)
-        .fetch_optional(self.pool())
-        .await?;
-        Ok(row.as_ref().map(model_config_from_row))
+        let bindings = StringIdBinding {
+            id: config_id.to_owned(),
+        };
+        let row: Option<ModelConfigRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT config_id, base_url, model, api_key_ref, system_prompt, timeout_ms, created_at_utc FROM atelier_model_config WHERE config_id = $id LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(model_config_from_row).transpose()
     }
 
     /// List all model configs, ordered by id.
     pub async fn list_model_configs(&self) -> AtelierResult<Vec<ModelConfig>> {
-        let rows = sqlx::query(
-            r#"SELECT config_id, base_url, model, api_key_ref, system_prompt,
-                      timeout_ms, created_at_utc
-               FROM atelier_model_config
-               ORDER BY config_id ASC"#,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows.iter().map(model_config_from_row).collect())
+        let rows: Vec<ModelConfigRow> = self
+            .with_data(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "SELECT config_id, base_url, model, api_key_ref, system_prompt, timeout_ms, created_at_utc FROM atelier_model_config ORDER BY config_id ASC;",
+                        (),
+                    )
+                    .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(model_config_from_row).collect()
     }
 
     // ---- MT-163: apply state machine ------------------------------------
@@ -1413,33 +1550,27 @@ impl AtelierStore {
         validate_model_config_token("apply_id", apply_id)?;
         reject_legacy_runtime_ref("suggestion_ref", suggestion_ref)?;
 
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_model_apply
-                 (apply_id, suggestion_ref, state, evidence_ref)
-               VALUES ($1, $2, 'DRAFT', NULL)
-               RETURNING apply_id, suggestion_ref, state, evidence_ref,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(apply_id)
-        .bind(suggestion_ref)
-        .fetch_one(self.pool())
-        .await?;
-
-        let apply = model_apply_from_row(&row)?;
-
-        self.record_event(
-            model_workflow_event_family::MODEL_APPLY_DRAFTED,
-            "atelier_model_apply",
-            &apply.apply_id,
-            serde_json::json!({
-                "apply_id": apply.apply_id,
-                "suggestion_ref": apply.suggestion_ref,
-                "state": apply.state.as_token(),
-            }),
-        )
-        .await?;
-
-        Ok(apply)
+        let row: Option<ModelApplyRow> = self
+            .write_with_event(
+                CREATE_MODEL_APPLY_STATEMENT,
+                ModelApplyDraftBindings {
+                    record_id: RecordId::new("atelier_model_apply", apply_id.to_owned()),
+                    apply_id: apply_id.to_owned(),
+                    suggestion_ref: suggestion_ref.to_owned(),
+                },
+                model_workflow_event_family::MODEL_APPLY_DRAFTED,
+                "atelier_model_apply",
+                apply_id,
+                serde_json::json!({
+                    "apply_id": apply_id,
+                    "suggestion_ref": suggestion_ref,
+                    "state": ModelApplyState::Draft.as_token(),
+                }),
+            )
+            .await?;
+        model_apply_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("drafting model apply returned no row".to_owned())
+        })?)
     }
 
     /// Advance an apply record to `next`, enforcing the legal transition graph
@@ -1469,54 +1600,47 @@ impl AtelierStore {
             )));
         }
 
-        let row = sqlx::query(
-            r#"UPDATE atelier_model_apply
-               SET state = $2,
-                   evidence_ref = COALESCE($3, evidence_ref),
-                   updated_at_utc = NOW()
-               WHERE apply_id = $1
-               RETURNING apply_id, suggestion_ref, state, evidence_ref,
-                         created_at_utc, updated_at_utc"#,
-        )
-        .bind(apply_id)
-        .bind(next.as_token())
-        .bind(evidence_ref)
-        .fetch_one(self.pool())
-        .await?;
-
-        let apply = model_apply_from_row(&row)?;
-
-        self.record_event(
-            model_workflow_event_family::MODEL_APPLY_STATE_ADVANCED,
-            "atelier_model_apply",
-            &apply.apply_id,
-            serde_json::json!({
-                "apply_id": apply.apply_id,
-                "state_before": current.state.as_token(),
-                "state_after": apply.state.as_token(),
-                "evidence_ref": apply.evidence_ref,
-            }),
-        )
-        .await?;
-
-        Ok(apply)
+        let row: Option<ModelApplyRow> = self
+            .write_with_event(
+                ADVANCE_MODEL_APPLY_STATEMENT,
+                ModelApplyAdvanceBindings {
+                    record_id: RecordId::new("atelier_model_apply", apply_id.to_owned()),
+                    state: next.as_token().to_owned(),
+                    evidence_ref: evidence_ref.map(str::to_owned),
+                },
+                model_workflow_event_family::MODEL_APPLY_STATE_ADVANCED,
+                "atelier_model_apply",
+                apply_id,
+                serde_json::json!({
+                    "apply_id": apply_id,
+                    "state_before": current.state.as_token(),
+                    "state_after": next.as_token(),
+                    "evidence_ref": evidence_ref,
+                }),
+            )
+            .await?;
+        model_apply_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("advancing model apply returned no row".to_owned())
+        })?)
     }
 
     /// Fetch a model apply record by id.
     pub async fn get_model_apply(&self, apply_id: &str) -> AtelierResult<Option<ModelApply>> {
-        let row = sqlx::query(
-            r#"SELECT apply_id, suggestion_ref, state, evidence_ref,
-                      created_at_utc, updated_at_utc
-               FROM atelier_model_apply
-               WHERE apply_id = $1"#,
-        )
-        .bind(apply_id)
-        .fetch_optional(self.pool())
-        .await?;
-        match row {
-            Some(r) => Ok(Some(model_apply_from_row(&r)?)),
-            None => Ok(None),
-        }
+        let bindings = StringIdBinding {
+            id: apply_id.to_owned(),
+        };
+        let row: Option<ModelApplyRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT apply_id, suggestion_ref, state, evidence_ref, created_at_utc, updated_at_utc FROM atelier_model_apply WHERE apply_id = $id LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(model_apply_from_row).transpose()
     }
 
     // ---- MT-169: synthetic input guard ----------------------------------
@@ -1531,35 +1655,30 @@ impl AtelierStore {
         reject_legacy_runtime_ref("target_ref", &new.target_ref)?;
 
         let guard_id = Uuid::now_v7().to_string();
-        let row = sqlx::query(
-            r#"INSERT INTO atelier_synthetic_input_guard
-                 (guard_id, op, target_ref, authorized)
-               VALUES ($1, $2, $3, $4)
-               RETURNING guard_id, op, target_ref, authorized, created_at_utc"#,
-        )
-        .bind(&guard_id)
-        .bind(new.op.as_token())
-        .bind(&new.target_ref)
-        .bind(new.authorized)
-        .fetch_one(self.pool())
-        .await?;
-
-        let record = synthetic_input_from_row(&row)?;
-
-        self.record_event(
-            model_workflow_event_family::SYNTHETIC_INPUT_RECORDED,
-            "atelier_synthetic_input_guard",
-            &record.guard_id,
-            serde_json::json!({
-                "guard_id": record.guard_id,
-                "op": record.op.as_token(),
-                "target_ref": record.target_ref,
-                "authorized": record.authorized,
-            }),
-        )
-        .await?;
-
-        Ok(record)
+        let row: Option<SyntheticInputRow> = self
+            .write_with_event(
+                CREATE_SYNTHETIC_INPUT_STATEMENT,
+                SyntheticInputBindings {
+                    record_id: RecordId::new("atelier_synthetic_input_guard", guard_id.clone()),
+                    guard_id: guard_id.clone(),
+                    op: new.op.as_token().to_owned(),
+                    target_ref: new.target_ref.clone(),
+                    authorized: new.authorized,
+                },
+                model_workflow_event_family::SYNTHETIC_INPUT_RECORDED,
+                "atelier_synthetic_input_guard",
+                &guard_id,
+                serde_json::json!({
+                    "guard_id": guard_id,
+                    "op": new.op.as_token(),
+                    "target_ref": new.target_ref,
+                    "authorized": new.authorized,
+                }),
+            )
+            .await?;
+        synthetic_input_from_row(row.ok_or_else(|| {
+            AtelierError::Internal("recording synthetic input returned no row".to_owned())
+        })?)
     }
 
     /// Guard a synthetic-input request: record it (always, for audit) and then
@@ -1582,39 +1701,37 @@ impl AtelierStore {
     }
 }
 
-fn model_config_from_row(row: &sqlx::postgres::PgRow) -> ModelConfig {
-    ModelConfig {
-        config_id: row.get("config_id"),
-        base_url: row.get("base_url"),
-        model: row.get("model"),
-        api_key_ref: row.get("api_key_ref"),
-        system_prompt: row.get("system_prompt"),
-        timeout_ms: row.get("timeout_ms"),
-        created_at_utc: row.get("created_at_utc"),
-    }
-}
-
-fn model_apply_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ModelApply> {
-    let state_raw: String = row.get("state");
-    Ok(ModelApply {
-        apply_id: row.get("apply_id"),
-        suggestion_ref: row.get("suggestion_ref"),
-        state: ModelApplyState::from_token(&state_raw)?,
-        evidence_ref: row.get("evidence_ref"),
-        created_at_utc: row.get("created_at_utc"),
-        updated_at_utc: row.get("updated_at_utc"),
+fn model_config_from_row(row: ModelConfigRow) -> AtelierResult<ModelConfig> {
+    Ok(ModelConfig {
+        config_id: row.config_id,
+        base_url: row.base_url,
+        model: row.model,
+        api_key_ref: row.api_key_ref,
+        system_prompt: row.system_prompt,
+        timeout_ms: i32::try_from(row.timeout_ms).map_err(|_| {
+            AtelierError::Validation("model config timeout_ms exceeds i32 range".to_owned())
+        })?,
+        created_at_utc: row.created_at_utc.into(),
     })
 }
 
-fn synthetic_input_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<SyntheticInputGuardRecord> {
-    let op_raw: String = row.get("op");
+fn model_apply_from_row(row: ModelApplyRow) -> AtelierResult<ModelApply> {
+    Ok(ModelApply {
+        apply_id: row.apply_id,
+        suggestion_ref: row.suggestion_ref,
+        state: ModelApplyState::from_token(&row.state)?,
+        evidence_ref: row.evidence_ref,
+        created_at_utc: row.created_at_utc.into(),
+        updated_at_utc: row.updated_at_utc.into(),
+    })
+}
+
+fn synthetic_input_from_row(row: SyntheticInputRow) -> AtelierResult<SyntheticInputGuardRecord> {
     Ok(SyntheticInputGuardRecord {
-        guard_id: row.get("guard_id"),
-        op: SyntheticInputOp::from_token(&op_raw)?,
-        target_ref: row.get("target_ref"),
-        authorized: row.get("authorized"),
-        created_at_utc: row.get("created_at_utc"),
+        guard_id: row.guard_id,
+        op: SyntheticInputOp::from_token(&row.op)?,
+        target_ref: row.target_ref,
+        authorized: row.authorized,
+        created_at_utc: row.created_at_utc.into(),
     })
 }

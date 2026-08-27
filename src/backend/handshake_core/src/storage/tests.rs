@@ -10,6 +10,7 @@
 //! artifacts root, so two suites running at once cannot see each other's rows
 //! and neither needs a server, a connection string, or a cleanup DROP SCHEMA.
 
+use super::surreal::{SurrealDatabase, SurrealStorage, SurrealStorageConfig};
 #[allow(unused_imports)]
 use super::{
     AccessMode, BlockUpdate, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
@@ -21,16 +22,17 @@ use super::{
     LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
     NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
     NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageBackendKind,
-    StorageCapabilityStore, StorageError, StorageGuard, StorageResult, StructuredCollaborationStore,
-    WriteContext,
+    StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
+    StructuredCollaborationStore, WriteContext,
 };
-use super::surreal::{SurrealDatabase, SurrealStorage, SurrealStorageConfig};
+use crate::workflows::locus;
 use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Instant;
+use surrealdb::types::SurrealValue;
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -39,15 +41,57 @@ const LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS: usize = 10_000;
 
 /// Root for per-test store directories.
 ///
-/// Resolved from `HANDSHAKE_ARTIFACTS_ROOT` when set, otherwise the repo-relative
-/// external artifacts root. No machine-local absolute path is baked in [CX-109B],
-/// and test output stays outside the repository working tree [CX-984].
-fn test_store_root() -> PathBuf {
-    std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("../Handshake_Artifacts"))
+/// Resolved only from an explicit absolute `HANDSHAKE_ARTIFACTS_ROOT`.
+/// Relative/current-directory fallbacks are forbidden because a fixture may be
+/// launched from several worktrees and must never create a second artifact root.
+fn test_store_root() -> StorageResult<PathBuf> {
+    let configured = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").ok_or_else(|| {
+        StorageError::Database(
+            "HANDSHAKE_ARTIFACTS_ROOT must name the absolute _Artifacts root for embedded tests"
+                .to_owned(),
+        )
+    })?;
+    let configured = PathBuf::from(configured);
+    if !configured.is_absolute() {
+        return Err(StorageError::Database(format!(
+            "HANDSHAKE_ARTIFACTS_ROOT must be absolute, got {}",
+            configured.display()
+        )));
+    }
+    std::fs::create_dir_all(&configured).map_err(|error| {
+        StorageError::Database(format!(
+            "could not create embedded-test artifacts root {}: {error}",
+            configured.display()
+        ))
+    })?;
+    let artifacts_root = dunce::canonicalize(&configured).map_err(|error| {
+        StorageError::Database(format!(
+            "could not resolve embedded-test artifacts root {}: {error}",
+            configured.display()
+        ))
+    })?;
+    let store_root = artifacts_root
         .join("handshake-test")
-        .join("storage-conformance")
+        .join("storage-conformance");
+    std::fs::create_dir_all(&store_root).map_err(|error| {
+        StorageError::Database(format!(
+            "could not create embedded-test store root {}: {error}",
+            store_root.display()
+        ))
+    })?;
+    let store_root = dunce::canonicalize(&store_root).map_err(|error| {
+        StorageError::Database(format!(
+            "could not resolve embedded-test store root {}: {error}",
+            store_root.display()
+        ))
+    })?;
+    if !store_root.starts_with(&artifacts_root) {
+        return Err(StorageError::Database(format!(
+            "embedded-test store root escaped HANDSHAKE_ARTIFACTS_ROOT: {}",
+            store_root.display()
+        )));
+    }
+    Ok(store_root)
 }
 
 /// A live embedded store plus the `Database` handle over it.
@@ -59,18 +103,138 @@ pub struct EmbeddedTestBackend {
     pub database: Arc<dyn super::Database>,
     pub storage: SurrealStorage,
     pub data_dir: PathBuf,
+    cleanup: Arc<TestStoreCleanupGuard>,
+}
+
+struct TestStoreCleanupGuard {
+    storage: StdMutex<Option<SurrealStorage>>,
+    data_dir: PathBuf,
+}
+
+impl TestStoreCleanupGuard {
+    fn take_storage(&self) -> Option<SurrealStorage> {
+        match self.storage.lock() {
+            Ok(mut storage) => storage.take(),
+            Err(poisoned) => poisoned.into_inner().take(),
+        }
+    }
+
+    async fn cleanup(&self) -> StorageResult<()> {
+        let Some(storage) = self.take_storage() else {
+            return Ok(());
+        };
+        shutdown_and_remove_test_store(storage, self.data_dir.clone()).await
+    }
+}
+
+impl Drop for TestStoreCleanupGuard {
+    fn drop(&mut self) {
+        let Some(storage) = self.take_storage() else {
+            return;
+        };
+        let data_dir = self.data_dir.clone();
+        let cleanup = std::thread::Builder::new()
+            .name("handshake-test-store-cleanup".to_owned())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|error| {
+                        StorageError::Database(format!(
+                            "could not build embedded-test cleanup runtime: {error}"
+                        ))
+                    })?;
+                runtime.block_on(shutdown_and_remove_test_store(storage, data_dir))
+            });
+        let result = match cleanup {
+            Ok(thread) => match thread.join() {
+                Ok(result) => result,
+                Err(_) => Err(StorageError::Database(
+                    "embedded-test cleanup thread panicked".to_owned(),
+                )),
+            },
+            Err(error) => Err(StorageError::Database(format!(
+                "could not start embedded-test cleanup thread: {error}"
+            ))),
+        };
+        if let Err(error) = result {
+            eprintln!("HANDSHAKE_TEST_STORE_CLEANUP_FAILURE {error}");
+        }
+    }
 }
 
 impl EmbeddedTestBackend {
     /// Close the store and remove its directory.
-    ///
-    /// Best-effort by design: a test that has already failed should surface its
-    /// own assertion, not a teardown error on top of it. Stores that survive an
-    /// aborted process are reclaimed separately (MT-123).
-    pub async fn close_and_remove(self) {
-        let dir = self.data_dir.clone();
-        let _ = self.storage.shutdown().await;
-        let _ = std::fs::remove_dir_all(dir);
+    pub async fn close_and_remove(self) -> StorageResult<()> {
+        let EmbeddedTestBackend {
+            database,
+            storage,
+            data_dir: _,
+            cleanup,
+        } = self;
+        drop(database);
+        drop(storage);
+        cleanup.cleanup().await
+    }
+}
+
+fn combine_test_body_and_cleanup(
+    body: StorageResult<()>,
+    cleanup: StorageResult<()>,
+) -> StorageResult<()> {
+    match (body, cleanup) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+        (Err(body_error), Err(cleanup_error)) => Err(StorageError::Database(format!(
+            "test body failed: {body_error}; cleanup also failed: {cleanup_error}"
+        ))),
+    }
+}
+
+async fn shutdown_and_remove_test_store(
+    storage: SurrealStorage,
+    data_dir: PathBuf,
+) -> StorageResult<()> {
+    let shutdown = storage.shutdown().await;
+    drop(storage);
+    let removal = std::fs::remove_dir_all(&data_dir);
+    let mut failures = Vec::new();
+    if let Err(error) = shutdown {
+        failures.push(format!("shutdown failed: {error}"));
+    }
+    if let Err(error) = removal {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            failures.push(format!(
+                "cleanup failed for {}: {error}",
+                data_dir.display()
+            ));
+        }
+    }
+    match data_dir.try_exists() {
+        Ok(false) => {}
+        Ok(true) => failures.push(format!(
+            "embedded test store still exists after teardown: {}",
+            data_dir.display()
+        )),
+        Err(error) => failures.push(format!(
+            "could not verify embedded test store removal for {}: {error}",
+            data_dir.display()
+        )),
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(StorageError::Database(failures.join("; ")))
+    }
+}
+
+fn cleanup_unopened_test_store(data_dir: &PathBuf, error: impl std::fmt::Display) -> StorageError {
+    match std::fs::remove_dir_all(data_dir) {
+        Ok(()) => StorageError::Database(error.to_string()),
+        Err(cleanup_error) => StorageError::Database(format!(
+            "{error}; cleanup failed for {}: {cleanup_error}",
+            data_dir.display()
+        )),
     }
 }
 
@@ -82,7 +246,7 @@ impl EmbeddedTestBackend {
 /// `POSTGRES_TEST_URL` / `DATABASE_URL` resolution chain is gone rather than
 /// ported - there is nothing left to resolve.
 pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
-    let data_dir = test_store_root().join(format!("store-{}", Uuid::now_v7().simple()));
+    let data_dir = test_store_root()?.join(format!("store-{}", Uuid::now_v7().simple()));
     std::fs::create_dir_all(&data_dir).map_err(|error| {
         StorageError::Database(format!(
             "could not create embedded test store dir {}: {error}",
@@ -91,23 +255,32 @@ pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
     })?;
 
     let config = SurrealStorageConfig::for_data_dir(&data_dir)
-        .map_err(|error| StorageError::Database(error.to_string()))?;
+        .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     let storage = SurrealStorage::open(config)
         .await
-        .map_err(|error| StorageError::Database(error.to_string()))?;
+        .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     let database = SurrealDatabase::new(storage.clone());
-    database.run_migrations().await?;
+    if let Err(error) = database.run_migrations().await {
+        drop(database);
+        let cleanup = shutdown_and_remove_test_store(storage, data_dir).await;
+        return match cleanup {
+            Ok(()) => Err(error),
+            Err(cleanup_error) => Err(StorageError::Database(format!(
+                "{error}; cleanup also failed: {cleanup_error}"
+            ))),
+        };
+    }
 
+    let cleanup = Arc::new(TestStoreCleanupGuard {
+        storage: StdMutex::new(Some(storage.clone())),
+        data_dir: data_dir.clone(),
+    });
     Ok(EmbeddedTestBackend {
         database: Arc::new(database),
         storage,
         data_dir,
+        cleanup,
     })
-}
-
-/// Open an isolated embedded store and return only the `Database` handle.
-pub async fn embedded_test_database() -> StorageResult<Arc<dyn super::Database>> {
-    Ok(embedded_test_backend().await?.database)
 }
 
 #[cfg(test)]
@@ -2549,7 +2722,6 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     Ok(())
 }
 
-
 #[tokio::test]
 async fn guard_blocks_ai_without_context() {
     let guard = DefaultStorageGuard;
@@ -2558,163 +2730,183 @@ async fn guard_blocks_ai_without_context() {
     assert!(matches!(result, Err(GuardError::SilentEdit)));
 }
 
-
 #[tokio::test]
 async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<()> {
-    let db = embedded_test_database().await?;
-    let job = db
-        .create_ai_job(NewAiJob {
-            trace_id: Uuid::now_v7(),
-            job_kind: JobKind::WorkflowRun,
-            protocol_id: "p1".into(),
-            profile_id: "profile1".into(),
-            capability_profile_id: "cap1".into(),
-            access_mode: AccessMode::AnalysisOnly,
-            safety_mode: SafetyMode::Normal,
-            entity_refs: Vec::new(),
-            planned_operations: Vec::new(),
-            status_reason: "queued".to_string(),
-            metrics: JobMetrics::zero(),
-            job_inputs: Some(json!({"input": true})),
-        })
-        .await?;
-    let run = db
-        .create_workflow_run(job.job_id, JobState::Running, None)
-        .await?;
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
+    let body = async {
+        let job = db
+            .create_ai_job(NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "p1".into(),
+                profile_id: "profile1".into(),
+                capability_profile_id: "cap1".into(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({"input": true})),
+            })
+            .await?;
+        let run = db
+            .create_workflow_run(job.job_id, JobState::Running, None)
+            .await?;
 
-    let exec = db
-        .create_workflow_node_execution(NewNodeExecution {
-            workflow_run_id: run.id,
-            node_id: "node-1".into(),
-            node_type: "test".into(),
-            status: JobState::Running,
-            sequence: 1,
-            input_payload: Some(json!({"input": true})),
-            started_at: Utc::now(),
-        })
-        .await?;
-
-    assert!(matches!(exec.status, JobState::Running));
-    assert_eq!(exec.node_id, "node-1");
-
-    let updated = db
-        .update_workflow_node_execution_status(
-            exec.id,
-            JobState::Completed,
-            Some(json!({"output": 42})),
-            None,
-        )
-        .await?;
-    assert!(matches!(updated.status, JobState::Completed));
-    assert_eq!(
-        updated
-            .output_payload
-            .as_ref()
-            .and_then(|v| v.get("output"))
-            .and_then(|v| v.as_i64()),
-        Some(42)
-    );
-
-    let executions = db.list_workflow_node_executions(run.id).await?;
-    assert_eq!(executions.len(), 1);
-    Ok(())
-}
-
-#[tokio::test]
-async fn workflow_node_execution_sets_finished_at_for_terminal_statuses() -> StorageResult<()> {
-    let db = embedded_test_database().await?;
-    let job = db
-        .create_ai_job(NewAiJob {
-            trace_id: Uuid::now_v7(),
-            job_kind: JobKind::WorkflowRun,
-            protocol_id: "p1".into(),
-            profile_id: "profile1".into(),
-            capability_profile_id: "cap1".into(),
-            access_mode: AccessMode::AnalysisOnly,
-            safety_mode: SafetyMode::Normal,
-            entity_refs: Vec::new(),
-            planned_operations: Vec::new(),
-            status_reason: "queued".to_string(),
-            metrics: JobMetrics::zero(),
-            job_inputs: Some(json!({"input": true})),
-        })
-        .await?;
-    let run = db
-        .create_workflow_run(job.job_id, JobState::Running, None)
-        .await?;
-
-    for (sequence, terminal_status) in [(1, JobState::CompletedWithIssues), (2, JobState::Poisoned)]
-    {
         let exec = db
             .create_workflow_node_execution(NewNodeExecution {
                 workflow_run_id: run.id,
-                node_id: format!("node-{sequence}"),
+                node_id: "node-1".into(),
                 node_type: "test".into(),
                 status: JobState::Running,
-                sequence,
+                sequence: 1,
                 input_payload: Some(json!({"input": true})),
                 started_at: Utc::now(),
             })
             .await?;
 
+        assert!(matches!(exec.status, JobState::Running));
+        assert_eq!(exec.node_id, "node-1");
+
         let updated = db
             .update_workflow_node_execution_status(
                 exec.id,
-                terminal_status.clone(),
+                JobState::Completed,
+                Some(json!({"output": 42})),
                 None,
-                Some("terminal".to_string()),
             )
             .await?;
-
-        assert_eq!(updated.status, terminal_status);
-        assert!(
-            updated.finished_at.is_some(),
-            "terminal workflow node status should set finished_at"
+        assert!(matches!(updated.status, JobState::Completed));
+        assert_eq!(
+            updated
+                .output_payload
+                .as_ref()
+                .and_then(|v| v.get("output"))
+                .and_then(|v| v.as_i64()),
+            Some(42)
         );
-    }
 
-    Ok(())
+        let executions = db.list_workflow_node_executions(run.id).await?;
+        assert_eq!(executions.len(), 1);
+        Ok::<(), StorageError>(())
+    }
+    .await;
+    drop(db);
+    let cleanup = backend.close_and_remove().await;
+    combine_test_body_and_cleanup(body, cleanup)
+}
+
+#[tokio::test]
+async fn workflow_node_execution_sets_finished_at_for_terminal_statuses() -> StorageResult<()> {
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
+    let body = async {
+        let job = db
+            .create_ai_job(NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "p1".into(),
+                profile_id: "profile1".into(),
+                capability_profile_id: "cap1".into(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({"input": true})),
+            })
+            .await?;
+        let run = db
+            .create_workflow_run(job.job_id, JobState::Running, None)
+            .await?;
+
+        for (sequence, terminal_status) in
+            [(1, JobState::CompletedWithIssues), (2, JobState::Poisoned)]
+        {
+            let exec = db
+                .create_workflow_node_execution(NewNodeExecution {
+                    workflow_run_id: run.id,
+                    node_id: format!("node-{sequence}"),
+                    node_type: "test".into(),
+                    status: JobState::Running,
+                    sequence,
+                    input_payload: Some(json!({"input": true})),
+                    started_at: Utc::now(),
+                })
+                .await?;
+
+            let updated = db
+                .update_workflow_node_execution_status(
+                    exec.id,
+                    terminal_status.clone(),
+                    None,
+                    Some("terminal".to_string()),
+                )
+                .await?;
+
+            assert_eq!(updated.status, terminal_status);
+            assert!(
+                updated.finished_at.is_some(),
+                "terminal workflow node status should set finished_at"
+            );
+        }
+
+        Ok::<(), StorageError>(())
+    }
+    .await;
+    drop(db);
+    let cleanup = backend.close_and_remove().await;
+    combine_test_body_and_cleanup(body, cleanup)
 }
 
 #[tokio::test]
 async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
-    let db = embedded_test_database().await?;
-    let job = db
-        .create_ai_job(NewAiJob {
-            trace_id: Uuid::now_v7(),
-            job_kind: JobKind::WorkflowRun,
-            protocol_id: "p1".into(),
-            profile_id: "profile1".into(),
-            capability_profile_id: "cap1".into(),
-            access_mode: AccessMode::AnalysisOnly,
-            safety_mode: SafetyMode::Normal,
-            entity_refs: Vec::new(),
-            planned_operations: Vec::new(),
-            status_reason: "queued".to_string(),
-            metrics: JobMetrics::zero(),
-            job_inputs: Some(json!({"input": true})),
-        })
-        .await?;
-    let stale_time = Utc::now() - Duration::seconds(120);
-    let run = db
-        .create_workflow_run(job.job_id, JobState::Running, Some(stale_time))
-        .await?;
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
+    let body = async {
+        let job = db
+            .create_ai_job(NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "p1".into(),
+                profile_id: "profile1".into(),
+                capability_profile_id: "cap1".into(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({"input": true})),
+            })
+            .await?;
+        let stale_time = Utc::now() - Duration::seconds(120);
+        let run = db
+            .create_workflow_run(job.job_id, JobState::Running, Some(stale_time))
+            .await?;
 
-    let stalled = db.find_stalled_workflows(60).await?;
-    assert!(
-        stalled
-            .iter()
-            .any(|r| r.id == run.id && matches!(r.status, JobState::Running)),
-        "expected running workflow to be reported as stalled candidate"
-    );
+        let stalled = db.find_stalled_workflows(60).await?;
+        assert!(
+            stalled
+                .iter()
+                .any(|r| r.id == run.id && matches!(r.status, JobState::Running)),
+            "expected running workflow to be reported as stalled candidate"
+        );
 
-    // Refresh heartbeat and confirm it no longer appears stale
-    db.heartbeat_workflow(run.id, Utc::now()).await?;
-    let after = db.find_stalled_workflows(60).await?;
-    assert!(!after.iter().any(|r| r.id == run.id));
-    Ok(())
+        // Refresh heartbeat and confirm it no longer appears stale
+        db.heartbeat_workflow(run.id, Utc::now()).await?;
+        let after = db.find_stalled_workflows(60).await?;
+        assert!(!after.iter().any(|r| r.id == run.id));
+        Ok::<(), StorageError>(())
+    }
+    .await;
+    drop(db);
+    let cleanup = backend.close_and_remove().await;
+    combine_test_body_and_cleanup(body, cleanup)
 }
-
 
 #[cfg(test)]
 async fn assert_structured_collab_artifacts_supported() -> StorageResult<()> {
@@ -2749,8 +2941,537 @@ async fn assert_structured_collab_artifacts_supported() -> StorageResult<()> {
     assert!(!db.locus_work_packet_exists("WP-TEST").await?);
 
     drop(db);
-    backend.close_and_remove().await;
+    backend.close_and_remove().await?;
     Ok(())
+}
+
+#[cfg(test)]
+fn mt136_sample_work_packet(wp_id: &str) -> locus::LocusCreateWpParams {
+    locus::LocusCreateWpParams {
+        wp_id: wp_id.to_owned(),
+        title: format!("MT-136 real-store proof for {wp_id}"),
+        description: "Exercise the embedded SurrealDB Locus storage surface".to_owned(),
+        priority: 1,
+        kind: locus::WorkPacketType::Test,
+        phase: locus::WorkPacketPhase::Phase1,
+        routing: locus::RoutingPolicy::GovStandard,
+        task_packet_path: Some(format!(".GOV/task_packets/{wp_id}/packet.json")),
+        assignee: Some("MT-136".to_owned()),
+        labels: Some(vec!["surreal".to_owned(), "durability".to_owned()]),
+        spec_session_id: Some("mt136-real-store".to_owned()),
+        reporter: "storage-conformance".to_owned(),
+    }
+}
+
+#[cfg(test)]
+fn mt136_sample_micro_task(wp_id: &str, mt_id: &str) -> locus::TrackedMicroTask {
+    locus::TrackedMicroTask {
+        schema_id: String::new(),
+        schema_version: String::new(),
+        record_id: String::new(),
+        record_kind: String::new(),
+        project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+        updated_at: Utc::now(),
+        mirror_state: locus::MirrorSyncState::CanonicalOnly,
+        authority_refs: vec![format!("authority:{wp_id}")],
+        evidence_refs: Vec::new(),
+        summary_record_path: None,
+        profile_extension: None,
+        mt_id: mt_id.to_owned(),
+        wp_id: wp_id.to_owned(),
+        name: "MT-136 embedded lifecycle".to_owned(),
+        scope: "Prove every ported Locus operation against a real store".to_owned(),
+        files: locus::MicroTaskFiles {
+            read: Vec::new(),
+            modify: vec!["src/backend/handshake_core/src/storage/".to_owned()],
+            create: Vec::new(),
+        },
+        done_criteria: vec!["close/reopen retains lifecycle state".to_owned()],
+        status: locus::MicroTaskStatus::Pending,
+        active_session_ids: Vec::new(),
+        iterations: Vec::new(),
+        current_iteration: 0,
+        max_iterations: 3,
+        validation_result: None,
+        escalation: locus::MicroTaskEscalation {
+            current_level: 0,
+            escalation_chain: Vec::new(),
+            escalations_count: 0,
+            drop_backs_count: 0,
+        },
+        started_at: None,
+        completed_at: None,
+        duration_ms: None,
+        depends_on: Vec::new(),
+        metadata: json!({"proof": "mt136-real-store"}),
+    }
+}
+
+#[derive(surrealdb::types::SurrealValue)]
+struct Mt136InvalidWorkPacketStateBindings {
+    record: surrealdb::types::RecordId,
+    invalid_state: String,
+}
+
+#[tokio::test]
+async fn locus_and_structured_collaboration_roundtrip_real_store_and_reopen() -> StorageResult<()> {
+    let backend = embedded_test_backend().await?;
+    let database = backend.database.clone();
+    let storage = backend.storage.clone();
+    let data_dir = backend.data_dir.clone();
+    let first_wp = "WP-MT136-A";
+    let second_wp = "WP-MT136-B";
+    let mt_id = "MT-MT136-1";
+
+    let missing_task_board_update = database
+        .locus_task_board_update_work_packet(
+            0,
+            "READY",
+            "READY",
+            &Utc::now().to_rfc3339(),
+            r#"{"proof":"missing-row"}"#,
+            "WP-MT136-MISSING",
+        )
+        .await;
+    assert!(matches!(
+        missing_task_board_update,
+        Err(StorageError::NotFound("work_packet"))
+    ));
+
+    database
+        .execute_locus_operation(locus::LocusOperation::CreateWp(mt136_sample_work_packet(
+            first_wp,
+        )))
+        .await?;
+    database
+        .execute_locus_operation(locus::LocusOperation::CreateWp(mt136_sample_work_packet(
+            second_wp,
+        )))
+        .await?;
+    let duplicate = database
+        .execute_locus_operation(locus::LocusOperation::CreateWp(mt136_sample_work_packet(
+            first_wp,
+        )))
+        .await;
+    assert!(matches!(duplicate, Err(StorageError::Conflict(_))));
+
+    for update in [
+        BTreeMap::from([("status".to_owned(), json!("invalid-state"))]),
+        BTreeMap::from([("task_board_status".to_owned(), json!("INVALID_STATE"))]),
+    ] {
+        let invalid = database
+            .execute_locus_operation(locus::LocusOperation::UpdateWp(
+                locus::LocusUpdateWpParams {
+                    wp_id: first_wp.to_owned(),
+                    updates: update,
+                    source: Some("mt136-invalid-state-proof".to_owned()),
+                },
+            ))
+            .await;
+        assert!(matches!(invalid, Err(StorageError::Validation(_))));
+    }
+    let invalid_task_board_state = database
+        .locus_task_board_update_work_packet(
+            1,
+            "ready",
+            "INVALID_STATE",
+            &Utc::now().to_rfc3339(),
+            r#"{"proof":"invalid-task-board-state"}"#,
+            first_wp,
+        )
+        .await;
+    assert!(matches!(
+        invalid_task_board_state,
+        Err(StorageError::Validation(_))
+    ));
+
+    for statement in [
+        "UPDATE $record SET status = $invalid_state RETURN AFTER;",
+        "UPDATE $record SET task_board_status = $invalid_state RETURN AFTER;",
+    ] {
+        let bindings = Mt136InvalidWorkPacketStateBindings {
+            record: surrealdb::types::RecordId::new("work_packets", first_wp.to_owned()),
+            invalid_state: "invalid-state".to_owned(),
+        };
+        let direct_schema_write = storage
+            .with_data_operation(move |surreal| {
+                Box::pin(async move {
+                    surreal
+                        .query_values_at::<surrealdb::types::Value, _>(statement, bindings, 0)
+                        .await
+                })
+            })
+            .await;
+        assert!(
+            direct_schema_write.is_err(),
+            "work-packet state domains must fail closed in the embedded schema"
+        );
+    }
+    let unchanged = database
+        .execute_locus_operation(locus::LocusOperation::GetWpStatus(
+            locus::LocusGetWpStatusParams {
+                wp_id: first_wp.to_owned(),
+            },
+        ))
+        .await?;
+    assert_eq!(unchanged["status"], "stub");
+    assert_eq!(unchanged["task_board_status"], "STUB");
+
+    for wp_id in [first_wp, second_wp] {
+        database
+            .execute_locus_operation(locus::LocusOperation::UpdateWp(
+                locus::LocusUpdateWpParams {
+                    wp_id: wp_id.to_owned(),
+                    updates: BTreeMap::from([
+                        ("status".to_owned(), json!("ready")),
+                        ("task_board_status".to_owned(), json!("READY")),
+                    ]),
+                    source: Some("mt136-real-store".to_owned()),
+                },
+            ))
+            .await?;
+    }
+    database
+        .execute_locus_operation(locus::LocusOperation::GateWp(locus::LocusGateWpParams {
+            wp_id: first_wp.to_owned(),
+            gate: locus::LocusGateKind::PreWork,
+            result: locus::GateStatus {
+                status: locus::GateStatusKind::Pass,
+                validated_at: Some(Utc::now()),
+                validated_by: Some("mt136-real-store".to_owned()),
+                notes: Some("real embedded gate proof".to_owned()),
+                validation_report_ref: Some(json!({"proof": "surreal"})),
+            },
+        }))
+        .await?;
+
+    let registered_task = mt136_sample_micro_task(first_wp, mt_id);
+    database
+        .execute_locus_operation(locus::LocusOperation::RegisterMts(
+            locus::LocusRegisterMtsParams {
+                wp_id: first_wp.to_owned(),
+                micro_tasks: vec![registered_task.clone()],
+            },
+        ))
+        .await?;
+    database
+        .execute_locus_operation(locus::LocusOperation::RegisterMts(
+            locus::LocusRegisterMtsParams {
+                wp_id: first_wp.to_owned(),
+                micro_tasks: vec![registered_task.clone()],
+            },
+        ))
+        .await?;
+    let mut divergent_task = registered_task;
+    divergent_task.name = "divergent retry must fail closed".to_owned();
+    let divergent_retry = database
+        .execute_locus_operation(locus::LocusOperation::RegisterMts(
+            locus::LocusRegisterMtsParams {
+                wp_id: first_wp.to_owned(),
+                micro_tasks: vec![divergent_task],
+            },
+        ))
+        .await;
+    assert!(matches!(divergent_retry, Err(StorageError::Conflict(_))));
+    assert_eq!(
+        database
+            .structured_collab_work_packet_row(first_wp)
+            .await?
+            .expect("created work packet")
+            .wp_id,
+        first_wp
+    );
+    assert_eq!(
+        database.structured_collab_work_packet_rows().await?.len(),
+        2
+    );
+    assert_eq!(
+        database
+            .structured_collab_micro_task_status_rows(first_wp)
+            .await?
+            .len(),
+        1
+    );
+    assert_eq!(
+        database
+            .structured_collab_micro_task_rows(first_wp)
+            .await?
+            .len(),
+        1
+    );
+    assert!(database
+        .structured_collab_micro_task_metadata(first_wp, mt_id)
+        .await?
+        .expect("registered micro-task metadata")
+        .contains("mt136-real-store"));
+
+    database
+        .execute_locus_operation(locus::LocusOperation::StartMt(locus::LocusStartMtParams {
+            wp_id: first_wp.to_owned(),
+            mt_id: mt_id.to_owned(),
+            model_id: "gpt-mt136".to_owned(),
+            lora_id: None,
+            escalation_level: 0,
+        }))
+        .await?;
+    database
+        .execute_locus_operation(locus::LocusOperation::BindSession(
+            locus::LocusBindSessionParams {
+                wp_id: first_wp.to_owned(),
+                mt_id: mt_id.to_owned(),
+                session_id: "session-mt136".to_owned(),
+                model_id: Some("gpt-mt136".to_owned()),
+                lora_id: None,
+                escalation_level: 0,
+            },
+        ))
+        .await?;
+    database
+        .execute_locus_operation(locus::LocusOperation::UnbindSession(
+            locus::LocusUnbindSessionParams {
+                wp_id: first_wp.to_owned(),
+                mt_id: mt_id.to_owned(),
+                session_id: "session-mt136".to_owned(),
+                reason: Some("proof complete".to_owned()),
+            },
+        ))
+        .await?;
+
+    let iteration = locus::MicroTaskIterationRecord {
+        iteration: 3,
+        model_id: "gpt-mt136".to_owned(),
+        lora_id: None,
+        escalation_level: 0,
+        started_at: Utc::now(),
+        completed_at: Utc::now(),
+        duration_ms: 12,
+        tokens_prompt: 10,
+        tokens_completion: 5,
+        claimed_complete: true,
+        validation_passed: Some(true),
+        outcome: locus::MicroTaskIterationOutcome::Success,
+        output_artifact_ref: json!({"artifact": "mt136"}),
+        validation_artifact_ref: Some(json!({"validation": "real-store"})),
+        error_summary: None,
+        failure_category: None,
+    };
+    database
+        .execute_locus_operation(locus::LocusOperation::RecordIteration(
+            locus::LocusRecordIterationParams {
+                wp_id: first_wp.to_owned(),
+                mt_id: mt_id.to_owned(),
+                iteration: iteration.clone(),
+            },
+        ))
+        .await?;
+    let mut escalated_iteration = iteration;
+    escalated_iteration.escalation_level = 1;
+    escalated_iteration.outcome = locus::MicroTaskIterationOutcome::Retry;
+    escalated_iteration.validation_passed = Some(false);
+    database
+        .execute_locus_operation(locus::LocusOperation::RecordIteration(
+            locus::LocusRecordIterationParams {
+                wp_id: first_wp.to_owned(),
+                mt_id: mt_id.to_owned(),
+                iteration: escalated_iteration,
+            },
+        ))
+        .await?;
+    let progress = database
+        .execute_locus_operation(locus::LocusOperation::GetMtProgress(
+            locus::LocusGetMtProgressParams {
+                mt_id: mt_id.to_owned(),
+            },
+        ))
+        .await?;
+    assert_eq!(progress["current_iteration"], 3);
+    assert_eq!(progress["escalation_level"], 1);
+    database
+        .execute_locus_operation(locus::LocusOperation::CompleteMt(
+            locus::LocusCompleteMtParams {
+                wp_id: first_wp.to_owned(),
+                mt_id: mt_id.to_owned(),
+                final_iteration: 3,
+            },
+        ))
+        .await?;
+
+    database
+        .execute_locus_operation(locus::LocusOperation::AddDependency(
+            locus::LocusAddDependencyParams {
+                dependency_id: "DEP-MT136-1".to_owned(),
+                from_wp_id: second_wp.to_owned(),
+                to_wp_id: first_wp.to_owned(),
+                kind: locus::DependencyType::Blocks,
+            },
+        ))
+        .await?;
+    let cycle = database
+        .execute_locus_operation(locus::LocusOperation::AddDependency(
+            locus::LocusAddDependencyParams {
+                dependency_id: "DEP-MT136-CYCLE".to_owned(),
+                from_wp_id: first_wp.to_owned(),
+                to_wp_id: second_wp.to_owned(),
+                kind: locus::DependencyType::Blocks,
+            },
+        ))
+        .await;
+    assert!(matches!(cycle, Err(StorageError::Validation(_))));
+    let ready_while_blocked = database
+        .execute_locus_operation(locus::LocusOperation::QueryReady(
+            locus::LocusQueryReadyParams { limit: Some(10) },
+        ))
+        .await?;
+    assert_eq!(ready_while_blocked["wp_ids"], json!([second_wp]));
+    database
+        .execute_locus_operation(locus::LocusOperation::RemoveDependency(
+            locus::LocusRemoveDependencyParams {
+                dependency_id: "DEP-MT136-1".to_owned(),
+            },
+        ))
+        .await?;
+    database
+        .execute_locus_operation(locus::LocusOperation::AddDependency(
+            locus::LocusAddDependencyParams {
+                dependency_id: "DEP-MT136-DEPENDS-ON".to_owned(),
+                from_wp_id: second_wp.to_owned(),
+                to_wp_id: first_wp.to_owned(),
+                kind: locus::DependencyType::DependsOn,
+            },
+        ))
+        .await?;
+    let ready_while_dependency_unfinished = database
+        .execute_locus_operation(locus::LocusOperation::QueryReady(
+            locus::LocusQueryReadyParams { limit: Some(10) },
+        ))
+        .await?;
+    assert_eq!(
+        ready_while_dependency_unfinished["wp_ids"],
+        json!([first_wp])
+    );
+    database
+        .execute_locus_operation(locus::LocusOperation::RemoveDependency(
+            locus::LocusRemoveDependencyParams {
+                dependency_id: "DEP-MT136-DEPENDS-ON".to_owned(),
+            },
+        ))
+        .await?;
+    let ready = database
+        .execute_locus_operation(locus::LocusOperation::QueryReady(
+            locus::LocusQueryReadyParams { limit: Some(10) },
+        ))
+        .await?;
+    assert_eq!(ready["wp_ids"].as_array().map(Vec::len), Some(2));
+
+    let (first_wp_version, _, _) = database
+        .locus_task_board_get_status_and_metadata(first_wp)
+        .await?
+        .expect("created work packet should exist before task-board update");
+    database
+        .locus_task_board_update_work_packet(
+            first_wp_version,
+            "READY",
+            "READY",
+            &Utc::now().to_rfc3339(),
+            r#"{"proof":"task-board-update"}"#,
+            first_wp,
+        )
+        .await?;
+    let status = database
+        .execute_locus_operation(locus::LocusOperation::GetWpStatus(
+            locus::LocusGetWpStatusParams {
+                wp_id: first_wp.to_owned(),
+            },
+        ))
+        .await?;
+    assert_eq!(status["status"], "ready");
+    let snapshot = database
+        .execute_locus_operation(locus::LocusOperation::SyncTaskBoard(
+            locus::LocusSyncTaskBoardParams {
+                dry_run: Some(true),
+            },
+        ))
+        .await?;
+    assert_eq!(snapshot["authority_rows"].as_array().map(Vec::len), Some(2));
+
+    database
+        .execute_locus_operation(locus::LocusOperation::CloseWp(locus::LocusCloseWpParams {
+            wp_id: first_wp.to_owned(),
+        }))
+        .await?;
+    database
+        .execute_locus_operation(locus::LocusOperation::DeleteWp(
+            locus::LocusDeleteWpParams {
+                wp_id: second_wp.to_owned(),
+            },
+        ))
+        .await?;
+
+    drop(database);
+    storage
+        .shutdown()
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()))?;
+    drop(storage);
+
+    let config = SurrealStorageConfig::for_data_dir(&data_dir)
+        .map_err(|error| StorageError::Database(error.to_string()))?;
+    let reopened_storage = SurrealStorage::open(config)
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()))?;
+    let reopened = SurrealDatabase::new(reopened_storage.clone());
+    reopened.run_migrations().await?;
+    let first_status = Database::execute_locus_operation(
+        &reopened,
+        locus::LocusOperation::GetWpStatus(locus::LocusGetWpStatusParams {
+            wp_id: first_wp.to_owned(),
+        }),
+    )
+    .await?;
+    let second_status = Database::execute_locus_operation(
+        &reopened,
+        locus::LocusOperation::GetWpStatus(locus::LocusGetWpStatusParams {
+            wp_id: second_wp.to_owned(),
+        }),
+    )
+    .await?;
+    assert_eq!(first_status["status"], "done");
+    assert_eq!(second_status["status"], "cancelled");
+    let durable_progress = Database::execute_locus_operation(
+        &reopened,
+        locus::LocusOperation::GetMtProgress(locus::LocusGetMtProgressParams {
+            mt_id: mt_id.to_owned(),
+        }),
+    )
+    .await?;
+    assert_eq!(durable_progress["status"], "completed");
+    assert_eq!(
+        Database::structured_collab_work_packet_rows(&reopened)
+            .await?
+            .len(),
+        2
+    );
+    assert_eq!(
+        Database::structured_collab_micro_task_rows(&reopened, first_wp)
+            .await?
+            .len(),
+        1
+    );
+
+    drop(reopened);
+    let reopened_shutdown = reopened_storage
+        .shutdown()
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()));
+    drop(reopened_storage);
+    let cleanup = backend.close_and_remove().await;
+    match (reopened_shutdown, cleanup) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+        (Err(reopen_error), Err(cleanup_error)) => Err(StorageError::Database(format!(
+            "reopened store shutdown failed: {reopen_error}; cleanup also failed: {cleanup_error}"
+        ))),
+    }
 }
 
 #[tokio::test]
@@ -2771,31 +3492,37 @@ async fn structured_collab_artifacts_are_supported() -> StorageResult<()> {
 
 #[tokio::test]
 async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
-    let db = embedded_test_database().await?;
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
+    let body = async {
+        let ctx = WriteContext::human(Some("loom-search-proof".into()));
+        let workspace = db
+            .create_workspace(
+                &ctx,
+                NewWorkspace {
+                    name: format!("loom-search-proof-{}", Uuid::now_v7()),
+                },
+            )
+            .await?;
+        let document = db
+            .create_document(
+                &ctx,
+                NewDocument {
+                    workspace_id: workspace.id.clone(),
+                    title: format!("loom-search-proof-doc-{}", Uuid::now_v7()),
+                },
+            )
+            .await?;
+        let graph_fixture =
+            build_loom_graph_fixture(&db, &ctx, &workspace.id, &document.id).await?;
 
-    let ctx = WriteContext::human(Some("loom-search-proof".into()));
-    let workspace = db
-        .create_workspace(
-            &ctx,
-            NewWorkspace {
-                name: format!("loom-search-proof-{}", Uuid::now_v7()),
-            },
-        )
-        .await?;
-    let document = db
-        .create_document(
-            &ctx,
-            NewDocument {
-                workspace_id: workspace.id.clone(),
-                title: format!("loom-search-proof-doc-{}", Uuid::now_v7()),
-            },
-        )
-        .await?;
-    let graph_fixture = build_loom_graph_fixture(&db, &ctx, &workspace.id, &document.id).await?;
-
-    loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await
+        loom_search_graph_filter_when_supported(&db, &workspace.id, &graph_fixture).await
+    }
+    .await;
+    drop(db);
+    let cleanup = backend.close_and_remove().await;
+    combine_test_body_and_cleanup(body, cleanup)
 }
-
 
 #[test]
 fn database_trait_purity_source_regressions() {
@@ -2920,7 +3647,7 @@ fn storage_mode_fails_closed_on_a_stale_postgres_mode() {
 
 #[test]
 fn unsupported_storage_modes_fail_closed() {
-    let err = ControlPlaneStorageConfig::resolve(Some("legacy_cache"), None, None).unwrap_err();
+    let err = ControlPlaneStorageConfig::resolve(Some("legacy_cache"), None).unwrap_err();
     assert!(matches!(
         err,
         StorageError::Validation("unsupported storage mode")
@@ -2939,13 +3666,14 @@ async fn database_trait_purity_capability_snapshot_reports_surreal() -> StorageR
         "current_source_of_truth"
     );
 
-    let db = embedded_test_database().await?;
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
     let caps = db.storage_capabilities();
 
     assert_eq!(caps.backend, StorageBackendKind::Surreal);
     assert!(caps.supports_structured_collab_artifacts);
     assert!(caps.supports_loom_graph_filtering);
     assert_eq!(caps.loom_search_observability_tier(), 2);
-
-    Ok(())
+    drop(db);
+    backend.close_and_remove().await
 }

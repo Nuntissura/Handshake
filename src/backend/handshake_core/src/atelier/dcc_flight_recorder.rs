@@ -2,10 +2,8 @@
 //! workflow events + reset/orphan diagnostic validation rows.
 //!
 //! These are TYPED RUNTIME surfaces (durable rows + EventLedger events),
-//! never governance markdown. Tables are created by migration
-//! `0116_atelier_dcc_flight_recorder.sql`. Storage authority is the single
-//! Handshake store only (AtelierStore::pool()); SQLite is forbidden (MT-004).
-//! PENDING the SurrealDB port — see the `atelier` module header (MT-138).
+//! never governance markdown. Storage authority is the single embedded
+//! Handshake SurrealDB store; SQLite is forbidden (MT-004).
 //!
 //!   * MT-190 -- DCC Approvals + Visual-Capture panel projections: DCC
 //!     visibility for approvals and visual captures only (projection, GUI
@@ -31,10 +29,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::Row;
+use surrealdb::types::{Datetime, SurrealValue};
 
 use super::state_probe::{DiagnosticsValidationStatus, NewDiagnosticsValidationRow};
-use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 use crate::flight_recorder::workflow_event_kinds::FrWorkflowEventKind;
 
 /// Event families for the MT-190..MT-193 DCC/Flight-Recorder surfaces.
@@ -62,8 +62,8 @@ pub mod dcc_flight_recorder_event_family {
 // ---------------------------------------------------------------------------
 
 /// Kind of DCC workflow panel a projection row carries (MT-190). Mirrors the
-/// `panel_kind` CHECK in migration 0116. Deliberately disjoint from the
-/// MT-148 [`super::state_probe::DccPanelKind`] vocabulary
+/// `panel_kind` literal type in the canonical schema. Deliberately disjoint
+/// from the MT-148 [`super::state_probe::DccPanelKind`] vocabulary
 /// (SESSION/LEASE/COMMAND_LOG/RECOVERY): MT-190 covers approvals and visual
 /// captures only.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -120,19 +120,26 @@ pub struct DccWorkflowPanelProjection {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const DCC_WORKFLOW_PANEL_PROJECTION_COLUMNS: &str =
-    "panel_id, panel_kind, state_json, created_at_utc";
+/// One `atelier_dcc_workflow_panel_projection` row as the store returns it.
+#[derive(SurrealValue)]
+struct DccWorkflowPanelProjectionRow {
+    panel_id: String,
+    panel_kind: String,
+    state_json: Value,
+    created_at_utc: Datetime,
+}
 
-fn dcc_workflow_panel_projection_from_row(
-    row: &sqlx::postgres::PgRow,
-) -> AtelierResult<DccWorkflowPanelProjection> {
-    let kind_token: String = row.get("panel_kind");
-    Ok(DccWorkflowPanelProjection {
-        panel_id: row.get("panel_id"),
-        panel_kind: DccWorkflowPanelKind::from_token(&kind_token)?,
-        state_json: row.get("state_json"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+impl TryFrom<DccWorkflowPanelProjectionRow> for DccWorkflowPanelProjection {
+    type Error = AtelierError;
+
+    fn try_from(row: DccWorkflowPanelProjectionRow) -> AtelierResult<Self> {
+        Ok(DccWorkflowPanelProjection {
+            panel_id: row.panel_id,
+            panel_kind: DccWorkflowPanelKind::from_token(&row.panel_kind)?,
+            state_json: row.state_json,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
 fn validate_dcc_workflow_panel_projection(
@@ -183,22 +190,33 @@ pub struct FrWorkflowEvent {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const FR_WORKFLOW_EVENT_COLUMNS: &str =
-    "record_id, event_kind, mt_owner, session_ref, payload, created_at_utc";
+/// One `atelier_fr_workflow_event` row as the store returns it.
+#[derive(SurrealValue)]
+struct FrWorkflowEventRow {
+    record_id: String,
+    event_kind: String,
+    mt_owner: String,
+    session_ref: Option<String>,
+    payload: Value,
+    created_at_utc: Datetime,
+}
 
-fn fr_workflow_event_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<FrWorkflowEvent> {
-    let kind_token: String = row.get("event_kind");
-    let event_kind = FrWorkflowEventKind::from_str_id(&kind_token).map_err(|err| {
-        AtelierError::Validation(format!("persisted FR workflow event kind invalid: {err}"))
-    })?;
-    Ok(FrWorkflowEvent {
-        record_id: row.get("record_id"),
-        event_kind,
-        mt_owner: row.get("mt_owner"),
-        session_ref: row.get("session_ref"),
-        payload: row.get("payload"),
-        created_at_utc: row.get("created_at_utc"),
-    })
+impl TryFrom<FrWorkflowEventRow> for FrWorkflowEvent {
+    type Error = AtelierError;
+
+    fn try_from(row: FrWorkflowEventRow) -> AtelierResult<Self> {
+        let event_kind = FrWorkflowEventKind::from_str_id(&row.event_kind).map_err(|err| {
+            AtelierError::Validation(format!("persisted FR workflow event kind invalid: {err}"))
+        })?;
+        Ok(FrWorkflowEvent {
+            record_id: row.record_id,
+            event_kind,
+            mt_owner: row.mt_owner,
+            session_ref: row.session_ref,
+            payload: row.payload,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
 
 fn validate_fr_workflow_event(new: &NewFrWorkflowEvent) -> AtelierResult<()> {
@@ -318,6 +336,82 @@ pub fn reset_orphan_diagnostics_validation_catalog() -> Vec<NewDiagnosticsValida
     ]
 }
 
+#[derive(Clone, SurrealValue)]
+struct RecordPanelProjectionBindings {
+    panel_id: String,
+    panel_kind: String,
+    state_json: Value,
+}
+
+/// Upsert one panel projection keyed on `panel_id` and append its event in
+/// the same atomic statement. `created_at_utc` comes from the schema default
+/// and survives replays, matching the former conflict-update contract.
+const RECORD_PANEL_PROJECTION_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = type::record('atelier_dcc_workflow_panel_projection', $domain.panel_id); ",
+    atelier_event_sql!(),
+    " RETURN (UPSERT $rid SET \
+         panel_id = $domain.panel_id, \
+         panel_kind = $domain.panel_kind, \
+         state_json = $domain.state_json \
+       RETURN AFTER); };"
+);
+
+#[derive(SurrealValue)]
+struct PanelKindBinding {
+    panel_kind: String,
+}
+
+const LIST_PANEL_PROJECTIONS_STATEMENT: &str =
+    "SELECT panel_id, panel_kind, state_json, created_at_utc \
+     FROM atelier_dcc_workflow_panel_projection \
+     WHERE panel_kind = $panel_kind \
+     ORDER BY created_at_utc DESC, panel_id ASC;";
+
+#[derive(Clone, SurrealValue)]
+struct RecordFrWorkflowEventBindings {
+    record_id: String,
+    event_kind: String,
+    mt_owner: String,
+    session_ref: Option<String>,
+    payload: Value,
+}
+
+const RECORD_FR_WORKFLOW_EVENT_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $rid = type::record('atelier_fr_workflow_event', $domain.record_id); ",
+    atelier_event_sql!(),
+    " RETURN (UPSERT $rid SET \
+         record_id = $domain.record_id, \
+         event_kind = $domain.event_kind, \
+         mt_owner = $domain.mt_owner, \
+         session_ref = $domain.session_ref, \
+         payload = $domain.payload \
+       RETURN AFTER); };"
+);
+
+#[derive(SurrealValue)]
+struct EventKindBinding {
+    event_kind: String,
+}
+
+const LIST_FR_WORKFLOW_EVENTS_BY_KIND_STATEMENT: &str =
+    "SELECT record_id, event_kind, mt_owner, session_ref, payload, created_at_utc \
+     FROM atelier_fr_workflow_event \
+     WHERE event_kind = $event_kind \
+     ORDER BY created_at_utc DESC, record_id ASC;";
+
+#[derive(SurrealValue)]
+struct MtOwnerBinding {
+    mt_owner: String,
+}
+
+const LIST_FR_WORKFLOW_EVENTS_BY_OWNER_STATEMENT: &str =
+    "SELECT record_id, event_kind, mt_owner, session_ref, payload, created_at_utc \
+     FROM atelier_fr_workflow_event \
+     WHERE mt_owner = $mt_owner \
+     ORDER BY created_at_utc DESC, record_id ASC;";
+
 impl AtelierStore {
     /// Record one DCC workflow panel projection row (MT-190).
     ///
@@ -329,37 +423,31 @@ impl AtelierStore {
     ) -> AtelierResult<DccWorkflowPanelProjection> {
         validate_dcc_workflow_panel_projection(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_dcc_workflow_panel_projection
-                 (panel_id, panel_kind, state_json)
-               VALUES ($1, $2, $3::jsonb)
-               ON CONFLICT (panel_id) DO UPDATE SET
-                 panel_kind = EXCLUDED.panel_kind,
-                 state_json = EXCLUDED.state_json
-               RETURNING {DCC_WORKFLOW_PANEL_PROJECTION_COLUMNS}"#
-        ))
-        .bind(&new.panel_id)
-        .bind(new.panel_kind.as_token())
-        .bind(&new.state_json)
-        .fetch_one(&mut *tx)
-        .await?;
-        let recorded = dcc_workflow_panel_projection_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            dcc_flight_recorder_event_family::DCC_WORKFLOW_PANEL_PROJECTION_RECORDED,
-            "atelier_dcc_workflow_panel_projection",
-            &recorded.panel_id,
-            json!({
-                "panel_id": recorded.panel_id,
-                "panel_kind": recorded.panel_kind.as_token(),
-                "schema": "hsk.atelier.dcc_workflow_panel_projection@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+        let bindings = RecordPanelProjectionBindings {
+            panel_id: new.panel_id.clone(),
+            panel_kind: new.panel_kind.as_token().to_owned(),
+            state_json: new.state_json.clone(),
+        };
+        let row: Option<DccWorkflowPanelProjectionRow> = self
+            .write_with_event(
+                RECORD_PANEL_PROJECTION_STATEMENT,
+                bindings,
+                dcc_flight_recorder_event_family::DCC_WORKFLOW_PANEL_PROJECTION_RECORDED,
+                "atelier_dcc_workflow_panel_projection",
+                &new.panel_id,
+                json!({
+                    "panel_id": new.panel_id,
+                    "panel_kind": new.panel_kind.as_token(),
+                    "schema": "hsk.atelier.dcc_workflow_panel_projection@1",
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal(
+                "recording a dcc workflow panel projection returned no row".to_owned(),
+            )
+        })?
+        .try_into()
     }
 
     /// List DCC workflow panel projection rows for a given panel kind, newest
@@ -368,17 +456,20 @@ impl AtelierStore {
         &self,
         panel_kind: DccWorkflowPanelKind,
     ) -> AtelierResult<Vec<DccWorkflowPanelProjection>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {DCC_WORKFLOW_PANEL_PROJECTION_COLUMNS}
-               FROM atelier_dcc_workflow_panel_projection
-               WHERE panel_kind = $1
-               ORDER BY created_at_utc DESC, panel_id ASC"#
-        ))
-        .bind(panel_kind.as_token())
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter()
-            .map(dcc_workflow_panel_projection_from_row)
+        let bindings = PanelKindBinding {
+            panel_kind: panel_kind.as_token().to_owned(),
+        };
+        let rows: Vec<DccWorkflowPanelProjectionRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_PANEL_PROJECTIONS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter()
+            .map(DccWorkflowPanelProjection::try_from)
             .collect()
     }
 
@@ -393,43 +484,33 @@ impl AtelierStore {
     ) -> AtelierResult<FrWorkflowEvent> {
         validate_fr_workflow_event(new)?;
 
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
-            r#"INSERT INTO atelier_fr_workflow_event
-                 (record_id, event_kind, mt_owner, session_ref, payload)
-               VALUES ($1, $2, $3, $4, $5::jsonb)
-               ON CONFLICT (record_id) DO UPDATE SET
-                 event_kind = EXCLUDED.event_kind,
-                 mt_owner = EXCLUDED.mt_owner,
-                 session_ref = EXCLUDED.session_ref,
-                 payload = EXCLUDED.payload
-               RETURNING {FR_WORKFLOW_EVENT_COLUMNS}"#
-        ))
-        .bind(&new.record_id)
-        .bind(new.event_kind.as_str())
-        .bind(new.event_kind.mt_owner())
-        .bind(&new.session_ref)
-        .bind(&new.payload)
-        .fetch_one(&mut *tx)
-        .await?;
-        let recorded = fr_workflow_event_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            dcc_flight_recorder_event_family::FR_WORKFLOW_EVENT_RECORDED,
-            "atelier_fr_workflow_event",
-            &recorded.record_id,
-            json!({
-                "record_id": recorded.record_id,
-                "event_kind": recorded.event_kind.as_str(),
-                "mt_owner": recorded.mt_owner,
-                "subsystem": recorded.event_kind.subsystem(),
-                "schema": "hsk.atelier.fr_workflow_event@1",
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(recorded)
+        let bindings = RecordFrWorkflowEventBindings {
+            record_id: new.record_id.clone(),
+            event_kind: new.event_kind.as_str().to_owned(),
+            mt_owner: new.event_kind.mt_owner().to_owned(),
+            session_ref: new.session_ref.clone(),
+            payload: new.payload.clone(),
+        };
+        let row: Option<FrWorkflowEventRow> = self
+            .write_with_event(
+                RECORD_FR_WORKFLOW_EVENT_STATEMENT,
+                bindings,
+                dcc_flight_recorder_event_family::FR_WORKFLOW_EVENT_RECORDED,
+                "atelier_fr_workflow_event",
+                &new.record_id,
+                json!({
+                    "record_id": new.record_id,
+                    "event_kind": new.event_kind.as_str(),
+                    "mt_owner": new.event_kind.mt_owner(),
+                    "subsystem": new.event_kind.subsystem(),
+                    "schema": "hsk.atelier.fr_workflow_event@1",
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording a fr workflow event returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     /// List Flight Recorder workflow events of one kind, newest first
@@ -438,16 +519,19 @@ impl AtelierStore {
         &self,
         event_kind: FrWorkflowEventKind,
     ) -> AtelierResult<Vec<FrWorkflowEvent>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {FR_WORKFLOW_EVENT_COLUMNS}
-               FROM atelier_fr_workflow_event
-               WHERE event_kind = $1
-               ORDER BY created_at_utc DESC, record_id ASC"#
-        ))
-        .bind(event_kind.as_str())
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(fr_workflow_event_from_row).collect()
+        let bindings = EventKindBinding {
+            event_kind: event_kind.as_str().to_owned(),
+        };
+        let rows: Vec<FrWorkflowEventRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_FR_WORKFLOW_EVENTS_BY_KIND_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(FrWorkflowEvent::try_from).collect()
     }
 
     /// List Flight Recorder workflow events owned by one microtask
@@ -456,16 +540,19 @@ impl AtelierStore {
         &self,
         mt_owner: &str,
     ) -> AtelierResult<Vec<FrWorkflowEvent>> {
-        let rows = sqlx::query(&format!(
-            r#"SELECT {FR_WORKFLOW_EVENT_COLUMNS}
-               FROM atelier_fr_workflow_event
-               WHERE mt_owner = $1
-               ORDER BY created_at_utc DESC, record_id ASC"#
-        ))
-        .bind(mt_owner)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(fr_workflow_event_from_row).collect()
+        let bindings = MtOwnerBinding {
+            mt_owner: mt_owner.to_owned(),
+        };
+        let rows: Vec<FrWorkflowEventRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_FR_WORKFLOW_EVENTS_BY_OWNER_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        rows.into_iter().map(FrWorkflowEvent::try_from).collect()
     }
 }
 

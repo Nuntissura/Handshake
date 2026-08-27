@@ -17,19 +17,20 @@
 //!   * deterministic `reproduction_steps`,
 //!   * ordered `isolation_hints` (what to check first).
 //!
-//! Storage authority is PostgreSQL only (table
-//! `kernel_diagnostic_bundle_manifest`, migration 0120, applied by the kernel
-//! migration runner `Database::run_migrations`). Recording a manifest emits
+//! Storage authority is the embedded SurrealDB table
+//! `kernel_diagnostic_bundle_manifest`. Recording a manifest emits
 //! the `kernel.diagnostics.bundle_manifest_recorded` EventLedger family on the
 //! `kernel_diagnostic_bundle_manifest` aggregate.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use sqlx::Row;
+use serde_json::Value as JsonValue;
+use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid, Value};
 use uuid::Uuid;
 
-use crate::atelier::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use crate::atelier::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 use super::DiagnosticSeverity;
 
@@ -102,7 +103,7 @@ pub struct DiagnosticBundleSection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_ref: Option<String>,
     /// Inline structured evidence (JSON object or array).
-    pub content_json: Value,
+    pub content_json: JsonValue,
     /// Number of evidence items the section carries (rows, events, files...).
     pub item_count: i64,
 }
@@ -155,22 +156,22 @@ fn require_token(field: &str, value: &str) -> AtelierResult<()> {
 /// Reject machine-local / `.GOV` / SQLite refs anywhere inside inline section
 /// content. Only string values that look like refs (contain a scheme) or carry
 /// forbidden storage tokens are checked, so plain prose summaries stay legal.
-fn reject_nonportable_strings_in_json(field: &str, value: &Value) -> AtelierResult<()> {
+fn reject_nonportable_strings_in_json(field: &str, value: &JsonValue) -> AtelierResult<()> {
     match value {
-        Value::String(text) => {
+        JsonValue::String(text) => {
             let lower = text.to_ascii_lowercase();
             if text.contains("://") || lower.contains(".gov") || lower.contains("sqlite") {
                 reject_legacy_runtime_ref(field, text)?;
             }
             Ok(())
         }
-        Value::Array(items) => {
+        JsonValue::Array(items) => {
             for item in items {
                 reject_nonportable_strings_in_json(field, item)?;
             }
             Ok(())
         }
-        Value::Object(map) => {
+        JsonValue::Object(map) => {
             for item in map.values() {
                 reject_nonportable_strings_in_json(field, item)?;
             }
@@ -229,7 +230,10 @@ pub fn validate_diagnostic_bundle_manifest(new: &NewDiagnosticBundleManifest) ->
             )));
         }
         if section.content_ref.is_none()
-            && section.content_json.as_object().is_some_and(|m| m.is_empty())
+            && section
+                .content_json
+                .as_object()
+                .is_some_and(|m| m.is_empty())
         {
             return Err(AtelierError::Validation(format!(
                 "section {} must carry a content_ref or non-empty content_json",
@@ -257,42 +261,89 @@ pub fn validate_diagnostic_bundle_manifest(new: &NewDiagnosticBundleManifest) ->
     Ok(())
 }
 
-fn string_array_from_json(field: &str, value: Value) -> AtelierResult<Vec<String>> {
-    serde_json::from_value(value).map_err(|err| {
-        AtelierError::Validation(format!("{field}: expected JSON string array: {err}"))
-    })
+#[derive(SurrealValue)]
+struct DiagnosticManifestRow {
+    manifest_id: SurrealUuid,
+    schema_id: String,
+    subject_kind: String,
+    subject_ref: String,
+    failure_summary: String,
+    error_taxonomy: String,
+    severity: String,
+    created_by: String,
+    sections_json: JsonValue,
+    reproduction_json: Vec<String>,
+    isolation_json: Vec<String>,
+    created_at_utc: Datetime,
 }
 
-fn manifest_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DiagnosticBundleManifest> {
-    let severity_token: String = row.get("severity");
-    let severity = severity_token
-        .parse::<DiagnosticSeverity>()
-        .map_err(|err| AtelierError::Validation(err.to_string()))?;
-    let sections: Vec<DiagnosticBundleSection> =
-        serde_json::from_value(row.get::<Value, _>("sections_json")).map_err(|err| {
-            AtelierError::Validation(format!("sections_json: invalid section payload: {err}"))
-        })?;
-    Ok(DiagnosticBundleManifest {
-        manifest_id: row.get("manifest_id"),
-        schema_id: row.get("schema_id"),
-        subject_kind: row.get("subject_kind"),
-        subject_ref: row.get("subject_ref"),
-        failure_summary: row.get("failure_summary"),
-        error_taxonomy: row.get("error_taxonomy"),
-        severity,
-        created_by: row.get("created_by"),
-        sections,
-        reproduction_steps: string_array_from_json(
-            "reproduction_json",
-            row.get::<Value, _>("reproduction_json"),
-        )?,
-        isolation_hints: string_array_from_json(
-            "isolation_json",
-            row.get::<Value, _>("isolation_json"),
-        )?,
-        created_at_utc: row.get("created_at_utc"),
-    })
+impl TryFrom<DiagnosticManifestRow> for DiagnosticBundleManifest {
+    type Error = AtelierError;
+
+    fn try_from(row: DiagnosticManifestRow) -> AtelierResult<Self> {
+        let severity = row
+            .severity
+            .parse::<DiagnosticSeverity>()
+            .map_err(|err| AtelierError::Validation(err.to_string()))?;
+        let sections: Vec<DiagnosticBundleSection> = serde_json::from_value(row.sections_json)
+            .map_err(|err| {
+                AtelierError::Validation(format!("sections_json: invalid section payload: {err}"))
+            })?;
+        Ok(DiagnosticBundleManifest {
+            manifest_id: row.manifest_id.into(),
+            schema_id: row.schema_id,
+            subject_kind: row.subject_kind,
+            subject_ref: row.subject_ref,
+            failure_summary: row.failure_summary,
+            error_taxonomy: row.error_taxonomy,
+            severity,
+            created_by: row.created_by,
+            sections,
+            reproduction_steps: row.reproduction_json,
+            isolation_hints: row.isolation_json,
+            created_at_utc: row.created_at_utc.into(),
+        })
+    }
 }
+
+#[derive(Clone, SurrealValue)]
+struct DiagnosticManifestBindings {
+    record_id: RecordId,
+    manifest_id: SurrealUuid,
+    schema_id: String,
+    subject_kind: String,
+    subject_ref: String,
+    failure_summary: String,
+    error_taxonomy: String,
+    severity: String,
+    created_by: String,
+    sections_json: Value,
+    reproduction_json: Vec<String>,
+    isolation_json: Vec<String>,
+}
+
+#[derive(SurrealValue)]
+struct ManifestIdBinding {
+    manifest_id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct ManifestSubjectBindings {
+    subject_kind: String,
+    subject_ref: String,
+}
+
+const RECORD_MANIFEST_STATEMENT: &str = concat!(
+    "RETURN { LET $manifest = (CREATE $domain.record_id CONTENT { \
+       manifest_id: $domain.manifest_id, schema_id: $domain.schema_id, \
+       subject_kind: $domain.subject_kind, subject_ref: $domain.subject_ref, \
+       failure_summary: $domain.failure_summary, error_taxonomy: $domain.error_taxonomy, \
+       severity: $domain.severity, created_by: $domain.created_by, \
+       sections_json: $domain.sections_json, reproduction_json: $domain.reproduction_json, \
+       isolation_json: $domain.isolation_json } RETURN AFTER)[0]; ",
+    atelier_event_sql!(),
+    " RETURN $manifest; };"
+);
 
 impl AtelierStore {
     /// Validate and persist a kernel diagnostic bundle manifest, emitting the
@@ -306,56 +357,47 @@ impl AtelierStore {
 
         let sections_json = serde_json::to_value(&new.sections)
             .map_err(|err| AtelierError::Validation(err.to_string()))?;
-        let reproduction_json = serde_json::to_value(&new.reproduction_steps)
-            .map_err(|err| AtelierError::Validation(err.to_string()))?;
-        let isolation_json = serde_json::to_value(&new.isolation_hints)
-            .map_err(|err| AtelierError::Validation(err.to_string()))?;
-
-        let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(
-            r#"INSERT INTO kernel_diagnostic_bundle_manifest
-                 (schema_id, subject_kind, subject_ref, failure_summary,
-                  error_taxonomy, severity, created_by, sections_json,
-                  reproduction_json, isolation_json)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb)
-               RETURNING manifest_id, schema_id, subject_kind, subject_ref,
-                         failure_summary, error_taxonomy, severity, created_by,
-                         sections_json, reproduction_json, isolation_json,
-                         created_at_utc"#,
-        )
-        .bind(KERNEL_DIAGNOSTIC_BUNDLE_MANIFEST_SCHEMA)
-        .bind(&new.subject_kind)
-        .bind(&new.subject_ref)
-        .bind(&new.failure_summary)
-        .bind(&new.error_taxonomy)
-        .bind(new.severity.as_str())
-        .bind(&new.created_by)
-        .bind(&sections_json)
-        .bind(&reproduction_json)
-        .bind(&isolation_json)
-        .fetch_one(&mut *tx)
-        .await?;
-        let manifest = manifest_from_row(&row)?;
-
-        self.record_event_in_tx(
-            &mut tx,
-            kernel_diagnostic_bundle_event_family::BUNDLE_MANIFEST_RECORDED,
-            "kernel_diagnostic_bundle_manifest",
-            &manifest.manifest_id.to_string(),
-            serde_json::json!({
-                "manifest_id": manifest.manifest_id,
-                "schema": KERNEL_DIAGNOSTIC_BUNDLE_MANIFEST_SCHEMA,
-                "subject_kind": manifest.subject_kind,
-                "subject_ref": manifest.subject_ref,
-                "error_taxonomy": manifest.error_taxonomy,
-                "severity": manifest.severity.as_str(),
-                "section_count": manifest.sections.len(),
-                "reproduction_step_count": manifest.reproduction_steps.len(),
-            }),
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(manifest)
+        let manifest_id = Uuid::now_v7();
+        let bindings = DiagnosticManifestBindings {
+            record_id: RecordId::new(
+                "kernel_diagnostic_bundle_manifest",
+                SurrealUuid::from(manifest_id),
+            ),
+            manifest_id: manifest_id.into(),
+            schema_id: KERNEL_DIAGNOSTIC_BUNDLE_MANIFEST_SCHEMA.to_owned(),
+            subject_kind: new.subject_kind.clone(),
+            subject_ref: new.subject_ref.clone(),
+            failure_summary: new.failure_summary.clone(),
+            error_taxonomy: new.error_taxonomy.clone(),
+            severity: new.severity.as_str().to_owned(),
+            created_by: new.created_by.clone(),
+            sections_json: SurrealValue::into_value(sections_json),
+            reproduction_json: new.reproduction_steps.clone(),
+            isolation_json: new.isolation_hints.clone(),
+        };
+        let row: Option<DiagnosticManifestRow> = self
+            .write_with_event(
+                RECORD_MANIFEST_STATEMENT,
+                bindings,
+                kernel_diagnostic_bundle_event_family::BUNDLE_MANIFEST_RECORDED,
+                "kernel_diagnostic_bundle_manifest",
+                &manifest_id.to_string(),
+                serde_json::json!({
+                    "manifest_id": manifest_id,
+                    "schema": KERNEL_DIAGNOSTIC_BUNDLE_MANIFEST_SCHEMA,
+                    "subject_kind": new.subject_kind,
+                    "subject_ref": new.subject_ref,
+                    "error_taxonomy": new.error_taxonomy,
+                    "severity": new.severity.as_str(),
+                    "section_count": new.sections.len(),
+                    "reproduction_step_count": new.reproduction_steps.len(),
+                }),
+            )
+            .await?;
+        row.ok_or_else(|| {
+            AtelierError::Internal("recording diagnostic manifest returned no row".to_owned())
+        })?
+        .try_into()
     }
 
     /// Fetch a kernel diagnostic bundle manifest by id, if recorded.
@@ -363,18 +405,20 @@ impl AtelierStore {
         &self,
         manifest_id: Uuid,
     ) -> AtelierResult<Option<DiagnosticBundleManifest>> {
-        let row = sqlx::query(
-            r#"SELECT manifest_id, schema_id, subject_kind, subject_ref,
-                      failure_summary, error_taxonomy, severity, created_by,
-                      sections_json, reproduction_json, isolation_json,
-                      created_at_utc
-               FROM kernel_diagnostic_bundle_manifest
-               WHERE manifest_id = $1"#,
-        )
-        .bind(manifest_id)
-        .fetch_optional(self.pool())
-        .await?;
-        row.as_ref().map(manifest_from_row).transpose()
+        let row: Option<DiagnosticManifestRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        "SELECT manifest_id, schema_id, subject_kind, subject_ref, \
+                         failure_summary, error_taxonomy, severity, created_by, sections_json, \
+                         reproduction_json, isolation_json, created_at_utc \
+                         FROM kernel_diagnostic_bundle_manifest WHERE manifest_id = $manifest_id LIMIT 1;",
+                        ManifestIdBinding { manifest_id: manifest_id.into() },
+                    ).await
+                })
+            }).await?;
+        row.map(TryInto::try_into).transpose()
     }
 
     /// List manifests for a failing subject, newest first, so a no-context
@@ -384,20 +428,26 @@ impl AtelierStore {
         subject_kind: &str,
         subject_ref: &str,
     ) -> AtelierResult<Vec<DiagnosticBundleManifest>> {
-        let rows = sqlx::query(
-            r#"SELECT manifest_id, schema_id, subject_kind, subject_ref,
-                      failure_summary, error_taxonomy, severity, created_by,
-                      sections_json, reproduction_json, isolation_json,
-                      created_at_utc
-               FROM kernel_diagnostic_bundle_manifest
-               WHERE subject_kind = $1 AND subject_ref = $2
-               ORDER BY created_at_utc DESC, manifest_id DESC"#,
-        )
-        .bind(subject_kind)
-        .bind(subject_ref)
-        .fetch_all(self.pool())
-        .await?;
-        rows.iter().map(manifest_from_row).collect()
+        let bindings = ManifestSubjectBindings {
+            subject_kind: subject_kind.to_owned(),
+            subject_ref: subject_ref.to_owned(),
+        };
+        let rows: Vec<DiagnosticManifestRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                    "SELECT manifest_id, schema_id, subject_kind, subject_ref, failure_summary, \
+                     error_taxonomy, severity, created_by, sections_json, reproduction_json, \
+                     isolation_json, created_at_utc FROM kernel_diagnostic_bundle_manifest \
+                     WHERE subject_kind = $subject_kind AND subject_ref = $subject_ref \
+                     ORDER BY created_at_utc DESC, manifest_id DESC;",
+                    bindings,
+                ).await
+                })
+            })
+            .await?;
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 }
 

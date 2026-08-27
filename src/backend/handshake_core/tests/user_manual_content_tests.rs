@@ -16,7 +16,6 @@
 //! * MT-208 — missing-page / legacy-redirect / orphan-navigation fixtures
 //!   drive their negative verdicts.
 
-mod knowledge_pg_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
@@ -30,6 +29,9 @@ use handshake_core::knowledge_retrieval::planner::{
     AuthoritativeHandle, CheapestAuthoritativePathPlanner, RetrievalRequest,
 };
 use handshake_core::storage::knowledge::KnowledgeStore;
+use handshake_core::storage::surreal::{
+    SurrealStorageConfig, DEFAULT_STORE_DIRECTORY, HANDSHAKE_DATA_DIR_ENV,
+};
 use handshake_core::user_manual::bundle_bridge::{
     ensure_manual_page_entity, manual_bundle_candidate,
 };
@@ -40,7 +42,7 @@ use handshake_core::user_manual::spec_seed::spec_enrichment_seed;
 use handshake_core::user_manual::store::UserManualStore;
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use user_manual_support::{app_state_for, start_server};
+use user_manual_support::{app_state_for, manual_test_backend, start_server, ManualTestBackend};
 
 // ---------------------------------------------------------------------------
 // MT-196.
@@ -52,10 +54,9 @@ use user_manual_support::{app_state_for, start_server};
 /// into UserManual authority.
 #[tokio::test]
 async fn mt196_kernel002_manual_topics_are_seeded_as_pages() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt196_kernel002_import"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt196_kernel002_import");
     ensure_seeded(&kpg.db).await.expect("seed");
     let store = UserManualStore::new(&kpg.db);
     let (_, sections, _) = store
@@ -78,19 +79,20 @@ async fn mt196_kernel002_manual_topics_are_seeded_as_pages() {
             );
         }
     }
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
-/// MT-196: the documented startup constants (bind address, managed-PG port,
-/// data dir) match the product SOURCE. Runtime introspection of `main`'s
-/// hardcoded bind is impossible from a test, so the consistency check pins
-/// the documented values against `src/main.rs` and `src/managed_postgres.rs`
-/// — if an operator changes the port, this test forces the manual update.
+/// MT-196: the documented startup constants (bind address and embedded-store
+/// data directory) match the product. Runtime introspection of `main`'s
+/// hardcoded bind is impossible from a test, so that consistency check pins
+/// the documented value against `src/main.rs`; the data-directory contract is
+/// checked directly through [`SurrealStorageConfig`].
 #[tokio::test]
 async fn mt196_documented_startup_constants_match_product_source() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt196_startup_constants"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt196_startup_constants");
     ensure_seeded(&kpg.db).await.expect("seed");
     let store = UserManualStore::new(&kpg.db);
     let (_, sections, _) = store
@@ -106,24 +108,25 @@ async fn mt196_documented_startup_constants_match_product_source() {
 
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let main_rs = std::fs::read_to_string(crate_root.join("src/main.rs")).expect("read main.rs");
-    let managed = std::fs::read_to_string(crate_root.join("src/managed_postgres.rs"))
-        .expect("read managed_postgres.rs");
+    let configured = SurrealStorageConfig::for_data_dir("mt196-proof-data")
+        .expect("construct embedded SurrealDB config");
 
     assert!(page_text.contains("127.0.0.1:37501"));
     assert!(
         main_rs.contains("37501"),
         "main.rs no longer binds 37501 — update startup-and-run-commands"
     );
-    assert!(page_text.contains("5544"));
-    assert!(
-        managed.contains("5544"),
-        "managed_postgres.rs default port changed — update the manual"
-    );
-    assert!(page_text.contains("Handshake_Artifacts/handshake-product/managed_pgdata"));
-    assert!(managed.contains("handshake-product"));
-    assert!(managed.contains("managed_pgdata"));
+    assert!(page_text.contains(HANDSHAKE_DATA_DIR_ENV));
+    assert!(page_text.contains("embedded SurrealDB"));
+    assert!(page_text.contains("platform-local application data directory"));
+    assert!(page_text.contains("no database server or daemon"));
+    assert!(!page_text.contains("5544"));
+    assert!(!page_text.contains("managed_pgdata"));
+    assert!(configured.path().ends_with(DEFAULT_STORE_DIRECTORY));
     // The documented mounts exist in main.rs (`/api` nest + merge at root).
     assert!(main_rs.contains(".nest(\"/api\", api_routes)"));
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 // ---------------------------------------------------------------------------
@@ -131,23 +134,41 @@ async fn mt196_documented_startup_constants_match_product_source() {
 // ---------------------------------------------------------------------------
 
 struct RouterFixture {
-    kpg: knowledge_pg_support::KnowledgePg,
+    kpg: ManualTestBackend,
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
 }
 
-async fn router_fixture() -> Option<RouterFixture> {
-    let kpg = knowledge_pg_support::knowledge_pg().await?;
+async fn router_fixture() -> RouterFixture {
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for UserManual router fixture");
     ensure_seeded(&kpg.db).await.expect("seed");
-    let state = app_state_for(&kpg.schema_url).await;
+    let state = app_state_for(&kpg.db).await;
     let (base, server) = start_server(api::routes(state)).await;
-    Some(RouterFixture {
+    RouterFixture {
         kpg,
         base,
         _server: server,
         http: reqwest::Client::new(),
-    })
+    }
+}
+
+impl RouterFixture {
+    async fn close_and_remove(self) {
+        let RouterFixture {
+            kpg,
+            base: _,
+            _server,
+            http: _,
+        } = self;
+        _server.abort();
+        let _ = _server.await;
+        kpg.close_and_remove()
+            .await
+            .expect("close router fixture embedded backend");
+    }
 }
 
 fn doc_headers(req: reqwest::RequestBuilder, actor_kind: &str) -> reqwest::RequestBuilder {
@@ -163,7 +184,7 @@ fn doc_headers(req: reqwest::RequestBuilder, actor_kind: &str) -> reqwest::Reque
 /// matters: observed behavior ∈ documented vocabulary).
 #[tokio::test]
 async fn mt198_documented_failure_modes_match_runtime() {
-    let fx = skip_if_no_pg!(router_fixture().await, "mt198_failure_modes");
+    let fx = router_fixture().await;
     let store = UserManualStore::new(&fx.kpg.db);
     let (_, sections, _) = store
         .get_page_by_slug("failure-modes-and-recovery")
@@ -280,16 +301,17 @@ async fn mt198_documented_failure_modes_match_runtime() {
         "usermanual",
         manual_body["error"].as_str().unwrap()
     ));
+    drop(store);
+    fx.close_and_remove().await;
 }
 
 /// MT-198: the documented embed law and repair-action vocabulary match the
 /// live types exactly (4 typed constructor errors; relink|reresolve|remove).
 #[tokio::test]
 async fn mt198_embed_law_and_repair_vocabulary_match_types() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt198_embed_vocab"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt198_embed_vocab");
     ensure_seeded(&kpg.db).await.expect("seed");
     let store = UserManualStore::new(&kpg.db);
     let (_, sections, _) = store
@@ -341,6 +363,8 @@ async fn mt198_embed_law_and_repair_vocabulary_match_types() {
             "embed rejection reason '{documented_reason}' undocumented"
         );
     }
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 // ---------------------------------------------------------------------------
@@ -353,7 +377,9 @@ async fn mt198_embed_law_and_repair_vocabulary_match_types() {
 /// bundle target kind is user_manual_page.
 #[tokio::test]
 async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
-    let kpg = skip_if_no_pg!(knowledge_pg_support::knowledge_pg().await, "mt202_bundle");
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt202_bundle");
     ensure_seeded(&kpg.db).await.expect("seed");
     let workspace_id = kpg.create_workspace().await;
     let store = UserManualStore::new(&kpg.db);
@@ -437,6 +463,9 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
         .allowed_context
         .to_string()
         .contains("user_manual_page"));
+    drop(planner);
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 // ---------------------------------------------------------------------------
@@ -446,10 +475,9 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
 /// MT-206: the state-recovery guide covers all four contract scenarios.
 #[tokio::test]
 async fn mt206_state_recovery_guide_covers_contract_scenarios() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt206_state_recovery"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt206_state_recovery");
     ensure_seeded(&kpg.db).await.expect("seed");
     let store = UserManualStore::new(&kpg.db);
     let (page, sections, _) = store
@@ -479,6 +507,8 @@ async fn mt206_state_recovery_guide_covers_contract_scenarios() {
     for section in &sections {
         assert_eq!(section.section_kind, "recovery");
     }
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 /// MT-224: the state-recovery guide must cover the live parallel-swarm
@@ -486,10 +516,9 @@ async fn mt206_state_recovery_guide_covers_contract_scenarios() {
 /// keeps the page tied to runtime code instead of an invented manual.
 #[tokio::test]
 async fn mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt224_parallel_swarm_manual"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt224_parallel_swarm_manual");
     ensure_seeded(&kpg.db).await.expect("seed");
     let store = UserManualStore::new(&kpg.db);
     let (_, sections, anchors) = store
@@ -573,6 +602,8 @@ async fn mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols() {
             "state-recovery-guide missing page link to {target}"
         );
     }
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 /// MT-207: every spec-enrichment seed row targets an anchor that EXISTS in
@@ -676,10 +707,9 @@ fn mt204_freshness_docs_name_every_verdict_kind() {
 /// missing_page freshness verdict, and reseeding restores it.
 #[tokio::test]
 async fn mt208_missing_page_fixture_detected_and_healed() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt208_missing_page"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt208_missing_page");
     ensure_seeded(&kpg.db).await.expect("seed");
     assert_eq!(
         delete_page(&kpg.db, "quickstart-editor")
@@ -707,16 +737,17 @@ async fn mt208_missing_page_fixture_detected_and_healed() {
             .is_some(),
         "reseed restores the deleted page"
     );
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 /// MT-208: legacy redirect fixture — known aliases resolve, unknown aliases
 /// do not (no fuzzy/implicit resolution).
 #[tokio::test]
 async fn mt208_legacy_redirect_fixture() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt208_legacy_redirect"
-    );
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt208_legacy_redirect");
     ensure_seeded(&kpg.db).await.expect("seed");
     let store = UserManualStore::new(&kpg.db);
     let alias = store
@@ -731,6 +762,8 @@ async fn mt208_legacy_redirect_fixture() {
         .await
         .expect("unknown alias query")
         .is_none());
+    drop(store);
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
 
 /// MT-208: visual-navigation fixture — an orphan page (nothing links to it)
@@ -738,7 +771,9 @@ async fn mt208_legacy_redirect_fixture() {
 /// orphans.
 #[tokio::test]
 async fn mt208_orphan_page_fixture_detected() {
-    let kpg = skip_if_no_pg!(knowledge_pg_support::knowledge_pg().await, "mt208_orphan");
+    let kpg = manual_test_backend()
+        .await
+        .expect("open embedded backend for mt208_orphan");
     ensure_seeded(&kpg.db).await.expect("seed");
     assert!(
         unreachable_pages(&kpg.db).await.expect("audit").is_empty(),
@@ -750,4 +785,5 @@ async fn mt208_orphan_page_fixture_detected() {
         orphans.contains(&orphan_slug),
         "navigation audit must flag the orphan (got {orphans:?})"
     );
+    kpg.close_and_remove().await.expect("close embedded backend");
 }
