@@ -333,6 +333,21 @@ pub struct LoomBlock {
     pub derived: LoomBlockDerived,
 }
 
+/// Exact EventLedger identity returned by the durable mutation that created it.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomMutationEventReceipt {
+    pub event_id: String,
+    pub event_sequence: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+/// A Loom block mutation and the exact EventLedger row committed with it.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomBlockMutationReceipt {
+    pub block: LoomBlock,
+    pub event: LoomMutationEventReceipt,
+}
+
 #[derive(Clone, Debug)]
 pub struct NewLoomBlock {
     pub block_id: Option<String>,
@@ -1435,14 +1450,14 @@ pub struct LoomCanvasStageCompensation {
 // are block-id REFERENCES (FK, never content copies); semantic edges are real
 // `loom_edges` (via create_loom_edge); visual-only edges are board-local
 // decoration that is EXPLICITLY NOT graph authority. Board state (viewport) is
-// JSONB on the canvas row, mirroring the 0323 workbench-layout-state precedent.
+// a typed object value on the SurrealDB canvas row.
 // Authority = SurrealDB + EventLedger; the React canvas is a projection only.
 //
 // TRAP GUARD: this is the NEW LoomBoard, NOT the legacy Excalidraw sketch canvas
 // (`canvas_nodes`/`canvas_edges`, migration 0005), which stores content COPIES.
 // ---------------------------------------------------------------------------
 
-/// The board-state (viewport) JSONB schema id (CHECK on `loom_canvas_boards`).
+/// The board-state (viewport) object-value schema id for `loom_canvas_boards`.
 pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
 
 /// A canvas board: the typed LoomBlock plus its viewport state and the
@@ -1452,7 +1467,7 @@ pub struct LoomCanvasBoard {
     /// The canvas LoomBlock id (content_type=`canvas`). Board row PK == block_id.
     pub block_id: String,
     pub workspace_id: String,
-    /// Viewport / board-level state JSONB
+    /// Viewport / board-level SurrealDB object value
     /// (`{schema_id, pan_x, pan_y, zoom}`).
     pub board_state: serde_json::Value,
     pub created_at: DateTime<Utc>,
@@ -1484,6 +1499,16 @@ pub struct LoomCanvasPlacement {
     pub is_text_card: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// Exact receipt for deleting one Canvas placement while preserving its source block.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomCanvasPlacementRemovalReceipt {
+    pub workspace_id: String,
+    pub canvas_block_id: String,
+    pub placement_id: String,
+    pub placed_block_id: String,
+    pub event: LoomMutationEventReceipt,
 }
 
 /// Create payload for a placement (reference, never a copy).

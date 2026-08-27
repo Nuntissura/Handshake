@@ -178,6 +178,35 @@ impl Mt024SidebarPinRemovalCompletion {
         self.state == crate::mcp::action::ClickCompletionState::Pending
     }
 
+    /// The shared observer can own only one removal. The event that opened that binding may continue
+    /// to dispatch; a different block/workspace must wait so it cannot execute without a receipt.
+    fn allows_dispatch(&self, workspace_id: &str, block_id: &str) -> bool {
+        !self.is_pending()
+            || (self.workspace_id.as_deref() == Some(workspace_id)
+                && self.block_id.as_deref() == Some(block_id))
+    }
+
+    /// A workspace epoch change discards that workspace's async deliveries. Reset its observer at the
+    /// same boundary so A cannot leave B (or a later return to A) permanently blocked as Pending.
+    fn reset_for_workspace_change(&mut self, workspace_id: &str) -> bool {
+        if self
+            .workspace_id
+            .as_deref()
+            .is_none_or(|bound| bound == workspace_id)
+        {
+            return false;
+        }
+        self.state = crate::mcp::action::ClickCompletionState::Ready;
+        self.pending_target = None;
+        self.block_id = None;
+        self.workspace_id = None;
+        self.semantic_value = None;
+        self.receipt = None;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        true
+    }
+
     fn begin(
         &mut self,
         target_author_id: String,
@@ -266,6 +295,144 @@ impl Mt024SidebarPinRemovalCompletion {
                 )
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod mt024_sidebar_pin_removal_concurrency_tests {
+    use super::*;
+
+    #[test]
+    fn one_observer_serializes_blocks_and_workspace_changes_release_it() {
+        let mut completion = Mt024SidebarPinRemovalCompletion::default();
+        let a_target = crate::graph::sidebar_panel::pin_remove_author_id("block-a");
+        completion.begin(
+            a_target.clone(),
+            "workspace-a".to_owned(),
+            "block-a".to_owned(),
+            Mt024SidebarPinRemovalCompletion::semantic("workspace-a", "block-a", &a_target),
+        );
+        assert!(completion.allows_dispatch("workspace-a", "block-a"));
+        assert!(
+            !completion.allows_dispatch("workspace-a", "block-b"),
+            "block B cannot dispatch while the shared observer owns block A"
+        );
+
+        assert!(completion.reset_for_workspace_change("workspace-b"));
+        assert!(!completion.is_pending());
+        assert!(completion.allows_dispatch("workspace-b", "block-b"));
+
+        let b_target = crate::graph::sidebar_panel::pin_remove_author_id("block-b");
+        completion.begin(
+            b_target.clone(),
+            "workspace-b".to_owned(),
+            "block-b".to_owned(),
+            Mt024SidebarPinRemovalCompletion::semantic("workspace-b", "block-b", &b_target),
+        );
+        assert!(!completion.allows_dispatch("workspace-a", "block-a"));
+        assert!(completion.reset_for_workspace_change("workspace-a"));
+        assert!(completion.allows_dispatch("workspace-a", "block-a"));
+
+        completion.begin(
+            a_target.clone(),
+            "workspace-a".to_owned(),
+            "block-a".to_owned(),
+            Mt024SidebarPinRemovalCompletion::semantic("workspace-a", "block-a", &a_target),
+        );
+        assert!(completion.is_pending());
+        assert_eq!(
+            completion.generation, 3,
+            "A -> B -> A opens a fresh binding"
+        );
+    }
+
+    #[test]
+    fn sidebar_workspace_epoch_change_resets_the_owning_observer() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }));
+        app.editor_mounts
+            .secondary
+            .sidebar_panel
+            .lock()
+            .unwrap()
+            .workspace_id = "workspace-a".to_owned();
+        app.begin_mt024_sidebar_pin_removal("workspace-a", "block-a");
+        assert!(app.mt024_sidebar_pin_removal_completion.is_pending());
+
+        let epoch_a = app
+            .editor_mounts
+            .secondary
+            .sidebar_workspace_epoch
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let epoch_b = app.sync_sidebar_workspace("workspace-b");
+        assert!(epoch_b > epoch_a);
+        assert!(!app.mt024_sidebar_pin_removal_completion.is_pending());
+        assert!(app
+            .mt024_sidebar_pin_removal_completion
+            .allows_dispatch("workspace-b", "block-b"));
+
+        app.begin_mt024_sidebar_pin_removal("workspace-b", "block-b");
+        assert!(app.mt024_sidebar_pin_removal_completion.is_pending());
+        let epoch_returned_a = app.sync_sidebar_workspace("workspace-a");
+        assert!(epoch_returned_a > epoch_b);
+        assert!(!app.mt024_sidebar_pin_removal_completion.is_pending());
+
+        app.begin_mt024_sidebar_pin_removal("workspace-a", "block-a");
+        assert!(app.mt024_sidebar_pin_removal_completion.is_pending());
+        assert_eq!(
+            app.mt024_sidebar_pin_removal_completion
+                .workspace_id
+                .as_deref(),
+            Some("workspace-a")
+        );
+    }
+}
+
+#[cfg(test)]
+mod mt026_direct_viewport_runtime_tests {
+    use super::*;
+
+    #[test]
+    fn runtime_absence_rejects_and_rolls_back_a_direct_viewport_gesture() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }));
+        let event = {
+            let mut board = app.editor_mounts.secondary.canvas_board.lock().unwrap();
+            board.begin_projection_load("ws-test", "canvas-1");
+            board.set_authoritative_board(
+                Vec::new(),
+                Vec::new(),
+                egui::Vec2::ZERO,
+                1.0,
+                "revision-1".to_owned(),
+                "event-1".to_owned(),
+            );
+            board
+                .begin_direct_viewport_event_for_test(egui::Vec2::new(32.0, -12.0), 1.15)
+                .expect("direct gesture emits one typed viewport event")
+        };
+
+        app.route_canvas_events(vec![event], &egui::Context::default());
+
+        let board = app.editor_mounts.secondary.canvas_board.lock().unwrap();
+        assert_eq!(board.pan, egui::Vec2::ZERO);
+        assert_eq!(board.zoom, 1.0);
+        assert!(board
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("runtime is unavailable")));
+        assert!(
+            board
+                .pending_viewport_correlation(32.0, -12.0, 1.15)
+                .is_none(),
+            "runtime failure must close the direct gesture's pending observer"
+        );
     }
 }
 
@@ -3392,6 +3559,20 @@ fn mt033_set_snapshot_node_value(
         .any(|child| mt033_set_snapshot_node_value(child, author_id, value))
 }
 
+fn mt024_disable_snapshot_target(
+    node: &mut crate::accessibility::UiTreeNode,
+    author_id: &str,
+) -> bool {
+    if node.author_id.as_deref() == Some(author_id) {
+        node.disabled = true;
+        node.actions.retain(|action| action != "Click");
+        return true;
+    }
+    node.children
+        .iter_mut()
+        .any(|child| mt024_disable_snapshot_target(child, author_id))
+}
+
 struct PreparedStageEmbed {
     in_flight_lease: crate::stage_pane::StageEmbedInFlightLease,
     launch_runtime: tokio::runtime::Handle,
@@ -4202,6 +4383,26 @@ struct PendingCanvasPlacementCreateUndo {
     /// card via `POST .../cards`), so when it resolves the host records the minted `placed_block_id` as a
     /// TextCard. `false` for a `PlaceBlock` (a reference to an existing block — never inline-editable).
     is_text_card: bool,
+}
+
+struct PendingCanvasPlacementRemoval {
+    cell: crate::backend_client::CanvasPlacementRemovalCell,
+    workspace_id: String,
+    canvas_block_id: String,
+    placement_id: String,
+    action_id: Option<String>,
+    action_generation: Option<u64>,
+}
+
+struct PendingCanvasViewportMutation {
+    cell: crate::backend_client::CanvasViewportMutationCell,
+    workspace_id: String,
+    canvas_block_id: String,
+    requested_pan_x: f32,
+    requested_pan_y: f32,
+    requested_zoom: f32,
+    action_id: Option<String>,
+    action_generation: Option<u64>,
 }
 
 fn canvas_identity_matches(
@@ -6531,6 +6732,12 @@ pub struct HandshakeApp {
     /// carries a backend-minted placement id. Draining an `Ok` registers the MT-035 compensating undo;
     /// errors use the same board-error + re-fetch path as generic mutations.
     canvas_create_cells: Vec<PendingCanvasPlacementCreateUndo>,
+    /// Placement DELETE completions are typed separately because their response body carries the exact
+    /// deleted identities and EventLedger receipt needed by the removal completion proof.
+    canvas_removal_cells: Vec<PendingCanvasPlacementRemoval>,
+    /// Viewport PUT completions retain the exact returned board/EventLedger revision and the action
+    /// identity that dispatched them. A late completion for a previous board is discarded.
+    canvas_viewport_cells: Vec<PendingCanvasViewportMutation>,
     /// MT-033: completion queue for backend-touching Canvas undo/redo. The async compensation publishes
     /// success or failure here; the shell finalizes the provisional undo-ring transition, surfaces a
     /// typed failure, and reloads the authoritative board on both successful undo and successful redo.
@@ -6546,7 +6753,7 @@ pub struct HandshakeApp {
     /// -scoped: a card created in a PRIOR session is not re-marked until the backend exposes a card-origin
     /// field (documented limitation, NOT a fake).
     canvas_text_card_block_ids: std::collections::HashSet<String>,
-    /// WP-KERNEL-012 MT-026 REMEDIATION: the in-flight canvas mutation (PATCH/POST/DELETE) result
+    /// WP-KERNEL-012 MT-026 REMEDIATION: the in-flight generic canvas mutation (PATCH/POST) result
     /// cells. Each frame the feed drain reads the RESOLVED ones (previously the results were dispatched
     /// into throwaway cells and never read): `Ok(())` reconciles by re-fetching the board; `Err` logs
     /// the typed failure AND re-fetches the board — the ROLLBACK that replaces the optimistic in-widget
@@ -8185,6 +8392,8 @@ impl HandshakeApp {
             canvas_live_block_generation: 0,
             canvas_live_block_cells: Vec::new(),
             canvas_create_cells: Vec::new(),
+            canvas_removal_cells: Vec::new(),
+            canvas_viewport_cells: Vec::new(),
             canvas_compensation_cell: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             canvas_text_card_block_ids: std::collections::HashSet::new(),
             canvas_op_cells: Vec::new(),
@@ -10138,6 +10347,9 @@ impl HandshakeApp {
             .collect::<Vec<_>>();
         for (author_id, value) in declarations {
             mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+            if self.mt024_sidebar_pin_removal_completion.is_pending() {
+                mt024_disable_snapshot_target(&mut snapshot.root, &author_id);
+            }
         }
         if let Some(value) = self.mt024_sidebar_pin_removal_completion.observer_value() {
             snapshot
@@ -13149,6 +13361,8 @@ impl HandshakeApp {
             canvas_live_block_generation: 0,
             canvas_live_block_cells: Vec::new(),
             canvas_create_cells: Vec::new(),
+            canvas_removal_cells: Vec::new(),
+            canvas_viewport_cells: Vec::new(),
             canvas_compensation_cell: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             canvas_text_card_block_ids: std::collections::HashSet::new(),
             canvas_op_cells: Vec::new(),
@@ -16071,7 +16285,8 @@ impl HandshakeApp {
                 .map(|panel| panel.active_block_id.as_deref() == Some(block_id.as_str()))
                 .unwrap_or(false);
             if !already_bound {
-                self.bind_sidebar_active_block(&self.active_project_id, &block_id);
+                let workspace_id = self.active_project_id.clone();
+                self.bind_sidebar_active_block(&workspace_id, &block_id);
             }
         }
     }
@@ -17942,7 +18157,10 @@ impl HandshakeApp {
     /// count of the host dispatches an event batch produced — a drained-queue assertion alone cannot
     /// distinguish "routed to a dispatch" from "swallowed by a dead catch-all" (the W2 audit finding).
     pub fn canvas_op_cells_in_flight(&self) -> usize {
-        self.canvas_op_cells.len() + self.canvas_create_cells.len()
+        self.canvas_op_cells.len()
+            + self.canvas_create_cells.len()
+            + self.canvas_removal_cells.len()
+            + self.canvas_viewport_cells.len()
     }
 
     /// Inject a completion for the exact request currently accepted by the mounted canvas host.
@@ -18540,8 +18758,9 @@ impl HandshakeApp {
     }
 
     /// Queue the same debounced active-block bind used by production navigation.
-    pub fn bind_sidebar_active_block_for_test(&self, block_id: impl AsRef<str>) {
-        self.bind_sidebar_active_block(&self.active_project_id, block_id.as_ref());
+    pub fn bind_sidebar_active_block_for_test(&mut self, block_id: impl AsRef<str>) {
+        let workspace_id = self.active_project_id.clone();
+        self.bind_sidebar_active_block(&workspace_id, block_id.as_ref());
     }
 
     /// Drain only the target identities from completed active-block requests. The debounce proof uses
@@ -18577,7 +18796,11 @@ impl HandshakeApp {
         result: Result<Vec<crate::graph::sidebar_panel::BacklinkRow>, String>,
     ) {
         let sec = &self.editor_mounts.secondary;
-        let workspace_epoch = self.sync_sidebar_workspace(&self.active_project_id);
+        let workspace_epoch = self
+            .editor_mounts
+            .secondary
+            .sidebar_workspace_epoch
+            .load(std::sync::atomic::Ordering::Relaxed);
         let sequence = sec
             .sidebar_backlinks_seq
             .load(std::sync::atomic::Ordering::Relaxed);
@@ -18606,7 +18829,11 @@ impl HandshakeApp {
         result: Result<Vec<crate::graph::sidebar_panel::UnlinkedRow>, String>,
     ) {
         let sec = &self.editor_mounts.secondary;
-        let workspace_epoch = self.sync_sidebar_workspace(&self.active_project_id);
+        let workspace_epoch = self
+            .editor_mounts
+            .secondary
+            .sidebar_workspace_epoch
+            .load(std::sync::atomic::Ordering::Relaxed);
         let sequence = sec
             .sidebar_unlinked_seq
             .load(std::sync::atomic::Ordering::Relaxed);
@@ -27785,14 +28012,18 @@ impl HandshakeApp {
 
     /// Bind the sidebar to `workspace` even while the pane is hidden. Every transition advances an
     /// epoch and clears old deliveries, so A -> B -> A can never accept the first A's completion.
-    fn sync_sidebar_workspace(&self, workspace: &str) -> u64 {
-        let sec = &self.editor_mounts.secondary;
-        let changed = sec
+    fn sync_sidebar_workspace(&mut self, workspace: &str) -> u64 {
+        let changed = self
+            .editor_mounts
+            .secondary
             .sidebar_panel
             .lock()
             .map(|panel| panel.workspace_id != workspace)
             .unwrap_or(false);
         if changed {
+            self.mt024_sidebar_pin_removal_completion
+                .reset_for_workspace_change(workspace);
+            let sec = &self.editor_mounts.secondary;
             sec.sidebar_workspace_epoch
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             sec.sidebar_active_debounce_seq
@@ -27835,14 +28066,16 @@ impl HandshakeApp {
                 .lock()
                 .map(|mut errors| errors.clear());
         }
-        sec.sidebar_workspace_epoch
+        self.editor_mounts
+            .secondary
+            .sidebar_workspace_epoch
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// MT-024 REMEDIATION: bind a LoomBlock tab/open route to the mounted sidebar's per-active-block
     /// sections. Backlinks and Unlinked are scoped to the active block, so the host owns the block id,
     /// generation bump, loading state, and backend dispatch.
-    fn bind_sidebar_active_block(&self, workspace: &str, block_id: &str) {
+    fn bind_sidebar_active_block(&mut self, workspace: &str, block_id: &str) {
         if block_id.is_empty() {
             return;
         }
@@ -27935,15 +28168,15 @@ impl HandshakeApp {
     }
 
     /// MT-024 REMEDIATION: initial pins/favorites fetch on first visibility, cell polls, the
-    /// SidebarEvent consumers (two-call pin removal, unfavorite PATCH, section retry), and the
+    /// SidebarEvent consumers (atomic pin removal, unfavorite PATCH, section retry), and the
     /// `ShellEvent::BookmarkRemoved` emission on a confirmed removal.
     fn drive_sidebar_pane(&mut self, ctx: &egui::Context, workspace: &str) {
         use crate::graph::sidebar_panel::{SectionKind, SidebarEvent};
-        let sec = &self.editor_mounts.secondary;
         let sidebar_type = crate::editor_pane_factories::placeholder_pane_type(
             crate::editor_pane_factories::SIDEBAR_PANE_LABEL,
         );
         let workspace_epoch = self.sync_sidebar_workspace(workspace);
+        let sec = &self.editor_mounts.secondary;
 
         if self.any_tab_of_type(&sidebar_type)
             && !sec
@@ -28304,6 +28537,14 @@ impl HandshakeApp {
                     ctx.request_repaint();
                 }
                 SidebarEvent::RemovePin { block_id } => {
+                    if !self
+                        .mt024_sidebar_pin_removal_completion
+                        .allows_dispatch(workspace, &block_id)
+                    {
+                        // One shared observer can causally own only one removal. Leave this row
+                        // untouched; the operator may retry after the owning action terminalizes.
+                        continue;
+                    }
                     if let Some(rt) = self.runtime_handle.clone() {
                         let sec = &self.editor_mounts.secondary;
                         let key = (SectionKind::Pins, block_id.clone());
@@ -30565,7 +30806,8 @@ impl HandshakeApp {
     /// - `RemoveEdge` -> `DELETE /loom/canvas-visual-edges/:id` when the id is one of the board's own
     ///   `visual_edges`, else `DELETE /loom/edges/:id` (a semantic loom edge — the MT-042 host contract:
     ///   "routes it through the E6 loom client (semantic edge) or removes the board-local visual edge");
-    /// - `ViewportChanged` -> `PUT .../canvas-boards/:cb/viewport {board_state:{schema_id,pan_x,pan_y,zoom}}`
+    /// - `ViewportChanged` -> `PUT .../canvas-boards/:cb/viewport
+    ///   {board_state:{schema_id,pan_x,pan_y,zoom},expected_event_ledger_event_id}`
     ///   (fired on pan/zoom RELEASE only — the widget debounces, never per frame);
     /// - `Retry` -> re-run the existing `getCanvasBoard` fetch into the same authoritative board cell;
     /// - `NodeMenu` -> the MT-070 navigation bus (`node_navigation_target` -> `dispatch`) — not a backend op;
@@ -30573,7 +30815,7 @@ impl HandshakeApp {
     ///   route is verified ABSENT: the cards endpoint is create-only and `PUT /knowledge/documents/:id/save`
     ///   is unbound) — never a faked write.
     ///
-    /// Every dispatched mutation keeps its op cell in `canvas_op_cells` so the feed drain
+    /// Every dispatched mutation keeps its result cell so the feed drain
     /// (`drive_graph_and_canvas_feeds`) reads the RESULT and re-fetches the board on resolve: on `Ok` the
     /// persisted values replace the optimistic ones; on `Err` the SAME re-fetch is the ROLLBACK to server
     /// truth (+ the typed failure lands on the board's error surface).
@@ -30616,6 +30858,24 @@ impl HandshakeApp {
         if backend_events.is_empty() {
             return;
         }
+        let mutation_enabled = self
+            .editor_mounts
+            .secondary
+            .canvas_board
+            .lock()
+            .map(|board| board.mutation_interactions_allowed())
+            .unwrap_or(false);
+        if !mutation_enabled {
+            backend_events.retain(|event| matches!(event, CanvasEvent::Retry));
+            if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                board.status =
+                    "Canvas mutation blocked until an authoritative revision is loaded".to_owned();
+            }
+        }
+        if backend_events.is_empty() {
+            ctx.request_repaint();
+            return;
+        }
         let place_gate = backend_events
             .iter()
             .any(|event| matches!(event, CanvasEvent::PlaceBlock { .. }))
@@ -30635,18 +30895,72 @@ impl HandshakeApp {
             return;
         }
         let Some(rt) = self.runtime_handle.clone() else {
+            let failure = "canvas mutation runtime is unavailable".to_owned();
+            if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                let workspace_id = board.workspace_id.clone();
+                let canvas_block_id = board.canvas_block_id.clone();
+                let mut failed_observer = false;
+                for event in &backend_events {
+                    match event {
+                        CanvasEvent::ViewportChanged { pan_x, pan_y, zoom } => {
+                            if let Some((action_id, generation)) =
+                                board.pending_viewport_correlation(*pan_x, *pan_y, *zoom)
+                            {
+                                failed_observer |= board.fail_pending_viewport(
+                                    &workspace_id,
+                                    &canvas_block_id,
+                                    &action_id,
+                                    generation,
+                                    failure.clone(),
+                                );
+                            }
+                        }
+                        CanvasEvent::RemovePlacement { placement_id } => {
+                            if let Some((action_id, generation)) =
+                                board.pending_removal_correlation(placement_id)
+                            {
+                                failed_observer |= board.fail_pending_removal(
+                                    &workspace_id,
+                                    &canvas_block_id,
+                                    placement_id,
+                                    &action_id,
+                                    generation,
+                                    failure.clone(),
+                                );
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                if failed_observer {
+                    board.error = Some(failure.clone());
+                }
+            }
             if matches!(place_gate, Some(Mt042DispatchGate::Accepted))
                 || matches!(remove_gate, Some(Mt042DispatchGate::Accepted))
             {
                 self.mt042_graph_open_completion.operation_generation =
                     Some(self.mt042_graph_open_completion.generation);
-                self.mt042_graph_open_completion.operation_outcome =
-                    Some(Err("canvas mutation runtime is unavailable".to_owned()));
+                self.mt042_graph_open_completion.operation_outcome = Some(Err(failure));
             }
             return;
         };
         enum CanvasDispatch {
             Mutation(crate::backend_client::RequestSpec),
+            Viewport {
+                spec: crate::backend_client::RequestSpec,
+                pan_x: f32,
+                pan_y: f32,
+                zoom: f32,
+                action_id: Option<String>,
+                action_generation: Option<u64>,
+            },
+            RemovedPlacement {
+                spec: crate::backend_client::RequestSpec,
+                placement_id: String,
+                action_id: Option<String>,
+                action_generation: Option<u64>,
+            },
             ResolveAtelier {
                 atelier_ref: crate::interop::AtelierRef,
                 x: f32,
@@ -30666,7 +30980,7 @@ impl HandshakeApp {
             &self.rich_doc_base_url,
             rt,
         ));
-        let (workspace_id, canvas_block_id, visual_edge_ids) =
+        let (workspace_id, canvas_block_id, visual_edge_ids, board_event_ledger_event_id) =
             match self.editor_mounts.secondary.canvas_board.lock() {
                 Ok(b) => (
                     b.workspace_id.clone(),
@@ -30675,6 +30989,9 @@ impl HandshakeApp {
                         .iter()
                         .map(|e| e.visual_edge_id.clone())
                         .collect::<std::collections::HashSet<String>>(),
+                    b.authoritative_event_ledger_event_id()
+                        .unwrap_or_default()
+                        .to_owned(),
                 ),
                 Err(_) => return,
             };
@@ -30769,9 +31086,19 @@ impl HandshakeApp {
                     })
                     .collect(),
                 CanvasEvent::RemovePlacement { placement_id } => {
-                    vec![CanvasDispatch::Mutation(
-                        client.remove_placement_request(&workspace_id, &placement_id),
-                    )]
+                    let correlation = self
+                        .editor_mounts
+                        .secondary
+                        .canvas_board
+                        .lock()
+                        .ok()
+                        .and_then(|board| board.pending_removal_correlation(&placement_id));
+                    vec![CanvasDispatch::RemovedPlacement {
+                        spec: client.remove_placement_request(&workspace_id, &placement_id),
+                        placement_id,
+                        action_id: correlation.as_ref().map(|(action_id, _)| action_id.clone()),
+                        action_generation: correlation.map(|(_, generation)| generation),
+                    }]
                 }
                 CanvasEvent::SemanticEdge {
                     source_block_id,
@@ -30803,13 +31130,28 @@ impl HandshakeApp {
                     ))]
                 }
                 CanvasEvent::ViewportChanged { pan_x, pan_y, zoom } => {
-                    vec![CanvasDispatch::Mutation(client.viewport_request(
-                        &workspace_id,
-                        &canvas_block_id,
+                    let correlation = self
+                        .editor_mounts
+                        .secondary
+                        .canvas_board
+                        .lock()
+                        .ok()
+                        .and_then(|board| board.pending_viewport_correlation(pan_x, pan_y, zoom));
+                    vec![CanvasDispatch::Viewport {
+                        spec: client.viewport_request(
+                            &workspace_id,
+                            &canvas_block_id,
+                            pan_x,
+                            pan_y,
+                            zoom,
+                            &board_event_ledger_event_id,
+                        ),
                         pan_x,
                         pan_y,
                         zoom,
-                    ))]
+                        action_id: correlation.as_ref().map(|(action_id, _)| action_id.clone()),
+                        action_generation: correlation.map(|(_, generation)| generation),
+                    }]
                 }
                 CanvasEvent::TextCardEditBlocked {
                     placement_id,
@@ -30839,6 +31181,73 @@ impl HandshakeApp {
                 // `Err` the SAME re-fetch is the rollback to server truth (+ the typed failure is
                 // logged).
                 match dispatch {
+                    CanvasDispatch::Viewport {
+                        spec,
+                        pan_x,
+                        pan_y,
+                        zoom,
+                        action_id,
+                        action_generation,
+                    } => {
+                        let cell: crate::backend_client::CanvasViewportMutationCell =
+                            Arc::new(Mutex::new(None));
+                        client.dispatch_viewport(
+                            spec,
+                            &workspace_id,
+                            &canvas_block_id,
+                            &board_event_ledger_event_id,
+                            pan_x,
+                            pan_y,
+                            zoom,
+                            Arc::clone(&cell),
+                        );
+                        self.canvas_viewport_cells
+                            .push(PendingCanvasViewportMutation {
+                                cell,
+                                workspace_id: workspace_id.clone(),
+                                canvas_block_id: canvas_block_id.clone(),
+                                requested_pan_x: pan_x,
+                                requested_pan_y: pan_y,
+                                requested_zoom: zoom,
+                                action_id,
+                                action_generation,
+                            });
+                    }
+                    CanvasDispatch::RemovedPlacement {
+                        spec,
+                        placement_id,
+                        action_id,
+                        action_generation,
+                    } => {
+                        let cell: crate::backend_client::CanvasPlacementRemovalCell =
+                            Arc::new(Mutex::new(None));
+                        client.dispatch_removed_placement(
+                            spec,
+                            &workspace_id,
+                            &placement_id,
+                            Arc::clone(&cell),
+                        );
+                        if self
+                            .mt042_graph_open_completion
+                            .pending_author_id
+                            .as_deref()
+                            == Some("canvas.remove-placement")
+                        {
+                            self.mt042_graph_open_completion.operation_cell_identity =
+                                Some(Arc::as_ptr(&cell) as usize);
+                            self.mt042_graph_open_completion.operation_generation =
+                                Some(self.mt042_graph_open_completion.generation);
+                        }
+                        self.canvas_removal_cells
+                            .push(PendingCanvasPlacementRemoval {
+                                cell,
+                                workspace_id: workspace_id.clone(),
+                                canvas_block_id: canvas_block_id.clone(),
+                                placement_id,
+                                action_id,
+                                action_generation,
+                            });
+                    }
                     CanvasDispatch::Mutation(spec) => {
                         let cell: crate::backend_client::CanvasBoardOpCell =
                             Arc::new(Mutex::new(None));
@@ -32093,11 +32502,13 @@ impl HandshakeApp {
                     match result {
                         Ok(data) => {
                             let placements_for_resolve = data.placements.clone();
-                            board.set_board(
+                            board.set_authoritative_board(
                                 data.placements,
                                 data.visual_edges,
                                 egui::Vec2::new(data.pan_x, data.pan_y),
                                 data.zoom,
+                                data.updated_at,
+                                data.event_ledger_event_id,
                             );
                             // WP-KERNEL-012 MT-080 FIX A: re-mark host-created free-text cards as `TextCard`
                             // (the getCanvasBoard payload can't carry the card-vs-reference kind), so a card the
@@ -32124,7 +32535,11 @@ impl HandshakeApp {
         self.drain_canvas_live_block_cells(ctx);
 
         // ── Canvas: read resolved mutation results -> re-fetch (reconcile Ok / ROLLBACK Err) ─────────
-        if !self.canvas_create_cells.is_empty() || !self.canvas_op_cells.is_empty() {
+        if !self.canvas_create_cells.is_empty()
+            || !self.canvas_removal_cells.is_empty()
+            || !self.canvas_viewport_cells.is_empty()
+            || !self.canvas_op_cells.is_empty()
+        {
             let mut resolved_any = false;
             let current_board_key = self
                 .editor_mounts
@@ -32272,6 +32687,288 @@ impl HandshakeApp {
                 }
             }
             self.canvas_create_cells = create_unresolved;
+
+            let mut viewport_unresolved = Vec::new();
+            for pending in std::mem::take(&mut self.canvas_viewport_cells) {
+                let pending_key = (
+                    pending.workspace_id.clone(),
+                    pending.canvas_block_id.clone(),
+                );
+                let pending_is_current = canvas_identity_matches(
+                    current_board_key.as_ref(),
+                    &pending.workspace_id,
+                    &pending.canvas_block_id,
+                );
+                let correlation = pending.action_id.as_deref().zip(pending.action_generation);
+                let owns_current_action = pending_is_current
+                    && correlation.is_some_and(|(action_id, generation)| {
+                        self.editor_mounts
+                            .secondary
+                            .canvas_board
+                            .lock()
+                            .ok()
+                            .and_then(|board| {
+                                board.pending_viewport_correlation(
+                                    pending.requested_pan_x,
+                                    pending.requested_pan_y,
+                                    pending.requested_zoom,
+                                )
+                            })
+                            .is_some_and(|(current_id, current_generation)| {
+                                current_id == action_id && current_generation == generation
+                            })
+                    });
+                match pending.cell.lock().ok().and_then(|mut cell| cell.take()) {
+                    Some(Ok(receipt)) if pending_is_current => {
+                        let application = match correlation {
+                            Some((action_id, generation)) if owns_current_action => self
+                                .editor_mounts
+                                .secondary
+                                .canvas_board
+                                .lock()
+                                .map_err(|_| "canvas board lock poisoned".to_owned())
+                                .and_then(|mut board| {
+                                    board.apply_viewport_mutation_receipt(
+                                        action_id, generation, receipt,
+                                    )
+                                }),
+                            Some(_) => Ok(false),
+                            None => Ok(true),
+                        };
+                        match application {
+                            Ok(true) => {
+                                self.canvas_board_errors.remove(&pending_key);
+                                resolved_any = true;
+                            }
+                            Ok(false) => {
+                                tracing::debug!(
+                                    workspace_id = %pending.workspace_id,
+                                    canvas_block_id = %pending.canvas_block_id,
+                                    "ignored stale viewport proof correlation; refreshing current board authority"
+                                );
+                                // A -> B -> A can make the proof correlation stale while this successful
+                                // PUT still changed A. Refresh A so the product projection cannot remain
+                                // stale; only the old observer terminalization is discarded.
+                                resolved_any |= pending_is_current;
+                            }
+                            Err(message) => {
+                                if let Some((action_id, generation)) = correlation {
+                                    if let Ok(mut board) =
+                                        self.editor_mounts.secondary.canvas_board.lock()
+                                    {
+                                        board.fail_pending_viewport(
+                                            &pending.workspace_id,
+                                            &pending.canvas_block_id,
+                                            action_id,
+                                            generation,
+                                            message.clone(),
+                                        );
+                                        board.error = Some(message.clone());
+                                    }
+                                }
+                                self.canvas_board_errors
+                                    .insert(pending_key, message.clone());
+                                tracing::warn!(
+                                    "canvas viewport receipt rejected (re-fetching board): {message}"
+                                );
+                                resolved_any = true;
+                            }
+                        }
+                    }
+                    Some(Ok(_)) => {
+                        tracing::debug!(
+                            workspace_id = %pending.workspace_id,
+                            canvas_block_id = %pending.canvas_block_id,
+                            "discarded viewport completion for an unmounted board"
+                        );
+                    }
+                    Some(Err(message)) if pending_is_current => {
+                        let applies = match correlation {
+                            Some((action_id, generation)) if owns_current_action => self
+                                .editor_mounts
+                                .secondary
+                                .canvas_board
+                                .lock()
+                                .ok()
+                                .is_some_and(|mut board| {
+                                    let failed = board.fail_pending_viewport(
+                                        &pending.workspace_id,
+                                        &pending.canvas_block_id,
+                                        action_id,
+                                        generation,
+                                        message.clone(),
+                                    );
+                                    if failed {
+                                        board.error = Some(message.clone());
+                                    }
+                                    failed
+                                }),
+                            Some(_) => false,
+                            None => true,
+                        };
+                        if applies {
+                            tracing::warn!(
+                                "canvas viewport mutation failed (re-fetching board = rollback): {message}"
+                            );
+                            self.canvas_board_errors.insert(pending_key, message);
+                        }
+                        // The String cell does not distinguish a known 409 from a timeout or a
+                        // malformed success after commit. Reconcile every resolved current-board
+                        // outcome; only the exact owning observer receives failure attribution.
+                        resolved_any = true;
+                    }
+                    Some(Err(_)) => {
+                        tracing::debug!(
+                            workspace_id = %pending.workspace_id,
+                            canvas_block_id = %pending.canvas_block_id,
+                            "discarded viewport failure for an unmounted board"
+                        );
+                    }
+                    None => viewport_unresolved.push(pending),
+                }
+            }
+            self.canvas_viewport_cells = viewport_unresolved;
+
+            let mut removal_unresolved = Vec::new();
+            for pending in std::mem::take(&mut self.canvas_removal_cells) {
+                let is_mt042_cell = self.mt042_graph_open_completion.operation_cell_identity
+                    == Some(Arc::as_ptr(&pending.cell) as usize)
+                    && self.mt042_graph_open_completion.operation_generation
+                        == Some(self.mt042_graph_open_completion.generation);
+                let pending_key = (
+                    pending.workspace_id.clone(),
+                    pending.canvas_block_id.clone(),
+                );
+                let pending_is_current = canvas_identity_matches(
+                    current_board_key.as_ref(),
+                    &pending.workspace_id,
+                    &pending.canvas_block_id,
+                );
+                let correlation = pending.action_id.as_deref().zip(pending.action_generation);
+                let owns_current_action = pending_is_current
+                    && correlation.is_some_and(|(action_id, generation)| {
+                        self.editor_mounts
+                            .secondary
+                            .canvas_board
+                            .lock()
+                            .ok()
+                            .and_then(|board| {
+                                board.pending_removal_correlation(&pending.placement_id)
+                            })
+                            .is_some_and(|(current_id, current_generation)| {
+                                current_id == action_id && current_generation == generation
+                            })
+                    });
+                match pending.cell.lock().ok().and_then(|mut cell| cell.take()) {
+                    Some(Ok(receipt)) => {
+                        let application = if !pending_is_current
+                            || (correlation.is_some() && !owns_current_action)
+                        {
+                            Ok(false)
+                        } else if receipt.canvas_block_id != pending.canvas_block_id {
+                            Err(format!(
+                                "placement-removal receipt canvas_block_id mismatch: expected {}, got {}",
+                                pending.canvas_block_id, receipt.canvas_block_id
+                            ))
+                        } else if correlation.is_some() {
+                            self.editor_mounts
+                                .secondary
+                                .canvas_board
+                                .lock()
+                                .map_err(|_| "canvas board lock poisoned".to_owned())
+                                .and_then(|mut board| {
+                                    board.apply_placement_removal_receipt(receipt)
+                                })
+                        } else {
+                            Ok(true)
+                        };
+                        match application {
+                            Ok(true) => {
+                                if is_mt042_cell {
+                                    self.mt042_graph_open_completion.operation_outcome =
+                                        Some(Ok(()));
+                                }
+                                resolved_any = true;
+                            }
+                            Ok(false) => {
+                                tracing::debug!(
+                                    workspace_id = %pending.workspace_id,
+                                    canvas_block_id = %pending.canvas_block_id,
+                                    placement_id = %pending.placement_id,
+                                    "ignored stale placement-removal proof correlation; refreshing current board authority"
+                                );
+                                resolved_any |= pending_is_current;
+                            }
+                            Err(message) => {
+                                if is_mt042_cell {
+                                    self.mt042_graph_open_completion.operation_outcome =
+                                        Some(Err(message.clone()));
+                                }
+                                if let Some((action_id, generation)) = correlation {
+                                    if owns_current_action {
+                                        if let Ok(mut board) =
+                                            self.editor_mounts.secondary.canvas_board.lock()
+                                        {
+                                            board.fail_pending_removal(
+                                                &pending.workspace_id,
+                                                &pending.canvas_block_id,
+                                                &pending.placement_id,
+                                                action_id,
+                                                generation,
+                                                message.clone(),
+                                            );
+                                            board.error = Some(message.clone());
+                                        }
+                                    }
+                                }
+                                tracing::warn!(
+                                    "canvas placement-removal receipt rejected (re-fetching board): {message}"
+                                );
+                                self.canvas_board_errors
+                                    .insert(pending_key.clone(), message.clone());
+                                resolved_any |= pending_is_current;
+                            }
+                        }
+                    }
+                    Some(Err(message)) => {
+                        let applies = if !pending_is_current
+                            || (correlation.is_some() && !owns_current_action)
+                        {
+                            false
+                        } else {
+                            if let Some((action_id, generation)) = correlation {
+                                if let Ok(mut board) =
+                                    self.editor_mounts.secondary.canvas_board.lock()
+                                {
+                                    board.fail_pending_removal(
+                                        &pending.workspace_id,
+                                        &pending.canvas_block_id,
+                                        &pending.placement_id,
+                                        action_id,
+                                        generation,
+                                        message.clone(),
+                                    );
+                                    board.error = Some(message.clone());
+                                }
+                            }
+                            true
+                        };
+                        if applies {
+                            if is_mt042_cell {
+                                self.mt042_graph_open_completion.operation_outcome =
+                                    Some(Err(message.clone()));
+                            }
+                            tracing::warn!(
+                                "canvas placement removal failed (re-fetching board = rollback): {message}"
+                            );
+                            self.canvas_board_errors.insert(pending_key, message);
+                        }
+                        resolved_any |= pending_is_current;
+                    }
+                    None => removal_unresolved.push(pending),
+                }
+            }
+            self.canvas_removal_cells = removal_unresolved;
 
             let mut unresolved = Vec::new();
             for cell in std::mem::take(&mut self.canvas_op_cells) {

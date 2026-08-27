@@ -41,9 +41,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
-use handshake_native::backend_client::CanvasBoardClient;
 #[cfg(feature = "integration")]
 use handshake_native::backend_client::LOOM_CANVAS_BOARD_SCHEMA_ID;
+use handshake_native::backend_client::{CanvasBoardClient, CanvasViewportMutationReceipt};
 use handshake_native::graph::canvas_board::{
     placement_author_id, placement_remove_author_id, CanvasDragPayload, CanvasEvent,
     CanvasPlacementCard, EdgeMode, LoomCanvasBoard, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H,
@@ -681,8 +681,9 @@ fn canvas_remove_placement() {
 fn observer_token<S>(harness: &Harness<'_, S>, author_id: &str) -> serde_json::Value {
     let raw = value_for(harness, author_id)
         .unwrap_or_else(|| panic!("completion observer '{author_id}' must publish a token value"));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|error| panic!("observer '{author_id}' token must be JSON: {error} ({raw})"))
+    serde_json::from_str(&raw).unwrap_or_else(|error| {
+        panic!("observer '{author_id}' token must be JSON: {error} ({raw})")
+    })
 }
 
 fn declaration_token<S>(harness: &Harness<'_, S>, author_id: &str) -> serde_json::Value {
@@ -729,7 +730,10 @@ fn canvas_viewport_receipt_terminalizes_only_on_authoritative_refresh() {
     assert_eq!(declaration["mode"], "observer");
     assert_eq!(declaration["state"], "ready");
     assert_eq!(declaration["persistent_target"], true);
-    assert_eq!(declaration["observer_author_id"], VIEWPORT_COMPLETION_AUTHOR_ID);
+    assert_eq!(
+        declaration["observer_author_id"],
+        VIEWPORT_COMPLETION_AUTHOR_ID
+    );
     assert_eq!(declaration["generation"].as_u64(), Some(ready_generation));
     let semantic = inner_json(&declaration, "semantic_value");
     assert_eq!(semantic["schema_id"], "handshake.canvas-viewport-action/v1");
@@ -766,11 +770,85 @@ fn canvas_viewport_receipt_terminalizes_only_on_authoritative_refresh() {
         "the local zoom step must never terminalize the viewport receipt"
     );
 
-    // The authoritative refresh carrying the persisted viewport terminalizes it.
+    // Counterfactual 1: another writer can persist the SAME numeric values. Without this action's
+    // exact mutation receipt, that matching projection must not terminalize the observer.
     {
         let mut b = board.lock().unwrap();
         let placements = b.placements.clone();
-        b.set_board(placements, vec![], egui::Vec2::ZERO, 1.25);
+        b.set_authoritative_board(
+            placements,
+            vec![],
+            egui::Vec2::ZERO,
+            1.25,
+            "2026-08-27T06:10:00Z".to_owned(),
+            "KE-concurrent-same-values".to_owned(),
+        );
+    }
+    harness.run();
+    assert_eq!(
+        observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID)["state"],
+        "pending",
+        "matching values without this action's exact receipt are not causal proof"
+    );
+
+    let (action_id, action_generation) = board
+        .lock()
+        .unwrap()
+        .pending_viewport_correlation(0.0, 0.0, 1.25)
+        .expect("the dispatched action correlation remains pending");
+    board
+        .lock()
+        .unwrap()
+        .apply_viewport_mutation_receipt(
+            &action_id,
+            action_generation,
+            CanvasViewportMutationReceipt {
+                workspace_id: "ws-test".to_owned(),
+                block_id: "canvas-1".to_owned(),
+                pan_x: 0.0,
+                pan_y: 0.0,
+                zoom: 1.25,
+                updated_at: "2026-08-27T06:11:00Z".to_owned(),
+                event_ledger_event_id: "KE-this-viewport".to_owned(),
+            },
+        )
+        .expect("exact receipt binds")
+        .then_some(())
+        .expect("receipt belongs to the pending action");
+
+    // Counterfactual 2: even after the exact receipt arrives, a later writer with identical values
+    // has a different revision/timestamp and cannot close this action.
+    {
+        let mut b = board.lock().unwrap();
+        let placements = b.placements.clone();
+        b.set_authoritative_board(
+            placements,
+            vec![],
+            egui::Vec2::ZERO,
+            1.25,
+            "2026-08-27T06:12:00Z".to_owned(),
+            "KE-later-writer".to_owned(),
+        );
+    }
+    harness.run();
+    assert_eq!(
+        observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID)["state"],
+        "pending",
+        "wrong EventLedger revision/timestamp with identical values must remain pending"
+    );
+
+    // Only a fresh authoritative refresh carrying the exact PUT receipt terminalizes it.
+    {
+        let mut b = board.lock().unwrap();
+        let placements = b.placements.clone();
+        b.set_authoritative_board(
+            placements,
+            vec![],
+            egui::Vec2::ZERO,
+            1.25,
+            "2026-08-27T06:11:00Z".to_owned(),
+            "KE-this-viewport".to_owned(),
+        );
     }
     harness.run();
     let applied = observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID);
@@ -783,6 +861,11 @@ fn canvas_viewport_receipt_terminalizes_only_on_authoritative_refresh() {
     );
     assert_eq!(detail["authority"], "persisted");
     assert_eq!(detail["board_id"], "canvas-1");
+    assert_eq!(detail["event_ledger_event_id"], "KE-this-viewport");
+    assert_eq!(detail["updated_at"], "2026-08-27T06:11:00Z");
+    assert_eq!(detail["prior"]["scale"].as_f64(), Some(1.0));
+    assert_eq!(detail["prior"]["offset_x"].as_f64(), Some(0.0));
+    assert_eq!(detail["prior"]["offset_y"].as_f64(), Some(0.0));
     assert_eq!(detail["resulting"]["scale"].as_f64(), Some(1.25));
     assert!(detail["persist_route"]
         .as_str()
@@ -800,6 +883,153 @@ fn canvas_viewport_receipt_terminalizes_only_on_authoritative_refresh() {
     println!(
         "MT-026 V4: canvas.zoom-in receipt terminal={} authority={} scale={}",
         applied["state"], detail["authority"], detail["resulting"]["scale"]
+    );
+}
+
+#[test]
+fn viewport_failure_closes_pending_and_serializes_the_next_action() {
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), Arc::clone(&events));
+    harness.run();
+
+    harness.get_by_label("Zoom in").click();
+    harness.run();
+    let pending = observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID);
+    let pending_generation = pending["generation"].as_u64().expect("pending generation");
+    assert_eq!(pending["state"], "pending");
+    assert_eq!(events.lock().unwrap().len(), 1);
+
+    // A second rapid viewport action is disabled while the first compare-and-swap is unresolved; it
+    // cannot reuse the same EventLedger CAS token or open an unowned proof.
+    harness.get_by_label("Zoom in").click();
+    harness.run();
+    assert_eq!(events.lock().unwrap().len(), 1);
+    assert_eq!(
+        observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID)["generation"].as_u64(),
+        Some(pending_generation)
+    );
+
+    let (action_id, generation) = board
+        .lock()
+        .unwrap()
+        .pending_viewport_correlation(0.0, 0.0, 1.25)
+        .expect("first action owns the pending observer");
+    assert!(
+        !board.lock().unwrap().fail_pending_viewport(
+            "ws-other",
+            "canvas-1",
+            &action_id,
+            generation,
+            "late board-A failure".to_owned(),
+        ),
+        "a cross-binding late failure cannot close the current observer"
+    );
+    assert!(board.lock().unwrap().fail_pending_viewport(
+        "ws-test",
+        "canvas-1",
+        &action_id,
+        generation,
+        "PUT non-success status 409 Conflict".to_owned(),
+    ));
+    harness.run();
+    let failed = observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID);
+    assert_eq!(failed["state"], "failed");
+    assert_eq!(
+        inner_json(&failed, "terminal_detail")["authority"],
+        "unproven"
+    );
+
+    // The terminal record remains observable for its bounded window, then releases the observer so a
+    // later action can bind instead of remaining permanently blocked.
+    for _ in 0..24 {
+        harness.run();
+    }
+    assert_eq!(
+        observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID)["state"],
+        "ready"
+    );
+    harness.get_by_label("Zoom out").click();
+    harness.run();
+    assert_eq!(events.lock().unwrap().len(), 2);
+    assert_eq!(
+        observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID)["state"],
+        "pending"
+    );
+}
+
+#[test]
+fn removal_failure_closes_pending_and_serializes_distinct_removals() {
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), Arc::clone(&events));
+    harness.run();
+
+    harness.get_by_label("Remove Block 1").click();
+    harness.run();
+    assert_eq!(events.lock().unwrap().len(), 1);
+    assert_eq!(
+        observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID)["state"],
+        "pending"
+    );
+
+    // The second card remains visible but its remove interaction is serialized behind the first.
+    // A disabled AccessKit node intentionally has no clickable bounding box, so assert its disabled
+    // action contract and use the AccessKit dispatch path instead of a physical pointer click.
+    let second_remove_author = placement_remove_author_id("p-002");
+    let second_remove = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(second_remove_author.as_str()))
+        .expect("the second removal control remains visible while the first is pending");
+    assert!(second_remove.accesskit_node().is_disabled());
+    assert!(!second_remove
+        .accesskit_node()
+        .data()
+        .supports_action(egui::accesskit::Action::Click));
+    second_remove.click_accesskit();
+    harness.run();
+    assert_eq!(events.lock().unwrap().len(), 1);
+
+    let (action_id, generation) = board
+        .lock()
+        .unwrap()
+        .pending_removal_correlation("p-001")
+        .expect("first removal owns the observer");
+    assert!(
+        !board.lock().unwrap().fail_pending_removal(
+            "ws-test",
+            "canvas-1",
+            "p-002",
+            &action_id,
+            generation,
+            "late removal for another placement".to_owned(),
+        ),
+        "a cross-placement failure cannot close the owning observer"
+    );
+    assert!(board.lock().unwrap().fail_pending_removal(
+        "ws-test",
+        "canvas-1",
+        "p-001",
+        &action_id,
+        generation,
+        "DELETE non-success status 404 Not Found".to_owned(),
+    ));
+    harness.run();
+    assert_eq!(
+        observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID)["state"],
+        "failed"
+    );
+
+    for _ in 0..24 {
+        harness.run();
+    }
+    harness.get_by_label("Remove Block 2").click();
+    harness.run();
+    assert_eq!(events.lock().unwrap().len(), 2);
+    assert_eq!(
+        observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID)["state"],
+        "pending"
     );
 }
 
@@ -837,6 +1067,27 @@ fn canvas_removal_receipt_requires_absence_and_source_block_retention() {
     assert_eq!(pending["state"], "pending");
     assert_eq!(pending["pending_target"], remove_author);
     assert_eq!(pending["generation"].as_u64(), Some(ready_generation + 1));
+
+    {
+        let mut b = board.lock().unwrap();
+        assert!(b
+            .apply_placement_removal_receipt(
+                handshake_native::backend_client::CanvasPlacementRemovalReceipt {
+                    workspace_id: "ws-test".to_owned(),
+                    canvas_block_id: "canvas-1".to_owned(),
+                    placement_id: "p-001".to_owned(),
+                    placed_block_id: "block-001".to_owned(),
+                    event_id: "KE-placement-remove-1".to_owned(),
+                    event_sequence: 77,
+                    created_at: "2026-08-27T06:00:00Z".to_owned(),
+                },
+            )
+            .expect("exact placement-removal receipt must correlate"));
+        assert!(
+            b.retention_probe_block_ids().is_empty(),
+            "the backend receipt alone must not bypass authoritative absence proof"
+        );
+    }
 
     // The authoritative refresh proving the placement ABSENT is only half the proof — the receipt must
     // NOT terminalize on target disappearance alone (the exact validation_v4 anti-pattern).
@@ -884,6 +1135,15 @@ fn canvas_removal_receipt_requires_absence_and_source_block_retention() {
     assert_eq!(detail["placement_absent_after_refresh"], true);
     assert_eq!(detail["source_block_present"], true);
     assert_eq!(detail["source_block_content_type"], "note");
+    assert_eq!(
+        detail["backend"]["event_ledger_event_id"],
+        "KE-placement-remove-1"
+    );
+    assert_eq!(detail["backend"]["event_ledger_event_sequence"], 77);
+    assert_eq!(
+        detail["backend"]["event_ledger_created_at"],
+        "2026-08-27T06:00:00Z"
+    );
     assert!(detail["backend"]["route"]
         .as_str()
         .is_some_and(|route| route.starts_with("DELETE /workspaces/") && route.ends_with("p-001")));
@@ -894,9 +1154,7 @@ fn canvas_removal_receipt_requires_absence_and_source_block_retention() {
     );
     println!(
         "MT-026 V4: placement-removal receipt terminal={} absent={} source_kept={}",
-        applied["state"],
-        detail["placement_absent_after_refresh"],
-        detail["source_block_present"]
+        applied["state"], detail["placement_absent_after_refresh"], detail["source_block_present"]
     );
 }
 
@@ -912,6 +1170,19 @@ fn canvas_removal_receipt_fails_closed_when_the_source_block_is_gone() {
     harness.run();
     {
         let mut b = board.lock().unwrap();
+        assert!(b
+            .apply_placement_removal_receipt(
+                handshake_native::backend_client::CanvasPlacementRemovalReceipt {
+                    workspace_id: "ws-test".to_owned(),
+                    canvas_block_id: "canvas-1".to_owned(),
+                    placement_id: "p-001".to_owned(),
+                    placed_block_id: "block-001".to_owned(),
+                    event_id: "KE-placement-remove-source-lost".to_owned(),
+                    event_sequence: 78,
+                    created_at: "2026-08-27T06:01:00Z".to_owned(),
+                },
+            )
+            .expect("exact removal receipt must correlate"));
         let kept: Vec<CanvasPlacementCard> = b
             .placements
             .iter()
@@ -936,6 +1207,33 @@ fn canvas_removal_receipt_fails_closed_when_the_source_block_is_gone() {
     let detail = inner_json(&failed, "terminal_detail");
     assert_eq!(detail["source_block_present"], false);
     println!("MT-026 V4: source-block loss fails the removal receipt closed (terminal Rejected)");
+}
+
+#[test]
+fn canvas_removal_receipt_rejects_cross_placement_identity() {
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+    harness.get_by_label("Remove Block 1").click();
+    harness.run();
+    let error = board
+        .lock()
+        .unwrap()
+        .apply_placement_removal_receipt(
+            handshake_native::backend_client::CanvasPlacementRemovalReceipt {
+                workspace_id: "ws-test".to_owned(),
+                canvas_block_id: "canvas-1".to_owned(),
+                placement_id: "p-other".to_owned(),
+                placed_block_id: "block-001".to_owned(),
+                event_id: "KE-wrong-placement".to_owned(),
+                event_sequence: 79,
+                created_at: "2026-08-27T06:02:00Z".to_owned(),
+            },
+        )
+        .expect_err("a receipt for another placement must fail closed");
+    assert!(error.contains("placement_id mismatch"));
+    assert!(board.lock().unwrap().retention_probe_block_ids().is_empty());
 }
 
 // ── AC10: empty board -> empty canvas, no panic, no "(stale reference)" text ──────────────────────
@@ -1072,7 +1370,7 @@ fn client_get_board_url_corrected() {
 #[test]
 fn client_viewport_body_is_board_state_wrapped() {
     let c = test_client();
-    let spec = c.viewport_request("ws1", "cb1", 12.0, -8.0, 1.5);
+    let spec = c.viewport_request("ws1", "cb1", 12.0, -8.0, 1.5, "KE-board-7");
     assert_eq!(
         spec.url,
         "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/viewport"
@@ -1088,6 +1386,11 @@ fn client_viewport_body_is_board_state_wrapped() {
     assert_eq!(bs.get("pan_x").and_then(|x| x.as_f64()), Some(12.0));
     assert_eq!(bs.get("pan_y").and_then(|x| x.as_f64()), Some(-8.0));
     assert_eq!(bs.get("zoom").and_then(|x| x.as_f64()), Some(1.5));
+    assert_eq!(
+        body.get("expected_event_ledger_event_id")
+            .and_then(|x| x.as_str()),
+        Some("KE-board-7")
+    );
 }
 
 #[test]
@@ -1788,8 +2091,8 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
         .map(|placement| placement.placement_id.clone())
         .expect("first redone text placement exists");
     assert_ne!(first_replacement_id, original_text_placement_id);
-    let after_first_redo =
-        fetch_canvas(&client, &workspace_id, &canvas_id).expect("fresh SurrealDB reload after host redo");
+    let after_first_redo = fetch_canvas(&client, &workspace_id, &canvas_id)
+        .expect("fresh SurrealDB reload after host redo");
     assert!(after_first_redo.placements.iter().any(|placement| {
         placement.placed_block_id == text_block_id && placement.placement_id == first_replacement_id
     }));

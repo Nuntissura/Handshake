@@ -661,8 +661,8 @@ async fn loom_navigation_folders_wiki_import_and_debug_survive_reopen() -> Stora
     let unpinned = database
         .remove_loom_block_pin(&ctx(), &workspace_id, &target)
         .await?;
-    assert!(!unpinned.pinned);
-    assert_eq!(unpinned.pin_order, None);
+    assert!(!unpinned.block.pinned);
+    assert_eq!(unpinned.block.pin_order, None);
     eprintln!("MT136_PROOF_STEP_PASS loom_navigation.pin_state");
 
     let parent = database
@@ -1018,7 +1018,7 @@ async fn canvas_board_stage_block_view_calendar_and_canvas_crud_survive_reopen()
         Some("second"),
     )
     .await?;
-    database
+    let created_board = database
         .create_canvas_board(&ctx(), &workspace_id, &canvas_block, board_state(0.0))
         .await?;
     assert_eq!(
@@ -1030,7 +1030,13 @@ async fn canvas_board_stage_block_view_calendar_and_canvas_crud_survive_reopen()
         0
     );
     database
-        .update_canvas_board_state(&ctx(), &workspace_id, &canvas_block, board_state(10.0))
+        .update_canvas_board_state(
+            &ctx(),
+            &workspace_id,
+            &canvas_block,
+            board_state(10.0),
+            &created_board.event_ledger_event_id,
+        )
         .await?;
     assert!(database
         .create_canvas_board(&ctx(), &workspace_id, &first, board_state(0.0))

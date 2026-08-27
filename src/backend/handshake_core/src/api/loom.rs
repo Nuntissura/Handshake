@@ -7,13 +7,14 @@ use crate::storage::block_view_outbox;
 use crate::storage::{
     artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults,
     CompensateLoomCanvasStageCard, LoomBlock, LoomBlockContentType, LoomBlockDerived,
-    LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement,
-    LoomCanvasPlacementUpdate, LoomCanvasStageProvenance, LoomCanvasVisualEdge, LoomEdge,
-    LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
-    LoomSearchSourceKind, LoomViewFilters, LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot,
-    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomCanvasStageCard, NewLoomEdge,
-    PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore,
-    StorageError, WriteActorKind, WriteContext, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
+    LoomBlockMutationReceipt, LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView,
+    LoomCanvasPlacement, LoomCanvasPlacementRemovalReceipt, LoomCanvasPlacementUpdate,
+    LoomCanvasStageProvenance, LoomCanvasVisualEdge, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
+    LoomGraphSearchResult, LoomSearchFilters, LoomSearchSourceKind, LoomViewFilters,
+    LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot, NewAsset, NewLoomBlock,
+    NewLoomCanvasPlacement, NewLoomCanvasStageCard, NewLoomEdge, PreviewStatus,
+    QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore, StorageError,
+    WriteActorKind, WriteContext, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
 use crate::AppState;
 use axum::{
@@ -794,10 +795,10 @@ async fn set_loom_block_pin_order(
 async fn remove_loom_block_pin(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
-) -> ApiResult<Json<LoomBlock>> {
+) -> ApiResult<Json<LoomBlockMutationReceipt>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let ctx = WriteContext::human(None);
-    let block = state
+    let receipt = state
         .storage
         .remove_loom_block_pin(&ctx, &workspace_id, &block_id)
         .await
@@ -809,7 +810,7 @@ async fn remove_loom_block_pin(
         Uuid::now_v7(),
         json!({
             "type": "loom_block_updated",
-            "block_id": block.block_id,
+            "block_id": receipt.block.block_id,
             "fields_changed": ["pin_order", "pinned"],
             "updated_by": "user",
         }),
@@ -817,7 +818,7 @@ async fn remove_loom_block_pin(
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    Ok(Json(block))
+    Ok(Json(receipt))
 }
 
 // -- MT-184/185 wiki projection + overlay handlers -------------------------
@@ -4023,6 +4024,7 @@ async fn get_canvas_board(
 #[derive(Debug, Deserialize)]
 struct UpdateBoardViewportRequest {
     board_state: serde_json::Value,
+    expected_event_ledger_event_id: String,
 }
 
 async fn update_canvas_board_state(
@@ -4038,6 +4040,7 @@ async fn update_canvas_board_state(
             &workspace_id,
             &block_id,
             payload.board_state,
+            &payload.expected_event_ledger_event_id,
         )
         .await
         .map_err(map_storage_error)?;
@@ -4337,14 +4340,14 @@ async fn update_canvas_placement(
 async fn remove_canvas_placement(
     State(state): State<AppState>,
     Path((workspace_id, placement_id)): Path<(String, String)>,
-) -> ApiResult<StatusCode> {
+) -> ApiResult<Json<LoomCanvasPlacementRemovalReceipt>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    state
+    let receipt = state
         .storage
         .remove_canvas_placement(&WriteContext::human(None), &workspace_id, &placement_id)
         .await
         .map_err(map_storage_error)?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Json(receipt))
 }
 
 #[derive(Debug, Deserialize)]

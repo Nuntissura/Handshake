@@ -725,8 +725,8 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "PUT",
         "/workspaces/:workspace_id/loom/canvas-boards/:block_id/viewport",
         "Persist CanvasBoard viewport state.",
-        "workspace_id + board block_id path params; JSON viewport input.",
-        "JSON updated board state."
+        "workspace_id + board block_id path params; JSON {board_state, expected_event_ledger_event_id} using the exact current board revision.",
+        "JSON updated board state with a new EventLedger revision; 409 when the expected revision is stale."
     ),
     surface!(
         "loom.canvas.placements.create",
@@ -771,7 +771,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "/workspaces/:workspace_id/loom/canvas-placements/:placement_id",
         "Remove a block placement from a CanvasBoard.",
         "workspace_id + placement_id path params.",
-        "Empty success; 404 when absent."
+        "JSON exact removal receipt {workspace_id, canvas_block_id, placement_id, placed_block_id, event}; 404 when absent."
     ),
     surface!(
         "loom.canvas.visual_edges.create",
@@ -853,7 +853,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
          Tier 1 Flight Recorder/EventLedger WIRED; Tier 2 internal_diagnostics and \
          Tier 3 Palmistry DEFERRED.",
         "Path params (no body).",
-        "JSON updated block (pinned=false, pin_order=null)."
+        "JSON exact mutation receipt {block, event}; block has pinned=false and pin_order=null, and event carries event_id, event_sequence, and created_at."
     ),
     surface!(
         "loom.blocks.breadcrumbs",

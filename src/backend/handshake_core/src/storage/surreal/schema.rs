@@ -387,6 +387,27 @@ async fn inspect_atelier_catalog_fingerprint(
     expected_tables: &BTreeSet<String>,
     expected_sequences: &BTreeSet<String>,
 ) -> Result<String, SurrealStorageError> {
+    inspect_catalog_fingerprint(
+        database,
+        expected_tables,
+        expected_sequences,
+        CatalogInspectionScope::Atelier,
+    )
+    .await
+}
+
+#[derive(Clone, Copy)]
+enum CatalogInspectionScope {
+    Atelier,
+    ExactDatabase,
+}
+
+async fn inspect_catalog_fingerprint(
+    database: &SurrealAdminContext<'_>,
+    expected_tables: &BTreeSet<String>,
+    expected_sequences: &BTreeSet<String>,
+    scope: CatalogInspectionScope,
+) -> Result<String, SurrealStorageError> {
     let mut response = database.query("INFO FOR DB STRUCTURE;").await?;
     let database_info: SurrealValueData = response.take(0)?;
     let table_definitions = match parse_named_structures(&database_info, "tables") {
@@ -400,7 +421,12 @@ async fn inspect_atelier_catalog_fingerprint(
 
     let relevant_tables = table_definitions
         .keys()
-        .filter(|name| name.starts_with("atelier_") || *name == "kernel_event_ledger")
+        .filter(|name| match scope {
+            CatalogInspectionScope::Atelier => {
+                name.starts_with("atelier_") || *name == "kernel_event_ledger"
+            }
+            CatalogInspectionScope::ExactDatabase => true,
+        })
         .cloned()
         .collect::<BTreeSet<_>>();
     if &relevant_tables != expected_tables {
@@ -415,7 +441,12 @@ async fn inspect_atelier_catalog_fingerprint(
 
     let relevant_sequences = sequence_definitions
         .keys()
-        .filter(|name| name.starts_with("atelier_") || *name == "kernel_event_sequence")
+        .filter(|name| match scope {
+            CatalogInspectionScope::Atelier => {
+                name.starts_with("atelier_") || *name == "kernel_event_sequence"
+            }
+            CatalogInspectionScope::ExactDatabase => true,
+        })
         .cloned()
         .collect::<BTreeSet<_>>();
     if &relevant_sequences != expected_sequences {
@@ -498,6 +529,123 @@ fn atelier_schema_ddl() -> String {
         }
     }
 
+    let mut ddl = ddl.join("\n");
+    ddl.push('\n');
+    ddl
+}
+
+/// Provisions the exact production-schema tables exercised by the focused Loom
+/// mutation-receipt tests. Definitions are selected mechanically from the same
+/// compiled `schema.surql` as production bootstrap; no test-owned DDL is used.
+#[cfg(test)]
+pub async fn bootstrap_loom_receipt_test_schema(
+    storage: &SurrealStorage,
+) -> Result<(), SurrealStorageError> {
+    const EXPECTED_CATALOG_SHA256: &str =
+        "77ab023e8e57bee576b0350cf47e24e2a998805edb854a89f143956f42390993";
+    let ddl = loom_receipt_test_schema_ddl();
+    let expected_tables = loom_receipt_test_tables()
+        .iter()
+        .map(|table| (*table).to_owned())
+        .collect::<BTreeSet<_>>();
+    let expected_sequences = loom_receipt_test_sequences()
+        .iter()
+        .map(|sequence| (*sequence).to_owned())
+        .collect::<BTreeSet<_>>();
+    storage
+        .with_admin_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query(format!("BEGIN TRANSACTION;\n{ddl}\nCOMMIT TRANSACTION;\n"))
+                    .await?;
+                let present_tables = atelier_table_definitions(&database)
+                    .await?
+                    .into_keys()
+                    .collect::<BTreeSet<_>>();
+                if present_tables != expected_tables {
+                    return fail_closed(
+                        &database,
+                        format!(
+                            "HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_TABLE_MISMATCH: expected={expected_tables:?}; observed={present_tables:?}"
+                        ),
+                    )
+                    .await;
+                }
+                let observed = inspect_catalog_fingerprint(
+                    &database,
+                    &expected_tables,
+                    &expected_sequences,
+                    CatalogInspectionScope::ExactDatabase,
+                )
+                .await?;
+                if observed != EXPECTED_CATALOG_SHA256 {
+                    return fail_closed(
+                        &database,
+                        format!(
+                            "HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH: expected={EXPECTED_CATALOG_SHA256}; observed={observed}"
+                        ),
+                    )
+                    .await;
+                }
+                Ok(())
+            })
+        })
+        .await
+}
+
+#[cfg(test)]
+fn loom_receipt_test_tables() -> &'static [&'static str] {
+    &[
+        "workspaces",
+        "loom_blocks",
+        "loom_block_search_index",
+        "loom_canvas_boards",
+        "loom_canvas_placements",
+        "loom_canvas_visual_edges",
+        "kernel_event_ledger",
+    ]
+}
+
+#[cfg(test)]
+fn loom_receipt_test_sequences() -> &'static [&'static str] {
+    &["kernel_event_sequence"]
+}
+
+#[cfg(test)]
+fn loom_receipt_test_schema_ddl() -> String {
+    fn selected_table_statement<'a>(line: &'a str, tables: &[&str]) -> bool {
+        let table = if let Some(rest) = line.strip_prefix("DEFINE TABLE OVERWRITE ") {
+            rest.split_ascii_whitespace().next()
+        } else if line.starts_with("DEFINE FIELD OVERWRITE ")
+            || line.starts_with("DEFINE INDEX OVERWRITE ")
+            || line.starts_with("DEFINE EVENT OVERWRITE ")
+        {
+            line.split_once(" ON TABLE ")
+                .and_then(|(_, rest)| rest.split_ascii_whitespace().next())
+        } else {
+            None
+        };
+        table.is_some_and(|table| tables.contains(&table.trim_end_matches(';')))
+    }
+
+    fn selected_sequence_statement(line: &str, sequences: &[&str]) -> bool {
+        line.strip_prefix("DEFINE SEQUENCE IF NOT EXISTS ")
+            .and_then(|rest| rest.split_ascii_whitespace().next())
+            .is_some_and(|sequence| sequences.contains(&sequence.trim_end_matches(';')))
+    }
+
+    let mut ddl = Vec::new();
+    let mut include_continuation = false;
+    for line in SCHEMA.lines() {
+        let trimmed = line.trim_start();
+        if include_continuation
+            || selected_table_statement(trimmed, loom_receipt_test_tables())
+            || selected_sequence_statement(trimmed, loom_receipt_test_sequences())
+        {
+            ddl.push(line);
+            include_continuation = !trimmed.ends_with(';');
+        }
+    }
     let mut ddl = ddl.join("\n");
     ddl.push('\n');
     ddl

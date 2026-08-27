@@ -10,8 +10,8 @@
 //! - **Breadcrumb strip** — a horizontal `Home > … > Block` history of the last 5 opened blocks; each
 //!   crumb is a clickable [`accesskit::Role::Link`] that fires [`SidebarEvent::Open`].
 //! - **Pins** — every pinned [`LoomBlock`] (`GET /loom/views/pins`). Each row shows the title, a
-//!   content-type chip, and a Remove button. Remove is the React two-call flow: `PUT /pin-order` with
-//!   `{pin_order:null}` THEN `PATCH` with `{pinned:false}` (RISK-1 / MC-1). Optimistic with rollback.
+//!   content-type chip, and a Remove button. Remove uses atomic `POST .../remove-pin`, which clears
+//!   `pin_order`, unpins, and writes its EventLedger receipt together. Optimistic with rollback.
 //! - **Favorites** — every favorited block (`GET /loom/views/favorites`). Remove = `PATCH {favorite:false}`.
 //! - **Backlinks** — only when an active block is set: the blocks that LINK to it (a real `LoomEdge`),
 //!   each with its edge-type label. Distinct list from Unlinked (impl-note 67 / MC-4).
@@ -24,10 +24,10 @@
 //!   - `GET  /workspaces/{ws}/loom/views/pins?limit=100`      -> `LoomViewResponse::Pins { blocks }`
 //!     (`parse_view_type` accepts `pins`; CONFIRMED real, unlike the MT-022/023 stale view types).
 //!   - `GET  /workspaces/{ws}/loom/views/favorites?limit=100` -> `LoomViewResponse::Favorites { blocks }`.
-//!   - `PUT  /workspaces/{ws}/loom/blocks/{id}/pin-order` body `{ "pin_order": null }`
-//!     (`SetPinOrderRequest`, MT-183 — the field is `pin_order`, NOT the contract's `ordinal`).
-//!   - `PATCH /workspaces/{ws}/loom/blocks/{id}` body `{ "pinned": false }` / `{ "favorite": false }`
-//!     (`LoomBlockUpdate`, MT-022 confirmed: `pinned`+`favorite` are `Option<bool>` PATCH fields).
+//!   - `POST /workspaces/{ws}/loom/blocks/{id}/remove-pin` atomically clears `pin_order`, sets
+//!     `pinned=false`, and returns the exact EventLedger mutation receipt.
+//!   - `PATCH /workspaces/{ws}/loom/blocks/{id}` body `{ "favorite": false }`
+//!     (`LoomBlockUpdate`, MT-022 confirmed: `favorite` is an `Option<bool>` PATCH field).
 //!   - **Backlinks correction (disclosed):** the contract's `graph-search?mention_ids={id}` IS a real
 //!     param, but the DEDICATED `GET /workspaces/{ws}/loom/blocks/{id}/backlinks` -> `Vec<LoomBacklink>`
 //!     (MT-178, `get_backlinks_with_context`) is the field-correct surface: each backlink carries the
@@ -361,9 +361,9 @@ pub enum SidebarEvent {
     /// A row or breadcrumb was clicked: navigate to `block_id` (fires the `on_open` callback). The host
     /// pushes a breadcrumb for this block using `title` as the operator-facing label.
     Open { block_id: String, title: String },
-    /// A pin's Remove button was clicked (AC2): the host runs the two-call removal
-    /// (`PUT /pin-order null` THEN `PATCH {pinned:false}`), emits the bookmark-changed event, and
-    /// re-fetches Pins. The row was already removed OPTIMISTICALLY from the local list (RISK-1).
+    /// A pin's Remove button was clicked (AC2): the host runs atomic `POST .../remove-pin`, emits the
+    /// bookmark-changed event, and re-fetches Pins. The row was already removed OPTIMISTICALLY from
+    /// the local list (RISK-1).
     RemovePin { block_id: String },
     /// A favorite's Remove button was clicked (AC3): the host runs `PATCH {favorite:false}`, emits the
     /// changed event, and re-fetches Favorites. The row was already removed optimistically.
@@ -514,7 +514,7 @@ impl LoomSidebarPanel {
     }
 
     /// Optimistically remove a pin from the local list (RISK-1): the row disappears immediately on
-    /// remove-click; the host then runs the two-call backend removal and, on FAILURE, calls
+    /// remove-click; the host then runs the atomic backend removal and, on FAILURE, calls
     /// [`rollback_pin`](Self::rollback_pin) to re-insert it. Returns the removed block (for rollback).
     pub fn optimistic_remove_pin(&mut self, block_id: &str) -> Option<(usize, SidebarBlock)> {
         if let Some(pos) = self.pins.iter().position(|b| b.block_id == block_id) {

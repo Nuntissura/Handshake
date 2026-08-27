@@ -2636,6 +2636,8 @@ pub struct CanvasBoardData {
     pub pan_x: f32,
     pub pan_y: f32,
     pub zoom: f32,
+    pub updated_at: String,
+    pub event_ledger_event_id: String,
 }
 
 pub const CANVAS_STAGE_CAPTURE_REF_SCHEMA: &str = "handshake.canvas-stage-capture-ref.v1";
@@ -2716,8 +2718,44 @@ pub struct CanvasBoardDelivery {
 pub type CanvasBoardCell = Arc<Mutex<VecDeque<CanvasBoardDelivery>>>;
 
 /// One-slot delivery cell for a canvas creation result whose response body carries the created
-/// placement id. Non-create mutations still use [`CanvasBoardOpCell`] because their body is not needed.
+/// placement id. Mutations whose response body is irrelevant use [`CanvasBoardOpCell`]; placement
+/// removal uses [`CanvasPlacementRemovalCell`] because its exact transaction receipt is required.
 pub type CanvasBoardCreateCell = Arc<Mutex<Option<Result<CreatedCanvasPlacement, String>>>>;
+
+/// Exact authoritative board revision returned by one successful viewport compare-and-swap. The
+/// receipt is separate from [`CanvasBoardData`]: the PUT returns the mutated `LoomCanvasBoard`, while
+/// the later GET returns the complete board projection. Completion is proven only when that GET
+/// carries this exact EventLedger revision and the requested viewport.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CanvasViewportMutationReceipt {
+    pub workspace_id: String,
+    pub block_id: String,
+    pub pan_x: f32,
+    pub pan_y: f32,
+    pub zoom: f32,
+    pub updated_at: String,
+    pub event_ledger_event_id: String,
+}
+
+pub type CanvasViewportMutationCell =
+    Arc<Mutex<Option<Result<CanvasViewportMutationReceipt, String>>>>;
+
+/// Exact authoritative receipt returned by deleting one Canvas placement. The receipt binds the
+/// deleted placement and preserved source block to the EventLedger row committed in the same SurrealDB
+/// transaction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanvasPlacementRemovalReceipt {
+    pub workspace_id: String,
+    pub canvas_block_id: String,
+    pub placement_id: String,
+    pub placed_block_id: String,
+    pub event_id: String,
+    pub event_sequence: i64,
+    pub created_at: String,
+}
+
+pub type CanvasPlacementRemovalCell =
+    Arc<Mutex<Option<Result<CanvasPlacementRemovalReceipt, String>>>>;
 
 /// Exact authoritative receipt returned by `POST /loom/edges`. The backend mints `edge_id`; callers
 /// must retain this identity and prove that the subsequent graph projection contains this exact edge.
@@ -2755,7 +2793,7 @@ impl std::fmt::Display for CanvasCreateReceiptError {
     }
 }
 
-/// One-slot delivery cell for an off-thread canvas MUTATION (place/card/viewport/group/remove/edge)
+/// One-slot delivery cell for an off-thread canvas mutation whose response body is not required
 /// result. `Ok(())` on a 2xx (the board re-fetches), `Err(msg)` the failure. Same shape as
 /// [`CanvasOpCell`].
 pub type CanvasBoardOpCell = Arc<Mutex<Option<Result<(), String>>>>;
@@ -2873,6 +2911,7 @@ impl CanvasBoardClient {
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
+        expected_event_ledger_event_id: &str,
     ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Put,
@@ -2883,7 +2922,8 @@ impl CanvasBoardClient {
                     "pan_x": pan_x,
                     "pan_y": pan_y,
                     "zoom": zoom,
-                }
+                },
+                "expected_event_ledger_event_id": expected_event_ledger_event_id,
             })),
         }
     }
@@ -3479,16 +3519,17 @@ impl CanvasBoardClient {
     pub fn resolve_block(&self, workspace_id: &str, placed_block_id: &str, cell: LiveBlockCell) {
         let spec = self.get_block_request(workspace_id, placed_block_id);
         let client = self.client.clone();
+        let expected_workspace_id = workspace_id.to_owned();
         let id = placed_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_live_block(&client, &spec.url).await;
+            let result = fetch_live_block(&client, &spec.url, &expected_workspace_id, &id).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((id, result));
             }
         });
     }
 
-    /// Send a prebuilt mutation [`RequestSpec`] (place/card/viewport/group/remove/edge) off the UI
+    /// Send a prebuilt mutation [`RequestSpec`] whose response body is not required off the UI
     /// thread, delivering `Ok(())`/`Err(msg)` into `cell`. The host re-fetches the board after a 2xx.
     pub fn dispatch(&self, spec: RequestSpec, cell: CanvasBoardOpCell) {
         let client = self.client.clone();
@@ -3496,6 +3537,69 @@ impl CanvasBoardClient {
             let result = send_canvas_mutation(&client, &spec).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Persist a viewport compare-and-swap off-thread and retain the exact board/EventLedger revision
+    /// returned by the backend. A 409, malformed success, wrong identity, unchanged EventLedger token,
+    /// or response whose viewport differs from the request fails closed.
+    #[allow(clippy::too_many_arguments)]
+    pub fn dispatch_viewport(
+        &self,
+        spec: RequestSpec,
+        expected_workspace_id: &str,
+        expected_block_id: &str,
+        prior_event_ledger_event_id: &str,
+        requested_pan_x: f32,
+        requested_pan_y: f32,
+        requested_zoom: f32,
+        cell: CanvasViewportMutationCell,
+    ) {
+        let client = self.client.clone();
+        let expected_workspace_id = expected_workspace_id.to_owned();
+        let expected_block_id = expected_block_id.to_owned();
+        let prior_event_ledger_event_id = prior_event_ledger_event_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = send_canvas_viewport_mutation(
+                &client,
+                &spec,
+                &expected_workspace_id,
+                &expected_block_id,
+                &prior_event_ledger_event_id,
+                requested_pan_x,
+                requested_pan_y,
+                requested_zoom,
+            )
+            .await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|error| error.to_string()));
+            }
+        });
+    }
+
+    /// Delete one placement off-thread and retain the exact SurrealDB/EventLedger receipt returned by
+    /// the backend. Successful-but-malformed or identity-mismatched bodies fail closed.
+    pub fn dispatch_removed_placement(
+        &self,
+        spec: RequestSpec,
+        expected_workspace_id: &str,
+        expected_placement_id: &str,
+        cell: CanvasPlacementRemovalCell,
+    ) {
+        let client = self.client.clone();
+        let expected_workspace_id = expected_workspace_id.to_owned();
+        let expected_placement_id = expected_placement_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = send_canvas_placement_removal(
+                &client,
+                &spec,
+                &expected_workspace_id,
+                &expected_placement_id,
+            )
+            .await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|error| error.to_string()));
             }
         });
     }
@@ -3855,7 +3959,7 @@ async fn find_reconciled_canvas_placement(
     Ok(None)
 }
 
-/// The board-state schema id the backend stamps on the canvas viewport JSONB (mirrors
+/// The board-state schema id the backend stamps on the canvas viewport SurrealDB object value (mirrors
 /// `handshake_core::storage::LOOM_CANVAS_BOARD_SCHEMA_ID`). Kept as a const here so the native client
 /// never depends on the backend crate.
 pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
@@ -3874,6 +3978,230 @@ async fn send_canvas_mutation(
         HttpMethod::Delete => delete_expect_success(client, &spec.url).await,
         HttpMethod::Get => Err(AppError::Http("GET is not a mutation".to_owned())),
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn send_canvas_viewport_mutation(
+    client: &reqwest::Client,
+    spec: &RequestSpec,
+    expected_workspace_id: &str,
+    expected_block_id: &str,
+    prior_event_ledger_event_id: &str,
+    requested_pan_x: f32,
+    requested_pan_y: f32,
+    requested_zoom: f32,
+) -> Result<CanvasViewportMutationReceipt, AppError> {
+    if spec.method != HttpMethod::Put {
+        return Err(AppError::Http(
+            "viewport dispatch only supports PUT".to_owned(),
+        ));
+    }
+    let empty = serde_json::json!({});
+    let response = client
+        .put(&spec.url)
+        .json(spec.body.as_ref().unwrap_or(&empty))
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|error| AppError::Http(error.to_string()))?;
+    if !response.status().is_success() {
+        return Err(AppError::Http(format!(
+            "PUT non-success status {}",
+            response.status()
+        )));
+    }
+    let value = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    parse_canvas_viewport_mutation_receipt(
+        &value,
+        expected_workspace_id,
+        expected_block_id,
+        prior_event_ledger_event_id,
+        requested_pan_x,
+        requested_pan_y,
+        requested_zoom,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn parse_canvas_viewport_mutation_receipt(
+    value: &serde_json::Value,
+    expected_workspace_id: &str,
+    expected_block_id: &str,
+    prior_event_ledger_event_id: &str,
+    requested_pan_x: f32,
+    requested_pan_y: f32,
+    requested_zoom: f32,
+) -> Result<CanvasViewportMutationReceipt, AppError> {
+    let required = |field: &str| {
+        value
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| AppError::Parse(format!("viewport receipt missing {field}")))
+    };
+    let board_state = value
+        .get("board_state")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| AppError::Parse("viewport receipt missing board_state".to_owned()))?;
+    let schema_id = board_state
+        .get("schema_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            AppError::Parse("viewport receipt missing board_state.schema_id".to_owned())
+        })?;
+    if schema_id != LOOM_CANVAS_BOARD_SCHEMA_ID {
+        return Err(AppError::Parse(format!(
+            "viewport receipt board_state.schema_id must be {LOOM_CANVAS_BOARD_SCHEMA_ID}, got {schema_id}"
+        )));
+    }
+    let number = |field: &str| -> Result<f32, AppError> {
+        let value = board_state
+            .get(field)
+            .and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "viewport receipt board_state.{field} must be a number"
+                ))
+            })?;
+        if !value.is_finite() {
+            return Err(AppError::Parse(format!(
+                "viewport receipt board_state.{field} must be finite"
+            )));
+        }
+        Ok(value as f32)
+    };
+    let receipt = CanvasViewportMutationReceipt {
+        workspace_id: required("workspace_id")?,
+        block_id: required("block_id")?,
+        pan_x: number("pan_x")?,
+        pan_y: number("pan_y")?,
+        zoom: number("zoom")?,
+        updated_at: required("updated_at")?,
+        event_ledger_event_id: required("event_ledger_event_id")?,
+    };
+    for (field, expected, actual) in [
+        (
+            "workspace_id",
+            expected_workspace_id,
+            receipt.workspace_id.as_str(),
+        ),
+        ("block_id", expected_block_id, receipt.block_id.as_str()),
+    ] {
+        if actual != expected {
+            return Err(AppError::Parse(format!(
+                "viewport receipt {field} mismatch: expected {expected}, got {actual}"
+            )));
+        }
+    }
+    if receipt.event_ledger_event_id == prior_event_ledger_event_id {
+        return Err(AppError::Parse(
+            "viewport receipt did not advance event_ledger_event_id".to_owned(),
+        ));
+    }
+    for (field, expected, actual) in [
+        ("pan_x", requested_pan_x, receipt.pan_x),
+        ("pan_y", requested_pan_y, receipt.pan_y),
+        ("zoom", requested_zoom, receipt.zoom),
+    ] {
+        if (actual - expected).abs() > f32::EPSILON {
+            return Err(AppError::Parse(format!(
+                "viewport receipt {field} mismatch: expected {expected}, got {actual}"
+            )));
+        }
+    }
+    Ok(receipt)
+}
+
+async fn send_canvas_placement_removal(
+    client: &reqwest::Client,
+    spec: &RequestSpec,
+    expected_workspace_id: &str,
+    expected_placement_id: &str,
+) -> Result<CanvasPlacementRemovalReceipt, AppError> {
+    if spec.method != HttpMethod::Delete {
+        return Err(AppError::Http(
+            "placement-removal dispatch only supports DELETE".to_owned(),
+        ));
+    }
+    let response = client
+        .delete(&spec.url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|error| AppError::Http(error.to_string()))?;
+    if !response.status().is_success() {
+        return Err(AppError::Http(format!(
+            "DELETE non-success status {}",
+            response.status()
+        )));
+    }
+    let value = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    parse_canvas_placement_removal_receipt(&value, expected_workspace_id, expected_placement_id)
+}
+
+fn parse_canvas_placement_removal_receipt(
+    value: &serde_json::Value,
+    expected_workspace_id: &str,
+    expected_placement_id: &str,
+) -> Result<CanvasPlacementRemovalReceipt, AppError> {
+    let required = |source: &serde_json::Value, field: &str| {
+        source
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| AppError::Parse(format!("placement-removal receipt missing {field}")))
+    };
+    let event = value
+        .get("event")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| {
+            AppError::Parse("placement-removal receipt missing event object".to_owned())
+        })?;
+    let event_value = serde_json::Value::Object(event.clone());
+    let receipt = CanvasPlacementRemovalReceipt {
+        workspace_id: required(value, "workspace_id")?,
+        canvas_block_id: required(value, "canvas_block_id")?,
+        placement_id: required(value, "placement_id")?,
+        placed_block_id: required(value, "placed_block_id")?,
+        event_id: required(&event_value, "event_id")?,
+        event_sequence: event_value
+            .get("event_sequence")
+            .and_then(serde_json::Value::as_i64)
+            .filter(|sequence| *sequence > 0)
+            .ok_or_else(|| {
+                AppError::Parse(
+                    "placement-removal receipt event_sequence must be positive".to_owned(),
+                )
+            })?,
+        created_at: required(&event_value, "created_at")?,
+    };
+    for (field, expected, actual) in [
+        (
+            "workspace_id",
+            expected_workspace_id,
+            receipt.workspace_id.as_str(),
+        ),
+        (
+            "placement_id",
+            expected_placement_id,
+            receipt.placement_id.as_str(),
+        ),
+    ] {
+        if actual != expected {
+            return Err(AppError::Parse(format!(
+                "placement-removal receipt {field} mismatch: expected {expected}, got {actual}"
+            )));
+        }
+    }
+    Ok(receipt)
 }
 
 async fn send_canvas_created_placement(
@@ -3992,6 +4320,10 @@ async fn fetch_canvas_board(
     url: &str,
 ) -> Result<CanvasBoardData, AppError> {
     let v = get_json(client, url, &[]).await?;
+    parse_canvas_board_response(&v)
+}
+
+fn parse_canvas_board_response(v: &serde_json::Value) -> Result<CanvasBoardData, AppError> {
     let placements_value = v
         .get("placements")
         .and_then(serde_json::Value::as_array)
@@ -4016,9 +4348,28 @@ async fn fetch_canvas_board(
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let board_state = v
+    let board = v
         .get("board")
-        .and_then(|board| board.get("board_state"))
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| AppError::Parse("canvas board.board must be an object".to_owned()))?;
+    let updated_at = board
+        .get("updated_at")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::Parse("canvas board.board.updated_at must be a string".to_owned())
+        })?
+        .to_owned();
+    let event_ledger_event_id = board
+        .get("event_ledger_event_id")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::Parse("canvas board.board.event_ledger_event_id must be a string".to_owned())
+        })?
+        .to_owned();
+    let board_state = board
+        .get("board_state")
         .and_then(serde_json::Value::as_object)
         .ok_or_else(|| AppError::Parse("canvas board.board_state must be an object".to_owned()))?;
     let schema_id = board_state
@@ -4055,6 +4406,8 @@ async fn fetch_canvas_board(
         pan_x,
         pan_y,
         zoom,
+        updated_at,
+        event_ledger_event_id,
     })
 }
 
@@ -4194,14 +4547,18 @@ fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
     })
 }
 
-/// `GET {url}` and read a verified `LoomBlock`'s `(title, content_type, content_hash)` for the
-/// live-resolve. `title` is `Option<String>` (a block can be untitled); `content_type` defaults to
-/// "note"; `content_hash` is the backend-computed canonical-JSON hash when present (MT-032, READ-only —
-/// `Option<String>`, honestly `None` when the backend omits it). A 404 (the block was deleted) is an
-/// [`AppError`] so the host shows "(stale reference)" — never a fabricated title.
+/// `GET {url}` and read an identity-verified `LoomBlock`'s `(title, content_type, content_hash)` for
+/// the live-resolve. The returned workspace/block identities and nonblank content type are required;
+/// a 2xx with `{}` or another block is unavailable, never proof that the requested source survives.
+/// `title` is `Option<String>` (a block can be untitled); `content_hash` is the backend-computed
+/// canonical-JSON hash when present (MT-032, READ-only — `Option<String>`, honestly `None` when the
+/// backend omits it). A 404 is [`LiveBlockResolveError::Missing`] so the host shows "(stale
+/// reference)" — never a fabricated title.
 async fn fetch_live_block(
     client: &reqwest::Client,
     url: &str,
+    expected_workspace_id: &str,
+    expected_block_id: &str,
 ) -> Result<LiveBlock, LiveBlockResolveError> {
     let response = client
         .get(url)
@@ -4222,6 +4579,28 @@ async fn fetch_live_block(
         .json::<serde_json::Value>()
         .await
         .map_err(|error| LiveBlockResolveError::Unavailable(format!("decode: {error}")))?;
+    let required = |field: &str| {
+        v.get(field)
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| {
+                LiveBlockResolveError::Unavailable(format!(
+                    "LoomBlock response missing nonblank {field}"
+                ))
+            })
+    };
+    let workspace_id = required("workspace_id")?;
+    let block_id = required("block_id")?;
+    for (field, expected, actual) in [
+        ("workspace_id", expected_workspace_id, workspace_id),
+        ("block_id", expected_block_id, block_id),
+    ] {
+        if actual != expected {
+            return Err(LiveBlockResolveError::Unavailable(format!(
+                "LoomBlock response {field} mismatch: expected {expected}, got {actual}"
+            )));
+        }
+    }
     let title = v
         .get("title")
         .and_then(|x| x.as_str())
@@ -4230,7 +4609,12 @@ async fn fetch_live_block(
     let content_type = v
         .get("content_type")
         .and_then(|x| x.as_str())
-        .unwrap_or("note")
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            LiveBlockResolveError::Unavailable(
+                "LoomBlock response missing nonblank content_type".to_owned(),
+            )
+        })?
         .to_owned();
     let content_hash = v
         .get("content_hash")
@@ -5611,12 +5995,9 @@ async fn fetch_add_tag_candidates(
 //     `Vec<LoomUnlinkedMention>` (MT-178 `scan_loom_block_unlinked_mentions`): blocks whose text mentions
 //     the active block's title with NO edge — exactly the AC5 semantics. The workspace `/views/unlinked`
 //     is NOT scoped to the active block, so it would be the wrong list.
-//   - REMOVE PIN (two-call, RISK-1 / MC-1): `PUT /workspaces/:ws/loom/blocks/:id/pin-order` body
-//     `{ "pin_order": null }` (`SetPinOrderRequest`, MT-183 — the field is `pin_order`, NOT the
-//     contract's `ordinal`) THEN `PATCH /workspaces/:ws/loom/blocks/:id` body `{ "pinned": false }`
-//     (`LoomBlockUpdate`, MT-022 confirmed `pinned` is an `Option<bool>` PATCH field). Both are issued in
-//     sequence (the React WorkspaceSidebar.tsx lines 297-298 flow); on the SECOND failure the host
-//     re-fetches Pins to determine true state (RISK-1 recovery).
+//   - REMOVE PIN: `POST /workspaces/:ws/loom/blocks/:id/remove-pin` atomically clears `pin_order`,
+//     unpins the block, and returns the exact block + EventLedger receipt committed by that one
+//     SurrealDB transaction. The client never reconstructs identity from a later aggregate scan.
 //   - REMOVE FAVORITE: `PATCH /workspaces/:ws/loom/blocks/:id` body `{ "favorite": false }`.
 //
 // All follow the MT-020/021/023 off-thread shape: spawn on the app's tokio runtime, deliver the parsed
@@ -5676,10 +6057,9 @@ pub type SidebarUnlinkedCell = Arc<Mutex<VecDeque<SidebarUnlinkedDelivery>>>;
 ///   timestamp, which is the same token `LoomBlockUpdate::expected_updated_at` uses for optimistic
 ///   concurrency, i.e. the real revision identity of this mutation.
 /// - backend outcome: `outcome` + `http_status` (+ `failure` on the failing path).
-/// - EventLedger correlation: `event_ledger_event_id` / `event_ledger_operation` /
-///   `event_ledger_recorded_at`, read back through `GET /kernel/events/aggregates/loom_block/{id}`.
-///   `event_ledger_lookup` records whether that correlation resolved, so a missing correlation is a
-///   visible typed state and never a silent success.
+/// - EventLedger correlation: `event_ledger_event_id` / `event_ledger_event_sequence` /
+///   `event_ledger_operation` / `event_ledger_recorded_at`. Pin removal receives this exact identity
+///   from the mutation response; other mutations may use an authoritative readback.
 /// - final persisted pin-order revision: `persisted_pin_order` (`None` == cleared) plus
 ///   `pin_order_cleared`, both read from the authoritative post-write block.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -5697,6 +6077,7 @@ pub struct SidebarMutationReceipt {
     pub persisted_pin_order: Option<i64>,
     pub pin_order_cleared: Option<bool>,
     pub event_ledger_event_id: Option<String>,
+    pub event_ledger_event_sequence: Option<i64>,
     pub event_ledger_operation: Option<String>,
     pub event_ledger_recorded_at: Option<String>,
     /// `resolved` | `absent` | `unavailable: {error}` | `not_attempted`.
@@ -5725,6 +6106,7 @@ impl SidebarMutationReceipt {
             persisted_pin_order: None,
             pin_order_cleared: None,
             event_ledger_event_id: None,
+            event_ledger_event_sequence: None,
             event_ledger_operation: None,
             event_ledger_recorded_at: None,
             event_ledger_lookup: "not_attempted".to_owned(),
@@ -5758,7 +6140,7 @@ pub type SidebarActionDelivery = (String, u64, SectionKind, String, u64, Sidebar
 pub type SidebarActionCell = Arc<Mutex<VecDeque<SidebarActionDelivery>>>;
 
 /// REST client for the VERIFIED Loom sidebar surfaces the MT-024 sidebar panel binds: pins/favorites
-/// view lists, per-block backlinks + unlinked-mentions, and the two-call pin removal + favorite removal.
+/// view lists, per-block backlinks + unlinked-mentions, atomic pin removal, and favorite removal.
 /// Mirrors the `LoomTagClient` / `LoomFolderClient` / `LoomGraphClient` shape exactly.
 #[derive(Clone)]
 pub struct LoomSidebarClient {
@@ -6040,11 +6422,9 @@ impl LoomSidebarClient {
         });
     }
 
-    /// Remove a pin off the UI thread with the TWO-CALL flow (RISK-1 / MC-1 / AC2): `PUT /pin-order
-    /// {pin_order:null}` THEN `PATCH {pinned:false}`. Delivers `Ok(())` only when BOTH succeed; if either
-    /// fails, `Err(msg)` (the host rolls the optimistic removal back and re-fetches to find true state).
-    /// Both calls are always issued in sequence (the React WorkspaceSidebar.tsx lines 297-298 flow); the
-    /// pin-order clear is never skipped.
+    /// Remove a pin off the UI thread with the atomic `POST .../remove-pin` route (RISK-1 / MC-1 /
+    /// AC2). The server clears `pin_order`, unpins the block, and writes the EventLedger receipt in one
+    /// SurrealDB transaction. The host rolls an optimistic row back and re-fetches on any failure.
     pub fn remove_pin(&self, workspace_id: &str, block_id: &str, cell: SidebarActionCell) {
         self.remove_pin_with_identity(workspace_id, 0, block_id, 0, cell);
     }
@@ -6065,25 +6445,19 @@ impl LoomSidebarClient {
         // back server-side and the host rolls the optimistic row back.
         //
         // WP-KERNEL-012 MT-024 FAIL_V4: the completion is no longer `Result<(), _>`.
-        // The route's own `LoomBlock` response body plus the read-only EventLedger
-        // correlation build ONE authoritative operation receipt, so a caller can
-        // distinguish a persisted removal from a failed request without ever
-        // consulting the UI row.
+        // The route returns the post-write block plus the exact EventLedger row
+        // created by this request, so concurrent removals cannot steal each
+        // other's newest matching event.
         let remove = self.remove_pin_request(workspace_id, block_id);
         let remove_body = remove.body.unwrap_or_default();
-        let ledger_url = self.block_event_ledger_url(block_id);
         let client = self.client.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = sidebar_mutation_receipt(
+            let result = sidebar_pin_mutation_receipt(
                 &client,
-                HttpMethod::Post,
                 &remove.url,
                 &remove_body,
-                &ledger_url,
-                SidebarMutationReceipt::OPERATION_REMOVE_PIN,
-                "pin_removed",
                 &delivered_workspace,
                 &delivered_block,
             )
@@ -6145,6 +6519,164 @@ impl LoomSidebarClient {
             }
         });
     }
+}
+
+/// Issue the atomic pin-removal mutation and consume the exact EventLedger identity returned by that
+/// request. No aggregate scan or newest-event heuristic participates in this receipt.
+async fn sidebar_pin_mutation_receipt(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+    workspace_id: &str,
+    block_id: &str,
+) -> SidebarActionResult {
+    let mut receipt = SidebarMutationReceipt::new(
+        SidebarMutationReceipt::OPERATION_REMOVE_PIN,
+        workspace_id,
+        block_id,
+    );
+    let response = match client
+        .post(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            let message = AppError::Http(error.to_string()).to_string();
+            receipt.failure = Some(message.clone());
+            return Err(SidebarMutationFailure { message, receipt });
+        }
+    };
+    let status = response.status();
+    receipt.http_status = Some(status.as_u16());
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        let message = AppError::Http(format!(
+            "{} non-success status {status}: {text}",
+            SidebarMutationReceipt::OPERATION_REMOVE_PIN
+        ))
+        .to_string();
+        receipt.failure = Some(message.clone());
+        return Err(SidebarMutationFailure { message, receipt });
+    }
+    let value: serde_json::Value = match serde_json::from_str(&text) {
+        Ok(value) => value,
+        Err(error) => {
+            let message = AppError::Parse(format!(
+                "{} response is not a mutation receipt: {error}",
+                SidebarMutationReceipt::OPERATION_REMOVE_PIN
+            ))
+            .to_string();
+            receipt.failure = Some(message.clone());
+            return Err(SidebarMutationFailure { message, receipt });
+        }
+    };
+    parse_pin_mutation_receipt(&value, receipt)
+}
+
+fn parse_pin_mutation_receipt(
+    value: &serde_json::Value,
+    mut receipt: SidebarMutationReceipt,
+) -> SidebarActionResult {
+    let fail = |mut receipt: SidebarMutationReceipt, message: String| {
+        receipt.failure = Some(message.clone());
+        Err(SidebarMutationFailure { message, receipt })
+    };
+    let block = match value.get("block").and_then(serde_json::Value::as_object) {
+        Some(block) => block,
+        None => {
+            return fail(
+                receipt,
+                AppError::Parse("remove-pin response.block must be an object".to_owned())
+                    .to_string(),
+            )
+        }
+    };
+    let event = match value.get("event").and_then(serde_json::Value::as_object) {
+        Some(event) => event,
+        None => {
+            return fail(
+                receipt,
+                AppError::Parse("remove-pin response.event must be an object".to_owned())
+                    .to_string(),
+            )
+        }
+    };
+    let echoed_workspace = block
+        .get("workspace_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let echoed_block = block
+        .get("block_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if echoed_workspace != receipt.workspace_id || echoed_block != receipt.block_id {
+        let message = AppError::Parse(format!(
+            "remove-pin response identity mismatch: expected {}/{}, got {echoed_workspace}/{echoed_block}",
+            receipt.workspace_id, receipt.block_id
+        ))
+        .to_string();
+        return fail(receipt, message);
+    }
+
+    let mutation_revision = block
+        .get("updated_at")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned);
+    let Some(mutation_revision) = mutation_revision else {
+        return fail(
+            receipt,
+            AppError::Parse("remove-pin response.block.updated_at must not be blank".to_owned())
+                .to_string(),
+        );
+    };
+    receipt.mutation_revision = Some(mutation_revision);
+    receipt.persisted_pinned = block.get("pinned").and_then(serde_json::Value::as_bool);
+    receipt.persisted_favorite = block.get("favorite").and_then(serde_json::Value::as_bool);
+    receipt.persisted_pin_order = block.get("pin_order").and_then(serde_json::Value::as_i64);
+    receipt.pin_order_cleared = Some(receipt.persisted_pin_order.is_none());
+    if receipt.persisted_pinned != Some(false) || receipt.persisted_pin_order.is_some() {
+        return fail(
+            receipt,
+            AppError::Http("remove-pin returned 2xx without a persisted pin removal".to_owned())
+                .to_string(),
+        );
+    }
+
+    let event_id = event
+        .get("event_id")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned);
+    let event_sequence = event
+        .get("event_sequence")
+        .and_then(serde_json::Value::as_i64)
+        .filter(|value| *value > 0);
+    let recorded_at = event
+        .get("created_at")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned);
+    if event_id.is_none() || event_sequence.is_none() || recorded_at.is_none() {
+        return fail(
+            receipt,
+            AppError::Parse(
+                "remove-pin response.event requires event_id, positive event_sequence, and created_at"
+                    .to_owned(),
+            )
+            .to_string(),
+        );
+    }
+    receipt.event_ledger_event_id = event_id;
+    receipt.event_ledger_event_sequence = event_sequence;
+    receipt.event_ledger_operation = Some("pin_removed".to_owned());
+    receipt.event_ledger_recorded_at = recorded_at;
+    receipt.event_ledger_lookup = "response_exact".to_owned();
+    receipt.outcome = SidebarMutationReceipt::OUTCOME_PERSISTED.to_owned();
+    Ok(receipt)
 }
 
 /// Issue a sidebar bookmark mutation and build its authoritative [`SidebarMutationReceipt`]
@@ -6312,6 +6844,9 @@ async fn correlate_block_event_ledger(
                 .get("event_id")
                 .and_then(serde_json::Value::as_str)
                 .map(ToOwned::to_owned);
+            receipt.event_ledger_event_sequence = event
+                .get("event_sequence")
+                .and_then(serde_json::Value::as_i64);
             receipt.event_ledger_operation = Some(ledger_operation.to_owned());
             receipt.event_ledger_recorded_at = event
                 .get("created_at")
@@ -12821,19 +13356,23 @@ mod tests {
 
         let (url, join) = serve("404 Not Found", "{}", std::time::Duration::ZERO);
         assert_eq!(
-            runtime.block_on(fetch_live_block(&client, &url)),
+            runtime.block_on(fetch_live_block(&client, &url, "ws-a", "block-a")),
             Err(LiveBlockResolveError::Missing)
         );
         join.join().unwrap();
 
         let (url, join) = serve("500 Internal Server Error", "{}", std::time::Duration::ZERO);
-        assert!(matches!(runtime.block_on(fetch_live_block(&client, &url)),
-            Err(LiveBlockResolveError::Unavailable(message)) if message.contains("500")));
+        assert!(
+            matches!(runtime.block_on(fetch_live_block(&client, &url, "ws-a", "block-a")),
+            Err(LiveBlockResolveError::Unavailable(message)) if message.contains("500"))
+        );
         join.join().unwrap();
 
         let (url, join) = serve("200 OK", "not-json", std::time::Duration::ZERO);
-        assert!(matches!(runtime.block_on(fetch_live_block(&client, &url)),
-            Err(LiveBlockResolveError::Unavailable(message)) if message.contains("decode")));
+        assert!(
+            matches!(runtime.block_on(fetch_live_block(&client, &url, "ws-a", "block-a")),
+            Err(LiveBlockResolveError::Unavailable(message)) if message.contains("decode"))
+        );
         join.join().unwrap();
 
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -12842,16 +13381,308 @@ mod tests {
         assert!(matches!(
             runtime.block_on(fetch_live_block(
                 &client,
-                &format!("http://{refused}/block")
+                &format!("http://{refused}/block"),
+                "ws-a",
+                "block-a",
             )),
             Err(LiveBlockResolveError::Unavailable(_))
         ));
 
         let (url, join) = serve("200 OK", "{}", std::time::Duration::from_millis(5_100));
         assert!(matches!(
-            runtime.block_on(fetch_live_block(&client, &url)),
+            runtime.block_on(fetch_live_block(&client, &url, "ws-a", "block-a")),
             Err(LiveBlockResolveError::Unavailable(_))
         ));
         join.join().unwrap();
+
+        for (body, expected_fragment) in [
+            ("{}", "missing nonblank workspace_id"),
+            (
+                r#"{"workspace_id":"ws-a","block_id":"block-other","content_type":"note"}"#,
+                "block_id mismatch",
+            ),
+            (
+                r#"{"workspace_id":"ws-a","block_id":"block-a","content_type":""}"#,
+                "missing nonblank content_type",
+            ),
+        ] {
+            let (url, join) = serve("200 OK", body, std::time::Duration::ZERO);
+            assert!(matches!(
+                runtime.block_on(fetch_live_block(&client, &url, "ws-a", "block-a")),
+                Err(LiveBlockResolveError::Unavailable(message)) if message.contains(expected_fragment)
+            ));
+            join.join().unwrap();
+        }
+
+        let (url, join) = serve(
+            "200 OK",
+            r#"{"workspace_id":"ws-a","block_id":"block-a","content_type":"note","title":null}"#,
+            std::time::Duration::ZERO,
+        );
+        assert_eq!(
+            runtime.block_on(fetch_live_block(&client, &url, "ws-a", "block-a")),
+            Ok((None, "note".to_owned(), None))
+        );
+        join.join().unwrap();
+    }
+
+    #[test]
+    fn pin_removal_receipt_uses_exact_response_event_identity() {
+        let mut receipt = SidebarMutationReceipt::new(
+            SidebarMutationReceipt::OPERATION_REMOVE_PIN,
+            "ws-1",
+            "block-1",
+        );
+        receipt.http_status = Some(200);
+        let parsed = parse_pin_mutation_receipt(
+            &serde_json::json!({
+                "block": {
+                    "workspace_id": "ws-1",
+                    "block_id": "block-1",
+                    "updated_at": "2026-08-27T05:00:00Z",
+                    "pinned": false,
+                    "favorite": false
+                },
+                "event": {
+                    "event_id": "KE-exact-first",
+                    "event_sequence": 41,
+                    "created_at": "2026-08-27T05:00:00Z"
+                }
+            }),
+            receipt,
+        )
+        .expect("exact mutation response is authoritative");
+
+        assert!(parsed.persisted_pin_removed());
+        assert_eq!(
+            parsed.event_ledger_event_id.as_deref(),
+            Some("KE-exact-first")
+        );
+        assert_eq!(parsed.event_ledger_event_sequence, Some(41));
+        assert_eq!(parsed.event_ledger_lookup, "response_exact");
+    }
+
+    #[test]
+    fn pin_removal_receipt_rejects_missing_exact_event_sequence() {
+        let parsed = parse_pin_mutation_receipt(
+            &serde_json::json!({
+                "block": {
+                    "workspace_id": "ws-1",
+                    "block_id": "block-1",
+                    "updated_at": "2026-08-27T05:00:00Z",
+                    "pinned": false
+                },
+                "event": {
+                    "event_id": "KE-ambiguous",
+                    "created_at": "2026-08-27T05:00:00Z"
+                }
+            }),
+            SidebarMutationReceipt::new(
+                SidebarMutationReceipt::OPERATION_REMOVE_PIN,
+                "ws-1",
+                "block-1",
+            ),
+        );
+
+        assert!(matches!(
+            parsed,
+            Err(SidebarMutationFailure { message, .. })
+                if message.contains("positive event_sequence")
+        ));
+    }
+
+    #[test]
+    fn pin_removal_receipt_rejects_missing_block_revision() {
+        let parsed = parse_pin_mutation_receipt(
+            &serde_json::json!({
+                "block": {
+                    "workspace_id": "ws-1",
+                    "block_id": "block-1",
+                    "updated_at": "   ",
+                    "pinned": false,
+                    "pin_order": null
+                },
+                "event": {
+                    "event_id": "KE-exact-without-revision",
+                    "event_sequence": 42,
+                    "created_at": "2026-08-27T05:00:00Z"
+                }
+            }),
+            SidebarMutationReceipt::new(
+                SidebarMutationReceipt::OPERATION_REMOVE_PIN,
+                "ws-1",
+                "block-1",
+            ),
+        );
+
+        assert!(matches!(
+            parsed,
+            Err(SidebarMutationFailure { message, .. })
+                if message.contains("updated_at must not be blank")
+        ));
+    }
+
+    #[test]
+    fn viewport_receipt_accepts_exact_advanced_board_revision() {
+        let receipt = parse_canvas_viewport_mutation_receipt(
+            &serde_json::json!({
+                "block_id": "canvas-1",
+                "workspace_id": "ws-1",
+                "board_state": {
+                    "schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID,
+                    "pan_x": 40.0,
+                    "pan_y": -8.0,
+                    "zoom": 1.25
+                },
+                "updated_at": "2026-08-27T06:02:00Z",
+                "event_ledger_event_id": "KE-viewport-new"
+            }),
+            "ws-1",
+            "canvas-1",
+            "KE-viewport-prior",
+            40.0,
+            -8.0,
+            1.25,
+        )
+        .expect("exact advanced viewport receipt");
+
+        assert_eq!(receipt.workspace_id, "ws-1");
+        assert_eq!(receipt.block_id, "canvas-1");
+        assert_eq!(receipt.event_ledger_event_id, "KE-viewport-new");
+        assert_eq!(
+            (receipt.pan_x, receipt.pan_y, receipt.zoom),
+            (40.0, -8.0, 1.25)
+        );
+    }
+
+    #[test]
+    fn viewport_receipt_rejects_wrong_identity_or_unadvanced_revision() {
+        let response = serde_json::json!({
+            "block_id": "canvas-other",
+            "workspace_id": "ws-1",
+            "board_state": {
+                "schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID,
+                "pan_x": 0.0,
+                "pan_y": 0.0,
+                "zoom": 1.25
+            },
+            "updated_at": "2026-08-27T06:02:00Z",
+            "event_ledger_event_id": "KE-viewport-prior"
+        });
+        let wrong_identity = parse_canvas_viewport_mutation_receipt(
+            &response,
+            "ws-1",
+            "canvas-1",
+            "KE-viewport-prior",
+            0.0,
+            0.0,
+            1.25,
+        )
+        .expect_err("wrong board identity must fail closed");
+        assert!(wrong_identity.to_string().contains("block_id mismatch"));
+
+        let mut same_revision = response;
+        same_revision["block_id"] = serde_json::json!("canvas-1");
+        let unadvanced = parse_canvas_viewport_mutation_receipt(
+            &same_revision,
+            "ws-1",
+            "canvas-1",
+            "KE-viewport-prior",
+            0.0,
+            0.0,
+            1.25,
+        )
+        .expect_err("the prior revision cannot be returned as a successful mutation receipt");
+        assert!(unadvanced.to_string().contains("did not advance"));
+    }
+
+    #[test]
+    fn placement_removal_receipt_accepts_exact_transaction_event() {
+        let receipt = parse_canvas_placement_removal_receipt(
+            &serde_json::json!({
+                "workspace_id": "ws-1",
+                "canvas_block_id": "canvas-1",
+                "placement_id": "p-1",
+                "placed_block_id": "block-1",
+                "event": {
+                    "event_id": "KE-placement-1",
+                    "event_sequence": 81,
+                    "created_at": "2026-08-27T06:03:00Z"
+                }
+            }),
+            "ws-1",
+            "p-1",
+        )
+        .expect("exact placement-removal receipt");
+
+        assert_eq!(receipt.canvas_block_id, "canvas-1");
+        assert_eq!(receipt.placed_block_id, "block-1");
+        assert_eq!(receipt.event_id, "KE-placement-1");
+        assert_eq!(receipt.event_sequence, 81);
+    }
+
+    #[test]
+    fn placement_removal_receipt_rejects_wrong_requested_identity() {
+        let error = parse_canvas_placement_removal_receipt(
+            &serde_json::json!({
+                "workspace_id": "ws-1",
+                "canvas_block_id": "canvas-1",
+                "placement_id": "p-other",
+                "placed_block_id": "block-1",
+                "event": {
+                    "event_id": "KE-placement-wrong",
+                    "event_sequence": 82,
+                    "created_at": "2026-08-27T06:04:00Z"
+                }
+            }),
+            "ws-1",
+            "p-1",
+        )
+        .expect_err("wrong placement identity must fail closed");
+
+        assert!(error.to_string().contains("placement_id mismatch"));
+    }
+
+    #[test]
+    fn canvas_board_response_propagates_exact_authoritative_revision() {
+        let board = parse_canvas_board_response(&serde_json::json!({
+            "board": {
+                "updated_at": "2026-08-27T06:06:00Z",
+                "event_ledger_event_id": "KE-board-12",
+                "board_state": {
+                    "schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID,
+                    "pan_x": 3.0,
+                    "pan_y": -4.0,
+                    "zoom": 1.25
+                }
+            },
+            "placements": [],
+            "visual_edges": []
+        }))
+        .expect("authoritative board response");
+
+        assert_eq!(board.updated_at, "2026-08-27T06:06:00Z");
+        assert_eq!(board.event_ledger_event_id, "KE-board-12");
+        assert_eq!((board.pan_x, board.pan_y, board.zoom), (3.0, -4.0, 1.25));
+    }
+
+    #[test]
+    fn canvas_board_response_rejects_missing_event_revision() {
+        let error = parse_canvas_board_response(&serde_json::json!({
+            "board": {
+                "updated_at": "2026-08-27T06:06:00Z",
+                "board_state": {
+                    "schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID,
+                    "pan_x": 0.0,
+                    "pan_y": 0.0,
+                    "zoom": 1.0
+                }
+            },
+            "placements": [],
+            "visual_edges": []
+        }))
+        .expect_err("missing EventLedger revision must fail closed");
+
+        assert!(error.to_string().contains("event_ledger_event_id"));
     }
 }

@@ -1680,8 +1680,9 @@ GET /workspaces/{workspace_id}/loom/blocks/{block_id}. Both observers terminaliz
 getCanvasBoard refresh (the removal additionally requires the source-block read-back); an optimistic \
 in-widget zoom, a vanished remove button, or an unchanged sibling node never terminalizes them, and a \
 source block that did NOT survive the removal publishes a typed terminal failure instead of applied. \
-The canvas DELETE route answers 204 with no body, so the receipt records event_ledger_event_id=null \
-explicitly rather than inventing a correlation id. Open the canvas from \
+  The canvas DELETE route returns the exact workspace/board/placement/source identities plus the \
+EventLedger event id, sequence, and timestamp committed in the same SurrealDB transaction; the completion \
+observer correlates that exact receipt before the authoritative absence and source-retention checks. Open the canvas from \
 the CKC module or the Command Palette; the editor never bypasses handshake_core. A no-context model should \
 discover canvas.placement.*, canvas.edge-mode, canvas.place-block, canvas.add-card, and canvas.retry with \
 list_widgets, verify exact resolved placement titles and section ids in AccessKit, use click_widget/set_value \

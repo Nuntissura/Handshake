@@ -39,7 +39,8 @@
 //! The board NEVER requests a perpetual repaint. The pan-drag and loading indicator animate only while
 //! a genuine interaction or in-flight fetch is happening; a headless / no-runtime render is neutral and
 //! non-animating. Viewport persistence fires on pan/zoom RELEASE (the host applies the typed
-//! [`CanvasEvent::ViewportChanged`]), never every frame (RISK-3 / MC-3 — the host debounces).
+//! [`CanvasEvent::ViewportChanged`]), never every frame (RISK-3 / MC-3 — an in-flight action gate
+//! serializes persistence until authoritative completion).
 //!
 //! ## AccessKit (HBR-SWARM)
 //!
@@ -98,6 +99,8 @@ pub const PAN_LEFT_AUTHOR_ID: &str = "canvas.pan-left";
 pub const PAN_RIGHT_AUTHOR_ID: &str = "canvas.pan-right";
 pub const ZOOM_OUT_AUTHOR_ID: &str = "canvas.zoom-out";
 pub const ZOOM_IN_AUTHOR_ID: &str = "canvas.zoom-in";
+const WHEEL_ZOOM_AUTHOR_ID: &str = "canvas.viewport-wheel";
+const EMPTY_PAN_AUTHOR_ID: &str = "canvas.viewport-pan";
 pub const ZOOM_VALUE_AUTHOR_ID: &str = "canvas.zoom-value";
 pub const ADD_CARD_AUTHOR_ID: &str = "canvas.add-card";
 pub const GROUP_AUTHOR_ID: &str = "canvas.group";
@@ -424,8 +427,21 @@ struct PendingViewportAction {
     workspace_id: String,
     prior_revision: u64,
     prior_board_generation: u64,
+    prior_pan: Vec2,
+    prior_zoom: f32,
     requested_pan: Vec2,
     requested_zoom: f32,
+    /// Exact successful PUT receipt. Matching numeric state alone is insufficient because another
+    /// writer may persist the same values; only this EventLedger revision can close the action.
+    receipt: Option<crate::backend_client::CanvasViewportMutationReceipt>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ViewportGestureOrigin {
+    pan: Vec2,
+    zoom: f32,
+    revision: u64,
+    board_generation: u64,
 }
 
 /// The exact placement removal awaiting an AUTHORITATIVE post-state. Terminalized only after the
@@ -443,6 +459,10 @@ struct PendingPlacementRemoval {
     /// Set once an authoritative refresh has proven the placement absent; the source-retention probe is
     /// the remaining gate.
     absent_board_generation: Option<u64>,
+    /// Exact backend receipt for the DELETE transaction. The refreshed projection and source-block
+    /// probe cannot terminalize this action until this receipt has been correlated to the pending
+    /// workspace/board/placement/source identities.
+    receipt: Option<crate::backend_client::CanvasPlacementRemovalReceipt>,
 }
 
 /// What backs a placement card, deciding whether it is INLINE-EDITABLE on the canvas (WP-KERNEL-012
@@ -959,6 +979,9 @@ pub struct LoomCanvasBoard {
     viewport_observer: CanvasActionObserver,
     placement_observer: CanvasActionObserver,
     pending_viewport: Option<PendingViewportAction>,
+    /// Pre-gesture viewport retained across empty-canvas drag frames. On release it becomes the exact
+    /// rollback/proof origin for the single serialized viewport mutation.
+    viewport_gesture_origin: Option<ViewportGestureOrigin>,
     pending_removal: Option<PendingPlacementRemoval>,
     /// Monotonic revision of the board's AUTHORITATIVE viewport. Bumped by every viewport step the
     /// widget applies and by every authoritative `set_board` that changes pan/zoom, so a receipt can
@@ -968,6 +991,10 @@ pub struct LoomCanvasBoard {
     /// receipt binds to the generation of the refreshed projection that proved its post-state, so
     /// "unchanged node presence" can never masquerade as a re-observation.
     board_generation: u64,
+    /// Authoritative SurrealDB board revision carried by the latest projection.
+    authoritative_updated_at: String,
+    /// EventLedger CAS token required by every viewport mutation.
+    authoritative_event_ledger_event_id: String,
 }
 
 impl LoomCanvasBoard {
@@ -1019,9 +1046,12 @@ impl LoomCanvasBoard {
                 PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID,
             ),
             pending_viewport: None,
+            viewport_gesture_origin: None,
             pending_removal: None,
             viewport_revision: 0,
             board_generation: 0,
+            authoritative_updated_at: String::new(),
+            authoritative_event_ledger_event_id: String::new(),
         }
     }
 
@@ -1084,6 +1114,10 @@ impl LoomCanvasBoard {
             workspace_id,
             canvas_block_id,
         };
+        self.authoritative_updated_at.clear();
+        self.authoritative_event_ledger_event_id.clear();
+        self.pending_knowledge_events.clear();
+        self.viewport_gesture_origin = None;
         self.loading = true;
         self.error = None;
     }
@@ -1095,6 +1129,9 @@ impl LoomCanvasBoard {
         };
         self.loading = false;
         self.error = Some(message.into());
+        self.authoritative_updated_at.clear();
+        self.authoritative_event_ledger_event_id.clear();
+        self.pending_knowledge_events.clear();
     }
 
     pub fn projection_is_confirmed(&self) -> bool {
@@ -1106,6 +1143,23 @@ impl LoomCanvasBoard {
                     && !workspace_id.trim().is_empty()
                     && !canvas_block_id.trim().is_empty()
         )
+    }
+
+    /// True only when a confirmed projection also carries the EventLedger token required for CAS.
+    pub fn mutation_interactions_allowed(&self) -> bool {
+        self.projection_is_confirmed()
+            && !self.authoritative_updated_at.trim().is_empty()
+            && !self.authoritative_event_ledger_event_id.trim().is_empty()
+    }
+
+    fn viewport_interactions_allowed(&self) -> bool {
+        self.mutation_interactions_allowed()
+            && self.viewport_observer.phase == CanvasObserverPhase::Ready
+    }
+
+    pub fn authoritative_event_ledger_event_id(&self) -> Option<&str> {
+        self.mutation_interactions_allowed()
+            .then_some(self.authoritative_event_ledger_event_id.as_str())
     }
 
     pub fn remember_unresolved_title_hint(&mut self, block_id: &str, title: Option<&str>) {
@@ -1309,9 +1363,38 @@ impl LoomCanvasBoard {
     /// revision/scale/offset, this action's id, and the exact requested post-state.
     fn viewport_action_semantic(&self, author_id: &str) -> Option<String> {
         let (pan, zoom) = self.requested_viewport_for(author_id)?;
-        if ![self.pan.x, self.pan.y, self.zoom, pan.x, pan.y, zoom]
-            .iter()
-            .all(|value| value.is_finite())
+        self.viewport_transition_semantic(
+            author_id,
+            self.pan,
+            self.zoom,
+            self.viewport_revision,
+            self.board_generation,
+            pan,
+            zoom,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn viewport_transition_semantic(
+        &self,
+        author_id: &str,
+        prior_pan: Vec2,
+        prior_zoom: f32,
+        prior_revision: u64,
+        prior_board_generation: u64,
+        requested_pan: Vec2,
+        requested_zoom: f32,
+    ) -> Option<String> {
+        if ![
+            prior_pan.x,
+            prior_pan.y,
+            prior_zoom,
+            requested_pan.x,
+            requested_pan.y,
+            requested_zoom,
+        ]
+        .iter()
+        .all(|value| value.is_finite())
         {
             return None;
         }
@@ -1323,13 +1406,17 @@ impl LoomCanvasBoard {
                 "workspace_id": self.workspace_id,
                 "board_id": self.canvas_block_id,
                 "prior": {
-                    "viewport_revision": self.viewport_revision,
-                    "board_generation": self.board_generation,
-                    "scale": self.zoom,
-                    "offset_x": self.pan.x,
-                    "offset_y": self.pan.y,
+                    "viewport_revision": prior_revision,
+                    "board_generation": prior_board_generation,
+                    "scale": prior_zoom,
+                    "offset_x": prior_pan.x,
+                    "offset_y": prior_pan.y,
                 },
-                "requested": { "scale": zoom, "offset_x": pan.x, "offset_y": pan.y },
+                "requested": {
+                    "scale": requested_zoom,
+                    "offset_x": requested_pan.x,
+                    "offset_y": requested_pan.y,
+                },
                 "persist_route": self.viewport_persist_route(),
             })
             .to_string(),
@@ -1359,9 +1446,31 @@ impl LoomCanvasBoard {
         let Some((requested_pan, requested_zoom)) = self.requested_viewport_for(author_id) else {
             return;
         };
+        self.begin_viewport_transition(
+            author_id,
+            semantic,
+            self.pan,
+            self.zoom,
+            self.viewport_revision,
+            self.board_generation,
+            requested_pan,
+            requested_zoom,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn begin_viewport_transition(
+        &mut self,
+        author_id: &str,
+        semantic: String,
+        prior_pan: Vec2,
+        prior_zoom: f32,
+        prior_revision: u64,
+        prior_board_generation: u64,
+        requested_pan: Vec2,
+        requested_zoom: f32,
+    ) -> bool {
         let action_id = self.viewport_action_id();
-        let prior_revision = self.viewport_revision;
-        let prior_board_generation = self.board_generation;
         let workspace_id = self.workspace_id.clone();
         let board_id = self.canvas_block_id.clone();
         if let Some(generation) = self.viewport_observer.begin(author_id, semantic) {
@@ -1373,10 +1482,185 @@ impl LoomCanvasBoard {
                 workspace_id,
                 prior_revision,
                 prior_board_generation,
+                prior_pan,
+                prior_zoom,
                 requested_pan,
                 requested_zoom,
+                receipt: None,
             });
+            true
+        } else {
+            false
         }
+    }
+
+    /// Bind a wheel/pan gesture after its optimistic values are known. The captured pre-gesture origin
+    /// makes runtime-unavailable rollback exact, and the Pending observer disables subsequent gestures
+    /// until this one reaches an authoritative terminal state.
+    fn begin_direct_viewport_action(
+        &mut self,
+        author_id: &str,
+        origin: ViewportGestureOrigin,
+    ) -> bool {
+        let requested_pan = self.pan;
+        let requested_zoom = self.zoom;
+        let Some(semantic) = self.viewport_transition_semantic(
+            author_id,
+            origin.pan,
+            origin.zoom,
+            origin.revision,
+            origin.board_generation,
+            requested_pan,
+            requested_zoom,
+        ) else {
+            return false;
+        };
+        self.begin_viewport_transition(
+            author_id,
+            semantic,
+            origin.pan,
+            origin.zoom,
+            origin.revision,
+            origin.board_generation,
+            requested_pan,
+            requested_zoom,
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn begin_direct_viewport_event_for_test(
+        &mut self,
+        pan: Vec2,
+        zoom: f32,
+    ) -> Option<CanvasEvent> {
+        if !self.viewport_interactions_allowed() {
+            return None;
+        }
+        let origin = ViewportGestureOrigin {
+            pan: self.pan,
+            zoom: self.zoom,
+            revision: self.viewport_revision,
+            board_generation: self.board_generation,
+        };
+        self.pan = pan;
+        self.zoom = zoom;
+        self.bump_viewport_revision();
+        self.begin_direct_viewport_action(WHEEL_ZOOM_AUTHOR_ID, origin)
+            .then(|| self.viewport_event())
+    }
+
+    /// Return the action identity owned by the pending viewport request whose requested values match
+    /// the event being dispatched. The shell stores this beside the async cell so a late completion
+    /// cannot fail or complete a later action or another mounted board.
+    pub fn pending_viewport_correlation(
+        &self,
+        pan_x: f32,
+        pan_y: f32,
+        zoom: f32,
+    ) -> Option<(String, u64)> {
+        let pending = self.pending_viewport.as_ref()?;
+        ((pending.requested_pan.x - pan_x).abs() <= VIEWPORT_MATCH_EPSILON
+            && (pending.requested_pan.y - pan_y).abs() <= VIEWPORT_MATCH_EPSILON
+            && (pending.requested_zoom - zoom).abs() <= VIEWPORT_MATCH_EPSILON)
+            .then(|| (pending.action_id.clone(), pending.generation))
+    }
+
+    /// Bind the exact successful viewport PUT receipt to its pending action. Board/value mismatches,
+    /// stale action identities, and wrong requested values fail closed.
+    pub fn apply_viewport_mutation_receipt(
+        &mut self,
+        action_id: &str,
+        action_generation: u64,
+        receipt: crate::backend_client::CanvasViewportMutationReceipt,
+    ) -> Result<bool, String> {
+        let Some(pending) = self.pending_viewport.as_mut() else {
+            return Ok(false);
+        };
+        if pending.action_id != action_id || pending.generation != action_generation {
+            return Ok(false);
+        }
+        for (field, expected, actual) in [
+            (
+                "workspace_id",
+                pending.workspace_id.as_str(),
+                receipt.workspace_id.as_str(),
+            ),
+            (
+                "block_id",
+                pending.board_id.as_str(),
+                receipt.block_id.as_str(),
+            ),
+        ] {
+            if actual != expected {
+                return Err(format!(
+                    "viewport receipt {field} mismatch: expected {expected}, got {actual}"
+                ));
+            }
+        }
+        for (field, expected, actual) in [
+            ("pan_x", pending.requested_pan.x, receipt.pan_x),
+            ("pan_y", pending.requested_pan.y, receipt.pan_y),
+            ("zoom", pending.requested_zoom, receipt.zoom),
+        ] {
+            if (actual - expected).abs() > VIEWPORT_MATCH_EPSILON {
+                return Err(format!(
+                    "viewport receipt {field} mismatch: expected {expected}, got {actual}"
+                ));
+            }
+        }
+        pending.receipt = Some(receipt);
+        Ok(true)
+    }
+
+    /// Close one still-owning viewport observer as failed. Exact action identity and board identity
+    /// prevent a late board-A 409/timeout from mutating board B or a newer action.
+    pub fn fail_pending_viewport(
+        &mut self,
+        workspace_id: &str,
+        board_id: &str,
+        action_id: &str,
+        action_generation: u64,
+        error: String,
+    ) -> bool {
+        let Some(pending) = self.pending_viewport.clone() else {
+            return false;
+        };
+        if pending.workspace_id != workspace_id
+            || pending.board_id != board_id
+            || pending.action_id != action_id
+            || pending.generation != action_generation
+        {
+            return false;
+        }
+        let detail = serde_json::json!({
+            "schema_id": VIEWPORT_COMPLETION_DETAIL_SCHEMA,
+            "action_id": pending.action_id,
+            "target_author_id": pending.author_id,
+            "workspace_id": pending.workspace_id,
+            "board_id": pending.board_id,
+            "authority": "unproven",
+            "persist_route": self.viewport_persist_route(),
+            "requested": {
+                "scale": pending.requested_zoom,
+                "offset_x": pending.requested_pan.x,
+                "offset_y": pending.requested_pan.y,
+            },
+        })
+        .to_string();
+        let failed = self
+            .viewport_observer
+            .failed(pending.generation, error, detail);
+        if failed {
+            // The optimistic viewport has no authoritative mutation when this request is unproven.
+            // Restore the pre-dispatch projection immediately; the host still re-fetches whenever a
+            // runtime exists because an unavailable/malformed receipt may follow a committed write.
+            self.pan = pending.prior_pan;
+            self.zoom = pending.prior_zoom;
+            self.bump_viewport_revision();
+            self.pending_viewport = None;
+            self.viewport_gesture_origin = None;
+        }
+        failed
     }
 
     /// Terminalize a pending viewport action from the AUTHORITATIVE refreshed board. A refresh whose
@@ -1386,9 +1670,14 @@ impl LoomCanvasBoard {
         let Some(pending) = self.pending_viewport.clone() else {
             return;
         };
+        let Some(receipt) = pending.receipt.as_ref() else {
+            return;
+        };
         let matched = (self.pan.x - pending.requested_pan.x).abs() <= VIEWPORT_MATCH_EPSILON
             && (self.pan.y - pending.requested_pan.y).abs() <= VIEWPORT_MATCH_EPSILON
-            && (self.zoom - pending.requested_zoom).abs() <= VIEWPORT_MATCH_EPSILON;
+            && (self.zoom - pending.requested_zoom).abs() <= VIEWPORT_MATCH_EPSILON
+            && self.authoritative_updated_at == receipt.updated_at
+            && self.authoritative_event_ledger_event_id == receipt.event_ledger_event_id;
         if !matched {
             return;
         }
@@ -1401,9 +1690,14 @@ impl LoomCanvasBoard {
             "authority": "persisted",
             "persist_route": self.viewport_persist_route(),
             "backend_ack": "authoritative_board_refresh",
+            "event_ledger_event_id": receipt.event_ledger_event_id,
+            "updated_at": receipt.updated_at,
             "prior": {
                 "viewport_revision": pending.prior_revision,
                 "board_generation": pending.prior_board_generation,
+                "scale": pending.prior_zoom,
+                "offset_x": pending.prior_pan.x,
+                "offset_y": pending.prior_pan.y,
             },
             "resulting": {
                 "viewport_revision": self.viewport_revision,
@@ -1487,8 +1781,101 @@ impl LoomCanvasBoard {
                 placed_block_id: placed_block_id.to_owned(),
                 prior_board_generation,
                 absent_board_generation: None,
+                receipt: None,
             });
         }
+    }
+
+    /// Correlate the exact placement DELETE receipt with the pending operator action. A receipt for a
+    /// different board, placement, or source block fails closed and never advances the proof.
+    pub fn apply_placement_removal_receipt(
+        &mut self,
+        receipt: crate::backend_client::CanvasPlacementRemovalReceipt,
+    ) -> Result<bool, String> {
+        let Some(pending) = self.pending_removal.as_mut() else {
+            return Ok(false);
+        };
+        for (field, expected, actual) in [
+            (
+                "workspace_id",
+                pending.workspace_id.as_str(),
+                receipt.workspace_id.as_str(),
+            ),
+            (
+                "canvas_block_id",
+                pending.board_id.as_str(),
+                receipt.canvas_block_id.as_str(),
+            ),
+            (
+                "placement_id",
+                pending.placement_id.as_str(),
+                receipt.placement_id.as_str(),
+            ),
+            (
+                "placed_block_id",
+                pending.placed_block_id.as_str(),
+                receipt.placed_block_id.as_str(),
+            ),
+        ] {
+            if actual != expected {
+                return Err(format!(
+                    "placement-removal receipt {field} mismatch: expected {expected}, got {actual}"
+                ));
+            }
+        }
+        pending.receipt = Some(receipt);
+        Ok(true)
+    }
+
+    /// Return the exact proof identity for one pending placement removal so the shell can correlate
+    /// its async DELETE cell.
+    pub fn pending_removal_correlation(&self, placement_id: &str) -> Option<(String, u64)> {
+        let pending = self.pending_removal.as_ref()?;
+        (pending.placement_id == placement_id)
+            .then(|| (pending.action_id.clone(), pending.generation))
+    }
+
+    /// Close one still-owning placement removal as failed. Malformed/cross-identity receipts and HTTP
+    /// failures must not leave the shared observer Pending and block later removals.
+    pub fn fail_pending_removal(
+        &mut self,
+        workspace_id: &str,
+        board_id: &str,
+        placement_id: &str,
+        action_id: &str,
+        action_generation: u64,
+        error: String,
+    ) -> bool {
+        let Some(pending) = self.pending_removal.clone() else {
+            return false;
+        };
+        if pending.workspace_id != workspace_id
+            || pending.board_id != board_id
+            || pending.placement_id != placement_id
+            || pending.action_id != action_id
+            || pending.generation != action_generation
+        {
+            return false;
+        }
+        let detail = serde_json::json!({
+            "schema_id": PLACEMENT_REMOVAL_DETAIL_SCHEMA,
+            "action_id": pending.action_id,
+            "target_author_id": pending.author_id,
+            "workspace_id": pending.workspace_id,
+            "board_id": pending.board_id,
+            "placement_id": pending.placement_id,
+            "block_id": pending.placed_block_id,
+            "authority": "unproven",
+            "backend": { "route": self.placement_delete_route(&pending.placement_id) },
+        })
+        .to_string();
+        let failed = self
+            .placement_observer
+            .failed(pending.generation, error, detail);
+        if failed {
+            self.pending_removal = None;
+        }
+        failed
     }
 
     /// Record that an AUTHORITATIVE refreshed board proves the removed placement absent at a NEW board
@@ -1517,6 +1904,7 @@ impl LoomCanvasBoard {
         match &self.pending_removal {
             Some(pending)
                 if pending.absent_board_generation.is_some()
+                    && pending.receipt.is_some()
                     && !pending.placed_block_id.trim().is_empty() =>
             {
                 vec![pending.placed_block_id.clone()]
@@ -1542,6 +1930,9 @@ impl LoomCanvasBoard {
             return false;
         }
         let Some(absent_board_generation) = pending.absent_board_generation else {
+            return false;
+        };
+        let Some(receipt) = pending.receipt.as_ref() else {
             return false;
         };
         let (source_present, content_type, failure) = match result {
@@ -1577,11 +1968,9 @@ impl LoomCanvasBoard {
                     "GET /workspaces/{}/loom/blocks/{}",
                     pending.workspace_id, pending.placed_block_id
                 ),
-                // The canvas placement DELETE route answers 204 with no body, so the backend returns no
-                // EventLedger event id to correlate. Recorded as an explicit null rather than invented.
-                "event_ledger_event_id": serde_json::Value::Null,
-                "event_ledger_note":
-                    "DELETE /loom/canvas-placements/{id} returns 204 with no receipt body",
+                "event_ledger_event_id": receipt.event_id.as_str(),
+                "event_ledger_event_sequence": receipt.event_sequence,
+                "event_ledger_created_at": receipt.created_at.as_str(),
             },
             "placement_absent_after_refresh": true,
             "source_block_present": source_present,
@@ -1635,8 +2024,30 @@ impl LoomCanvasBoard {
         pan: Vec2,
         zoom: f32,
     ) {
+        self.set_authoritative_board(
+            placements,
+            visual_edges,
+            pan,
+            zoom,
+            "compat-test-revision".to_owned(),
+            "compat-test-event".to_owned(),
+        );
+    }
+
+    /// Apply a fetched board projection together with its SurrealDB/EventLedger revision identity.
+    pub fn set_authoritative_board(
+        &mut self,
+        placements: Vec<CanvasPlacementCard>,
+        visual_edges: Vec<VisualEdge>,
+        pan: Vec2,
+        zoom: f32,
+        updated_at: String,
+        event_ledger_event_id: String,
+    ) {
         self.placements = placements;
         self.visual_edges = visual_edges;
+        self.authoritative_updated_at = updated_at;
+        self.authoritative_event_ledger_event_id = event_ledger_event_id;
         let clamped_zoom = zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         // WP-KERNEL-012 MT-026 V4: an authoritative projection delivery is a FRESH STATE GENERATION.
         // Terminal receipts bind to this counter so "the node is still there" can never pass as a
@@ -1676,6 +2087,7 @@ impl LoomCanvasBoard {
         self.resizing = None;
         self.moving = None;
         self.moving_pos = None;
+        self.viewport_gesture_origin = None;
         if let Some(editing) = &self.editing_card_id {
             if !present.contains(editing.as_str()) {
                 self.editing_card_id = None;
@@ -1837,6 +2249,8 @@ impl LoomCanvasBoard {
 
     fn show_body(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<CanvasEvent> {
         let mut event: Option<CanvasEvent> = None;
+        let mutation_enabled = self.mutation_interactions_allowed();
+        let viewport_enabled = self.viewport_interactions_allowed();
         // WP-KERNEL-012 MT-026 V4: pre-compute each viewport control's pre-dispatch semantic + observer
         // declaration BEFORE the toolbar closure takes `&mut self`. A control publishes its declaration
         // as the AccessKit `value`, which is what makes an Argus click on it causally acknowledgeable
@@ -1867,176 +2281,183 @@ impl LoomCanvasBoard {
         // can consume a swarm `Click` (incl. a parameterized place-block/add-card JSON payload) targeting
         // that one node. A plain (no-payload) swarm Click on a toolbar button also triggers egui's own
         // synthetic `.clicked()` so pan/zoom apply through the existing handler — never double-applied.
-        ui.horizontal(|ui| {
-            let pan_left = ui.button("◀ Pan");
-            emit_button_node_value(
-                ui,
-                pan_left.id,
-                PAN_LEFT_AUTHOR_ID,
-                "Pan left",
-                pan_left_declaration.as_deref(),
-            );
-            self.record_toolbar_id(PAN_LEFT_AUTHOR_ID, pan_left.id);
-            if pan_left.clicked() {
-                self.begin_viewport_action(PAN_LEFT_AUTHOR_ID, pan_left_semantic.clone());
-                self.pan.x -= PAN_STEP;
-                self.bump_viewport_revision();
-                event = Some(self.viewport_event());
-            }
-            let pan_right = ui.button("Pan ▶");
-            emit_button_node_value(
-                ui,
-                pan_right.id,
-                PAN_RIGHT_AUTHOR_ID,
-                "Pan right",
-                pan_right_declaration.as_deref(),
-            );
-            self.record_toolbar_id(PAN_RIGHT_AUTHOR_ID, pan_right.id);
-            if pan_right.clicked() {
-                self.begin_viewport_action(PAN_RIGHT_AUTHOR_ID, pan_right_semantic.clone());
-                self.pan.x += PAN_STEP;
-                self.bump_viewport_revision();
-                event = Some(self.viewport_event());
-            }
+        ui.add_enabled_ui(mutation_enabled, |ui| {
+            ui.horizontal(|ui| {
+                let pan_left = ui.add_enabled(viewport_enabled, egui::Button::new("◀ Pan"));
+                emit_button_node_value(
+                    ui,
+                    pan_left.id,
+                    PAN_LEFT_AUTHOR_ID,
+                    "Pan left",
+                    pan_left_declaration.as_deref(),
+                    viewport_enabled,
+                );
+                self.record_toolbar_id(PAN_LEFT_AUTHOR_ID, pan_left.id);
+                if pan_left.clicked() {
+                    self.begin_viewport_action(PAN_LEFT_AUTHOR_ID, pan_left_semantic.clone());
+                    self.pan.x -= PAN_STEP;
+                    self.bump_viewport_revision();
+                    event = Some(self.viewport_event());
+                }
+                let pan_right = ui.add_enabled(viewport_enabled, egui::Button::new("Pan ▶"));
+                emit_button_node_value(
+                    ui,
+                    pan_right.id,
+                    PAN_RIGHT_AUTHOR_ID,
+                    "Pan right",
+                    pan_right_declaration.as_deref(),
+                    viewport_enabled,
+                );
+                self.record_toolbar_id(PAN_RIGHT_AUTHOR_ID, pan_right.id);
+                if pan_right.clicked() {
+                    self.begin_viewport_action(PAN_RIGHT_AUTHOR_ID, pan_right_semantic.clone());
+                    self.pan.x += PAN_STEP;
+                    self.bump_viewport_revision();
+                    event = Some(self.viewport_event());
+                }
 
-            ui.separator();
-            let zoom_out = ui.button("−");
-            emit_button_node_value(
-                ui,
-                zoom_out.id,
-                ZOOM_OUT_AUTHOR_ID,
-                "Zoom out",
-                zoom_out_declaration.as_deref(),
-            );
-            self.record_toolbar_id(ZOOM_OUT_AUTHOR_ID, zoom_out.id);
-            if zoom_out.clicked() {
-                self.begin_viewport_action(ZOOM_OUT_AUTHOR_ID, zoom_out_semantic.clone());
-                self.step_zoom(-ZOOM_STEP);
-                self.bump_viewport_revision();
-                event = Some(self.viewport_event());
-            }
-            let zoom_label = format!("{:.2}x", self.zoom);
-            let zlabel = ui.label(&zoom_label);
-            emit_status_node(ui, zlabel.id, ZOOM_VALUE_AUTHOR_ID, &zoom_label);
-            let zoom_in = ui.button("+");
-            emit_button_node_value(
-                ui,
-                zoom_in.id,
-                ZOOM_IN_AUTHOR_ID,
-                "Zoom in",
-                zoom_in_declaration.as_deref(),
-            );
-            self.record_toolbar_id(ZOOM_IN_AUTHOR_ID, zoom_in.id);
-            if zoom_in.clicked() {
-                self.begin_viewport_action(ZOOM_IN_AUTHOR_ID, zoom_in_semantic.clone());
-                self.step_zoom(ZOOM_STEP);
-                self.bump_viewport_revision();
-                event = Some(self.viewport_event());
-            }
+                ui.separator();
+                let zoom_out = ui.add_enabled(viewport_enabled, egui::Button::new("−"));
+                emit_button_node_value(
+                    ui,
+                    zoom_out.id,
+                    ZOOM_OUT_AUTHOR_ID,
+                    "Zoom out",
+                    zoom_out_declaration.as_deref(),
+                    viewport_enabled,
+                );
+                self.record_toolbar_id(ZOOM_OUT_AUTHOR_ID, zoom_out.id);
+                if zoom_out.clicked() {
+                    self.begin_viewport_action(ZOOM_OUT_AUTHOR_ID, zoom_out_semantic.clone());
+                    self.step_zoom(-ZOOM_STEP);
+                    self.bump_viewport_revision();
+                    event = Some(self.viewport_event());
+                }
+                let zoom_label = format!("{:.2}x", self.zoom);
+                let zlabel = ui.label(&zoom_label);
+                emit_status_node(ui, zlabel.id, ZOOM_VALUE_AUTHOR_ID, &zoom_label);
+                let zoom_in = ui.add_enabled(viewport_enabled, egui::Button::new("+"));
+                emit_button_node_value(
+                    ui,
+                    zoom_in.id,
+                    ZOOM_IN_AUTHOR_ID,
+                    "Zoom in",
+                    zoom_in_declaration.as_deref(),
+                    viewport_enabled,
+                );
+                self.record_toolbar_id(ZOOM_IN_AUTHOR_ID, zoom_in.id);
+                if zoom_in.clicked() {
+                    self.begin_viewport_action(ZOOM_IN_AUTHOR_ID, zoom_in_semantic.clone());
+                    self.step_zoom(ZOOM_STEP);
+                    self.bump_viewport_revision();
+                    event = Some(self.viewport_event());
+                }
 
-            ui.separator();
-            let add_card = ui.button("+ Text card");
-            emit_button_node(ui, add_card.id, ADD_CARD_AUTHOR_ID, "Add text card");
-            self.record_toolbar_id(ADD_CARD_AUTHOR_ID, add_card.id);
-            if add_card.clicked() {
-                // React: title = `Card ${new Date().toISOString()}`; default position (40, 40).
-                let title = format!("Card {}", now_iso8601());
-                event = Some(CanvasEvent::AddCard {
-                    title,
-                    x: 40.0,
-                    y: 40.0,
-                });
-            }
+                ui.separator();
+                let add_card = ui.button("+ Text card");
+                emit_button_node(ui, add_card.id, ADD_CARD_AUTHOR_ID, "Add text card");
+                self.record_toolbar_id(ADD_CARD_AUTHOR_ID, add_card.id);
+                if add_card.clicked() {
+                    // React: title = `Card ${new Date().toISOString()}`; default position (40, 40).
+                    let title = format!("Card {}", now_iso8601());
+                    event = Some(CanvasEvent::AddCard {
+                        title,
+                        x: 40.0,
+                        y: 40.0,
+                    });
+                }
 
-            let can_group = self.selected.len() >= 2;
-            let group_label = format!("Group ({})", self.selected.len());
-            let group_btn = ui.add_enabled(can_group, egui::Button::new(&group_label));
-            emit_button_node(ui, group_btn.id, GROUP_AUTHOR_ID, &group_label);
-            if group_btn.clicked() && can_group {
-                self.group_seq += 1;
-                let group_id = format!("grp-{}", self.group_seq);
-                let placement_ids: Vec<String> = self.selected.iter().cloned().collect();
-                // Reflect the group locally so the AccessKit data-group-id is visible THIS frame (AC6);
-                // the host persists each via updateCanvasPlacement and the next refresh confirms it.
-                for p in self.placements.iter_mut() {
-                    if self.selected.contains(&p.placement_id) {
-                        p.group_id = Some(group_id.clone());
+                let can_group = self.selected.len() >= 2;
+                let group_label = format!("Group ({})", self.selected.len());
+                let group_btn = ui.add_enabled(can_group, egui::Button::new(&group_label));
+                emit_button_node(ui, group_btn.id, GROUP_AUTHOR_ID, &group_label);
+                if group_btn.clicked() && can_group {
+                    self.group_seq += 1;
+                    let group_id = format!("grp-{}", self.group_seq);
+                    let placement_ids: Vec<String> = self.selected.iter().cloned().collect();
+                    // Reflect the group locally so the AccessKit data-group-id is visible THIS frame (AC6);
+                    // the host persists each via updateCanvasPlacement and the next refresh confirms it.
+                    for p in self.placements.iter_mut() {
+                        if self.selected.contains(&p.placement_id) {
+                            p.group_id = Some(group_id.clone());
+                        }
+                    }
+                    self.status =
+                        format!("Grouped {} placements as {group_id}", placement_ids.len());
+                    event = Some(CanvasEvent::Group {
+                        placement_ids,
+                        group_id,
+                    });
+                }
+
+                ui.separator();
+                let mode_label = format!("Edge: {}", self.edge_mode.label());
+                let mode_btn = ui.button(&mode_label);
+                emit_button_node(ui, mode_btn.id, EDGE_MODE_AUTHOR_ID, &mode_label);
+                if mode_btn.clicked() {
+                    self.edge_mode = self.edge_mode.toggled();
+                }
+                let can_start = self.selected.len() == 1 && self.edge_from.is_none();
+                let start_edge =
+                    ui.add_enabled(can_start, egui::Button::new("Draw edge from selected"));
+                emit_button_node(
+                    ui,
+                    start_edge.id,
+                    START_EDGE_AUTHOR_ID,
+                    "Draw edge from selected",
+                );
+                if start_edge.clicked() && can_start {
+                    if let Some(first) = self.selected.iter().next().cloned() {
+                        self.edge_from = Some(first);
+                        self.status = "Click a second card to draw the edge".to_owned();
                     }
                 }
-                self.status = format!("Grouped {} placements as {group_id}", placement_ids.len());
-                event = Some(CanvasEvent::Group {
-                    placement_ids,
-                    group_id,
-                });
-            }
 
-            ui.separator();
-            let mode_label = format!("Edge: {}", self.edge_mode.label());
-            let mode_btn = ui.button(&mode_label);
-            emit_button_node(ui, mode_btn.id, EDGE_MODE_AUTHOR_ID, &mode_label);
-            if mode_btn.clicked() {
-                self.edge_mode = self.edge_mode.toggled();
-            }
-            let can_start = self.selected.len() == 1 && self.edge_from.is_none();
-            let start_edge =
-                ui.add_enabled(can_start, egui::Button::new("Draw edge from selected"));
-            emit_button_node(
-                ui,
-                start_edge.id,
-                START_EDGE_AUTHOR_ID,
-                "Draw edge from selected",
-            );
-            if start_edge.clicked() && can_start {
-                if let Some(first) = self.selected.iter().next().cloned() {
-                    self.edge_from = Some(first);
-                    self.status = "Click a second card to draw the edge".to_owned();
+                // ── MC-2 / RISK-2 fallback: place a block by id when OS / inter-panel drag is unavailable.
+                // A small text field + 'Place' button emit the SAME PlaceBlock event the drop path produces,
+                // so the place behavior is reachable on every backend (the contract's documented fallback).
+                ui.separator();
+                let field = ui.add(
+                    egui::TextEdit::singleline(&mut self.place_block_input)
+                        .desired_width(120.0)
+                        .hint_text("block id"),
+                );
+                emit_text_field_node(
+                    ui,
+                    field.id,
+                    PLACE_BLOCK_INPUT_AUTHOR_ID,
+                    &self.place_block_input,
+                );
+                let block_id = self.place_block_input.trim().to_owned();
+                let can_place = !block_id.is_empty();
+                // MT-042: the MC-2 fallback button stays `add_enabled(can_place, ..)` for the MOUSE path
+                // (disabled while the text field is empty — unchanged MT-026 behavior). egui marks that
+                // shared NodeId accessibly disabled; after attaching the stable author/action below we
+                // explicitly clear only its AccessKit disabled flag so the registry's parameterized
+                // `place-block {block_id,x,y}` swarm path remains dispatchable (IN-042-08: the toolbar owns
+                // the id; the registry does not re-mint it, it consumes dispatch at the recorded NodeId).
+                let place_btn = ui.add_enabled(can_place, egui::Button::new("Place"));
+                emit_button_node(ui, place_btn.id, PLACE_BLOCK_AUTHOR_ID, "Place block by id");
+                // `add_enabled(false, ..)` marks this shared NodeId disabled before the author/action
+                // overlay above runs. The mouse fallback still requires text input (`clicked && can_place`),
+                // while the parameterized AccessKit route supplies its own typed block_id/x/y payload and
+                // must remain steerable without mutating the text field first.
+                ui.ctx()
+                    .accesskit_node_builder(place_btn.id, |node| node.clear_disabled());
+                self.record_toolbar_id(PLACE_BLOCK_AUTHOR_ID, place_btn.id);
+                if place_btn.clicked() && can_place {
+                    // Default canvas position: the centre of the currently-visible canvas, in canvas space,
+                    // so the placed card lands where the user is looking regardless of pan/zoom.
+                    let pos = self.default_place_pos();
+                    self.place_block_input.clear();
+                    self.status = format!("Placed {block_id} (reference)");
+                    event = Some(CanvasEvent::PlaceBlock {
+                        placed_block_id: block_id,
+                        x: pos.x,
+                        y: pos.y,
+                    });
                 }
-            }
-
-            // ── MC-2 / RISK-2 fallback: place a block by id when OS / inter-panel drag is unavailable.
-            // A small text field + 'Place' button emit the SAME PlaceBlock event the drop path produces,
-            // so the place behavior is reachable on every backend (the contract's documented fallback).
-            ui.separator();
-            let field = ui.add(
-                egui::TextEdit::singleline(&mut self.place_block_input)
-                    .desired_width(120.0)
-                    .hint_text("block id"),
-            );
-            emit_text_field_node(
-                ui,
-                field.id,
-                PLACE_BLOCK_INPUT_AUTHOR_ID,
-                &self.place_block_input,
-            );
-            let block_id = self.place_block_input.trim().to_owned();
-            let can_place = !block_id.is_empty();
-            // MT-042: the MC-2 fallback button stays `add_enabled(can_place, ..)` for the MOUSE path
-            // (disabled while the text field is empty — unchanged MT-026 behavior). egui marks that
-            // shared NodeId accessibly disabled; after attaching the stable author/action below we
-            // explicitly clear only its AccessKit disabled flag so the registry's parameterized
-            // `place-block {block_id,x,y}` swarm path remains dispatchable (IN-042-08: the toolbar owns
-            // the id; the registry does not re-mint it, it consumes dispatch at the recorded NodeId).
-            let place_btn = ui.add_enabled(can_place, egui::Button::new("Place"));
-            emit_button_node(ui, place_btn.id, PLACE_BLOCK_AUTHOR_ID, "Place block by id");
-            // `add_enabled(false, ..)` marks this shared NodeId disabled before the author/action
-            // overlay above runs. The mouse fallback still requires text input (`clicked && can_place`),
-            // while the parameterized AccessKit route supplies its own typed block_id/x/y payload and
-            // must remain steerable without mutating the text field first.
-            ui.ctx()
-                .accesskit_node_builder(place_btn.id, |node| node.clear_disabled());
-            self.record_toolbar_id(PLACE_BLOCK_AUTHOR_ID, place_btn.id);
-            if place_btn.clicked() && can_place {
-                // Default canvas position: the centre of the currently-visible canvas, in canvas space,
-                // so the placed card lands where the user is looking regardless of pan/zoom.
-                let pos = self.default_place_pos();
-                self.place_block_input.clear();
-                self.status = format!("Placed {block_id} (reference)");
-                event = Some(CanvasEvent::PlaceBlock {
-                    placed_block_id: block_id,
-                    x: pos.x,
-                    y: pos.y,
-                });
-            }
+            });
         });
 
         // ── Status bar (Role::Status) ─────────────────────────────────────────────────────────────
@@ -2109,7 +2530,7 @@ impl LoomCanvasBoard {
         // Keep that external gesture out of the internal card-move/pan state machine; otherwise the
         // drag-stop viewport event overwrites the already-produced drop event in this single-event API.
         let external_drag_active = has_canvas_drag_payload || has_interop_drag_payload;
-        if has_canvas_drag_payload {
+        if mutation_enabled && has_canvas_drag_payload {
             if let Some(payload) = crate::interop::drag_payload::take_released_payload_over::<
                 CanvasDragPayload,
             >(&canvas_resp)
@@ -2123,7 +2544,7 @@ impl LoomCanvasBoard {
                     y: canvas_pos.y,
                 });
             }
-        } else if has_interop_drag_payload {
+        } else if mutation_enabled && has_interop_drag_payload {
             // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item (or a Loom block) dragged from
             // the atelier side panel via the cross-surface [`crate::interop::DragPayload`] channel and
             // RELEASED over the canvas places a block REFERENCE. A payload that already has a
@@ -2164,11 +2585,26 @@ impl LoomCanvasBoard {
         }
 
         // Pointer input: zoom (scroll), pan (drag on empty area), card click (select / edge).
-        if let Some(pointer) = canvas_resp.hover_pos() {
-            let scroll_y = ui.input(|i| i.raw_scroll_delta.y);
-            if scroll_y != 0.0 && self.apply_zoom(scroll_y.signum(), pointer, origin) {
-                // Persist on the gesture (the host debounces — RISK-3 / MC-3).
-                event = Some(self.viewport_event());
+        if self.viewport_interactions_allowed() {
+            if let Some(pointer) = canvas_resp.hover_pos() {
+                let scroll_y = ui.input(|i| i.raw_scroll_delta.y);
+                let gesture_origin = ViewportGestureOrigin {
+                    pan: self.pan,
+                    zoom: self.zoom,
+                    revision: self.viewport_revision,
+                    board_generation: self.board_generation,
+                };
+                if scroll_y != 0.0 && self.apply_zoom(scroll_y.signum(), pointer, origin) {
+                    // Persist this gesture once; the in-flight action gate blocks another viewport
+                    // mutation until authoritative completion (RISK-3 / MC-3).
+                    if self.begin_direct_viewport_action(WHEEL_ZOOM_AUTHOR_ID, gesture_origin) {
+                        event = Some(self.viewport_event());
+                    } else {
+                        self.pan = gesture_origin.pan;
+                        self.zoom = gesture_origin.zoom;
+                        self.bump_viewport_revision();
+                    }
+                }
             }
         }
 
@@ -2180,7 +2616,8 @@ impl LoomCanvasBoard {
         //   - A drag on EMPTY canvas pans (unchanged MT-026 behavior).
         // A card-move drag SUPPRESSES the pan + the viewport-persist on release (it persists a section
         // assignment instead, not a viewport). The `resizing` guard keeps a resize from also moving a card.
-        if !external_drag_active
+        if mutation_enabled
+            && !external_drag_active
             && canvas_resp.drag_started()
             && self.resizing.is_none()
             && self.moving.is_none()
@@ -2196,10 +2633,17 @@ impl LoomCanvasBoard {
                     let card = &self.placements[idx];
                     self.moving = Some(card.placement_id.clone());
                     self.moving_pos = Some(Pos2::new(card.x, card.y));
+                } else if self.viewport_interactions_allowed() {
+                    self.viewport_gesture_origin = Some(ViewportGestureOrigin {
+                        pan: self.pan,
+                        zoom: self.zoom,
+                        revision: self.viewport_revision,
+                        board_generation: self.board_generation,
+                    });
                 }
             }
         }
-        if !external_drag_active && canvas_resp.dragged() {
+        if mutation_enabled && !external_drag_active && canvas_resp.dragged() {
             if let Some(moving_id) = self.moving.clone() {
                 // Move the card optimistically by egui's per-frame canvas-space delta.
                 let delta = canvas_resp.drag_delta() / self.zoom;
@@ -2212,12 +2656,19 @@ impl LoomCanvasBoard {
                     card.y += delta.y;
                     self.moving_pos = Some(Pos2::new(card.x, card.y));
                 }
-            } else if self.resizing.is_none() {
+            } else if self.resizing.is_none() && self.viewport_interactions_allowed() {
                 // Empty-canvas pan (no card under the gesture, no active resize).
+                self.viewport_gesture_origin
+                    .get_or_insert(ViewportGestureOrigin {
+                        pan: self.pan,
+                        zoom: self.zoom,
+                        revision: self.viewport_revision,
+                        board_generation: self.board_generation,
+                    });
                 self.pan += canvas_resp.drag_delta();
             }
         }
-        if !external_drag_active && canvas_resp.drag_stopped() {
+        if mutation_enabled && !external_drag_active && canvas_resp.drag_stopped() {
             if let Some(moving_id) = self.moving.take() {
                 // AC-061-3: resolve the drop position to a section. The drop point is the card's CENTRE in
                 // canvas space (where the user released it), so a card landing inside a frame is assigned,
@@ -2266,17 +2717,33 @@ impl LoomCanvasBoard {
                     y,
                     group_id: target,
                 });
+            } else if self.resizing.is_none() && self.viewport_interactions_allowed() {
+                // Pan release: persist the viewport once; the in-flight action gate serializes
+                // mutations until authoritative completion (RISK-3 / MC-3).
+                if let Some(gesture_origin) = self.viewport_gesture_origin.take() {
+                    let changed = (self.pan.x - gesture_origin.pan.x).abs() > f32::EPSILON
+                        || (self.pan.y - gesture_origin.pan.y).abs() > f32::EPSILON
+                        || (self.zoom - gesture_origin.zoom).abs() > f32::EPSILON;
+                    if changed {
+                        self.bump_viewport_revision();
+                        if self.begin_direct_viewport_action(EMPTY_PAN_AUTHOR_ID, gesture_origin) {
+                            event = Some(self.viewport_event());
+                        } else {
+                            self.pan = gesture_origin.pan;
+                            self.zoom = gesture_origin.zoom;
+                            self.bump_viewport_revision();
+                        }
+                    }
+                }
             } else if self.resizing.is_none() {
-                // Pan release: persist the viewport (RISK-3 / MC-3 — host debounces).
-                self.bump_viewport_revision();
-                event = Some(self.viewport_event());
+                self.viewport_gesture_origin = None;
             }
         }
 
         // WP-KERNEL-012 MT-061 (AC-061-4): double-click a card. A FREE-TEXT card enters in-place edit
         // mode (its body seeds the editor buffer); a BLOCK-backed card NAVIGATES to its block instead of
         // becoming editable (reference-not-copy gate — the inline editor is strictly text-card-only).
-        if canvas_resp.double_clicked() {
+        if mutation_enabled && canvas_resp.double_clicked() {
             if let Some(screen) = canvas_resp.interact_pointer_pos() {
                 let canvas_pos = self.screen_to_canvas(screen, origin);
                 if let Some(idx) = self.placement_at_canvas(canvas_pos) {
@@ -2290,7 +2757,7 @@ impl LoomCanvasBoard {
 
         // Click: card hit -> toggle selection (shift = additive) and complete a pending edge; empty ->
         // deselect all.
-        if canvas_resp.clicked() {
+        if mutation_enabled && canvas_resp.clicked() {
             if let Some(screen) = canvas_resp.interact_pointer_pos() {
                 let canvas_pos = self.screen_to_canvas(screen, origin);
                 let shift = ui.input(|i| i.modifiers.shift);
@@ -2337,20 +2804,24 @@ impl LoomCanvasBoard {
         // clicked placement's OWN payload ([`placement_menu_availability`]) — a text/note card ENABLES Open
         // Note, a resolvable placement enables Reveal Node, and a stale reference ENABLES Create-note —
         // never a dead handler (a disabled entry maps to `None`).
-        let secondary_click_pos = canvas_resp
-            .secondary_clicked()
-            .then(|| canvas_resp.interact_pointer_pos())
-            .flatten()
-            .or_else(|| {
-                ui.input(|input| {
-                    input
-                        .pointer
-                        .button_released(egui::PointerButton::Secondary)
-                        .then(|| input.pointer.interact_pos())
-                        .flatten()
-                })
-                .filter(|pos| rect.contains(*pos))
-            });
+        let secondary_click_pos = mutation_enabled
+            .then(|| {
+                canvas_resp
+                    .secondary_clicked()
+                    .then(|| canvas_resp.interact_pointer_pos())
+                    .flatten()
+                    .or_else(|| {
+                        ui.input(|input| {
+                            input
+                                .pointer
+                                .button_released(egui::PointerButton::Secondary)
+                                .then(|| input.pointer.interact_pos())
+                                .flatten()
+                        })
+                        .filter(|pos| rect.contains(*pos))
+                    })
+            })
+            .flatten();
         if let Some(screen) = secondary_click_pos {
             crate::context_menu::request_open(ui.ctx(), canvas_resp.id, screen);
             self.ctx_menu_placement = Some(screen)
@@ -2365,7 +2836,8 @@ impl LoomCanvasBoard {
                 crate::context_menu::dismiss(ui.ctx(), canvas_resp.id);
             }
         }
-        let owns_retained_menu = self.ctx_menu_owner_pane_id.is_some()
+        let owns_retained_menu = mutation_enabled
+            && self.ctx_menu_owner_pane_id.is_some()
             && self.ctx_menu_owner_pane_id == self.render_source_pane_id;
         if owns_retained_menu {
             let Some(pid) = self.ctx_menu_placement.clone() else {
@@ -2423,7 +2895,12 @@ impl LoomCanvasBoard {
         let mut order: Vec<usize> = (0..self.placements.len()).collect();
         order.sort_by(|&a, &b| self.placements[a].z_index.cmp(&self.placements[b].z_index));
         for idx in order {
-            if let Some(ev) = self.draw_card(ui, &painter, idx, origin, palette) {
+            let card_event = ui
+                .add_enabled_ui(mutation_enabled, |ui| {
+                    self.draw_card(ui, &painter, idx, origin, palette)
+                })
+                .inner;
+            if let Some(ev) = card_event {
                 event = Some(ev);
             }
         }
@@ -2449,8 +2926,10 @@ impl LoomCanvasBoard {
         if self.knowledge_registry.is_some() {
             self.sync_knowledge_registry();
             self.emit_knowledge_accesskit(ui);
-            let dispatched = self.take_knowledge_dispatched(ui);
-            self.pending_knowledge_events.extend(dispatched);
+            if mutation_enabled {
+                let dispatched = self.take_knowledge_dispatched(ui);
+                self.pending_knowledge_events.extend(dispatched);
+            }
         }
 
         external_drop_event.or(event)
@@ -2460,6 +2939,10 @@ impl LoomCanvasBoard {
     /// last drain. The host calls this AFTER [`Self::show`] to route each dispatched [`CanvasEvent`] to the
     /// E6 loom client (the same way it applies `show`'s `Option` return).
     pub fn drain_knowledge_events(&mut self) -> Vec<CanvasEvent> {
+        if !self.mutation_interactions_allowed() {
+            self.pending_knowledge_events.clear();
+            return Vec::new();
+        }
         std::mem::take(&mut self.pending_knowledge_events)
     }
 
@@ -3006,7 +3489,16 @@ impl LoomCanvasBoard {
             remove_size,
         );
         let remove_id = egui::Id::new(placement_remove_author_id(&placement_id));
-        let remove_resp = ui.interact(remove_rect, remove_id, Sense::click());
+        let removal_enabled = self.placement_observer.phase == CanvasObserverPhase::Ready;
+        let remove_resp = ui.interact(
+            remove_rect,
+            remove_id,
+            if removal_enabled {
+                Sense::click()
+            } else {
+                Sense::hover()
+            },
+        );
         let remove_bg = if remove_resp.hovered() {
             palette.error_text.gamma_multiply(0.25)
         } else {
@@ -3035,6 +3527,7 @@ impl LoomCanvasBoard {
             &remove_resp,
             &self.placements[idx],
             remove_declaration.as_deref(),
+            removal_enabled,
         );
 
         if remove_resp.clicked() {
@@ -3285,6 +3778,7 @@ fn emit_button_node_value(
     author_id: &str,
     label: &str,
     value: Option<&str>,
+    enabled: bool,
 ) {
     let author = author_id.to_owned();
     let label = label.to_owned();
@@ -3296,7 +3790,11 @@ fn emit_button_node_value(
         if let Some(value) = &value {
             node.set_value(value.clone());
         }
-        node.add_action(accesskit::Action::Click);
+        if enabled {
+            node.add_action(accesskit::Action::Click);
+        } else {
+            node.set_disabled();
+        }
     });
 }
 
@@ -3405,6 +3903,7 @@ fn emit_remove_node(
     resp: &egui::Response,
     card: &CanvasPlacementCard,
     declaration: Option<&str>,
+    enabled: bool,
 ) {
     let author = placement_remove_author_id(&card.placement_id);
     let label = format!("Remove {}", card.display_title());
@@ -3416,7 +3915,11 @@ fn emit_remove_node(
         if let Some(declaration) = &declaration {
             node.set_value(declaration.clone());
         }
-        node.add_action(accesskit::Action::Click);
+        if enabled {
+            node.add_action(accesskit::Action::Click);
+        } else {
+            node.set_disabled();
+        }
     });
 }
 
@@ -3503,6 +4006,50 @@ mod tests {
             .collect();
         b.set_board(placements, vec![], Vec2::ZERO, 1.0);
         b
+    }
+
+    #[test]
+    fn direct_viewport_pending_serializes_and_runtime_failure_restores_origin() {
+        let mut board = board_with(0);
+        let origin = ViewportGestureOrigin {
+            pan: board.pan,
+            zoom: board.zoom,
+            revision: board.viewport_revision,
+            board_generation: board.board_generation,
+        };
+        board.pan = Vec2::new(24.0, -8.0);
+        board.zoom = 1.15;
+        board.bump_viewport_revision();
+        assert!(board.begin_direct_viewport_action(WHEEL_ZOOM_AUTHOR_ID, origin));
+        let first_requested = (board.pan, board.zoom);
+        let (action_id, generation) = board
+            .pending_viewport_correlation(
+                first_requested.0.x,
+                first_requested.0.y,
+                first_requested.1,
+            )
+            .expect("the direct gesture owns an exact typed pending action");
+
+        assert!(
+            !board.viewport_interactions_allowed(),
+            "a second wheel/pan gesture cannot dispatch while the first PUT is unresolved"
+        );
+        assert_eq!(
+            (board.pan, board.zoom),
+            first_requested,
+            "serialization leaves the first optimistic request intact"
+        );
+
+        assert!(board.fail_pending_viewport(
+            "ws-test",
+            "canvas-1",
+            &action_id,
+            generation,
+            "canvas mutation runtime is unavailable".to_owned(),
+        ));
+        assert_eq!((board.pan, board.zoom), (origin.pan, origin.zoom));
+        assert!(board.pending_viewport.is_none());
+        assert_eq!(board.viewport_observer.phase, CanvasObserverPhase::Failed);
     }
 
     /// PROOF1 / MC-1: canvas_to_screen and screen_to_canvas are exact inverses (< 1px round-trip) across
@@ -3871,6 +4418,7 @@ mod tests {
             1.0,
         );
         assert!(board.projection_is_confirmed());
+        assert!(board.mutation_interactions_allowed());
         assert!(placement_menu_availability(&board.placements[0], true).can_route_to_stage);
 
         board.begin_projection_load("workspace-b", "canvas-b");
@@ -3879,8 +4427,11 @@ mod tests {
             "A placements are cleared on A -> B"
         );
         assert!(!board.projection_is_confirmed());
+        assert!(!board.mutation_interactions_allowed());
+        assert_eq!(board.authoritative_event_ledger_event_id(), None);
         board.fail_projection("B failed");
         assert!(!board.projection_is_confirmed());
+        assert!(!board.mutation_interactions_allowed());
 
         board.begin_projection_load("workspace-b", "canvas-b");
         board.set_board(
@@ -3892,6 +4443,7 @@ mod tests {
             1.0,
         );
         assert!(board.projection_is_confirmed());
+        assert!(board.mutation_interactions_allowed());
         assert!(placement_menu_availability(&board.placements[0], true).can_route_to_stage);
     }
 
@@ -3917,6 +4469,16 @@ mod tests {
                 "same-binding refresh retains its card"
             );
             assert!(!board.projection_is_confirmed());
+            assert!(!board.mutation_interactions_allowed());
+            board.pending_knowledge_events.push(CanvasEvent::AddCard {
+                title: "must-not-dispatch".to_owned(),
+                x: 1.0,
+                y: 2.0,
+            });
+            assert!(
+                board.drain_knowledge_events().is_empty(),
+                "model-dispatched mutations fail closed while the projection is not authoritative"
+            );
             let availability =
                 placement_menu_availability(&board.placements[0], board.projection_is_confirmed());
             for item in node_context_items(availability)
@@ -3931,6 +4493,25 @@ mod tests {
                 assert_eq!(node_action_for_id(item.id, availability), None);
             }
         }
+    }
+
+    #[test]
+    fn authoritative_board_exposes_exact_event_revision_for_mutation_cas() {
+        let mut board = LoomCanvasBoard::new("workspace-a", "canvas-a");
+        board.set_authoritative_board(
+            Vec::new(),
+            Vec::new(),
+            Vec2::ZERO,
+            1.0,
+            "2026-08-27T06:05:00Z".to_owned(),
+            "KE-board-revision-9".to_owned(),
+        );
+
+        assert!(board.mutation_interactions_allowed());
+        assert_eq!(
+            board.authoritative_event_ledger_event_id(),
+            Some("KE-board-revision-9")
+        );
     }
 
     #[test]

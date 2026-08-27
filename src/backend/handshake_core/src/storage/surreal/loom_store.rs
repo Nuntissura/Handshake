@@ -18,10 +18,11 @@ use uuid::Uuid;
 use super::{event_ledger, SurrealDataContext, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::{
-    Asset, LoomBacklink, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
-    LoomBlockUpdate, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers, LoomEdge,
-    LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomFolderSortMode, LoomFolderUpdate, LoomGraph,
-    LoomGraphEdge, LoomGraphNode, LoomGraphSearchResult, LoomSearchFilters, LoomSearchResultKind,
+    Asset, LoomBacklink, LoomBlock, LoomBlockContentType, LoomBlockDerived,
+    LoomBlockMutationReceipt, LoomBlockSearchResult, LoomBlockUpdate, LoomCollection,
+    LoomCollectionMember, LoomCollectionWithMembers, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
+    LoomFolder, LoomFolderSortMode, LoomFolderUpdate, LoomGraph, LoomGraphEdge, LoomGraphNode,
+    LoomGraphSearchResult, LoomMutationEventReceipt, LoomSearchFilters, LoomSearchResultKind,
     LoomSearchSourceKind, LoomSourceAnchor, LoomTagHub, LoomUnlinkedMention, LoomViewFilters,
     LoomViewGroup, LoomViewResponse, LoomViewType, MediaAssetTier, MediaTier, MediaTierStatus,
     MediaTierUpsert, MutationMetadata, NewAsset, NewLoomBlock, NewLoomEdge, NewLoomFolder,
@@ -2951,6 +2952,18 @@ struct PinMutationBinding {
     ledger: event_ledger::LedgerWrite,
 }
 
+#[derive(SurrealValue)]
+struct EventRecordBinding {
+    record: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct MutationEventRow {
+    event_id: String,
+    event_sequence: i64,
+    created_at: Datetime,
+}
+
 async fn mutate_pin(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
@@ -2959,8 +2972,9 @@ async fn mutate_pin(
     pinned: Option<bool>,
     operation: &str,
     metadata: MutationMetadata,
-) -> StorageResult<LoomBlock> {
+) -> StorageResult<(LoomBlock, LoomMutationEventReceipt)> {
     require_guarded_resource(&metadata, block_id)?;
+    let _guard = LOOM_MUTATION_LOCK.lock().await;
     let event = build_loom_mutation_event(
         workspace_id,
         "loom_block",
@@ -2969,6 +2983,7 @@ async fn mutate_pin(
         json!({ "fields_changed": if pinned.is_some() { vec!["pin_order", "pinned"] } else { vec!["pin_order"] } }),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
+    let event_record = ledger.record.clone();
     let rows = db
         .query_values_at::<BlockRow, _>(
             "BEGIN TRANSACTION; \
@@ -2995,10 +3010,31 @@ async fn mutate_pin(
         )
         .await
         .map_err(guarded_err)?;
-    rows.into_iter()
+    let block = rows
+        .into_iter()
         .next()
         .ok_or(StorageError::NotFound("loom_block"))
-        .and_then(block_to_domain)
+        .and_then(block_to_domain)?;
+    let event: Option<MutationEventRow> = db
+        .query_first(
+            "SELECT event_id, event_sequence, created_at FROM $record;",
+            EventRecordBinding {
+                record: event_record,
+            },
+        )
+        .await
+        .map_err(guarded_err)?;
+    let event = event.ok_or_else(|| {
+        StorageError::Database("committed Loom mutation EventLedger row is missing".to_owned())
+    })?;
+    Ok((
+        block,
+        LoomMutationEventReceipt {
+            event_id: event.event_id,
+            event_sequence: event.event_sequence,
+            created_at: event.created_at.into_inner(),
+        },
+    ))
 }
 
 pub(crate) async fn set_loom_block_pin_order(
@@ -3022,6 +3058,7 @@ pub(crate) async fn set_loom_block_pin_order(
         metadata,
     )
     .await
+    .map(|(block, _)| block)
 }
 
 pub(crate) async fn remove_loom_block_pin(
@@ -3029,7 +3066,7 @@ pub(crate) async fn remove_loom_block_pin(
     workspace_id: &str,
     block_id: &str,
     metadata: MutationMetadata,
-) -> StorageResult<LoomBlock> {
+) -> StorageResult<LoomBlockMutationReceipt> {
     mutate_pin(
         db,
         workspace_id,
@@ -3040,6 +3077,7 @@ pub(crate) async fn remove_loom_block_pin(
         metadata,
     )
     .await
+    .map(|(block, event)| LoomBlockMutationReceipt { block, event })
 }
 
 #[derive(Clone, SurrealValue)]
@@ -3721,6 +3759,18 @@ mod tests {
     }
 
     #[derive(SurrealValue)]
+    struct MutationIdentityProofRow {
+        event_id: String,
+        event_sequence: i64,
+        payload: JsonValue,
+    }
+
+    #[derive(SurrealValue)]
+    struct BlockEventLinkProofRow {
+        event_ledger_event_id: RecordId,
+    }
+
+    #[derive(SurrealValue)]
     struct KnowledgeEntitySearchSeed {
         entity_id: String,
         workspace_id: RecordId,
@@ -3873,6 +3923,129 @@ mod tests {
             .await
             .expect("block lifecycle operation")
             .expect("create block")
+    }
+
+    #[tokio::test]
+    async fn concurrent_pin_removals_return_their_exact_committed_event_identity() {
+        let temp = tempfile::tempdir().expect("create temporary data root");
+        let (_, store) = open_store(&temp).await;
+        super::super::schema::bootstrap_loom_receipt_test_schema(&store)
+            .await
+            .expect("bootstrap production Loom receipt schema");
+        let workspace_id = "loom-pin-receipt-workspace";
+        let block_id = "concurrent-pin";
+        seed_workspace(&store, workspace_id).await;
+        create_test_block(&store, workspace_id, block_id, "Concurrent pin", Utc::now()).await;
+
+        let seed_workspace_id = workspace_id.to_owned();
+        let seed_block_id = block_id.to_owned();
+        store
+            .with_storage_operation(move |db| {
+                Box::pin(async move {
+                    update_loom_block(
+                        &db,
+                        &seed_workspace_id,
+                        &seed_block_id,
+                        LoomBlockUpdate {
+                            pinned: Some(true),
+                            pin_order: Some(0),
+                            ..LoomBlockUpdate::default()
+                        },
+                        metadata(&seed_block_id, Utc::now()),
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("seed pin lifecycle")
+            .expect("seed pinned block");
+
+        let remove = |store: SurrealStorage, actor: &'static str| {
+            let workspace_id = workspace_id.to_owned();
+            let block_id = block_id.to_owned();
+            async move {
+                store
+                    .with_storage_operation(move |db| {
+                        let mut write_metadata = metadata(&block_id, Utc::now());
+                        write_metadata.actor_id = Some(actor.to_owned());
+                        Box::pin(async move {
+                            remove_loom_block_pin(&db, &workspace_id, &block_id, write_metadata)
+                                .await
+                        })
+                    })
+                    .await
+                    .expect("pin removal lifecycle")
+                    .expect("remove pin")
+            }
+        };
+        let (first, second) = tokio::join!(
+            remove(store.clone(), "concurrent-removal-a"),
+            remove(store.clone(), "concurrent-removal-b")
+        );
+
+        assert_ne!(first.event.event_id, second.event.event_id);
+        assert_ne!(first.event.event_sequence, second.event.event_sequence);
+        assert!(!first.block.pinned && first.block.pin_order.is_none());
+        assert!(!second.block.pinned && second.block.pin_order.is_none());
+
+        for receipt in [&first, &second] {
+            let row = store
+                .with_data_operation({
+                    let event_id = receipt.event.event_id.clone();
+                    move |db| {
+                        Box::pin(async move {
+                            db.query_first::<MutationIdentityProofRow, _>(
+                                "SELECT event_id, event_sequence, payload FROM $record;",
+                                RecordBinding {
+                                    record: thing("kernel_event_ledger", event_id),
+                                },
+                            )
+                            .await
+                        })
+                    }
+                })
+                .await
+                .expect("read exact receipt event")
+                .expect("receipt event exists");
+            assert_eq!(row.event_id, receipt.event.event_id);
+            assert_eq!(row.event_sequence, receipt.event.event_sequence);
+            assert_eq!(row.payload["operation"], "pin_removed");
+            assert_eq!(row.payload["block_id"], block_id);
+        }
+
+        let final_receipt = [&first, &second]
+            .into_iter()
+            .max_by_key(|receipt| receipt.event.event_sequence)
+            .expect("one final pin-removal receipt");
+        let final_block_link = store
+            .with_data_operation({
+                let block_id = block_id.to_owned();
+                move |db| {
+                    Box::pin(async move {
+                        db.query_first::<BlockEventLinkProofRow, _>(
+                            "SELECT event_ledger_event_id FROM $record;",
+                            RecordBinding {
+                                record: thing(BLOCKS_TABLE, block_id),
+                            },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await
+            .expect("read final block EventLedger link")
+            .expect("final block exists");
+        assert_eq!(
+            record_key(
+                final_block_link.event_ledger_event_id,
+                "kernel_event_ledger"
+            )
+            .expect("block links the EventLedger table"),
+            final_receipt.event.event_id,
+            "the final block revision must link the exact last committed removal receipt"
+        );
+
+        store.shutdown().await.expect("close embedded store");
     }
 
     #[tokio::test]

@@ -3006,6 +3006,8 @@ fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
             pan_x: 0.0,
             pan_y: 0.0,
             zoom: 1.0,
+            updated_at: "2026-08-27T05:00:00Z".to_owned(),
+            event_ledger_event_id: "KE-board-live".to_owned(),
         }));
     harness.run_steps(2);
     let request = harness
@@ -3094,6 +3096,8 @@ fn canvas_board_rejects_cross_binding_and_out_of_order_refresh_deliveries() {
             pan_x: 0.0,
             pan_y: 0.0,
             zoom: 1.0,
+            updated_at: "2026-08-27T05:00:00Z".to_owned(),
+            event_ledger_event_id: format!("KE-board-{id}"),
         }
     }
 
@@ -3282,6 +3286,8 @@ fn host_created_text_card_reloads_inline_editable() {
                 pan_x: 0.0,
                 pan_y: 0.0,
                 zoom: 1.0,
+                updated_at: "2026-08-27T05:00:00Z".to_owned(),
+                event_ledger_event_id: "KE-board-card".to_owned(),
             }));
         harness.run_steps(2);
         if board

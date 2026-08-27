@@ -1517,7 +1517,7 @@ impl Database for SurrealDatabase {
         ctx: &WriteContext,
         workspace_id: &str,
         block_id: &str,
-    ) -> StorageResult<LoomBlock> {
+    ) -> StorageResult<LoomBlockMutationReceipt> {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
@@ -1729,6 +1729,7 @@ impl Database for SurrealDatabase {
         workspace_id: &str,
         block_id: &str,
         board_state: Value,
+        expected_event_ledger_event_id: &str,
     ) -> StorageResult<LoomCanvasBoard> {
         super::loom_canvas_store::update_canvas_board_state(
             &self.storage,
@@ -1736,6 +1737,7 @@ impl Database for SurrealDatabase {
             workspace_id,
             block_id,
             board_state,
+            expected_event_ledger_event_id,
         )
         .await
     }
@@ -1786,7 +1788,7 @@ impl Database for SurrealDatabase {
         ctx: &WriteContext,
         workspace_id: &str,
         placement_id: &str,
-    ) -> StorageResult<()> {
+    ) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
         super::loom_canvas_store::remove_canvas_placement(
             &self.storage,
             ctx,

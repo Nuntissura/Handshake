@@ -16,8 +16,9 @@ use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{knowledge_canonical_json_sha256, rich_document_loom_projection};
 use crate::storage::{
     CompensateLoomCanvasStageCard, LoomBlock, LoomBlockContentType, LoomCanvasBoard,
-    LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate, LoomCanvasStageCard,
-    LoomCanvasStageCompensation, LoomCanvasStageProvenance, LoomCanvasVisualEdge,
+    LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementRemovalReceipt,
+    LoomCanvasPlacementUpdate, LoomCanvasStageCard, LoomCanvasStageCompensation,
+    LoomCanvasStageProvenance, LoomCanvasVisualEdge, LoomMutationEventReceipt,
     NewLoomCanvasPlacement, NewLoomCanvasStageCard, StorageError, StorageResult, WriteActorKind,
     WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
@@ -50,7 +51,15 @@ struct BoardWriteBindings {
     block: RecordId,
     workspace: RecordId,
     board_state: Value,
+    expected_event: Option<RecordId>,
     event: event_ledger::LedgerWrite,
+}
+
+#[derive(SurrealValue)]
+struct MutationEventRow {
+    event_id: String,
+    event_sequence: i64,
+    created_at: Datetime,
 }
 
 #[derive(SurrealValue)]
@@ -103,6 +112,15 @@ struct PlacementUpdateBindings {
 struct RecordWorkspaceBindings {
     record: RecordId,
     workspace: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct PlacementRemovalBindings {
+    placement: RecordId,
+    workspace: RecordId,
+    canvas: RecordId,
+    placed_block: RecordId,
+    event: event_ledger::LedgerWrite,
 }
 
 #[derive(SurrealValue)]
@@ -363,6 +381,8 @@ fn map_err(error: SurrealStorageError) -> StorageError {
     let rendered = error.to_string();
     if rendered.contains("HSK-CANVAS-BOARD-NOT-FOUND") {
         StorageError::NotFound("loom_canvas_board")
+    } else if rendered.contains("HSK-CANVAS-STALE-VIEWPORT") {
+        StorageError::Conflict("loom_canvas_board_stale_event_revision")
     } else if rendered.contains("HSK-CANVAS-PLACEMENT-NOT-FOUND") {
         StorageError::NotFound("loom_canvas_placement")
     } else if rendered.contains("HSK-CANVAS-VISUAL-EDGE-NOT-FOUND") {
@@ -570,6 +590,32 @@ fn prepare_canvas_event(
     event_ledger::prepare_event(event).map(|(_, write)| write)
 }
 
+fn prepare_placement_removal_event(
+    ctx: &WriteContext,
+    placement: &LoomCanvasPlacement,
+) -> StorageResult<event_ledger::LedgerWrite> {
+    let run_id = format!("LOOM-CANVAS-PLACEMENT-{}", placement.placement_id);
+    let event = NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomCanvasBoardRecorded,
+        bridge_actor(ctx),
+    )
+    .aggregate("loom_canvas_placement", placement.placement_id.clone())
+    .source_component("loom_canvas_board")
+    .payload(json!({
+        "type": "knowledge_loom_canvas_placement_removed",
+        "op": "remove_placement",
+        "workspace_id": placement.workspace_id,
+        "canvas_block_id": placement.canvas_block_id,
+        "placement_id": placement.placement_id,
+        "placed_block_id": placement.placed_block_id,
+    }))
+    .build()
+    .map_err(|_| StorageError::Validation("loom canvas placement removal event build failed"))?;
+    event_ledger::prepare_event(event).map(|(_, write)| write)
+}
+
 async fn validate_write(
     storage: &SurrealStorage,
     ctx: &WriteContext,
@@ -622,6 +668,7 @@ pub(crate) async fn create_canvas_board(
         block: RecordId::new(BLOCKS, block_id.to_owned()),
         workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
         board_state,
+        expected_event: None,
         event,
     };
     // Result indexes: BEGIN=0, block/board-identity guards=1..2, event=3,
@@ -762,8 +809,16 @@ pub(crate) async fn update_canvas_board_state(
     workspace_id: &str,
     block_id: &str,
     board_state: Value,
+    expected_event_ledger_event_id: &str,
 ) -> StorageResult<LoomCanvasBoard> {
     validate_board_state(&board_state)?;
+    if expected_event_ledger_event_id.trim().is_empty()
+        || expected_event_ledger_event_id.trim() != expected_event_ledger_event_id
+    {
+        return Err(StorageError::Validation(
+            "canvas viewport requires an exact EventLedger revision",
+        ));
+    }
     validate_write(storage, ctx, block_id).await?;
     let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
     let event = prepare_canvas_event(block_id, workspace_id, "viewport", board_state.clone())?;
@@ -772,10 +827,14 @@ pub(crate) async fn update_canvas_board_state(
         block: RecordId::new(BLOCKS, block_id.to_owned()),
         workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
         board_state,
+        expected_event: Some(RecordId::new(
+            EVENT_LEDGER,
+            expected_event_ledger_event_id.to_owned(),
+        )),
         event,
     };
-    // Result indexes: BEGIN=0, board guard=1, event=2, UPDATE=3,
-    // COMMIT=4, projection SELECT=5.
+    // Result indexes: BEGIN=0, board guard=1, revision guard=2, event=3,
+    // UPDATE=4, COMMIT=5, projection SELECT=6.
     let rows: Vec<BoardRow> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
@@ -784,6 +843,10 @@ pub(crate) async fn update_canvas_board_state(
                         "BEGIN TRANSACTION; \
                          IF (SELECT VALUE id FROM $board WHERE workspace_id = $workspace)[0] = NONE { \
                            THROW 'HSK-CANVAS-BOARD-NOT-FOUND'; \
+                         }; \
+                         IF (SELECT VALUE event_ledger_event_id FROM $board \
+                           WHERE workspace_id = $workspace)[0] != $expected_event { \
+                           THROW 'HSK-CANVAS-STALE-VIEWPORT'; \
                          }; \
                          CREATE $event.record CONTENT { \
                            event_id: $event.event_id, event_version: $event.event_version, \
@@ -802,7 +865,7 @@ pub(crate) async fn update_canvas_board_state(
                          SELECT block_id, workspace_id, board_state, created_at, updated_at, \
                            event_ledger_event_id FROM $board;",
                         bindings,
-                        5,
+                        6,
                     )
                     .await
             })
@@ -1948,33 +2011,68 @@ pub(crate) async fn remove_canvas_placement(
     ctx: &WriteContext,
     workspace_id: &str,
     placement_id: &str,
-) -> StorageResult<()> {
+) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
     validate_write(storage, ctx, placement_id).await?;
     let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
-    let count = storage
-        .with_data_operation({
-            let bindings = RecordWorkspaceBindings {
-                record: RecordId::new(PLACEMENTS, placement_id.to_owned()),
-                workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
-            };
-            move |database| {
-                Box::pin(async move {
-                    database
-                        .execute_returning(
-                            "DELETE $record WHERE workspace_id = $workspace RETURN BEFORE;",
-                            bindings,
-                        )
-                        .await
-                })
-            }
+    let placement = read_placement(storage, workspace_id, placement_id).await?;
+    let event = prepare_placement_removal_event(ctx, &placement)?;
+    let bindings = PlacementRemovalBindings {
+        placement: RecordId::new(PLACEMENTS, placement.placement_id.clone()),
+        workspace: RecordId::new(WORKSPACES, placement.workspace_id.clone()),
+        canvas: RecordId::new(BOARDS, placement.canvas_block_id.clone()),
+        placed_block: RecordId::new(BLOCKS, placement.placed_block_id.clone()),
+        event,
+    };
+    // Result indexes: BEGIN=0, identity guard=1, event=2, deletion=3,
+    // COMMIT=4, exact receipt SELECT=5.
+    let rows: Vec<MutationEventRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values_at(
+                        "BEGIN TRANSACTION; \
+                         IF array::len((SELECT id FROM $placement WHERE workspace_id = $workspace \
+                           AND canvas_block_id = $canvas AND placed_block_id = $placed_block)) != 1 { \
+                           THROW 'HSK-CANVAS-PLACEMENT-NOT-FOUND'; \
+                         }; \
+                         CREATE $event.record CONTENT { \
+                           event_id: $event.event_id, event_version: $event.event_version, \
+                           kernel_task_run_id: $event.kernel_task_run_id, \
+                           session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, \
+                           aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, \
+                           event_type: $event.event_type, actor_kind: $event.actor_kind, \
+                           actor_id: $event.actor_id, causation_id: $event.causation_id, \
+                           correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
+                           source_component: $event.source_component, payload: $event.payload, \
+                           created_at: $event.created_at \
+                         }; \
+                         DELETE $placement; \
+                         COMMIT TRANSACTION; \
+                         SELECT event_id, event_sequence, created_at FROM $event.record;",
+                        bindings,
+                        5,
+                    )
+                    .await
+            })
         })
         .await
         .map_err(map_err)?;
-    if count == 1 {
-        Ok(())
-    } else {
-        Err(StorageError::NotFound("loom_canvas_placement"))
-    }
+    let event = rows.into_iter().next().ok_or_else(|| {
+        StorageError::Database(
+            "committed Canvas placement removal EventLedger row is missing".to_owned(),
+        )
+    })?;
+    Ok(LoomCanvasPlacementRemovalReceipt {
+        workspace_id: placement.workspace_id,
+        canvas_block_id: placement.canvas_block_id,
+        placement_id: placement.placement_id,
+        placed_block_id: placement.placed_block_id,
+        event: LoomMutationEventReceipt {
+            event_id: event.event_id,
+            event_sequence: event.event_sequence,
+            created_at: event.created_at.into_inner(),
+        },
+    })
 }
 
 pub(crate) async fn add_canvas_visual_edge(
@@ -2071,5 +2169,257 @@ pub(crate) async fn remove_canvas_visual_edge(
         Ok(())
     } else {
         Err(StorageError::NotFound("loom_canvas_visual_edge"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+    use crate::storage::{LoomBlockDerived, MutationMetadata, NewLoomBlock, WriteActorKind};
+    use chrono::Utc;
+
+    #[derive(SurrealValue)]
+    struct WorkspaceSeed {
+        name: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct RemovalEventProofRow {
+        event_id: String,
+        event_sequence: i64,
+        payload: Value,
+    }
+
+    #[derive(SurrealValue)]
+    struct EventRecordBinding {
+        record: RecordId,
+    }
+
+    fn context() -> WriteContext {
+        WriteContext::system(Some("loom-canvas-receipt-test".to_owned()))
+    }
+
+    fn metadata(resource_id: &str) -> MutationMetadata {
+        MutationMetadata {
+            actor_kind: WriteActorKind::System,
+            actor_id: Some("loom-canvas-receipt-test".to_owned()),
+            job_id: None,
+            workflow_id: None,
+            edit_event_id: Uuid::now_v7(),
+            resource_id: resource_id.to_owned(),
+            timestamp: Utc::now(),
+        }
+    }
+
+    fn board_state(pan_x: f64) -> Value {
+        json!({
+            "schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID,
+            "pan_x": pan_x,
+            "pan_y": 0.0,
+            "zoom": 1.0,
+        })
+    }
+
+    async fn open_store() -> (tempfile::TempDir, SurrealStorage) {
+        let temp = tempfile::tempdir().expect("create temporary data root");
+        let config = SurrealStorageConfig::for_data_dir(temp.path())
+            .expect("configure real embedded Surreal store");
+        let store = SurrealStorage::open(config)
+            .await
+            .expect("open real embedded Surreal store");
+        super::super::schema::bootstrap_loom_receipt_test_schema(&store)
+            .await
+            .expect("bootstrap production Loom receipt schema");
+        (temp, store)
+    }
+
+    async fn seed_workspace(store: &SurrealStorage, workspace_id: &str) {
+        let workspace_id = workspace_id.to_owned();
+        store
+            .with_data_operation(move |db| {
+                Box::pin(async move {
+                    let _: Option<surrealdb::types::Value> = db
+                        .upsert_one(
+                            WORKSPACES,
+                            &workspace_id,
+                            WorkspaceSeed {
+                                name: "Canvas receipt workspace".to_owned(),
+                            },
+                        )
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed workspace");
+    }
+
+    async fn create_block(
+        store: &SurrealStorage,
+        workspace_id: &str,
+        block_id: &str,
+        content_type: LoomBlockContentType,
+    ) {
+        let block = NewLoomBlock {
+            block_id: Some(block_id.to_owned()),
+            workspace_id: workspace_id.to_owned(),
+            content_type,
+            document_id: None,
+            asset_id: None,
+            title: Some(block_id.to_owned()),
+            original_filename: None,
+            content_hash: None,
+            pinned: false,
+            journal_date: None,
+            imported_at: None,
+            derived: LoomBlockDerived::default(),
+        };
+        let write_metadata = metadata(block_id);
+        store
+            .with_storage_operation(move |db| {
+                Box::pin(
+                    async move { loom_store::create_loom_block(&db, block, write_metadata).await },
+                )
+            })
+            .await
+            .expect("block lifecycle")
+            .expect("create Loom block");
+    }
+
+    async fn create_board_fixture(
+        store: &SurrealStorage,
+        workspace_id: &str,
+        canvas_id: &str,
+    ) -> LoomCanvasBoard {
+        seed_workspace(store, workspace_id).await;
+        create_block(store, workspace_id, canvas_id, LoomBlockContentType::Canvas).await;
+        create_canvas_board(store, &context(), workspace_id, canvas_id, board_state(0.0))
+            .await
+            .expect("create Canvas board")
+    }
+
+    #[tokio::test]
+    async fn viewport_compare_and_swap_rejects_stale_event_revision() {
+        let (_temp, store) = open_store().await;
+        let workspace_id = "canvas-cas-workspace";
+        let canvas_id = "canvas-cas";
+        let created = create_board_fixture(&store, workspace_id, canvas_id).await;
+
+        let updated = update_canvas_board_state(
+            &store,
+            &context(),
+            workspace_id,
+            canvas_id,
+            board_state(10.0),
+            &created.event_ledger_event_id,
+        )
+        .await
+        .expect("first viewport update");
+        assert_ne!(updated.event_ledger_event_id, created.event_ledger_event_id);
+        assert!(updated.updated_at >= created.updated_at);
+
+        let stale = update_canvas_board_state(
+            &store,
+            &context(),
+            workspace_id,
+            canvas_id,
+            board_state(99.0),
+            &created.event_ledger_event_id,
+        )
+        .await;
+        assert!(matches!(
+            stale,
+            Err(StorageError::Conflict(
+                "loom_canvas_board_stale_event_revision"
+            ))
+        ));
+
+        let authoritative = get_canvas_board(&store, workspace_id, canvas_id)
+            .await
+            .expect("read authoritative Canvas board");
+        assert_eq!(
+            authoritative.board.event_ledger_event_id,
+            updated.event_ledger_event_id
+        );
+        assert_eq!(authoritative.board.updated_at, updated.updated_at);
+        assert_eq!(authoritative.board.board_state["pan_x"], 10.0);
+        store.shutdown().await.expect("close embedded store");
+    }
+
+    #[tokio::test]
+    async fn placement_removal_returns_exact_event_and_preserves_source_block() {
+        let (_temp, store) = open_store().await;
+        let workspace_id = "canvas-removal-workspace";
+        let canvas_id = "canvas-removal";
+        let source_id = "canvas-removal-source";
+        create_board_fixture(&store, workspace_id, canvas_id).await;
+        create_block(&store, workspace_id, source_id, LoomBlockContentType::Note).await;
+        let placement = place_block_on_canvas(
+            &store,
+            &context(),
+            NewLoomCanvasPlacement {
+                canvas_block_id: canvas_id.to_owned(),
+                workspace_id: workspace_id.to_owned(),
+                placed_block_id: source_id.to_owned(),
+                x: 1.0,
+                y: 2.0,
+                w: 100.0,
+                h: 80.0,
+                z_index: 0,
+                group_id: None,
+                is_text_card: false,
+                stage_provenance_key: None,
+            },
+        )
+        .await
+        .expect("place source block");
+
+        let receipt =
+            remove_canvas_placement(&store, &context(), workspace_id, &placement.placement_id)
+                .await
+                .expect("remove placement");
+        assert_eq!(receipt.workspace_id, workspace_id);
+        assert_eq!(receipt.canvas_block_id, canvas_id);
+        assert_eq!(receipt.placement_id, placement.placement_id);
+        assert_eq!(receipt.placed_block_id, source_id);
+
+        let event = store
+            .with_data_operation({
+                let event_id = receipt.event.event_id.clone();
+                move |db| {
+                    Box::pin(async move {
+                        db.query_first::<RemovalEventProofRow, _>(
+                            "SELECT event_id, event_sequence, payload FROM $record;",
+                            EventRecordBinding {
+                                record: RecordId::new(EVENT_LEDGER, event_id),
+                            },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await
+            .expect("read removal event")
+            .expect("removal event exists");
+        assert_eq!(event.event_id, receipt.event.event_id);
+        assert_eq!(event.event_sequence, receipt.event.event_sequence);
+        assert_eq!(event.payload["workspace_id"], workspace_id);
+        assert_eq!(event.payload["canvas_block_id"], canvas_id);
+        assert_eq!(event.payload["placement_id"], placement.placement_id);
+        assert_eq!(event.payload["placed_block_id"], source_id);
+
+        let board = get_canvas_board(&store, workspace_id, canvas_id)
+            .await
+            .expect("read Canvas after placement removal");
+        assert!(board.placements.is_empty());
+        assert_eq!(
+            read_loom_block(&store, workspace_id, source_id)
+                .await
+                .expect("source block survives")
+                .block_id,
+            source_id
+        );
+        store.shutdown().await.expect("close embedded store");
     }
 }

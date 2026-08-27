@@ -319,7 +319,7 @@ mod live {
         // Bind the active block so Backlinks + Unlinked load from the live workspace too, then reopen
         // the Sidebar surface (opening a Loom block replaces the pane content).
         harness
-            .state()
+            .state_mut()
             .bind_sidebar_active_block_for_test(&retained_pin);
         drive_until(
             &mut harness,

@@ -2356,14 +2356,15 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom canvas board backend"))
     }
 
-    /// Persist a new viewport (pan/zoom) for a board, leaving an EventLedger
-    /// receipt. Authority is the embedded SurrealDB store, never localStorage.
+    /// Persist a new viewport (pan/zoom) only when the caller's EventLedger revision still matches,
+    /// returning the new authoritative board revision.
     async fn update_canvas_board_state(
         &self,
         _ctx: &WriteContext,
         _workspace_id: &str,
         _block_id: &str,
         _board_state: Value,
+        _expected_event_ledger_event_id: &str,
     ) -> StorageResult<LoomCanvasBoard> {
         Err(StorageError::NotImplemented("loom canvas board backend"))
     }
@@ -2414,14 +2415,14 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom canvas board backend"))
     }
 
-    /// Remove a placement. Deletes ONLY the placement row; the referenced
-    /// LoomBlock is never touched (reference-not-copy negative proof).
+    /// Remove a placement and return the exact EventLedger receipt committed with that deletion.
+    /// Deletes ONLY the placement row; the referenced LoomBlock is never touched.
     async fn remove_canvas_placement(
         &self,
         _ctx: &WriteContext,
         _workspace_id: &str,
         _placement_id: &str,
-    ) -> StorageResult<()> {
+    ) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
         Err(StorageError::NotImplemented("loom canvas board backend"))
     }
 
@@ -2712,13 +2713,13 @@ pub trait Database: Send + Sync {
     /// ordinal AND unpin the block in ONE transaction alongside the durable
     /// EventLedger receipt. Collapses the old two-call remove flow (PUT
     /// /pin-order(null) THEN PATCH {pinned:false}) so a pin removal can never
-    /// leave partial persisted state. Returns the updated block.
+    /// leave partial persisted state. Returns the updated block and exact committed EventLedger row.
     async fn remove_loom_block_pin(
         &self,
         _ctx: &WriteContext,
         _workspace_id: &str,
         _block_id: &str,
-    ) -> StorageResult<LoomBlock> {
+    ) -> StorageResult<LoomBlockMutationReceipt> {
         Err(StorageError::NotImplemented("loom pin removal backend"))
     }
 
