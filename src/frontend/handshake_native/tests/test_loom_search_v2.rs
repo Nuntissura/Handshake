@@ -2004,6 +2004,24 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     assert_eq!(reloaded["block"]["title"], format!("Search: {needle}"));
     assert_eq!(reloaded["definition"]["kind"], "table");
     assert_eq!(reloaded["definition"]["query"]["content_type"], "note");
+    let saved_view_events = live.get_json(&format!(
+        "/kernel/events/aggregates/loom_block/{saved_view_id}"
+    ));
+    let saved_view_mutation_event = saved_view_events
+        .as_array()
+        .expect("saved-view EventLedger response is an array")
+        .iter()
+        .find(|event| {
+            event["event_type"] == "KNOWLEDGE_LOOM_BLOCK_MUTATED"
+                && event["aggregate_type"] == "loom_block"
+                && event["aggregate_id"] == saved_view_id
+                && event["payload"]["workspace_id"] == workspace_id
+                && event["payload"]["block_id"] == saved_view_id
+                && event["payload"]["content_type"] == "view_def"
+                && event["payload"]["operation"] == "create_view_definition"
+        })
+        .cloned()
+        .expect("saved-view creation has an exact SurrealDB EventLedger receipt");
     let stale_reloaded = live.get_json(&format!(
         "/workspaces/{workspace_id}/loom/views/definitions/{stale_saved_view_id}"
     ));
@@ -2432,7 +2450,8 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
             "block_id": saved_view_id,
             "reloaded": true,
             "persisted_note_facet": true,
-            "reopened_in_block_collections": true
+            "reopened_in_block_collections": true,
+            "event_ledger": saved_view_mutation_event
         },
         "canonical_argus": {
             "inspect_click_set_value_with_terminal_predicates": true,
