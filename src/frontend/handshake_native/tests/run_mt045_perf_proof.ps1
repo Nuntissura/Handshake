@@ -9,6 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$script:mt045DescendantExitGraceMilliseconds = 15000
 $mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260802-v7"
 $mt045JobRunnerSource = @'
 using System;
@@ -796,7 +797,7 @@ function Invoke-BoundedCargo {
                 $stdoutPath,
                 $stderrPath,
                 ($TimeoutSeconds * 1000),
-                15000
+                $script:mt045DescendantExitGraceMilliseconds
             )
         }
         catch {
@@ -1918,7 +1919,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             (Join-Path $selfTestRoot "grace-job.stdout.log"),
             (Join-Path $selfTestRoot "grace-job.stderr.log"),
             10000,
-            5000
+            $script:mt045DescendantExitGraceMilliseconds
         )
         if (
             $graceJobResult.TimedOut -or
@@ -1927,7 +1928,16 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             @($graceJobResult.LeakedProcessIds).Count -ne 0 -or
             @($graceJobResult.PostDrainDescendantProcessIds).Count -ne 0
         ) {
-            throw "diagnostics self-test did not allow an owned child to exit inside grace"
+            $graceFailure = [ordered]@{
+                grace_ms = $script:mt045DescendantExitGraceMilliseconds
+                timed_out = $graceJobResult.TimedOut
+                exit_code = $graceJobResult.ExitCode
+                leaked_process_count = $graceJobResult.LeakedProcessCount
+                leaked_process_ids = @($graceJobResult.LeakedProcessIds)
+                pre_cleanup_descendant_process_ids = @($graceJobResult.PreCleanupDescendantProcessIds)
+                post_drain_descendant_process_ids = @($graceJobResult.PostDrainDescendantProcessIds)
+            }
+            throw "diagnostics self-test did not allow an owned child to exit inside production grace: $($graceFailure | ConvertTo-Json -Compress)"
         }
 
         $leakEncodedParent = & $newEncodedParent -ChildSleepMilliseconds 30000 -ParentSleepMilliseconds 0
