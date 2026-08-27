@@ -918,7 +918,13 @@ if ($RunId -cnotmatch "^MT045-RUN-[A-Za-z0-9_-]{8,96}$") {
 
 $crateRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $repoRoot = (Resolve-Path (Join-Path $crateRoot "..\..\..")).Path
-$artifactRootPath = Join-Path (Split-Path $repoRoot -Parent) "Handshake_Artifacts"
+$configuredArtifactRoot = [Environment]::GetEnvironmentVariable("HANDSHAKE_ARTIFACTS_ROOT")
+$artifactRootPath = if ([string]::IsNullOrWhiteSpace($configuredArtifactRoot)) {
+    Join-Path (Split-Path $repoRoot -Parent) "Handshake_Artifacts"
+}
+else {
+    [IO.Path]::GetFullPath($configuredArtifactRoot)
+}
 if (-not (Test-Path -LiteralPath $artifactRootPath -PathType Container)) {
     throw "The existing sibling Handshake_Artifacts root is required; this supervisor will not create it: $artifactRootPath"
 }
@@ -926,11 +932,16 @@ $artifactRoot = (Resolve-Path -LiteralPath $artifactRootPath).Path
 if ((Split-Path $artifactRoot -Leaf) -cne "Handshake_Artifacts") {
     throw "Resolved artifact root is not the canonical Handshake_Artifacts directory: $artifactRoot"
 }
-$targetRootPath = Join-Path $artifactRoot "handshake-cargo-target"
-if (-not (Test-Path -LiteralPath $targetRootPath -PathType Container)) {
-    throw "The configured canonical Cargo target must already exist: $targetRootPath"
+$targetParentRootPath = Join-Path $artifactRoot "handshake-cargo-target"
+if (-not (Test-Path -LiteralPath $targetParentRootPath -PathType Container)) {
+    throw "The configured canonical Cargo target parent must already exist: $targetParentRootPath"
 }
-$targetRoot = (Resolve-Path -LiteralPath $targetRootPath).Path
+$targetParentRoot = (Resolve-Path -LiteralPath $targetParentRootPath).Path
+$targetRoot = [IO.Path]::GetFullPath((Join-Path $targetParentRoot $RunId))
+$targetPrefix = $targetParentRoot.TrimEnd("\") + "\"
+if (-not $targetRoot.StartsWith($targetPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Resolved owner-scoped Cargo target escaped the canonical target parent: $targetRoot"
+}
 $supervisorRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\supervisor"))
 $runRoot = [IO.Path]::GetFullPath((Join-Path $supervisorRoot $RunId))
 $artifactPrefix = $artifactRoot.TrimEnd("\") + "\"
@@ -940,6 +951,10 @@ if (-not $runRoot.StartsWith($artifactPrefix, [StringComparison]::OrdinalIgnoreC
 if (Test-Path -LiteralPath $runRoot) {
     throw "Supervisor run id already exists: $RunId"
 }
+if (Test-Path -LiteralPath $targetRoot) {
+    throw "Owner-scoped Cargo target already exists for run id ${RunId}: $targetRoot"
+}
+[void][IO.Directory]::CreateDirectory($targetRoot)
 
 $sourcePaths = @(
     ".cargo/config.toml",
