@@ -2632,7 +2632,7 @@ fn retain_backend_failure_files(
             workspace_cleanup["containment_verified"] == true
                 && workspace_cleanup["data_dir_inside_runtime_root"] == true
                 && workspace_cleanup["store_path_bound_to_owned_runtime_root"].is_string()
-                && workspace_cleanup["store_path_present"].is_boolean()
+                && workspace_cleanup["store_path_present"] == true
         }
         _ => false,
     };

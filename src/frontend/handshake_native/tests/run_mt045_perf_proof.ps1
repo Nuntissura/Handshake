@@ -918,9 +918,10 @@ if ($RunId -cnotmatch "^MT045-RUN-[A-Za-z0-9_-]{8,96}$") {
 
 $crateRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $repoRoot = (Resolve-Path (Join-Path $crateRoot "..\..\..")).Path
+$requiredArtifactRootPath = [IO.Path]::GetFullPath((Join-Path (Split-Path $repoRoot -Parent) "Handshake_Artifacts"))
 $configuredArtifactRoot = [Environment]::GetEnvironmentVariable("HANDSHAKE_ARTIFACTS_ROOT")
 $artifactRootPath = if ([string]::IsNullOrWhiteSpace($configuredArtifactRoot)) {
-    Join-Path (Split-Path $repoRoot -Parent) "Handshake_Artifacts"
+    $requiredArtifactRootPath
 }
 else {
     [IO.Path]::GetFullPath($configuredArtifactRoot)
@@ -929,6 +930,10 @@ if (-not (Test-Path -LiteralPath $artifactRootPath -PathType Container)) {
     throw "The existing sibling Handshake_Artifacts root is required; this supervisor will not create it: $artifactRootPath"
 }
 $artifactRoot = (Resolve-Path -LiteralPath $artifactRootPath).Path
+$requiredArtifactRoot = (Resolve-Path -LiteralPath $requiredArtifactRootPath).Path
+if (-not $artifactRoot.Equals($requiredArtifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "HANDSHAKE_ARTIFACTS_ROOT must resolve to the worktree-level canonical root $requiredArtifactRoot, got $artifactRoot"
+}
 if ((Split-Path $artifactRoot -Leaf) -cne "Handshake_Artifacts") {
     throw "Resolved artifact root is not the canonical Handshake_Artifacts directory: $artifactRoot"
 }
@@ -954,10 +959,10 @@ if (Test-Path -LiteralPath $runRoot) {
 if (Test-Path -LiteralPath $targetRoot) {
     throw "Owner-scoped Cargo target already exists for run id ${RunId}: $targetRoot"
 }
-[void][IO.Directory]::CreateDirectory($targetRoot)
 
 $sourcePaths = @(
     ".cargo/config.toml",
+    "rust-toolchain.toml",
     "src/backend/handshake_core/build.rs",
     "src/backend/handshake_core/Cargo.toml",
     "src/backend/handshake_core/Cargo.lock",
@@ -969,6 +974,7 @@ $sourcePaths = @(
     "src/frontend/handshake_native/build.rs",
     "src/frontend/handshake_native/Cargo.toml",
     "src/frontend/handshake_native/Cargo.lock",
+    "src/frontend/handshake_native/.cargo/config.toml",
     "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
@@ -982,60 +988,7 @@ $sourcePaths = @(
 )
 $manifestRepoPath = "src/frontend/handshake_native/tests/perf_proof/perf_manifest.json"
 $manifestPath = Join-Path $repoRoot $manifestRepoPath
-if (-not $DiagnosticsSelfTest) {
-    $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
-    Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
-    $initialManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
-        "rev-parse", "${sourceSha}:$manifestRepoPath"
-    )
-    $headManifestJson = Invoke-GitText -Repository $repoRoot -Arguments @(
-        "show", "${sourceSha}:$manifestRepoPath"
-    )
-    $initialManifestSha256 = Get-StringSha256 -Value $headManifestJson
-
-    $forbiddenBudgetOverrides = Get-ChildItem Env: |
-        Where-Object { $_.Name -like "PERF_BUDGET_*" -and -not [string]::IsNullOrWhiteSpace($_.Value) }
-    if ($forbiddenBudgetOverrides) {
-        throw "Canonical MT-045 proof forbids PERF_BUDGET_* overrides: $($forbiddenBudgetOverrides.Name -join ', ')"
-    }
-    if (-not [string]::IsNullOrWhiteSpace($env:SKIP_PERF_TESTS)) {
-        throw "Canonical MT-045 proof forbids SKIP_PERF_TESTS"
-    }
-    if (-not [string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR)) {
-        throw "Canonical MT-045 proof forbids inherited CARGO_TARGET_DIR; the supervisor owns --target-dir"
-    }
-
-    # Handshake's database is EMBEDDED in the backend, so there is no listener to probe and no
-    # owning process to identify. The proof is scoped to a store DIRECTORY under this run's root,
-    # which only the backend this script launches can open.
-    $storeRoot = Join-Path $runRoot 'backend-runtime'
-    [void][IO.Directory]::CreateDirectory($storeRoot)
-    $storeIdentity = [IO.Path]::GetFullPath($storeRoot)
-}
-else {
-    $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
-    Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
-    $initialManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
-        "rev-parse", "${sourceSha}:$manifestRepoPath"
-    )
-    $headManifestJson = Invoke-GitText -Repository $repoRoot -Arguments @(
-        "show", "${sourceSha}:$manifestRepoPath"
-    )
-    $initialManifestSha256 = Get-StringSha256 -Value $headManifestJson
-}
-
-# The database is EMBEDDED in the backend this proof launches, so there is no external server whose
-# identity could change underneath the run. The old Assert-StorePreserved guarded exactly that
-# hazard and has no subject any more; store containment is asserted by the harness instead.
-function Assert-StorePreserved {
-    if (-not (Test-Path -LiteralPath $script:mt045StoreIdentity -PathType Container)) {
-        throw "The MT-045 embedded store root disappeared during the proof: '$($script:mt045StoreIdentity)'"
-    }
-}
-
-[void][IO.Directory]::CreateDirectory($runRoot)
 $measurementRoot = Join-Path $artifactRoot "wp-kernel-012\mt-045\measurements"
-[void][IO.Directory]::CreateDirectory($measurementRoot)
 $supervisorCurrentPath = Join-Path $measurementRoot "supervisor-current.json"
 $currentRunPath = Join-Path $measurementRoot "current-run.json"
 $latestRunPath = Join-Path $measurementRoot "latest-run-summary.json"
@@ -1046,6 +999,82 @@ $expectedScenarioIds = @(
     "LR-01", "LR-02", "LR-03", "LR-04", "LR-05", "LR-06", "LR-07",
     "LK-01", "LK-02", "LK-03", "LK-04", "LK-05"
 )
+[void][IO.Directory]::CreateDirectory($runRoot)
+[void][IO.Directory]::CreateDirectory($measurementRoot)
+$sourceSha = $null
+$headManifestJson = $null
+$preflightStartedAt = [DateTimeOffset]::UtcNow
+try {
+    $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
+    $initialManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
+        "rev-parse", "${sourceSha}:$manifestRepoPath"
+    )
+    $headManifestJson = Invoke-GitText -Repository $repoRoot -Arguments @(
+        "show", "${sourceSha}:$manifestRepoPath"
+    )
+    $initialManifestSha256 = Get-StringSha256 -Value $headManifestJson
+    Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
+
+    if (-not $DiagnosticsSelfTest) {
+        $forbiddenBudgetOverrides = Get-ChildItem Env: |
+            Where-Object { $_.Name -like "PERF_BUDGET_*" -and -not [string]::IsNullOrWhiteSpace($_.Value) }
+        if ($forbiddenBudgetOverrides) {
+            throw "Canonical MT-045 proof forbids PERF_BUDGET_* overrides: $($forbiddenBudgetOverrides.Name -join ', ')"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($env:SKIP_PERF_TESTS)) {
+            throw "Canonical MT-045 proof forbids SKIP_PERF_TESTS"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR)) {
+            throw "Canonical MT-045 proof forbids inherited CARGO_TARGET_DIR; the supervisor owns --target-dir"
+        }
+    }
+}
+catch {
+    $preflightFailure = $_
+    $preflightProjection = [ordered]@{
+        schema_id = "hsk.wp_kernel_012.mt045_supervisor_projection@1"
+        work_packet_id = "WP-KERNEL-012"
+        micro_task_id = "MT-045"
+        run_id = $RunId
+        source_sha = $sourceSha
+        status = "FAIL"
+        supervisor_preflight = $false
+        terminal_reason = $preflightFailure.Exception.Message
+        scenarios = [ordered]@{}
+        completed_commands = @()
+        failed_command = $null
+        failure_diagnostics = @()
+        target_cleanup = [ordered]@{ status = "not_created"; path = $targetRoot }
+        started_at = $preflightStartedAt.ToString("O")
+        updated_at = [DateTimeOffset]::UtcNow.ToString("O")
+    }
+    Write-JsonAtomic -Path $supervisorCurrentPath -Value $preflightProjection
+    Write-JsonAtomic -Path $currentRunPath -Value $preflightProjection
+    Write-JsonAtomic -Path $latestRunPath -Value $preflightProjection
+    if (-not [string]::IsNullOrWhiteSpace([string]$headManifestJson)) {
+        $preflightManifest = @($headManifestJson | ConvertFrom-Json)
+        foreach ($row in $preflightManifest) {
+            $row.status = "FAIL"
+            $row.measured_value = $null
+            $row.measured_profile = "release"
+            $row.gated = $false
+            $row.suite_run_id = $RunId
+            $row.override_applied = $false
+            $row.effective_budget = if ($null -ne $row.budget_ms) { $row.budget_ms } else { $row.budget_mb }
+        }
+        Write-JsonAtomic -Path $manifestPath -Value $preflightManifest
+    }
+    throw $preflightFailure
+}
+
+# The database is EMBEDDED in the backend this proof launches, so there is no external server whose
+# identity could change underneath the run. The old Assert-StorePreserved guarded exactly that
+# hazard and has no subject any more; store containment is asserted by the harness instead.
+function Assert-StorePreserved {
+    if (-not (Test-Path -LiteralPath $script:mt045StoreIdentity -PathType Container)) {
+        throw "The MT-045 embedded store root disappeared during the proof: '$($script:mt045StoreIdentity)'"
+    }
+}
 
 function Get-Mt045ComparablePath {
     param([Parameter(Mandatory)][string]$Path)
@@ -1086,6 +1115,35 @@ function Assert-NoReparsePath {
             throw "diagnostic binding path did not reach boundary: $fullPath"
         }
         $current = $parent
+    }
+}
+
+function Remove-Mt045OwnerTarget {
+    if (-not (Test-Path -LiteralPath $targetRoot)) {
+        return [ordered]@{
+            status = "not_present"
+            path = $targetRoot
+            removed_at = [DateTimeOffset]::UtcNow.ToString("O")
+        }
+    }
+    $resolvedTarget = Get-Mt045ComparablePath -Path (Resolve-Path -LiteralPath $targetRoot).Path
+    $resolvedParent = (Get-Mt045ComparablePath -Path $targetParentRoot).TrimEnd("\")
+    $resolvedPrefix = $resolvedParent + "\"
+    if (
+        -not $resolvedTarget.StartsWith($resolvedPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        (Split-Path $resolvedTarget -Leaf) -cne $RunId
+    ) {
+        throw "refusing to clean owner target outside its exact run-scoped boundary: $resolvedTarget"
+    }
+    Assert-NoReparsePath -Path $resolvedTarget -Boundary $resolvedParent
+    [IO.Directory]::Delete($resolvedTarget, $true)
+    if (Test-Path -LiteralPath $resolvedTarget) {
+        throw "owner-scoped Cargo target survived cleanup: $resolvedTarget"
+    }
+    return [ordered]@{
+        status = "deleted_and_verified_absent"
+        path = $resolvedTarget
+        removed_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
 }
 
@@ -1136,65 +1194,65 @@ function Invoke-Mt045PostReapWorkspaceCleanup {
         throw "workspace identity marker does not bind the exact owned run/scenario/backend"
     }
     $workspaceId = [string]$marker.workspace_id
-    $stdoutPath = Join-Path $RuntimeDirectory "workspace-cleanup.stdout.log"
-    $stderrPath = Join-Path $RuntimeDirectory "workspace-cleanup.stderr.log"
-    # The legacy server-backed version deleted the proof workspace row through a direct database client
-    # and asserted the row count returned to zero. An embedded in-process store cannot be reached from
-    # here, so the equivalent
-    # guarantee comes from isolation rather than deletion: this run's store lives only under
-    # $script:mt045StoreIdentity and is discarded with it, so no workspace row can outlive the run.
-    # This is a WEAKER statement than the old one - it proves the row cannot persist, not that a
-    # DELETE observed zero remaining - and the receipt says so rather than implying the old check ran.
-    [void][IO.Directory]::CreateDirectory($RuntimeDirectory)
-    Set-Content -LiteralPath $stdoutPath -Value "0" -Encoding ascii
-    Set-Content -LiteralPath $stderrPath -Value "store_scoped_isolation:no_out_of_process_delete" -Encoding ascii
-    $stdout = Get-Content -LiteralPath $stdoutPath -Raw -ErrorAction Stop
-    if ($stdout.Trim() -cne "0") {
-        throw "post-Job workspace cleanup absence proof is not the exact scalar zero: $($stdout.Trim())"
+    # A reaped embedded backend cannot be queried through a second process. Its equivalent residue
+    # proof is the same one emitted by backend_proof_support: bind the exact HANDSHAKE_DATA_DIR and
+    # handshake-surreal store to this fixture-owned runtime root. The retained failure directory is
+    # diagnostic evidence only and is unreachable by every later run because each run/scenario gets a
+    # fresh UUID root.
+    $dataDirectory = [IO.Path]::GetFullPath((Join-Path $RuntimeDirectory "data"))
+    $storePath = [IO.Path]::GetFullPath((Join-Path $dataDirectory "handshake-surreal"))
+    $runtimePrefix = [IO.Path]::GetFullPath($RuntimeDirectory).TrimEnd("\") + "\"
+    if (-not $dataDirectory.StartsWith($runtimePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "embedded store data directory escaped the fixture-owned runtime root"
     }
+    if (-not (Test-Path -LiteralPath $dataDirectory -PathType Container)) {
+        throw "embedded store data directory is absent after owned backend reap: $dataDirectory"
+    }
+    Assert-NoReparsePath -Path $dataDirectory -Boundary $RuntimeDirectory
+    if (-not (Test-Path -LiteralPath $storePath -PathType Container)) {
+        throw "embedded SurrealDB store is absent after workspace creation: $storePath"
+    }
+    Assert-NoReparsePath -Path $storePath -Boundary $RuntimeDirectory
     $proofPath = Join-Path $RuntimeDirectory "workspace-cleanup.json"
     $proof = [ordered]@{
         schema_id = "hsk.wp_kernel_012.mt045_workspace_cleanup@1"
         run_id = $RunId
         scenario_identity = $ExpectedCommand.test_name
         workspace_id = $workspaceId
-        status = "deleted_and_verified_absent"
-        verified_absent = $true
-        remaining_workspace_count = [int64]0
+        status = "contained_in_owned_embedded_store"
+        containment_verified = $true
+        residue_scope = "fixture_owned_data_directory_only"
+        runtime_root = [IO.Path]::GetFullPath($RuntimeDirectory)
+        owned_runtime_roots = @([IO.Path]::GetFullPath($RuntimeDirectory))
+        data_dir = $dataDirectory
+        data_dir_inside_runtime_root = $true
+        store_path = $storePath
+        store_path_bound_to_owned_runtime_root = $storePath
+        store_path_present = $true
         marker_path = $markerItem.FullName
         marker_bytes = $markerItem.Length
         marker_sha256 = Get-FileSha256 -Path $markerItem.FullName
-        stdout_path = $stdoutPath
-        stdout_bytes = (Get-Item -LiteralPath $stdoutPath -ErrorAction Stop).Length
-        stdout_sha256 = Get-FileSha256 -Path $stdoutPath
-        stderr_path = $stderrPath
-        stderr_bytes = (Get-Item -LiteralPath $stderrPath -ErrorAction Stop).Length
-        stderr_sha256 = Get-FileSha256 -Path $stderrPath
-        cleanup_process = [ordered]@{
-            root_process_id = $cleanup.RootProcessId
-            exit_code = $cleanup.ExitCode
-            timed_out = $cleanup.TimedOut
-            leaked_process_count = $cleanup.LeakedProcessCount
-        }
+        owned_backend_pid = $OwnedBackendPid
     }
     Write-JsonAtomic -Path $proofPath -Value $proof
     return [ordered]@{
-        status = "deleted_and_verified_absent"
+        status = "contained_in_owned_embedded_store"
         workspace_id = $workspaceId
-        verified_absent = $true
-        remaining_workspace_count = [int64]0
+        containment_verified = $true
+        residue_scope = $proof.residue_scope
+        runtime_root = $proof.runtime_root
+        owned_runtime_roots = $proof.owned_runtime_roots
+        data_dir = $dataDirectory
+        data_dir_inside_runtime_root = $true
+        store_path = $storePath
+        store_path_bound_to_owned_runtime_root = $storePath
+        store_path_present = $true
         proof_path = $proofPath
         proof_bytes = (Get-Item -LiteralPath $proofPath -ErrorAction Stop).Length
         proof_sha256 = Get-FileSha256 -Path $proofPath
         marker_path = $markerItem.FullName
         marker_bytes = $markerItem.Length
         marker_sha256 = $proof.marker_sha256
-        stdout_path = $stdoutPath
-        stdout_bytes = $proof.stdout_bytes
-        stdout_sha256 = $proof.stdout_sha256
-        stderr_path = $stderrPath
-        stderr_bytes = $proof.stderr_bytes
-        stderr_sha256 = $proof.stderr_sha256
     }
 }
 
@@ -1461,49 +1519,29 @@ function Get-FailureDiagnosticBindings {
                         throw "failure diagnostic lacks reaped fixture-owned process identity: $receiptPath"
                     }
                     $workspaceCleanup = $receipt.workspace_cleanup
-                    if ($workspaceCleanup.status -ceq "no_workspace") {
-                        if (
-                            $workspaceCleanup.verified_absent -ne $true -or
-                            -not (Test-IsJsonInteger $workspaceCleanup.remaining_workspace_count) -or
-                            [int64]$workspaceCleanup.remaining_workspace_count -ne 0
-                        ) {
-                            throw "no-workspace cleanup receipt lacks verified zero-count proof: $receiptPath"
-                        }
+                    if ($workspaceCleanup.status -notin @("no_workspace", "contained_in_owned_embedded_store")) {
+                        throw "failure diagnostic lacks embedded-store containment proof: $receiptPath"
                     }
-                    elseif ($workspaceCleanup.status -ceq "deleted_and_verified_absent") {
-                        if (
-                            $workspaceCleanup.verified_absent -ne $true -or
-                            -not (Test-IsJsonInteger $workspaceCleanup.remaining_workspace_count) -or
-                            [int64]$workspaceCleanup.remaining_workspace_count -ne 0
-                        ) {
-                            throw "workspace cleanup receipt lacks verified zero-count proof: $receiptPath"
-                        }
-                        foreach ($cleanupStream in @("stdout", "stderr")) {
-                            $pathField = "retained_${cleanupStream}_path"
-                            $bytesField = "retained_${cleanupStream}_bytes"
-                            $hashField = "retained_${cleanupStream}_sha256"
-                            $cleanupPath = [IO.Path]::GetFullPath([string]$workspaceCleanup.$pathField)
-                            Assert-NoReparsePath -Path $cleanupPath -Boundary $receiptDirectory
-                            $cleanupItem = Get-Item -LiteralPath $cleanupPath -Force -ErrorAction Stop
-                            if ($cleanupItem.PSIsContainer) {
-                                throw "retained workspace cleanup $cleanupStream proof is missing: $cleanupPath"
-                            }
-                            if ($cleanupItem.Length -ne [int64]$workspaceCleanup.$bytesField) {
-                                throw "retained workspace cleanup $cleanupStream byte count mismatch: $cleanupPath"
-                            }
-                            if ((Get-FileSha256 -Path $cleanupPath) -cne [string]$workspaceCleanup.$hashField) {
-                                throw "retained workspace cleanup $cleanupStream digest mismatch: $cleanupPath"
-                            }
-                            if (
-                                $cleanupStream -ceq "stdout" -and
-                                (Get-Content -LiteralPath $cleanupPath -Raw -ErrorAction Stop).Trim() -cne "0"
-                            ) {
-                                throw "retained workspace cleanup stdout is not the exact scalar zero: $cleanupPath"
-                            }
-                        }
+                    if (
+                        $workspaceCleanup.containment_verified -ne $true -or
+                        $workspaceCleanup.data_dir_inside_runtime_root -ne $true -or
+                        [string]::IsNullOrWhiteSpace([string]$workspaceCleanup.runtime_root) -or
+                        [string]::IsNullOrWhiteSpace([string]$workspaceCleanup.data_dir) -or
+                        [string]::IsNullOrWhiteSpace([string]$workspaceCleanup.store_path_bound_to_owned_runtime_root) -or
+                        $workspaceCleanup.store_path_present -ne $true
+                    ) {
+                        throw "failure diagnostic embedded-store containment is incomplete: $receiptPath"
                     }
-                    else {
-                        throw "failure diagnostic lacks successful post-reap workspace cleanup proof: $receiptPath"
+                    $claimedRuntimeRoot = Get-Mt045ComparablePath -Path ([string]$workspaceCleanup.runtime_root)
+                    $claimedDataDirectory = Get-Mt045ComparablePath -Path ([string]$workspaceCleanup.data_dir)
+                    $claimedStorePath = Get-Mt045ComparablePath -Path ([string]$workspaceCleanup.store_path_bound_to_owned_runtime_root)
+                    $claimedRuntimePrefix = $claimedRuntimeRoot.TrimEnd("\") + "\"
+                    $expectedStorePath = Get-Mt045ComparablePath -Path (Join-Path $claimedDataDirectory "handshake-surreal")
+                    if (
+                        -not $claimedDataDirectory.StartsWith($claimedRuntimePrefix, [StringComparison]::OrdinalIgnoreCase) -or
+                        -not $claimedStorePath.Equals($expectedStorePath, [StringComparison]::OrdinalIgnoreCase)
+                    ) {
+                        throw "failure diagnostic embedded-store paths escaped their owned runtime root: $receiptPath"
                     }
                     if ($receipt.trigger -ceq "request_failure") {
                         if (
@@ -1643,6 +1681,7 @@ function Get-FailureDiagnosticBindings {
 }
 
 if ($DiagnosticsSelfTest) {
+    [void][IO.Directory]::CreateDirectory($targetRoot)
     $selfTestRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\diagnostics-self-test\$RunId"))
     $selfTestWorkspaceId = $null
     $retainedFailureProofComplete = $false
@@ -1934,18 +1973,18 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
 
         $forcedTestName = "forced-termination-self-test"
         $selfTestWorkspaceId = "wp012-job-cleanup-$([guid]::NewGuid().ToString('N'))"
-        # The legacy server-backed self-test inserted a workspace row so post-Job cleanup had something
-        # real to delete. Cleanup is no longer a DELETE - it is store-directory isolation - so the
-        # self-test now plants a marker inside the run's store root and the teardown assertion below
-        # proves the root, and therefore the marker, is discarded. It exercises the mechanism that
-        # actually performs the cleanup instead of one that no longer exists.
-        $selfTestMarker = Join-Path $script:mt045StoreIdentity "$selfTestWorkspaceId.marker"
-        [void][IO.Directory]::CreateDirectory($script:mt045StoreIdentity)
+        # The legacy server-backed self-test inserted a workspace row for a direct-store DELETE. The
+        # embedded replacement plants evidence inside the exact per-backend handshake-surreal path so
+        # recovery must prove that path is contained by the fixture-owned UUID runtime root.
+        $runtimeLeaf = Join-Path $backendRuntimeRunRoot "$forcedTestName\runtime-001"
+        $selfTestDataDirectory = Join-Path $runtimeLeaf "data"
+        $selfTestStorePath = Join-Path $selfTestDataDirectory "handshake-surreal"
+        [void][IO.Directory]::CreateDirectory($selfTestStorePath)
+        $selfTestMarker = Join-Path $selfTestStorePath "$selfTestWorkspaceId.marker"
         Set-Content -LiteralPath $selfTestMarker -Value $selfTestWorkspaceId -Encoding ascii
         if (-not (Test-Path -LiteralPath $selfTestMarker -PathType Leaf)) {
             throw "diagnostics self-test could not plant its store-scoped cleanup marker"
         }
-        $runtimeLeaf = Join-Path $backendRuntimeRunRoot "$forcedTestName\runtime-001"
         $childScript = @"
 `$leaf = '$($runtimeLeaf.Replace("'", "''"))'
 [void][IO.Directory]::CreateDirectory(`$leaf)
@@ -1998,14 +2037,30 @@ Start-Sleep -Seconds 30
             throw "forced-termination recovery was not BOUND: $($recovered.binding_error)"
         }
         if (
-            $recovered.workspace_cleanup.status -cne "deleted_and_verified_absent" -or
+            $recovered.workspace_cleanup.status -cne "contained_in_owned_embedded_store" -or
             $recovered.workspace_cleanup.workspace_id -cne $selfTestWorkspaceId -or
-            -not (Test-IsJsonInteger $recovered.workspace_cleanup.remaining_workspace_count) -or
-            [int64]$recovered.workspace_cleanup.remaining_workspace_count -ne 0 -or
-            (Get-Content -LiteralPath $recovered.workspace_cleanup.stdout_path -Raw).Trim() -cne "0" -or
+            $recovered.workspace_cleanup.containment_verified -ne $true -or
+            $recovered.workspace_cleanup.data_dir_inside_runtime_root -ne $true -or
+            $recovered.workspace_cleanup.store_path_present -ne $true -or
+            [IO.Path]::GetFullPath([string]$recovered.workspace_cleanup.store_path_bound_to_owned_runtime_root) -cne [IO.Path]::GetFullPath($selfTestStorePath) -or
             (Get-FileSha256 -Path $recovered.workspace_cleanup.proof_path) -cne $recovered.workspace_cleanup.proof_sha256
         ) {
-            throw "forced-termination recovery did not prove exact post-Job workspace cleanup"
+            throw "forced-termination recovery did not prove exact post-Job embedded-store containment"
+        }
+        $dispatcherFailureRoot = $failureDiagnosticsRoot
+        $failureDiagnosticsRoot = Join-Path $selfTestRoot "absent-receipt-root-positive-fallback"
+        try {
+            $routedFallback = @(Get-FailureDiagnosticBindings -ExpectedCommand $expectedForced)
+        }
+        finally {
+            $failureDiagnosticsRoot = $dispatcherFailureRoot
+        }
+        if (
+            $routedFallback.Count -ne 1 -or
+            $routedFallback[0].binding_status -cne "BOUND" -or
+            $routedFallback[0].binding_source -cne "post_reap_backend_runtime"
+        ) {
+            throw "failure-diagnostic dispatcher did not route an absent receipt root to the exact post-reap fallback"
         }
         $workspaceMarkerPath = Join-Path $runtimeLeaf "workspace-identity.json"
         $workspaceMarkerBytes = [IO.File]::ReadAllBytes($workspaceMarkerPath)
@@ -2247,6 +2302,7 @@ Start-Sleep -Seconds 30
             timeout_post_drain_descendants = @($timeoutChildJobResult.PostDrainDescendantProcessIds).Count
             process_id_count_mismatch = "INVALID"
             post_reap_binding = $recovered.binding_status
+            dispatcher_positive_fallback = $routedFallback[0].binding_status
             post_reap_workspace_cleanup = $recovered.workspace_cleanup.status
             missing_workspace_marker = "INVALID"
             stable_last_line_hash_bound = $true
@@ -2279,6 +2335,10 @@ Start-Sleep -Seconds 30
                 [IO.Directory]::Delete($fullPath, $true)
             }
         }
+        $targetCleanup = Remove-Mt045OwnerTarget
+        if ($targetCleanup.status -notin @("deleted_and_verified_absent", "not_present")) {
+            throw "diagnostics self-test owner target cleanup did not reach terminal absence"
+        }
     }
     exit 0
 }
@@ -2287,7 +2347,8 @@ function New-SupervisorProjection {
     param(
         [Parameter(Mandatory)][ValidateSet("RUNNING", "FAIL")][string]$Status,
         [string]$Reason,
-        [object[]]$FailureDiagnostics = @()
+        [object[]]$FailureDiagnostics = @(),
+        [AllowNull()]$TargetCleanup = $null
     )
     return [ordered]@{
         schema_id = "hsk.wp_kernel_012.mt045_supervisor_projection@1"
@@ -2302,6 +2363,7 @@ function New-SupervisorProjection {
         completed_commands = @($commands)
         failed_command = $script:lastFailedCommandReceipt
         failure_diagnostics = @($FailureDiagnostics)
+        target_cleanup = $TargetCleanup
         started_at = $supervisorStartedAt.ToString("O")
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
@@ -2336,6 +2398,7 @@ function Set-ManifestTerminalState {
 $commands = [Collections.Generic.List[object]]::new()
 $script:lastFailedCommandReceipt = $null
 $runSucceeded = $false
+$targetCleanup = $null
 $supervisorStartedAt = [DateTimeOffset]::UtcNow
 try {
     $runningProjection = New-SupervisorProjection -Status "RUNNING"
@@ -2345,6 +2408,7 @@ try {
     Write-JsonAtomic -Path $currentRunPath -Value $runningProjection
     Write-JsonAtomic -Path $latestRunPath -Value $runningProjection
     Set-ManifestTerminalState -Status "RUNNING"
+    [void][IO.Directory]::CreateDirectory($targetRoot)
 
     if ("Mt045JobRunner" -as [type]) {
         if ([Mt045JobRunner]::SourceId -cne $mt045JobRunnerExpectedSourceId) {
@@ -2503,6 +2567,10 @@ try {
         throw "MT-045 backend binary changed during the canonical run"
     }
     Assert-StorePreserved
+    $targetCleanup = Remove-Mt045OwnerTarget
+    if ($targetCleanup.status -cne "deleted_and_verified_absent") {
+        throw "successful MT-045 run did not delete its owner-scoped Cargo target"
+    }
 
     $manifestSnapshotPath = Join-Path $runRoot "perf-manifest-final.json"
     $manifestSnapshotSha256 = Write-ImmutableJson -Path $manifestSnapshotPath -Value $manifest
@@ -2517,6 +2585,7 @@ try {
         cargo_profile = "release"
         cargo_locked = $true
         canonical_target_root = $targetRoot
+        target_cleanup = $targetCleanup
         budget_overrides = @()
         store = [ordered]@{
             kind = "embedded_surrealdb"
@@ -2558,6 +2627,7 @@ try {
         status = "PASS"
         supervisor_summary = $supervisorSummaryPath
         supervisor_summary_sha256 = $supervisorSha256
+        target_cleanup = $targetCleanup
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
     })
     $runSucceeded = $true
@@ -2591,7 +2661,18 @@ catch {
             binding_error = $_.Exception.Message
         })
     }
-    $enrichedProjection = New-SupervisorProjection -Status "FAIL" -Reason $failure -FailureDiagnostics $diagnosticBindings
+    $targetCleanup = try {
+        Remove-Mt045OwnerTarget
+    }
+    catch {
+        [ordered]@{
+            status = "cleanup_failed"
+            path = $targetRoot
+            error = $_.Exception.Message
+            observed_at = [DateTimeOffset]::UtcNow.ToString("O")
+        }
+    }
+    $enrichedProjection = New-SupervisorProjection -Status "FAIL" -Reason $failure -FailureDiagnostics $diagnosticBindings -TargetCleanup $targetCleanup
     try {
         Write-JsonAtomic -Path $supervisorCurrentPath -Value $enrichedProjection
         Write-JsonAtomic -Path $currentRunPath -Value $enrichedProjection

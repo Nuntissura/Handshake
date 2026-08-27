@@ -469,8 +469,9 @@ fn expected_proof_ids(scenario_id: &str) -> HashSet<&'static str> {
     }
 }
 
-const SOURCE_BINDING_PATHS: [&str; 22] = [
+const SOURCE_BINDING_PATHS: [&str; 24] = [
     ".cargo/config.toml",
+    "rust-toolchain.toml",
     "src/backend/handshake_core/build.rs",
     "src/backend/handshake_core/Cargo.toml",
     "src/backend/handshake_core/Cargo.lock",
@@ -482,6 +483,7 @@ const SOURCE_BINDING_PATHS: [&str; 22] = [
     "src/frontend/handshake_native/build.rs",
     "src/frontend/handshake_native/Cargo.toml",
     "src/frontend/handshake_native/Cargo.lock",
+    "src/frontend/handshake_native/.cargo/config.toml",
     "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
@@ -1580,15 +1582,25 @@ pub fn manifest_path() -> PathBuf {
 }
 
 pub fn external_artifact_root() -> PathBuf {
-    if let Some(root) = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT") {
-        return PathBuf::from(root).join("wp-kernel-012");
-    }
-    Path::new(env!("CARGO_MANIFEST_DIR"))
+    let required = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(4)
         .expect("native crate must live below a worktree root")
-        .join("Handshake_Artifacts")
-        .join("wp-kernel-012")
+        .join("Handshake_Artifacts");
+    let configured = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| required.clone());
+    let required = required
+        .canonicalize()
+        .expect("canonicalize worktree-level Handshake_Artifacts root");
+    let configured = configured
+        .canonicalize()
+        .expect("canonicalize configured HANDSHAKE_ARTIFACTS_ROOT");
+    assert_eq!(
+        configured, required,
+        "canonical MT-045 proof requires the worktree-level Handshake_Artifacts root"
+    );
+    configured.join("wp-kernel-012")
 }
 
 // ── Memory measurement (RISK-5 / CTRL-5: median of 3) ────────────────────────────────────────────
