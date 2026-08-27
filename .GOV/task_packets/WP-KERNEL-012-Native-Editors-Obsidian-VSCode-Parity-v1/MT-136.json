@@ -25,20 +25,36 @@
   "title": "B9-MT-136-Port-The-Storage-Layer-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B9",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T07:10:00Z",
+  "updated_at_utc": "2026-08-23T14:40:52Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:30:00Z",
+    "ready_for_validation_at_utc": "2026-08-23T14:40:52Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260818-130753",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_LENS_INDEPENDENT_REVIEW_PASS_2026-08-23",
+    "ready_for_validation_summary": "Exact frozen candidate 3dd353e8a7caf8618f7b9b9fe3405b14f00efb116c883434fa45478c32732766 passes the MT-136 SurrealDB-only storage surface runner, Database not-implemented guard, real embedded close/reopen durability proofs, UserManual self-consistency 12/12, MT-254 real-backend Playwright 1/1, zero-sqlx storage scan, scoped diff checks, and cargo check --lib. Two independent adversarial reviews approved the exact candidate through contract/data-semantics and concurrency/failure-lifecycle lenses. Official validator verdict remains unset and completed_by remains null. The overbroad all-targets audit remains red only on legacy PostgreSQL/sqlx test harnesses assigned to MT-141; no PostgreSQL fallback was restored.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "candidate_sha256": "3dd353e8a7caf8618f7b9b9fe3405b14f00efb116c883434fa45478c32732766",
+      "candidate_boundary": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136-candidate-boundary.json",
+      "proof_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/handshake-test/mt136-final-20260823",
+      "scope_waiver_id": "BCW-mt5puti9",
+      "adversarial_reviews": [
+        "contract_and_data_semantics:APPROVE",
+        "concurrency_and_failure_lifecycle:APPROVE"
+      ]
+    },
     "claim_note_2026_08_18": "Claimed under Operator directive 2026-08-18: complete every READY_FOR_DEV MT and MT-108, SurrealDB is the only database, PostgreSQL/SQLite dependency AND language forbidden. Prior session's in-flight port work was preserved as WIP checkpoint commit b1c9ae72 on feat/WP-KERNEL-012 and pushed to the GitHub backup branch before implementation resumed.",
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "progress_2026_08_16": {

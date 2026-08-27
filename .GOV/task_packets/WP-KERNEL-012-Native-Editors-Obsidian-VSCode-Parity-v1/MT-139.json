@@ -25,19 +25,53 @@
   "title": "B12-MT-139-Decide-And-Execute-The-Surreal-Schema-Provenance-Boundary",
   "group": "B12",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T09:05:00Z",
+  "updated_at_utc": "2026-08-25T17:32:41Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-139.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [],
     "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260818-130753",
+    "claimed_at_utc": "2026-08-25T09:14:00Z",
+    "ready_for_validation_at_utc": "2026-08-25T17:32:41Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260818-130753",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_LENS_INDEPENDENT_REVIEW_PASS_2026-08-25",
+    "ready_for_validation_summary": "Exact frozen 365-entry candidate 791681318f1ee60b8b2bdee6afd8b78d18bcf9ff464255cf29363748366c02af severs the PostgreSQL migration corpus, makes storage/surreal/schema.surql the sole declarative authority, retains exact source-byte/catalog/live-fingerprint proof, and adds a fail-closed exact predecessor upgrade from the independently reconstructed 61-row historical registry to the exact 62-row current registry. Both independent adversarial lenses approved unchanged bytes. Static and previously executed unchanged-schema coverage proof passed; the latest 61-to-62 remediation was not Cargo-executed because a fresh helper build fails in third-party diskann 0.54.0 under rustc 1.91.1, and no current Cargo pass is claimed. Official validator verdict remains unset and completed_by remains null.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "candidate_sha256": "791681318f1ee60b8b2bdee6afd8b78d18bcf9ff464255cf29363748366c02af",
+      "candidate_entry_count": 365,
+      "candidate_existing_file_count": 13,
+      "candidate_deleted_sql_count": 352,
+      "schema_surql_sha256": "b4bcdbd16ffbbb3d9543f164f4226d3d952c841e80a7bd9c302b82cb15e3d4f9",
+      "knowledge_registry_seed_sha256": "f51ef10d8ebc0c728a075e7a5efe4a19503cd46dea2cfa0f1bfe59332f2e34fa",
+      "predecessor_registry_sha256": "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4",
+      "adversarial_reviews": [
+        "schema_lineage_fail_closed_integrity_atomicity_and_tamper_resistance:APPROVE_EXACT_HASH",
+        "historical_fidelity_restart_integration_manual_and_observability:APPROVE_EXACT_HASH"
+      ],
+      "focused_proofs": [
+        "operator_sever_decision:RECORDED",
+        "physical_sql_under_src:0",
+        "deleted_sql_files:352",
+        "declarative_catalog_counts:281_tables_3313_fields_793_indexes_19_events_2_views_2_sequences",
+        "historical_registry_vs_frozen_predecessor:61_vs_61_full_7_field_tuple_diff_0",
+        "predecessor_retired_source_tamper:HASH_DIVERGES",
+        "current_registry_seed_rows:62",
+        "touched_rustfmt_check:PASS",
+        "git_diff_check:PASS",
+        "unchanged_schema_full_catalog_mem_and_targeted_rocks_restart_proof:PASS_BEFORE_FINAL_61_ROW_REMEDIATION",
+        "latest_61_to_62_transition_execution:NOT_RUN_THIRD_PARTY_DISKANN_0_54_0_RUSTC_1_91_1_LIFETIME_FAILURE",
+        "latest_cargo_build:NOT_CLAIMED_PASS"
+      ]
+    },
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "operator_scope_decision_2026_08_16": {
       "basis": "OPERATOR DECISION 2026-08-16, verbatim instruction: \"continue remediating every MT and remove all dependency on postgresql and make surrealDB the only db used in handshake\". \"ALL dependency\" and \"the ONLY db\" resolve the scope question that was held open: the Atelier subsystem is IN SCOPE for this work packet and no longer waits on a separate decision.",
@@ -80,6 +114,56 @@
       "PT-139-1: the recorded Operator decision.",
       "PT-139-2: the coverage proof executing green, with table and index counts matching schema.surql.",
       "PT-139-3: if severed, a repo-wide scan proving no .sql file remains under src/."
+    ]
+  },
+  "research_basis": {
+    "recorded_at_utc": "2026-08-25T09:18:00Z",
+    "sources_checked": [
+      "https://surrealdb.com/docs/reference/query-language/statements/define/table",
+      "https://surrealdb.com/docs/reference/query-language/statements/define/field",
+      "https://surrealdb.com/docs/reference/query-language/statements/define/indexes",
+      "https://surrealdb.com/docs/reference/query-language/statements/define/event",
+      "https://surrealdb.com/docs/reference/query-language/statements/info",
+      "https://surrealdb.com/docs/learn/querying/concepts-and-guides/transactions",
+      "https://surrealdb.com/docs/reference/rust/embedding",
+      "https://surrealdb.com/releases/3.2",
+      "https://surrealdb.com/docs/manage/schema-migration",
+      "https://surrealdb.com/docs/manage/schema-migration/sync",
+      "https://atlasgo.io/declarative/diff",
+      "https://docs.prisma.io/docs/orm/prisma-migrate/understanding-prisma-migrate/shadow-database",
+      "https://documentation.red-gate.com/flyway/flyway-concepts/migrations/flyway-schema-history-table"
+    ],
+    "field_patterns": [
+      "Use the checked-in SurrealQL desired state as the sole schema source and bind it with an exact byte hash.",
+      "Supplement the byte hash with a parsed sorted declarative catalog and exact object counts; counts alone cannot detect same-count substitution.",
+      "Apply to a fresh isolated embedded RocksDB store and compare the exact live table/field/index/event/view/sequence catalog.",
+      "Bind SurrealDB STRUCTURE fingerprints to the pinned 3.2.0 engine because official documentation marks STRUCTURE as internal and unstable.",
+      "Close and reopen the same RocksDB path, re-run bootstrap, and prove catalog identity plus sentinel-data preservation."
+    ],
+    "reuse_opportunities": [
+      "Retain the existing exact schema.surql byte hash, TABLE_NAMES inventory, definition counts, structured live-catalog fingerprint, fail-closed bootstrap state, mutation attacks, and real RocksDB restart proof.",
+      "Replace only the legacy migration-file manifest with a self-contained domain-separated SurrealQL catalog manifest."
+    ],
+    "rejected_options": [
+      "Byte hash only, because it does not independently prove live catalog completeness.",
+      "Counts only, because wrong objects can preserve counts.",
+      "Unversioned STRUCTURE fingerprint, because the official surface may change without notice.",
+      "Flyway/Liquibase-style migration-history checksums, because they retain the historical corpus the Operator ordered severed.",
+      "Automatic Sync pruning or blind startup OVERWRITE against shared stores, because omitted rogue objects remain and destructive pruning is unsafe under concurrency."
+    ],
+    "selected_approach": "Three-layer proof: exact schema.surql bytes, a domain-separated parsed declarative catalog manifest with exact identities/counts, and the pinned-engine live embedded-RocksDB catalog fingerprint across close/reopen. Remove all compile-time migration includes and legacy provenance constants.",
+    "risks_and_mitigations": [
+      "Risk: OVERWRITE does not remove omitted or rogue objects. Mitigation: exact live object-set comparison and adversarial rogue-object probes.",
+      "Risk: STRUCTURE output changes with SurrealDB versions. Mitigation: exact 3.2.0 dependency pin and explicit requalification on upgrade.",
+      "Risk: removing migration files breaks stale consumers. Mitigation: repo-wide include/path scan; production references move to schema.surql, backend test replacements remain owned and completed by MT-141.",
+      "Risk: a partial bootstrap state survives interruption. Mitigation: retain transaction, apply-state, stale-marker, and restart/reopen failure probes."
+    ],
+    "validation_plan": [
+      "Static proof of zero legacy manifest constants and zero .sql includes in MT-139 production scope.",
+      "Exact SurrealQL byte-hash and parsed catalog-manifest tests including order/content mutation attacks.",
+      "Exact table/field/index counts and table-name set checks.",
+      "Real embedded RocksDB bootstrap, adversarial catalog mutation, shutdown, reopen, and exact fingerprint proof.",
+      "Two independent unchanged-hash adversarial reviews before READY_FOR_VALIDATION_V4."
     ]
   },
   "gui_obligation": {

@@ -1,9 +1,9 @@
 # CODER PROTOCOL [CX-620-625]
 ## Deterministic Atomic Governance Files [CX-908]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
-- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
-- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
-- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Existing Operator-facing Markdown may remain as a frozen legacy reference or migration projection. Do not create any new `.md` file unless the Operator explicitly requests that exact Markdown artifact in the current task, and do not maintain manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume the typed JSON/JSONL contract, declared fields, and startup capsule once before parsing prose. Read an existing Markdown packet projection only when typed authority is absent/invalid, the Operator explicitly requests it, or genuine human review requires it. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the existing authoritative machine contract/schema. Transfer touched active information from old Markdown into the repo's existing mechanically parseable deterministic records over time; do not create a new Markdown projection or sidecar as a compatibility workaround.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## Role Ecosystem
 
@@ -60,6 +60,7 @@ Coder MUST follow `.GOV/codex/Handshake_Codex_v1.4.md` [CX-972] and the global `
 - Missing closure-unit paperwork is never a blocker to product, MT, validator, proof, or handoff work.
 - Gather only the minimum context needed to determine the deliverable, current failure, and next edit/run/action. Additional context gathering must name the immediate decision it enables.
 - Complexity does not authorize paperwork-first behavior. For large packets, choose the first externally valid closure unit and execute it deliverable-first.
+- Before expanding a task through additional file changes, expensive builds, or broad validation, first check whether that work is necessary for the requested outcome. Avoid incidental scope, reuse still-valid results, batch shared prerequisites, and use targeted checks while iterating. If the smallest compliant path becomes unexpectedly large or slow, report the cause and alternatives before proceeding.
 - Tests count as direct work only when tied to a specific deliverable requirement or bug and run to produce RED, GREEN, or regression-proof evidence. Tests written but not run, broad unrelated sweeps, and tests not mapped to the closure unit are support work.
 - When a closure-discipline violation is noticed during active coder work, correct behavior immediately and continue direct deliverable work; do not create a new remediation task, governance artifact, or process patch unless the Operator asks for one.
 
@@ -221,10 +222,11 @@ Sub-agent delegation note (HARD):
 ## Read-Amplification and Ambiguity Discipline
 
 - After startup and assignment, default to the minimal live read set:
-  - startup output
-  - the active packet
+  - typed startup output
+  - the active typed packet/MT contract, consumed once unless its version/hash changes
   - active WP thread and notifications
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` when a command choice is unclear
+- Existing Markdown packet/projection content is fallback-only: read it when typed authority is absent/invalid, the Operator explicitly requests it, or human review genuinely requires it.
 - Repeated full rereads of large governance protocols, repeated command-surface rediscovery, and repeated worktree/path/source-of-truth checks after context is already stable should be treated as ambiguity signals, not as normal coding diligence.
 - If that churn keeps happening, call it out in handoff evidence or review notes instead of silently normalizing it.
 
@@ -238,6 +240,7 @@ Sub-agent delegation note (HARD):
 - Bias toward fewer larger canonical governance scripts over several small coder-facing wrappers that always travel together.
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, state why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.
+- Do not create a new `.md` governance surface unless the Operator explicitly requests that exact artifact. Use an existing typed schema/record format, or route the missing typed field/schema to its governance owner.
 - **Fail capture wiring (HARD â€” CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
 
 ## Coder Exclusion From Governance Stabilization [CX-218L]
@@ -285,16 +288,12 @@ Hard rules:
 - List the intended changed paths before editing.
 - Provide a rollback hint.
 - Run verification commands appropriate to the change (at minimum: `just gov-check`) and record outputs.
-- Use the shared governance-maintenance workflow and records:
+- Use the existing shared governance-maintenance machine contracts and records. Existing Markdown workflow/changelog/audit surfaces may be read as legacy context but MUST NOT be newly created or copied unless the Operator explicitly requests that exact Markdown artifact:
   - `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
   - `.GOV/Audits/**` with stable `AUDIT_ID` and, for smoketest reviews, `SMOKETEST_REVIEW_ID`
-- Use these templates when creating new governance records:
-  - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
-  - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
-  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
-  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
+- Use an existing typed schema/template and deterministic record path when creating governance records. If only a Markdown template exists, route the missing typed contract to the owning governance role instead of creating a new `.md` file without explicit Operator instruction.
 - If `AGENTS.md` or the canonical root `justfile` must change, do that work from `handshake_main` on local `main`, not from `wt-gov-kernel` or a WP worktree.
 
 ---
@@ -328,11 +327,11 @@ Redundancy rule (ANTI-BABYSIT): do NOT emit a second CX-WT-001 hard-gate between
 
 **Tooling note (prevents "wrong files in wrong worktree"):** if you're using an agent/automation where each command runs in an isolated shell, directory changes (`cd` / `Set-Location`) may not persist between commands. Always re-assert the WP worktree context by using an explicit workdir or `git -C "<worktree_dir>" ...` style commands.
 
-**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS`.
+**Chat requirement:** on PASS, report the exact command, compact outcome, and canonical typed/dossier artifact pointer; do not paste verbatim successful output. On FAIL/BLOCKED, preserve the full relevant failure output or its durable artifact pointer plus the failed invariant and next action.
 
 If the hard-gate output clearly matches the assignment, proceed automatically; do not wait for the Operator to type "proceed".
 
-Template:
+Failure/debug template (use only when the full output is needed):
 ```text
 HARD_GATE_OUTPUT [CX-WT-001]
 <paste the verbatim outputs for the commands above, in order>
@@ -357,10 +356,10 @@ If the assigned WP worktree/branch does not exist locally:
 
 When you run any gate command (including: `just phase-check STARTUP`, `just phase-check HANDOFF`, validator gate helpers, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
 
-1) Paste the literal output as:
+1) Report the compact outcome and canonical evidence pointer on success. Preserve full relevant output on failure, inline or through the durable dossier/log artifact:
 ```text
 GATE_OUTPUT [CX-GATE-UX-001]
-<verbatim output>
+<PASS: exact command + compact outcome + canonical artifact pointer | FAIL/BLOCKED: relevant failure output or durable artifact pointer>
 ```
 
 2) State where you are in the protocol and what happens next:
@@ -377,7 +376,7 @@ NEXT_COMMANDS [CX-GATE-UX-001]
 
 Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
 
-Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
+Operator UX rule: state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside failure evidence.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-CODE-001] (ANTI-BABYSIT)
 
@@ -387,7 +386,7 @@ Hard rule (to prevent "babysit every gate to proceed" loops):
 STOP is only required when at least one is true:
 - The gate result is not PASS (FAIL/BLOCKED/unknown).
 - `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
-- The next step is a protocol-mandated stop point (e.g., handoff to Validator).
+- The next step is a protocol-mandated stop point, such as an initial skeleton approval, final completion handoff, or an overlapping/dependent MT awaiting its validator verdict. A pending review of a disjoint immutable MT is not a stop point inside the declared `SESSION_MT_BATCH`.
 
 ### Condensed coder session preflight (recommended)
 
@@ -399,12 +398,11 @@ This is a convenience wrapper around the core deterministic checks (worktree con
 Optional (recommended on session start to reduce babysitting):
 - `just coder-startup` (prints PROTOCOL_ACK lines + runs `just coder-preflight`).
 
-### Mandatory Rubric Read (HARD)
+### Rubric Consumption
 
-- Before the first WP-specific `BOOTSTRAP` step or any code change, read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md`.
-- The rubric remains support guidance, but this protocol adopts it as the mandatory coder quality floor.
-- Do not treat the rubric as optional background reading. Use it to shape implementation choices, self-critique, and handoff quality from the start of the WP.
-- Before handoff to the WP Validator, answer the required rubric-backed handoff fields defined by the packet `CODER_HANDOFF_RIGOR_PROFILE`.
+- The canonical gates in this protocol and the mechanically enforced phase checks are the coder quality floor. Do not perform a second full workflow read through `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` by default.
+- Read the existing rubric only when the typed packet explicitly selects a rubric profile whose unique fields are not present in the startup capsule, or when the Operator/Validator explicitly requests human-readable rubric review.
+- Before handoff, populate any packet-declared rubric fields in the single typed handoff record; do not duplicate them in Markdown or chat.
 
 ### Context resume (recommended; anti-babysit)
 
@@ -414,7 +412,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `ORCHESTRATOR_GATES.json (in gov_runtime)`
-- the resolved Work Packet path (logical `.GOV/work_packets/WP-*/packet.md`; current physical `.GOV/task_packets/WP-*/packet.md`; legacy flat `.GOV/task_packets/WP-*.md`)
+- the resolved typed Work Packet contract (`packet.json`); an existing Markdown packet is compatibility fallback only when typed resolution is absent/invalid
 
 Noise-control rule:
 - In coder worktrees, `/.GOV/` is a live shared governance junction, not the coder authority surface.
@@ -425,7 +423,7 @@ Resume rule (hard, anti-babysit):
 - After `just coder-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
 - Immediately run `just coder-next` (or `just coder-next WP-{ID}` when the WP is known).
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
-- STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a protocol-mandated handoff/approval stop.
+- STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a protocol-mandated approval/final-handoff/overlap stop. Pending review of a disjoint immutable MT does not block another unblocked MT in the declared batch.
 
 ### Fail log [CX-503K1]
 
@@ -434,20 +432,17 @@ Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patter
 - **`just phase-check STARTUP ... CODER` also surfaces the fail log** â€” known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
 - **Don't trust it blindly.** If a fix pattern references a file, verify it still exists. The packet and current code state always win.
 - **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section â€” context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
-- **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based â€” no gate enforces it.
-- **Conversation memory (MUST â€” `just repomem`):** Cross-session conversational memory. **HARD rules:**
+- **Intent snapshots.** Do not create a separate intent snapshot when typed packet/claim authority already records the same intent. Use one only for genuinely novel durable context not representable in the existing typed intent surface.
+- **Conversation memory (`just repomem`):** Cross-session supplementary memory. **HARD rules:**
   - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about>" --role CODER --wp WP-{ID}`. Blocked from mutation commands until done.
-  - **PRE_TASK before implementation (SHOULD):** Before starting a non-trivial implementation slice, cross-file refactor, migration, or validator-directed repair, run `just repomem pre "<what you are about to implement and why>" --wp WP-{ID}`.
-  - **INSIGHT after operator/orchestrator decisions (MUST):** When steering prompt contains a decision, correction, or key context, run `just repomem insight "<what was decided and why>"` BEFORE implementation. Minimum 80 characters.
-  - **INSIGHT after discoveries (MUST):** When investigation reveals a non-obvious root cause, constraint, or pattern, capture with `just repomem insight` before moving on.
-  - **DECISION when choosing an implementation path (SHOULD):** When choosing between approaches â€” library vs hand-rolled, refactor scope, API shape, error handling strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. Min 80 chars.
-  - **ERROR when something breaks (SHOULD):** When a build fails, a test breaks, a tool misbehaves, or unexpected state is found: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) â€” write immediately.
-  - **ABANDON when dropping an approach (SHOULD):** When an implementation path is abandoned â€” wrong architecture, performance issue, scope mismatch: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
-  - **CONCERN when spotting a risk (SHOULD):** When you notice a potential regression, a scope creep risk, a missing test, or a design smell: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. Min 80 chars. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout.
-  - **ESCALATION when blocked (SHOULD):** When you need orchestrator/operator input, hit a blocker outside your scope, or need a decision above your authority: `just repomem escalation "<what and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
+  - **NOVEL DURABLE ENTRY ONLY:** Between open and close, write `insight`, `decision`, `error`, `abandon`, `concern`, or `escalation` only for a genuinely novel reusable fact, decision, blocker, failure pattern, or workaround that is not already represented in typed packet, claim, receipt, runtime, evidence, validation, or debt authority.
+  - **DECISION (NOVEL ONLY):** Record an implementation choice only when its rationale or rejected alternative is reusable and absent from typed authority.
+  - **INSIGHT (NOVEL ONLY):** Record a non-obvious discovery only when it is reusable and absent from typed authority.
+  - **CONCERN (NOVEL ONLY):** Record a risk only when it remains durable, reusable, and absent from typed authority.
+  - **ESCALATION (NOVEL ONLY):** Record a blocker only when the escalation has durable reuse value and is absent from typed authority; the canonical typed blocker or request remains authoritative.
+  - **NO DUPLICATION:** Do not mirror ordinary implementation intent, status transitions, command output, MT evidence, review requests, or handoff fields into repomem. Write the canonical typed surface first; memory is supplementary.
   - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key decisions>"`.
-- **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
-- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role CODER`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions â€” preventing the same mistake from being repeated. Examples: compile errors from wrong import paths, test runner limitations, file system constraints, edit tool payload limits.
+- **Capture insights/failures only when novel.** A non-obvious reusable fix or systematic failure may use `just memory-capture procedural ...` only when it is not already captured by the canonical typed failure/repair receipt. Automatic fail capture satisfies this rule; do not duplicate it manually.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - Canonical memory references: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` for command syntax and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` for memory-system operation.
 
@@ -461,10 +456,10 @@ Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patter
 - Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through `THREAD.md`, `RECEIPTS.jsonl`, or an explicit operator/orchestrator instruction.
+- The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through typed `RECEIPTS.jsonl`/session-control state or an explicit operator/orchestrator instruction. Existing `THREAD.md` is a compatibility projection only.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
 - If the Orchestrator explicitly opens a hidden `SYSTEM_TERMINAL` repair surface, continue there; do not open your own untracked session.
-- Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
+- Use typed `RECEIPTS.jsonl` thread/message records for questions, clarifications, blocker notes, and soft coordination. Do not create or append `THREAD.md` unless the Operator explicitly requests that Markdown artifact; an existing thread projection may remain read-only.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
   - `runtime_status`
   - `current_phase`
@@ -488,7 +483,7 @@ Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patter
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, before `VERDICT` can pass the Coder must also complete one direct review exchange with `INTEGRATION_VALIDATOR` recorded in receipts with matching `correlation_id` / `ack_for`.
 - Do not jump from `CODER_INTENT` straight to `CODER_HANDOFF` when runtime truth is waiting on `WP_VALIDATOR_INTENT_CHECKPOINT` or an open review item. Governed `CODER_HANDOFF` now fails closed until the checkpoint is cleared, and it also fails if unresolved overlap microtask reviews are still open.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
-- `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
+- `just wp-thread-append` is legacy compatibility only because it writes Markdown. Do not call it unless the Operator explicitly requests that Markdown update; use the typed receipt/review helpers for soft coordination and direct review.
 - Before claiming validator-ready handoff on those packets, `just wp-communication-health-check WP-{ID} KICKOFF` must pass.
 - Before final PASS clearance on `PACKET_FORMAT_VERSION >= 2026-03-22`, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` will fail unless that direct `CODER <-> INTEGRATION_VALIDATOR` review exchange exists.
 - Authority split for coder coordination:
@@ -500,8 +495,7 @@ Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patter
 - `just wp-heartbeat ...` is liveness-only. The `next_actor`, `waiting_on`, and session-route parameters must match current runtime truth; use receipts/notifications to change workflow routing, not heartbeat.
 - Prefer `just active-lane-brief CODER WP-{ID}` when context or routing feels fragmented instead of rereading packet/runtime/session truth separately.
 - For session-targeted review helpers, `<session>` means your current receipt `actor_session` from `active-lane-brief`, `check-notifications`, or the active send-mt prompt. It is not necessarily the broker `session_key`. Use the exact `target_session` shown by the route/open review item; exact string continuity is required for ack matching.
-- Prefer deterministic helpers over hand-editing these files:
-  - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
+- Prefer deterministic typed helpers over hand-editing these files:
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
   - `just wp-coder-intent WP-{ID} <session> <wp_validator_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
@@ -532,18 +526,14 @@ Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patter
   - `just session-send CODER WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
   - `just session-cancel CODER WP-{ID}`
   - role-specific coder session recipes remain compatibility aliases for the canonical `session-*` controls
-- Keep authoritative work state in the packet:
-  - packet `**Status:**`
-  - `## CURRENT_STATE`
-  - `## STATUS_HANDOFF`
-  - `## EVIDENCE`
+- Keep authoritative work state in the packet-declared typed status, handoff, acceptance, and evidence fields. Existing Markdown status/evidence sections are projections only.
 - Hard rule: the communication folder does not change packet truth. If it conflicts with the packet, the packet wins.
 
-## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
+## Lifecycle State [CX-LIFE-001]
 
-In every Coder message (not only gate runs), include a short lifecycle marker so the Validator can see where you are in the WP lifecycle at a glance.
+The packet-declared typed runtime/status record is the lifecycle authority. Do not emit a lifecycle marker in every chat message.
 
-Template:
+Emit a compact lifecycle line only at a phase transition, handoff, blocker, or when the Operator/Validator requests it:
 ```text
 LIFECYCLE [CX-LIFE-001]
 - WP_ID: <WP-...>
@@ -551,7 +541,7 @@ LIFECYCLE [CX-LIFE-001]
 - NEXT: <next stage or STOP>
 ```
 
-Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match `STAGE` (same token).
+When a gate command reports `GATE_STATUS`, its `PHASE` MUST match the canonical typed lifecycle stage.
 
 ---
 
@@ -612,38 +602,39 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   - Else: the last commit (`HEAD^..HEAD`)
   This allows deterministic evidence even after committing (and avoids false negatives on multi-commit WPs).
 - **Validation order (deterministic):**
-  1. Run all TEST_PLAN commands (automated tests)
+  1. Run the TEST_PLAN commands due at the current validation boundary. Per-MT handoff runs cheap/focused proof only; broad/full Cargo test commands run once at the declared session MT-batch boundary or final WP implementation boundary.
   2. Run hygiene checks (`just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`)
-  3. Self-review against CODER_RUBRIC_V2.md
-  4. Stage ONLY in-scope files (including the updated work packet manifest)
+  3. Run the canonical anti-vibe/spec-realism self-checks and any packet-declared unique rubric fields
+  4. Stage ONLY in-scope product files; governance truth is updated through its typed authoritative surface
   5. Commit
   6. Run `just phase-check HANDOFF WP-{ID} CODER` on the clean tree
-  7. Notify Validator with the PASS output and commit SHA
+  7. Notify Validator with the compact gate outcome, canonical typed handoff/evidence pointer, and commit SHA
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If the handoff phase check fails, fix the manifest or code until it passes; no commit/Done state without a passing `phase-check HANDOFF` gate.
 - Baseline compile/scope waivers are ledger-backed, not prose-backed. If the baseline or environment is already broken and the Orchestrator/Operator authorizes a path-limited exception, it must be recorded with `just wp-waiver-record WP-{ID} --blocker-command <cmd> --allowed-edit-paths <paths> --operator-authority-ref <ref> ...`. `post-work-check` consumes that ledger and only relaxes scope checks for the recorded paths/kinds. Do not treat an informal packet note, chat summary, or old `WAIVERS GRANTED` prose as authority to edit outside signed scope.
 
 ## Active Workflow Adjustment [2025-12-28]
-- Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction so they match the packet-declared `CODER_MODEL_PROFILE` (edits land in the governance kernel). [CX-212F] Do NOT commit `.GOV/` files on your feature branch â€” the orchestrator commits governance changes on `gov_kernel`.
-- **Micro Task Workflow [RGF-89] (HARD):** Work through micro tasks in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
-  1. Set `CODER STATUS: IN_PROGRESS`
+- Run every TEST_PLAN command at its required validation boundary; no skipping validation and no repeating broad/full Cargo tests for every MT. Per-MT handoff uses cheap/focused proof, while the full Cargo suite is deferred to the declared session MT-batch boundary or final WP implementation boundary.
+- At start: set the canonical typed work-packet/MT status to `IN_PROGRESS`, and set `CODER_MODEL` + `CODER_REASONING_STRENGTH` so they match the packet-declared `CODER_MODEL_PROFILE`. [CX-212F] Do NOT commit `.GOV/` files on your feature branch â€” the orchestrator commits governance changes on `gov_kernel`.
+- **Micro Task Workflow [RGF-89] (HARD):** Work through the typed microtask contracts in the resolved Work Packet folder (`.GOV/task_packets/WP-{ID}/MT-001.json`, `MT-002.json`, etc.) in dependency order. Existing Markdown MT files are fallback projections only. For each MT:
+  1. Set typed `CODER STATUS: IN_PROGRESS`
   2. Implement the clause described in the MT
-  3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
+  3. Set typed coder implementation state to `READY_FOR_VALIDATION` with evidence and commands in the packet-declared typed fields; do not set validator-owned completion state
   4. Commit the MT work on the feature branch with message `feat: MT-NNN <description>`
   5. Send a governed review request: `just wp-review-request WP-{ID} CODER <actor_session> WP_VALIDATOR <target_session> "MT-NNN complete: <summary>"`, where both session values are the exact route strings from `active-lane-brief` / the send-mt prompt.
-  6. **STOP.** Wait for validator review response before starting the next MT. Do not batch-implement multiple MTs without intermediate review.
-  7. If the validator steers (sends fix instructions), fix the current MT before proceeding.
-  8. Only proceed to the next MT after the validator confirms the current MT or the orchestrator explicitly instructs continuation.
+  6. Treat the submitted commit/tree as immutable. While independent review is pending, continue only another disjoint, unblocked MT inside the declared `SESSION_MT_BATCH`; do not use the pending MT as a validated dependency.
+  7. Do not mark the submitted MT `COMPLETED`, integrate it, or merge it without the required validator verdict.
+  8. If the validator steers or fails an MT, stop starting new MT scope, repair that affected MT, rerun affected proof, and re-hand it off before resuming batch expansion. If the next MT overlaps or depends on the pending verdict, wait for review rather than coding through it.
 - When MT files exist on an orchestrator-managed lane, governed `CODER_INTENT` and overlap `REVIEW_REQUEST` receipts must carry `microtask_json` that resolves to the active declared MT (`scope_ref=MT-001` or a clause-token alias such as `CLAUSE_CLOSURE_MATRIX/CX-...`), includes concrete `file_targets`, and keeps those targets inside that MT's `CODE_SURFACES`; receipt preflight now fails closed otherwise.
 - **Heuristic-Risk MTs [RGF-250] (HARD):** Before implementing each declared MT, inspect `just heuristic-risk-check WP-{ID}` or the active-lane brief. If the MT is tagged `HEURISTIC_RISK=YES`, include the required corpus/property/negative evidence in `proof_commands` / MT evidence and change approach when repeated counterexamples appear; do not keep tuning the same threshold or regex loop.
-- **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
-- **Durable run notes:** During WP execution, capture notable findings (compile errors, scope ambiguities, governance friction, implementation decisions, abandoned approaches) with `just repomem insight|decision|error|concern ... --wp WP-{ID}`. The Workflow Dossier receives a terminal WP-bound memory snapshot at closeout; import debt is diagnostic only, so do not duplicate the same narrative in live dossier sections.
+- **Evidence Management:** Write proof once into the packet-declared typed MT/handoff evidence fields. Shared batch proof may reference multiple MTs when inputs match. Existing Markdown `## EVIDENCE` sections and chat summaries are projections only.
+- **Durable run notes:** Use repomem only for genuinely novel reusable findings not already represented in typed packet, receipt, runtime, evidence, validation, or debt authority. Do not duplicate compile output, status, implementation decisions, or handoff narration already recorded there.
 - **Compile Gate [CX-503I]:** The post-commit hook runs `cargo check` before firing the review request. If your code does not compile, the hook does NOT notify the validator. You see the compile error in the git output â€” fix it and re-commit before the validator is involved.
+- **Proof Reuse and Cargo Test Batch Cadence [CX-503I1] (HARD):** At session start, declare `SESSION_MT_BATCH` with the exact assigned MT IDs. Iterate exact failing/changed case -> affected full target/binary -> broad/full suite once at the declared batch or final-WP boundary. Reuse proof while source tree, features/profile/platform, command inputs, external-resource version, and asserted behavior remain unchanged. Record covered MT IDs plus exact commit/tree and proof inputs. A relevant later change invalidates affected proof only. A per-MT review may record `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH` without treating the MT as untested. Independent proofs may run concurrently only with disjoint owner-scoped Cargo targets, SurrealDB namespaces/databases, artifact directories, ports/processes, and other mutable resources.
 - **Hook Contract:** The post-commit auto-relay fires only for commit subjects shaped `feat: MT-NNN <description>` and only when the hook is installed at Git's effective `hooks/post-commit` path. If you committed a valid MT and no `REVIEW_REQUEST` notification appears, run the documented manual `wp-review-request` once, report that auto-relay missed, and stop for orchestrator hook repair instead of repeating commits or inventing a second route.
 - **Self-Claim Task Board [CX-503L]:** When available, check the MT task board (`just mt-board WP-{ID}`) for the next unclaimed MT instead of waiting for orchestrator assignment. Claim it (`just mt-claim WP-{ID} MT-NNN`), implement, commit, and mark complete (`just mt-complete WP-{ID} MT-NNN`).
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
-- **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
+- **Status Updates:** Generate one mechanically parseable handoff record from the diff, commands/results, acceptance criteria, lifecycle state, and artifact pointers. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, add its unique fields to that same typed record rather than a parallel Markdown/chat block.
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
@@ -666,7 +657,7 @@ If any of these situations arise during implementation, follow the matching proc
 3. Wait for Orchestrator decision before resuming.
 
 **Build/test failure blocking progress** (infrastructure, not logic):
-1. Record the failure in `## EVIDENCE` with the exact error output.
+1. Record the failure once in the canonical typed handoff/failure evidence with the exact error output or durable artifact pointer.
 2. Try the prescribed fix (if obvious and in-scope).
 3. If the fix requires out-of-scope changes or the cause is unclear: escalate to Orchestrator with the error output and a 1-line summary.
 4. Do NOT work around infrastructure failures by weakening tests or skipping gates.
@@ -679,7 +670,7 @@ If any of these situations arise during implementation, follow the matching proc
 
 Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
-2. **Coder**: Starts work -> Updates work packet to `In Progress` + pushes a docs-only bootstrap commit.
+2. **Coder**: Starts work -> Updates typed work-packet/runtime state to `IN_PROGRESS` + pushes the required bootstrap marker commit.
    - Pushes it to the assigned WP backup branch on GitHub so the WP has a clean restart point before later local merges/cleanup.
 3. **Validator**: Status-syncs `.GOV/roles_shared/records/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
 4. **Validator**: Approves work -> Moves to `Done` / `[MERGE_PENDING]` during validation, then promotes to `Validated (PASS)` / `[VALIDATED]` only after main containment is real.
@@ -688,7 +679,7 @@ Task state is managed by the agent currently holding the "ball":
 **Historical Done rule:** If a packet is marked `**Status:** Done (Historical)` (or the board marks it as historical/outdated-only), do not reopen or modify it. If new-spec work is required, request a NEW remediation WP variant from the Orchestrator.
 **Legacy remediation rule:** If the computed policy gate reports a closed structured packet as remediation-required legacy state, do not restart BOOTSTRAP/SKELETON/IMPLEMENTATION in-place even if old branch markers are missing. Treat it as failed historical closure and request a NEW remediation WP variant.
 
-**Coder Mandate:** You are responsible for updating the work packet to `In Progress` (with claim fields) and producing the bootstrap commit. Operator-visible Task Board updates on `main` are handled by the Validator via status-sync commits.
+**Coder Mandate:** You are responsible for updating typed packet/runtime state to `IN_PROGRESS` (with claim fields) and producing the required bootstrap marker commit. Operator-visible Task Board projection updates on `main` are handled by the Validator via status-sync commits.
 
 ### Board Integrity Check STOP
 If you are explicitly instructed to update the board, ensure these 5 fixed sections exist (DO NOT delete them even if empty):
@@ -709,21 +700,21 @@ For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, this checkpoint/approval subflow is fo
 - **Reminder:** `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only. Attempting them on an `ORCHESTRATOR_MANAGED` lane records `WORKFLOW_INVALIDITY`. Use the direct-review lane (`VALIDATOR_KICKOFF -> CODER_INTENT`) instead.
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
 If the Operator has to restate that rule in your lane, stop normal progress and expect the Orchestrator to record `just wp-operator-rule-restatement ...`; that lane becomes reset-required rather than business-as-usual.
-1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
-2. **SKELETON Phase**: Update the work packet `## SKELETON` section with proposed Traits/Structs/SQL headers and output the SKELETON block.
+1. **BOOTSTRAP Phase**: Record typed bootstrap intent, report its compact pointer, and verify scope.
+2. **SKELETON Phase**: Update the typed packet skeleton/interface field and report its compact gate outcome/pointer.
 3. **SKELETON APPROVAL Gate (`MANUAL_RELAY` only)**: STOP. Wait for `just skeleton-approved WP-{ID}` to be run (creates `docs: skeleton approved [WP-{ID}]` commit on the WP branch).
 4. **EARLY REVIEW Gate (`ORCHESTRATOR_MANAGED` only)**: use the direct-review lane (`VALIDATOR_KICKOFF` -> `CODER_INTENT`) so the WP Validator can steer bootstrap/skeleton corrections. Do not treat this as an Operator approval step.
 5. **IMPLEMENTATION Phase**: Write logic only after the required gate for your workflow lane is satisfied.
 5. **HYGIENE Phase**: Run `just product-scan` (alias: `just validator-scan`), `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
-6. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep work packet free of validation logs).
+6. **EVALUATION Phase**: Run the TEST_PLAN commands due at the current boundary and required hygiene commands, self-review, and prepare results for handoff (keep work packet free of validation logs). The broad/full Cargo suite is due only at the declared session MT-batch boundary or final WP implementation boundary.
 
 You are a **Coder** or **Debugger** agent. Your job is to:
 1. Verify work packet exists
 2. Implement within defined scope
 3. Run validation (TEST_PLAN + hygiene) and self-review
-4. Document completion for handoff
+4. Generate the canonical typed completion/handoff record
 
-**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `.GOV/roles_shared/records/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
+**Restrictions:** Record coder proof only in packet-declared typed evidence/handoff fields and NEVER write a validator verdict. Do not rely on branch-local Markdown Task Board projections for cross-branch visibility; consume the canonical typed task-state/runtime surface.
 
 **CRITICAL**: You MUST verify a work packet exists BEFORE writing any code. This is not optional.
 
@@ -735,21 +726,14 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 
 ### Step 1: Verify work packet Exists STOP
 
-**Check that orchestrator provided:**
-- [ ] work packet path mentioned (logical `.GOV/work_packets/WP-{ID}/packet.md`; current physical `.GOV/task_packets/WP-{ID}/packet.md`; legacy `.GOV/task_packets/WP-{ID}.md`)
-- [ ] WP_ID in handoff message
-- [ ] "Orchestrator checklist complete" confirmation
-- [ ] Packet is an official work packet in the resolved Work Packet root (logical `.GOV/work_packets/`; current physical `.GOV/task_packets/`) and NOT a stub in the stub root (current physical `.GOV/task_packets/stubs/`)
+Consume the typed startup result and resolved `.GOV/task_packets/WP-{ID}/packet.json`. A passing startup gate proves packet presence, required-field shape, readiness state, and assignment; do not manually re-check the same fields.
 
-**Verification methods (try in order):**
+Only if typed startup/packet authority is absent or invalid, inspect the existing legacy projection to diagnose the gap; do not create a new Markdown packet:
 
 **Method 1: Check for file**
 ```bash
-# Current physical storage compatibility (resolved Work Packet)
-ls -la .GOV/task_packets/WP-{ID}/packet.md
-
-# Legacy compatibility
-ls -la .GOV/task_packets/WP-{ID}.md
+# Canonical typed contract
+ls -la .GOV/task_packets/WP-{ID}/packet.json
 ```
 
 **Method 2: Check handoff message**
@@ -762,13 +746,13 @@ BLOCKED: No work packet found [CX-620]
 Orchestrator must create a work packet before I can start.
 
 Missing:
-- work packet file in the resolved Work Packet root (current physical storage: .GOV/task_packets/)
-- TASK_PACKET block in handoff
+- typed packet contract in the resolved Work Packet root
+- valid typed startup assignment
 
 Orchestrator: Please create work packet using:
   just create-task-packet WP-{ID}
 
-If only a stub exists (e.g., `.GOV/task_packets/stubs/WP-{ID}.md`), it must be activated into an official work packet first (refinement + USER_SIGNATURE + `just create-task-packet`).
+If only a stub exists, it must be activated into an official typed work packet first.
 
 I cannot write code without a work packet.
 ```
@@ -799,10 +783,9 @@ I cannot write code without a work packet.
   - [ ] No "but to implement X, I also need to implement Y" situations
   - [ ] All required context is either in-scope or already exists
 
-- [ ] **Is the scope realistic for RISK_TIER?**
-  - [ ] LOW scope: single file, <50 lines, minimal testing
-  - [ ] MEDIUM scope: 2-4 files, <200 lines, standard testing
-  - [ ] HIGH scope: 4+ files, >200 lines, extensive testing + architecture review
+- [ ] **Does the risk posture match affected behavior?**
+  - [ ] Risk derives from runtime behavior, trust/security/privacy boundaries, persistence/data-loss exposure, concurrency, UI/operator impact, and packet declarations.
+  - [ ] File count, line count, or diff size alone does not determine risk or validation rigor.
 
 **If any check fails:**
 
@@ -872,15 +855,12 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 ### Step 2: Read work packet STOP
 
 ```bash
-# Current physical storage compatibility (resolved Work Packet)
-cat .GOV/task_packets/WP-{ID}/packet.md
-
-# legacy compatibility:
-cat .GOV/task_packets/WP-{ID}.md
+# Canonical typed authority; consume once unless its version/hash changes.
+cat .GOV/task_packets/WP-{ID}/packet.json
 ```
 
 Recommended (Refinement cross-check):
-- Open the official refinement path for the WP and read `LANDSCAPE_SCAN` (logical `.GOV/work_packets/WP-{ID}/refinement.md`; current physical `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility `.GOV/refinements/WP-{ID}.md`) before choosing libraries/architectural patterns.
+- Read the typed refinement contract and its `LANDSCAPE_SCAN` before choosing libraries/architectural patterns. Use an existing Markdown refinement only when typed authority is absent/invalid or genuine human review requires it.
 - Also review `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` to avoid isolated implementations that miss cross-feature/primitive leverage; if missing/UNKNOWN for a cross-cutting WP, STOP and escalate to the Orchestrator.
 - If the WP requires a non-trivial technical approach choice and there is no `LANDSCAPE_SCAN` recorded: STOP and escalate to the Orchestrator (do not improvise an un-reviewed approach).
 
@@ -892,7 +872,7 @@ When two Coders work in this repo concurrently, no two in-progress Work Packets 
 - **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just phase-check HANDOFF {WP_ID} CODER` can validate the staged diff deterministically.
 - **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
-- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/records/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
+- Before editing any code, consume the canonical typed active-work/task-state surface emitted by startup and compare active WPs' `IN_SCOPE_PATHS`. Do not reread Markdown projections when startup already proves the non-overlap state.
 - If ANY overlap exists: STOP and escalate (do not edit any code).
 
 Escalation template:
@@ -909,7 +889,7 @@ Overlapping paths:
 I will not edit any code until the Orchestrator re-scopes or sequences the work.
 ```
 
-**Verify packet includes ALL 10 required fields:**
+**Startup mechanically verifies the required packet fields:**
 - [ ] TASK_ID and WP_ID
 - [ ] STATUS (ensure it is `Ready-for-Dev` or `In-Progress`)
 - [ ] RISK_TIER (determines validation rigor)
@@ -921,18 +901,18 @@ I will not edit any code until the Orchestrator re-scopes or sequences the work.
 - [ ] ROLLBACK_HINT (how to undo)
 - [ ] BOOTSTRAP block (my work plan)
 
-**COMPLETENESS CRITERIA (MANDATORY - all 10 fields must pass) [CX-581-VARIANT]**
+**COMPLETENESS CRITERIA [CX-581-VARIANT]**
 
-For each field, verify it meets the objective criteria:
+Do not manually re-audit all fields after a passing typed startup gate. If startup reports a specific missing/invalid field, inspect and route only that field. Mechanical criteria remain:
 
 - [ ] **TASK_ID + WP_ID**: Unique, format is `WP-{phase}-{descriptive-name}` (not generic)
 - [ ] **STATUS**: Exactly `Ready-for-Dev` or `In-Progress` (not TBD, Draft, Pending, etc.)
 - [ ] **RISK_TIER**: One of LOW/MEDIUM/HIGH with clear justification (not vague like "medium risk")
 - [ ] **SCOPE**: 1-2 concrete sentences + business rationale + boundary clarity (not "improve storage")
-- [ ] **IN_SCOPE_PATHS**: Specific file paths (5-20 entries), not vague directories like "src/backend"
-- [ ] **OUT_OF_SCOPE**: 3-8 deferred items with explicit reasons (not "other work")
+- [ ] **IN_SCOPE_PATHS**: Specific file paths or mechanically bounded path patterns, not an unbounded product root
+- [ ] **OUT_OF_SCOPE**: Explicit boundaries and reasons where the packet requires them
 - [ ] **TEST_PLAN**: Concrete bash commands (copy-paste ready), no placeholders like "run tests"
-- [ ] **DONE_MEANS**: 3-8 measurable criteria, each verifiable yes/no (not "feature works")
+- [ ] **DONE_MEANS**: Measurable criteria, each verifiable yes/no (not "feature works")
 - [ ] **ROLLBACK_HINT**: Clear undo instructions (git revert OR step-by-step undo)
 - [ ] **BOOTSTRAP**: All 4 sub-fields present (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP)
 
@@ -955,11 +935,10 @@ I cannot start without a complete packet.
 
 Goal: make "work started" visible to the Operator on `main` **without** blocking your local explicit product validation workflow.
 
-**MANDATORY in your work packet (before any code changes):**
-- Set work packet `**Status:** In Progress`
+**MANDATORY in typed packet/runtime authority (before any code changes):**
+- Set typed work-packet status to `IN_PROGRESS`
 - Fill `CODER_MODEL` and `CODER_REASONING_STRENGTH`
-- Update `## STATUS_HANDOFF` with a 1-line "Started" note
-- Do NOT add any SKELETON content yet (keep `## SKELETON` placeholders until the separate SKELETON phase turn/commit per [CX-GATE-001]).
+- Emit the packet-declared typed intent/claim record; do not duplicate it into a Markdown status section.
 
 **[CX-212D] Do NOT commit `.GOV/` files on your feature branch.** The work packet edits you made above are written through the `.GOV/` junction and land in the governance kernel. The orchestrator commits them on `gov_kernel`.
 
@@ -979,12 +958,12 @@ node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-{ID}
 
 ### Step 4: Bootstrap Protocol [CX-574-577] STOP
 
-**Read these files in order:**
+**Consume these authority surfaces in order:**
 
 1. **.GOV/roles_shared/docs/START_HERE.md** - Repo map, commands, how to run
 2. **.GOV/spec/SPEC_CURRENT.md** - Machine-readable current spec entrypoint; resolve it to the indexed manifest/module slices before using spec text
-3. **work packet** - Your specific work scope
-   - Confirm `## SUB_AGENT_DELEGATION` before using any sub-agents (default DISALLOWED; only delegate if `ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`).
+3. **Typed work packet/startup capsule** - Your specific work scope; consume once unless its version/hash changes.
+   - Confirm typed `SUB_AGENT_DELEGATION` before using any sub-agents (default DISALLOWED; only delegate if `ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`).
 4. **Task-specific docs:**
    - FEATURE/REFACTOR -> `.GOV/roles_shared/docs/ARCHITECTURE.md`
    - DEBUG -> `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
@@ -1001,15 +980,17 @@ cat .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
 
 ---
 
-### Step 5: Output BOOTSTRAP Block STOP
+### Step 5: Record Bootstrap Intent
 
-**Before first code change, output:**
+Before the first code change, emit/update the packet-declared typed intent/claim record. On success, chat reports only `BOOTSTRAP: PASS`, the WP/MT IDs, and the canonical record pointer. Do not paste the complete block unless the Operator requests it or a failure/ambiguity requires diagnosis.
 
-```
+Legacy diagnostic shape (only when full detail is requested or needed to resolve a failure):
+
+```text
 BOOTSTRAP [CX-577, CX-622]
 ========================================
 WP_ID: WP-{phase}-{name}
-TASK_PACKET: logical .GOV/work_packets/WP-{phase}-{name}/packet.md (current physical storage may resolve to .GOV/task_packets/...)
+TASK_PACKET: .GOV/task_packets/WP-{phase}-{name}/packet.json
 RISK_TIER: {LOW|MEDIUM|HIGH}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
@@ -1028,7 +1009,8 @@ SEARCH_TERMS:
 
 RUN_COMMANDS:
 - just dev  # Start dev environment
-- cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+- cargo check --manifest-path src/backend/handshake_core/Cargo.toml
+- {exact packet-declared focused test command; broad cargo test only at the CX-503I1 batch/final-WP boundary}
 - pnpm -C app test
 - {from work packet TEST_PLAN}
 
@@ -1036,7 +1018,8 @@ RISK_MAP:
 - "{failure mode}" -> "{subsystem}" (from packet)
 - "{failure mode}" -> "{subsystem}"
 
-PASS Pre-work verification complete. Starting implementation.
+RESULT: PASS|FAIL|BLOCKED
+CANONICAL_RECORD: <typed intent/claim record pointer>
 ========================================
 ```
 
@@ -1054,11 +1037,11 @@ For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run
 
 **Purpose:** Make the proposed interfaces/types/contracts explicit and get approval before implementation (per [CX-GATE-001], [CX-625]).
 
-**In your work packet:**
-- Fill `## SKELETON` with proposed Traits/Structs/Interfaces and/or SQL headers (no logic).
+**In typed packet authority:**
+- Fill the packet-declared typed skeleton/interface field with proposed Traits/Structs/Interfaces and/or SQL headers (no logic).
 - Include any open questions/assumptions.
 - **If the WP includes cross-boundary changes** (e.g., UI/API/storage/events) **OR any governing spec/DONE_MEANS includes MUST record/audit/provenance:**
-  - Add an `END_TO_END_CLOSURE_PLAN` subsection inside `## SKELETON` that maps:
+  - Add `END_TO_END_CLOSURE_PLAN` to the typed skeleton field, mapping:
     - Producer/output fields that must exist (where they come from)
     - Transport schema changes (request/response types)
     - Trust boundary: which inputs are untrusted; what the server verifies/derives from a source-of-truth (e.g., stored job output)
@@ -1067,13 +1050,13 @@ For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run
     - Determinism: how `just phase-check HANDOFF ... CODER` will be run (range/rev) if the WP is multi-commit
   - If any mapping is ambiguous, STOP and ask the Orchestrator before implementation.
 
-**In chat, output:**
+**In chat:** report the skeleton gate outcome, a short interface summary, and the canonical typed field pointer. Include the complete structure only when the reviewer requests it or ambiguity/failure requires discussion.
 
 ```
 SKELETON [CX-625, CX-GATE-001]
 ========================================
 WP_ID: WP-{phase}-{name}
-TASK_PACKET: logical .GOV/work_packets/WP-{phase}-{name}/packet.md (current physical storage may resolve to .GOV/task_packets/...)
+TASK_PACKET: .GOV/task_packets/WP-{phase}-{name}/packet.json
 
 PROPOSED_CONTRACTS:
 - {Trait/Struct/Interface/SQL header proposal 1}
@@ -1097,7 +1080,7 @@ Manual fallback:
 just coder-skeleton-checkpoint WP-{ID}
 ```
 
-[CX-212D] This creates an empty commit marker on the feature branch. The `## SKELETON` content lives in the work packet (governance kernel, via junction) â€” do NOT `git add` `.GOV/` files.
+[CX-212D] This creates an empty commit marker on the feature branch. Skeleton content lives in typed packet authority in the governance kernel â€” do NOT `git add` `.GOV/` files.
 
 STOP (`MANUAL_RELAY` only): request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
 After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
@@ -1371,14 +1354,14 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
 **Before starting validation, understand the order. Do NOT skip any step.**
 
 ```
-1. RUN TESTS (Primary Gate)
-   down All TEST_PLAN commands pass?
+1. RUN TESTS DUE AT THE CURRENT BOUNDARY (Primary Gate)
+   down All TEST_PLAN commands due at this boundary pass?
    |- YES -> Continue to step 2
    `- NO -> BLOCK: Fix code, re-test until all pass
 
 2. RUN HANDOFF PHASE CHECK (Final Gate)
    down `just phase-check HANDOFF WP-{ID} CODER` passes?
-   |- YES -> Commit (if not already), then run `just phase-check HANDOFF WP-{ID} CODER` and paste PASS output + commit SHA
+   |- YES -> Commit (if not already), then report compact PASS + commit SHA + canonical typed/dossier evidence pointer
    `- NO -> BLOCK: Fix validation errors, re-run until PASS
 ```
 
@@ -1393,44 +1376,35 @@ Complete ALL steps before claiming work is done.
 ### Step 7: Run Validation [CX-623] STOP
 
 **Pre-Step 7 hygiene (MANDATORY):**
-- Clean Cargo artifacts in the external target dir before self-eval/commit to keep the repo/mirror slim:
-  `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"`
-  (or run `just cargo-clean`, which uses `../Handshake_Artifacts/handshake-cargo-target`).
+- Use the owner-scoped external Cargo target required by [CX-984]. Clean only that owner's scoped artifact directory after its build/test finishes. Never run `cargo clean` against the shared artifact root.
 
-**Run ALL commands from TEST_PLAN:**
+**Run the TEST_PLAN commands due at this boundary:**
+
+- Per-MT boundary: compile/static checks and focused behavior tests only; record a broad Cargo suite as `DEFERRED_TO_SESSION_MT_BATCH` with the declared batch ID/MT list.
+- Session MT-batch boundary: run every remaining broad/full Cargo TEST_PLAN command once on the exact unchanged batch-boundary tree and record the covered MT IDs plus commit/tree state. Final WP implementation boundary: run those broad/full Cargo commands on the final unchanged WP tree.
+- Do not run standalone `cargo build` when `cargo check` or `cargo test` already proves compilation, unless the packet explicitly requires a concrete build/profile/feature/platform artifact.
 
 **Host-load waiver exception:** If the packet has an active Operator-approved waiver covering host load or cargo/TEST_PLAN execution, do not start the waived heavy command (for example `cargo test`, `cargo clippy`, broad `pnpm test`, or full builds). Do not inspect, cancel, kill, throttle, or otherwise touch operator-owned download scripts or external processes. Record `Result: NOT_RUN_WAIVED` with the waiver ID in handoff evidence and use lighter evidence explicitly allowed by the waiver; if the command is still required after the waiver expires, escalate to the Orchestrator instead of surprising the host.
 
 **Example for MEDIUM risk:**
 ```bash
-# From work packet TEST_PLAN
-cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-pnpm -C app run lint
-pnpm -C app test
-cargo clippy --all-targets --all-features
+# Per-MT focused boundary
+cargo check --manifest-path src/backend/handshake_core/Cargo.toml
+# Run the exact packet-declared focused test command and reject output showing zero tests.
 
 # Governance/product boundary scan
 just product-scan
 
-# Then run the exact TEST_PLAN commands the packet requires
+# At SESSION_MT_BATCH or final-WP boundary, run the broad Cargo test command once
 cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+
+# Run remaining packet commands at the boundary each command declares.
 pnpm -C app run lint
 pnpm -C app test
 cargo clippy --all-targets --all-features
 ```
 
-**Document results for handoff (append to ## EVIDENCE in the work packet):**
-```
-## EVIDENCE
-Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-Result: PASS (5 passed, 0 failed)
-Output: [relevant output]
-
-Command: pnpm -C app test
-Result: PASS (12 passed, 0 failed)
-Output: [relevant output]
-...
-```
+**Record results once for handoff:** generate/update the packet-declared mechanically parseable handoff record from the exact diff/tree, commands and outcomes, covered MT IDs, acceptance criteria, and artifact pointers. Successful command output is summarized with its durable pointer; failure output retains the exact relevant diagnostics. Existing Markdown evidence sections are projections only.
 
 **If tests FAIL:**
 ```
@@ -1442,40 +1416,75 @@ Error: TypeError in JobsView component
 Fixing issue before claiming done...
 ```
 
-Fix issues, re-run tests, update your evidence in `## EVIDENCE`.
+Fix issues, rerun the exact failing case, then the affected complete target/binary, and update the canonical typed handoff evidence. Run broad proof only at the declared boundary.
 
-**Rule:** Do NOT write verdicts (PASS/FAIL) in `## VALIDATION_REPORTS`. Only provide raw evidence in `## EVIDENCE`.
+**Rule:** Do NOT write validator verdict fields. Coder records implementation proof in the typed handoff/evidence surface only.
 
 ---
 
 ### Step 7.5: Test Coverage Verification [CX-572A-COVERAGE]
 
-**Purpose:** Ensure test coverage meets minimum thresholds per RISK_TIER before the handoff phase check.
+**Applicability:** Run percentage coverage only when the typed packet explicitly declares a coverage acceptance criterion and its required threshold/tool. Risk tier alone does not create a percentage gate. If the packet has no coverage criterion, skip this step.
 
-**Coverage Minimums by Risk Tier:**
+**Coverage boundary:**
 
-| Risk Tier | Coverage Target | Rule | Verification |
-|-----------|-----------------|------|--------------|
-| **LOW** | None (optional) | No requirement | Skip this step if RISK_TIER is LOW |
-| **MEDIUM** | >= 80% | New code must have >=80% coverage | Run `cargo tarpaulin` after tests pass |
-| **HIGH** | >= 85% + removal check | New code must be >=85% + old code never removed | Run `cargo tarpaulin` + manual inspection |
+| Packet declaration | Rule | Verification |
+|--------------------|------|--------------|
+| No explicit percentage criterion | No percentage gate | Skip; normal behavior/runtime proof still applies |
+| Explicit scoped coverage criterion | Use the packet's exact target/tool | Run at the packet-declared boundary |
+| Explicit broad `cargo tarpaulin` criterion | Use the packet's exact target | Run once at the [CX-503I1] session-batch/final-WP boundary |
 
-**How to check coverage (MEDIUM/HIGH risk only):**
+**How to check broad coverage when explicitly packet-required ([CX-503I1] session-batch/final-WP boundary only):**
 
 ```bash
-# Install tarpaulin if needed
-cargo install cargo-tarpaulin
+set -euo pipefail
 
-# Run coverage analysis
+# Prerequisite: cargo-tarpaulin is already available. If installation is required,
+# route its install/cache outputs under $HANDSHAKE_ARTIFACTS_ROOT/handshake-tool/;
+# do not install it as an unscoped side effect of this coverage proof.
+
+# Run broad coverage analysis only at the required batch/final-WP boundary.
+# Keep compilation and report output in owner-scoped external artifact directories.
+: "${HANDSHAKE_ARTIFACTS_ROOT:?resolve the canonical external artifact root}"
+: "${OWNER_SLUG:?set the WP, role-session, or sub-agent owner slug}"
+: "${WP_ID:?set WP ID}"
+: "${CARGO_TARGET_DIR:?set the owner-scoped Cargo target directory}"
+case "$OWNER_SLUG" in ''|.|..|*[!A-Za-z0-9._-]*) echo "OWNER_SLUG is not path-safe" >&2; exit 2 ;; esac
+case "$WP_ID" in ''|.|..|*[!A-Za-z0-9._-]*) echo "WP_ID is not path-safe" >&2; exit 2 ;; esac
+# Canonicalize without creating the proposed target; GNU realpath -m is required.
+artifact_root="$(realpath -m -- "$HANDSHAKE_ARTIFACTS_ROOT")"
+cargo_target_dir="$(realpath -m -- "$CARGO_TARGET_DIR")"
+repo_root="$(realpath -m -- "$(git rev-parse --show-toplevel)")"
+case "$artifact_root" in
+  "$repo_root"|"$repo_root/"*) echo "HANDSHAKE_ARTIFACTS_ROOT must stay outside the repo" >&2; exit 2 ;;
+esac
+required_target_parent="$artifact_root/handshake-cargo-target"
+case "$cargo_target_dir" in
+  "$required_target_parent/$OWNER_SLUG"|"$required_target_parent/$OWNER_SLUG-"*) ;;
+  *) echo "CARGO_TARGET_DIR is outside the required owner-scoped target" >&2; exit 2 ;;
+esac
+mkdir -p "$artifact_root" "$cargo_target_dir"
+export HANDSHAKE_ARTIFACTS_ROOT="$artifact_root"
+export CARGO_TARGET_DIR="$cargo_target_dir"
+expected_coverage_wp_root="$artifact_root/handshake-test/$OWNER_SLUG/$WP_ID"
+coverage_wp_root="$(realpath -m -- "$expected_coverage_wp_root")"
+if [ "$coverage_wp_root" != "$expected_coverage_wp_root" ]; then
+  echo "coverage WP root resolves outside its exact owner-scoped path" >&2
+  exit 2
+fi
+coverage_dir="$(realpath -m -- "$coverage_wp_root/coverage")"
+if [ "$coverage_dir" != "$coverage_wp_root/coverage" ]; then
+  echo "coverage output escapes the owner-scoped WP directory" >&2
+  exit 2
+fi
+mkdir -p "$coverage_dir"
 cd src/backend/handshake_core
-cargo tarpaulin --out Html --output-dir coverage/
+cargo tarpaulin --out Html --output-dir "$coverage_dir"
 
-# Open coverage/tarpaulin-report.html and verify:
-# - Your new code has >=80% (MEDIUM) or >=85% (HIGH)
-# - No previously-covered code now has 0% (didn't remove tests)
+# Open "$coverage_dir/tarpaulin-report.html" and verify the packet-declared target.
 ```
 
-**If coverage is LOW:**
+**If coverage is below the packet-declared target:**
 
 Document the reason in your handoff notes (not the work packet) with one of these waivers:
 
@@ -1484,8 +1493,8 @@ Document the reason in your handoff notes (not the work packet) with one of thes
 COVERAGE WAIVER [CX-572A-VARIANCE]
 ==========================================
 
-RISK_TIER: MEDIUM
-Current Coverage: 75% (below 80% target)
+PACKET_ACCEPTANCE_ROW: <row-id>
+Current Coverage: <measured value below the packet target>
 
 Reason: Remaining uncovered lines are defensive error branches that are hard to trigger deterministically; the critical path is exercised end-to-end against real resources.
 
@@ -1501,7 +1510,7 @@ Risk Assessment:
 Approved by: {orchestrator decision or team agreement}
 ```
 
-**Rule:** Do NOT proceed to the handoff phase check if coverage is below threshold and no approved waiver exists.
+**Rule:** When the packet explicitly declares a threshold, do NOT proceed to the handoff phase check if coverage is below that threshold and no approved waiver exists. When no threshold is declared, do not invent one.
 
 **Scope of a coverage waiver:** it excuses only a coverage-*percentage* gap on genuinely hard-to-trigger branches. It never waives the Spec-Realism Gate — durable storage, EventLedger, runtime, UI, or replay MUSTs still require real-resource proof (Handshake-managed SurrealDB in a fresh WP-scoped namespace/database), and mock / in-memory / PostgreSQL / SQLite substitutes are never acceptable as that proof [CX-573F, CX-503R].
 
@@ -1513,21 +1522,19 @@ Approved by: {orchestrator decision or team agreement}
 - Prepare a clean handoff for manual validator review (evidence pointers, DONE_MEANS mapping, and validation results).
 - No automated review is required or expected.
 
-### Step 9: Update work packet (status and evidence only) STOP
+### Step 9: Generate the Canonical Typed Handoff Record
 
-- Update WP_STATUS in the work packet to reflect current state (e.g., Completed/Blocked).
-- Append logs/output to `## EVIDENCE` (if output is long, redirect to a log file and record LOG_PATH + LOG_SHA256 + key proof lines).
-  - Recommended log location (not committed): `.handshake/logs/{WP_ID}/...`
-  - Keep retrieval deterministic: stable filenames + SHA256.
-- Append an `EVIDENCE_MAPPING` block into the work packet (canonical), mapping DONE_MEANS/SPEC_ANCHOR requirements to `path:line`.
-- Do NOT write to `## VALIDATION_REPORTS`.
+- Set typed implementer state to `READY_FOR_VALIDATION` or the exact blocker state; never set validator-owned `COMPLETED`/verdict fields.
+- Generate one packet-declared mechanically parseable handoff record from diff/tree identity, commands/results, test counts, acceptance criteria, DONE_MEANS/SPEC_ANCHOR mapping, covered MT IDs, known gaps, and artifact pointers.
+- Store long logs under the owner-scoped external artifact root and record path + SHA256 + key proof lines in that record.
+- Existing Markdown `## EVIDENCE`, `## STATUS_HANDOFF`, and `## VALIDATION_REPORTS` sections are projections only. Do not manually duplicate the typed handoff into them.
 - Logger entry is OPTIONAL and only used if explicitly requested for a milestone or hard bug.
 
 ---
 
 ### Step 10: Handoff Phase Validation STOP
 
-**Run deterministic manifest gate (not tests):**
+**Run deterministic manifest gate (not tests); it consumes the canonical typed packet/handoff state:**
 ```bash
 # Run the exact command from the packet TEST_PLAN.
 just phase-check HANDOFF WP-{ID} CODER
@@ -1543,11 +1550,10 @@ just phase-check HANDOFF WP-{ID} CODER
   just phase-check HANDOFF WP-{ID} CODER --rev <sha>
   ```
 
-**MUST see:**
+**Successful outcome:** report the compact PASS plus the phase dossier/handoff record pointer; do not paste the full successful output.
 ```
 PASS Post-work validation PASSED (deterministic manifest gate; not tests)
-
-You may proceed with commit request.
+CANONICAL_EVIDENCE: <typed handoff/dossier pointer>
 ```
 
 **If FAIL:**
@@ -1566,8 +1572,8 @@ Fix errors, re-run `just phase-check HANDOFF WP-{ID} CODER`.
 
 ### Step 11: Status Sync & Request Validator Review
 
-**1. Update work packet handoff:**
-- Ensure `## STATUS_HANDOFF` includes the standard handoff core, with concrete content rather than a generic ready note:
+**1. Verify the single typed handoff record:**
+- Ensure it includes the standard handoff core with concrete evidence:
   - `Current WP_STATUS:`
   - `What changed in this update:`
   - `Requirements / clauses self-audited:`
@@ -1576,7 +1582,7 @@ Fix errors, re-run `just phase-check HANDOFF WP-{ID} CODER`.
   - `Heuristic risks / maintainability concerns:`
   - `Validator focus request:`
   - `Next step / handoff hint:`
-- If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, `## STATUS_HANDOFF` MUST also include these rubric-proof fields:
+- If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, the same typed record MUST also include these rubric-proof fields:
   - `Rubric contract understanding proof:`
   - `Rubric scope discipline proof:`
   - `Rubric baseline comparison:`
@@ -1590,54 +1596,17 @@ Fix errors, re-run `just phase-check HANDOFF WP-{ID} CODER`.
   - `Data contract self-check:`
 - Treat those rubric-proof fields as evidence-backed self-critique for the validator, not as motivational prose.
 - `Signed-scope debt ledger` must be explicit and honest. If debt remains inside signed scope, do not posture as PASS-ready.
-- Do NOT write verdicts or edit `## VALIDATION_REPORTS`
+- Do NOT write validator verdict fields or manually mirror the record into Markdown.
 
-**2. Output final summary:**
+**2. Output a compact final summary:**
 ```
 PASS Work complete; ready for validation [CX-623]
-========================================
-
 WP_ID: WP-{phase}-{name}
-RISK_TIER: {tier}
-
-VALIDATION SUMMARY:
-- cargo test: PASS (X tests)
-- pnpm test: PASS (Y tests)
-- pnpm lint: PASS
-- cargo clippy: PASS (0 warnings)
-- gates (handoff phase check): PASS (deterministic manifest; not tests)
-
-FILES_CHANGED:
-- src/backend/handshake_core/src/api/jobs.rs
-- src/backend/handshake_core/src/jobs.rs
-- {list all changed files}
-
-DONE_MEANS MET:
-PASS {Criterion 1 from packet}
-PASS {Criterion 2 from packet}
-PASS All tests pass
-PASS Validation clean
-
-SUGGESTED COMMIT MESSAGE:
-```
-feat: add job cancellation endpoint [WP-{phase}-{name}]
-
-Implements POST /jobs/:id/cancel endpoint per WP-{phase}-{name}.
-Users can now cancel running jobs via API.
-
-- Add cancel_job handler in jobs.rs
-- Update job status to "cancelled"
-- Add 2 tests for cancel flow
-
-PASS cargo test: 5 passed
-PASS pnpm test: 12 passed
-
-Generated with Claude Code
-Co-Authored-By: {Your model} <noreply@anthropic.com>
-```
-
-Ready for Validator review.
-========================================
+MT_SCOPE: <MT IDs>
+COMMIT_TREE: <immutable commit/tree>
+PROOF: <focused/affected/broad boundary outcome>
+HANDOFF_RECORD: <canonical typed record pointer>
+NEXT_ACTOR: <validator route>
 ```
 
 ---
@@ -1646,23 +1615,23 @@ Ready for Validator review.
 
 ### Do Not:
 1. Start coding without work packet [CX-620]
-2. Skip BOOTSTRAP block output [CX-622]
+2. Skip the canonical typed bootstrap intent/claim record [CX-622]
 3. Change files outside IN_SCOPE_PATHS
-4. Skip validation commands from TEST_PLAN [CX-623]
-5. Claim work is "done" without running tests [CX-572]
+4. Skip validation commands from TEST_PLAN that are due at the current boundary [CX-623]
+5. Claim work is "done" without running the tests due at the current boundary [CX-572]
 6. Request commit without `just phase-check HANDOFF ... CODER` passing [CX-623]
 7. Override enforcement checks without user permission [CX-905]
 
 ### Do:
 1. Verify packet exists before coding [CX-620]
-2. Output BOOTSTRAP before first change [CX-622]
+2. Record typed bootstrap intent before first change and report its compact pointer [CX-622]
 3. Follow scope strictly
-4. Run all validation commands [CX-623]
-5. Document validation results for handoff (outside the work packet)
-6. Update work packet status/notes only before commit (logger only if requested; no validation logs)
+4. Run all validation commands due at the current boundary [CX-623]; broad/full Cargo commands follow [CX-503I1]
+5. Generate one typed validation/handoff record
+6. Update typed packet/runtime state only through its authoritative surfaces (logger only if requested)
 7. Run `just phase-check HANDOFF WP-{ID} CODER` before claiming done
-8. Read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change
-9. Answer the required rubric-proof fields in `## STATUS_HANDOFF` before validator handoff when the packet uses `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
+8. Read `CODER_RUBRIC_V2.md` only when the typed packet selects unique rubric fields absent from startup or human review explicitly requires it
+9. Put any required rubric-proof fields in the single typed handoff record
 
 ---
 
@@ -1689,8 +1658,8 @@ I cannot start without a work packet.
 ```
 FAIL Tests failed [CX-572]
 
-Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-Result: FAIL (2 failed, 3 passed)
+Command: <exact packet-declared focused Cargo test command>
+Result: FAIL (2 failed, 3 passed; reject the proof if zero tests executed)
 
 Errors:
 - test_job_cancel: assertion failed
@@ -1727,13 +1696,13 @@ User wants job cancellation. I'll start coding.
 ```
 **Right:**
 ```
-Checking for work packet...
+Consuming typed startup and packet contract...
 
-$ ls .GOV/task_packets/WP-*Cancel*.md  # current physical compatibility probe
--> Found: .GOV/task_packets/WP-1-Job-Cancel.md  # resolved Work Packet path
+$ ls .GOV/task_packets/WP-1-Job-Cancel/packet.json
+-> Found canonical typed packet
 
-Reading packet...
-[Outputs BOOTSTRAP block]
+BOOTSTRAP: PASS
+CANONICAL_RECORD: <typed intent/claim pointer>
 
 Starting implementation...
 ```
@@ -1760,10 +1729,13 @@ Code looks good. Work is done!
 ```
 **Right:**
 ```
-Running validation per TEST_PLAN:
+Running validation per TEST_PLAN and [CX-503I1]:
 
-$ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-PASS 5 passed
+$ cargo check --manifest-path src/backend/handshake_core/Cargo.toml
+PASS
+
+# Run the exact packet-declared focused test command and reject output showing zero tests.
+# An unfiltered cargo test belongs only at the declared session-batch/final-WP boundary.
 
 $ pnpm -C app test
 PASS 12 passed
@@ -1783,7 +1755,7 @@ Now work is done.
 ```
 **Right:**
 ```
-[Updates work packet status/notes (no validation logs)]
+[Updates typed packet/runtime state and generates the typed handoff record]
 [Then requests commit]
 ```
 
@@ -1793,11 +1765,11 @@ Now work is done.
 
 **You succeeded if:**
 - PASS work packet verified before coding
-- PASS BOOTSTRAP block output
+- PASS typed bootstrap intent/claim recorded before coding
 - PASS Implementation within scope
-- PASS All TEST_PLAN commands run and pass
+- PASS All TEST_PLAN commands due at each reached boundary run and pass; WP completion additionally has the broad/full-suite PASS on the final unchanged WP tree
 - PASS Manual review complete (if required)
-- PASS Validation evidence captured in `## EVIDENCE` (logs/outputs)
+- PASS Validation evidence captured once in the canonical typed handoff record
 - PASS `just phase-check HANDOFF WP-{ID} CODER` passes
 - PASS Commit message references WP-ID
 
@@ -1806,7 +1778,7 @@ Now work is done.
 - FAIL Work rejected at review for missing validation
 - FAIL Tests fail but you claim "done"
 - FAIL Scope creep (changed unrelated code)
-- FAIL Wrote a verdict in `## VALIDATION_REPORTS` (Validator only)
+- FAIL Wrote a validator-owned verdict (Validator only)
 
 ---
 
@@ -1815,20 +1787,17 @@ Now work is done.
 **Commands:**
 ```bash
 # Verify packet exists
-ls .GOV/task_packets/WP-{ID}/packet.md  # current physical compatibility probe
-# legacy compatibility:
-ls .GOV/task_packets/WP-{ID}.md
+ls .GOV/task_packets/WP-{ID}/packet.json
 
 # Read packet
-cat .GOV/task_packets/WP-{ID}/packet.md  # current physical compatibility probe
-# legacy compatibility:
-cat .GOV/task_packets/WP-{ID}.md
+cat .GOV/task_packets/WP-{ID}/packet.json
 
 # Run governance/product boundary scan
 just product-scan
 
-# Then run the packet TEST_PLAN validation commands
-cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+# Then run the packet TEST_PLAN commands due at the current boundary.
+cargo check --manifest-path src/backend/handshake_core/Cargo.toml
+# Run the exact packet-declared focused test; use unfiltered cargo test only at the [CX-503I1] batch/final-WP boundary.
 
 
 # Post-work check
@@ -1841,11 +1810,11 @@ git status
 **Codex rules enforced:**
 - [CX-620]: MUST verify packet before coding
 - [CX-621]: MUST stop if no packet found
-- [CX-622]: MUST output BOOTSTRAP block
- - [CX-623]: MUST document validation (in handoff notes; keep work packet clean)
+- [CX-622]: MUST record typed bootstrap intent before coding
+- [CX-623]: MUST generate the canonical typed validation/handoff record
 - [CX-572]: MUST NOT claim "OK" without tests
 - [CX-573]: MUST be traceable to WP_ID
-- [CX-650]: work packet + task board are primary micro-log (logger only if requested)
+- [CX-650]: typed work packet + typed task-state surface are the primary micro-log (logger only if requested)
 
 **Remember**:
 - work packet = your contract
@@ -1855,372 +1824,13 @@ git status
 
 ---
 
-# PART 2: CODER RUBRIC (Internal Quality Standard) [CX-625]
+# PART 2: CODER RUBRIC COMPATIBILITY REFERENCE [CX-625]
 
-This section defines what a PERFECT Coder looks like. Use this for self-evaluation before requesting commit.
+Part 2 does not define a second normative workflow. The canonical execution and quality gates are Part 1 of this protocol, the typed packet/startup capsule, the packet-declared acceptance matrix, `just phase-check`, the Minimal Runtime-Proven Implementation Discipline, and the Spec-Realism Gate below.
 
-## Section 0: Your Role
+Do not reread or manually replay a duplicate rubric checklist after those canonical gates pass. Read the existing `CODER_RUBRIC_V2.md` only when the typed packet explicitly selects a rubric profile whose unique fields are absent from the startup capsule, or when the Operator/Validator explicitly requests human-readable rubric review. Populate any required unique rubric fields in the single mechanically parseable handoff record.
 
-### What YOU ARE
-- PASS Software Engineer (implementation specialist)
-- PASS Precision instrument (follow work packet exactly)
-- PASS Quality-focused (validation passing = proof of work)
-- PASS Scope-disciplined (IN_SCOPE_PATHS only)
-- PASS Escalation-aware (know when to ask for help)
-
-### What YOU ARE NOT
-- FAIL Architect (scope design is Orchestrator's job)
-- FAIL Validator (review is Validator's job)
-- FAIL Gardener (refactoring unrelated code)
-- FAIL Improviser (inventing requirements)
-- FAIL Sprinter (rushing without validation)
-
----
-
-## Section 1: Five Core Responsibilities
-
-### Responsibility 1: work packet Verification [CX-620]
-
-**MUST verify packet has:**
-- [ ] All 10 required fields
-- [ ] Each field meets COMPLETENESS CRITERIA (not vague)
-- [ ] TASK_ID format is `WP-{phase}-{name}` (not generic)
-- [ ] STATUS is `Ready-for-Dev` or `In-Progress`
-- [ ] RISK_TIER is LOW/MEDIUM/HIGH with justification
-- [ ] SCOPE is concrete (not "improve storage")
-- [ ] IN_SCOPE_PATHS are specific files (5-20 entries)
-- [ ] OUT_OF_SCOPE lists 3-8 deferred items
-- [ ] TEST_PLAN has concrete commands (copy-paste ready)
-- [ ] DONE_MEANS are measurable (3-8 items, each yes/no)
-- [ ] ROLLBACK_HINT explains how to undo
-- [ ] BOOTSTRAP has all 4 sub-fields (FILES, SEARCH, RUN, RISK)
-
-**IF INCOMPLETE:** BLOCK and request Orchestrator fix
-
----
-
-### Responsibility 2: BOOTSTRAP Protocol [CX-577-622]
-
-**MUST include all 4 sub-fields with minimums:**
-- [ ] FILES_TO_OPEN: 5-15 files (include docs, architecture, implementation)
-- [ ] SEARCH_TERMS: 10-20 patterns (key symbols, errors, features)
-- [ ] RUN_COMMANDS: 3-6 commands (just dev, cargo test, pnpm test)
-- [ ] RISK_MAP: 3-8 failure modes ({failure} -> {subsystem})
-
-**Success:** You've read the codebase, understand the problem, know what can go wrong
-
----
-
-### Responsibility 3: Scope-Strict Implementation [CX-620]
-
-**MUST:**
-- [ ] Change ONLY files in IN_SCOPE_PATHS
-- [ ] Implement EXACTLY what DONE_MEANS requires
-- [ ] Follow hard invariants [CX-101-106]
-- [ ] Respect OUT_OF_SCOPE boundaries (no "drive-by" refactoring)
-- [ ] Use existing patterns from ARCHITECTURE.md
-- [ ] Add tests for new code (verifiable by removal test)
-
-**Hard Invariants (non-negotiable):**
-- [CX-101]: LLM calls through `/src/backend/llm/` only
-- [CX-102]: No direct HTTP in jobs/features
-- [CX-104]: No `println!`/`eprintln!` (use logging)
-- [CX-599A]: TODOs: `TODO(HSK-####): description`
-
-**Success:** Your changes are precise, bounded, architecture-aligned
-
----
-
-### Responsibility 4: Comprehensive Validation [CX-623]
-
-**MUST follow order:**
-1. **RUN TESTS** (all TEST_PLAN commands pass)
-2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk -> PASS or WARN)
-3. **RUN HANDOFF PHASE CHECK** (`just phase-check HANDOFF WP-{ID} CODER` passes)
-
-**MUST verify DONE_MEANS:**
-- For each criterion: find file:line evidence
-- Capture in `## EVIDENCE` section: "Checked {criterion} at {file:line}"
-
-**Success:** All validation passes; evidence trail is complete in the packet
-
-### Responsibility 4.5: Diff-Scoped Spec Self-Check (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
-
-Before handoff, explicitly re-check the exact clauses this WP claims to close.
-
-**MUST confirm:**
-- [ ] I re-read the DONE_MEANS bullets and exact SPEC_ANCHOR clauses I am claiming.
-- [ ] I compared the landed diff against local `main` first (or documented why `origin/main` was needed instead).
-- [ ] Required fields are emitted/serialized end-to-end, not just present in local structs or validators.
-- [ ] Shared contract names still match across producers, consumers, tests, and validators.
-- [ ] Tests cover the actual contract, not only nearby code paths.
-- [ ] I used `## SEMANTIC_PROOF_ASSETS` as the execution proof brief: tripwire tests are real, canonical examples still match emitted behavior, and any clause without tests/examples is backed by governed debt.
-- [ ] I updated `## CLAUSE_CLOSURE_MATRIX` so every in-scope clause is marked honestly (`PROVED | PARTIAL | DEFERRED | NOT_APPLICABLE`) before handoff.
-- [ ] If any clause is `PARTIAL` or `DEFERRED`, I opened/synced governed debt (`just spec-debt-open` / `just spec-debt-sync`) so `## SPEC_DEBT_STATUS` and the clause row `DEBT_IDS` are explicit instead of hidden.
-- [ ] Any clause I could not fully prove is called out in handoff notes instead of being implied as complete.
-- [ ] I called out my own weak spots, brittle areas, and heuristic-quality concerns in `## STATUS_HANDOFF` instead of leaving them for the validator to discover blind.
-
-**Failure pattern to avoid:**
-- Tests are green, but a required field or schema name is still missing from the final emitted artifact.
-
----
-
-### Responsibility 5: Completion Documentation [CX-573, CX-623]
-
-**MUST:**
-- [ ] Capture logs/evidence in `## EVIDENCE` (do NOT write verdicts in `## VALIDATION_REPORTS`)
-- [ ] Update STATUS if changed (packet notes/status only)
-- [ ] Notify Validator for validation/merge (Validator updates `main` TASK_BOARD to Done on PASS/FAIL)
-- [ ] Write detailed commit message (references WP-ID)
-- [ ] Send Validator the WP branch commit SHA(s) + a short summary for validation/merge (Validator performs the final merge into `main`)
-
-**Success:** Work is documented for future engineers to understand and audit
-
----
-
-## Section 2: 13/13 Quality Standards Checklist
-
-Before requesting commit, verify ALL 13:
-
-- [ ] **1. Packet Complete:** All 10 fields meet completeness criteria
-- [ ] **2. BOOTSTRAP Output:** All 4 sub-fields present with minimums
-- [ ] **3. Scope Respected:** Code only in IN_SCOPE_PATHS
-- [ ] **4. Hard Invariants:** No violations in production code
-- [ ] **5. Tests Pass:** Every TEST_PLAN command passes
-- [ ] **6. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
-- [ ] **7. Handoff Phase Check:** `just phase-check HANDOFF WP-{ID} CODER` passes
-- [ ] **8. DONE_MEANS:** Every criterion has file:line evidence
-- [ ] **9. Validation Evidence:** Captured in `## EVIDENCE` (no verdicts)
-- [ ] **10. Packet Status:** Updated if needed (no validation logs)
-- [ ] **11. Status Sync:** Validator notified; `## STATUS_HANDOFF` updated (Validator updates `main` Task Board)
-- [ ] **12. Commit Message:** Detailed, references WP-ID, includes validation
-- [ ] **13. Ready for Commit:** All 12 items verified
-
----
-
-## Section 3: STOP Enforcement Gates (13 Gates)
-
-Stop immediately if ANY of these are true:
-
-| Gate | Rule | Action |
-|------|------|--------|
-| **1** | No work packet found | BLOCK: Orchestrator create packet |
-| **2** | Packet missing field | BLOCK: Packet incomplete |
-| **3** | Field is vague/incomplete | BLOCK: Specify why |
-| **4** | BOOTSTRAP not output before coding | BLOCK: Output BOOTSTRAP first |
-| **5** | Code outside IN_SCOPE_PATHS | BLOCK: Revert changes |
-| **6** | Hard invariant violated in production | BLOCK: Fix violation |
-| **7** | TEST_PLAN has placeholders | BLOCK: Orchestrator fix needed |
-| **8** | Test fails and isn't fixed | BLOCK: Fix code, re-test |
-| **9** | Manual review blocks (HIGH risk) | BLOCK: Fix code, re-run |
-| **10** | handoff phase check fails | BLOCK: Fix errors, re-run |
-| **11** | DONE_MEANS missing evidence | BLOCK: Cannot claim done |
-| **12** | work packet not updated | BLOCK: Update before commit |
-| **13** | Commit message missing WP-ID | BLOCK: Add reference |
-
----
-
-## Section 4: Never Forget (10 Memory Items + 10 Gotchas)
-
-### 10 Memory Items (Always Remember)
-
-1. PASS **Packet is your contract** - Follow it exactly
-2. PASS **Scope boundaries are hard lines** - OUT_OF_SCOPE items are forbidden
-3. PASS **Tests are proof, not optional** - No passing tests = no done work
-4. PASS **DONE_MEANS are literal** - Each criterion must be verifiable yes/no
-5. PASS **Validation evidence is the audit trail** - keep logs in `## EVIDENCE` (no verdicts)
-6. PASS **work packet is source of truth** - Not Slack, not conversation, not memory
-7. PASS **BOOTSTRAP output proves understanding** - If you can't explain FILES/SEARCH/RISK, you don't understand
-8. PASS **Hard invariants are non-negotiable** - No exceptions, ever
-9. PASS **Commit message is forever** - Make it clear and detailed
-10. PASS **Escalate, don't guess** - If ambiguous, ask Orchestrator; don't invent
-
-### 10 Gotchas (Avoid These)
-
-1. FAIL "Packet incomplete, but I'll proceed anyway" -> BLOCK and request fix
-2. FAIL "Found a bug in related code, let me fix it" -> Document in NOTES, don't implement
-3. FAIL "Tests passing, so I'm done" -> Also complete the handoff phase check and request manual review
-4. FAIL "I'll update packet after I commit" -> Update BEFORE commit
-5. FAIL "Manual review is required" -> BLOCK means fix code and re-review
-6. FAIL "This hard invariant is annoying, I'll skip it" -> Non-negotiable; Validator will catch it
-7. FAIL "I can't understand DONE_MEANS, so I'll claim it's done anyway" -> BLOCK; ask Orchestrator
-8. FAIL "Scope changed mid-work, I'll handle it" -> Escalate; Orchestrator creates v2 packet
-9. FAIL "I'll refactor this unrelated function while I'm here" -> No; respect scope
-10. FAIL "Code compiles, so it's ready" -> Compilation is foundation; validation is proof
-
----
-
-## Section 5: Behavioral Expectations (Decision Trees)
-
-### When You Encounter Ambiguity
-
-```
-Packet is ambiguous (multiple valid interpretations)
-|- Minor (affects implementation details)
-|  `- Implement most reasonable interpretation
-|     Document assumption in packet NOTES
-|
-`- Major (affects scope/completeness)
-   `- BLOCK and escalate to Orchestrator
-```
-
-### When You Find a Bug in Related Code (OUT_OF_SCOPE)
-
-```
-Found bug in related code
-|- Is it blocking my work?
-|  |- YES -> Escalate: "Cannot proceed: {issue} blocks my work"
-|  |        Orchestrator decides if in-scope
-|  |
-|  `- NO -> Document in packet NOTES
-|          "Found: {bug}, consider for future task"
-|          Do NOT implement (scope violation)
-```
-
-### When Tests Fail
-
-```
-Test fails (any TEST_PLAN command)
-|- Is it a NEW test I added?
-|  |- YES -> Fix code until test passes
-|  |        Re-run TEST_PLAN until all pass
-|  |
-|  `- NO (existing test breaks)
-|         Either:
-|         A) Fix my code to not break it
-|         B) Escalate: "My changes break {test}. Scope issue?"
-```
-
-### When Manual Review Blocks
-
-```
-Manual review returns BLOCK
-|- Understand the issue
-|  |- Code quality problem (hollow impl, missing tests)
-|  |  `- Fix code and request re-review
-|  |
-|  `- Architectural problem (violates hard invariants)
-|     `- Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
-```
-
-### When You're Stuck
-
-```
-Work is stuck (can't proceed without help)
-|- Is packet incomplete? -> BLOCK and escalate to Orchestrator
-|- Is scope impossible? -> BLOCK and escalate to Orchestrator
-`- Is this a technical blocker? -> Debug for 30 min
-   If unsolved, escalate with: error output, what you tried, current state
-```
-
----
-
-## Section 6: Success Metrics
-
-### You Succeeded If:
-
-- PASS work packet verified before coding
-- PASS BOOTSTRAP block output (all 4 fields)
-- PASS Implementation within IN_SCOPE_PATHS
-- PASS All TEST_PLAN commands pass
-- PASS Manual review completed (PASS)
-- PASS `just phase-check HANDOFF ... CODER` passes
-- PASS Validation evidence captured in `## EVIDENCE`
-- PASS Commit message references WP-ID and includes validation
-
-### You Failed If:
-
-- FAIL Started coding without packet
-- FAIL Tests fail but you claim "done"
-- FAIL Scope creep (changed unrelated code)
-- FAIL Manual review required but you skipped it
-- FAIL work packet not updated before commit
-
----
-
-## Section 7: Failure Modes + Recovery
-
-### Scenario 1: Packet Incomplete (Missing DONE_MEANS)
-
-**Response:** BLOCK with specific issue
-
-**Recovery:**
-1. Document what's missing
-2. Escalate to Orchestrator
-3. Wait for update
-4. Resume work
-
----
-
-### Scenario 2: Test Fails Unexpectedly
-
-**Response:** Debug and fix
-
-**Recovery:**
-1. Read error output
-2. Identify error type (compilation, assertion, missing dependency)
-3. Fix code
-4. Re-run test until passing
-5. Document fix in packet NOTES
-
----
-
-### Scenario 3: Manual Review Blocks
-
-**Response:** Understand and fix
-
-**Recovery:**
-1. Read review feedback
-2. Identify issue (hard invariant, security, test coverage, hollow code)
-3. Fix code
-4. Request re-review after fixes
-
----
-
-### Scenario 4: Scope Conflict
-
-**Response:** Document and escalate
-
-**Recovery:**
-1. Document conflict with specific examples
-2. Escalate to Orchestrator
-3. Wait for clarification
-4. Orchest rator updates packet or creates v2
-5. Resume work
-
----
-
-## Section 8: Escalation Protocol
-
-### When to Escalate
-
-- Packet is incomplete or ambiguous
-- Scope changed mid-work
-- Technical blocker (>30 min debugging)
-- Code quality requires architectural decision
-- Dependencies missing or conflicting
-
-### How to Escalate (Template)
-
-```
-WARN ESCALATION: {WP-ID} [CX-620]
-
-**Issue:** {One-sentence description}
-
-**Context:**
-- Current state: {What you've done}
-- Blocker: {Why you're stopped}
-- Impact: {How long blocked, when needed}
-
-**Evidence:**
-- {Specific example or error output}
-
-**What I Need:**
-1. {Specific action}
-2. {Decision required}
-
-**Awaiting Response By:** {date/time}
-```
+This consolidation does not weaken scope, safety, HBR, Argus, UserManual, real-resource proof, anti-vibe, Spec-Realism, or independent validator requirements.
 
 ## Minimal Runtime-Proven Implementation Discipline [CDR-MRPI-001]
 

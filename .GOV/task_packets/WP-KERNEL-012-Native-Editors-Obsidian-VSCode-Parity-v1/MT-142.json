@@ -1,0 +1,340 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-142",
+  "title": "B15-MT-142-Harden-SurrealDB-Swarm-Concurrency-And-Load",
+  "group": "B15",
+  "created_at_utc": "2026-08-23T04:13:40Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-136",
+      "MT-137",
+      "MT-138",
+      "MT-139",
+      "MT-140",
+      "MT-141"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-08-23 by an Operator-requested governance subagent. The Operator expects large SurrealDB datasets with parallel model swarms reading, writing, querying and mutating concurrently, and explicitly requested a dedicated concurrency/load MT to test, harden and expand that capability after the PostgreSQL-to-SurrealDB port lanes complete. Canonical ID evidence: the packet's MT-*.json discovery glob and direct file census contain contiguous MT-001 through MT-141 and no MT-142, making MT-142 the next valid WP-scoped ID.",
+    "operator_scope_authorization_2026_08_23": {
+      "basis": "The Operator explicitly instructed a subagent to add this concurrency/load MT, after explicitly directing WP-KERNEL-012 to complete the PostgreSQL-to-SurrealDB replacement and granting the required narrow out-of-scope waiver. This is the same authorized backend SurrealDB remediation expansion already recorded by MT-136 through MT-141; it does not alter or silently broaden any unrelated editor lane.",
+      "effect": "The backend paths in this MT are authorized despite the original packet's pre-pivot frontend-only scope. Product implementation remains limited to this MT's allowed_paths, and the governance-only authoring change remains limited to MT-142.json plus the packet authored-count projection."
+    }
+  },
+  "scope": {
+    "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/frontend/**",
+      "app/src/**",
+      "src/backend/handshake_core/src/storage/postgres/**"
+    ],
+    "research_basis_requirement": {
+      "required_before_implementation": true,
+      "sources_to_check": [
+        "Pinned SurrealDB 3.2 official transaction, isolation, embedded RocksDB and Rust SDK documentation",
+        "Pinned SurrealDB 3.2 release notes and issue tracker entries for write conflicts, transaction retryability, concurrent queries, shutdown and RocksDB limitations",
+        "SurrealDB Rust SDK source and tests for embedded-engine client sharing, response/error classification and transaction behavior",
+        "Field-tested Rust keyed-lock registries, bounded exponential-backoff with full jitter, cancellation and lock-entry reclamation patterns"
+      ],
+      "record_before_building": [
+        "sources checked with versions and dates",
+        "relevant concurrency and isolation guarantees actually supported by the pinned engine",
+        "known failure modes and retryable versus terminal error classes",
+        "selected lock and transaction design",
+        "rejected alternatives",
+        "numeric workload and latency/conflict budgets with machine-context assumptions",
+        "validation plan for embedded mode and the future remote/distributed seam"
+      ]
+    },
+    "embedded_mode_boundary": {
+      "supported_topology_to_prove": "One embedded SurrealDB engine owns one RocksDB store path and is shared through cloned in-process database/client handles across parallel async tasks.",
+      "forbidden_claim": "Do not claim that multiple processes may open the same embedded RocksDB path concurrently. Do not use a second embedded engine on the same path as a distributed-concurrency test.",
+      "future_remote_compatibility": "All cross-client correctness invariants live in atomic SurrealQL transactions, conditional guards, stable record identities, version checks and idempotency keys. Tests must be able to use independent lock registries over the same database client/context so a process-local lock cannot masquerade as distributed correctness. A remote-server run may be added when a managed endpoint is configured, but an unconfigured remote run is reported as NOT_RUN_UNCONFIGURED and never as PASS."
+    },
+    "contention_control_requirements": [
+      "Eliminate RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK as coarse process-global serialization points.",
+      "Choose the narrowest verified stable key for local coordination: record identity for single-record mutations, normalized workspace-plus-natural-key for uniqueness/upsert races, and workspace identity only for invariants that genuinely span a workspace.",
+      "Cross-record operations use deterministic key ordering or one atomic Surreal transaction so nested acquisition cannot deadlock.",
+      "The keyed-lock registry has bounded or reclaimable cardinality; completed one-off record keys cannot leak lock entries indefinitely.",
+      "No read-only operation waits on an unrelated write lock. Disjoint-record and different-workspace writes must be observably concurrent.",
+      "Every invariant formerly protected only by a coarse mutex is revalidated inside the committing Surreal transaction. An independent-client proof must remain correct when the clients do not share a keyed-lock registry.",
+      "Inventory other process-global storage mutation locks under storage/surreal/. Retain singleton lifecycle/schema-bootstrap locks only with a written invariant; route product-data global locks to a follow-on MT or harden them in this MT when they share the same proven primitive and test surface."
+    ],
+    "retry_policy_requirements": {
+      "algorithm": "Bounded exponential backoff with full jitter and a caller-visible deadline/cancellation boundary.",
+      "defaults_to_validate": {
+        "base_delay_ms": 5,
+        "maximum_delay_ms": 250,
+        "maximum_attempts": 8,
+        "maximum_elapsed_ms": 2000
+      },
+      "retryable_only": [
+        "Engine errors proven by pinned-version evidence to represent transient transaction/write conflict or temporary busy conditions",
+        "A transaction guard's explicitly typed retryable snapshot-change outcome when the complete operation is idempotent"
+      ],
+      "never_retry": [
+        "Validation, authorization, not-found, schema, corruption or invariant errors",
+        "Expected-version mismatch or stale caller state that requires the caller to merge or refresh",
+        "Unknown database errors without a pinned-version classification",
+        "Any operation without a stable idempotency key or otherwise proven replay safety"
+      ],
+      "exhaustion_semantics": "Return a typed retry-exhausted error preserving the final cause, attempts and elapsed time; emit the structured diagnostic exactly once; never spin, silently downgrade, fall back to another database or report success after an uncommitted write.",
+      "testability": "Jitter randomness and time are injectable or seedable in tests so bounds, cancellation and exhaustion are deterministic without weakening production jitter."
+    },
+    "load_profiles": {
+      "ci_deterministic": {
+        "minimum_parallel_workers": 16,
+        "minimum_operations": 2000,
+        "workload": "Mixed reads, searches, creates, idempotent upserts, optimistic versioned writes, deletes and multi-record projection/ledger transactions over same-record, disjoint-record, same-workspace and different-workspace keys.",
+        "hard_bound": "Every worker and the whole test have explicit timeouts; a timeout is a failure, not an ignored test."
+      },
+      "extended_local": {
+        "minimum_parallel_workers": 64,
+        "minimum_operations": 50000,
+        "workload": "Seeded repeatable large-dataset run with configurable dataset size, read/write mix, key skew and contention ratio.",
+        "gate": "Run before READY_FOR_VALIDATION_V4 on the operator-designated machine. The report records machine context and selected numeric budgets; absolute cross-machine latency is not inferred from CI."
+      }
+    },
+    "acceptance_criteria": [
+      {
+        "id": "AC-142-1",
+        "text": "A current pinned-version research basis is recorded before code changes and distinguishes SurrealDB transaction/isolation guarantees, embedded RocksDB single-owner constraints, retryable error classes and future remote-server behavior from assumptions."
+      },
+      {
+        "id": "AC-142-2",
+        "text": "RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK no longer exist as coarse global locks. Same-record and natural-key contention remains correct through atomic Surreal transactions and guards; disjoint records and different workspaces demonstrate at least two simultaneous in-flight writes rather than global serialization."
+      },
+      {
+        "id": "AC-142-3",
+        "text": "The deterministic CI profile runs at least 16 workers and 2,000 operations against a real embedded RocksDB store, covers reads, queries, creates, idempotent upserts, optimistic updates, deletes and multi-record transactions, and finishes with zero lost writes, zero duplicate natural keys/idempotency effects, zero partial projections or ledger receipts, zero dirty reads of uncommitted state, zero hangs and exact final counts/hashes."
+      },
+      {
+        "id": "AC-142-4",
+        "text": "Same-record tests prove explicit semantics: an expected-version race produces one committed winner and typed stale/conflict outcomes for losers; identical idempotency-key replays converge to one durable effect; disjoint-record operations all commit without unrelated lock waiting. No test accepts last-writer-wins where the API promises optimistic concurrency."
+      },
+      {
+        "id": "AC-142-5",
+        "text": "Retry behavior is bounded, jittered, cancellation-aware and limited to proven retryable/idempotent operations. Tests prove first-attempt success, eventual success after retryable conflicts, terminal-error no-retry, maximum-attempt exhaustion, maximum-elapsed exhaustion and cancellation, with no attempt beyond either configured bound."
+      },
+      {
+        "id": "AC-142-6",
+        "text": "The extended local profile runs at least 64 workers and 50,000 operations and emits a versioned machine-readable report containing workload seed/configuration, engine/SDK version, embedded/remote mode, dataset cardinality, attempted/succeeded/failed counts by operation, conflicts, conflict rate, retries, retry rate, retry exhaustion, lock-wait p50/p95/p99, operation-latency p50/p95/p99 by class, throughput, maximum concurrent operations, timeout/cancellation counts and final integrity verdict."
+      },
+      {
+        "id": "AC-142-7",
+        "text": "Lifecycle stress races reads and writes with graceful shutdown. Shutdown stops admission, drains or cancels in-flight work within an explicit bound, closes the one owning embedded engine without deadlock, then a real close-and-reopen proves every acknowledged write and no unacknowledged partial transaction is durable."
+      },
+      {
+        "id": "AC-142-8",
+        "text": "Correctness remains green for independent clients/SurrealDatabase wrappers that do not share a keyed-lock registry but do share the same owning database context. This proves local locks are optional contention control and database transactions/guards own future remote/distributed correctness."
+      },
+      {
+        "id": "AC-142-9",
+        "text": "A repo-wide and dependency scan proves no PostgreSQL or SQLite runtime, driver, fallback, fixture, syntax, environment variable or server-spawn path was introduced. SurrealDB remains the only database."
+      },
+      {
+        "id": "AC-142-10",
+        "text": "The keyed-lock registry's entry count returns to its documented idle bound after high-cardinality churn, and deterministic lock ordering plus timeout-backed tests prove no deadlock when multi-record operations overlap in opposite input order."
+      },
+      {
+        "id": "AC-142-11",
+        "text": "The built-in UserManual documents the embedded single-owner topology, safe parallel swarm use, retry/exhaustion behavior, how to run both load profiles, how a no-context model reads the structured report, and the distinction between current embedded proof and future configured remote proof."
+      },
+      {
+        "id": "AC-142-12",
+        "text": "Two independent adversarial reviewers using different lenses approve the final implementation after all blocker findings are remediated and re-reviewed: one concurrency-correctness/atomicity lens and one load/performance/lifecycle/operability lens."
+      }
+    ],
+    "proof_targets": [
+      "PT-142-1: recorded pinned-version research basis and selected numeric budget table.",
+      "PT-142-2: source scan proving the two named coarse locks are absent, product-data invariants are transaction/guard protected, and PostgreSQL/SQLite fallback remains absent.",
+      "PT-142-3: deterministic embedded CI stress report with >=16 workers, >=2,000 operations, nonzero counts for every required operation class, integrity verdict PASS and explicit timeout bounds.",
+      "PT-142-4: same-record expected-version/idempotency race proof plus disjoint-record/different-workspace overlap proof with maximum concurrent writes >=2.",
+      "PT-142-5: deterministic retry-classification, exponential-backoff/full-jitter bounds, retry exhaustion and cancellation proofs.",
+      "PT-142-6: high-cardinality keyed-lock reclamation and opposite-order multi-record deadlock proof.",
+      "PT-142-7: extended embedded load report with >=64 workers and >=50,000 operations, conflict/latency/throughput/lock-wait metrics and exact final integrity reconciliation.",
+      "PT-142-8: shutdown-under-load then real close-and-reopen durability proof.",
+      "PT-142-9: independent-client/no-shared-lock-registry correctness proof and an explicit NOT_RUN_UNCONFIGURED result rather than PASS when no remote endpoint is available.",
+      "PT-142-10: built-in UserManual diff and self-consistency test.",
+      "PT-142-11: two independent final adversarial review verdicts and remediation/re-review evidence for every blocker."
+    ],
+    "structured_diagnostic_contract": {
+      "schema_id": "hsk.surreal_swarm_load_report@1",
+      "required_fields": [
+        "schema_id",
+        "run_id",
+        "source_commit",
+        "surrealdb_version",
+        "sdk_version",
+        "engine_mode",
+        "workload_seed",
+        "worker_count",
+        "operation_count",
+        "dataset_cardinality",
+        "operation_mix",
+        "contention_ratio",
+        "attempted_by_operation",
+        "succeeded_by_operation",
+        "failed_by_operation_and_class",
+        "conflict_count",
+        "conflict_rate",
+        "retry_count",
+        "retry_rate",
+        "retry_exhaustion_count",
+        "lock_wait_ms_p50_p95_p99",
+        "latency_ms_p50_p95_p99_by_operation",
+        "throughput_operations_per_second",
+        "maximum_concurrent_operations",
+        "timeout_count",
+        "cancellation_count",
+        "shutdown_elapsed_ms",
+        "reopen_integrity_counts_and_hashes",
+        "integrity_verdict",
+        "remote_proof_status"
+      ],
+      "rules": [
+        "Every percentile has a nonzero sample count recorded; empty classes are NOT_RUN, never zero-latency PASS.",
+        "Conflict and retry rates include their numerator and denominator.",
+        "The report contains no credentials or absolute user-profile paths.",
+        "A no-context model can distinguish correctness failure, retry exhaustion, load-budget regression, timeout, cancellation and unconfigured remote proof without reading console prose."
+      ]
+    },
+    "execution_constraints": {
+      "cargo_target": "Set CARGO_TARGET_DIR to the Operator-designated shared _Artifacts/handshake-cargo-target directory for every cargo build/test; never create target/ under a worktree or package.",
+      "artifact_hygiene": "Use run-scoped stores, logs and reports under the Operator-designated _Artifacts roots. After the MT reaches READY_FOR_VALIDATION_V4, remove disposable stores, temporary files and unnecessary build products while retaining the minimum final reports/proofs; do not create a new worktree for this MT.",
+      "cargo_serialization": "Do not run concurrent cargo commands against the shared target directory.",
+      "source_control": "Preserve unrelated dirty changes. Do not reset, stash, clean or rewrite another task's work."
+    },
+    "risk_if_missed": "A single model may appear correct while a swarm is globally serialized, suffers lost updates, leaks per-key locks, retries terminal failures, deadlocks during shutdown, or depends on process-local mutexes that fail immediately when Handshake later uses remote SurrealDB clients. Large datasets would then amplify latency and contention while the metrics needed to diagnose the failure remain absent."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "structured_load_report",
+      "trace_projection_or_runtime_evidence"
+    ],
+    "not_applicable_reason": "Backend storage concurrency and load hardening with a machine-readable diagnostic surface; no new operator-visible GUI is required."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "SurrealDB embedded single-owner and parallel swarm topology",
+      "contention, retry, retry-exhaustion and shutdown behavior",
+      "deterministic and extended load-test commands",
+      "structured load-report interpretation and remote-proof status"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_model_runbook_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "SURREAL_SWARM_CONCURRENCY_LOAD_V1",
+    "risks": [
+      "Replacing one global mutex with a per-record mutex can preserve throughput but still lose correctness across independent clients or a future remote deployment.",
+      "Retrying unknown, stale-version or non-idempotent failures can duplicate durable effects or hide a real invariant violation.",
+      "A keyed-lock registry can grow without bound under large-dataset/high-cardinality swarm traffic.",
+      "A load test can pass with zero meaningful contention, zero executed operations in one class, or globally serialized workers unless overlap and nonzero class counts are asserted.",
+      "An unbounded task, lock acquisition, database query, shutdown or reopen can hang the operator session.",
+      "Opening the same embedded RocksDB path from multiple processes can be mistaken for a supported distributed topology.",
+      "Readers can observe mismatched document, projection, backlink or EventLedger state if multi-record writes stop being atomic.",
+      "Absolute latency thresholds can create false confidence across machines unless workload, engine version and machine context are recorded."
+    ],
+    "minimum_controls": [
+      "Database transactions/guards and idempotency own correctness; local keyed locks are optional optimization only.",
+      "Every task, lock wait, query, retry loop, shutdown and reopen proof is explicitly bounded.",
+      "Every required workload class asserts a nonzero executed count and final canonical-state reconciliation.",
+      "Same-key, disjoint-key, same-workspace, different-workspace and independent-client scenarios are all mandatory.",
+      "Retry tests inject every classified outcome and prove exact attempt/elapsed bounds.",
+      "Lock-registry cardinality and reclamation are measured after high-cardinality churn.",
+      "No remote or distributed PASS is emitted without a configured real remote endpoint; embedded same-path multi-process access is forbidden.",
+      "Two independent adversarial reviews are required after implementation and after each blocker remediation, with one reviewer focused on concurrency correctness/atomicity and the other on load/performance/lifecycle/operability."
+    ],
+    "adversarial_validation_lenses": [
+      {
+        "lens": "CONCURRENCY_CORRECTNESS_AND_ATOMICITY",
+        "must_attack": [
+          "lost update",
+          "write skew",
+          "duplicate natural key or idempotency effect",
+          "partial document/projection/backlink/EventLedger commit",
+          "stale expected-version retry",
+          "independent-client bypass of local locks",
+          "deadlock and lock-entry leak"
+        ]
+      },
+      {
+        "lens": "LOAD_PERFORMANCE_LIFECYCLE_AND_OPERABILITY",
+        "must_attack": [
+          "global serialization disguised as correctness",
+          "zero-test or zero-operation-class green",
+          "unbounded latency/retry/shutdown",
+          "metric denominator and percentile errors",
+          "large-dataset/high-cardinality behavior",
+          "shutdown/reopen under load",
+          "embedded-versus-remote claim inflation",
+          "no-context diagnostic usability"
+        ]
+      }
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "HBR-INT-009: expose structured conflict, retry, latency, lock-wait, throughput, timeout, shutdown and reopen-integrity diagnostics through hsk.surreal_swarm_load_report@1; a no-context model must isolate failure class without guessing.",
+    "SWARM": "Parallel agents use attributable run_id/worker_id/operation_id identities, deterministic seeds and stable record/workspace keys; actions and retries are observable and replay-safe.",
+    "QUIET": "All stress and lifecycle tests run headless and bounded without foreground windows, focus stealing or keyboard/mouse capture.",
+    "STOP": "Timeout, cancellation, retry exhaustion, integrity mismatch, incomplete operation-class coverage, unconfigured remote proof or dirty close/reopen is a typed failure/NOT_RUN state and never a silent PASS."
+  },
+  "handoff": {
+    "validation_topology": "TWO_LENS_ADVERSARIAL_THEN_INTEGRATION_VALIDATOR_V4",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

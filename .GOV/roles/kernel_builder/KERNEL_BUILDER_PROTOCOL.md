@@ -20,7 +20,7 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 
 ## Core Contract & Template Links
 
-A no-context `KERNEL_BUILDER` MUST author and implement against these canonical contracts (typed JSON is authority; Markdown is projection per [CX-914]):
+A no-context `KERNEL_BUILDER` MUST author and implement against these canonical contracts (typed JSON is authority; existing Markdown is legacy/projection only per [CX-914]):
 
 - Microtask template: `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json` (authority) + `.GOV/templates/MICRO_TASK_TEMPLATE.md` (projection)
 - Work Packet template: `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json` (authority) + `.GOV/templates/TASK_PACKET_TEMPLATE.md` (projection)
@@ -37,7 +37,7 @@ A no-context `KERNEL_BUILDER` MUST author and implement against these canonical 
 - Every active module in a versioned bundle must carry the same machine-readable `spec_version` as the manifest and `SPEC_CURRENT.current_spec.version`.
 - Every Master Spec version change must update the manifest-declared machine-readable changelog with changed module paths, before/after hashes, reason, approval evidence, and validation commands/outcomes.
 - Every Master Spec version change must refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
-- Do not create repo-local Markdown indexes, viewer files, summaries, or projection documents as operator surfaces unless the Operator explicitly asks for that artifact in the current task.
+- Do not create any new `.md` file unless the Operator explicitly asks for that exact Markdown artifact in the current task. Existing Markdown may remain as legacy evidence or a projection; when its active information is touched, transfer that information into the repo's existing mechanically parseable deterministic contracts, schemas, and records instead of creating another Markdown surface.
 - If a readable view of indexed spec content is needed, answer from the relevant spec modules in chat or leave it for a future Handshake Product viewer. Do not make the repo itself the viewing surface by default.
 - The dedicated roadmap module is a north-star build-order guide for Task Board, Work Packet, and microtask scheduling. It does not define implementation intent, techniques, `SPEC_ANCHOR`, `DONE_MEANS`, or validation proof by itself.
 - Implementation intent, design technique, acceptance proof, and validation focus must come from the relevant topical Master Spec module, the reset brief, and local product-code evidence.
@@ -52,7 +52,7 @@ A no-context `KERNEL_BUILDER` MUST author and implement against these canonical 
 - Within active packet permissions and repo law, `KERNEL_BUILDER` is encouraged to use sub-agents as a speed-build default where they can own disjoint implementation, GUI/Argus, UserManual, proof, or risk-review lanes without conflicting. Read/write sub-agents are allowed only inside the current packet/worktree authority; they must not create or switch worktrees, issue validator verdicts, merge, push without `KERNEL_BUILDER` review, run destructive git, or self-certify completion. `KERNEL_BUILDER` must review, check, integrate, and correct all delegated work before treating it as authoritative and remains responsible for all sub-agent actions and outcomes.
 - Keep those repo-governance surfaces machine-facing and role-facing by default. Human-readable prose is a projection or working aid, not a second source of truth.
 - Treat existing Markdown-heavy governance artifacts as migration safety rails only. Do not copy them into future kernel-build WPs, refinements, microtasks, task-state records, or handoffs as the authoring pattern.
-- New model-created kernel governance artifacts should start from typed JSON/JSONL/YAML-compatible contracts; Markdown is generated only when an explicit projection/report contract or current Operator request requires it.
+- New model-created kernel governance artifacts MUST use the repo's existing typed JSON/JSONL/YAML-compatible contracts, schemas, and deterministic record formats. A projection/report contract does not authorize a new `.md` file without a current explicit Operator request.
 
 ## Closure-Unit and Deliverable-First Discipline (mandatory)
 
@@ -72,6 +72,7 @@ A no-context `KERNEL_BUILDER` MUST author and implement against these canonical 
 - Missing closure-unit paperwork is never a blocker to product, MT, validator, proof, or handoff work.
 - Gather only the minimum context needed to determine the deliverable, current failure, and next edit/run/action. Additional context gathering must name the immediate decision it enables.
 - Complexity does not authorize paperwork-first behavior. For large packets, choose the first externally valid closure unit and execute it deliverable-first.
+- Before expanding a task through additional file changes, expensive builds, or broad validation, first check whether that work is necessary for the requested outcome. Avoid incidental scope, reuse still-valid results, batch shared prerequisites, and use targeted checks while iterating. If the smallest compliant path becomes unexpectedly large or slow, report the cause and alternatives before proceeding.
 - Tests count as direct work only when tied to a specific deliverable requirement or bug and run to produce RED, GREEN, or regression-proof evidence. Tests written but not run, broad unrelated sweeps, and tests not mapped to the closure unit are support work.
 - When a closure-discipline violation is noticed during active kernel-builder work, correct behavior immediately and continue direct deliverable work; do not create a new remediation task, governance artifact, or process patch unless the Operator asks for one.
 
@@ -104,11 +105,11 @@ A no-context `KERNEL_BUILDER` MUST author and implement against these canonical 
 - claim, execute, and complete packet microtasks when the packet is ready for implementation and assigns Kernel Builder as the product implementer;
 - maintain packet-scoped runtime state, receipts, communication entries, task-board/build-order truth, and MT state required to make the WP restartable without chat history;
 - commit and push assigned product-branch implementation checkpoints, and create governance-kernel checkpoint commits when repo law or packet state requires governance artifact preservation;
-- record risks, concerns, decisions, and implementation notes in repomem and packet artifacts.
+- record genuinely novel durable risks, blockers, decisions, and implementation findings in repomem when they are not already represented in packet or receipt authority; do not duplicate packet/receipt state in memory.
 
 `KERNEL_BUILDER` must not:
 
-- create repo-local operator-surface documents, indexes, or viewers unless explicitly requested in the current task;
+- create any new `.md` file, repo-local operator-surface document, index, or viewer unless the Operator explicitly requests that exact artifact in the current task;
 - issue validator PASS/FAIL verdicts;
 - merge to `main`, approve final product correctness, or replace Classic Validator judgment;
 - merge to `main` without final `ARTIFACT_DIR_CLEANUP` evidence after WP validation passing and before closeout merge action;
@@ -160,7 +161,7 @@ Activation Mode must follow this lifecycle, stopping at the first unresolved blo
 3. If the refinement or packet identifies blocking spec debt, `ENRICHMENT_NEEDED=YES`, or missing topical Master Spec authority, stop before signature, packet activation, worktree preparation, or coder launch until the enrichment is approved and applied.
 4. When approved, apply Master Spec enrichment with the copy-first indexed bundle workflow in `Spec Resolver Discipline`, including manifest, changelog, module-version, `SPEC_CURRENT`, archive, and internal-reference synchronization.
 5. Record refinement, operator signature, workflow lane, execution owner, role model profiles, and prepare/worktree gates through the existing deterministic helpers.
-6. Hydrate or repair the official packet contract first, then regenerate or repair Markdown projection as a safety-net view.
+6. Hydrate or repair the official typed packet contract first. Do not create or regenerate a Markdown projection unless the Operator explicitly requests it; transfer touched active information from any existing projection into the typed contract.
 7. Create or repair microtask contracts so every folded stub intent and packet acceptance row has an independently trackable implementation unit unless the packet records a concrete rationale for broader MT scope.
 8. Create or verify the packet branch, declared `wtc-*` worktree, `.GOV` junction, backup-branch readiness, and artifact-output hygiene without bypassing unresolved signature or spec-enrichment blockers. Worktree creation is expected here and should be complete before product coding starts.
 9. Refresh Task Board, Build Order, traceability, stub status, packet communication runtime state, and receipts so packet state can be recovered without chat history.
@@ -254,26 +255,37 @@ If any implementation precondition is missing, stop product edits and enter Acti
 - repomem is open for `KERNEL_BUILDER` with the active WP;
 - dirty worktree state is classified before starting a new MT.
 
-Product Implementation Mode must use typed authority first. Read `packet.json`, `refinement.json`, `MT-*.json`, WP runtime status JSON, receipts JSONL, and the MT board before relying on Markdown. Markdown packet, refinement, and MT files remain projections/safety nets unless their matching contract explicitly says otherwise.
+Product Implementation Mode must use typed authority first. Consume `packet.json`, `refinement.json`, `MT-*.json`, WP runtime status JSON, receipts JSONL, and the MT board once unless their version/hash changes. Read existing Markdown packet, refinement, or MT projections only when typed authority is absent/invalid, the Operator explicitly requests it, or human review genuinely requires it.
 
 For each implementation session:
 
 1. Run startup from `wt-gov-kernel`, open repomem, then move to the packet-declared product worktree for product edits.
 2. Verify branch/worktree alignment with the packet before writing product files.
-3. Resolve the current packet state, active/next MT, current communication health-gate route, validation topology, and any open validator or operator blocker from typed runtime/receipt state.
-4. If runtime says the next actor is a validator, operator, or other non-Kernel-Builder authority, do not keep coding through that boundary. Emit or wait for the typed response required by the route.
+3. Resolve the current packet state, active/next MT, current communication health-gate route, validation topology, and any open validator or operator blocker from typed runtime/receipt state. Declare the exact `SESSION_MT_BATCH` assigned for this session before implementation begins; it must list the MT IDs. Record the exact final commit/tree state only when the eventual batch proof is produced.
+4. If runtime says the next actor is the Operator or a non-validator authority, do not keep coding through that boundary. If an immutable MT commit is pending independent validator review, Kernel Builder may continue only another disjoint, unblocked MT in the declared batch; it must not integrate, merge, mark `COMPLETED`, or use the pending MT as a validated dependency. A validator failure preempts new batch expansion and routes the affected MT to remediation before implementation resumes.
 5. If no MT board exists, populate it from the packet's declared MT contracts before claiming work.
 6. Claim exactly one unblocked MT at a time unless the packet explicitly permits a grouped MT slice and records the grouping rationale.
 7. Before implementing the MT, emit a typed intent/claim receipt with WP ID, MT ID, session key, planned files, proof commands, and any known scope risk.
 8. Implement only the claimed MT scope in the product worktree. If the MT creates or changes operator-visible, model-navigable, diagnostic-visible, or frontend behavior, create or wire the GUI/operator path and Argus inspection/steering path in the same MT unless the MT records a typed headless `NOT_APPLICABLE` reason.
-9. Use role-relevant sub-agents as speed-build lanes when packet rules or the Operator instruction allow it: disjoint product implementation slices, GUI/Argus wiring, UserManual/manual-test updates, proof command hardening, and independent risk review. Review all delegated diffs and outputs before advancing state. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
-10. Update the in-product internal UserManual for every product-behavior MT in the same change, handle `MANUAL_VERSION` when applicable, run a manual self-consistency/no-context operation check, inspect the updated manual path, and record evidence or a typed pure-governance `NOT_APPLICABLE` reason.
-11. Run the MT's proof commands, Argus proof when visual scope exists, UserManual proof when product behavior exists, or record the exact blocker. Build/test/tool outputs must use `../Handshake_Artifacts/`.
-12. Update typed MT/packet/runtime/receipt state from the authoritative gov root when the MT status, evidence, blocker, or next actor changes; regenerate projections instead of hand-maintaining Markdown as authority.
+9. Use role-relevant sub-agents as speed-build lanes when packet rules or the Operator instruction allow it: disjoint product implementation slices, GUI/Argus wiring, UserManual/manual-test updates, proof command hardening, and independent risk review. Parallel read/write or proof lanes are legal only when touched files, Cargo targets, SurrealDB namespaces/databases, artifact directories, ports/processes, and other mutable resources are disjoint and owner-scoped. Review all delegated diffs and outputs before advancing state. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
+10. Update the in-product internal UserManual for every product-behavior MT in the same implementation change, handle `MANUAL_VERSION` when applicable, run a manual self-consistency/no-context operation check, inspect the updated manual path, and record evidence or a typed pure-governance `NOT_APPLICABLE` reason. When multiple MTs change the same unchanged product/manual surface, one shared UserManual update and one shared Argus/manual proof MAY cover the coherent batch only when the typed evidence maps that shared result explicitly to every covered MT and no covered input changed after proof.
+11. Run cheap and focused MT proof, Argus proof when visual scope exists, UserManual proof when product behavior exists, or record the exact blocker. On failure, use one evidence-led cycle: inspect the exact failure/artifact, localize the cause, patch it, rerun the exact case, then run the affected complete target/binary; defer broad proof to the declared batch boundary. Do not run a broad/full Cargo test suite for every MT. Build/test/tool outputs must use `../Handshake_Artifacts/`.
+12. Update typed MT/packet/runtime/receipt state from the authoritative gov root when the MT status, evidence, blocker, or next actor changes. Do not manually update or regenerate Markdown projections unless the Operator explicitly requests that artifact.
 13. Commit product-code checkpoints on the assigned `feat/WP-*` branch only after the diff is scoped, tests or blockers are recorded, GUI/UserManual obligations are evidenced or typed `NOT_APPLICABLE`, delegated sub-agent outputs are reviewed, and `.GOV/` files are absent from the product commit.
 14. Push the assigned WP backup branch at implementation checkpoints that must survive session loss, and before any destructive or state-hiding git operation.
 15. Emit the packet-declared typed handoff when review is needed. For folded Kernel Builder packets, hand off the completed MT batch to Integration Validator; include commit range, touched files, proof results, Argus/UserManual evidence, sub-agent delegation summary, open risks, and MT IDs. Use a WP Validator handoff only when the packet explicitly declares one.
-16. Continue only after the typed review route allows continuation, or record the blocker truthfully.
+16. Continue disjoint, unblocked work under step 4 while independent review is pending. Continue overlapping or dependent work only after the typed review route allows it. On validator failure, stop new expansion, remediate the affected MT, and re-hand off before resuming the batch; otherwise record the blocker truthfully.
+
+### Cargo Test Batch Cadence [CX-503I1] (HARD)
+
+- `SESSION_MT_BATCH` is the exact MT set assigned when the implementation session starts. It is not an open-ended label and must be recorded in the session intent/handoff evidence.
+- Per MT, keep the compile gate and run the cheapest focused proof that can catch the changed behavior. `cargo fmt --check`, `cargo check`, a single test target, or a narrow name/module filter are legal per-MT proof when relevant. Broad workspace, all-target, all-feature, or otherwise expensive Cargo test suites are not per-MT gates.
+- Run the broad/full Cargo `TEST_PLAN` once after the last MT in `SESSION_MT_BATCH` is implemented, or once at final WP implementation if that occurs first. The result must name the covered MT IDs and exact commit/tree state.
+- If a session ends before its declared MT batch is complete, record the broad suite as `DEFERRED_TO_SESSION_MT_BATCH`; do not manufacture a per-MT full-suite requirement. The next session declares its remaining MT batch and owns the next batch boundary.
+- Any product-code change after a batch/full-suite PASS makes that result stale for the changed tree. Run affected focused proof immediately and rerun the broad/full suite at the next required batch boundary; WP completion always requires a broad/full-suite PASS on the final unchanged implementation state.
+- Do not run a redundant standalone `cargo build` when the required `cargo check` or `cargo test` already establishes compilation. A separate build remains legal only when the packet requires a concrete binary, packaging, profile, feature, or platform artifact that the test/check command does not produce.
+- Reuse a proof result while its source tree, features/profile/platform, command inputs, external-resource version, and asserted behavior remain unchanged. Do not rerun it merely to restate the same evidence on another surface.
+- Independent proof commands may run concurrently only with disjoint owner-scoped Cargo targets, SurrealDB namespaces/databases, artifact directories, ports/process ownership, and other mutable resources. Shared targets or state force serialization.
 
 Use existing command surfaces where they fit the current packet instead of inventing new public helpers:
 
@@ -282,7 +294,7 @@ Use existing command surfaces where they fit the current packet instead of inven
 - `just mt-claim <WP_ID> <SESSION_KEY>`
 - `just mt-complete <WP_ID> <MT_ID>`
 - `just wp-receipt-append ...`
-- `just wp-thread-append ...`
+- `just wp-thread-append ...` is legacy Markdown compatibility and requires an explicit Operator request for that Markdown update
 - `just wp-coder-intent ...`
 - `just wp-coder-handoff ...`
 - `just wp-review-request ...`
@@ -297,7 +309,7 @@ Required restart surfaces after each MT-significant state change:
 - MT board state shows the active/completed MT accurately.
 - WP runtime status names current phase, active or next MT, next expected actor, waiting state, and worktree.
 - Receipts JSONL contains the claim, intent, blocker, repair, handoff, or completion event that caused the state change.
-- Repomem records substantive decisions, blockers, errors, and risks.
+- Repomem records only genuinely novel durable decisions, blockers, errors, and risks that are not already represented in packet or receipt authority; it does not duplicate state-transition narration.
 - Packet/refinement/MT contracts are repaired only from the gov kernel or governed helpers; projections are regenerated and checked.
 - Task Board and Build Order are refreshed when WP-level status changes, not for every local code edit.
 
@@ -328,7 +340,7 @@ NEXT_ACTOR: <KERNEL_BUILDER|WP_VALIDATOR|INTEGRATION_VALIDATOR|OPERATOR>
 
 Kernel Builder may not claim PASS-ready, validation-ready, or merge-ready from symbol, schema, descriptor, projection, or fixture-test evidence when the resolved Master Spec requires runtime behavior, durable storage, EventLedger authority, UI exposure, or replayable failure receipts.
 
-Before any final Kernel Builder handoff for medium-risk or high-risk product packets, Kernel Builder must attach or include a `SPEC_MUST_TO_PROOF_MATRIX` derived from the resolved current Master Spec modules and packet acceptance rows. Each normative MUST that the WP claims to satisfy must map to at least one proof class:
+Run implementer-side PASS-ready hardening once on the final unchanged tree of the declared Integration Validator batch. Do not repeat it after every MT, and do not author a parallel proof matrix. Update the existing typed `PACKET_ACCEPTANCE_MATRIX`, clause-closure rows, HBR rows, and MT evidence with references to the shared batch proof. Each normative MUST that the WP claims to satisfy must map through those existing rows to at least one proof class:
 
 - `runtime_behavior`: executable product behavior path exists and is tested.
 - `durable_storage`: migration, storage API, persistence/reload behavior, and compatibility path exist and are tested.
@@ -339,7 +351,7 @@ Before any final Kernel Builder handoff for medium-risk or high-risk product pac
 
 Kernel Builder must treat `test_only` as advisory evidence. A `test_only` row may support another proof class, but it must not be the sole proof for a Master Spec MUST that names product behavior, persistence, promotion, authority, recovery, UI exposure, or durable evidence.
 
-Kernel Builder must run an anti-scaffold gate before final handoff. If the WP adds or changes files, types, or functions named like `*Contract*`, `*Descriptor*`, `*Mapping*`, `*Projection*`, `*Schema*`, `*Receipt*`, `*Evidence*`, or similar declarative surfaces, the handoff must identify the executable consumer for each surface. Required examples:
+Kernel Builder must run an anti-scaffold gate once on that final batch tree. If the WP adds or changes files, types, or functions named like `*Contract*`, `*Descriptor*`, `*Mapping*`, `*Projection*`, `*Schema*`, `*Receipt*`, `*Evidence*`, or similar declarative surfaces, the existing typed acceptance/evidence rows must identify the executable consumer for each surface. Required examples:
 
 - CRDT update or snapshot contract -> SurrealKit rollout or SurrealDB storage method, append/list/replay API, restart/reload test, and no hidden SQLite/PostgreSQL authority path.
 - EventLedger mapping or receipt contract -> actual append/reject path, idempotency behavior, and duplicate/stale/rejected-path tests.
@@ -347,7 +359,7 @@ Kernel Builder must run an anti-scaffold gate before final handoff. If the WP ad
 - Direct-edit denial evidence -> durable denial record with actor, target, attempted action, denial reason, recovery instruction, linked UI or API response, receipt refs, and EventLedger refs when required by spec.
 - DCC/backend projection -> product UI or API projection rows with stable identifiers, freshness state, and controls that cannot bypass authority.
 
-Kernel Builder must run current-main interaction checks before final handoff and report the exact outputs:
+Kernel Builder must run current-main interaction checks once before final batch handoff and record artifact pointers plus the exact outcome in the existing typed handoff record:
 
 - `git fetch origin main`
 - `git merge-base --is-ancestor origin/main HEAD`
@@ -365,21 +377,21 @@ Kernel Builder must add required negative tests for kernel authority work. The e
 - DCC or API controls cannot directly mutate EventLedger authority or silently treat CRDT state as authority;
 - projection freshness or rebuild failure leaves replayable evidence when the spec requires it.
 
-Before final handoff, Kernel Builder must run a self-validator pass and record the result in the handoff: "Find at least five ways Integration Validator could fail this against the resolved current Master Spec." Each candidate failure must include the source anchor, product path, evidence checked, and disposition: `FIXED`, `PROVEN_SAFE`, `OUT_OF_SCOPE_BY_PACKET`, or `OPEN_BLOCKER`. If fewer than five plausible failure modes exist, Kernel Builder must state why and still cover current-main interaction, primitive retention, scaffold/runtime mismatch, negative guards, and UI/storage/EventLedger surfaces as applicable.
+Before final batch handoff, Kernel Builder must run a risk-triggered self-validator pass over the applicable failure classes: current-main interaction, primitive retention, scaffold/runtime mismatch, negative guards, trust/privacy/concurrency boundaries, and UI/storage/EventLedger behavior. Do not manufacture an arbitrary number of attacks. Each plausible failure found must include the source anchor, product path, evidence checked, and disposition: `FIXED`, `PROVEN_SAFE`, `OUT_OF_SCOPE_BY_PACKET`, or `OPEN_BLOCKER`; inapplicable classes receive a typed reason.
 
 The final handoff must therefore include these additional fields when applicable:
 
 ```text
-CURRENT_MAIN_INTERACTION_CHECKS: <commands and PASS/FAIL outputs>
+CURRENT_MAIN_INTERACTION_CHECKS: <commands, outcomes, and artifact pointers>
 ARTIFACT_DIR_CLEANUP: <whether artifacts root has been cleaned per-WP after validation-passing; includes command + path evidence; resolve path via `${HANDSHAKE_ARTIFACTS_ROOT}` with fallback `../Handshake_Artifacts/`>
 PRIMITIVE_RETENTION_PROOF: <paths/actions/tests/primitives preserved or superseded>
-SPEC_MUST_TO_PROOF_MATRIX: <anchor -> MUST -> proof_class -> evidence>
+ACCEPTANCE_PROOF_REFS: <existing packet/clause/HBR row IDs -> shared batch proof references>
 ANTI_SCAFFOLD_GATE: <declarative surfaces -> executable consumers>
 ARGUS_GUI_EVIDENCE: <reachable navigation, stable author_id targets, before/after observation, screenshot/tree references, or NOT_APPLICABLE>
 USER_MANUAL_CLOSEOUT: <per-MT manual update/version/test/inspection matrix or NOT_APPLICABLE-with-reasons>
 SUB_AGENT_REVIEW_LEDGER: <delegated lanes, reviewed diffs, proof reruns, corrections applied, or NONE>
 NEGATIVE_GUARD_TESTS: <tests proving forbidden or missing behavior fails closed>
-SELF_VALIDATOR_ATTACKS: <five plausible Integration Validator failures and dispositions>
+SELF_VALIDATOR_ATTACKS: <applicable plausible Integration Validator failures and dispositions; no arbitrary quota>
 ```
 
 ## Kernel Builder Validation Handoff Topology
@@ -432,16 +444,16 @@ Each microtask must include:
 
 Twenty or more microtasks are acceptable when that keeps implementation restartable, reviewable, and usable by lower-context models. Do not collapse microtasks merely to reduce paperwork.
 
-## Pre-MT and Post-MT Adversarial Review (Parallel Sub-Agents)
+## Risk-Triggered Adversarial Review (Parallel Sub-Agents)
 
-Parallel sub-agents are the `KERNEL_BUILDER` speed-build default (see Build Reset Stance and `RAM-KERNEL_BUILDER-SUBAGENT-001`). For every product MT, `KERNEL_BUILDER` MUST run adversarial review through multiple different lenses both BEFORE and AFTER implementation to harden the MT.
+Parallel sub-agents remain a `KERNEL_BUILDER` speed-build option (see Build Reset Stance and `RAM-KERNEL_BUILDER-SUBAGENT-001`), but adversarial review is risk-triggered rather than a universal pre/post ritual for every MT.
 
-- BEFORE implementation: spawn parallel sub-agents, each assigned a DIFFERENT lens, to adversarially review the planned MT (scope, skeleton/interface, approach) before product code is written.
-- AFTER implementation: spawn parallel sub-agents, each with a different lens, to adversarially review the implemented diff.
+- BEFORE implementation: run an independent adversarial review only when the approach, trust boundary, architecture, scope edge, destructive/data-loss behavior, privacy boundary, or interface contract remains unresolved after reading typed authority and current code. Review the unresolved decision, not the whole packet.
+- AFTER implementation: run independent adversarial review for a high-risk MT, a trust/persistence/privacy/concurrency boundary, or once for a coherent batch on its final unchanged tree. A low-risk MT with complete focused proof and no unresolved boundary does not require a separate implementer-side review.
 - Canonical lenses (non-exhaustive): correctness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof (Spec-Realism Gate); security & trust-boundary; account/resource privacy and cross-scope leakage; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR coverage (VIS/MAN/INT/QUIET/SWARM/STOP/PRIV); Argus visual & UserManual evidence; edge cases.
 - Purpose: harden the MT and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars.
 - Disposition every finding: `FIXED` (in the current MT when in-scope) · `PROVEN_SAFE` · `OUT_OF_SCOPE` → create a NEW MT in the SAME WP to remediate, but ONLY when the finding is genuinely outside the current MT's scope · `OPEN_BLOCKER`.
-- `KERNEL_BUILDER` MUST review and is responsible for all sub-agent output; sub-agents do not self-certify. Record the lenses run and each disposition (this extends the `SELF_VALIDATOR_ATTACKS` handoff field).
+- `KERNEL_BUILDER` MUST review and is responsible for all sub-agent output; sub-agents do not self-certify. Record the trigger, lenses run, and each disposition in the existing typed handoff/acceptance surface. When no trigger applies, record `NOT_APPLICABLE` with the risk basis instead of launching review for ritual compliance.
 - Adversarial review is ADVISORY ONLY. A passing adversarial review NEVER validates an MT: no `KERNEL_BUILDER`, `CODER`, or sub-agent in any role may mark an MT passing or validated (Spec-Realism Gate sub-rule 3). `CLAIMED → READY_FOR_VALIDATION` is the terminal transition an implementer-side actor may set. Only an Operator-assigned WP Validator or Integration Validator — or an Orchestrator-launched WP Validator / Integration Validator via ACP or Handshake, operating under the validator protocols and `.GOV/codex/Handshake_Codex_v1.4.md` — may validate an MT as passing (`READY_FOR_VALIDATION → COMPLETED`).
 
 ## Validation Boundary
@@ -464,19 +476,15 @@ When a self-check fails, Kernel Builder repairs or records the blocker. When sel
 - Do not repair ACP/session-control/governance drift unless it blocks kernel-build safety or restartability.
 - If a governance defect is observed but not blocking, record it as debt or a concern and keep building.
 - If a governance defect blocks product work, prefer the smallest local repair over a broad governance refactor.
-- Prefer typed JSON/JSONL/YAML-compatible contracts and existing role/tool surfaces over new Markdown documents.
-- If current legacy tooling still emits `packet.md`, `refinement.md`, or `MT-*.md`, ensure the matching `packet.json`, `refinement.json`, or `MT-*.json` carries the authority and marks Markdown as `SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD` or equivalent migration metadata.
+- Use the repo's existing typed JSON/JSONL/YAML-compatible contracts, schemas, and deterministic role/tool surfaces. Do not create a new `.md` file unless the Operator explicitly requests that exact artifact.
+- If current legacy tooling reads existing `packet.md`, `refinement.md`, or `MT-*.md`, ensure the matching `packet.json`, `refinement.json`, or `MT-*.json` carries the authority and incrementally transfer touched active information into the typed record. Treat the Markdown as read-only migration evidence unless the Operator explicitly requests its edit.
 - Do not turn repo organization work into an Operator UI. If a viewing or projection need is real, treat it as a future Handshake Product viewer concern unless the Operator explicitly asks for a repo-local projection.
 
 ## Conversation Memory
 
 - Start each Kernel Builder session with `just repomem open "<substantive purpose>" --role KERNEL_BUILDER [--wp WP-{ID}]`.
-- Use `just repomem decision` for build-order choices, WP sizing choices, direct-product-edit choices, and governance-minimization decisions.
-- Use `just repomem concern` for risks that the validator should inspect later.
-- Use `just repomem error` when tooling, tests, startup, or repo governance blocks the build.
-- Use `just repomem insight` when current product code, reset-brief intent, or implementation reality changes the build plan.
-- In Activation Mode, use `just repomem decision` for MT breakdown, scope boundary, spec-enrichment strategy, gate-repair, readiness-repair, worktree-preparation, and launch-blocker choices before committing those choices to packet/runtime authority.
-- In Activation Mode, use `just repomem error` when phase checks, signature validation, packet hydration, worktree preparation, readiness generation, or projection repair fails unexpectedly.
+- Between open and close, write repomem only for a genuinely novel durable decision, blocker, failure pattern, or finding that is not already represented in typed packet, receipt, runtime, validation, or debt authority. Do not mirror ordinary status changes, command results, MT evidence, or handoff fields into repomem.
+- In Activation Mode, the same novelty rule applies: first write authoritative scope, readiness, repair, and blocker state to its existing typed surface; add memory only when a reusable cross-session insight would otherwise be lost.
 - Close with `just repomem close "<summary>" --decisions "<key choices>" [--wp WP-{ID}]`.
 
 ## Startup
@@ -532,32 +540,24 @@ Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whos
 
 ## Ready-for-Validation Self-Review (mandatory before READY_FOR_VALIDATION)
 
-Every `CLAIMED -> READY_FOR_VALIDATION` transition this role performs MUST be preceded by a successful `KB_READY_CHECKLIST_RECEIPT` written into the WP communications directory. The receipt is structural proof that the Spec-Realism Gate self-check was actually performed — not asserted in chat.
+At the final handoff boundary for a coherent MT batch, every covered `CLAIMED -> READY_FOR_VALIDATION` transition MUST be covered by a successful `KB_READY_CHECKLIST_RECEIPT` written into the WP communications directory. Generate the check mechanically from existing typed MT contracts, acceptance/evidence rows, command results, lifecycle state, and code findings; do not manually re-author those facts or create one questionnaire per MT. The receipt must list every covered MT ID and bind findings to the final unchanged batch tree. A packet that explicitly requires an earlier per-MT ready receipt retains that stricter boundary.
 
-Run the rubric with:
+Run the existing checklist surface for each covered MT at the batch handoff. The generator must consume existing typed evidence, reuse shared batch proof where inputs match, and emit PASS or a deterministic missing/failed-evidence result:
 
 ```text
 just kb-ready-checklist <WP_ID> <MT_ID>
 ```
 
-Headless / ACP sessions without a TTY use the two-call JSON path:
-
-```text
-just kb-ready-checklist <WP_ID> <MT_ID> --json > skeleton.json
-# fill in answers + explanations
-cat skeleton.json | node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs <WP_ID> <MT_ID> --json --emit
-```
-
-The rubric covers six items and ALL must clear before the receipt records `overall_verdict=PASS`:
+Do not create or fill a checklist skeleton by hand. If the current helper cannot derive a required item from canonical typed evidence, it must report that item as missing/blocked; route the implementer-owned helper drift instead of duplicating evidence manually. The generated rubric covers six items and ALL must clear before the receipt records `overall_verdict=PASS`:
 
 - **RC-001 No stale reasons.** Error messages, reason strings, and `lifecycle.*_reason` fields reflect current state — no leftover references to prior MT IDs, prior remediator session keys, or superseded approval records.
 - **RC-002 No dead code.** Every `pub struct` / `pub fn` / `pub enum` / `pub trait` / `pub const` declared in `owned_files` is referenced outside its declaring file, or is an intentional public-API export.
 - **RC-003 cfg-gated tests gate correctly.** Every `#[test]` / `#[tokio::test]` in the MT's owned tests gates intentionally — platform/feature-specific assertions are gated, default-CI assertions are not.
 - **RC-004 Cross-platform CI still passes.** `cargo check` (or project equivalent) ran cleanly for at least one non-target platform, or a CI run URL is attached.
-- **RC-005 Proof commands pass.** Every `proof_commands` entry in the MT contract has been executed and returned exit-0, with at least one command touching the real external resource named by the contract (per Spec-Realism Gate sub-rule 2).
+- **RC-005 Proof commands pass at the current boundary.** Every `proof_commands` entry due at the current boundary has been executed and returned exit-0, with at least one focused command touching the real external resource named by the contract (per Spec-Realism Gate sub-rule 2). A legacy broad/expensive Cargo proof entry may be deferred only under [CX-503I1] with `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH`, the exact declared batch/MT IDs, and the future batch boundary. In `kb-ready-checklist`, record that governed deferral as `n/a` with this evidence in RC-005; do not answer `yes` as though the deferred command ran. No such deferral is legal at final WP completion, which requires the broad/full-suite PASS on the final unchanged WP tree.
 - **RC-006 Implementer cannot self-certify.** At the `READY_FOR_VALIDATION` boundary the invariant is: `lifecycle.claimed_by` is set AND `lifecycle.completed_by` is unset/empty/null. Only the validator role writes `completed_by` on transition to `COMPLETED`. A non-empty `completed_by` at this boundary is a hard violation — the implementer is fast-forwarding through validator review (Spec-Realism Gate sub-rule 3). The earlier framing as a `claimed_by != completed_by` structural check was an overclaim: at `READY_FOR_VALIDATION` time `completed_by` is empty by design, so equality could only be detected after the fact, which is already too late.
 
-Any item answered `no` MUST carry a non-empty `explanation`; an unexplained `no` blocks receipt emission. An emitted receipt with `overall_verdict=BLOCKED` MUST be remediated before the MT transitions to `READY_FOR_VALIDATION`.
+Any failed or missing item MUST carry a mechanically derived explanation and evidence pointer. An emitted receipt with `overall_verdict=BLOCKED` MUST be remediated before a covered MT transitions to `READY_FOR_VALIDATION`.
 
 Owned-file auto-findings (RC-002/RC-003/RC-005) resolve `owned_files` paths against the WP-declared product worktree, not the gov_kernel worktree the script runs from. Resolution order: (1) `HANDSHAKE_PRODUCT_WORKTREE_ROOT` env var when set to an existing path; (2) auto-discovery via `git worktree list --porcelain` matched by WP-ID stem against `wtc-*` basenames (most-recently-modified wins when multiple match); (3) fallback to repo root with explicit warnings in the auto-finding lines. The receipt records the resolved root, source, and any other candidates under `product_worktree_root_resolution` so the validator can audit which worktree the auto-findings reflected.
 

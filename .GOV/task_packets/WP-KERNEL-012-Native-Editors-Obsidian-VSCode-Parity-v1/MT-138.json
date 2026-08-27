@@ -25,22 +25,44 @@
   "title": "B11-MT-138-Port-The-Atelier-Subsystem-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B11",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T09:05:00Z",
+  "updated_at_utc": "2026-08-25T09:11:42Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-136"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:45:00Z",
+    "ready_for_validation_at_utc": "2026-08-25T09:11:42Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260818-130753",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_LENS_INDEPENDENT_REVIEW_PASS_2026-08-25",
+    "ready_for_validation_summary": "Exact frozen 48-file candidate 68bb56316593b8cb429f932e538f0ea89d434eed616cd13311f2bfbab16a4273 ports the Atelier production subsystem and two concrete stale integration consumers onto the embedded SurrealDB authority, preserves fail-closed startup and exact schema/catalog verification, and enforces API list caps and overview counts inside SurrealDB. Fresh proof passed: app-runtime cargo check, focused compilation of both migrated integration targets, zero executable sqlx usage under src/atelier, direct rustfmt checks on remediated files, and scoped diff checks. Two independent adversarial reviewers approved the unchanged candidate through schema/restart/data-integrity and API/integration/bounded-query lenses. The remaining backend integration-test corpus is explicitly owned by dependent MT-141. Official validator verdict remains unset and completed_by remains null.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "candidate_sha256": "68bb56316593b8cb429f932e538f0ea89d434eed616cd13311f2bfbab16a4273",
+      "candidate_file_count": 48,
+      "adversarial_reviews": [
+        "schema_catalog_restart_data_integrity_and_dependency_isolation:APPROVE",
+        "api_integration_consumers_bounded_queries_and_manual_consistency:APPROVE"
+      ],
+      "focused_proofs": [
+        "cargo_check_app_runtime:PASS",
+        "atelier_action_receipt_and_loom_projection_integration_targets_no_run:PASS",
+        "atelier_executable_sqlx_scan:0_hits",
+        "remediation_rustfmt_check:PASS",
+        "scoped_diff_check:PASS"
+      ],
+      "residual_owned_by_mt141": "full backend integration-test tree port and runtime execution"
+    },
     "claim_note_2026_08_18": "Claimed in parallel with MT-136/MT-137 under Operator directive 2026-08-18 (SurrealDB only; PostgreSQL/SQLite dependency and language forbidden). The atelier seam commit 660a5bf8 is the implementation base; remaining work is the ~660 sqlx call sites across atelier/.",
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "operator_scope_decision_2026_08_16": {

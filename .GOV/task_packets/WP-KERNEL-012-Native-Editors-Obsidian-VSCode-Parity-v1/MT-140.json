@@ -30,24 +30,39 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [],
     "blocks": ["MT-108"],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260826-020321",
+    "claimed_at_utc": "2026-08-26T02:08:47.3692220Z",
+    "session_mt_batch": [
+      "MT-140"
+    ],
+    "claim_summary": "Implement the first unclaimed dependency-free remediation MT after MT-136 through MT-139 reached READY_FOR_VALIDATION_V4. Preserve each former SQL-row proof at equivalent strength through product API or embedded-store containment evidence, rename pg_proof_support database-neutrally, and purge forbidden database language while retaining enumerated detection tripwires.",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator directive that no PostgreSQL or SQLite dependency OR LANGUAGE may remain in tests and checks. Measured during MT-128 implementation: the pg_proof_support fixture conversion REMOVED run_fixture_sql, leaving hard-broken call sites in test_stage_interop.rs (6), test_calendar_interop.rs (6), and test_flight_recorder_authz.rs (1) — those binaries cannot compile. Beyond the compile breaks, ~80 frontend test files still carry PostgreSQL/psql/PG-DSN language in comments, helper names, env-var lists, and gated-row wording, and the shared fixture directory itself is named pg_proof_support. test_e7_swarm_edit_proof.rs was already fully ported under MT-128 (its own scope) and is the reference conversion."
   },
   "scope": {
-    "summary": "Port the remaining frontend test-suite PostgreSQL verification to embedded-SurrealDB-era patterns and purge PostgreSQL/SQLite language from the frontend test tree. CROSS-FILE NOTE: renaming the MT-074 test mt074-op01-save-persists-exact-embed-provenance-in-postgresql must also update the comment referencing it at src/frontend/handshake_native/src/app.rs:755 (that one comment edit is authorized same-change scope). The reference conversion is test_e7_swarm_edit_proof.rs as ported under MT-128: live-phase row verification goes through product HTTP APIs (documents load, /workspaces list, /workspaces/{id}/loom/blocks/{block}/backlinks, /kernel/events/aggregates/{type}/{id}, credentialed /events); crash-path verification becomes containment observation (the per-run embedded store under a fixture-owned runtime root cannot leak into other runs); shared-cluster sweeps are retired as out-of-band ledger mutation. The pg_proof_support directory is renamed to a database-neutral name (e.g. proof_support or backend_proof_support) with all module references updated across every consuming binary in one change.",
+    "summary": "Port the remaining frontend test-suite direct-store verification to embedded-SurrealDB-era patterns and purge PostgreSQL/SQLite language from the frontend test tree. SurrealDB is the canonical main database. CROSS-FILE NOTE: renaming the MT-074 test mt074-op01-save-persists-exact-embed-provenance-in-postgresql must also update the comment referencing it at src/frontend/handshake_native/src/app.rs:755. The reference conversion is test_e7_swarm_edit_proof.rs as ported under MT-128: live-phase row verification goes through product HTTP APIs (documents load, /workspaces list, /workspaces/{id}/loom/blocks/{block}/backlinks, /kernel/events/aggregates/{type}/{id}, credentialed /events); crash-path verification becomes containment observation (the per-run embedded store under a fixture-owned runtime root cannot leak into other runs); shared-cluster sweeps are retired as out-of-band ledger mutation. The pg_proof_support directory is renamed to backend_proof_support with all module references updated across every consuming binary in one change. Operator-approved scope widening adds only the typed calendar source/event ingestion and Atelier intake-item creation API paths needed to replace fixture writes without introducing a generic query backdoor.",
     "allowed_paths": [
-      "src/frontend/handshake_native/tests/"
+      "src/frontend/handshake_native/tests/",
+      "src/frontend/handshake_native/src/app.rs:755",
+      "src/backend/handshake_core/src/api/calendar.rs",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/intake.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/src/model_manual/content.rs",
+      "src/backend/handshake_core/src/storage/calendar.rs",
+      "src/backend/handshake_core/src/storage/surreal/calendar_store.rs",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/Cargo.toml"
     ],
     "forbidden_paths": [
       ".GOV/**",
-      "src/frontend/handshake_native/src/**",
-      "src/backend/**",
+      "src/frontend/handshake_native/src/** except src/frontend/handshake_native/src/app.rs:755",
+      "src/backend/** except the exact allowed paths above",
       "app/src/**"
     ],
     "acceptance_criteria": [
@@ -84,12 +99,17 @@
     "not_applicable_reason": "Test-harness port; the UI surfaces these tests exercise are owned and proven by their own microtasks."
   },
   "user_manual_obligation": {
-    "required": false,
-    "same_change_update_required": false,
+    "required": true,
+    "same_change_update_required": true,
     "manual_version_bump_required": false,
-    "target_entries": [],
-    "expected_evidence": [],
-    "not_applicable_reason": "Pure test-harness change: no product behavior, tool, command, IPC channel, config key, or navigation path changes."
+    "target_entries": [
+      "Atelier model-manual API endpoint inventory",
+      "Calendar API module documentation for typed source/event ingestion"
+    ],
+    "expected_evidence": [
+      "The no-context model manual names the new Atelier intake-item write route.",
+      "Calendar module documentation explains typed SurrealDB-backed ingestion and rejects generic query access."
+    ]
   },
   "red_team": {
     "required": true,
@@ -97,18 +117,75 @@
     "risks": [
       "A port that replaces an exact-row SQL assertion with a weaker HTTP existence check silently reduces proof strength (AC-140-1 exists to catch this).",
       "A blanket find/replace of the module name could corrupt string literals that are deliberate tripwires.",
-      "Deleting a broken call site instead of porting it converts a canonical-row proof into no proof."
+      "Deleting a broken call site instead of porting it converts a canonical-row proof into no proof.",
+      "A generic query or test-only mutation endpoint would recreate the direct-store backdoor under a new name.",
+      "A non-idempotent import endpoint could duplicate calendar or Atelier records after an ambiguous retry.",
+      "Concurrent work already modifies the widened backend files; a broad rewrite could overwrite inherited changes."
     ],
     "minimum_controls": [
       "Each replacement proof maps 1:1 to the SQL predicate it replaces and is recorded in PT-140-3.",
       "Tripwire strings that hunt forbidden technology are preserved and enumerated.",
-      "No assertion may be deleted without a recorded equivalent."
+      "No assertion may be deleted without a recorded equivalent.",
+      "The widened APIs accept typed domain requests only and call existing SurrealDB-backed stores; no raw query text is accepted.",
+      "Caller-stable identities and existing store upsert semantics make retry behavior deterministic.",
+      "All edits to inherited-dirty files are surgical and reviewed against the target-specific pre-existing diff."
     ]
+  },
+  "scope_widening_decision_2026_08_26": {
+    "operator_quote": "approved, surrealdb is the main db. rewrite all older assumption to the new when you come across it. continue work",
+    "effect": "Authorizes the minimum backend product API and manual changes needed to replace MT-140's remaining direct-store fixture writes, and authorizes rewriting encountered PostgreSQL/SQLite-era assumptions to SurrealDB-era product terminology. SurrealDB is canonical; no generic database-query surface is authorized."
+  },
+  "research_basis": {
+    "recorded_at_utc": "2026-08-26T00:00:00Z",
+    "sources_checked": [
+      "https://surrealdb.com/docs/reference/rust/methods/upsert",
+      "https://surrealdb.com/docs/reference/rust/methods",
+      "https://surrealdb.com/docs/reference/rust/methods/begin",
+      "https://surrealdb.com/docs/reference/rust/embedding",
+      "https://surrealdb.com/docs/reference/rust/concepts/transaction",
+      "https://github.com/tokio-rs/axum/blob/main/examples/testing/src/main.rs",
+      "https://developers.google.com/workspace/calendar/api/guides/create-events",
+      "https://developers.google.com/workspace/calendar/api/v3/reference/events/import",
+      "https://www.rfc-editor.org/info/rfc5545/"
+    ],
+    "patterns_found": [
+      "Typed HTTP setup paths should call existing domain storage methods instead of exposing raw query execution.",
+      "Caller-supplied stable external event identities make retry/import behavior idempotent and avoid duplicates after ambiguous failures.",
+      "Calendar source and event writes should be workspace-scoped, validate source ownership, and preserve RFC 5545-style stable identities.",
+      "Axum routes can be tested through the real Router/HTTP surface; this MT retains its existing live-product proof topology."
+    ],
+    "reuse_opportunities": [
+      "Reuse CalendarSourceUpsert, CalendarEventUpsert, normalize_calendar_sync_event, and the existing SurrealDB-backed Storage methods.",
+      "Reuse AtelierStore::add_intake_item and NewIntakeItem instead of creating a second ingestion store path.",
+      "Reuse the frontend backend_proof_support live server and isolated embedded-store containment."
+    ],
+    "rejected_options": [
+      "Generic raw-query, admin-SQL, or test-only fixture endpoints: rejected because they recreate an unsafe storage backdoor and weaken product-level proof.",
+      "Keeping legacy DSN helpers under neutral names: rejected because it preserves the obsolete dependency rather than remediating it.",
+      "Deleting assertions or substituting fixture success with existence-only checks: rejected because AC-140-1 requires equivalent proof strength."
+    ],
+    "selected_approach": "Add only typed workspace-scoped calendar source registration and typed Atelier batch-item creation routes, backed by existing SurrealDB domain stores. Reuse the existing calendar_sync workflow through /jobs for event ingestion and updates; do not add a parallel event-write endpoint. Port tests to those routes/workflow or isolated-store containment, then remove obsolete direct-store helpers and terminology.",
+    "risks": [
+      "Duplicate records on retry",
+      "Cross-workspace source/event writes",
+      "Accidental raw-query capability",
+      "Lost inherited dirty-worktree changes",
+      "Weakened assertion semantics during port"
+    ],
+    "mitigations": [
+      "Stable caller identities and existing upsert semantics",
+      "Explicit workspace/source ownership checks",
+      "Typed request structs with no query-text field",
+      "Surgical patches reviewed against target-specific pre-existing diffs",
+      "One-to-one old-predicate to replacement-proof mapping"
+    ],
+    "validation_plan": "Run focused backend route/store tests, scan the complete frontend test tree with deliberate tripwires enumerated, execute every touched frontend test binary separately with --test-threads=1 and isolated HANDSHAKE_DATA_DIR, then perform independent adversarial and counterfactual review."
   },
   "hbr_obligations": {
     "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (test-harness port, no product business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260826-020321"
   }
 }

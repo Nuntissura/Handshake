@@ -76,6 +76,15 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - If packet `WAIVERS GRANTED` contains an active Operator-approved TEST/ENVIRONMENT waiver for host load or cargo/TEST_PLAN execution, do not rerun the affected heavy commands during per-MT review. Treat the evidence state as `NOT_RUN_WAIVED` for that waiver scope, cite the waiver ID in the review response, and focus on committed diff review plus targeted light checks.
 - Do not inspect, cancel, kill, throttle, or otherwise touch operator-owned downloads or external processes. If fresh heavy proof is still required for MT acceptance or final closeout after the waiver expires, escalate to the Orchestrator instead of launching it from the WP Validator lane.
 
+## Cargo Test Batch Cadence [CX-503I1]
+
+- An intermediate per-MT review that is not also the declared session-batch or final-WP boundary must never demand or rerun a broad/full Cargo test suite. The Coder or Kernel Builder must declare an exact `SESSION_MT_BATCH` and supply compile/static plus focused behavior proof for the MT. A missing or malformed batch declaration is a governance/evidence blocker to correct; it does not authorize a per-MT broad-suite fallback. When the last-MT review overlaps a declared session-batch or final-WP boundary, require valid broad-suite evidence and rerun the broad suite only when that boundary evidence is missing or stale.
+- Accept `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH` as a valid non-final evidence state when it names the declared batch and exact MT IDs. Continue to review code quality, scope, boundaries, compilation, and focused proof normally.
+- A focused Cargo test may be requested or rerun only when it directly targets the MT's changed behavior or a concrete reviewer finding. Do not substitute a broad suite for review judgment.
+- Require one broad/full Cargo suite at the end of the declared session MT batch or at final WP implementation, whichever boundary is reached first. The evidence must bind the covered MT IDs to the exact commit/tree state.
+- Any product-code change after that PASS makes the broad-suite evidence stale for the changed tree. Require affected focused proof immediately and a fresh broad/full suite at the next required boundary. Never confirm final WP evidence without a full-suite PASS on the final unchanged implementation state.
+- Do not require a redundant standalone `cargo build` when a required `cargo check` or `cargo test` already establishes compilation, unless a concrete build/profile/feature/platform artifact is itself an acceptance target.
+
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 RGF-247 split the per-MT transport into two tracks:
@@ -162,7 +171,7 @@ Build, test, and tool outputs MUST NOT be committed to the repo. They belong at 
 
 **AI judgment layer:**
 - Detect committed build outputs, compiled binaries, test result caches, or tool-generated files that belong in the external artifact root.
-- Confirm the active WP worktree does not contain runtime/test/build output directories that should be emitted to the external sibling root `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`).
+- Confirm the active WP worktree does not contain runtime/test/build output directories that should be emitted to `${HANDSHAKE_ARTIFACTS_ROOT}`, resolved with the governed repo-relative fallback `../Handshake_Artifacts/`; never record or require an absolute host path.
 - Flag any new `CARGO_TARGET_DIR` or build path configuration that points inside the repo tree.
 
 ### Job 4: Per-MT Code Review (AI Judgment)
@@ -171,7 +180,7 @@ After boundary, scope, worktree isolation, and hygiene checks pass, review the M
 
 **Review criteria:**
 - Does the code implement what the MT description asks for?
-- Does it compile and pass the declared proof commands?
+- Does it compile and pass the proof commands due at this boundary? For an intermediate MT, focused proof plus an exact `DEFERRED_TO_SESSION_MT_BATCH` broad-suite state is valid; final WP evidence is not.
 - If the MT creates or changes GUI/operator-visible behavior, does Argus prove reachable navigation, stable `author_id` targeting, inspectable state, safe steering when applicable, before/after observation, and layout/text sanity?
 - If the MT creates or changes product behavior, does the internal UserManual update occur in the same change, pass manual self-consistency/no-context inspection, and record HBR-INT-009 diagnostic posture?
 - Are there obvious logic errors or missing edge cases?

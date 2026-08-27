@@ -25,22 +25,45 @@
   "title": "B10-MT-137-Port-Backend-Infrastructure-Modules-Off-sqlx",
   "group": "B10",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-16T07:10:00Z",
+  "updated_at_utc": "2026-08-25T00:49:38Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-136"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:45:00Z",
+    "ready_for_validation_at_utc": "2026-08-25T00:49:38Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260818-130753",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_LENS_INDEPENDENT_REVIEW_PASS_2026-08-25",
+    "ready_for_validation_summary": "Exact frozen 272-file candidate 1bcb9bfca72cb5ef8faaad110cde3a174966962d169c5c62bf88a154d1589888 removes sqlx from all nine MT-owned backend infrastructure directories, preserves real embedded SurrealDB restart/reopen behavior, makes reclaim STOP persistence directly awaited and durable, fails loud without terminalizing a surviving owned process, releases retryable claims after marker or cleanup failures, and aligns the shipped model manual with those semantics. Focused proofs passed: MT-137 restart/reopen 7/7, process-ledger reclaim 8/8, model-manual semantic guard 1/1, app-runtime cargo check, zero-sqlx owned-directory scan, and scoped diff check. Two independent adversarial reviewers approved the unchanged candidate through durable-state/crash-ordering and restart-consumer/forced-cancel lenses. Official validator verdict remains unset and completed_by remains null.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "candidate_sha256": "1bcb9bfca72cb5ef8faaad110cde3a174966962d169c5c62bf88a154d1589888",
+      "candidate_file_count": 272,
+      "runtime_subset_sha256": "a4bf77bf4000aeb9891a52b381865ae5d5052de627e93c2e96e2148eb19db2f2",
+      "adversarial_reviews": [
+        "durable_state_crash_ordering_and_model_manual:APPROVE",
+        "restart_consumers_forced_cancel_and_integration:APPROVE"
+      ],
+      "focused_proofs": [
+        "mt137_restart_recovery_tests:7_passed",
+        "process_ledger_reclaim_tests:8_passed",
+        "process_reclaim_model_manual_matches_fail_loud_durable_stop_semantics:1_passed",
+        "cargo_check_app_runtime:PASS",
+        "owned_directory_sqlx_scan:0_hits",
+        "scoped_diff_check:PASS"
+      ]
+    },
     "claim_note_2026_08_18": "Claimed in parallel with MT-136/MT-138 under Operator directive 2026-08-18. The MT-136 dependency is satisfied at the seam level: SurrealDataContext now exposes bound queries, delete, create_if_absent, execute_returning and single-statement transactions, and schema.surql covers 270 tables including the user_manual_*/knowledge_ingestion_*/knowledge_agent_* tables this MT was blocked on. Scope extension recorded: the remaining sqlx consumers in dependency_policy/, diagnostics/, distillation/, loom_ai/, knowledge_code_index/, knowledge_memory/ (module), knowledge_retrieval/ (module), knowledge_wiki/, and workflows.rs are ported under this MT as directly-related backend-infrastructure work so no sqlx consumer is left unowned.",
     "origin": "Created 2026-08-16 by KERNEL_BUILDER from the measured breakage of the operator-directed physical PostgreSQL removal, so the remaining migration work is tracked and not lost.",
     "progress_2026_08_16": {
