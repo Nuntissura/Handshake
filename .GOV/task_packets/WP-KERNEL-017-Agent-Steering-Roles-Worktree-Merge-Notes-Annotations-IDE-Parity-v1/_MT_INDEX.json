@@ -1,11 +1,15 @@
 {
   "schema_id": "hsk.microtask_index@1",
   "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
-  "generated_at_utc": "2026-08-15T15:51:31.865Z",
-  "mt_count": 139,
-  "id_range": "MT-001..MT-346 across declared domain ranges; gaps are reserved family headroom",
-  "gui_mt_count": 29,
-  "argus_mt_count": 29,
+  "generated_at_utc": "2026-08-27T00:00:00Z",
+  "mt_count": 179,
+  "id_range": "MT-001..MT-410 across declared domain ranges; gaps are reserved family headroom",
+  "gui_mt_count": 55,
+  "argus_mt_count": 55,
+  "conditional_gui_mt_count": 2,
+  "conditional_argus_mt_count": 2,
+  "potential_gui_mt_count": 57,
+  "potential_argus_mt_count": 57,
   "domains": {
     "session_runtime_core": "MT-001..014 (14)",
     "claude_stream_json_transport": "MT-021..029 (9)",
@@ -23,9 +27,13 @@
     "ide_parity_gap_closure": "MT-281..290 (10)",
     "vm_workspace_fleet_reconciler": "MT-301..308 (8)",
     "durable_workspace_volumes_and_handoff": "MT-321..330 (10)",
-    "surrealdb_authority_migration": "MT-331..346 (16)"
+    "surrealdb_authority_migration": "MT-331..346 (16)",
+    "locus_surrealdb_semantic_recovery": "MT-361..372 (12)",
+    "loom_surrealdb_semantic_recovery": "MT-381..392 (12)",
+    "notes_loom_castkit_connectivity": "MT-393..398 (6)",
+    "conditional_wp_local_working_store_evaluation": "MT-401..410 (10)"
   },
-  "external_dependencies_note": "TR family gate (MT-261) additionally reads WP-KERNEL-012 parity/perf evidence (external to this WP; gate RED as of 2026-07-22 because WP-012 MT-045 perf evidence is failing). RD MT-164 diagnostics tiers internal_diagnostics/palmistry are typed DEFERRED until WP-KERNEL-015 ships. PD MT-245 blocks TR MT-261 (TS parity reference must exist when parity suite runs). ORDERING: SC MT-011 (ToolGate) and SC MT-014 (primitives surface) are shared foundations - CS MT-021/CX MT-044/AP MT-063 bind their permission surfaces to MT-011, and MM MT-101/102 + AC MT-206 register their tools into MT-014 instead of bespoke servers. SURREALDB: database-affected current WP017 MTs are bound to Master Spec v02.205; MT-331..346 own complete PostgreSQL retirement, SurrealDB translation and exclusive proof. Completed historical work packets and microtasks are audit-only inputs to MT-344 and are not rewritten.",
+  "external_dependencies_note": "Current CLI/app-server/ACP/library contracts, Locus/Loom/Notes/CKC source truth and SurrealDB/Turso capabilities must be refreshed against pinned post-merge stable main before activation; no remembered or July-era grounding is activation proof.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -1285,7 +1293,8 @@
       "clause": null,
       "depends_on": [
         "MT-083",
-        "MT-121"
+        "MT-121",
+        "MT-372"
       ],
       "gui": false,
       "argus": false,
@@ -3169,7 +3178,10 @@
         "MT-336",
         "MT-337",
         "MT-338",
-        "MT-339"
+        "MT-339",
+        "MT-372",
+        "MT-398",
+        "MT-410"
       ],
       "gui": false,
       "argus": false,
@@ -3311,7 +3323,10 @@
       "depends_on": [
         "MT-329",
         "MT-344",
-        "MT-345"
+        "MT-345",
+        "MT-372",
+        "MT-398",
+        "MT-410"
       ],
       "gui": true,
       "argus": false,
@@ -3327,6 +3342,1045 @@
       ],
       "status": "PENDING",
       "storage_authority": "SURREALDB_V02_205_BINDING"
+    },
+    {
+      "mt_id": "MT-361",
+      "title": "LC-MT361-StableMainLocusAuditAndSemanticContract",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "After WP-KERNEL-012, WP-1 multi-model orchestration and WP-CKC merge, audit stable main and refresh the Locus specification before any Locus refactor begins.",
+      "depends_on": [
+        "MT-338"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-362",
+      "title": "LC-MT362-ManagedProjectForestAndQualifiedIdentity",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Define the canonical SurrealDB managed-project forest and project-qualified work-packet and microtask identity model.",
+      "depends_on": [
+        "MT-361"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-363",
+      "title": "LC-MT363-TypedRepositoryAndOperationSurface",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Replace legacy Locus SQL-era adapters with one typed, scoped SurrealDB repository and complete operation surface.",
+      "depends_on": [
+        "MT-362"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-364",
+      "title": "LC-MT364-ProjectNodeLifecycleAndOwnership",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Implement safe lifecycle, ownership and reparenting semantics for root projects, subprojects, tasks and prototypes.",
+      "depends_on": [
+        "MT-363"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-365",
+      "title": "LC-MT365-ProjectOwnedGovernanceLifecycle",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Make every managed project node own its canonical taskboard, work packets and microtasks through Locus.",
+      "depends_on": [
+        "MT-364"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-366",
+      "title": "LC-MT366-HierarchyRollupsAndLoomTypedProjections",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Provide privacy-safe parent rollups and typed Loom projections without creating another authority.",
+      "depends_on": [
+        "MT-365"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-367",
+      "title": "LC-MT367-AtomicMutationEventLedgerAndOutbox",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Commit every canonical Locus mutation, EventLedger receipt and projection-outbox intent atomically in SurrealDB.",
+      "depends_on": [
+        "MT-364",
+        "MT-335"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-368",
+      "title": "LC-MT368-CrossProjectDependenciesAndReadiness",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Implement explicit, authorized cross-project dependencies and readiness without merging project authorities.",
+      "depends_on": [
+        "MT-365",
+        "MT-367"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-369",
+      "title": "LC-MT369-QueriesSearchAndLiveSubscriptions",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Restore complete Locus status, blocked, ready and search queries with scoped SurrealDB indexes and live subscriptions.",
+      "depends_on": [
+        "MT-365",
+        "MT-339"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-370",
+      "title": "LC-MT370-ScopedOccupancyClaimsLeasesAndScheduling",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Coordinate project-qualified occupancy, claims, leases and scheduling across parallel Handshake agents and execution contexts.",
+      "depends_on": [
+        "MT-367",
+        "MT-368",
+        "MT-369"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-SWARM-002",
+        "HBR-SWARM-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-371",
+      "title": "LC-MT371-MigrationReplayRecoveryAndParity",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Migrate, replay and recover the complete Locus project forest while proving semantic parity and eliminating SQL-era paths.",
+      "depends_on": [
+        "MT-362",
+        "MT-366",
+        "MT-367",
+        "MT-368",
+        "MT-369",
+        "MT-370",
+        "MT-336"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-372",
+      "title": "LC-MT372-LocusEndToEndDiagnosticsManualGate",
+      "group": "Locus SurrealDB semantic recovery",
+      "clause": "Prove the rebuilt Locus project forest end to end through product runtime, GUI, Argus, diagnostics and built-in manuals.",
+      "depends_on": [
+        "MT-371"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-007",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-SWARM-002",
+        "HBR-SWARM-004",
+        "HBR-QUIET-001",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-381",
+      "title": "LoomSurrealSemanticInventoryAndParityContract",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Inventory the complete Loom contract after the prerequisite merges and freeze a preservation-first SurrealDB parity map before implementation.",
+      "depends_on": [
+        "MT-337"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-382",
+      "title": "LoomTypedSurrealSchemaAndRepositoryBoundary",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Define and implement the typed SurrealDB schema, rollout and repository boundary for the complete Loom semantic contract.",
+      "depends_on": [
+        "MT-381"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-383",
+      "title": "LoomNativeRelationGraphAndProjectionRegistry",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Establish native Surreal relation semantics and an extensible typed domain-source projection registry for Loom.",
+      "depends_on": [
+        "MT-382"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-SWARM-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-384",
+      "title": "LoomProjectQualifiedScopeAndSharedAccessRelations",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Enforce project-qualified graph identity and explicit cross-project shared-access relations across all Loom queries and mutations.",
+      "depends_on": [
+        "MT-383"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-003",
+        "HBR-PRIV-004",
+        "HBR-PRIV-005",
+        "HBR-MAN-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-385",
+      "title": "LoomContentLifecycleOrganizationAndVersionParity",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Restore Loom block, document, organization, journal and version lifecycle semantics on SurrealDB.",
+      "depends_on": [
+        "MT-384"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-386",
+      "title": "LoomNativeGraphBacklinksAndTransclusion",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Implement bounded native Surreal graph traversal, backlinks, wiki links and transclusion with project-qualified privacy.",
+      "depends_on": [
+        "MT-384"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-387",
+      "title": "LoomNativeSearchIndexingAndRetrieval",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Rebuild Loom full-text, fuzzy, faceted and semantic retrieval through bounded Surreal-native indexes and queries.",
+      "depends_on": [
+        "MT-384"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-388",
+      "title": "LoomMediaAssetProvenanceAndTemporalSpatialRelations",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Restore typed media, asset, provenance, caption, transcript, time and location relations for Loom creative workflows.",
+      "depends_on": [
+        "MT-384"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-389",
+      "title": "LoomCanvasCollectionViewsAndWorkspaceParity",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Restore Loom canvas and table, kanban, calendar and gallery collection views as canonical projections over SurrealDB records.",
+      "depends_on": [
+        "MT-384"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-390",
+      "title": "LoomAIProposalImportExportAndPromotionSafety",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Restore reviewed AI proposals and safe import/export without bypassing Loom or domain authority.",
+      "depends_on": [
+        "MT-384"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-SWARM-004",
+        "HBR-VIS-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-391",
+      "title": "LoomDiagnosticsReconciliationAndRecovery",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Deliver Loom health, drift detection, reconciliation, repair and no-context recovery across all recovered semantic families.",
+      "depends_on": [
+        "MT-385",
+        "MT-386",
+        "MT-387",
+        "MT-388",
+        "MT-389",
+        "MT-390"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003",
+        "HBR-STOP-004"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-392",
+      "title": "LoomSurrealCoreParityClosureGate",
+      "group": "Loom SurrealDB semantic recovery",
+      "clause": "Prove complete Loom core semantic parity on SurrealDB and close all legacy database authority paths before module integrations proceed.",
+      "depends_on": [
+        "MT-391"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-003",
+        "HBR-PRIV-004",
+        "HBR-PRIV-005",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003",
+        "HBR-STOP-004"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-393",
+      "title": "NotesRichDocumentLoomCanonicalIdentityAndJournalRepair",
+      "group": "Notes-Loom-CastKit integration",
+      "clause": "Bind Notes/RichDocument canonical identity to Loom blocks and repair Daily Journal lifecycle on SurrealDB without duplicate note authority.",
+      "depends_on": [
+        "MT-392",
+        "MT-226"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-394",
+      "title": "NotesLoomBacklinksNavigationTransclusionAndMediaConnectivity",
+      "group": "Notes-Loom-CastKit integration",
+      "clause": "Complete Notes-to-Loom backlinks, graph, search, transclusion, media and cross-project shared-access workflows.",
+      "depends_on": [
+        "MT-393",
+        "MT-385",
+        "MT-386",
+        "MT-388"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-395",
+      "title": "CKCAtelierRealSourceToLoomProjectionAdapter",
+      "group": "Notes-Loom-CastKit integration",
+      "clause": "Implement real CKC/Atelier source-to-Loom projections and relations without synthetic blocks or duplicated CKC authority.",
+      "depends_on": [
+        "MT-392"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-396",
+      "title": "NotesLoomCastKitTypedDragEmbedBacklinkAndNavigation",
+      "group": "Notes-Loom-CastKit integration",
+      "clause": "Deliver typed drag, embed, backlink, graph, search and navigation workflows between real Notes/Loom and CKC entities.",
+      "depends_on": [
+        "MT-394",
+        "MT-395",
+        "MT-386",
+        "MT-389"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-397",
+      "title": "CKCLoomAuthorityBoundaryAndFuturePublisherFixtures",
+      "group": "Notes-Loom-CastKit integration",
+      "clause": "Lock CKC/Loom authority and navigation boundaries and prove future Tailor/Studio publisher compatibility with fixtures only.",
+      "depends_on": [
+        "MT-395",
+        "MT-388"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-VIS-001",
+        "HBR-SWARM-004",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-398",
+      "title": "NotesLoomCastKitSurrealIntegrationClosureGate",
+      "group": "Notes-Loom-CastKit integration",
+      "clause": "Prove complete Notes, Loom and real CKC/Atelier connectivity on SurrealDB with privacy, restart, recovery and native UI evidence.",
+      "depends_on": [
+        "MT-391",
+        "MT-393",
+        "MT-394",
+        "MT-395",
+        "MT-396",
+        "MT-397"
+      ],
+      "gui": true,
+      "argus": true,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-003",
+        "HBR-PRIV-004",
+        "HBR-PRIV-005",
+        "HBR-MAN-001",
+        "HBR-MAN-004",
+        "HBR-SWARM-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001",
+        "HBR-STOP-003",
+        "HBR-STOP-004"
+      ],
+      "status": "PENDING",
+      "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY"
+    },
+    {
+      "mt_id": "MT-401",
+      "title": "WL-MT401-WpLocalStoreAuthorityExceptionGate",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Resolve the no-SQLite authority conflict before any Turso-backed implementation and either authorize a narrow governance-only evaluation lane or reject the candidate without product-code adoption.",
+      "depends_on": [
+        "MT-334"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-402",
+      "title": "WL-MT402-ProviderNeutralWpLocalStoreContract",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Define a provider-neutral WpLocalStore contract with a strict non-authority data boundary and no engine-specific types.",
+      "depends_on": [
+        "MT-401"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-403",
+      "title": "WL-MT403-WindowsBrokerAndPortableWpLifecycle",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Implement the lazy one-store-per-project-and-WP lifecycle behind a single Handshake-owned Windows broker and a disk-agnostic locator.",
+      "depends_on": [
+        "MT-402",
+        "MT-362"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-404",
+      "title": "WL-MT404-StrictWorkingSetSchemaAndDenylist",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Implement a versioned, quota-bounded WP-local schema whose closed allowlist cannot store canonical product or Locus state.",
+      "depends_on": [
+        "MT-403"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-405",
+      "title": "WL-MT405-ConcurrencyEncryptionQuotaHardening",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Harden the single-broker working store for concurrent agents, bounded retry, encryption, revocation and disk quotas without creating authority.",
+      "depends_on": [
+        "MT-404"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-406",
+      "title": "WL-MT406-SurrealPromotionAndIndependentReadback",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Promote project-qualified local intents through one atomic SurrealDB domain-artifact-plus-EventLedger transaction and independently re-read canonical truth before acknowledging promotion locally.",
+      "depends_on": [
+        "MT-405"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-407",
+      "title": "WL-MT407-CrashCorruptionAndCanonicalRecovery",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Recover a disposable WP-local working store from crashes, corruption or loss without rolling back, reconstructing or overriding canonical SurrealDB and EventLedger truth.",
+      "depends_on": [
+        "MT-406",
+        "MT-335",
+        "MT-336"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-408",
+      "title": "WL-MT408-SealArchiveRetentionAndPortableRestore",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Seal, archive, retain, restore and remove WP-local working databases as non-authoritative project-qualified artifacts without weakening canonical SurrealDB truth or project portability.",
+      "depends_on": [
+        "MT-407"
+      ],
+      "gui": false,
+      "argus": false,
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-409",
+      "title": "WL-MT409-WpLocalStoreDiagnosticsArgusAndManual",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Expose explicit non-authority status, health, promotion, recovery and archive diagnostics through quiet operator, Argus and no-context model surfaces.",
+      "depends_on": [
+        "MT-408"
+      ],
+      "gui": false,
+      "argus": false,
+      "conditional_gui": true,
+      "conditional_argus": true,
+      "gui_condition": "MT-401 APPROVED_FOR_EVALUATION",
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
+    },
+    {
+      "mt_id": "MT-410",
+      "title": "WL-MT410-TursoEvaluationAndAdoptRejectDecision",
+      "group": "Conditional WP-local working-store evaluation",
+      "clause": "Close the Turso candidate with either an authority-gate REJECT or, only after an approved evaluation path, a comparative ADOPT or REJECT decision across software and creative WP workloads without automatic rollout.",
+      "depends_on": [
+        "MT-409",
+        "MT-372",
+        "MT-398"
+      ],
+      "gui": false,
+      "argus": false,
+      "conditional_gui": true,
+      "conditional_argus": true,
+      "gui_condition": "MT-401 APPROVED_FOR_EVALUATION",
+      "user_manual_update": true,
+      "hbr": [
+        "HBR-INT-001",
+        "HBR-INT-009",
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-004",
+        "HBR-MAN-004",
+        "HBR-QUIET-001",
+        "HBR-STOP-003"
+      ],
+      "status": "PENDING",
+      "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY"
     }
   ],
   "naming_note": "Dexterity is the operator-facing name of the model-lane kernel Pillar A extends (model_lane.rs:1-5; DexterityNoOsLaunchCaller/DexterityNormalizedLaunch/dexterity_launch). Operator 2026-07-22: Dexterity is the ACP replacer. Pillar-A operator-facing surfaces use the Dexterity name; stable wire/schema ids keep their own names.",
@@ -3336,6 +4390,29 @@
     "master_spec": "v02.205",
     "migration_family": "MT-331..MT-346",
     "closure_mt": "MT-346",
-    "historical_postgresql_proof": "SUPERSEDED_FOR_CURRENT_RUNTIME"
+    "historical_postgresql_proof": "SUPERSEDED_FOR_CURRENT_RUNTIME",
+    "dependent_recovery_families": [
+      "MT-361..372",
+      "MT-381..392",
+      "MT-393..398"
+    ],
+    "spec_refresh_required_before_activation": true
+  },
+  "handshake_product_framing_2026_08_27": {
+    "status": "OPERATOR_APPROVED_SCOPE_CONTEXT",
+    "product_identity": "Handshake is both a model-agnostic IDE/harness and a linked creative-production environment.",
+    "managed_project_graph": "SurrealDB-canonical project forest spanning root projects, subprojects, tasks, prototypes, taskboards, work packets, microtasks and execution workspaces.",
+    "module_boundary": "Managed-project hierarchy is distinct from product-module hierarchy. CKC is the product-navigation parent for future Tailor while Tailor retains its domain/solver authority; Studio remains a future module.",
+    "loom_role": "Loom provides typed, provenance-preserving connectivity across Notes/backlinks, source code, data, media, CKC assets and future Tailor/Studio seams without copying source authority."
+  },
+  "turso_wp_local_store_decision": {
+    "status": "CONDITIONAL_EVALUATION_ONLY",
+    "family": "MT-401..410",
+    "authority_boundary": "Never canonical; SurrealDB remains sole main authority.",
+    "activation_gate": "MT-401 must first resolve the explicit storage-authority exception. REJECT short-circuits MT-402..408 to validator-checked NOT_APPLICABLE; MT-409 emits a no-code structured rejection projection and MT-410 closes with REJECT. APPROVED_FOR_EVALUATION executes MT-402..409 and comparative MT-410 proof. No automatic rollout.",
+    "branches": {
+      "authority_rejected": "No product-code implementation or candidate benchmark; MT-409 joins the branch with a structured no-change projection and MT-410 emits REJECT.",
+      "evaluation_approved": "MT-402..409 execute in order and MT-410 emits ADOPT or REJECT from comparative production-boundary proof."
+    }
   }
 }

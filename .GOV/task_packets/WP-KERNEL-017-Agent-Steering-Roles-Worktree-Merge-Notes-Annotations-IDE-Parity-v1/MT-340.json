@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Build the fresh SurrealDB initialization, authority activation and complete PostgreSQL retirement.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-340.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -32,7 +32,10 @@
       "MT-336",
       "MT-337",
       "MT-338",
-      "MT-339"
+      "MT-339",
+      "MT-372",
+      "MT-398",
+      "MT-410"
     ],
     "blocks": [
       "MT-341"
@@ -56,7 +59,8 @@
       "No product, migration tool, fixture or test compiles PostgreSQL connectivity; the old database is not read because it contains no valuable live information.",
       "Fresh SurrealDB initialization is deterministic and idempotent, installs the full schema, seeds only declared non-user reference data and starts with an empty EventLedger head.",
       "Activation proof reads the fresh SurrealDB authority directly and proves schema version, empty-or-declared seed counts, EventLedger head, privacy permissions and required indexes.",
-      "Authority activation is atomic: SurrealDB is the sole writer from first product start; any PostgreSQL configuration or connection attempt is rejected. Rollback means restoring the prior SurrealDB rollout version, never re-enabling PostgreSQL."
+      "Authority activation is atomic: SurrealDB is the sole writer from first product start; any PostgreSQL configuration or connection attempt is rejected. Rollback means restoring the prior SurrealDB rollout version, never re-enabling PostgreSQL.",
+      "Fresh authority activation includes the managed-project/Locus and Notes/Loom/Castkit semantic closures plus the MT-410 Turso verdict; either verdict leaves SurrealDB plus EventLedger as sole main authority."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

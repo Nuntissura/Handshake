@@ -1,0 +1,246 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-404",
+  "title": "WL-MT404-StrictWorkingSetSchemaAndDenylist",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Implement a versioned, quota-bounded WP-local schema whose closed allowlist cannot store canonical product or Locus state.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-403.",
+    "rejected": "Do not edit product code or create a schema; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-404.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-403"
+    ],
+    "blocks": [
+      "MT-405"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the smallest useful local working-set schema behind WpLocalStore. Every row is project/WP-qualified, disposable or promotable through MT-406, schema-versioned, bounded by size/age/count, and classified by the closed MT-402 allowlist. The adapter rejects unknown tables, columns, record classes and unbounded generic payloads. This store never contains canonical documents, graph nodes, creative-domain entities, Locus lifecycle, EventLedger events, permissions, secrets or authority mirrors.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/schema.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/records.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/adapter_turso.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/migrations.rs",
+      "src/backend/handshake_core/tests/wp_local_store_schema.rs",
+      "src/backend/handshake_core/testdata/wp_local_store/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/locus/**",
+      "src/backend/handshake_core/src/atelier/**",
+      "src/backend/handshake_core/src/tailor/**",
+      "src/backend/handshake_core/src/studio/**",
+      "Generic unbounded JSON/blob/value tables"
+    ],
+    "acceptance_criteria": [
+      "The schema contains only version metadata, immutable source-snapshot manifests, file/change inventory, validation/build cache, bounded tool-result cache, draft/candidate artifact metadata, promotion intents, local receipts and canonical watermarks; every table and record type maps one-to-one to the MT-402 allowlist.",
+      "Every row includes project_id, wp_id, record_class, stable local ID, content hash where payload-bearing, created/updated timestamps, retention class and size accounting; inserts with a mismatched project/WP key fail before write.",
+      "There is no column or generic envelope capable of holding Notes/RichDocument bodies, Loom/Knowledge nodes or edges, CKC/Atelier, Tailor, Studio, canonical Locus fields, EventLedger events, permission grants, credentials or encryption keys.",
+      "Schema initialization and upgrades are local transactional operations with explicit schema version, forward verification and rollback/quarantine behavior; they cannot modify SurrealDB or contact a network service.",
+      "Per-record, per-table and per-WP size/count/age quotas are mandatory and fail with typed diagnostics before disk exhaustion; cache eviction cannot delete drafts or pending promotion intents.",
+      "Unknown record classes, unknown columns, malformed hashes, unbounded payloads and attempts to disguise forbidden content in metadata are rejected by schema and application validators.",
+      "Fresh initialization, upgrade, downgrade refusal and no-network tests run against the evaluated local adapter, while canonical-equivalence proof always reads SurrealDB independently."
+    ],
+    "proof_targets": [
+      "Initialize an empty WP-local database and inspect its complete schema against the allowlist manifest; no unregistered table/column is accepted.",
+      "Attempt representative forbidden records from Notes, Loom, Locus, CKC, Tailor and Studio and prove every insert fails without partial rows.",
+      "Exercise quota boundaries, retention classes and cache eviction while pending drafts/intents remain intact.",
+      "Run migration fault injection before/after each local schema step and verify rollback or quarantine with no SurrealDB mutation or network request."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/schema.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/records.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/adapter_turso.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/migrations.rs",
+      "src/backend/handshake_core/tests/wp_local_store_schema.rs"
+    ],
+    "expected_tests": [
+      "fresh_schema_matches_closed_allowlist",
+      "forbidden_domain_records_rejected_without_partial_write",
+      "project_wp_mismatch_rejected",
+      "quota_and_eviction_preserve_drafts_and_intents",
+      "schema_upgrade_fault_rolls_back_or_quarantines",
+      "local_schema_path_has_no_network_io"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Schema implementation is backend-only; MT-409 renders bounded health and quota summaries."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Allowed working-set records",
+      "WP-local working store > Forbidden canonical data and quotas"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "allowlisted local record schema",
+      "derived validation/cache records",
+      "promotion-intent metadata"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "source_scope_hash"
+    ],
+    "enforcement_boundaries": [
+      "closed schema allowlist",
+      "broker authorization",
+      "record-class validator",
+      "quota and size validator"
+    ],
+    "same_project_private_resource_cases": [
+      "Private same-project source records yield no local cache visibility without the source grant."
+    ],
+    "cross_account_negative_cases": [
+      "Forged project, WP, record-class or source-scope identifiers reveal neither rows nor their existence."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Derived cache records inherit the narrowest source access and are invalidated on canonical revocation or scope change."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Scope-hash mismatch, revocation or context switch rejects and invalidates affected local records."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "The schema contains no remote sync token, endpoint, replica identity or MCP credential field."
+    ],
+    "metadata_side_channel_cases": [
+      "Payload hashes, counts, quota errors and eviction logs do not reveal inaccessible resources; secrets and encryption keys are structurally absent."
+    ],
+    "expected_evidence": [
+      "schema_secret_field_absence_scan",
+      "revocation_invalidates_derived_cache",
+      "cross_project_query_returns_no_existence_signal",
+      "scope_hash_mismatch_rejected"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "INHERITED",
+      "reason": "Local schema operations emit bounded broker lifecycle receipts only; they cannot author canonical EventLedger domain events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Schema version, quota, denylist and quarantine failures require stable redacted diagnostics."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "INHERITED",
+      "reason": "Long migrations or compaction run through the declared broker job watched by the shared service."
+    }
+  ],
+  "risk_if_missed": "A generic payload or missing quota can quietly turn the working store into a shadow product database, leak project data or exhaust disk.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "Forbidden canonical content is smuggled through a generic metadata JSON field.",
+      "Eviction removes the only copy of an unpromoted draft or intent.",
+      "A schema migration silently contacts or writes SurrealDB.",
+      "Counts and quota diagnostics leak another project's record existence."
+    ],
+    "minimum_controls": [
+      "Closed schema manifest and no unbounded generic payload table.",
+      "Structural denylist tests for all canonical domains.",
+      "Retention-class-aware eviction with pending-intent protection.",
+      "Fault, scope and no-network tests against a real evaluated adapter."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "The official Rust API provides local transactions and typed parameters; Handshake uses them only behind the evaluated adapter and a closed schema."
+      },
+      {
+        "title": "Turso PRAGMA statements",
+        "url": "https://docs.turso.tech/sql-reference/pragmas",
+        "finding": "WAL/MVCC and cache configuration are engine concerns; quotas and schema meaning remain Handshake-owned and provider-neutral."
+      },
+      {
+        "title": "SurrealDB permissions and row-level security",
+        "url": "https://surrealdb.com/docs/learn/security/authorization/permissions-and-row-level-security",
+        "finding": "Canonical access remains enforced in SurrealDB; local schema presence cannot substitute for record-user authorization."
+      }
+    ],
+    "project_sources": [
+      "MT-402 WpLocalRecordClass allowlist/denylist",
+      "GLOBAL-PORTABILITY and GLOBAL-PUSHBACK data-loss requirements",
+      "WP017 Notes/Loom/CKC/Tailor/Studio authority boundaries"
+    ],
+    "selected_approach": "A minimal closed schema of disposable or promotable WP-working records with quotas and structural domain exclusions.",
+    "rejected_options": [
+      "Generic key-value or JSON blob table",
+      "Local mirrors of canonical domain tables",
+      "Unbounded caches",
+      "Cloud-synchronized schema",
+      "Schema migration as SurrealDB migration input"
+    ]
+  }
+}

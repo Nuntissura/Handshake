@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-385",
+  "title": "LoomContentLifecycleOrganizationAndVersionParity",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Restore Loom block, document, organization, journal and version lifecycle semantics on SurrealDB.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-385.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-384"], "blocks": ["MT-391", "MT-394"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-384.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Rediscover stable-main Loom block, folder, tag, pin, favorite, journal, overlay and version APIs/UI/tests.", "Use MT-381 parity rows as the required behavior set and capture a RED proof for each broken semantic family."],
+    "stop_conditions": ["MT-384 is not accepted.", "Notes/RichDocument authority would be duplicated.", "An existing behavior cannot be mapped to an authoritative Surreal record or relation."]
+  },
+  "scope": {
+    "summary": "Recover the everyday Loom content lifecycle that powers Handshake as an IDE and creative workspace: blocks, documents, hierarchy, organization, journals and history, all as project-qualified Surreal state.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**loom**", "src/frontend/handshake_native/src/**notes**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["Duplicate Notes/RichDocument content authority", "PostgreSQL or SQLite adapters/fixtures", "UI-only lifecycle state", "Permanent deletion without tombstone/recovery policy"],
+    "acceptance_criteria": [
+      "Block create/read/update/reorder/move/archive/restore/delete and version-conflict behavior is complete and atomic in SurrealDB.",
+      "Folders, tags, pins, favorites and typed hierarchy preserve deterministic ordering, uniqueness and project-qualified scope across restart.",
+      "Daily Journal and wiki-overlay lifecycle preserves canonical dates, time zones, source identity, revision lineage and tombstone semantics without creating duplicate documents.",
+      "Native UI exposes loading, empty, conflict, archived, restored and denied states with stable AccessKit and Argus identifiers.",
+      "Concurrent edits and retries are idempotent, retain recoverable history and never detach backlinks or domain projections silently."
+    ],
+    "proof_targets": ["Run focused Loom lifecycle tests against real embedded SurrealDB including restart and concurrent conflicts.", "Run native UI interaction tests and Argus captures for organization and recovery states.", "Run parity-matrix closure for all MT-385-owned rows."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/storage/surreal/loom_store.rs", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_block_lifecycle_surreal_round_trip", "loom_organization_order_restart", "loom_daily_journal_identity_and_timezone", "loom_concurrent_revision_conflict", "loom_native_lifecycle_argus"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Loom block/document workspace", "folders/tags/pins/favorites", "Daily Journal and archive/recovery states"], "argus_targets": ["WP017.MT385.LoomLifecycle", "WP017.MT385.LoomOrganization", "WP017.MT385.LoomJournalRecovery"], "expected_evidence": ["argus_accesskit_tree", "argus_steer_and_reobserve", "visual_state_matrix", "renderer_console_scan", "layout_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Blocks and organization", "Loom > Daily Journal", "Loom > Versions and recovery"], "expected_evidence": ["user_manual_diff", "no_context_create_organize_restore_test", "manual_self_consistency_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["Loom block", "folder", "tag", "pin", "favorite", "journal", "revision", "tombstone"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant"],
+    "enforcement_boundaries": ["SurrealDB permissions", "typed repository", "backend navigation", "native UI"],
+    "same_project_private_resource_cases": ["Private organization metadata and journal entries remain private inside a shared project."],
+    "cross_account_negative_cases": ["Forged block/folder/revision IDs fail closed."],
+    "derived_resource_non_widening_cases": ["History, archive, favorites and ordering projections inherit source scope."],
+    "revocation_and_context_switch_cases": ["Open editors and cached lists close or requery after scope change."],
+    "remote_saas_mcp_sync_cases": ["Imported organization metadata receives explicit local ownership and scope."],
+    "metadata_side_channel_cases": ["Titles, dates, tags, counts, ordering gaps and conflict errors do not reveal denied content."],
+    "expected_evidence": ["resource_permission_matrix", "revision_scope_test", "context_switch_ui_test", "metadata_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "content mutation, conflict, archive, restore and denial events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "privacy-safe lifecycle, journal and ordering health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "editor crash/freeze correlation and recovery handles"}
+  ],
+  "risk_if_missed": "Loom remains technically stored in SurrealDB but loses the content workflows that make it useful across Handshake projects.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Happy-path CRUD hides ordering or restart loss.", "Journal creation duplicates a canonical note.", "Archive leaves orphaned relations.", "UI cache shows content after revocation."], "minimum_controls": ["Restart and concurrency matrix.", "Canonical identity uniqueness tests.", "Relation/tombstone reconciliation.", "Argus context-switch proof."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Official SurrealDB transaction and record-link documentation", "Notion and Obsidian lifecycle patterns", "Stable-main Loom UI/API/tests", "MT-381 parity inventory"], "selected_approach": "Typed Surreal lifecycle records with deterministic organization, revision lineage and recoverable tombstones.", "rejected_options": ["UI-local ordering authority", "Duplicate journal documents", "Hard deletion by default", "Legacy SQL fixtures"]}
+}

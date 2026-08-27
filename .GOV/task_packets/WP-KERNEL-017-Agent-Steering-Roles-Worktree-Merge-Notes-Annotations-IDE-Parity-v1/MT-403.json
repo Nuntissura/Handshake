@@ -1,0 +1,250 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-403",
+  "title": "WL-MT403-WindowsBrokerAndPortableWpLifecycle",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Implement the lazy one-store-per-project-and-WP lifecycle behind a single Handshake-owned Windows broker and a disk-agnostic locator.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-402.",
+    "rejected": "Do not edit product code or create local state; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-403.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-402",
+      "MT-362"
+    ],
+    "blocks": [
+      "MT-404"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: If and only if MT-401 authorizes evaluation, implement one Handshake-owned broker that is the sole Windows process allowed to open WP-local database files. A store is created lazily for exactly one WpLocalStoreKey(project_id, wp_id) when canonical SurrealDB records an approved working-store need. Every session, MT and worktree in the WP routes through the same broker instance and logical database. The portable locator is relative to an operator-configured Handshake managed-state root and never treats a worktree, session folder or absolute machine path as authority.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/broker.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/lifecycle.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/locator.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/adapter_turso.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/mod.rs",
+      "src/backend/handshake_core/tests/wp_local_store_broker.rs",
+      "src/backend/handshake_core/tests/wp_local_store_portability.rs",
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "src/frontend/** direct database access",
+      "src/backend/handshake_core/src/locus/** direct database access",
+      "Any database under a git worktree or session/MT directory",
+      "Any Turso Cloud URL, token, push, pull, sync or remote connection",
+      "Any second process opening a WP-local database file"
+    ],
+    "acceptance_criteria": [
+      "Provisioning requires an approved MT-401 exception, a canonical existing project and WP read from SurrealDB, an explicit local-store-needed decision, and an authenticated broker request; otherwise it returns a typed error and creates nothing.",
+      "Exactly one logical database is addressed by each (project_id, wp_id). Ten sessions, repeated MT IDs and multiple worktrees for the same WP resolve the same broker/store identity, while the same wp_id in another project resolves a different identity.",
+      "On Windows, only the Handshake broker process opens the file. Other Handshake components use typed IPC/in-process broker calls, and direct open attempts from a second process or stale broker generation fail with WP_LOCAL_STORE_BROKER_OWNERSHIP_DENIED.",
+      "The locator stores a normalized relative identifier under an operator-configured managed-state root. SurrealDB stores only the portable locator and broker metadata, never a drive letter, user-profile path, credential or raw encryption key.",
+      "Moving the managed project and its configured state root to another disk preserves project_id/wp_id identity and re-resolves the store without editing canonical records or searching arbitrary disks.",
+      "No DB is created per project, subproject, task, prototype, session, MT or worktree merely because it exists; provisioning is per WP and lazy only.",
+      "Broker startup, open, close and failure are quiet background operations that do not create a foreground window, steal focus or accept keyboard input."
+    ],
+    "proof_targets": [
+      "Run a Windows integration test with two worktrees and concurrent sessions for one WP and independently inspect open handles to prove one broker-owned database file.",
+      "Run negative direct-open, stale-generation, wrong-project and unrequested-WP tests and verify zero filesystem side effects.",
+      "Move a disposable managed-state root between two absolute locations, restart Handshake and prove the same portable locator resolves the same project/WP state.",
+      "Scan source and runtime configuration for cloud sync, URL/token and direct engine-open paths outside adapter_turso.rs."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/**",
+      "src/backend/handshake_core/tests/wp_local_store_broker.rs",
+      "src/backend/handshake_core/tests/wp_local_store_portability.rs",
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "expected_tests": [
+      "one_broker_one_store_per_project_wp_on_windows",
+      "sessions_mts_and_worktrees_share_store",
+      "same_wp_id_across_projects_isolated",
+      "unrequested_wp_has_zero_filesystem_side_effects",
+      "portable_locator_survives_state_root_move",
+      "cloud_and_direct_open_paths_absent"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Broker and lifecycle backend only. MT-409 provides the operator surface; trace state must expose broker generation and lifecycle state without absolute paths."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > One database per Work Packet",
+      "WP-local working store > Windows broker and portable location"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Windows WpLocalStore broker",
+      "project-relative database locator",
+      "lazy project/WP database lifecycle"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "session attribution",
+      "broker generation"
+    ],
+    "enforcement_boundaries": [
+      "single Handshake broker process",
+      "ResourceBroker",
+      "canonical SurrealDB membership reread",
+      "Windows filesystem ACL"
+    ],
+    "same_project_private_resource_cases": [
+      "A project member without the exact WP/source grant cannot open the broker handle or infer local state."
+    ],
+    "cross_account_negative_cases": [
+      "Direct open, a second process and a forged project/WP locator cannot access another account's database."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Broker handles retain the source AccessSpace and cannot be transferred to a broader session."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or project/AccessSpace switch invalidates active handles and requires a fresh canonical membership read."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "No remote Turso, SaaS, MCP, replica or synchronization endpoint is reachable through the broker."
+    ],
+    "metadata_side_channel_cases": [
+      "Portable locators and diagnostics redact absolute roots, usernames, keys, content and unauthorized store existence."
+    ],
+    "expected_evidence": [
+      "record_user_project_wp_membership_reread",
+      "windows_file_acl_inspection",
+      "second_process_open_denial",
+      "locator_and_trace_redaction"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "Provision, broker generation and lifecycle transitions require bounded correlation receipts but cannot contain local payloads or keys."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Ownership, locator and lifecycle failures need stable reason codes and recovery actions."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "The persistent broker is a declared Handshake-owned background process/service and must expose bounded health and process identity."
+    }
+  ],
+  "risk_if_missed": "Multiple file openers or worktree-local databases can corrupt state, fork a WP across agents, break project moves and create hidden per-session authorities.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "A worktree helper opens the file directly for convenience.",
+      "Crash restart spawns a new broker while the prior generation still owns a handle.",
+      "Absolute paths leak into SurrealDB or move logic scans arbitrary disks.",
+      "Every nested project node receives a database despite having no WP need."
+    ],
+    "minimum_controls": [
+      "Single broker ownership token/generation and second-open denial.",
+      "Project+WP-only deterministic locator.",
+      "Lazy canonical provisioning precondition.",
+      "Windows handle, ACL, restart and project-move proofs."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso Quickstart for Rust",
+        "url": "https://docs.turso.tech/sdk/rust/quickstart",
+        "finding": "The recommended turso crate opens a local file with Builder::new_local; Handshake therefore centralizes that open behind one broker and disables cloud push/pull."
+      },
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "The official reference documents local connections, transactions and encryption; engine details remain confined to adapter_turso.rs."
+      },
+      {
+        "title": "SurrealDB Rust SDK",
+        "url": "https://surrealdb.com/docs/reference/rust",
+        "finding": "Canonical project/WP existence and authorization continue to be read through the official SurrealDB SDK."
+      }
+    ],
+    "project_sources": [
+      "GLOBAL-PORTABILITY-001..013",
+      "GLOBAL-BUILD-QUIET-046..054",
+      "WP017 MT-362 managed project/workspace identity contract"
+    ],
+    "selected_approach": "A single quiet Handshake broker with lazy project+WP provisioning and a relative managed-state locator.",
+    "rejected_options": [
+      "Direct file access from sessions or worktrees",
+      "Database per MT or session",
+      "Worktree-relative storage",
+      "Cloud sync or remote primary",
+      "Absolute locator authority"
+    ]
+  }
+}

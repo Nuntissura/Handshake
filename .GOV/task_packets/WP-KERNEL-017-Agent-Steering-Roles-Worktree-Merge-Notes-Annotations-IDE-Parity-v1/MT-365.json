@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-365",
+  "title": "LC-MT365-ProjectOwnedGovernanceLifecycle",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Make every managed project node own its canonical taskboard, work packets and microtasks through Locus.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-365.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-364"], "blocks": ["MT-366", "MT-368", "MT-369"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Implement project-owned taskboard, work-packet and microtask lifecycles for every root project, subproject, task or prototype managed by Handshake. The canonical records live in SurrealDB and use project-qualified identity. Files and board views are projections. A child project can have its own complete taskboard/WP/MT graph regardless of its parent state; parent summaries are derived later by MT-366. Lifecycle operations include create, register, start, gate, block, complete, close, reopen and deletion request with typed invariants, evidence links and operator attribution.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/task_board/**", "src/backend/handshake_core/src/mt_executor/**", "src/backend/handshake_core/src/workflows.rs", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Taskboard files as authority", "WP/MT records without project ownership", "Parent project mutating child governance through rollups", "Any SQLite/PostgreSQL authority, adapter or proof fixture"],
+    "acceptance_criteria": [
+      "Every managed project kind can own one canonical taskboard and multiple project-qualified WPs/MTs with enforced ownership relations.",
+      "WP and MT transition tables enforce dependencies, gates, terminal states, evidence requirements and idempotent retries in real SurrealDB transactions.",
+      "Taskboard Markdown/JSON files and GUI rows are derived projections whose deletion or corruption cannot alter canonical Locus state.",
+      "A child project's governance remains independently operable when its parent is inactive, except for explicit inherited policy defined by authority.",
+      "Concurrent create/start/complete/close requests yield one canonical settlement and attributable receipts without duplicate work units."
+    ],
+    "proof_targets": ["Real-Surreal project-owned governance lifecycle suite", "Projection delete/corrupt/rebuild test", "Repeated-label isolation tests across parent and child projects", "Concurrent lifecycle and idempotency tests with canonical reread"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/task_board/**", "src/backend/handshake_core/src/mt_executor/**", "src/backend/handshake_core/src/workflows.rs", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["project_owned_taskboard_wp_mt_roundtrip", "governance_transition_invariants", "taskboard_projection_rebuild_from_surreal", "child_governance_independence", "concurrent_governance_idempotent_settlement"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Per-project taskboard", "Project-qualified WP and MT detail", "Projection repair action"], "argus_targets": ["Same MT label in two projects", "Child project taskboard", "Blocked lifecycle transition", "Projection drift and successful repair"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Project taskboards", "Locus > Work packets and microtasks", "Locus > Status transitions", "Recovery > Projection repair"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["project taskboards", "work packets", "microtasks", "taskboard projections", "governance lifecycle receipts"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "project_id", "wp_id", "mt_id"],
+    "enforcement_boundaries": ["Every taskboard/WP/MT mutation verifies project membership and action authority.", "Parent visibility never implies child-governance visibility."],
+    "same_project_private_resource_cases": ["A project member outside a private AccessSpace cannot read or mutate protected WPs, MTs or board rows."],
+    "cross_account_negative_cases": ["Cross-account users cannot discover project governance units through direct ids, board queries or lifecycle receipts."],
+    "derived_resource_non_widening_cases": ["Projection generation filters through the same canonical authorization context and never adds denied governance records."],
+    "revocation_and_context_switch_cases": ["Revocation or project switch invalidates board subscriptions, cached rows and mutation authority before the next operation."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Board counts, status buckets, duplicate-id errors and projection diagnostics exclude denied governance records."],
+    "expected_evidence": ["stable_governance_owner_scope_linkage", "same_project_private_wp_mt_isolation", "cross_account_taskboard_denial", "taskboard_projection_non_widening", "board_context_switch_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record every governance transition request, canonical revision, settlement and projection enqueue id."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose invalid state, ownership mismatch, projection drift and duplicate-id detection."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if lifecycle and projection health watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Projects will share or lose governance state, and UI/filesystem projections can become accidental authorities.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_PROJECT_GOVERNANCE_V1", "risks": ["Two projects share a board record.", "A projection edit changes canonical state.", "Concurrent start creates duplicate execution.", "Parent visibility exposes a private child MT."], "minimum_controls": ["Project-owned relations and composite uniqueness.", "One-way projection generation and canonical reread.", "Transactional idempotency and conflict receipts.", "ResourceBroker-filtered reads and writes."]},
+  "research_provenance": {"source": "MT-361 audit, MT-362/364 identity and lifecycle contracts, current taskboard/WP/MT workflows and SurrealDB transaction guidance.", "selected_approach": "Canonical project-owned governance records in SurrealDB with deterministic projections and typed lifecycle transitions.", "rejected_options": ["Shared global taskboard", "File authority", "Parent-owned child state", "Globally unique display labels"]}
+}

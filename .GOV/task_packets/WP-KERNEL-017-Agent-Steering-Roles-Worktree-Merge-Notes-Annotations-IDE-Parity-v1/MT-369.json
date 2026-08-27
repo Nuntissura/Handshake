@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-369",
+  "title": "LC-MT369-QueriesSearchAndLiveSubscriptions",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Restore complete Locus status, blocked, ready and search queries with scoped SurrealDB indexes and live subscriptions.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-369.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-365", "MT-339"], "blocks": ["MT-370", "MT-371"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Implement the missing Locus query surface on canonical SurrealDB data: get project/WP/MT status, query ready work, query blocked work, progress, dependency explanation, project-scoped search and event synchronization. Use declared indexes and bounded graph traversal rather than workspace-wide Rust scans. Scoped live subscriptions provide reactive taskboards and orchestration updates, include revision/cursor contracts, reconnect safely and trigger canonical resync on gaps. Loom may index typed links and descriptions, but query truth remains Locus.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/knowledge_*/**", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Workspace-wide load-and-filter as the normal query path", "Polling or LISTEN/NOTIFY replacing Surreal live queries", "Loom/search indexes as canonical status", "Unscoped subscriptions", "SQLite/PostgreSQL search or event-sync paths"],
+    "acceptance_criteria": [
+      "Status, ready, blocked, progress, dependency and search operations cover every project kind and return project-qualified typed results from canonical Locus records.",
+      "Declared SurrealDB indexes and bounded graph queries meet measured representative latency/cardinality budgets without loading an entire workspace into application memory.",
+      "Live subscriptions are scoped by Principal/AccessSpace/project, carry revision cursors, reconnect without widening access and emit a typed gap requiring canonical resync.",
+      "Revoked access stops delivery and a subsequent reconnect cannot replay denied records or reveal hidden counts.",
+      "Loom-assisted search links back to canonical Locus identities and cannot override lifecycle, readiness or progress truth."
+    ],
+    "proof_targets": ["Real-Surreal query-catalog tests with representative project forests", "Query-plan/cardinality and bounded-memory evidence", "Live-query reconnect/gap/resync/revocation tests", "Locus-versus-Loom authority divergence negative test"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/knowledge_*/**", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["locus_query_catalog_real_surreal", "locus_query_plan_bounded", "locus_live_query_gap_resync", "locus_live_query_revocation", "loom_search_cannot_override_locus_truth"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Ready/blocked/status queries", "Cross-project Locus search", "Live-update and resync state"], "argus_targets": ["Ready work", "Blocked reason", "Search result with project context", "Disconnected/stale/resynced live state"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Ready and blocked queries", "Locus > Search", "Locus > Live updates", "Recovery > Subscription resync"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["Locus status/readiness/search queries", "SurrealDB live subscriptions", "revision cursors", "search facets and counts"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "project_id", "subscription_id", "revision_cursor"],
+    "enforcement_boundaries": ["Every query and subscription has explicit ResourceBroker scope.", "Canonical Locus authorization is rechecked independently of Loom search visibility."],
+    "same_project_private_resource_cases": ["A same-project caller cannot query or subscribe to protected AccessSpace records, facets or counts."],
+    "cross_account_negative_cases": ["Cross-account callers cannot search, subscribe, replay cursors or infer result-count changes."],
+    "derived_resource_non_widening_cases": ["Search results, facets, counts and live deltas cannot widen canonical Locus record visibility."],
+    "revocation_and_context_switch_cases": ["Revocation terminates delivery and invalidates replay rights; reconnect after context switch starts with fresh authorization."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Search facets, counts, latency differences, gap markers and subscription diagnostics exclude denied-record signals."],
+    "expected_evidence": ["query_subscription_owner_scope_linkage", "same_project_private_query_isolation", "cross_account_search_subscription_denial", "search_projection_non_widening", "revocation_terminates_delivery", "facet_count_metadata_non_leakage"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record query class, scope hash, result count, latency, subscription cursor, gap and resync outcome."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose query-plan regressions, subscription lag, reconnect loops, cursor gaps and permission revocations."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if query-latency and subscription-stall watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Locus remains operationally incomplete, slow at scale or privacy-unsafe under reactive multi-project workflows.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_QUERY_LIVE_V1", "risks": ["Ready query omits a project kind.", "A live query continues after revocation.", "Search count leaks hidden work.", "Reconnect silently loses events."], "minimum_controls": ["Catalog totality tests.", "Revocation and privacy tests.", "Scoped facets/counts.", "Typed gaps and canonical resync."]},
+  "research_provenance": {"source": "MT-361 operation audit, MT-339 Surreal knowledge/live-query contract, historical Locus query/search stubs and official SurrealDB index/live-query documentation.", "selected_approach": "Canonical indexed Surreal queries plus revisioned scoped live subscriptions and Loom typed search links.", "rejected_options": ["Application-wide scans", "Polling", "PostgreSQL LISTEN/NOTIFY", "Search projection as truth"]}
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-386",
+  "title": "LoomNativeGraphBacklinksAndTransclusion",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Implement bounded native Surreal graph traversal, backlinks, wiki links and transclusion with project-qualified privacy.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-386.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-384"], "blocks": ["MT-391", "MT-394", "MT-396"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-383.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-384.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect stable-main graph, backlink, wiki, transclusion and overlay implementations and tests.", "Capture query plans and baseline cardinalities before replacing Rust-side workspace scans."],
+    "stop_conditions": ["MT-384 is not accepted.", "A traversal lacks explicit depth, result and time bounds.", "Authorization cannot be applied inside the Surreal query before result materialization."]
+  },
+  "scope": {
+    "summary": "Restore Loom's connected-knowledge behavior using Surreal-native relations and bounded traversal. Backlinks and transclusion are core connectivity primitives for Notes and creative-domain modules, not decorative UI metadata.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["Loading an entire workspace graph into Rust for ordinary queries", "Unbounded recursive traversal", "Client-side authorization/filtering", "Transclusion that copies or mutates canonical source content"],
+    "acceptance_criteria": [
+      "Backlinks, outgoing links, typed neighbors and path queries execute as bounded Surreal graph traversals with deterministic ordering and pagination.",
+      "Wiki links and transclusions resolve canonical project-qualified identities, report unresolved/ambiguous targets and never create duplicate content authority.",
+      "Traversal enforces source/target scope inside the query and hides denied nodes, edge counts and path existence.",
+      "Cycles, deep graphs, deleted endpoints, cross-project shared links and concurrent relation changes return bounded deterministic results.",
+      "Native graph/backlink UI exposes provenance, source module, broken-link and denied-safe states with stable Argus identifiers."
+    ],
+    "proof_targets": ["Run real-Surreal graph fixtures covering cycles, depth bounds, deletion, cross-project grants and restart.", "Capture query plans proving native traversal and absence of workspace-wide preloads.", "Run Argus graph/backlink/transclusion interaction and visual-state matrix."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/surreal/loom_store.rs", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_native_graph_bounded_cycle_traversal", "loom_backlink_scope_is_enforced_in_query", "loom_transclusion_preserves_source_identity", "loom_cross_project_shared_path", "loom_graph_argus_states"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Loom graph", "backlinks panel", "wiki link picker", "transclusion preview"], "argus_targets": ["WP017.MT386.Graph", "WP017.MT386.Backlinks", "WP017.MT386.Transclusion"], "expected_evidence": ["argus_tree", "argus_steer_reobserve", "cycle_and_broken_link_visuals", "renderer_console_scan", "layout_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Links and backlinks", "Loom > Graph navigation", "Loom > Transclusion and repair"], "expected_evidence": ["user_manual_diff", "no_context_link_and_repair_test", "bounded_traversal explanation"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["Loom edge", "backlink", "graph path", "transclusion"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant"],
+    "enforcement_boundaries": ["Surreal graph query", "record permissions", "API serialization", "native graph UI"],
+    "same_project_private_resource_cases": ["A visible node does not reveal private inbound or outbound neighbors."],
+    "cross_account_negative_cases": ["Forged endpoints and cross-account path searches reveal neither edges nor counts."],
+    "derived_resource_non_widening_cases": ["Transclusion and path scope is the intersection of every participating resource."],
+    "revocation_and_context_switch_cases": ["Open graphs and transclusions re-evaluate after grant or context changes."],
+    "remote_saas_mcp_sync_cases": ["Remote backlinks remain quarantined until a local typed source mapping exists."],
+    "metadata_side_channel_cases": ["Degree, path length, unresolved candidates and timing do not reveal denied nodes."],
+    "expected_evidence": ["graph_privacy_matrix", "path_non_disclosure_test", "transclusion_scope_test", "live_revocation_argus_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "link, traversal, limit, unresolved and denial events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "query latency, bounded-depth, dangling-edge and repair health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "graph operation identity and UI freeze recovery context"}
+  ],
+  "risk_if_missed": "Notes and creative assets remain isolated lists instead of a useful connected knowledge system, while naive scans become unsafe and slow.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["A graph query is native but still unbounded.", "Degree counts leak private resources.", "Transclusion copies stale content.", "Cycle handling exhausts memory or blocks UI."], "minimum_controls": ["Hard depth/result/time budgets.", "In-query scope predicates.", "Reference-only transclusion.", "Adversarial cyclic graph fixtures and Argus responsiveness proof."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Official SurrealDB graph relation/query documentation", "Official SurrealDB query planning documentation", "Obsidian backlinks/transclusion behavior", "Stable-main Loom graph/search implementation"], "selected_approach": "Bounded native Surreal traversal with canonical identity, source-scope intersection and reference-only transclusion.", "rejected_options": ["Whole-workspace Rust traversal", "Unbounded recursion", "Client-side permission filtering", "Copied transclusion content"]}
+}

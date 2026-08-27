@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-394",
+  "title": "NotesLoomBacklinksNavigationTransclusionAndMediaConnectivity",
+  "group": "Notes-Loom-CastKit integration",
+  "clause": "Complete Notes-to-Loom backlinks, graph, search, transclusion, media and cross-project shared-access workflows.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-394.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-393", "MT-385", "MT-386", "MT-388"], "blocks": ["MT-396", "MT-398"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-385.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-386.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-388.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-393.json", ".GOV/codex/Handshake_Codex_v1.4.md"],
+    "current_source_discovery": ["Inspect accepted Notes identity and Loom graph/media APIs plus every Notes navigation/editor command.", "Write RED flows for link insertion, backlink navigation, transclusion, media embed and cross-project share/revoke."],
+    "stop_conditions": ["Any dependency is unaccepted.", "A visible Notes feature would use a separate relation or search model.", "Cross-project connectivity lacks explicit shared-access authority."]
+  },
+  "scope": {
+    "summary": "Make Notes a fully connected surface of Loom: text, media, code and domain references can link, backlink, transclude, search and navigate across authorized projects while the canonical RichDocument remains the editable source.",
+    "allowed_paths": ["src/backend/handshake_core/src/knowledge_document/**", "src/backend/handshake_core/src/knowledge_wiki/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["Notes-only backlink/search store", "Copied transclusion/media content authority", "Implicit cross-project access", "Synthetic navigation proof without real canonical records"],
+    "acceptance_criteria": [
+      "Notes link insertion resolves typed canonical Loom/domain targets and stores native Surreal relations with source range, relation kind and provenance.",
+      "Backlinks, graph, search, breadcrumbs and recent/history navigation open the canonical Notes/RichDocument target and preserve editor selection when supported.",
+      "Transclusions and media embeds render current authorized source state, show provenance/broken/denied-safe states and never create an independently editable copy.",
+      "Cross-project Notes links require explicit shared-access relations; revoke/context switch removes content and invalidates stale navigation safely.",
+      "Native keyboard, drag/embed, link-picker and open-in-related-surface workflows pass Argus, accessibility, layout and renderer-error checks."
+    ],
+    "proof_targets": ["Run real-Surreal Notes link/backlink/transclusion/media and cross-project grant/revoke E2E tests.", "Run native editor/link-picker/drag/embed/navigation tests with real records.", "Capture Argus state matrix for resolved, ambiguous, broken, denied, revoked and loading states."],
+    "code_surfaces": ["src/backend/handshake_core/src/knowledge_document/**", "src/backend/handshake_core/src/knowledge_wiki/**", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["notes_insert_typed_loom_link", "notes_backlink_navigates_canonical_document", "notes_transclusion_and_media_preserve_authority", "notes_cross_project_share_revoke", "notes_loom_connectivity_argus_e2e"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Notes editor link picker", "backlinks panel", "transclusion/media embed", "graph/search navigation"], "argus_targets": ["WP017.MT394.LinkPicker", "WP017.MT394.Backlinks", "WP017.MT394.TransclusionMedia", "WP017.MT394.CrossProjectRevoke"], "expected_evidence": ["argus_tree", "keyboard_and_drag_steer_reobserve", "resolved_broken_denied_capture", "renderer_console_scan", "responsive_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Notes > Links and backlinks", "Notes > Transclusion and media", "Notes > Cross-project sharing and recovery"], "expected_evidence": ["user_manual_diff", "no_context_link_navigate_embed_test", "share_revoke_recovery_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["Note link", "backlink", "transclusion", "media embed", "navigation result", "shared-access relation"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "source_project_id", "target_project_id", "ResourceGrant"],
+    "enforcement_boundaries": ["Surreal relation query", "Notes/Loom API", "ResourceBroker", "editor/navigation UI"],
+    "same_project_private_resource_cases": ["A visible note does not reveal links to another member's private note/media."],
+    "cross_account_negative_cases": ["Forged link/embed/navigation target fails closed."],
+    "derived_resource_non_widening_cases": ["Backlink, transclusion, preview and search visibility is source-scope intersection."],
+    "revocation_and_context_switch_cases": ["Open transclusions and navigation caches invalidate immediately or on bounded revalidation."],
+    "remote_saas_mcp_sync_cases": ["Remote links remain unresolved/quarantined until explicitly mapped and granted."],
+    "metadata_side_channel_cases": ["Target titles, types, thumbnails, backlink counts and ambiguous candidates are hidden when denied."],
+    "expected_evidence": ["notes_link_privacy_matrix", "transclusion_non_widening_test", "cross_project_revocation_test", "argus_denied_metadata_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-QUIET-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "link, resolve, navigate, embed, deny and revoke events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "resolution, broken-link, projection and navigation health"},
+    {"tier": "palmistry", "posture": "IMPLEMENTED", "evidence": "editor/render/freeze recovery with canonical operation IDs"}
+  ],
+  "risk_if_missed": "Notes remains an isolated editor and Loom's backlinks cannot connect Handshake's IDE and creative workflows.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Backlink navigation targets a projection copy.", "Drag/embed duplicates media.", "Cross-project links bypass grants.", "Revoked transclusion remains visible."], "minimum_controls": ["Canonical source navigation assertions.", "Reference-only embed contract.", "Explicit shared-access relation matrix.", "Live revocation Argus proof."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Stable merged WP-KERNEL-012 Notes implementation", "Obsidian backlinks/transclusion and graph workflows", "Official SurrealDB relations/permissions documentation", "MT-385/386/388 accepted Loom foundations"], "selected_approach": "Canonical Notes content connected through typed Loom relations, native graph/search and explicit cross-project grants.", "rejected_options": ["Notes-local graph", "Copied embeds", "Implicit project sharing", "Synthetic route-only proof"]}
+}

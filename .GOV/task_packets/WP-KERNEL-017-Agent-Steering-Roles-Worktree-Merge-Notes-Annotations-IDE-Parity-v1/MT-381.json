@@ -1,0 +1,160 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-381",
+  "title": "LoomSurrealSemanticInventoryAndParityContract",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Inventory the complete Loom contract after the prerequisite merges and freeze a preservation-first SurrealDB parity map before implementation.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json",
+    "microtask_projection": "NOT_GENERATED_BY_DEFAULT",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
+    "spec_current": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-337"],
+    "blocks": ["MT-382"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "no_context_startup": {
+    "required_reads": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
+      ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/coder/CODER_PROTOCOL.md",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "current_source_discovery": [
+      "Use only the stable main produced after WP-KERNEL-012, WP-1 Multi-Model Orchestration and WP-CKC merge as product-code truth.",
+      "Resolve SPEC_CURRENT and inspect all current Loom, Notes, RichDocument, Atelier, CKC, storage, API, native UI, test and migration surfaces.",
+      "Classify every legacy SQLite/PostgreSQL behavior, current Surreal behavior, old WP stub requirement and operator-approved capability without copying obsolete physical storage design."
+    ],
+    "stop_conditions": [
+      "The three prerequisite work packets are not merged into one stable main.",
+      "The official packet/refinement is unsigned or a dependency verdict is not accepted.",
+      "Any capability claim lacks a source, test, operator request or historical contract anchor."
+    ]
+  },
+  "scope": {
+    "summary": "Build the authoritative Loom semantic inventory and parity matrix. Loom is Handshake's cross-domain knowledge-linking substrate for IDE and creative-tool workflows; SurrealDB is its only main authority. This MT does not implement future Tailor or Studio features.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/storage/surreal/**",
+      "src/backend/handshake_core/src/loom_ai/**",
+      "src/backend/handshake_core/src/loom_search/**",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/handshake_native/src/**",
+      ".GOV/task_packets/stubs/**Locus**",
+      ".GOV/task_packets/stubs/**Loom**"
+    ],
+    "forbidden_paths": [
+      "Product implementation against a pre-merge worktree",
+      "New SQLite or PostgreSQL runtime, cache, fixture or fallback path",
+      "A new WP stub for this approved WP-017 scope",
+      "Future Tailor or Studio feature implementation"
+    ],
+    "acceptance_criteria": [
+      "A machine-readable matrix maps every verified Loom capability to its current source, schema, API, UI, tests, storage assumptions, preserved behavior and owning MT-382 through MT-398.",
+      "The inventory covers blocks, documents, links, backlinks, graph, search, folders, tags, pins, favorites, journals, wiki/transclusion, overlays, media, AI proposals, canvases and collection views.",
+      "Every SQLite/PostgreSQL term or adapter is classified as historical-only, removal target or behavior requiring Surreal-native reconstruction; no blind SQL translation is proposed.",
+      "Notes/RichDocument, CKC/Atelier, future Tailor and future Studio seams are recorded with explicit authority boundaries and no duplicated mutable source data.",
+      "Old stubs are preserved as traced requirement inputs and are not deleted, silently narrowed or treated as current physical implementation authority."
+    ],
+    "proof_targets": [
+      "Run a deterministic inventory checker that reports every Loom-related source, migration, route, test and old stub with zero unclassified matches.",
+      "Cross-check the matrix against the stable merged main and the operator-approved WP-017 expansion.",
+      "Validate that every matrix row has a destination MT, evidence anchor, authority classification and parity verdict."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/storage/**loom**",
+      "src/backend/handshake_core/src/loom_ai/**",
+      "src/backend/handshake_core/src/loom_search/**",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/frontend/handshake_native/src/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "expected_tests": [
+      "loom_semantic_inventory_has_no_unclassified_surface",
+      "loom_capability_matrix_assigns_every_preserved_behavior",
+      "loom_legacy_storage_terms_are_classified",
+      "loom_future_publishers_are_fixture_only"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": ["typed inventory trace projection", "source-to-capability matrix"],
+    "not_applicable_reason": "Inventory contract only; owning UI MTs provide Argus proof."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": ["Loom > Purpose and capability map", "Storage authority > SurrealDB"],
+    "expected_evidence": ["user_manual_diff", "no_context_capability_discovery_test", "three-tier diagnostic posture"],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["Loom blocks", "relations", "search entries", "media references", "derived projections"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant"],
+    "enforcement_boundaries": ["SurrealDB record permissions", "ResourceBroker", "search and graph queries", "diagnostic projections"],
+    "same_project_private_resource_cases": ["Private resources remain hidden from another project member without an explicit shared-access relation."],
+    "cross_account_negative_cases": ["Forged project, block, source or relation IDs disclose neither content nor existence."],
+    "derived_resource_non_widening_cases": ["Inventory, graph, index and preview visibility is the intersection of source scopes."],
+    "revocation_and_context_switch_cases": ["Revoked or switched AccessSpace invalidates stale Loom handles and projections."],
+    "remote_saas_mcp_sync_cases": ["Remote source identity never creates a local grant automatically."],
+    "metadata_side_channel_cases": ["Counts, facets, labels, paths, thumbnails, errors and timing do not reveal denied resources."],
+    "expected_evidence": ["default_deny_matrix", "same_project_private_test", "derived_scope_non_widening_test", "metadata_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "TRACE_ONLY", "evidence": "inventory run identity, source revision and classification counts"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "unclassified-surface and missing-owner diagnostics"},
+    {"tier": "palmistry", "posture": "TYPED_DEFERRED", "evidence": "no runtime surface changes in this inventory MT"}
+  ],
+  "risk_if_missed": "Semantic features lost during SQLite-to-PostgreSQL-to-SurrealDB transitions may be mistaken for intentional scope reduction and never rebuilt.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {
+    "required": true,
+    "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1",
+    "risks": ["A polished inventory omits dormant or broken behavior.", "A legacy SQL schema is mistaken for semantic authority.", "Synthetic tests are mistaken for real module connectivity.", "Future-module references expand into unauthorized implementation."],
+    "minimum_controls": ["Exhaustive source and historical-contract scan.", "Requirement-to-MT trace with zero unclassified rows.", "Stable-main-only evidence.", "Explicit fixture-only boundary for Tailor and Studio."]
+  },
+  "research_provenance": {
+    "status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION",
+    "sources": ["Official SurrealDB Rust SDK documentation", "Official SurrealDB relation and graph-query documentation", "Stable merged Handshake main", "Historical Loom migrations and WP stubs"],
+    "selected_approach": "Preservation-first semantic inventory followed by Surreal-native reconstruction through typed repositories and relations.",
+    "rejected_options": ["Blind SQL translation", "Feature deletion because current adapters are incomplete", "Pre-merge path freezing", "Tailor or Studio implementation inside this MT"]
+  }
+}

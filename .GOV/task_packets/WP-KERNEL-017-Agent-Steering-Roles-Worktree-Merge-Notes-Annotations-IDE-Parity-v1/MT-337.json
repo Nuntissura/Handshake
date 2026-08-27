@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Translate direct database consumers in Atelier, Loom, ingestion, documents, retrieval, CRDT, code navigation and UserManual to typed SurrealDB repositories.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-337.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -32,7 +32,8 @@
       "MT-334"
     ],
     "blocks": [
-      "MT-338"
+      "MT-338",
+      "MT-381"
     ],
     "active": false,
     "validator_verdict": "PENDING"
@@ -41,6 +42,10 @@
     "summary": "GOAL: Translate direct database consumers in Atelier, Loom, ingestion, documents, retrieval, CRDT, code navigation and UserManual to typed SurrealDB repositories. This contract implements Master Spec v02.205. PostgreSQL, PgPool, sqlx-postgres, PostgreSQL SQL/DDL/RLS/LISTEN-NOTIFY/JSONB/pgvector and DATABASE_URL are forbidden as product-runtime authority. EventLedger semantic contracts remain authoritative but their persistence is SurrealDB-native. The current PostgreSQL database contains no valuable live information; no PostgreSQL connection, import, fallback, or proof path is allowed.",
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/**",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/search_store.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
       "src/backend/handshake_core/src/loom_ai/**",
       "src/backend/handshake_core/src/loom_search/**",
       "src/backend/handshake_core/src/knowledge_ingestion/**",
@@ -60,7 +65,8 @@
       "Every listed module uses the typed Surreal store/repository boundary; no raw SQLx query, PgPool or PostgreSQL dialect remains.",
       "Domain behavior, ordering, pagination, uniqueness and atomic update semantics have SurrealDB-native tests.",
       "CRDT promotion and document/retrieval writes preserve EventLedger atomicity and ResourceBroker scope.",
-      "A source inventory checker fails if any listed surface reintroduces PostgreSQL/sqlx types or SQL migration coupling."
+      "A source inventory checker fails if any listed surface reintroduces PostgreSQL/sqlx types or SQL migration coupling.",
+      "This physical repository port unblocks but cannot replace MT-381..398 semantic parity, managed-project scope, native-query, Notes identity or real CKC integration proof."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

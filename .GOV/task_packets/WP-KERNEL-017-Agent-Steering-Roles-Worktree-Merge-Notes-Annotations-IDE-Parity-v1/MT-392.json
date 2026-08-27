@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-392",
+  "title": "LoomSurrealCoreParityClosureGate",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Prove complete Loom core semantic parity on SurrealDB and close all legacy database authority paths before module integrations proceed.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-392.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-391"], "blocks": ["MT-393", "MT-395"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-391.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/wp-validator/WP_VALIDATOR_PROTOCOL.md"],
+    "current_source_discovery": ["Resolve every MT-381 parity row to accepted implementation and proof from MT-382 through MT-391.", "Independently inspect the exact runtime, UI, database, test and manual artifacts before verdict."],
+    "stop_conditions": ["Any MT-381 parity row is missing, deferred without authority or supported only by mock/legacy proof.", "Any dependency lacks accepted validation.", "PostgreSQL/SQLite database authority or unclassified direct adapter remains."]
+  },
+  "scope": {
+    "summary": "Independent closure gate for Loom core. It proves Handshake's connected IDE/creative knowledge substrate is semantically restored on real SurrealDB before Notes and CKC integration families build on it.",
+    "allowed_paths": ["src/backend/handshake_core/**", "src/frontend/handshake_native/**", "tests/**", "scripts/**", "Cargo.toml", "Cargo.lock", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/**"],
+    "forbidden_paths": ["Self-authored evidence as sole proof", "Mock/in-memory/SQLite/PostgreSQL proof substitute", "Unclassified parity row", "Future Tailor or Studio feature implementation"],
+    "acceptance_criteria": [
+      "Every MT-381 capability row has an accepted implementation, real-Surreal proof, native UI proof when visible, manual entry and independent verdict.",
+      "A fresh Handshake runtime creates, links, searches, organizes, visualizes, exports, restarts and repairs representative Loom content with only SurrealDB available.",
+      "Cross-project private/shared, revocation, derived-scope and metadata-side-channel matrices pass using authenticated record users.",
+      "Independent source, dependency and runtime scans find no unclassified PostgreSQL, PgPool, SQLx-Postgres or SQLite Loom authority/fixture/proof path.",
+      "Failure injection proves EventLedger atomicity, live-query reconnect, index/projection reconciliation and canonical reread recovery."
+    ],
+    "proof_targets": ["Run the complete Loom real-Surreal integration suite from a fresh database through restart and repair.", "Run independent forbidden-dependency and parity-matrix closure validators.", "Run complete native Argus/UserManual no-context workflow and privacy matrices."],
+    "code_surfaces": ["src/backend/handshake_core/**loom**", "src/backend/handshake_core/src/storage/surreal/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "expected_tests": ["loom_core_surreal_exclusive_e2e", "loom_parity_matrix_complete", "loom_record_user_privacy_e2e", "loom_restart_reconcile_repair_e2e", "loom_native_argus_manual_e2e"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "NO", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["All recovered Loom operator surfaces"], "argus_targets": ["WP017.MT392.LoomCoreE2E"], "expected_evidence": ["full_argus_navigation_tree", "representative_workflow_capture", "renderer_console_scan", "responsive_accessibility_matrix", "privacy_and_failure_state_captures"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Complete no-context workflow", "Loom > Diagnostics and recovery", "Storage authority > SurrealDB"], "expected_evidence": ["complete_user_manual_diff", "fresh_model_no_context_operation_test", "recovery_test", "manual_self_consistency_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["all Loom canonical and derived resources"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "delegation and revocation versions"],
+    "enforcement_boundaries": ["SurrealDB permissions", "ResourceBroker", "repositories/APIs", "search/graph", "diagnostics/export/native UI"],
+    "same_project_private_resource_cases": ["Full representative workflow proves private resources remain isolated inside a shared project."],
+    "cross_account_negative_cases": ["All forged selectors, routes, relations, cursors and handles fail closed."],
+    "derived_resource_non_widening_cases": ["Every index, graph result, preview, export, event and diagnostic inherits source-scope intersection."],
+    "revocation_and_context_switch_cases": ["Concurrent revocation/context switch invalidates every stale Loom consumer."],
+    "remote_saas_mcp_sync_cases": ["Remote sources never create local authority automatically."],
+    "metadata_side_channel_cases": ["Complete count/facet/path/title/timing/error/log/trace non-disclosure matrix passes."],
+    "expected_evidence": ["full_resource_privacy_matrix", "derived_scope_matrix", "revocation_race_matrix", "argus_privacy_state_matrix"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-003", "HBR-PRIV-004", "HBR-PRIV-005", "HBR-MAN-001", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003", "HBR-STOP-004"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "VERIFIED", "evidence": "complete typed Loom event and replay coverage"},
+    {"tier": "internal_diagnostics", "posture": "VERIFIED", "evidence": "complete health, failure and repair taxonomy"},
+    {"tier": "palmistry", "posture": "VERIFIED", "evidence": "native crash/freeze/recovery evidence"}
+  ],
+  "risk_if_missed": "Integration work can build on another superficially renamed but semantically incomplete Loom foundation.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Parity is declared from file presence rather than runtime behavior.", "Legacy tests pass without real SurrealDB.", "Happy-path UI hides recovery defects.", "An obscure adapter preserves second authority."], "minimum_controls": ["Independent matrix closure.", "Fresh real-Surreal E2E.", "Failure/restart/privacy/Argus proof.", "Repository-wide classified tripwire scan."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_REVERIFIED_AT_VALIDATION", "sources": ["MT-381 accepted stable-main parity inventory", "Official SurrealDB documentation used by MT-382 through MT-391", "Independent runtime and source validation", "Handshake HBR and UserManual evidence"], "selected_approach": "Independent semantic parity closure against real SurrealDB and the complete operator-approved capability matrix.", "rejected_options": ["File-presence completion", "Mock-only validation", "Partial feature sampling", "Legacy database proof"]}
+}

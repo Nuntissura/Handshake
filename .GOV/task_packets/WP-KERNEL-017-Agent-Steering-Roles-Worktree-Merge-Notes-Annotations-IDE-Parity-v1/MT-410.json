@@ -1,0 +1,303 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-410",
+  "title": "WL-MT410-TursoEvaluationAndAdoptRejectDecision",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Close the Turso candidate with either an authority-gate REJECT or, only after an approved evaluation path, a comparative ADOPT or REJECT decision across software and creative WP workloads without automatic rollout.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "FINAL_EVALUATION_DECISION_NOT_AUTOMATIC_ADOPTION",
+  "branch_contract": {
+    "authority_rejected": "After MT-409's no-code rejection projection, verify MT-402..408 are NOT_APPLICABLE_BY_MT401_REJECTION, prove no Turso dependency/file/runtime path exists and emit final REJECT without benchmarking a candidate.",
+    "evaluation_approved": "MT-409 proves the complete approved implementation/diagnostic chain. Run the frozen comparative production-boundary benchmark and emit ADOPT or REJECT.",
+    "automatic_rollout": "FORBIDDEN in both branches."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-410.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-409",
+      "MT-372",
+      "MT-398"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Close the Turso candidate truthfully after MT-409 joins either MT-401 branch. If authority rejects evaluation, consume MT-409's no-code rejection projection, verify MT-402..408 did not execute, independently prove the SurrealDB-only baseline has no Turso dependency/file/runtime path, and emit REJECT without candidate benchmarking. If authority approves evaluation, MT-409 proves the complete implementation/diagnostic chain and this MT decides with production-boundary evidence whether the provider-neutral WpLocalStore earns adoption. Freeze thresholds and compare the candidate with the current no-extra-database/SurrealDB-only workflow across software delivery and creative production WPs using allowlisted non-canonical records only. Emit one immutable hsk.wp_local_store_adoption_decision@1 verdict: ADOPT or REJECT. ADOPT remains a recommendation gated by explicit operator rollout approval and never changes SurrealDB/EventLedger authority.",
+    "allowed_paths": [
+      "src/backend/handshake_core/benches/wp_local_store/**",
+      "src/backend/handshake_core/tests/wp_local_store_evaluation.rs",
+      "src/frontend/handshake_native/tests/wp_local_store_evaluation.rs",
+      ".GOV/validation/WP-KERNEL-017/**",
+      "docs/user-manual/**"
+    ],
+    "forbidden_paths": [
+      "Automatic Turso adoption, rollout, feature-default change or migration based only on benchmark completion",
+      "Benchmarking real Notes, Loom, CKC, Tailor, Studio or canonical Locus content in the local database",
+      "Treating local success, logs, mocks or cached projections as proof of canonical SurrealDB/EventLedger behavior",
+      "Changing SurrealDB/EventLedger from sole main authority under either verdict",
+      "Cloud sync, embedded replicas, Turso Cloud credentials or remote local-store authority",
+      "Post-hoc thresholds selected after results are visible"
+    ],
+    "acceptance_criteria": [
+      "When MT-401 is REJECTED, MT-402..408 carry validator-checked NOT_APPLICABLE_BY_MT401_REJECTION dispositions, MT-409 supplies its no-code structured rejection projection, no candidate benchmark is fabricated, independent dependency/filesystem/runtime scans prove no Turso path exists, and the final verdict is REJECT.",
+      "When MT-401 is APPROVED_FOR_EVALUATION, MT-409 proves the complete implementation and diagnostic predecessor chain and every remaining benchmark, production-boundary and evidence criterion in this contract applies.",
+      "The evaluation plan freezes hardware/runtime metadata, datasets, warmup/repetition method, statistical summary, failure policy and explicit pass/fail thresholds before candidate results are collected; thresholds cover performance, correctness, recovery, resource cost and operational complexity.",
+      "The software workload models concurrent agent file/change inventories, source-snapshot manifests, artifact inventory, validation/build caches, bounded tool-result caches, disposable drafts and promotion intents for multiple WPs/projects, using only MT-404 allowlisted non-canonical records.",
+      "The creative workload models project/subproject asset manifests, render inventories, reproducible recipe metadata, disposable candidate artifacts and promotion intents without storing taskboard/WP/MT state, Notes, Loom, CKC, Tailor, Studio, canonical Locus content or creative binary payloads locally.",
+      "Candidate and SurrealDB-only baseline run the same logical workloads and canonical promotion assertions with isolated state; measured outputs include p50/p95/p99 latency, throughput, conflict/retry rate, startup time, peak memory, disk growth, binary/dependency delta and operator/model steps.",
+      "Production-boundary tests use a real Windows single-broker candidate and real authenticated SurrealDB/EventLedger transactions, independently re-read every sampled canonical receipt and cover crash, corruption, project move, seal/archive/restore and cross-project isolation.",
+      "The immutable hsk.wp_local_store_adoption_decision@1 records source revisions, environment, frozen thresholds, raw-evidence hashes, baseline/candidate results, every failed criterion, risk/mitigation assessment and exactly one verdict: ADOPT or REJECT.",
+      "ADOPT means only that the candidate is recommended for an explicit operator-approved rollout under the MT-401 narrow exception, one-store-per-project/WP lifecycle, strict allowlist and SurrealDB/EventLedger authority; it does not activate the feature or broaden content scope.",
+      "REJECT leaves WpLocalStore inactive, removes or disables Turso adapter/dependency/runtime reachability from production paths, proves the SurrealDB-only baseline still operates, and retains the provider-neutral contract and evidence only where they reduce future re-evaluation cost.",
+      "In the approved branch, the MT-409 operator/Argus surface displays the signed verdict, threshold failures, evidence links and current inactive/approved posture without labeling the candidate adopted before explicit operator authorization. In the rejected branch, MT-410 updates only the existing structured rejection projection and creates no product UI."
+    ],
+    "proof_targets": [
+      "Exercise both branch contracts: a no-change authority-rejection fixture and an approved-evaluation fixture; prove neither can bypass its required predecessors or evidence floor.",
+      "Validate the frozen benchmark manifest before any result files exist, then run at least three isolated repetitions of each software and creative workload for candidate and baseline.",
+      "Run the production boundary on Windows with one broker, multiple sessions/MTs sharing each project/WP database and multiple project/WP stores active concurrently.",
+      "Independently query authenticated SurrealDB/EventLedger after sampled and fault-injected promotions and prove exact records, events, revisions and idempotency receipts.",
+      "Inject process crash, corruption, archive tampering, project relocation, quota exhaustion and cross-project database substitution and score recovery/correctness against predeclared thresholds.",
+      "Inspect dependency graph, binary/startup/memory/disk deltas and operator/model workflow steps for both verdict branches.",
+      "Validate the decision artifact schema and raw-evidence hashes, then use Argus to prove the UI shows the exact verdict and inactive/approval state."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/benches/wp_local_store/**",
+      "src/backend/handshake_core/tests/wp_local_store_evaluation.rs",
+      "src/frontend/handshake_native/tests/wp_local_store_evaluation.rs",
+      ".GOV/validation/WP-KERNEL-017/**"
+    ],
+    "expected_tests": [
+      "evaluation_thresholds_are_frozen_before_results",
+      "software_and_creative_workloads_use_allowlist_only",
+      "candidate_and_baseline_execute_equivalent_logical_workloads",
+      "windows_multi_agent_benchmark_uses_one_broker_per_handshake",
+      "sampled_promotions_pass_independent_surreal_eventledger_readback",
+      "fault_recovery_meets_predeclared_correctness_thresholds",
+      "decision_artifact_has_exactly_one_adopt_or_reject_verdict",
+      "adopt_does_not_activate_or_broaden_storage_authority",
+      "reject_disables_candidate_and_preserves_surreal_only_baseline",
+      "argus_displays_signed_verdict_and_current_inactive_posture"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Default and MT-401 rejection posture. The approved evaluation branch is governed exclusively by conditional_gui_obligation."
+  },
+  "conditional_gui_obligation": {
+    "approved_for_evaluation": {
+      "operator_surface_required": "YES",
+      "gui_creation_required": "NO",
+      "argus_required": "YES",
+      "surfaces": [
+        "MT-409 WP-local store evaluation verdict view"
+      ],
+      "argus_targets": [
+        "wp-local-store-evaluation-verdict",
+        "wp-local-store-authority-badge",
+        "wp-local-store-status"
+      ],
+      "reason": "Populate and verify MT-409's approved-branch surface; do not create a second decision UI."
+    },
+    "rejected": {
+      "operator_surface_required": "NO",
+      "gui_creation_required": "NO",
+      "argus_required": "NO",
+      "observable_surface": "hsk.wp_local_store_rejection_projection@1",
+      "reason": "MT401_REJECTED_NO_PRODUCT_SURFACE"
+    }
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Evaluation method and evidence",
+      "WP-local working store > ADOPT and REJECT meanings",
+      "WP-local working store > Authority and rollout gates",
+      "Model manual > Reading the WP-local store decision artifact"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "synthetic benchmark fixtures",
+      "candidate and baseline stores",
+      "canonical promotion receipts",
+      "raw benchmark evidence",
+      "adoption decision artifact"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "benchmark run identity"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "authenticated record-user production boundary",
+      "synthetic fixture validator",
+      "evidence redaction and hash validator",
+      "signed operator decision gate"
+    ],
+    "same_project_private_resource_cases": [
+      "Evaluation includes a same-project private-resource negative case without ingesting real private content."
+    ],
+    "cross_account_negative_cases": [
+      "Store, receipt, archive and idempotency substitution across project/account boundaries fails without existence disclosure."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Benchmark outputs and the decision artifact contain aggregates/evidence hashes only and never widen fixture/source scope."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or AccessSpace/project switch during a run cancels access and prevents promotion, readback or evidence continuation."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "The benchmark proves no cloud Turso, embedded-replica, SaaS or MCP sync endpoint is configured or contacted."
+    ],
+    "metadata_side_channel_cases": [
+      "Fixtures and published evidence contain no real content, credentials, keys, absolute paths or unauthorized resource existence."
+    ],
+    "expected_evidence": [
+      "record_user_production_boundary_benchmark",
+      "synthetic_fixture_allowlist_audit",
+      "cross_project_wp_isolation_benchmark",
+      "benchmark_evidence_redaction"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "Benchmark runs, faults, canonical receipt checks and the final decision emit attributable derived events and immutable evidence references."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Environment, thresholds, workload identity, resource metrics, failures and verdict inputs require structured exportable diagnostics."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Benchmark suites and fault matrices expose quiet bounded progress, cancellation, isolation identity and terminal result."
+    }
+  ],
+  "risk_if_missed": "Handshake can adopt a second database from attractive microbenchmarks while increasing correctness risk, binary/resource cost and operator complexity, or reject it without preserving a reproducible basis.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "Thresholds are tuned after observing candidate results.",
+      "A microbenchmark hides broker contention, recovery cost or canonical promotion failures.",
+      "Creative workload fixtures smuggle prohibited domain content into the local store.",
+      "ADOPT is interpreted as automatic rollout or broader storage authority.",
+      "REJECT leaves a reachable Turso dependency or runtime path enabled."
+    ],
+    "minimum_controls": [
+      "Pre-result immutable benchmark manifest and equivalent baseline workload.",
+      "Real Windows broker, SurrealDB/EventLedger boundary and fault matrix.",
+      "Schema-level allowlist audit of every fixture and stored row.",
+      "Signed decision semantics with separate operator activation gate.",
+      "Reject-branch dependency/runtime reachability proof and Surreal-only regression."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso SDK introduction",
+        "url": "https://docs.turso.tech/sdk/introduction",
+        "finding": "The official SDK matrix distinguishes the current embedded Turso SDK from legacy libSQL and remote capabilities; the evaluation targets only local embedded use."
+      },
+      {
+        "title": "Turso Rust quickstart",
+        "url": "https://docs.turso.tech/sdk/rust/quickstart",
+        "finding": "The current Rust SDK is recommended for local embedded workloads and supports async/MVCC behavior; cloud push/pull is deliberately outside this evaluation."
+      },
+      {
+        "title": "Turso concurrent writes",
+        "url": "https://docs.turso.tech/tursodb/concurrent-writes",
+        "finding": "MVCC concurrent writes can conflict and require application retry, so multi-agent conflict and retry rate are mandatory evaluation metrics."
+      },
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "Transactions, local configuration and encryption capabilities establish the adapter surface and resource/security measurements; experimental capabilities cannot silently become requirements."
+      },
+      {
+        "title": "SurrealDB manual transactions",
+        "url": "https://surrealdb.com/docs/reference/rust/concepts/transaction",
+        "finding": "The canonical correctness baseline is the atomic SurrealDB domain-artifact-plus-EventLedger transaction, followed by independent readback."
+      },
+      {
+        "title": "SurrealDB permissions and row-level security",
+        "url": "https://surrealdb.com/docs/learn/security/authorization/permissions-and-row-level-security",
+        "finding": "Production-boundary proof must use explicitly permitted record-user access rather than owner/admin credentials."
+      }
+    ],
+    "project_sources": [
+      "MT-372 dependent workflow integration gate",
+      "MT-398 dependent production-boundary readiness gate",
+      "MT-409 WpLocalStore diagnostics/Argus/manual",
+      "GLOBAL-RESEARCH-048..059 research basis",
+      "GLOBAL-VALIDATION-010..022 production-boundary proof"
+    ],
+    "selected_approach": "Pre-register a baseline-controlled dual-domain workload and fault matrix, measure full workflow value/cost, then issue one evidence-linked ADOPT or REJECT recommendation with a separate operator activation gate.",
+    "rejected_options": [
+      "Microbenchmark-only adoption",
+      "Post-hoc success thresholds",
+      "Automatic rollout from benchmark result",
+      "Cloud or remote Turso scope",
+      "Real domain-content fixtures",
+      "Local-store correctness without independent SurrealDB/EventLedger proof"
+    ]
+  }
+}

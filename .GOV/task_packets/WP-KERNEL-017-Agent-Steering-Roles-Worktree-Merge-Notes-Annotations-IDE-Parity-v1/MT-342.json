@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Remove managed PostgreSQL runtime code, sqlx-postgres dependencies, PostgreSQL policy surfaces and stale environment/configuration paths.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-342.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -60,11 +60,12 @@
     "forbidden_paths": [
       ".GOV/spec/master-spec-v02.203/**",
       "Any PostgreSQL write/fallback/dual-authority runtime path",
-      "SQLite authority, cache, fallback or proof paths"
+      "SQLite/rusqlite/sqlx-sqlite/libsql authority, cache, fallback or proof paths; the sole possible exception is the pinned turso provider behind WpLocalStore after an MT-410 ADOPT verdict and explicit narrow authority amendment"
     ],
     "acceptance_criteria": [
       "managed_postgres.rs and postgres_control_plane_residual.rs are deleted from product code; main, app launchers and installers contain no PostgreSQL startup, discovery, health-check, process-management or DATABASE_URL path.",
       "Cargo and lockfile contain no sqlx PostgreSQL runtime dependency in any product or test feature.",
+      "rusqlite, sqlx-sqlite and libsql are absent. If MT-410 is REJECT, turso is also absent; if MT-410 is ADOPT, only the pinned turso dependency inside the bounded WpLocalStore provider is allowed and all canonical-authority tripwires remain green.",
       "Policy tripwires require SurrealDB authority while retaining the no-SQLite invariant; no test fixture can satisfy authority with PostgreSQL.",
       "Repository-wide product/config/test/fixture/launcher/installer scans find zero PostgreSQL/sqlx-postgres/PgPool/PostgresDatabase/DATABASE_URL dependencies or modes and zero PostgreSQL migration files; only immutable historical governance evidence outside product execution scope may retain PostgreSQL wording."
     ],

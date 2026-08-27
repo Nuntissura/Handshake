@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-388",
+  "title": "LoomMediaAssetProvenanceAndTemporalSpatialRelations",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Restore typed media, asset, provenance, caption, transcript, time and location relations for Loom creative workflows.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-388.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-384"], "blocks": ["MT-391", "MT-394", "MT-397"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-383.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-384.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect stable-main AssetStore, ingestion, captions, transcripts, poster frames, crawler, Atelier and Loom media seams.", "Identify canonical asset handles and all derived preview/index/provenance records before editing."],
+    "stop_conditions": ["MT-384 is not accepted.", "Raw filesystem paths would become durable authority.", "Asset/source ownership or derivative lineage is ambiguous."]
+  },
+  "scope": {
+    "summary": "Enable Loom to connect crawled image sets, albums, character sheets, training inputs, code and notes through typed asset references, temporal/spatial metadata and provenance while ResourceBroker/owning domains retain authority.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/knowledge_ingestion/**", "src/backend/handshake_core/src/artifact_store/**", "src/backend/handshake_core/src/atelier/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Raw absolute path as stable resource identity", "Copied binary/media authority inside Loom", "CKC or Atelier semantic ownership transfer", "Unscoped EXIF/location/caption exposure"],
+    "acceptance_criteria": [
+      "Loom relates canonical AssetStore/ResourceBroker handles to blocks and domain sources with content hash, media kind, provenance, derivative lineage and scope.",
+      "Caption, transcript, poster-frame, time-range, capture-time and location-derived metadata use typed Surreal records/relations with explicit source and confidence.",
+      "Missing, moved, rehashed, deduplicated and regenerated assets reconcile without breaking canonical links or creating duplicate media authority.",
+      "Album/folder/tag projections remain attributable to their owning domain and can be rebuilt from canonical sources.",
+      "Native media views expose source, derivation, missing/relink and denied-safe states with stable Argus identifiers."
+    ],
+    "proof_targets": ["Run real-Surreal media relation and dedup/relink/restart tests with brokered fixture files.", "Run time/location/caption/transcript scope and provenance tests.", "Run Argus media provenance, missing-source and denied-state captures."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/src/knowledge_ingestion/**", "src/backend/handshake_core/src/artifact_store/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_asset_relation_uses_brokered_identity", "loom_media_dedup_relink_and_restart", "loom_temporal_spatial_metadata_scope", "loom_derivative_lineage_non_widening", "loom_media_argus_states"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Loom media block", "asset provenance inspector", "missing/relink workflow", "time/location-derived views"], "argus_targets": ["WP017.MT388.Media", "WP017.MT388.Provenance", "WP017.MT388.Relink"], "expected_evidence": ["argus_tree", "media_state_capture", "missing_and_denied_capture", "renderer_console_scan", "layout_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Media and assets", "Loom > Provenance and relinking", "Loom > Time and location metadata"], "expected_evidence": ["user_manual_diff", "no_context_link_relink_test", "privacy and provenance explanation"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["asset handle", "media relation", "caption", "transcript", "time/location metadata", "derivative"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_asset_scope"],
+    "enforcement_boundaries": ["ResourceBroker", "SurrealDB permissions", "ingestion pipeline", "preview/search/UI"],
+    "same_project_private_resource_cases": ["Private images and sensitive time/location metadata remain hidden from unrelated project members."],
+    "cross_account_negative_cases": ["Forged asset handles, hashes or relation IDs fail closed."],
+    "derived_resource_non_widening_cases": ["Captions, thumbnails, embeddings, albums and training projections cannot widen source scope."],
+    "revocation_and_context_switch_cases": ["Revocation invalidates previews, cached metadata and open asset handles."],
+    "remote_saas_mcp_sync_cases": ["Crawler/cloud metadata is quarantined and explicitly scoped before local relation creation."],
+    "metadata_side_channel_cases": ["Hashes, dimensions, timestamps, coordinates, labels, thumbnails and missing-file errors do not leak denied assets."],
+    "expected_evidence": ["asset_scope_matrix", "derived_media_scope_test", "location_metadata_non_disclosure_test", "revocation_preview_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "link, ingest, derive, relink, deny and repair events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "missing assets, provenance gaps, derivative lag and broker health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "media decode/render crash correlation without content leakage"}
+  ],
+  "risk_if_missed": "Large creative datasets remain disconnected or are linked by brittle paths, preventing safe reuse across CKC, crawlers and training projects.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["A moved file breaks every relation.", "Location metadata leaks through facets.", "Loom copies binaries and becomes a second asset authority.", "Derivative visibility exceeds the source."], "minimum_controls": ["Brokered stable handles and content hashes.", "Field-level privacy tests.", "Reference-only Loom relation contract.", "Derived-scope intersection."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Official SurrealDB geospatial, relation and index documentation", "Digital asset management provenance patterns", "Handshake AssetStore/ResourceBroker authority", "Stable-main Loom and CKC media audit"], "selected_approach": "Brokered asset identity plus typed provenance and temporal/spatial Surreal relations with repairable projections.", "rejected_options": ["Raw path identity", "Binary duplication in Loom", "Unscoped EXIF indexing", "CKC ownership transfer"]}
+}

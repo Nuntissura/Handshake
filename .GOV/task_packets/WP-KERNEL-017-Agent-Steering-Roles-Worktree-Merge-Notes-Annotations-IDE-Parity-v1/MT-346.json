@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Prove WP017 and the Handshake runtime are completely SurrealDB-dependent with no PostgreSQL authority path.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-346.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -31,7 +31,10 @@
     "depends_on": [
       "MT-329",
       "MT-344",
-      "MT-345"
+      "MT-345",
+      "MT-372",
+      "MT-398",
+      "MT-410"
     ],
     "blocks": [],
     "active": false,
@@ -61,7 +64,8 @@
       "A clean machine/runtime starts Handshake with only managed SurrealDB, executes representative Notes, agent-session, MT-dispatch, worktree-volume, annotation, knowledge and replay workflows, restarts and reproduces state.",
       "Handshake contains no PostgreSQL mode and never probes PostgreSQL; PostgreSQL absent/unreachable cannot affect runtime, and legacy DATABASE_URL injection is rejected as forbidden configuration rather than interpreted.",
       "Independent scans and compile-feature inspection find zero unclassified PostgreSQL/sqlx/PgPool/PostgresDatabase runtime dependencies and zero PostgreSQL proof targets anywhere in product or test code.",
-      "Real record-user privacy, atomic EventLedger, live-query reconnect, backup/restore and fresh-initialization and PostgreSQL-absence proofs pass; validator receives the complete remediation and evidence map."
+      "Real record-user privacy, atomic EventLedger, live-query reconnect, backup/restore and fresh-initialization and PostgreSQL-absence proofs pass; validator receives the complete remediation and evidence map.",
+      "The final gate proves managed-project/Locus and Notes/Loom/Castkit closures on real SurrealDB. MT-410 REJECT leaves no Turso dependency; MT-410 ADOPT proves the bounded WpLocalStore is disposable, cannot hold canonical content and cannot change Surreal truth under loss, retry or corruption."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

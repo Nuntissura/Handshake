@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-396",
+  "title": "NotesLoomCastKitTypedDragEmbedBacklinkAndNavigation",
+  "group": "Notes-Loom-CastKit integration",
+  "clause": "Deliver typed drag, embed, backlink, graph, search and navigation workflows between real Notes/Loom and CKC entities.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-396.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-394", "MT-395", "MT-386", "MT-389"], "blocks": ["MT-398"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-386.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-389.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-394.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-395.json", ".GOV/codex/Handshake_Codex_v1.4.md"],
+    "current_source_discovery": ["Inspect accepted Notes link/embed commands, Loom graph/view contracts and real CKC projection adapters.", "Map every drag payload, drop target, navigation target and backlink type to a typed stable identity before editing."],
+    "stop_conditions": ["Any dependency is unaccepted.", "A drag payload relies on raw paths, UI labels or synthetic record types.", "A workflow cannot identify the canonical owning surface for edits."]
+  },
+  "scope": {
+    "summary": "Turn connectivity into practical operator workflows: drag a real CKC character, sheet version, moodboard, image, album or folder into Notes/Loom; preserve typed identity; navigate and backlink to the owning source; reuse it in graphs and collection views.",
+    "allowed_paths": ["src/backend/handshake_core/src/atelier/**", "src/backend/handshake_core/src/knowledge_document/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["Text/plain or path-only drag payload as authority", "Synthetic CKC blocks", "Embed that becomes an independent mutable CKC copy", "Navigation that guesses module by string labels"],
+    "acceptance_criteria": [
+      "Typed drag payloads identify project, source domain, canonical record, projection version, relation intent and authorized brokered asset handles; forged/stale payloads fail closed.",
+      "Dropping CKC entities into Notes, Loom canvas or collection views creates idempotent typed relations/embeds and preserves canonical ownership without copying mutable domain state.",
+      "Backlinks from CKC to Notes/Loom and from Notes/Loom to CKC are queryable, source-attributed and navigate to the canonical owning surface/version.",
+      "Graph/search/view results expose real CKC entity type, projection status, provenance and open-in-owner action under correct scope.",
+      "Native cross-surface drag/drop, keyboard alternative, undo/retry, conflict, broken-source and revoked-source flows pass Argus and accessibility proof."
+    ],
+    "proof_targets": ["Run real-Surreal drag/embed/link/backlink/navigation E2E using actual CKC and RichDocument records.", "Run forged, stale, duplicate, deleted, moved-version, cross-project and revoked payload negative tests.", "Run Argus drag/drop plus keyboard-equivalent workflows and verify independent Surreal reread."],
+    "code_surfaces": ["src/backend/handshake_core/src/atelier/**", "src/backend/handshake_core/src/knowledge_document/**", "src/backend/handshake_core/src/storage/surreal/**loom**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["ckc_typed_drag_into_notes_real_source", "ckc_typed_embed_into_loom_canvas", "notes_ckc_bidirectional_backlink_navigation", "ckc_drag_payload_forged_stale_revoked_denied", "notes_loom_ckc_drag_argus_e2e"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["CKC browser", "Notes editor", "Loom canvas/collections", "backlinks and open-in-owner navigation"], "argus_targets": ["WP017.MT396.DragCKCToNotes", "WP017.MT396.DragCKCToLoom", "WP017.MT396.BacklinkNavigation", "WP017.MT396.BrokenRevoked"], "expected_evidence": ["argus_tree", "drag_and_keyboard_steer_reobserve", "undo_conflict_broken_capture", "renderer_console_scan", "responsive_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["CastKit > Drag and link to Notes/Loom", "Notes > Embed CastKit resources", "Loom > Navigate domain sources"], "expected_evidence": ["user_manual_diff", "no_context_drag_keyboard_and_navigate_test", "broken_source_recovery_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["typed drag payload", "CKC projection", "Note embed", "Loom relation", "backlink", "navigation target"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "source_project_id", "target_project_id", "ResourceGrant", "payload_version"],
+    "enforcement_boundaries": ["drag payload issuer/verifier", "Surreal relation transaction", "ResourceBroker", "backend navigation", "native UI"],
+    "same_project_private_resource_cases": ["Private CKC entities cannot be dragged into another member's note without explicit compatible access."],
+    "cross_account_negative_cases": ["Forged, replayed or cross-account payloads fail without metadata disclosure."],
+    "derived_resource_non_widening_cases": ["Embed, preview, backlink and view item scope is the intersection of source and destination."],
+    "revocation_and_context_switch_cases": ["Revoked or stale payloads/embeds fail closed and visible UI revalidates."],
+    "remote_saas_mcp_sync_cases": ["Remote drag/source identifiers require explicit local mapping and grants."],
+    "metadata_side_channel_cases": ["Preview, source label, owner surface, version, backlink count and error class do not leak denied entities."],
+    "expected_evidence": ["typed_payload_security_matrix", "embed_scope_intersection_test", "payload_replay_revocation_test", "argus_metadata_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-QUIET-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "drag, verify, link, embed, undo, navigate, deny and revoke events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "payload compatibility, projection, relation and navigation health"},
+    {"tier": "palmistry", "posture": "IMPLEMENTED", "evidence": "cross-surface UI crash/freeze and recovery correlation"}
+  ],
+  "risk_if_missed": "The database graph exists but operators cannot practically connect real creative resources to notes, views and downstream project work.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Drag payload trusts UI text or raw path.", "Retry duplicates relations.", "Embed outlives revoked access.", "Navigation opens projection instead of domain source."], "minimum_controls": ["Signed/versioned typed payload contract.", "Idempotent relation keys.", "Render-time scope revalidation.", "Canonical owner-route assertion."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Figma cross-surface drag/drop patterns", "IDE typed navigation/reference patterns", "Official SurrealDB transaction/relation documentation", "Accepted MT-394/395 product contracts"], "selected_approach": "Typed versioned drag/embed payloads that create idempotent Surreal relations and navigate to canonical owners.", "rejected_options": ["Text/plain drag authority", "Path-only identity", "Copied domain state", "String-guessed navigation"]}
+}

@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-362",
+  "title": "LC-MT362-ManagedProjectForestAndQualifiedIdentity",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Define the canonical SurrealDB managed-project forest and project-qualified work-packet and microtask identity model.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-362.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-361"], "blocks": ["MT-363", "MT-371"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Implement typed SCHEMAFULL SurrealDB records and relations for a Handshake-managed project forest. A managed project node has a stable project_id, project_kind of root_project, subproject, task or prototype, optional parent relation, ownership/access scope and lifecycle metadata. Each node owns its canonical taskboard, work packets and microtasks through Locus. Workspaces, worktrees, sessions and VMs bind to a project as execution contexts but never substitute for project identity. WP and MT identifiers are project-qualified so repeated labels such as WP-1 or MT-001 cannot collide across the forest. Cross-project relations are explicit records; no ancestry is inferred from filesystem paths, product modules or display nesting.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/resource_broker/**", "src/backend/handshake_core/tests/locus_*.rs", "src/backend/handshake_core/tests/surreal_*.rs"],
+    "forbidden_paths": ["Any SQLite/PostgreSQL schema, authority, adapter or fallback", "Globally unique bare WP/MT labels as record identity", "Filesystem paths or workspace ids as project identity", "Implicit managed-project parentage from CKC/Tailor or another product-module hierarchy"],
+    "acceptance_criteria": [
+      "SCHEMAFULL SurrealDB definitions represent project nodes, allowed project kinds, parent/child relations, lifecycle state and project-owned taskboard/WP/MT relations with validated identifiers.",
+      "Canonical WP and MT keys include project_id and prevent collisions when two managed projects use the same human-readable WP or MT label.",
+      "Parent relations reject self-parenting, duplicate edges, cycles, missing parents and cross-account or unauthorized AccessSpace ancestry.",
+      "Workspace, worktree, VM and session bindings can move or be recreated without changing the managed project, WP or MT identity.",
+      "Product-module relations, including CKC as parent module of future Tailor, remain separate from managed-project forest relations unless an authorized operator creates an explicit project edge."
+    ],
+    "proof_targets": ["Real embedded SurrealDB schema and relation tests", "Collision tests using repeated WP/MT labels in sibling projects", "Cycle and denied-parent negative tests under authenticated record users", "Restart proof showing project identities survive replacement of every execution context"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/resource_broker/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["managed_project_kind_roundtrip", "project_qualified_wp_mt_collision_denial", "project_forest_cycle_and_scope_denial", "workspace_rebind_preserves_project_identity", "product_module_hierarchy_is_not_project_hierarchy"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Managed-project tree identity badges and execution-context bindings"], "argus_targets": ["Root/subproject/task/prototype hierarchy", "Repeated WP/MT labels shown with unambiguous project context", "Workspace binding separated from project identity"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Projects > Project kinds", "Projects > Parent and child projects", "Locus > Project-qualified identities", "Workspaces > Project bindings"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["managed-project records", "project parent/child relations", "project-owned WP and MT identities", "execution-context bindings"],
+    "identity_and_scope_contexts": ["authenticated record user", "account_id", "access_space_id", "project_id", "wp_id", "mt_id"],
+    "enforcement_boundaries": ["ResourceBroker authorizes every forest traversal and identity lookup.", "All privacy proof uses authenticated record users rather than root credentials."],
+    "same_project_private_resource_cases": ["Users in the same project but outside a private AccessSpace cannot resolve protected WP/MT identities or context bindings."],
+    "cross_account_negative_cases": ["Cross-account users cannot discover or attach to project nodes, parents, children, WPs, MTs or execution contexts."],
+    "derived_resource_non_widening_cases": ["Project-tree and identity-label projections cannot widen access beyond canonical project and AccessSpace permissions."],
+    "revocation_and_context_switch_cases": ["AccessSpace revocation or project-context switch invalidates prior forest traversal and identity-resolution results."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Denied parents and siblings do not leak names, counts, kinds, existence or repeated-id collision information."],
+    "expected_evidence": ["stable_project_owner_scope_linkage", "project_forest_default_deny", "same_project_private_identity_isolation", "cross_account_forest_denial", "derived_tree_non_widening", "context_switch_reauthorization"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record project creation, parent change, context binding and rejected identity mutations with project-qualified correlation."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose orphan, cycle, ambiguous identity and stale execution-context binding checks."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if forest-health watchers are unavailable at implementation time; never silently skip."}
+  ],
+  "risk_if_missed": "Bare identifiers and conflated hierarchies can attach work, permissions or automation to the wrong project and make recovery ambiguous.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_PROJECT_FOREST_V1", "risks": ["Two projects collide on MT-001.", "An unauthorized child reveals a hidden parent.", "A workspace deletion destroys project identity.", "A product-module hierarchy silently creates project ancestry."], "minimum_controls": ["Composite record identities and uniqueness tests.", "Record-user permission tests on every traversal.", "Separate binding records for execution contexts.", "Typed, operator-authorized parent mutations only."]},
+  "research_provenance": {"source": "MT-361 stable-main audit and approved 2026-08-27 managed-project framing; official SurrealDB record-id, relation, schema and permission documentation.", "selected_approach": "SCHEMAFULL project records with explicit graph relations, composite project-qualified work identities and separate execution-context bindings.", "rejected_options": ["Global bare WP/MT ids", "Filesystem-derived ancestry", "Workspace-as-project", "Module hierarchy reused as project hierarchy"]}
+}

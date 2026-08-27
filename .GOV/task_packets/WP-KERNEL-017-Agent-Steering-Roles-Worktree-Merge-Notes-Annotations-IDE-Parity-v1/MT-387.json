@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-387",
+  "title": "LoomNativeSearchIndexingAndRetrieval",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Rebuild Loom full-text, fuzzy, faceted and semantic retrieval through bounded Surreal-native indexes and queries.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-387.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-384"], "blocks": ["MT-391"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-384.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect stable-main Loom search, knowledge retrieval, vector, caption/transcript and UI surfaces.", "Measure current result semantics and query cardinality; classify Rust-side scans and N+1 fetches."],
+    "stop_conditions": ["MT-384 is not accepted.", "Search permission filtering would occur after candidate retrieval.", "Vector or text index configuration is unspecified or cannot be proven on real SurrealDB."]
+  },
+  "scope": {
+    "summary": "Provide one scoped search substrate across notes, code, documents, crawled images and creative assets while respecting module authority and project boundaries.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/knowledge_retrieval/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Whole-workspace in-memory filtering for ordinary search", "N+1 record hydration without a documented bound", "Search index as mutable source authority", "Post-query privacy filtering"],
+    "acceptance_criteria": [
+      "Full-text, prefix/fuzzy, tag/folder/type/date/location/source facets and semantic-vector retrieval use declared Surreal indexes and bounded deterministic queries.",
+      "Every result carries canonical source identity, project, domain kind, relevance explanation, provenance and scope without copying domain-authoritative content unnecessarily.",
+      "Authorization predicates apply before candidate materialization; counts, facets, snippets and ranking cannot reveal denied resources.",
+      "Index update, deletion, tombstone, rebuild and restart semantics converge from canonical Surreal records and EventLedger/outbox state.",
+      "Native search UI supports query, filters, pagination, empty/degraded/rebuilding states and keyboard navigation with stable Argus identifiers."
+    ],
+    "proof_targets": ["Run real-Surreal text/vector/facet tests with multi-project and denied-resource fixtures.", "Capture query plans and bounded-query budgets for large synthetic-but-real database fixtures.", "Run index corruption/rebuild/restart proof and Argus search-state matrix."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/surreal/search_store.rs", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/knowledge_retrieval/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_search_native_text_fuzzy_facets", "loom_search_native_vector_scope", "loom_search_denied_metadata_absent", "loom_search_rebuild_converges_after_restart", "loom_search_argus_keyboard_and_states"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Loom global/project search", "facets and result explanations", "index health/rebuild state"], "argus_targets": ["WP017.MT387.Search", "WP017.MT387.Facets", "WP017.MT387.Rebuild"], "expected_evidence": ["argus_tree", "keyboard_navigation_capture", "large-result_layout_capture", "renderer_console_scan", "accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Search and filters", "Loom > Index health and rebuild", "Privacy > Search result scope"], "expected_evidence": ["user_manual_diff", "no_context_search_and_rebuild_test", "query-scope explanation"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["search document", "vector", "snippet", "facet", "result count", "index projection"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_scope"],
+    "enforcement_boundaries": ["Surreal index query", "search repository", "result serializer", "native UI"],
+    "same_project_private_resource_cases": ["Private items do not influence shared-project counts, facets, snippets or ranks."],
+    "cross_account_negative_cases": ["Forged filters/cursors cannot search another account or project."],
+    "derived_resource_non_widening_cases": ["Index, embedding, snippet and result visibility cannot exceed canonical source scope."],
+    "revocation_and_context_switch_cases": ["Revocation removes items from new queries and invalidates stale cursors/subscriptions."],
+    "remote_saas_mcp_sync_cases": ["Remote search documents remain quarantined until locally authorized."],
+    "metadata_side_channel_cases": ["Counts, facets, rank shifts, timing, suggestions and typo correction do not reveal denied resources."],
+    "expected_evidence": ["search_privacy_matrix", "facet_count_non_disclosure_test", "revocation_cursor_test", "derived_index_scope_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "query, rebuild, retry, denial and result-count-safe events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "index version, lag, rebuild and bounded-query health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "search/UI hang correlation without query-content leakage"}
+  ],
+  "risk_if_missed": "Loom cannot connect large creative and IDE datasets efficiently, or search leaks restricted resources through metadata.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Native query still hydrates the workspace in Rust.", "Facet counts leak private items.", "Rebuild drops or duplicates entries.", "Vector and text ranking diverge unpredictably."], "minimum_controls": ["Query-plan and budget gates.", "Pre-materialization permissions.", "Restart/rebuild convergence proof.", "Deterministic ranking fixtures and explanations."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Official SurrealDB search and vector documentation", "Official SurrealDB EXPLAIN/query documentation", "Large knowledge-base search patterns", "Stable-main Loom search implementation"], "selected_approach": "Declared Surreal text/vector indexes, bounded scoped queries and reconstructable derived index state.", "rejected_options": ["Workspace-wide Rust scans", "External second search authority", "Post-query security filtering", "Opaque ranking without provenance"]}
+}

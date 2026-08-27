@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-397",
+  "title": "CKCLoomAuthorityBoundaryAndFuturePublisherFixtures",
+  "group": "Notes-Loom-CastKit integration",
+  "clause": "Lock CKC/Loom authority and navigation boundaries and prove future Tailor/Studio publisher compatibility with fixtures only.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-397.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-395", "MT-388"], "blocks": ["MT-398"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-383.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-388.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-395.json", ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json", ".GOV/codex/Handshake_Codex_v1.4.md"],
+    "current_source_discovery": ["Inspect accepted CKC, Loom, projection-registry and media authority contracts plus current Tailor/Studio stubs only for declared boundary expectations.", "Discover the stable main's actual navigation registry and typed fixture conventions before naming publisher fixture APIs."],
+    "stop_conditions": ["MT-395 or MT-388 is not accepted.", "Fixture work would implement Tailor/Studio product behavior.", "Authority ownership cannot be stated for every sample source and projection field."]
+  },
+  "scope": {
+    "summary": "CKC is the character-domain authority in SurrealDB and navigation parent of future Tailor. Tailor retains authority over garment, pose/cloth and solver outputs; Studio retains authority over its future creative-production records. Loom receives typed projections/relations only. This MT proves that boundary with publisher fixtures, not features.",
+    "allowed_paths": ["src/backend/handshake_core/src/atelier/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/tests/fixtures/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/src/**", ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json"],
+    "forbidden_paths": ["tailor-solver/** implementation", "Tailor product feature implementation", "Studio product feature implementation", "CKC mutation through Loom projection", "Shared mutable Loom/CKC/Tailor canvas identity"],
+    "acceptance_criteria": [
+      "A typed authority matrix assigns CKC character/sheet/moodboard/media fields, Loom projection fields, future Tailor domain/solver fields and future Studio domain fields to exactly one mutable owner.",
+      "Navigation registry declares CKC as the parent route for character-owned workflows and supports typed future child routes without moving Tailor domain/solver authority into CKC.",
+      "Tailor and Studio fixture publishers register with the generic Loom projection registry, publish sample typed records/relations and prove schema/version rejection without shipping runtime modules or UI features.",
+      "CKC moodboard and future specialized canvases retain separate authoritative layout identities while Loom renders explicit projections; regression proof prevents cross-canvas clobbering.",
+      "Source update/delete/revoke fixture events rebuild or hide Loom projections without permitting reverse domain mutation."
+    ],
+    "proof_targets": ["Validate the machine-readable field/command/navigation authority matrix with zero ambiguous owners.", "Run typed Tailor and Studio publisher fixture compatibility/version/revoke tests against real SurrealDB.", "Run CKC/Loom/specialized-canvas isolation and canonical navigation tests; source scan proves no Tailor/Studio feature implementation."],
+    "code_surfaces": ["src/backend/handshake_core/src/atelier/**", "src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/tests/fixtures/**", "src/frontend/handshake_native/src/**navigation**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["ckc_loom_authority_matrix_has_single_owner", "ckc_is_tailor_navigation_parent_not_solver_authority", "future_tailor_publisher_fixture_contract", "future_studio_publisher_fixture_contract", "specialized_canvas_projection_does_not_clobber"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "NO", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["CKC parent navigation", "Loom source-owner action", "fixture-only future publisher trace"], "argus_targets": ["WP017.MT397.CKCParentNavigation", "WP017.MT397.OpenInOwner"], "expected_evidence": ["argus_navigation_tree", "owner_route_steer_reobserve", "no_empty_future_product_surface_capture", "renderer_console_scan", "accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["CastKit > Authority and Loom projection", "CastKit > Future Tailor navigation boundary", "Loom > Domain publisher contract"], "expected_evidence": ["user_manual_diff", "no_context_authority_lookup_test", "fixture_publisher_contract_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["CKC domain record", "future publisher fixture", "Loom projection", "navigation relation", "specialized canvas projection"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_scope"],
+    "enforcement_boundaries": ["domain repository", "projection registry", "navigation resolver", "SurrealDB permissions", "native UI"],
+    "same_project_private_resource_cases": ["Parent navigation does not imply visibility into private child-domain resources."],
+    "cross_account_negative_cases": ["Forged source/owner/navigation identifiers fail closed."],
+    "derived_resource_non_widening_cases": ["Fixture and real projections preserve source-scope intersection."],
+    "revocation_and_context_switch_cases": ["Source revoke hides projections and invalidates owner navigation."],
+    "remote_saas_mcp_sync_cases": ["Future remote publishers must map identity and scope explicitly."],
+    "metadata_side_channel_cases": ["Owner module, child route, source type and projection status do not expose denied resources."],
+    "expected_evidence": ["authority_boundary_privacy_matrix", "fixture_projection_scope_test", "revocation_navigation_test", "metadata_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-SWARM-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "publisher registration, projection, navigation, denial and revoke events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "registry compatibility, owner ambiguity and route health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "navigation/render recovery correlation for shipped CKC/Loom surfaces"}
+  ],
+  "risk_if_missed": "Future Tailor and Studio work will either hard-code new Loom bridges or blur CKC, solver and projection authority before implementation begins.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["CKC parent navigation is misread as Tailor data ownership.", "Fixtures quietly become production features.", "Specialized canvas shares mutable identity with Loom.", "Projection edit mutates source authority."], "minimum_controls": ["Field/command authority matrix.", "Source scan forbidding future feature code.", "Separate typed canvas identities.", "Reverse-mutation rejection tests."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Operator-approved Handshake IDE/creative-tool architecture", "WP-KERNEL-010 Tailor stub authority", "Figma component/projection patterns", "Accepted MT-383/388/395 contracts"], "selected_approach": "CKC parent navigation with explicit domain ownership and generic typed fixture publishers for future Tailor/Studio compatibility.", "rejected_options": ["CKC owning Tailor solver/domain state", "Future feature implementation in WP-017", "Per-module Loom forks", "Shared mutable canvas authority"]}
+}

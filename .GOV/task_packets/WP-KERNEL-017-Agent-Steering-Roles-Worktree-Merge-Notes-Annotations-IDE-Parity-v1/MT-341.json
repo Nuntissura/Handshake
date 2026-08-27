@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Translate PostgreSQL-wired integration tests, fixtures and developer provisioning to real disposable SurrealDB.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-341.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -64,7 +64,8 @@
       "Every current PostgreSQL-wired product, fixture, launcher, installer and test surface is inventoried at the pinned product commit and each is translated to SurrealDB or retired with a recorded reason; brittle historical hit counts are not acceptance proof.",
       "Test helpers provision unique SurrealDB namespace/database scopes, authenticate as the correct record user for privacy tests and clean up exact scoped targets.",
       "No Docker/PostgreSQL service is a mandatory product or proof dependency; test configuration is quiet, bounded and Windows-safe.",
-      "Former PostgreSQL-specific targets and environment variables are renamed to semantic or SurrealDB names and CI/local commands exercise the same acceptance behavior."
+      "Former PostgreSQL-specific targets and environment variables are renamed to semantic or SurrealDB names and CI/local commands exercise the same acceptance behavior.",
+      "Real embedded-Surreal fixtures cover nested managed projects and Locus, native Loom search/relations, one Notes identity and journal, real CKC source projections and the selected MT-410 Turso ADOPT/REJECT outcome; no availability skip counts as green proof."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

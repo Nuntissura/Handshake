@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-368",
+  "title": "LC-MT368-CrossProjectDependenciesAndReadiness",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Implement explicit, authorized cross-project dependencies and readiness without merging project authorities.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-368.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-365", "MT-367"], "blocks": ["MT-370", "MT-371"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Add typed dependency relations between project-qualified projects, WPs and MTs across the managed-project forest. Same-project dependencies follow normal project authority. Cross-project dependencies require explicit authorization over both endpoints, record who approved the edge and expose only privacy-safe blocker information. Readiness is derived from canonical dependency terminal states and gates. Edges reject cycles across project boundaries. Removing, archiving or reparenting a project cannot silently erase or retarget an external dependency.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/resource_broker/**", "src/backend/handshake_core/src/mt_executor/**", "src/backend/handshake_core/src/api/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Implicit cross-project dependencies inferred from links, parentage or paths", "Authorization from only one endpoint", "Dependency targets identified by bare WP/MT labels", "Leaking denied blocker titles, paths or project existence", "SQLite/PostgreSQL dependency graph"],
+    "acceptance_criteria": [
+      "Dependencies use project-qualified endpoints and support project, WP and MT targets without ambiguous bare-id resolution.",
+      "Creating or removing a cross-project edge requires explicit authorization over both endpoint scopes and stores an attributable approval receipt atomically through MT-367.",
+      "Cycle detection spans the canonical visible graph and fails closed when authorization prevents proving safety; no cross-project cycle can be committed.",
+      "Readiness and blocked queries return accurate typed reasons while replacing denied remote detail with a non-enumerating authorized blocker token.",
+      "Archive, reparent and deletion operations surface affected external edges for resolution and never silently remove or retarget them."
+    ],
+    "proof_targets": ["Multi-project dependency CRUD tests in real SurrealDB", "Cross-project cycle and insufficient-visibility fail-closed tests", "Mixed-authority privacy tests for blocker responses", "Archive/reparent dependency-impact tests with atomic receipts"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/resource_broker/**", "src/backend/handshake_core/src/mt_executor/**", "src/backend/handshake_core/src/api/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["cross_project_dependency_requires_dual_authority", "cross_project_cycle_rejected", "readiness_privacy_safe_blocker", "dependency_qualified_identity_resolution", "project_lifecycle_preserves_external_edges"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Cross-project dependency editor", "Readiness/blocker details", "Lifecycle dependency-impact preview"], "argus_targets": ["Authorized cross-project edge", "Denied endpoint", "Privacy-safe remote blocker", "Cycle rejection", "Archive impact"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Dependencies", "Locus > Cross-project authorization", "Locus > Readiness and blockers", "Projects > Archive dependency impact"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["cross-project dependency edges", "dependency approval receipts", "readiness and blocker results", "lifecycle dependency-impact projections"],
+    "identity_and_scope_contexts": ["principal", "source_project_id", "target_project_id", "source_access_space_id", "target_access_space_id"],
+    "enforcement_boundaries": ["Both dependency endpoints are authorized independently.", "Graph traversal cannot widen scope through an authorized local edge."],
+    "same_project_private_resource_cases": ["A local project member without the target private AccessSpace cannot attach to or inspect that target."],
+    "cross_account_negative_cases": ["A dependency cannot cross accounts without explicit authority at both endpoints and cannot reveal a denied remote target."],
+    "derived_resource_non_widening_cases": ["Readiness, blocker and lifecycle-impact projections preserve endpoint visibility and use privacy-safe tokens for denied details."],
+    "revocation_and_context_switch_cases": ["Endpoint revocation or project-context switch invalidates dependency mutation authority and refreshes readiness visibility."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Denied remote targets are non-enumerating and leak no title, kind, status, owner, project name, count or timing detail."],
+    "expected_evidence": ["dual_endpoint_scope_linkage", "same_project_private_dependency_denial", "cross_account_dependency_negative_test", "blocker_projection_non_widening", "endpoint_revocation_readiness_refresh", "remote_target_metadata_non_leakage"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record edge mutation, endpoint scopes, authorization receipts, readiness revision and cycle verdict without denied metadata."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose dangling edges, cycles, stale readiness and unresolved lifecycle impacts."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if cross-project blocker and cycle watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Cross-project automation can run on ambiguous or unauthorized dependencies, leak private project data or deadlock through hidden cycles.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_CROSS_PROJECT_DEPENDENCIES_V1", "risks": ["A local user attaches to a private remote MT.", "A hidden edge completes a cycle.", "Bare ids resolve to the wrong project.", "Archive silently deletes an external blocker."], "minimum_controls": ["Dual-endpoint authorization.", "Fail-closed global cycle proof.", "Qualified endpoint types.", "Lifecycle impact receipts and explicit resolution."]},
+  "research_provenance": {"source": "Approved 2026-08-27 project/subproject/task/prototype use cases; MT-365/367 contracts; current Locus dependency gaps; official SurrealDB graph relation and permission documentation.", "selected_approach": "Explicit typed graph edges with dual-endpoint authorization, privacy-safe readiness and atomic receipts.", "rejected_options": ["Implicit ancestry dependencies", "Single-end authorization", "Bare-id edges", "Denormalized copied blocker state"]}
+}

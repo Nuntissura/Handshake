@@ -1,0 +1,60 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-372",
+  "title": "LC-MT372-LocusEndToEndDiagnosticsManualGate",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Prove the rebuilt Locus project forest end to end through product runtime, GUI, Argus, diagnostics and built-in manuals.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-372.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-371"], "blocks": [], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Execute the independent Locus acceptance gate after MT-371. In a clean Handshake runtime backed only by managed SurrealDB, create a representative forest containing a coding-app root, creative image-crawl subproject, CKC character-sheet task, LoRA prototype and a separate Tailor/ComfyUI-related project. Give each node its own taskboard/WPs/MTs, add authorized cross-project dependencies, run parallel claims and leases, use Notes/Loom typed backlinks, restart, corrupt a projection, repair it, archive/restore a node and prove privacy. The scenario illustrates capabilities without treating those example domain/module relations as mandatory project ancestry. Complete operator UI, Argus evidence, three-tier diagnostics and no-context human/model manual coverage.",
+    "allowed_paths": ["src/backend/handshake_core/**", "src/frontend/handshake_native/**", "app/**", "tests/**", "scripts/**", "installer/**", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/**"],
+    "forbidden_paths": ["SQLite/PostgreSQL runtime, fallback, fixture or proof path", "Mock-only or skipped end-to-end proof", "Administrative credentials used as privacy proof", "UI screenshots without canonical state reconciliation", "Treating example product modules as implicit project hierarchy"],
+    "acceptance_criteria": [
+      "A clean runtime creates, navigates and operates the representative root/subproject/task/prototype forest with independent project-owned taskboards/WPs/MTs and unambiguous project-qualified identities.",
+      "Authorized cross-project dependencies, readiness, parallel claims, leases and execution-context replacement behave correctly before and after restart with independent SurrealDB rereads.",
+      "Notes/Loom backlinks expose typed project/WP/MT connections while canonical lifecycle remains Locus; corrupting or deleting projections is detected and repaired without changing truth.",
+      "Authenticated users prove same-project, parent/child, cross-project and denied-AccessSpace behavior without names, counts, occupancy or blocker leakage.",
+      "Argus verifies readable/discoverable hierarchy, taskboards, blockers, occupancy, diagnostics and recovery; human and model manuals let a no-context operator reproduce normal and recovery workflows.",
+      "Independent scans prove zero connected SQLite/PostgreSQL Locus code, dependencies, fixtures, configuration or validation paths."
+    ],
+    "proof_targets": ["Full production-boundary Locus managed-project scenario against a clean managed SurrealDB", "Canonical state/event/outbox/projection reconciliation before and after restart", "Authenticated privacy matrix", "Argus visual suite at required states and viewport sizes", "Built-in human/model manual behavior-coverage validator", "Independent legacy-storage tripwire report"],
+    "code_surfaces": ["src/backend/handshake_core/**", "src/frontend/handshake_native/**", "app/**", "tests/**", "scripts/**", "installer/**"],
+    "expected_tests": ["locus_managed_project_forest_e2e", "locus_cross_project_parallel_restart_e2e", "locus_loom_projection_repair_e2e", "locus_record_user_privacy_matrix_e2e", "locus_argus_visual_acceptance", "locus_manual_behavior_coverage", "locus_surreal_only_tripwire"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Managed-project forest navigation", "Per-project taskboards and WP/MT detail", "Cross-project dependencies/readiness", "Claims/leases", "Loom backlinks", "Locus health/replay/projection recovery"], "argus_targets": ["Root/subproject/task/prototype tree", "Project-qualified repeated ids", "Ready and privacy-safe blocked states", "Parallel occupancy", "Stale and repaired projection", "Archive/restore", "Healthy/degraded/recovery-blocked diagnostics"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Projects > Complete managed-project workflow", "Locus > Complete operator workflow", "Locus > Parallel agent workflow", "Loom > Locus backlinks", "Diagnostics > Locus health", "Recovery > Replay and projection repair", "Model manual > No-context Locus operation"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["complete managed-project forest", "project taskboards/WPs/MTs", "dependencies and blockers", "claims and leases", "Loom projections", "GUI/Argus/manual/diagnostic evidence"],
+    "identity_and_scope_contexts": ["authenticated record user", "principal", "account_id", "access_space_id", "project_id", "wp_id", "mt_id", "session_id"],
+    "enforcement_boundaries": ["Production privacy proof uses authenticated record users only.", "GUI, search, rollups, blockers, diagnostics and Flight Recorder obey the same ResourceBroker authorization."],
+    "same_project_private_resource_cases": ["The E2E matrix proves a same-project user cannot access another private AccessSpace through any Locus or Loom surface."],
+    "cross_account_negative_cases": ["The E2E matrix proves cross-account denial across direct reads, forest navigation, taskboards, search, blockers, occupancy, diagnostics and recovery."],
+    "derived_resource_non_widening_cases": ["All GUI, Loom, taskboard, rollup, search, diagnostic and evidence projections preserve canonical source scope."],
+    "revocation_and_context_switch_cases": ["E2E revocation and Principal/project context switches invalidate prior queries, subscriptions, cached views, claims and recovery actions."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["No denied names, counts, ownership, occupancy, blocker detail, timing signals or hidden project existence leak through any operator/model surface."],
+    "expected_evidence": ["full_surface_owner_scope_linkage", "same_project_private_resource_matrix", "cross_account_negative_matrix", "all_derived_surfaces_non_widening", "revocation_and_context_switch_e2e", "argus_typed_privacy_state_inspection", "redacted_evidence_bundle"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-SWARM-002", "HBR-SWARM-004", "HBR-QUIET-001", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "All Locus project, governance, dependency, projection, claim, recovery and privacy-verdict events have stable correlated ids."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "The Locus diagnostic bundle exposes canonical health, ledger/outbox parity, projection drift, graph integrity, leases, subscriptions and legacy tripwires."},
+    {"tier": "palmistry", "status": "WIRED", "reason": "End-to-end closeout requires the available Palmistry health/watch surface to observe stalls, drift and recovery; any unavailable producer blocks this gate rather than being silently skipped."}
+  ],
+  "risk_if_missed": "Locus could pass component tests while remaining confusing, inaccessible, privacy-unsafe or unrecoverable in the actual multi-role IDE and creative-tool workflow.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_END_TO_END_GATE_V1", "risks": ["Mocked tests replace production proof.", "UI displays stale projection as truth.", "A denied project leaks through rollup/search/occupancy.", "Example domain hierarchy is mistaken for project hierarchy.", "Manual omits recovery or parallel-agent behavior."], "minimum_controls": ["Clean production-boundary SurrealDB run.", "Independent canonical reconciliation.", "Authenticated cross-surface privacy matrix.", "Explicit module-versus-project hierarchy labels.", "Argus and manual behavior-coverage gates."]},
+  "research_provenance": {"source": "Operator-approved 2026-08-27 Handshake IDE/creative-tool and managed-project examples; MT-361..371 contracts; current HBR visual/manual/diagnostic requirements; official SurrealDB production-boundary guidance.", "selected_approach": "One representative multi-domain project-forest scenario proving canonical state, parallel work, typed Loom links, privacy, recovery and operator/model usability.", "rejected_options": ["Component-only closeout", "Screenshot-only proof", "Admin-user privacy proof", "Separate SQL-era compatibility mode", "Hard-coded domain project hierarchy"]}
+}

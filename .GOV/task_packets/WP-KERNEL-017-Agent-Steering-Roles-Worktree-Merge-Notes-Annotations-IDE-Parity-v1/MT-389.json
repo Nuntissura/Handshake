@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-389",
+  "title": "LoomCanvasCollectionViewsAndWorkspaceParity",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Restore Loom canvas and table, kanban, calendar and gallery collection views as canonical projections over SurrealDB records.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-389.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-384"], "blocks": ["MT-391", "MT-396"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-384.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect stable-main Loom canvas, block collection, table, kanban, calendar and gallery models/routes/UI/tests.", "Identify shared-canvas collision history and exact ownership boundaries before implementation."],
+    "stop_conditions": ["MT-384 is not accepted.", "A view would own a second copy of domain data.", "Canvas identity or specialized domain projection ownership is ambiguous."]
+  },
+  "scope": {
+    "summary": "Make Loom's workspace views useful for IDE and creative projects while keeping them as query/layout projections. Specialized module canvases may adapt into Loom but cannot clobber shared Loom canvas state.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["View-local duplicate domain authority", "One canvas record reused incompatibly by Loom and a domain module", "UI-only sort/filter/layout persistence", "PostgreSQL/SQLite view fixtures"],
+    "acceptance_criteria": [
+      "Canvas nodes, edges, groups, viewport and layout revisions persist as project-qualified Surreal records referencing canonical Loom/domain identities.",
+      "Table, kanban, calendar and gallery views store typed view definitions while rows/cards/events/assets are derived from canonical records and relations.",
+      "Filters, grouping, sorting, pagination and drag/reorder produce deterministic atomic updates with conflict handling and restart parity.",
+      "Specialized domain canvases use explicit projection adapters and separate layout identities; no update can clobber another canvas type.",
+      "Native views expose empty/loading/conflict/denied/degraded states, keyboard navigation and stable Argus identifiers at representative sizes."
+    ],
+    "proof_targets": ["Run real-Surreal canvas/view persistence, conflict, query and restart tests.", "Run collision regression proving specialized and shared canvases remain isolated.", "Run Argus captures for table, kanban, calendar, gallery and canvas layouts including narrow/large states."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_canvas_surreal_restart_and_conflict", "loom_collection_views_reference_canonical_records", "loom_specialized_canvas_does_not_clobber_shared_canvas", "loom_view_sort_filter_pagination", "loom_views_argus_matrix"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Loom canvas", "table view", "kanban view", "calendar view", "gallery view"], "argus_targets": ["WP017.MT389.Canvas", "WP017.MT389.TableKanban", "WP017.MT389.CalendarGallery"], "expected_evidence": ["argus_tree", "drag_reobserve_capture", "responsive_layout_matrix", "renderer_console_scan", "accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Canvas", "Loom > Collection views", "Loom > View conflicts and recovery"], "expected_evidence": ["user_manual_diff", "no_context_create_view_test", "canvas recovery test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["canvas", "layout", "view definition", "derived row/card/event/gallery item"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_scope"],
+    "enforcement_boundaries": ["SurrealDB permissions", "view query builder", "canvas repository", "native UI"],
+    "same_project_private_resource_cases": ["Shared view definitions do not reveal private rows or canvas nodes."],
+    "cross_account_negative_cases": ["Forged view/canvas/source IDs fail closed."],
+    "derived_resource_non_widening_cases": ["Rows/cards/events/gallery items inherit canonical source scope."],
+    "revocation_and_context_switch_cases": ["Open views requery and remove revoked items without retaining stale previews."],
+    "remote_saas_mcp_sync_cases": ["Imported layouts do not import authority or grants."],
+    "metadata_side_channel_cases": ["Column values, group counts, calendar occupancy, thumbnails and positions do not reveal denied data."],
+    "expected_evidence": ["view_privacy_matrix", "derived_item_scope_test", "context_switch_argus_test", "count_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-QUIET-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "view/canvas create, mutate, conflict, deny and recovery events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "query, layout, conflict and projection health"},
+    {"tier": "palmistry", "posture": "IMPLEMENTED", "evidence": "render/freeze/crash state and reproducible recovery handles"}
+  ],
+  "risk_if_missed": "Creative and IDE users lose the visual organization layer, or specialized modules corrupt shared Loom canvas state.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["A view becomes a second data store.", "Two canvas types share an identity and overwrite each other.", "Large layouts freeze the UI.", "Private rows leak through counts or positions."], "minimum_controls": ["Reference-only view contract.", "Typed separate canvas identities.", "Bounded rendering and Argus stress matrix.", "Scope-aware derived queries."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Figma canvas and component-instance patterns", "Notion database view patterns", "Official SurrealDB relation/live-query documentation", "Stable-main Loom/CKC canvas regression evidence"], "selected_approach": "Typed Surreal layout/view definitions over canonical records with isolated specialized projection adapters.", "rejected_options": ["View-owned duplicate data", "Shared mutable canvas identity across domains", "UI-local persistence", "Unbounded rendering"]}
+}

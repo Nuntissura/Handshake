@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-393",
+  "title": "NotesRichDocumentLoomCanonicalIdentityAndJournalRepair",
+  "group": "Notes-Loom-CastKit integration",
+  "clause": "Bind Notes/RichDocument canonical identity to Loom blocks and repair Daily Journal lifecycle on SurrealDB without duplicate note authority.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-393.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-392", "MT-226"], "blocks": ["MT-394", "MT-398"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-226.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-392.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect stable-main WP-012 Notes, RichDocument, editor navigation, Daily Journal and Loom identity/lifecycle seams.", "Prove which record owns editable content, which Loom block projects it and how legacy duplicates are detected."],
+    "stop_conditions": ["MT-392 or MT-226 is not accepted.", "Notes/RichDocument canonical ownership is ambiguous.", "A migration would choose between duplicates without deterministic evidence or operator-visible conflict handling."]
+  },
+  "scope": {
+    "summary": "Notes is an operator-facing authoring module and RichDocument is canonical editable content; Loom provides graph, backlink, search and projection connectivity. Daily Journal must resolve to one canonical note per project/date/time-zone contract.",
+    "allowed_paths": ["src/backend/handshake_core/src/knowledge_document/**", "src/backend/handshake_core/src/knowledge_wiki/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["Separate mutable Loom copy of note body/content", "Date-only global Journal identity", "UI route as identity authority", "PostgreSQL/SQLite Notes bridge"],
+    "acceptance_criteria": [
+      "Each canonical RichDocument/Note has exactly one project-qualified Loom projection identity with typed source relation and repair/version metadata.",
+      "Content edits occur only through the Notes/RichDocument authority; Loom backlink/search/graph updates are atomic outbox-driven projections and never independent content copies.",
+      "Daily Journal lookup/create is idempotent for project, local date and configured time zone; legacy duplicates are detected, presented and repaired without data loss.",
+      "Archive, restore, merge, delete and revision operations preserve source/projection lineage and all incoming/outgoing Loom relations.",
+      "Native Notes and Loom routes open the same canonical document and expose projection/repair/conflict state with stable Argus identifiers."
+    ],
+    "proof_targets": ["Run real-Surreal canonical identity, concurrent journal creation, timezone boundary, duplicate repair and restart tests.", "Run edit-from-Notes/open-from-Loom and edit-from-Loom-route/open-from-Notes native interaction tests.", "Run Argus identity/conflict/repair state captures and independent Surreal reread."],
+    "code_surfaces": ["src/backend/handshake_core/src/knowledge_document/**", "src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["notes_loom_one_canonical_identity", "daily_journal_concurrent_idempotency_and_timezone", "notes_edit_updates_loom_projection_atomically", "notes_loom_duplicate_repair_preserves_lineage", "notes_loom_argus_navigation_identity"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Notes editor", "Loom document route", "Daily Journal", "identity conflict/repair dialog"], "argus_targets": ["WP017.MT393.NotesLoomIdentity", "WP017.MT393.DailyJournal", "WP017.MT393.DuplicateRepair"], "expected_evidence": ["argus_tree", "cross_route_steer_reobserve", "journal_timezone_capture", "renderer_console_scan", "layout_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Notes > Loom connectivity", "Notes > Daily Journal identity", "Notes > Duplicate repair and recovery"], "expected_evidence": ["user_manual_diff", "no_context_cross_route_edit_test", "journal_recovery_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["RichDocument", "Note", "Loom projection", "Daily Journal", "revision", "backlink"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_scope"],
+    "enforcement_boundaries": ["SurrealDB permissions", "Notes repository", "Loom projection builder", "navigation/API/native UI"],
+    "same_project_private_resource_cases": ["A private note and its Loom metadata remain hidden from another project member."],
+    "cross_account_negative_cases": ["Forged note/projection/journal IDs fail closed."],
+    "derived_resource_non_widening_cases": ["Backlinks, search entries, previews and journal projections inherit note scope."],
+    "revocation_and_context_switch_cases": ["Open editors, backlinks and projections react to revocation/context switch without stale content."],
+    "remote_saas_mcp_sync_cases": ["Imported/synced notes receive explicit local ownership and never import grants."],
+    "metadata_side_channel_cases": ["Titles, dates, backlink counts, revision counts and conflict states do not reveal denied notes."],
+    "expected_evidence": ["note_projection_permission_matrix", "journal_privacy_test", "derived_scope_test", "context_switch_argus_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "document/projection/journal create, merge, conflict, repair and denial events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "identity, duplicate, projection lag and journal health"},
+    {"tier": "palmistry", "posture": "IMPLEMENTED", "evidence": "editor crash/freeze recovery with canonical document handle"}
+  ],
+  "risk_if_missed": "Notes and Loom continue to create split identities, breaking backlinks, journals, navigation and future domain connectivity.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Loom silently copies editable note content.", "Timezone races create two journals.", "Repair discards one duplicate's history.", "Cross-route UI opens different documents."], "minimum_controls": ["One typed canonical source relation.", "Transactional uniqueness and concurrency tests.", "Lossless merge/repair preview.", "Argus cross-route identity proof."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Stable merged WP-KERNEL-012 Notes implementation", "Official SurrealDB unique/index/transaction documentation", "Obsidian Daily Notes and backlinks patterns", "MT-392 accepted Loom core"], "selected_approach": "Canonical RichDocument content with one typed Loom projection and deterministic project/date/time-zone journal identity.", "rejected_options": ["Dual mutable note copies", "Global date-only journal key", "UI-path identity", "Destructive duplicate deletion"]}
+}

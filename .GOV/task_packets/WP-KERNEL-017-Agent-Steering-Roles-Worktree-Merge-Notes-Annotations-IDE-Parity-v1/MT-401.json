@@ -1,0 +1,245 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-401",
+  "title": "WL-MT401-WpLocalStoreAuthorityExceptionGate",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Resolve the no-SQLite authority conflict before any Turso-backed implementation and either authorize a narrow governance-only evaluation lane or reject the candidate without product-code adoption.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "branch_contract": {
+    "approved_for_evaluation": "MT-402..409 may execute in dependency order under the exact signed exception; MT-410 then runs comparative production-boundary evaluation.",
+    "rejected": "MT-402..408 must not execute or change product code and receive validator-checked NOT_APPLICABLE_BY_MT401_REJECTION dispositions. MT-409 executes only its no-code structured rejection projection, then MT-410 closes with REJECT plus independent proof that no Turso dependency, file or runtime path exists.",
+    "no_implicit_approval": "A missing, stale, unsigned, ambiguous or over-broad exception selects the rejected branch."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-401.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
+    "global_product_authority": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "master_spec_pointer": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-334"
+    ],
+    "blocks": [
+      "MT-402",
+      "MT-410"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Decide whether Handshake may evaluate a Turso-backed WP-local working store without weakening SurrealDB/EventLedger authority. Current CX-503N/CX-503R/CX-503S and the Tailor and Studio SurrealDB overrides prohibit SQLite-family caches, adapters, fixtures and proof paths. No Turso crate, file, schema, broker or runtime path may be implemented until an operator-approved, versioned exception explicitly permits only a governance-local, non-authoritative, feature-gated evaluation. SurrealDB/EventLedger remains the sole main authority across managed projects. A missing, denied or ambiguous exception produces a durable REJECT decision and blocks MT-402 onward from implementation mode.",
+    "allowed_paths": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.205/spec-modules/03-local-first-infrastructure.md",
+      ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+      ".GOV/spec/master-spec-v02.205/spec-modules/13-tailor-cloth-garment-engine.md",
+      ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/**"
+    ],
+    "forbidden_paths": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "src/**",
+      "tests/**",
+      "Any Turso/libSQL/SQLite implementation before a signed exception",
+      "Any change that demotes SurrealDB/EventLedger authority"
+    ],
+    "acceptance_criteria": [
+      "The authority inventory cites the exact current no-SQLite clauses, including CX-503N/CX-503R/CX-503S, TAI-SDB-002, STU-SDB-002 and STU-OVR-003, and identifies every acceptance tripwire that a WP-local engine would otherwise violate.",
+      "A versioned operator-approved exception either exists or the candidate is rejected. An allowed exception is limited to governance-local WpLocalStore evaluation, declares storage_authority=CONDITIONAL_NON_AUTHORITY_ONLY, and cannot authorize product/domain authority, fallback, cache equivalence, fixtures-as-proof, cloud sync or dual writes.",
+      "The exception states that Notes, Loom, CKC/Atelier, Tailor, Studio and canonical Locus records never enter the WP-local store; their modules cannot depend on or directly open its engine or files.",
+      "The evaluation is feature-gated and default-off. A denied, missing, unsigned, stale or broader-than-requested exception fails closed before dependency resolution, database creation or runtime initialization.",
+      "The decision artifact records APPROVED_FOR_EVALUATION or REJECTED, authority version/hash, operator signature reference, exact allowed data classes, exact forbidden data classes, expiry/review posture and the MTs enabled by the result.",
+      "No source, Cargo, fixture or runtime file changes occur in this MT; independent diff proof confirms that the gate did not smuggle implementation into an authority decision."
+    ],
+    "proof_targets": [
+      "Validate the authority inventory against the current SPEC_CURRENT bundle and Handshake_Codex_v1.4.md by exact clause ID and content hash.",
+      "Run a negative contract test showing MT-402 implementation mode refuses missing, unsigned, expired and over-broad exceptions before any filesystem or dependency side effect.",
+      "Inspect the repository diff and dependency graph to prove no Turso/libSQL/SQLite source, Cargo feature, fixture, database file or runtime initialization was added by MT-401.",
+      "Retain a machine-readable hsk.wp_local_store_exception_decision@1 verdict with one of APPROVED_FOR_EVALUATION or REJECTED."
+    ],
+    "code_surfaces": [
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.205/spec-modules/13-tailor-cloth-garment-engine.md",
+      ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/**"
+    ],
+    "expected_tests": [
+      "Authority-clause hash and ID verification passes against current files.",
+      "Missing or invalid exception returns WP_LOCAL_STORE_AUTHORITY_EXCEPTION_REQUIRED and creates no file.",
+      "Over-broad exception permitting canonical content, cloud sync or module-local caches is rejected.",
+      "Repository dependency and file scans remain free of new Turso/libSQL/SQLite implementation artifacts."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Authority decision only; MT-409 owns the eventual diagnostic surface if evaluation proceeds. A structured TraceProjection must still expose the verdict and blocker code."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Storage authority > SurrealDB remains canonical",
+      "WP-local working store > Evaluation authority and non-authority boundary"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "WpLocalStore evaluation exception",
+      "conditional capability grant",
+      "evaluation decision artifact"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "canonical SurrealDB project membership",
+      "signed exception gate",
+      "filesystem capability boundary"
+    ],
+    "same_project_private_resource_cases": [
+      "The exception never grants access to a same-project resource beyond the principal's existing ResourceGrant."
+    ],
+    "cross_account_negative_cases": [
+      "A principal cannot use the exception, project_id or wp_id to open another account's project resources."
+    ],
+    "derived_resource_non_widening_cases": [
+      "The capability grant and decision artifact preserve the intersection of source scopes and add no content access."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation, project switch or AccessSpace switch invalidates evaluation access and leaves no local residue on rejection."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "The exception authorizes no remote SaaS, MCP, Turso Cloud, replica or sync access."
+    ],
+    "metadata_side_channel_cases": [
+      "Decision artifacts expose no secrets, tokens, encryption keys, sensitive paths or unauthorized resource existence."
+    ],
+    "expected_evidence": [
+      "cross_project_exception_scope_negative_test",
+      "secret_and_path_redaction_scan",
+      "no_side_effect_on_reject_test",
+      "record_user_and_resource_broker_boundary_review"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "The exception verdict and authority hashes must be attributable and replayable without becoming a product mutation."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Blocked evaluation must expose exact conflicting clause IDs and a stable reason code."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "NOT_APPLICABLE",
+      "reason": "This MT starts no background job or process."
+    }
+  ],
+  "risk_if_missed": "Implementing before the exception would knowingly violate current authority, introduce a hidden SQLite-family dependency, and make every downstream proof invalid.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "An exception is worded broadly enough to legalize a second authority or product cache.",
+      "A dependency or empty database file is added before the gate and dismissed as harmless scaffolding.",
+      "Tailor or Studio no-SQLite clauses are ignored because the store is described as governance infrastructure.",
+      "A rejected decision is treated as permission to continue provider-neutral implementation that already embeds engine assumptions."
+    ],
+    "minimum_controls": [
+      "Exact clause inventory and signed versioned decision before code.",
+      "Default-off fail-closed gate with no side effects.",
+      "Explicit allowlist and domain-content denylist in the exception.",
+      "Independent diff and dependency inspection before MT-402 is unblocked."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso SDKs",
+        "url": "https://docs.turso.tech/sdk/introduction",
+        "finding": "The official matrix distinguishes the turso Rust crate for local embedded use from legacy/remote libSQL paths; this supports evaluating only the local crate and rejecting cloud/legacy modes."
+      },
+      {
+        "title": "SurrealDB Rust SDK",
+        "url": "https://surrealdb.com/docs/reference/rust",
+        "finding": "The official SDK supports typed local or remote authority access, authentication and live queries; it remains Handshake's main authority client."
+      },
+      {
+        "title": "SurrealDB permissions and row-level security",
+        "url": "https://surrealdb.com/docs/learn/security/authorization/permissions-and-row-level-security",
+        "finding": "Table permissions default to NONE for record users and must remain part of canonical privacy proof."
+      }
+    ],
+    "project_sources": [
+      ".GOV/codex/Handshake_Codex_v1.4.md CX-503N/CX-503R/CX-503S",
+      ".GOV/spec/master-spec-v02.205/spec-modules/13-tailor-cloth-garment-engine.md TAI-SDB-002",
+      ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md STU-SDB-002 and STU-OVR-003"
+    ],
+    "selected_approach": "Authority-first go/no-go gate; only a narrowly signed governance-local evaluation can proceed, while SurrealDB/EventLedger remains sole authority.",
+    "rejected_options": [
+      "Implicit exception by calling Turso a cache",
+      "libSQL compatibility adapter",
+      "Turso Cloud or sync",
+      "Implementation-first prototype",
+      "Any domain-module-local database"
+    ]
+  }
+}

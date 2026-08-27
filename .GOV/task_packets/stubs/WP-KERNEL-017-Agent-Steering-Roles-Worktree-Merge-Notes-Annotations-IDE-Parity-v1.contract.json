@@ -36,7 +36,7 @@
     "format_version": "",
     "activation_required": true,
     "user_signature_required": true,
-    "user_signature": "ilja150820261604",
+    "user_signature": "<pending>",
     "refinement_required_before_execution": true
   },
   "build_order": {
@@ -46,11 +46,13 @@
     "risk_tier": "HIGH",
     "depends_on": [
       "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 (shipped base: SwarmCoordinator, model_runtime lanes, official_cli_bridge, worktree_vm_registry, flight_recorder, process_ledger, model_lane EventLedger)",
-      "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 (native rich_editor + code_editor + diff_engine; TS-editor removal and IDE-parity closure must sequence AFTER its parity evidence is recorded)"
+      "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 (native rich_editor + code_editor + diff_engine; TS-editor removal and IDE-parity closure must sequence AFTER its parity evidence is recorded)",
+      "WP-CKC-posekit-overhaul (Atelier/Castkit Codex authority, PoseKit and the merged CKC-to-Loom integration baseline must validate and merge before WP017 grounding)"
     ],
     "blocks": [
       "Future Studio annotation rollout (annotation core seam ships here)",
       "Future Stage annotation rollout (annotation core seam ships here)",
+      "Future Tailor and Studio activation until the shared managed-project, Locus identity and Loom publisher-registry seams are proven",
       "Handshake self-hosting / repo-governance ACP-duty takeover (product replaces .GOV/tools/handshake-acp-bridge)",
       "Handshake Roles catalogue for future projects built by Handshake"
     ]
@@ -77,13 +79,17 @@
     "governance_artifact_stance": "Repo-governance-light for this stub + task-board row. All product changes (src/, app/ removal) go through the full WP lifecycle once activated: refinement (with red-team + research basis per GLOBAL-BUILD-077/081), USER_SIGNATURE, official packet contract, MT plan. Spec enrichments discovered at refinement propagate back into the master spec per GLOBAL-BUILD-083.",
     "operator_decisions_20260721": "- SINGLE WP: operator explicitly folded all remediation + new capability into ONE work packet; do not split without operator approval.\n- MT plan may be very large; the MT count is uncapped and any specific number is arbitrary - the binding constraint is that each MT is detailed enough for a no-context model to implement (GLOBAL-BUILD-064).\n- Everything built in Rust.\n- Handshake will take over repo-governance ACP duty in the near future; workflows must match what Anthropic/OpenAI harnesses already provide so the operator can run the same workflows through Handshake.\n- Handshake Roles: operator will make streamlined, Handshake-fitted successors of the current startup inject-prompt role protocols; used for Handshake and for future projects built by Handshake.\n- Straight model-to-model communication is required specifically for steering.\n- Notes ships annotations first; the concept expands to Studio and Stage in later WPs.\n- The legacy TS/React notes editor must be removed so nothing accidentally builds on it.\n- Operator judges the native notes module still far from professional-grade IDE (VS Code/Antigravity baseline).",
     "research_basis": "- SOURCES CHECKED (2026-07-21, two web research passes; full dossiers in session record):\n  - Steering/harness mechanics: code.claude.com CLI reference + headless + Agent SDK streaming docs (verified flags: --input-format stream-json, --output-format stream-json, --replay-user-messages, --session-id, -r/--resume, --fork-session, --append-system-prompt(-file), --agent/--agents, --json-schema, --bare, capabilities feature-detection incl. interrupt_receipt_v1; queued mid-run user messages since v2.1.205; SIGTERM/exit-143 supervisor semantics); anthropics/claude-code issues #24594 (stream-json under-documentation acknowledged) and #41665 + Roasbeef claude-agent-sdk-go cli-protocol.md (reverse-engineered control_request/interrupt); OpenAI Codex non-interactive + CLI reference (codex exec --json JSONL events, exec resume, --output-schema, sessions under ~/.codex/sessions) and codex app-server JSON-RPC guides (thread/start-resume-fork-rollback, turn/start, TURN/STEER, turn/interrupt, approval requests, stdio default / experimental WebSocket); agentclientprotocol.com (JSON-RPC over stdio, session/new-load-prompt-update-cancel, stop reasons, NO mid-turn steer, 40+ agents, official Rust crates agent-client-protocol + agent-client-protocol-schema, Claude adapter @agentclientprotocol/claude-agent-acp).\n  - Methodology: Anthropic 'Building Effective Agents' (workflow taxonomy: prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer; simplicity-first) and 'How we built our multi-agent research system' (orchestrator + parallel subagents; every worker prompt carries objective / output format / tool guidance / task boundaries / effort budget; synchronous execution named as their own steering gap; durable resume + rainbow deployments; LLM-as-judge evals); Claude Code sub-agents + hooks docs (agent definitions as role layer, SubagentStart/Stop + TaskCompleted hook events, background completion notifications, injection-scan of subagent reports).\n  - Annotations: github.com/modem-dev/hunk + hunk.dev (MIT, ~7.5k stars, active; agent-context sidecar JSON: changeset/file summaries + annotations {newRange, summary, rationale, author}; live-session comment targets hunk|hunkNumber|oldLine|newLine; NO drift handling; free-form author only); umputun/revdiff (explicit orphan-on-change policy); Gerrit CommentInfo/RobotCommentInfo (path+side+range anchor; robot_id/robot_run_id/properties/fix_suggestions; ported-comments re-anchoring); GitHub PR review comments API (line+side modern anchor; legacy diff-offset position deprecated; outdated-comment failure mode); reviewdog (filter modes for out-of-diff findings); Hypothesis fuzzy anchoring (multi-selector: position + quote + context, diff-match-patch Bitap fallback chain, perf caveat); git-notes (rejected: commit granularity, orphaning); VS Code Comment API (CommentController/CommentThread UI contract).\n  - Rust reuse: similar (already in Cargo.toml, Myers), imara-diff, diffy-imara (unified-patch parse), diff-match-patch-rs / dissimilar (fuzzy re-anchor engine), mpatch; agent-client-protocol crate.\n- SELECTED APPROACH: internal session model = Thread/Turn/Item with steer+interrupt (Codex app-server shape); transports = Claude stream-json bidirectional stdio first, Codex app-server JSON-RPC second, ACP crate as cross-agent abstraction; roles = append-overlay layer injected by harness at spawn; worker exit = structured output schema + hook-style completion events; annotations = hunk sidecar concept + Gerrit anchor/provenance + Hypothesis multi-selector re-anchoring on diff-match-patch-rs.\n- REJECTED: codex proto (superseded); MCP as steering plane (poll-only, side-channel at best); one-shot -p --resume chaining as the steering story (the architecture being remediated); full --system-prompt replacement for roles (destroys agentic scaffolding); git notes as annotation storage; diff-offset anchors (deprecated field-wide); reusing hunk's TypeScript code directly (concept-only reuse); relying on undocumented control-protocol subtypes beyond interrupt.\n- VALIDATION PLAN SEED: live runtime proof per lane (steer mid-run, interrupt, resume), end-to-end MT loop with zero polling, Windows-specific resume tests, CI contract tests pinned per CLI version range, annotation drift tests (edit-under-annotation, orphan determinism), removal build-green proof, parity-matrix completeness check.",
-    "microtask_plan_note": "Preservation-first status: the original 105 objectives remain, the 2026-08-14 VM-fleet and durable-workspace additions remain, and the 2026-08-15 SurrealDB authority family MT-331..346 is added. Only WP017 MTs with database assumptions are patched to SurrealDB; database-neutral MTs are not rewritten. EventLedger persistence fully transfers to SurrealDB and no-SQLite requirements remain. USER_SIGNATURE ilja150820261604 covers this full preserved-plus-expanded scope. Activation remains gated by ACTIVATION_READINESS.json, grounding refresh and official packet promotion."
+    "microtask_plan_note": "Preservation-first status: all prior 139 objectives remain. The approved 2026-08-27 expansion adds Locus Surreal recovery MT-361..372, Loom Surreal recovery MT-381..392, Notes-Loom-Castkit integration MT-393..398 and conditional Turso WpLocalStore evaluation MT-401..410, for 179 MTs. SurrealDB plus EventLedger remains the sole main authority. Historical USER_SIGNATURE ilja150820261604 ends at MT-346; the expanded contract requires a fresh operator signature after stable-main grounding and spec enrichment. Activation remains gated by ACTIVATION_READINESS.json and official packet promotion."
   },
   "activation_contract": {
     "may_start_coder": false,
     "may_start_validator": false,
     "required_activation_steps": [
       "create_or_refresh_refinement",
+      "verify_wp_012_wp_1_mmo_and_wp_ckc_validated_and_merged_to_stable_main",
+      "pin_and_reaudit_post_merge_main",
+      "apply_next_master_spec_enrichment_for_managed_projects_locus_loom_and_conditional_wp_local_store",
+      "obtain_fresh_user_signature_for_expanded_scope",
       "create_official_work_packet_contract",
       "move_task_board_entry_from_stub_to_ready_for_dev"
     ]
@@ -100,7 +106,11 @@
       "The TS notes editor can be deleted before native parity evidence exists (FALSE - removal is gated on recorded WP-KERNEL-012 parity evidence).",
       "Annotations can silently re-attach to wrong lines after edits (FALSE - explicit ORPHANED degradation is mandatory).",
       "Worktree merge-back may force-push or auto-resolve conflicts (FALSE - conflicts surface in the native merge UI; no force path).",
-      "A model author string is sufficient provenance for machine annotations (FALSE - robot/session/run identifiers are mandatory)."
+      "A model author string is sufficient provenance for machine annotations (FALSE - robot/session/run identifiers are mandatory).",
+      "A workspace identifier can stand in for a project identifier (FALSE - managed projects and execution workspaces are distinct typed entities).",
+      "Project hierarchy and product-module hierarchy can share relation semantics (FALSE - both are independently typed, authorized and validated).",
+      "Loom may copy Notes, CKC, Tailor or Studio source authority (FALSE - Loom stores typed graph/search projections and links to owning-module records).",
+      "A Turso WP-local database can become a second authority or content cache (FALSE - it is conditional, bounded and disposable; SurrealDB remains canonical)."
     ],
     "minimum_controls": [
       "Keep execution_authority=NON_EXECUTION_STUB until refinement + USER_SIGNATURE + official packet.",
@@ -111,7 +121,10 @@
       "TS-notes-editor removal MTs hard-sequenced after recorded parity evidence; build/tests must stay green through removal.",
       "Annotation provenance mandatory for model authors; anchor-drift tests required; ORPHANED state explicit.",
       "Merge-back never force-pushes; conflict resolution is operator-visible in the native merge UI.",
-      "MT coverage: no silent truncation - every planned gap row and lifecycle behavior gets an MT or an explicit DEFERRED verdict."
+      "MT coverage: no silent truncation - every planned gap row and lifecycle behavior gets an MT or an explicit DEFERRED verdict.",
+      "Project-qualified identities, authenticated record-user checks and explicit shared-access edges prevent cross-project leakage.",
+      "Locus domain mutation, EventLedger receipt and projection intent are atomic; files and parent rollups are repairable projections.",
+      "Turso is evaluated against Surreal alternatives and may ship only after a recorded ADOPT verdict and a narrow authority exception."
     ]
   },
   "scope_additions_2026_08_14": {
@@ -168,6 +181,34 @@
       "details": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json#surrealdb_pivot_2026_08_15"
     },
     "packet_wide_supersession": "Only database-affected WP017 MTs embed a binding SurrealDB translation contract; database-neutral MTs are preserved unchanged. Pre-pivot PostgreSQL snippets in affected MTs are non-executable semantic inventories and cannot authorize implementation or proof. MT-331..334 are hard predecessors for every storage-writing MT; activation must materialize the dependency edges before coder launch.",
-    "activation_note": "USER_SIGNATURE ilja150820261604 covers the full preserved scope plus MT-331..346. Official packet promotion remains required, and WP017 cannot close without MT-346 real-runtime proof."
+    "activation_note": "USER_SIGNATURE ilja150820261604 covers the preserved scope only through MT-346. Official packet promotion remains required, and WP017 cannot close without MT-346 real-runtime proof."
+  },
+  "scope_additions_2026_08_27": {
+    "recorded_by": "KERNEL_BUILDER",
+    "recorded_at_utc": "2026-08-27T00:00:00Z",
+    "operator_approval_evidence": "Operator stated 'I approve of everything' and supplied the additional Handshake IDE-plus-creative-suite and nested-project framing in the live task. This is scope approval evidence, not a fabricated signature token.",
+    "historical_signature": {
+      "value": "ilja150820261604",
+      "scope_end": "MT-346",
+      "current_expanded_scope_status": "FRESH_SIGNATURE_PENDING_AFTER_POST_MERGE_GROUNDING_AND_SPEC_ENRICHMENT"
+    },
+    "product_framing": "Handshake is both a professional IDE/model harness and a creative-production environment comparable in breadth to raster, vector, collaborative-design, 3D-character and garment-authoring tools. A managed root project may contain software, crawl/index, dataset, character, LoRA, ComfyUI, Tailor, Studio, prototype, task and other typed child projects without splitting canonical database authority.",
+    "managed_project_contract": {
+      "authority": "Handshake-managed SurrealDB plus EventLedger",
+      "hierarchy": "A typed managed-project forest supports root projects, subprojects, task projects and prototypes. Workspaces are execution contexts attached to projects, not aliases for project identity.",
+      "locus": "Each managed project node owns canonical taskboards, work packets and microtasks through project-qualified Locus identity; parent summaries are derived rollups and cross-project dependencies are explicit authorized edges.",
+      "loom": "Loom is the project-qualified connective graph, search and backlink layer across Notes, code, assets, datasets, CKC and future module projections while owning no source-module content by copying it.",
+      "module_hierarchy": "CKC is the product-navigation parent of future Tailor. Tailor retains its own domain and solver authority. Studio remains its currently specified peer/top-level module unless separately changed. Managed-project and product-module hierarchies are distinct."
+    },
+    "new_mt_families": [
+      {"family": "LR Locus Surreal recovery and managed-project graph", "mt_range": "MT-361..MT-372", "closure_mt": "MT-372"},
+      {"family": "LM Loom Surreal semantic recovery", "mt_range": "MT-381..MT-392", "closure_mt": "MT-392"},
+      {"family": "LI Notes-Loom-Castkit integration", "mt_range": "MT-393..MT-398", "closure_mt": "MT-398"},
+      {"family": "TW Turso WP-local-store evaluation", "mt_range": "MT-401..MT-410", "closure_mt": "MT-410"}
+    ],
+    "turso_boundary": "Turso is evaluated behind provider-neutral WpLocalStore, exactly one optional store per project_id plus wp_id, shared across sessions and microtasks and owned by one Handshake broker. It is non-authoritative and forbidden for Locus canonical state, EventLedger, Notes, Loom, CKC, Tailor, Studio, canonical artifacts or verdicts. MT-401 rejection short-circuits MT-402..408 to validator-checked NOT_APPLICABLE, routes through MT-409's no-code rejection projection and makes MT-410 close with REJECT from no-change proof. Approved evaluation requires MT-402..409 and MT-410 comparative evidence; even ADOPT requires separate rollout approval.",
+    "old_stub_rule": "Preserve historical Locus, Loom, media, downloader, ASR, transcript, poster-frame, Tailor and Studio intent as traced requirement inputs. Fold still-required behavior into MT-361..398 without rewriting or deleting historical artifacts and without copying obsolete SQLite/PostgreSQL implementation assumptions.",
+    "hard_predecessor": "No product implementation or final path/schema grounding may begin until WP-KERNEL-012, WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 and WP-CKC-posekit-overhaul are validated and merged into a new stable main. That merged commit is the only product-code source of truth for final refinement.",
+    "activation_note": "The stub remains non-executable. Post-merge audit, current research, next Master Spec enrichment, HBR refresh, fresh signature, official packet promotion, taskboard/build-order/traceability synchronization and worktree creation remain mandatory."
   }
 }

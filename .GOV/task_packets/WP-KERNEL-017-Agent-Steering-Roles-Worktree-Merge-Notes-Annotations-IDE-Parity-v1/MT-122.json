@@ -14,7 +14,7 @@
   "title": "ML-MT122-MtDispatchComposer",
   "group": "ML MT dispatch lifecycle",
   "created_at_utc": "2026-07-21T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-122.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
@@ -28,7 +28,8 @@
     "status": "PENDING",
     "depends_on": [
       "MT-083",
-      "MT-121"
+      "MT-121",
+      "MT-372"
     ],
     "blocks": [],
     "active": false,
@@ -54,6 +55,7 @@
       "compose_worker_payload output contains role overlay, verbatim objective (scope.summary), verbatim boundaries (allowed_paths + forbidden_paths), the hsk.mt_signal@1 schema as required output format, and verbatim proof-target expectations — each asserted by test.",
       "dispatch() launches ONLY via SwarmCoordinator::spawn_session; grep-level proof that mt_dispatch.rs contains no process spawn primitive (no Command::new / tokio::process) of its own.",
       "Every dispatch produces an MtDispatchRecord with payload_sha256 and exactly one dispatch event observable on a RecordingSwarmSink.",
+      "Dispatch authority resolves from canonical SurrealDB Locus state for one exact project_id/wp_id/mt_id. A raw file projection or unqualified WP/MT identifier cannot dispatch, claim or lease work, and cross-project mismatch is denied.",
       "cargo build -p handshake_core green; new tests green."
     ],
     "proof_targets": [

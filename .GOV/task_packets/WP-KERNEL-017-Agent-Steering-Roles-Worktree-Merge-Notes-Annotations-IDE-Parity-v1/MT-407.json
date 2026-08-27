@@ -1,0 +1,251 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-407",
+  "title": "WL-MT407-CrashCorruptionAndCanonicalRecovery",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Recover a disposable WP-local working store from crashes, corruption or loss without rolling back, reconstructing or overriding canonical SurrealDB and EventLedger truth.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-406.",
+    "rejected": "Do not edit product code or create local recovery fixtures; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-407.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-406",
+      "MT-335",
+      "MT-336"
+    ],
+    "blocks": [
+      "MT-408"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make WpLocalStore safely disposable. Implement a fault matrix spanning local stage, canonical transaction, independent canonical readback and local acknowledgment. On missing or corrupt local state, quarantine the candidate database and reconstruct only allowlisted working records from canonical SurrealDB receipts, EventLedger watermarks and reproducible project files. SurrealDB remains the sole recovery authority; recovery never derives canonical truth from Turso, rewinds EventLedger, invents a successful promotion or restores prohibited domain content.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/recovery.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/broker.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/promotion.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/records.rs",
+      "src/backend/handshake_core/src/storage/surreal/**",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/tests/wp_local_store_recovery.rs"
+    ],
+    "forbidden_paths": [
+      "Treating the local database, its WAL or its backup as canonical recovery authority",
+      "Rewinding, deleting or rewriting canonical SurrealDB records or EventLedger events",
+      "Reconstructing Notes, Loom, CKC, Tailor, Studio or canonical Locus content in WpLocalStore",
+      "Opening or repairing a corrupt database in place before immutable quarantine evidence exists",
+      "Inferring promotion success from logs, cached projections or a local promoted flag"
+    ],
+    "acceptance_criteria": [
+      "A deterministic fault-injection matrix covers process termination before and after local stage, SurrealDB transaction begin/commit, independent canonical readback and local acknowledgment, with an expected state for every boundary.",
+      "After restart, every staged or ambiguous promotion is reconciled through a fresh authenticated SurrealDB and EventLedger read using project-qualified idempotency and receipt keys; exactly one canonical artifact/event is observed and no retry can duplicate it.",
+      "A missing or corrupt local database is closed, fingerprinted and moved to a project-relative quarantine location before a replacement is created; diagnostics identify the WP and recovery reason without recording secrets, content or machine-absolute paths.",
+      "Rebuild restores only the MT-404 allowlist from canonical receipt/watermark state and reproducible project files, while prohibited Notes/Loom/CKC/Tailor/Studio/Locus canonical content remains absent.",
+      "Unpromoted local-only working records are reported as lost or quarantined and never silently represented as recovered canonical work; the operator receives a typed recovery result.",
+      "Recovery cannot roll back canonical revisions or EventLedger heads, and stale local candidates remain reviewable but non-promotable until restaged against the current canonical revision.",
+      "Repeated recovery and restart are idempotent: the replacement locator is stable, broker ownership remains singular on Windows, and no second database, canonical event or promotion receipt appears."
+    ],
+    "proof_targets": [
+      "Run the complete crash matrix against real local Turso storage and real SurrealDB, including commit-success/readback-failure and readback-success/local-ack-failure.",
+      "Corrupt and remove a WP-local database fixture, then prove immutable quarantine and an allowlist-only rebuild from independently read canonical state.",
+      "Restart recovery twice with the same project/WP and prove one broker, one locator, stable canonical receipts and no duplicate EventLedger append.",
+      "Seed forbidden domain-shaped payloads in a damaged fixture and prove they are neither trusted nor reconstructed.",
+      "Move the project root before recovery and prove the relative locator and quarantine remain portable."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/recovery.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/broker.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/promotion.rs",
+      "src/backend/handshake_core/src/storage/surreal/**",
+      "src/backend/handshake_core/tests/wp_local_store_recovery.rs"
+    ],
+    "expected_tests": [
+      "crash_matrix_preserves_exactly_once_canonical_promotion",
+      "commit_before_ack_reconciles_from_independent_surreal_read",
+      "corrupt_store_is_quarantined_before_allowlist_rebuild",
+      "missing_store_reports_unpromoted_local_loss_truthfully",
+      "recovery_never_rewinds_surreal_or_event_ledger",
+      "recovery_rejects_forbidden_domain_payload_reconstruction",
+      "repeated_restart_keeps_one_windows_broker_and_one_wp_store"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Recovery is a backend state machine. MT-409 exposes its typed, redacted status and governed operator actions."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Crash and restart recovery",
+      "WP-local working store > Corruption quarantine and rebuild",
+      "WP-local working store > What cannot be recovered"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "corrupt or missing WP-local database",
+      "quarantine artifact",
+      "canonical promotion receipts and watermarks",
+      "allowlist rebuild output"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "source receipt scope"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "authenticated canonical recovery reread",
+      "immutable quarantine",
+      "allowlist-only rebuild"
+    ],
+    "same_project_private_resource_cases": [
+      "Recovery cannot reconstruct a same-project private source that the recovering principal cannot currently access."
+    ],
+    "cross_account_negative_cases": [
+      "A database copied from another project/account is rejected regardless of filename, schema or compatible key reference."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Rebuild scope is the intersection of current project/WP access and the canonical source receipt scope."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or AccessSpace switch during recovery cancels handles and prevents further rebuild or canonical readback."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "Recovery performs no remote Turso, SaaS, MCP or replica retrieval."
+    ],
+    "metadata_side_channel_cases": [
+      "Quarantine and recovery diagnostics contain hashes and typed reasons, never content, credentials, keys, paths or unauthorized existence."
+    ],
+    "expected_evidence": [
+      "record_user_recovery_reread",
+      "cross_project_database_recovery_denied",
+      "quarantine_metadata_redaction",
+      "rebuild_scope_non_escalation"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "Recovery projects canonical receipt reconciliation and local quarantine/rebuild transitions under one correlation chain without making Flight Recorder authoritative."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Crash boundary, corruption classification, quarantine identity and canonical reconciliation require structured diagnostics."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Long-running verification and rebuild jobs expose bounded progress, cancellation, broker generation and terminal result."
+    }
+  ],
+  "risk_if_missed": "A corrupt or ambiguous local database can be mistaken for truth, duplicate canonical events after restart, hide lost work, or leak resources across project/WP boundaries.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "A commit succeeds immediately before a crash and retry appends a duplicate event.",
+      "A corrupt database is repaired in place and untrusted rows become accepted state.",
+      "A renamed database from another project passes locator checks.",
+      "Recovery claims unpromoted local-only work was restored when no canonical proof exists."
+    ],
+    "minimum_controls": [
+      "Fresh authenticated canonical reconciliation by idempotency key and receipt.",
+      "Immutable quarantine before replacement or inspection-driven rebuild.",
+      "Embedded project/WP identity plus locator and scope verification.",
+      "Typed LOST_LOCAL_ONLY outcome and allowlist-only reconstruction."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso SQL pragmas",
+        "url": "https://docs.turso.tech/sql-reference/pragmas",
+        "finding": "Official configuration includes checkpoint and durability controls relevant to reproducible crash and corruption testing, but these do not make local storage canonical."
+      },
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "The local SDK exposes transactions and database configuration required for a fault-tested disposable adapter and restart harness."
+      },
+      {
+        "title": "SurrealDB manual transactions",
+        "url": "https://surrealdb.com/docs/reference/rust/concepts/transaction",
+        "finding": "Canonical mutation recovery must reconcile the committed SurrealDB transaction rather than infer it from local state."
+      }
+    ],
+    "project_sources": [
+      "MT-335 SurrealDB EventLedger atomic append",
+      "MT-336 replay/projection restart",
+      "MT-406 Surreal promotion and independent readback"
+    ],
+    "selected_approach": "Quarantine local uncertainty, independently reconcile canonical SurrealDB truth, then rebuild only disposable allowlisted state.",
+    "rejected_options": [
+      "In-place trust of corrupt rows",
+      "Local backup as canonical recovery source",
+      "Canonical rollback to match local state",
+      "Silent claim that unpromoted local-only work was recovered"
+    ]
+  }
+}

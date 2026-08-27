@@ -1,0 +1,247 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-406",
+  "title": "WL-MT406-SurrealPromotionAndIndependentReadback",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Promote project-qualified local intents through one atomic SurrealDB domain-artifact-plus-EventLedger transaction and independently re-read canonical truth before acknowledging promotion locally.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-405.",
+    "rejected": "Do not edit product code or create a promotion path; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-406.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-405"
+    ],
+    "blocks": [
+      "MT-407"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the only permitted local-to-canonical boundary. WpLocalStore may stage a project-qualified generic artifact/evidence/validation result intent with promotion_id, idempotency key, payload hash, canonical target and expected revision. Handshake then performs exactly one SurrealDB transaction that claims idempotency, writes the canonical artifact/result, appends the EventLedger event and advances the required head/revision. After commit, a separate request-scoped SurrealDB client independently re-reads the canonical record and event. Only a matching readback may mark the local intent promoted. This is not a distributed transaction, and local state can neither roll back nor override SurrealDB.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/promotion.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/records.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/broker.rs",
+      "src/backend/handshake_core/src/storage/surreal/**",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/tests/wp_local_store_promotion.rs"
+    ],
+    "forbidden_paths": [
+      "Direct local-to-domain writes outside the canonical SurrealDB repository",
+      "Two-step SurrealDB domain/event commits",
+      "Marking promoted from local commit success or logs",
+      "Promotion of Notes, Loom, CKC, Tailor, Studio or canonical Locus payloads through WpLocalStore",
+      "Last-write-wins overwrite of newer canonical revisions"
+    ],
+    "acceptance_criteria": [
+      "Every intent requires promotion_id, idempotency_key, project_id, wp_id, allowed record_class, payload/artifact hash, canonical target, expected revision, actor, AccessSpace and source-scope hash; malformed or forbidden intents fail before either store mutates.",
+      "One SurrealDB transaction atomically writes the permitted canonical artifact/evidence/result, EventLedger append, idempotency claim and revision/head update; fault injection exposes all or none.",
+      "The transaction executes through the canonical typed SurrealDB repository with authenticated record-user/ResourceBroker authorization. WpLocalStore never receives a SurrealDB owner credential or raw repository bypass.",
+      "A fresh independent SurrealDB read after commit verifies project/WP scope, canonical record ID, event ID, hash, revision, actor and idempotency receipt. Local state is marked promoted only after all fields match.",
+      "If commit succeeds but readback or local acknowledgment fails, retry with the same idempotency key returns the existing canonical receipt and performs no second mutation/event; the local intent remains safely retryable.",
+      "If canonical revision advanced since staging, promotion fails with STALE_CANONICAL_PRECONDITION and preserves the local candidate for review; it cannot overwrite or merge automatically.",
+      "Promotion paths reject domain canonical content prohibited by MT-402/404, even when wrapped as generic artifacts or drafts."
+    ],
+    "proof_targets": [
+      "Run real SurrealDB fault injection before/after idempotency claim, canonical write, EventLedger append, head update, commit, independent readback and local acknowledgment.",
+      "Repeat each crash point with the same promotion ID and prove exactly one canonical record/event and one stable receipt.",
+      "Use a separately constructed authenticated SurrealDB client for readback and prove it does not reuse transaction-local, cache or local-store state.",
+      "Race a staged intent against a newer canonical revision and prove fail-closed preservation without overwrite.",
+      "Attempt prohibited Notes/Loom/CKC/Tailor/Studio/Locus payload promotions and prove pre-transaction rejection."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/promotion.rs",
+      "src/backend/handshake_core/src/storage/surreal/**",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/tests/wp_local_store_promotion.rs"
+    ],
+    "expected_tests": [
+      "surreal_domain_artifact_event_commit_is_atomic",
+      "independent_readback_required_before_local_promoted",
+      "retry_after_commit_before_ack_is_exactly_once",
+      "stale_canonical_revision_cannot_be_overwritten",
+      "forbidden_domain_payloads_rejected_before_transaction",
+      "readback_uses_authenticated_fresh_surreal_client"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Promotion engine is backend-only. MT-409 shows redacted pending/readback/stale/retry state and the canonical receipt link."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Promotion to SurrealDB",
+      "WP-local working store > Retry, stale state and independent verification"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "project-qualified promotion intents",
+      "canonical SurrealDB artifact/result records",
+      "EventLedger events",
+      "idempotency receipts"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "actor",
+      "source_scope_hash"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "authenticated record-user SurrealDB repository",
+      "atomic canonical transaction",
+      "fresh independent canonical readback"
+    ],
+    "same_project_private_resource_cases": [
+      "A same-project principal cannot promote or read back a target outside the source resource grant."
+    ],
+    "cross_account_negative_cases": [
+      "Cross-project idempotency replay and target probing are denied without disclosing target existence."
+    ],
+    "derived_resource_non_widening_cases": [
+      "The promoted resource scope is the intersection of source scopes and cannot be widened by intent metadata."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or AccessSpace switch before commit/readback fails closed and leaves the intent retryable but unacknowledged."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "Promotion targets only the canonical Handshake SurrealDB repository and creates no remote Turso/MCP sync route."
+    ],
+    "metadata_side_channel_cases": [
+      "Readback errors, receipt IDs, revisions and diagnostics do not reveal unauthorized target existence."
+    ],
+    "expected_evidence": [
+      "record_user_promotion_and_readback",
+      "cross_project_idempotency_replay_denied",
+      "derived_scope_intersection_proof",
+      "unauthorized_target_non_disclosure"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "Promotion projects the canonical EventLedger receipt and local state transition with one correlation chain; Flight Recorder remains derived."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Stale precondition, commit/readback mismatch and retry posture require precise structured diagnostics."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Queued promotion/retry jobs expose bounded progress, cancellation and broker identity."
+    }
+  ],
+  "risk_if_missed": "A split commit or local self-acknowledgment can claim promotion without canonical truth, duplicate EventLedger events, or overwrite newer SurrealDB state.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "The same repository/client or transaction response masquerades as independent readback.",
+      "Commit succeeds, local ack fails, and retry duplicates the event.",
+      "A generic artifact wrapper bypasses the domain denylist.",
+      "A stale local draft overwrites a newer canonical revision."
+    ],
+    "minimum_controls": [
+      "Single SurrealDB transaction with idempotency and EventLedger.",
+      "Fresh authenticated independent readback before local ack.",
+      "Expected-revision compare-and-set and no automatic merge.",
+      "Pre-transaction domain record-class validation and crash matrix."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "SurrealDB manual transactions",
+        "url": "https://surrealdb.com/docs/reference/rust/concepts/transaction",
+        "finding": "Official Rust guidance supports multi-statement begin/commit/cancel transactions; canonical record, event, idempotency and head changes belong in one transaction."
+      },
+      {
+        "title": "SurrealDB Rust begin method",
+        "url": "https://surrealdb.com/docs/reference/rust/methods/begin",
+        "finding": "The transaction handle provides commit and cancel semantics; readback after commit must use a separate request-scoped client path."
+      },
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "Local transactions can durably stage intents, but they cannot participate atomically with SurrealDB; the protocol therefore uses idempotency and independent canonical verification."
+      }
+    ],
+    "project_sources": [
+      "MT-335 SurrealDB EventLedger atomic append",
+      "MT-336 replay/projection restart",
+      "GLOBAL-CLOSURE-040..047 independent proof gate"
+    ],
+    "selected_approach": "Local stage, one canonical SurrealDB transaction, fresh independent SurrealDB readback, then local acknowledgment.",
+    "rejected_options": [
+      "Distributed transaction claim",
+      "Two-step domain/event writes",
+      "Local commit as promotion proof",
+      "Last-write-wins",
+      "Domain content promotion through a generic wrapper"
+    ]
+  }
+}

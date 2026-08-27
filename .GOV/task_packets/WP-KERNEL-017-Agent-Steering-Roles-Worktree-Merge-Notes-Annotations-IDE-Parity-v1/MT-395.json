@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-395",
+  "title": "CKCAtelierRealSourceToLoomProjectionAdapter",
+  "group": "Notes-Loom-CastKit integration",
+  "clause": "Implement real CKC/Atelier source-to-Loom projections and relations without synthetic blocks or duplicated CKC authority.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-395.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-392"], "blocks": ["MT-396", "MT-397", "MT-398"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-383.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-392.json", ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect the stable merged WP-CKC product source, typed CKC/Atelier records, intake items, characters, sheet versions, moodboards, albums, folders, media and existing Loom bridge.", "Use real persisted CKC/Atelier fixtures; do not infer completeness from synthetic Loom blocks or route names."],
+    "stop_conditions": ["MT-392 is not accepted or WP-CKC is not merged and validated.", "CKC/Atelier canonical entity identity is ambiguous.", "Projection design would make Loom independently mutable domain authority."]
+  },
+  "scope": {
+    "summary": "Connect actual CKC/Atelier Surreal records to Loom. CKC remains the domain authority and future navigation parent for Tailor; Loom owns cross-domain graph/search/backlink projections only. This MT does not implement Tailor or Studio features.",
+    "allowed_paths": ["src/backend/handshake_core/src/atelier/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["Synthetic ckc_character or ckc_moodboard Loom blocks as proof", "Loom-owned copy of CKC character/sheet/moodboard state", "CKC-only duplicate asset/note/tag/folder database", "Tailor or Studio feature implementation"],
+    "acceptance_criteria": [
+      "The typed projection registry supports real CKC/Atelier sources including intake item, character, character-sheet version, moodboard, pose/media reference, album, folder and source record as present in stable main.",
+      "Creating/updating/deleting/restoring a real CKC source produces an idempotent Loom projection and typed native relation with source identity, project, version, provenance and repair metadata.",
+      "CKC remains the sole mutable domain authority in SurrealDB; Loom projection mutation APIs reject attempts to edit CKC-owned fields and navigate to the owning CKC surface.",
+      "Existing Loom/AssetStore/Atelier media references are reused; no duplicate file, note, tag, album or folder authority is introduced.",
+      "Cross-project source projections require explicit shared-access relations and preserve source scope through search, graph, preview and diagnostics."
+    ],
+    "proof_targets": ["Run real-Surreal CKC source create/update/delete/restore to Loom projection tests using stable-main domain APIs.", "Run negative tests proving synthetic blocks cannot satisfy projection linkage and Loom cannot mutate CKC authority.", "Run cross-project share/revoke, restart and projection repair tests with independent Surreal reread."],
+    "code_surfaces": ["src/backend/handshake_core/src/atelier/**", "src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["ckc_real_source_projects_to_loom", "ckc_projection_is_idempotent_and_repairable", "loom_cannot_mutate_ckc_domain_authority", "ckc_projection_reuses_asset_and_organization_identity", "ckc_projection_cross_project_revoke"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["CKC source projection status", "Loom domain-source inspector", "open-in-CKC navigation", "projection repair state"], "argus_targets": ["WP017.MT395.CKCProjection", "WP017.MT395.OpenInCKC", "WP017.MT395.ProjectionRepair"], "expected_evidence": ["argus_tree", "real_source_steer_reobserve", "source_version_and_repair_capture", "renderer_console_scan", "layout_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["CastKit > Loom connectivity", "Loom > CastKit projections", "CastKit > Projection repair"], "expected_evidence": ["user_manual_diff", "no_context_real_source_link_test", "projection_repair_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["CKC/Atelier source", "Loom projection", "character sheet version", "moodboard", "asset relation", "album/folder projection"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_scope"],
+    "enforcement_boundaries": ["CKC repository", "Surreal projection registry", "ResourceBroker", "Loom graph/search/API/native UI"],
+    "same_project_private_resource_cases": ["Private CKC characters, sheets and media remain hidden from another member despite shared project membership."],
+    "cross_account_negative_cases": ["Forged CKC source/projection/asset IDs fail closed."],
+    "derived_resource_non_widening_cases": ["Loom projection, thumbnail, backlink and search scope cannot exceed CKC source scope."],
+    "revocation_and_context_switch_cases": ["Open projections and cached CKC previews invalidate after grant/context change."],
+    "remote_saas_mcp_sync_cases": ["Crawler/remote source identity never grants local CKC/Loom access."],
+    "metadata_side_channel_cases": ["Character names, sheet versions, album counts, thumbnails and projection status do not reveal denied sources."],
+    "expected_evidence": ["ckc_projection_privacy_matrix", "derived_projection_scope_test", "cross_project_revoke_test", "metadata_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-VIS-001", "HBR-VIS-002", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "source/project/update/delete/repair/deny events with CKC and Loom identities"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "projection version, lag, dangling source and repair health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "CKC/Loom navigation and media-render recovery correlation"}
+  ],
+  "risk_if_missed": "CKC and Loom remain connected only by synthetic test blocks or narrow intake-item links, preventing real character/media reuse.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Synthetic blocks pass tests without real CKC source linkage.", "Loom becomes mutable CKC authority.", "Asset/tag/folder state is duplicated.", "Projection repair overwrites domain data."], "minimum_controls": ["Real CKC API fixtures.", "Source-authority mutation rejection tests.", "Canonical asset/organization identity assertions.", "Projection-only repair invariant."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Stable merged WP-CKC source and MT-010 contract", "Official SurrealDB relation/permission documentation", "MT-383 typed projection registry", "Digital asset and character-pipeline provenance patterns"], "selected_approach": "Typed repairable Loom projections over real CKC/Atelier Surreal records while CKC retains domain authority.", "rejected_options": ["Synthetic Loom-only CKC fixtures", "Dual mutable CKC copies", "New CKC-only asset database", "Tailor/Studio implementation"]}
+}

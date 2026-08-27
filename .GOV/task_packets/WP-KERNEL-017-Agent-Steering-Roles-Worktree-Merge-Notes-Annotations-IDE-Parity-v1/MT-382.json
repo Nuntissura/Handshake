@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-382",
+  "title": "LoomTypedSurrealSchemaAndRepositoryBoundary",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Define and implement the typed SurrealDB schema, rollout and repository boundary for the complete Loom semantic contract.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-382.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-381"], "blocks": ["MT-383"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md", ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"],
+    "current_source_discovery": ["Inspect MT-381's accepted matrix and rediscover stable-main Loom schema, rollout, repository, API and EventLedger seams.", "Record exact table/relation names and repository traits before editing; candidate paths are not authority."],
+    "stop_conditions": ["MT-381 lacks an accepted validator verdict.", "Stable merged main is unavailable.", "A required behavior has no typed Surreal representation or privacy rule."]
+  },
+  "scope": {
+    "summary": "Replace Loom's residual relational assumptions with SCHEMAFULL Surreal records and relation tables behind typed repositories. Preserve EventLedger atomicity and make every record project-qualified.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/storage/mod.rs", "src/backend/handshake_core/src/event_ledger/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Direct Surreal SDK calls outside the owning repository boundary", "PostgreSQL/sqlx/SQLite runtime or test authority", "Unqualified global Loom record identity", "Product behavior outside the MT-381 parity matrix"],
+    "acceptance_criteria": [
+      "SCHEMAFULL records and typed relation tables represent every core Loom entity and required edge with project_id, ownership, AccessSpace and lifecycle fields.",
+      "All mutations use typed repositories and commit canonical state, EventLedger receipt and projection outbox atomically in SurrealDB.",
+      "Schema rollout is ordered, restart-safe and idempotent against a fresh embedded SurrealDB and an already-upgraded database.",
+      "Repository APIs preserve ordering, pagination, uniqueness, tombstone and optimistic-concurrency semantics from the accepted parity matrix.",
+      "Source tripwires reject PgPool, PostgresDatabase, SQLx and SQLite authority in Loom product or proof code."
+    ],
+    "proof_targets": ["Run Loom repository integration tests against a real disposable embedded SurrealDB namespace/database.", "Run fresh-rollout, repeated-rollout, restart and atomic-failure tests.", "Run source and Cargo-feature tripwires for forbidden database dependencies."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/surreal/schema.surql", "src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_schema_fresh_and_repeat_rollout", "loom_repository_atomic_event_append", "loom_record_identity_is_project_qualified", "loom_legacy_database_tripwire"]
+  },
+  "gui_obligation": {"operator_surface_required": "NO", "gui_creation_required": "NO", "argus_required": "NO", "trace_projection_required_when_non_ui": true, "surfaces": [], "argus_targets": [], "expected_evidence": ["repository trace projection", "schema rollout diagnostics"], "not_applicable_reason": "Backend storage foundation; consuming UI MTs own visual proof."},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Storage and lifecycle", "Recovery > Loom schema rollout"], "expected_evidence": ["user_manual_diff", "manual_self_consistency_test", "no_context_recovery_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["Loom records", "Loom relations", "EventLedger receipts", "projection outbox"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant"],
+    "enforcement_boundaries": ["SurrealDB table and field permissions", "ResourceBroker", "typed Loom repositories"],
+    "same_project_private_resource_cases": ["Membership alone does not grant access to a private Loom record."],
+    "cross_account_negative_cases": ["Forged record and relation IDs fail closed."],
+    "derived_resource_non_widening_cases": ["Outbox and EventLedger payload visibility cannot exceed source visibility."],
+    "revocation_and_context_switch_cases": ["Stale repository context fails after revocation or AccessSpace switch."],
+    "remote_saas_mcp_sync_cases": ["Remote identifiers are data selectors, never local grants."],
+    "metadata_side_channel_cases": ["Denied records do not leak via existence, conflicts, rollout diagnostics or counts."],
+    "expected_evidence": ["record_user_permission_matrix", "same_project_private_test", "derived_event_scope_test", "revocation_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "typed mutation, denial, rollout and recovery events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "schema version, rollout and repository health without content leakage"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "crash-safe operation identity and recovery handles"}
+  ],
+  "risk_if_missed": "Loom can remain a PostgreSQL-shaped adapter over SurrealDB and preserve the migration defects WP-017 is meant to repair.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Relations are stored as opaque foreign-key fields.", "Administrative credentials hide permission defects.", "Event append splits from mutation.", "Rollout retry corrupts schema or data."], "minimum_controls": ["Native relation-table tests.", "Record-user privacy proof.", "Injected-failure atomicity tests.", "Fresh and repeated real-Surreal rollout proof."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Official SurrealDB Rust SDK", "Official SurrealDB DEFINE TABLE/FIELD and permissions documentation", "Official SurrealDB transaction documentation", "MT-381 stable-main inventory"], "selected_approach": "SCHEMAFULL project-qualified records, native relations, typed repositories and atomic EventLedger/outbox writes.", "rejected_options": ["PostgreSQL-shaped tables as the design target", "Raw SDK calls across product modules", "Dual database authority", "Mock-only proof"]}
+}

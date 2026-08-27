@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-370",
+  "title": "LC-MT370-ScopedOccupancyClaimsLeasesAndScheduling",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Coordinate project-qualified occupancy, claims, leases and scheduling across parallel Handshake agents and execution contexts.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-370.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-367", "MT-368", "MT-369"], "blocks": ["MT-371"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Integrate Locus with WP-1 multi-model orchestration so claims, occupancy and leases are canonical project-qualified SurrealDB records. A claim binds a Principal/model/session and execution context to one project/WP/MT target without making the workspace or session authoritative. Scheduling uses canonical readiness from MT-368/369, respects cross-project dependencies and project capacity policy, and remains safe under parallel models. Lease acquire/renew/release/expire/steal operations are transactional, fenced and EventLedger-correlated through MT-367.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/mt_executor/**", "src/backend/handshake_core/src/swarm_orchestration/**", "src/backend/handshake_core/src/agent_sessions/**", "src/backend/handshake_core/src/session_checkpoint/**", "src/backend/handshake_core/src/storage/surreal/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Session-local or workspace-local claim authority", "Lease keys without project-qualified target", "Scheduling from stale UI/file projections", "Unfenced lease stealing", "SQLite/PostgreSQL occupancy stores"],
+    "acceptance_criteria": [
+      "Claims and leases use project-qualified targets and bind owner Principal, model/session identity, execution context, epoch/fence, expiry and canonical revision.",
+      "Concurrent acquisition allows one valid owner per exclusive target; stale owners cannot renew, complete or release after a newer fence is issued.",
+      "Scheduling consumes canonical readiness and authorized dependency state, never GUI/taskboard projections or hidden remote details.",
+      "Session/workspace loss expires or recovers execution bindings without deleting project/WP/MT identity or terminal work receipts.",
+      "Cross-project parallel scheduling respects per-project policy and AccessSpace boundaries while remaining attributable, observable and recoverable."
+    ],
+    "proof_targets": ["Concurrent real-Surreal claim/lease race tests", "Fence and stale-owner denial tests", "Cross-project scheduling readiness/privacy suite", "Session crash, workspace loss and restart recovery tests", "Argus multi-agent occupancy and conflict captures"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/mt_executor/**", "src/backend/handshake_core/src/swarm_orchestration/**", "src/backend/handshake_core/src/agent_sessions/**", "src/backend/handshake_core/src/session_checkpoint/**", "src/backend/handshake_core/src/storage/surreal/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["project_qualified_exclusive_claim", "lease_fencing_rejects_stale_owner", "scheduler_uses_canonical_readiness", "execution_context_loss_preserves_work_identity", "cross_project_parallel_scope_isolation"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Project/WP/MT occupancy", "Lease conflict and recovery", "Cross-project scheduler status"], "argus_targets": ["Parallel agents on sibling projects", "Exclusive-target conflict", "Expired/recovered lease", "Workspace loss with project intact"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Claims and leases", "Orchestration > Project scheduling", "Workspaces > Execution bindings", "Recovery > Lost sessions and leases"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["occupancy records", "claims", "leases and fences", "scheduler inputs", "session/workspace execution bindings"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "project_id", "wp_id", "mt_id", "session_id", "lease_fence"],
+    "enforcement_boundaries": ["Schedulers receive only authorized canonical readiness and occupancy.", "Lease workers cannot widen project scope through a session or workspace binding."],
+    "same_project_private_resource_cases": ["A same-project agent outside a private AccessSpace cannot see, acquire or diagnose its protected work occupancy."],
+    "cross_account_negative_cases": ["Cross-account agents cannot claim, renew, release, schedule or infer another account's work."],
+    "derived_resource_non_widening_cases": ["Scheduler queues, occupancy UI and diagnostics retain the source claim/lease authorization scope."],
+    "revocation_and_context_switch_cases": ["Revocation or session/project context switch invalidates lease authority; stale fences cannot mutate the target."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Conflict messages do not reveal denied owner identity, model, session, lease timing, queue position or project label."],
+    "expected_evidence": ["claim_lease_owner_scope_linkage", "same_project_private_occupancy_isolation", "cross_account_claim_denial", "scheduler_projection_non_widening", "revocation_and_fence_test", "conflict_metadata_non_leakage"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-SWARM-002", "HBR-SWARM-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record claim/lease/schedule transitions, fences, canonical target and anonymized conflict outcome."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose stale leases, renewal failures, occupancy conflicts, scheduler starvation and orphan execution bindings."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if lease-stall and scheduler-starvation watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Parallel models can duplicate work, settle the wrong project's MT or retain authority after losing their lease.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_OCCUPANCY_LEASES_V1", "risks": ["Two sessions acquire one MT.", "A stale owner completes after lease theft.", "Scheduler uses a stale projection.", "A session binding exposes another project."], "minimum_controls": ["Transactional unique claims.", "Monotonic fencing.", "Canonical readiness reads.", "Scoped ResourceBroker scheduling inputs."]},
+  "research_provenance": {"source": "Merged WP-1 MMO surfaces required by MT-361; MT-367/368/369 contracts; current MT executor/swarm/session models; established lease-fencing patterns and official SurrealDB transaction guidance.", "selected_approach": "Canonical scoped leases with fencing, project-qualified identity and readiness-driven scheduling.", "rejected_options": ["Session-local locks", "Workspace ownership", "Projection-driven scheduler", "Lease renewal without fences"]}
+}

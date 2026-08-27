@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-390",
+  "title": "LoomAIProposalImportExportAndPromotionSafety",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Restore reviewed AI proposals and safe import/export without bypassing Loom or domain authority.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-390.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-384"], "blocks": ["MT-391"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-384.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect stable-main loom_ai suggestion/promotion, document import/export and review UI/tests.", "Trace every proposal state transition to canonical mutation and EventLedger boundaries."],
+    "stop_conditions": ["MT-384 is not accepted.", "AI output can mutate canonical state without explicit accepted promotion.", "Import/export identity, scope or provenance is ambiguous."]
+  },
+  "scope": {
+    "summary": "Keep AI useful for linking, labeling and structuring Loom content while proposals remain reviewable and canonical Surreal mutations remain explicit, attributable and reversible.",
+    "allowed_paths": ["src/backend/handshake_core/src/loom_ai/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/knowledge_ingestion/**", "src/backend/handshake_core/src/api/loom.rs", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**", "src/frontend/handshake_native/tests/**"],
+    "forbidden_paths": ["AI direct write to canonical Loom/domain records", "Implicit acceptance from viewing or navigation", "Import that trusts external IDs/grants", "Export containing unauthorized linked resources"],
+    "acceptance_criteria": [
+      "AI suggestions for links, tags, summaries, organization and projections persist as typed pending proposals with model/run provenance, scope and deterministic idempotency keys.",
+      "Accept/reject/edit/batch promotion is explicit; accepted promotion atomically writes canonical Surreal state plus EventLedger receipt and remains replay/retry safe.",
+      "Imports validate schema/version, remap project-qualified identity, quarantine unresolved sources and cannot import permissions or overwrite canonical records silently.",
+      "Exports include only authorized canonical resources and typed relation/provenance manifests; derived content never widens source scope.",
+      "Native review UI clearly distinguishes proposed, edited, accepted, rejected, stale, conflict and failed-promotion states with Argus proof."
+    ],
+    "proof_targets": ["Run real-Surreal proposal lifecycle and atomic promotion failure/retry tests.", "Run adversarial import/export identity, scope, duplicate and malformed-bundle tests.", "Run Argus review/batch/conflict/failure state matrix."],
+    "code_surfaces": ["src/backend/handshake_core/src/loom_ai/**", "src/backend/handshake_core/src/storage/surreal/**loom**", "src/backend/handshake_core/src/knowledge_ingestion/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_ai_proposal_requires_explicit_promotion", "loom_ai_promotion_atomic_and_idempotent", "loom_import_quarantines_unresolved_sources", "loom_export_intersects_source_scope", "loom_ai_review_argus_states"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Loom AI proposal inbox", "proposal diff/review", "import validation", "export scope preview"], "argus_targets": ["WP017.MT390.ProposalReview", "WP017.MT390.PromotionFailure", "WP017.MT390.ImportExport"], "expected_evidence": ["argus_tree", "accept_reject_reobserve", "batch_and_conflict_capture", "renderer_console_scan", "layout_accessibility_review"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > AI proposals", "Loom > Import and export", "Loom > Promotion failure recovery"], "expected_evidence": ["user_manual_diff", "no_context_review_and_recover_test", "import_export_safety_test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["AI proposal", "promotion receipt", "import bundle", "export bundle", "model context"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "model_run_id"],
+    "enforcement_boundaries": ["model context builder", "proposal repository", "promotion transaction", "import/export serializer", "native UI"],
+    "same_project_private_resource_cases": ["Proposals and exports exclude private resources not granted to the acting Principal."],
+    "cross_account_negative_cases": ["Forged proposal, bundle or project identifiers fail closed."],
+    "derived_resource_non_widening_cases": ["Suggestions, summaries, diffs and exports inherit the intersection of their sources."],
+    "revocation_and_context_switch_cases": ["Stale proposals cannot promote after source scope or actor context changes without revalidation."],
+    "remote_saas_mcp_sync_cases": ["External model/service identity never grants local access; imported content is quarantined."],
+    "metadata_side_channel_cases": ["Proposal counts, titles, diffs, model context and export manifests do not reveal denied resources."],
+    "expected_evidence": ["proposal_scope_matrix", "stale_promotion_denial_test", "export_non_widening_test", "model_context_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-SWARM-004", "HBR-VIS-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "proposal, decision, promotion, import/export, denial and recovery events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "proposal queue, stale state, promotion and quarantine health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "model/review UI crash correlation and replay handles"}
+  ],
+  "risk_if_missed": "AI or import paths can silently bypass canonical review, privacy and provenance, recreating hidden authority outside SurrealDB.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Batch accept promotes stale unauthorized proposals.", "Retry duplicates relations.", "Import overwrites canonical identities.", "Export leaks linked private sources."], "minimum_controls": ["Promotion-time scope revalidation.", "Idempotency and atomic EventLedger transaction.", "Quarantine plus explicit identity mapping.", "Source-scope intersection on export."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Human-in-the-loop AI review patterns", "Official SurrealDB transaction documentation", "Secure import/export and provenance patterns", "Stable-main Loom AI promotion implementation"], "selected_approach": "Typed reviewable proposals with explicit atomic promotion and scope-preserving import/export.", "rejected_options": ["Direct AI writes", "Implicit acceptance", "Blind ID preservation on import", "Export by UI-visible list only"]}
+}

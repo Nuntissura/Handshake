@@ -1,0 +1,244 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-402",
+  "title": "WL-MT402-ProviderNeutralWpLocalStoreContract",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Define a provider-neutral WpLocalStore contract with a strict non-authority data boundary and no engine-specific types.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally.",
+    "rejected": "Do not edit product code; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION and preserve the SurrealDB-only baseline."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-402.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-401"
+    ],
+    "blocks": [
+      "MT-403"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define the engine-independent WpLocalStore boundary used only if MT-401 is APPROVED_FOR_EVALUATION. The contract is keyed by mandatory project_id and wp_id, represents one lazily provisioned working store per Work Packet, and is shared by every session and Micro-Task in that WP. It is not a Database implementation, Locus repository, domain store, fallback or proof substitute. No public interface may expose SQL strings, Turso/libSQL types, paths, connections or transactions. If MT-401 is REJECTED, this MT records the disabled contract posture only and adds no runtime dependency.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/mod.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/contract.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/errors.rs",
+      "src/backend/handshake_core/tests/wp_local_store_contract.rs",
+      "src/backend/handshake_core/src/kernel/mod.rs",
+      ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/src/storage/surreal/**",
+      "src/backend/handshake_core/src/locus/**",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/atelier/**",
+      "src/backend/handshake_core/src/tailor/**",
+      "src/backend/handshake_core/src/studio/**",
+      "Any public turso/libsql/SQLite type or SQL-bearing API"
+    ],
+    "acceptance_criteria": [
+      "WpLocalStore, WpLocalStoreBroker, WpLocalStoreKey, WpLocalRecordClass, WpLocalPromotionIntent and typed errors are provider-neutral; their public signatures contain no Turso, libSQL, SQLite, SQL statement, file-path or connection type.",
+      "WpLocalStoreKey requires non-empty project_id and wp_id. Session IDs, MT IDs, worktree IDs and process IDs can be request attribution but can never select or create a different database.",
+      "The contract is lazy: a WP without an approved working-store need returns NOT_PROVISIONED and creates no directory, file, lock, key or background task.",
+      "The allowlist is closed to immutable source-snapshot manifests, file/change inventories, bounded validation/build caches, bounded tool-result caches, drafts/candidate artifacts, promotion intents, local receipts and canonical watermarks.",
+      "The denylist explicitly rejects Notes/RichDocument, Loom/Knowledge, CKC/Atelier, Tailor, Studio and canonical Locus entities, including WP/MT status, gates, dependencies, occupancy, leases, roles and EventLedger records.",
+      "Loss, denial or unavailability of WpLocalStore cannot change SurrealDB reads, writes, readiness, gates, product behavior or completion truth; callers receive a typed LOCAL_ACCELERATION_UNAVAILABLE posture.",
+      "If MT-401 is not approved, compilation and startup prove that no engine adapter or dependency is reachable while the machine-readable rejection remains inspectable."
+    ],
+    "proof_targets": [
+      "Compile the provider-neutral contract without a Turso/libSQL/SQLite Cargo feature and inspect its public rustdoc/type surface.",
+      "Run allowlist/denylist table tests against every WpLocalRecordClass and every forbidden canonical domain family.",
+      "Run identity tests proving different sessions, MTs and worktrees under one project_id/wp_id resolve one logical key while same wp_id in different projects does not collide.",
+      "Run lazy-provisioning negative tests and independently inspect the configured state root for zero side effects."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/**",
+      "src/backend/handshake_core/src/kernel/mod.rs",
+      "src/backend/handshake_core/tests/wp_local_store_contract.rs"
+    ],
+    "expected_tests": [
+      "provider_neutral_public_surface_contains_no_engine_or_sql_types",
+      "wp_local_key_is_project_and_wp_only",
+      "record_class_allowlist_rejects_all_canonical_domains",
+      "unrequested_wp_creates_no_local_state",
+      "local_store_unavailable_does_not_change_surreal_authority_result"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Typed backend contract only; MT-409 owns operator diagnostics. TraceProjection must expose enabled/disabled/not-provisioned without file paths or content."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Purpose and strict data boundary",
+      "WP-local working store > What remains in SurrealDB"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "provider-neutral local working records",
+      "project/WP store locator",
+      "derived cache and promotion-intent metadata"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "source_scope_hash"
+    ],
+    "enforcement_boundaries": [
+      "WpLocalStore trait boundary",
+      "ResourceBroker",
+      "canonical SurrealDB membership reread",
+      "closed record-class allowlist"
+    ],
+    "same_project_private_resource_cases": [
+      "A same-project principal without access to the source resource cannot observe its derived local record."
+    ],
+    "cross_account_negative_cases": [
+      "The same wp_id under another project or account resolves to no accessible store, count or existence signal."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Every local derived record preserves the intersection of source scopes and is invalidated when that scope changes."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or AccessSpace/project switch invalidates handles and derived records before the next operation."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "The provider-neutral contract exposes no remote sync, SaaS or MCP storage route."
+    ],
+    "metadata_side_channel_cases": [
+      "Caches, counts, errors, status projections and locators reveal no inaccessible existence, credentials, paths, body content or tool payload."
+    ],
+    "expected_evidence": [
+      "cross_project_same_wp_id_denial_test",
+      "derived_scope_non_widening_test",
+      "status_projection_redaction_test",
+      "canonical_membership_revalidation_test"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "INHERITED",
+      "reason": "The contract preserves correlation fields but cannot append canonical events itself."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Typed boundary and denylist errors must be inspectable without leaking local content."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "NOT_APPLICABLE",
+      "reason": "No background broker or long-running job is created by the interface definition."
+    }
+  ],
+  "risk_if_missed": "An engine-shaped or open-ended interface would make Turso irreversible, enable canonical content drift, or create one database per session/MT instead of one per WP.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "Provider-neutral names hide SQL or file semantics in opaque strings.",
+      "Session or MT identity accidentally participates in database selection.",
+      "A generic JSON payload field becomes a backdoor for canonical Notes, Loom or creative-domain content.",
+      "A cache miss changes readiness or product behavior instead of only performance."
+    ],
+    "minimum_controls": [
+      "Closed typed record-class enum and payload size limits.",
+      "Public-surface inspection and forbidden-dependency compile test.",
+      "Project+WP-only key property tests.",
+      "Canonical result equivalence with local store absent."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso Quickstart for Rust",
+        "url": "https://docs.turso.tech/sdk/rust/quickstart",
+        "finding": "The official local Rust API is engine-specific and file-backed, which is why it must remain behind the provider-neutral WpLocalStore boundary."
+      },
+      {
+        "title": "SurrealDB Rust SDK",
+        "url": "https://surrealdb.com/docs/reference/rust",
+        "finding": "Canonical reads and writes continue through the official SurrealDB SDK rather than through WpLocalStore."
+      },
+      {
+        "title": "SurrealDB permissions and row-level security",
+        "url": "https://surrealdb.com/docs/learn/security/authorization/permissions-and-row-level-security",
+        "finding": "Canonical project authorization remains a database-enforced record-user boundary that the local broker must revalidate."
+      }
+    ],
+    "project_sources": [
+      "MT-401 authority exception decision",
+      "WP017 Locus project-qualified identity family MT-361..MT-372",
+      "Handshake_Codex_v1.4.md CX-503S sole-authority rule"
+    ],
+    "selected_approach": "A small provider-neutral governance contract with a closed record-class allowlist and project+WP identity.",
+    "rejected_options": [
+      "Expose turso::Connection or SQL",
+      "Implement Database for WpLocalStore",
+      "Generic untyped JSON cache",
+      "One database per session, MT or worktree",
+      "Domain-specific local repositories"
+    ]
+  }
+}

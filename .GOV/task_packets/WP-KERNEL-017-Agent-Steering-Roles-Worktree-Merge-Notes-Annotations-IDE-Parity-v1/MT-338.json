@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Translate process ledger, MT executor, session checkpoints, role mailbox, swarm recovery, Flight Recorder repositories and diagnostics manifests to typed SurrealDB repositories.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-338.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -32,7 +32,8 @@
       "MT-334"
     ],
     "blocks": [
-      "MT-339"
+      "MT-339",
+      "MT-361"
     ],
     "active": false,
     "validator_verdict": "PENDING"
@@ -41,6 +42,9 @@
     "summary": "GOAL: Translate process ledger, MT executor, session checkpoints, role mailbox, swarm recovery, Flight Recorder repositories and diagnostics manifests to typed SurrealDB repositories. This contract implements Master Spec v02.205. PostgreSQL, PgPool, sqlx-postgres, PostgreSQL SQL/DDL/RLS/LISTEN-NOTIFY/JSONB/pgvector and DATABASE_URL are forbidden as product-runtime authority. EventLedger semantic contracts remain authoritative but their persistence is SurrealDB-native. The current PostgreSQL database contains no valuable live information; no PostgreSQL connection, import, fallback, or proof path is allowed.",
     "allowed_paths": [
       "src/backend/handshake_core/src/process_ledger/**",
+      "src/backend/handshake_core/src/locus/**",
+      "src/backend/handshake_core/src/api/locus.rs",
+      "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
       "src/backend/handshake_core/src/mt_executor/**",
       "src/backend/handshake_core/src/session_checkpoint/**",
       "src/backend/handshake_core/src/role_mailbox_v1/**",
@@ -64,7 +68,8 @@
       "All listed operational/governance repositories use SurrealDB-native typed queries and transactions with no direct PgPool or raw SQLx.",
       "Lease, queue, idempotency, recovery and terminal-settlement invariants are preserved under concurrent real-runtime tests.",
       "Every row/record carries and enforces account, Principal, session, AccessSpace and workspace scope through MT-333.",
-      "Crash recovery proves canonical SurrealDB state, not logs or UI projections, drives reconstruction."
+      "Crash recovery proves canonical SurrealDB state, not logs or UI projections, drives reconstruction.",
+      "This physical Locus port unblocks but cannot replace MT-361..372 managed-project identity, complete operation parity, dependency, atomic receipt/outbox, projection and closure proof."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

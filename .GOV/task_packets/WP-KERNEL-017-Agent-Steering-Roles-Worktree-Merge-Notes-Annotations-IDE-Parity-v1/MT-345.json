@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Deliver SurrealDB backup/restore, health, diagnostics, operator controls and model manual coverage.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-345.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -59,7 +59,8 @@
       "Diagnostics expose endpoint/namespace/database, schema rollout, connection/session, live-query, EventLedger head, fresh-initialization state and PostgreSQL-retirement tripwire state without secrets.",
       "Backup and restore run against real SurrealDB, preserve hashes/scopes/EventLedger ordering and prove restore into a clean database.",
       "Operator UI clearly distinguishes healthy, degraded, rollout-blocked and recovery-blocked states and never offers PostgreSQL import or fallback.",
-      "Built-in model manual covers startup, configuration, fresh initialization, recovery, privacy proof context, PostgreSQL retirement, backup/restore and common failures; visual proof checks readability and discoverability."
+      "Built-in model manual covers startup, configuration, fresh initialization, recovery, privacy proof context, PostgreSQL retirement, backup/restore and common failures; visual proof checks readability and discoverability.",
+      "Diagnostics and manuals expose managed-project lineage, canonical Locus/taskboard sources, Loom source/projection drift, Notes/CKC identity and repair state, and—only when MT-410 ADOPT applies—the WpLocalStore broker, health, watermark and promotion state without leaking inaccessible projects."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

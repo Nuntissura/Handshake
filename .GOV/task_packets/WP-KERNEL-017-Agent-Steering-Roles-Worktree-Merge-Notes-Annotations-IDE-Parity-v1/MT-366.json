@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-366",
+  "title": "LC-MT366-HierarchyRollupsAndLoomTypedProjections",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Provide privacy-safe parent rollups and typed Loom projections without creating another authority.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-366.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-365"], "blocks": ["MT-371"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Derive project-forest rollups from canonical Locus state and expose typed Loom links for notes, backlinks, knowledge graph and search. Rollups may summarize visible descendant counts, status, gates, readiness and progress but never write child canonical fields. Loom records are typed projections or relations that point to Locus project/WP/MT identities; Loom never stores a second mutable taskboard or lifecycle state. A denied descendant contributes neither content nor count leakage. Projection lag, version and source revision are visible and repairable.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/loom*/**", "src/backend/handshake_core/src/knowledge_*/**", "src/backend/handshake_core/src/task_board/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Rollup writes into child canonical records", "Loom as a second Locus/taskboard authority", "Counts or labels derived from denied descendants", "SQLite/PostgreSQL projection stores"],
+    "acceptance_criteria": [
+      "Parent rollups are deterministically derived from canonical visible descendants and carry source revision, generated time and staleness state.",
+      "Changing or deleting a rollup cannot mutate child project, WP or MT records and a complete rollup can be rebuilt from SurrealDB.",
+      "Loom links use typed Surreal relations to project-qualified Locus entities and preserve Notes backlink/search behavior without copying mutable Locus state.",
+      "Authorized users see consistent rollups across API, GUI and Loom search while denied descendants leak neither content nor aggregate counts.",
+      "Projection lag, failed rebuild and schema-version mismatch produce visible diagnostics and operator-safe recovery actions."
+    ],
+    "proof_targets": ["Rollup determinism and rebuild tests", "Mutation-isolation tests proving Loom/rollup writes cannot change Locus truth", "Authenticated mixed-visibility hierarchy tests", "Argus captures for current, stale, repairing and failed projection states"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/loom*/**", "src/backend/handshake_core/src/knowledge_*/**", "src/backend/handshake_core/src/task_board/**", "src/frontend/handshake_native/src/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["project_rollup_deterministic_rebuild", "rollup_cannot_mutate_child_truth", "loom_locus_typed_relation_roundtrip", "rollup_privacy_no_count_leak", "projection_lag_repair_visible"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Project-tree rollups", "Loom backlinks/search entries for Locus entities", "Projection health and repair"], "argus_targets": ["Parent rollup", "Locus-linked Loom backlink", "Stale projection indicator", "Repair completion"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Projects > Parent rollups", "Loom > Locus links", "Recovery > Derived projections", "Privacy > Hierarchy visibility"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["project hierarchy rollups", "Loom-to-Locus relations", "backlink/search projections", "projection health records"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "project_id", "source_locus_entity_id", "loom_projection_id"],
+    "enforcement_boundaries": ["Rollups are computed in the viewer's authorized scope.", "Loom traversal rechecks authorization for the target Locus entity."],
+    "same_project_private_resource_cases": ["Private descendants within the same project remain absent from unauthorized rollups and Loom traversals."],
+    "cross_account_negative_cases": ["Cross-account viewers cannot infer another account's Locus entities through Loom links or rollup changes."],
+    "derived_resource_non_widening_cases": ["Rollups, Loom links, backlinks and search projections never widen the scope of their canonical Locus sources."],
+    "revocation_and_context_switch_cases": ["Revocation or viewer-context switch invalidates rollup/search results and requires a freshly authorized projection read."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["No hidden-descendant names, counts, statuses, labels, link counts or staleness changes are exposed."],
+    "expected_evidence": ["viewer_scoped_rollup_test", "same_project_private_descendant_rollup_denial", "cross_account_loom_relation_denial", "derived_projection_non_widening", "rollup_context_switch_test", "metadata_count_non_leakage"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record rollup/projection generation, source revision, result hash, staleness and repair outcome."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose projection lag, missing relation, privacy-filter mismatch and rebuild failures."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if continuous projection-drift watching is unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Rollups or Loom can become hidden second authorities and leak private descendant existence through aggregate views.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_DERIVED_PROJECTIONS_V1", "risks": ["Rollup repair overwrites a child.", "A hidden child changes visible counts.", "Loom retains stale state as truth.", "Projection failure is invisible."], "minimum_controls": ["Read-only derivation boundary.", "Viewer-scoped aggregation tests.", "Source revision and rebuild semantics.", "Visible diagnostics and repair receipts."]},
+  "research_provenance": {"source": "Approved 2026-08-27 Loom/Locus linkage framing; MT-365 canonical governance contract; current Loom backlink/search capabilities; official SurrealDB relation, event and live-query guidance.", "selected_approach": "Typed Surreal relations and rebuildable privacy-filtered projections over canonical Locus records.", "rejected_options": ["Copied lifecycle state in Loom", "Mutable aggregate authority", "Global rollups", "PostgreSQL materialized views"]}
+}

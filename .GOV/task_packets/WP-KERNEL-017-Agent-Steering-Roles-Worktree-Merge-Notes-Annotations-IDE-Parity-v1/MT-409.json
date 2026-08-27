@@ -1,0 +1,287 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-409",
+  "title": "WL-MT409-WpLocalStoreDiagnosticsArgusAndManual",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Expose explicit non-authority status, health, promotion, recovery and archive diagnostics through quiet operator, Argus and no-context model surfaces.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-408.",
+    "rejected": "Execute only the no-code rejection branch: verify MT-402..408 dispositions and emit an existing-governance hsk.wp_local_store_rejection_projection@1 record for MT-410. Do not edit product code, add a UI surface, add a dependency or create local state."
+  },
+  "conditional_gui_obligation": {
+    "approved_for_evaluation": {
+      "operator_surface_required": "YES",
+      "gui_creation_required": "YES",
+      "argus_required": "YES",
+      "surfaces": [
+        "WP-local store diagnostic panel",
+        "WP-local store authority/status badge",
+        "Promotion, recovery, archive and evaluation detail views"
+      ],
+      "argus_targets": [
+        "wp-local-store-status",
+        "wp-local-store-authority-badge",
+        "wp-local-store-promotion-queue",
+        "wp-local-store-recovery",
+        "wp-local-store-archive",
+        "wp-local-store-evaluation-verdict"
+      ]
+    },
+    "rejected": {
+      "operator_surface_required": "NO",
+      "gui_creation_required": "NO",
+      "argus_required": "NO",
+      "observable_surface": "hsk.wp_local_store_rejection_projection@1",
+      "reason": "MT401_REJECTED_NO_PRODUCT_SURFACE"
+    }
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-409.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-408"
+    ],
+    "blocks": [
+      "MT-410"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make the conditional WpLocalStore understandable and operable without hidden context. A stable backend diagnostic snapshot and read-only operator panel must label the store LOCAL_NON_AUTHORITY and show exact project/WP identity, lifecycle, broker generation, provider/format/schema, encryption readiness, quotas, intent states, canonical watermark, last independent receipt, recovery/archive state and bounded repair actions. Every view must distinguish local candidate evidence from canonical SurrealDB/EventLedger truth. Argus and the built-in model manual receive deterministic targets, schemas, failure meanings and recovery commands; background diagnostics remain quiet and never expose content, secrets or absolute paths.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/diagnostics.rs",
+      "src/backend/handshake_core/src/api/wp_local_store.rs",
+      "src/frontend/handshake_native/src/wp_local_store_diagnostics.rs",
+      "src/frontend/handshake_native/src/argus/**",
+      "src/backend/handshake_core/tests/wp_local_store_diagnostics.rs",
+      "src/frontend/handshake_native/tests/wp_local_store_diagnostics.rs",
+      "docs/user-manual/**"
+    ],
+    "forbidden_paths": [
+      "Any status label implying WpLocalStore is primary, canonical, synchronized truth or adopted by default",
+      "Raw SQL console, direct database file opener or provider-specific control in the operator UI",
+      "Displaying Notes/Loom/CKC/Tailor/Studio/Locus content, encryption keys, credentials or machine-absolute paths",
+      "Repair actions that reset, delete, rewrite or bypass canonical SurrealDB/EventLedger state",
+      "Foreground window creation, focus theft or unbounded diagnostic polling"
+    ],
+    "acceptance_criteria": [
+      "In the MT-401 REJECTED branch, this MT changes no product code and creates no UI. It validates MT-402..408 as NOT_APPLICABLE_BY_MT401_REJECTION and emits a redacted hsk.wp_local_store_rejection_projection@1 with authority hash, decision reference, exact no-change scan evidence and MT-410 handoff.",
+      "All remaining acceptance, UI, Argus and manual-update criteria apply only in the APPROVED_FOR_EVALUATION branch.",
+      "The versioned diagnostic schema always emits authority=LOCAL_NON_AUTHORITY, decision_posture=EVALUATION_NOT_ADOPTION, project_id, wp_id, lifecycle state, broker identity/generation, provider and schema version, encryption readiness, quota usage and last health timestamp.",
+      "Promotion diagnostics show counts and typed states for staged, running, canonical-committed-awaiting-readback, independently-verified, stale, rejected and local-only intents plus the last canonical receipt/watermark; local flags are never labeled canonical proof.",
+      "Recovery/archive diagnostics show quarantine, rebuild, seal, restore and retention states with correlation IDs, bounded progress and typed terminal results, without content, secret, key material or machine-absolute path disclosure.",
+      "The operator surface presents a persistent LOCAL NON-AUTHORITY badge and direct links to canonical SurrealDB receipt evidence; empty, healthy, degraded, quota-exceeded, corrupt, sealed and rejected-evaluation states are distinguishable by text as well as color.",
+      "Argus can reach stable semantic targets for store status, authority badge, promotion queue, recovery, archive and final evaluation verdict and can export a redacted structured snapshot plus reproduction steps.",
+      "Governed actions are limited to refresh, verify canonical receipt, retry eligible promotion, quarantine, rebuild disposable state, seal, restore read-only and preview retention; each action declares target, consequence and correlation ID and never mutates canonical data directly.",
+      "The built-in model manual explains purpose, conditional gate, startup/discovery, allowed inputs/outputs, navigation/API routes, authority boundary, common failures, recovery, archive and ADOPT/REJECT meaning for a model with no conversation history.",
+      "Automated diagnostics and Argus capture run quietly in the background, do not pop windows or steal focus, are rate bounded and expose cancellation/progress through Palmistry."
+    ],
+    "proof_targets": [
+      "Contract-test every diagnostic state and assert LOCAL_NON_AUTHORITY plus exact redaction and canonical/local distinction.",
+      "Render the operator surface at supported sizes for empty, active, degraded, corrupt, sealed and rejected states and verify readability, discoverability, navigation, no overlap and visible important state.",
+      "Drive every stable target through Argus, capture structured state and screenshots, and reproduce one promotion mismatch and one corruption recovery without fragile coordinate selection.",
+      "Attempt cross-project access and secret/content/path injection into diagnostics and prove authorization-aware non-disclosure and redaction.",
+      "Give the updated manual and API schema to a no-context model and prove it can locate status, distinguish canonical truth and execute a safe recovery verification path."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/diagnostics.rs",
+      "src/backend/handshake_core/src/api/wp_local_store.rs",
+      "src/frontend/handshake_native/src/wp_local_store_diagnostics.rs",
+      "src/frontend/handshake_native/src/argus/**",
+      "docs/user-manual/**"
+    ],
+    "expected_tests": [
+      "diagnostics_always_label_store_local_non_authority",
+      "diagnostics_separate_local_intent_from_canonical_receipt",
+      "diagnostics_redact_content_secrets_keys_and_absolute_paths",
+      "operator_panel_states_are_readable_and_semantically_distinct",
+      "argus_reaches_all_wp_local_store_targets_deterministically",
+      "governed_actions_cannot_mutate_canonical_state_directly",
+      "diagnostic_access_is_project_scoped_and_non_disclosing",
+      "no_context_manual_reproduces_safe_status_and_recovery_flow",
+      "background_diagnostics_are_quiet_bounded_and_cancellable"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Default and MT-401 rejection posture. The approved evaluation branch is governed exclusively by conditional_gui_obligation."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Purpose and authority boundary",
+      "WP-local working store > Status and diagnostics",
+      "WP-local working store > Promotion and canonical receipts",
+      "WP-local working store > Recovery, archive and retention",
+      "Model manual > Deterministic WP-local store routes and failure recovery"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "WpLocalStore diagnostic snapshot",
+      "operator and Argus projections",
+      "promotion/recovery/archive receipts",
+      "governed diagnostic actions"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "actor",
+      "correlation_id"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "diagnostic API authorization",
+      "redaction serializer",
+      "stable Argus action contract"
+    ],
+    "same_project_private_resource_cases": [
+      "A same-project user without the exact WP/source grant sees neither local status nor canonical receipt metadata."
+    ],
+    "cross_account_negative_cases": [
+      "Unauthorized diagnostic requests disclose neither another project/WP store nor receipt, archive or target existence."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Snapshots, screenshots, logs and Argus projections preserve the narrowest source scope and never expose record content."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or project/AccessSpace switch invalidates open views, cached snapshots and pending actions before refresh or mutation."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "Argus/model routes remain local product-control paths and never create remote Turso/SaaS/MCP storage access."
+    ],
+    "metadata_side_channel_cases": [
+      "All snapshots, screenshots, logs, exports and errors redact content, credentials, key material, sensitive filenames, paths and denied existence."
+    ],
+    "expected_evidence": [
+      "record_user_diagnostic_access",
+      "cross_project_diagnostic_non_disclosure",
+      "snapshot_screenshot_and_log_redaction",
+      "argus_action_attribution_and_scope"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "The panel projects attributable derived lifecycle and action events with canonical receipt links; Flight Recorder is never the authority proof."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "The versioned redacted snapshot is the primary state, health and failure-isolation contract for humans, Argus and models."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Refresh, verification, retry, rebuild, seal, restore and retention jobs expose quiet bounded progress, cancellation and terminal result."
+    }
+  ],
+  "risk_if_missed": "Operators and models can mistake local candidates for canonical truth, run unsafe recovery actions, miss degraded promotion state, or expose project data through diagnostics.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "A green health badge is read as proof that local data is canonical.",
+      "A diagnostic error leaks another project's resource existence or absolute database path.",
+      "A repair button bypasses independent canonical readback or deletes canonical data.",
+      "Argus depends on visual coordinates and silently operates the wrong WP."
+    ],
+    "minimum_controls": [
+      "Persistent text authority label and direct canonical receipt distinction.",
+      "Authorization-aware non-disclosure and output redaction.",
+      "Closed typed action allowlist with target/consequence preview.",
+      "Stable semantic targets carrying project/WP identity and correlation receipts."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "Provider health and configuration can be observed through the adapter, but raw SQL/provider controls should not be exposed as the product diagnostics contract."
+      },
+      {
+        "title": "SurrealDB permissions and row-level security",
+        "url": "https://surrealdb.com/docs/learn/security/authorization/permissions-and-row-level-security",
+        "finding": "Record-user permissions default to no table access unless explicitly granted, supporting scoped diagnostic receipt reads and non-disclosure tests."
+      },
+      {
+        "title": "SurrealDB Rust SDK",
+        "url": "https://surrealdb.com/docs/reference/rust",
+        "finding": "Typed authenticated backend reads can supply canonical receipt and watermark links independently of the local provider."
+      }
+    ],
+    "project_sources": [
+      "MT-407 crash/corruption recovery",
+      "MT-408 seal/archive/restore lifecycle",
+      "GLOBAL-BUILD-DIAG-013..032",
+      "GLOBAL-BUILD-PARALLEL-033..045",
+      "GLOBAL-BUILD-QUIET-046..054"
+    ],
+    "selected_approach": "A provider-neutral diagnostic schema feeds a clear non-authority operator panel, stable Argus targets and a no-context manual with quiet governed actions.",
+    "rejected_options": [
+      "Raw SQL console",
+      "Provider-specific UI as the product contract",
+      "Color-only status",
+      "Coordinate-based Argus automation",
+      "Health status presented as canonical proof"
+    ]
+  }
+}

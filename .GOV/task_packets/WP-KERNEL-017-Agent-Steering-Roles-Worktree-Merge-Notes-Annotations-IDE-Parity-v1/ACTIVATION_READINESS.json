@@ -1,73 +1,105 @@
 {
- "schema_id": "hsk.activation_readiness@1",
- "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
- "generated_at_utc": "2026-08-15T00:00:00Z",
- "state_source": "RECOMPUTED_FROM_STUB_REFINEMENT_139_MT_CONTRACTS_SURREALDB_EXPANSION",
- "verdict": "PAPERWORK_REPAIRED_NOT_READY_FOR_ACTIVATION",
- "ready_for_downstream_launch": "NO",
- "ready_for_downstream_launch_reason": "NO. The operator-directed 2026-08-15 SurrealDB expansion is incorporated in Master Spec v02.205, the WP017 refinement/stub and MT-331..346, and USER_SIGNATURE ilja150820261604 now covers the full preserved-plus-expanded scope. Activation gates remain: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1, WP-CKC-posekit-overhaul and WP-KERNEL-012 must be validated and merged; the packet must be re-grounded, current HBR obligations recomputed, packet/index inconsistencies resolved, the official packet promoted, scheduling/traceability synchronized and the implementation worktree created before launch.",
- "user_signature": "ilja150820261604",
- "prepared_artifacts": {
-  "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
-  "refinement": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json",
-  "microtask_contracts": {
-   "count": 139,
-   "id_range": "MT-001..MT-346 across declared domain ranges; gaps are reserved family headroom",
-   "gui_mt_count": 29,
-   "argus_mt_count": 29,
-   "index": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/_MT_INDEX.json",
-   "domains": {
-    "session_runtime_core": "MT-001..014 (14)",
-    "claude_stream_json_transport": "MT-021..029 (9)",
-    "codex_app_server_transport": "MT-041..047 (7)",
-    "acp_client_layer": "MT-061..066 (6)",
-    "handshake_roles": "MT-081..087 (7)",
-    "model_to_model_orchestration": "MT-101..108 (8)",
-    "mt_dispatch_lifecycle": "MT-121..126 (6)",
-    "worktree_merge_back": "MT-141..148 (8)",
-    "recording_diagnostics_manuals": "MT-161..166 (6)",
-    "annotation_core": "MT-201..209 (9)",
-    "notes_annotation_ui": "MT-221..226 (6)",
-    "native_prose_diff": "MT-241..245 (5)",
-    "ts_notes_editor_removal": "MT-261..264 (4)",
-    "ide_parity_gap_closure": "MT-281..290 (10)",
-    "vm_workspace_fleet_reconciler": "MT-301..308 (8)",
-    "durable_workspace_volumes_and_handoff": "MT-321..330 (10)",
-    "surrealdb_authority_migration": "MT-331..346 (16)"
-   },
-   "validation_state_2026_08_15": "All 139 contracts and the rebuilt index parse with unique mt_ids. MT-329 and MT-330 close the previously declared-but-missing durable-workspace range. Database-affected WP017 MTs are patched to v02.205 SurrealDB while database-neutral MTs remain unchanged; MT-331..346 cover implementation/remediation/proof. Historical completed WPs/MTs were audited only and not rewritten. DAG/schema/current-grounding validation is still an activation gate and no validator verdict is claimed here."
-  }
- },
- "known_blockers_and_gates": [
-  "OPERATOR-HOLD: operator decision 2026-08-14 keeps this WP unactivated; the 2026-08-15 SurrealDB scope expansion is incorporated but does not waive activation prerequisites.",
-  "SURREALDB-PIVOT: Master Spec v02.205 and MT-331..346 require SurrealDB-exclusive runtime authority. Database-affected WP017 MTs are patched to SurrealDB; database-neutral MTs are preserved. Activation must verify no PostgreSQL physical instruction or proof path remains executable.",
-  "UPSTREAM: WP-1 / WP-CKC-posekit / WP-KERNEL-012 validation + merge (operator-ordered activation precondition).",
-  "UPSTREAM-STATUS-RECONCILIATION: operator reports WP-CKC-posekit work finished and waiting on the other two WPs, while current machine-readable packet/runtime/Task Board projections still show IN_PROGRESS; reconcile canonical terminal validation and merge evidence before activation.",
-    "CURRENT-AUTHORITY-REFRESH: the July MT set was authored against HANDSHAKE_BUILD_RULES v1.5.0; recompute all obligations against current v1.11.0, including exclusive SurrealDB capability/privacy proof, PRIV, SWARM-005/006, MAN-004, Windows-safe commands, scoped CARGO_TARGET_DIR, and the single external artifact root.",
-  "DESIGN-OCP: resolve transport-neutral core schema OCP-017-007 and Rust-only/product-governance-boundary OCP-017-008 before coder launch; MT-001 and MT-261 are not launch-authoritative until repaired.",
-  "TR-GATE-RECHECK: re-read current WP-KERNEL-012 parity/performance proof and all other MT-261 removal predicates after upstream merge; July 2026 RED state is historical, not current proof.",
-  "DIAG-OWNERSHIP-RECHECK: re-resolve current HBR-INT-009 internal_diagnostics/Palmistry ownership and availability during post-merge grounding; the July WP-KERNEL-015 assumption is not activation proof.",
-    "SPEC-ENRICHMENT-REGROUNDING: Master Spec v02.205 now carries the exclusive SurrealDB enrichment; activation must verify those anchors remain current after upstream merges rather than authoring a second enrichment.",
-  "SCHEDULING-TRACEABILITY-PENDING: WP-KERNEL-017 remains a Task Board STUB and has no Build Order or WP traceability-registry row; USER_SIGNATURE is satisfied, but create/synchronize those surfaces only during activation after the remaining scope and readiness gates are satisfied.",
-  "GROUNDING-RECHECK: all contracts carry initial wtc-worktree grounding dated 2026-07-21/22; re-verify every cited path, type, API, migration, route, test, and acceptance seam against post-merge main at activation.",
-  "RESEARCH-REFRESH: the two external research passes are dated 2026-07-21; refresh current official CLI/app-server/ACP/library contracts and record the selected/rejected approach before implementation."
- ],
- "activation_steps": [
-  "verify_master_spec_v02_205_surrealdb_bundle_and_pointer",
-  "verify_mt_331_through_346_and_packet_wide_surrealdb_supersession",
-  "reconcile_canonical_upstream_status_and_terminal_merge_evidence",
-  "verify_upstream_wps_validated_and_merged",
-  "refresh_current_external_research_and_record_basis",
-  "recheck_mt_grounding_against_post_merge_main",
-  "resolve_open_contract_points_OCP-017-001..009",
-  "recompute_current_HBR_privacy_manual_and_proof_obligations_for_every_MT",
-    "verify_v02_205_spec_enrichment_against_post_merge_main",
-  "run_current_contract_schema_dependency_DAG_and_activation_readiness_validators",
-  "create_official_work_packet_contract (just create-task-packet)",
-  "move_task_board_entry_from_stub_to_ready_for_dev",
-  "create_worktree_and_feature_branch",
-  "launch_implementation_per_mt_dispatch_discipline"
- ],
- "naming_note": "Dexterity is the operator-facing name of the model-lane kernel Pillar A extends (model_lane.rs:1-5; DexterityNoOsLaunchCaller/DexterityNormalizedLaunch/dexterity_launch). Operator 2026-07-22: Dexterity is the ACP replacer. Pillar-A operator-facing surfaces use the Dexterity name; stable wire/schema ids keep their own names.",
- "vendor_agnostic_engine_note": "VENDOR-AGNOSTIC ENGINE FRAMING (operator 2026-07-22): Handshake is a model/vendor-agnostic engine. Models are called through CLI/terminal today ONLY because Anthropic subscription plans block direct API use; Handshake is the wrapper/engine AROUND the CLI - it owns sandboxing, tool-call gating/stopping (SC MT-011), hooks (SC MT-012), cron/scheduling (SC MT-013), and exposing Handshake API/primitives to models (SC MT-014). Claude and GPT are the first two engines in the wrapper; open-source/other vendors follow. Vendor harness behaviors documented in the research basis were input, not the target; no vendor names in operator-facing surfaces, schemas, or policy vocabulary. If direct API access becomes viable, the CLI lane is swapped without touching the wrapper capabilities."
+  "schema_id": "hsk.activation_readiness@1",
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "generated_at_utc": "2026-08-27T00:00:00Z",
+  "state_source": "RECOMPUTED_FROM_STUB_REFINEMENT_AND_179_MT_CONTRACTS",
+  "verdict": "EXPANDED_SCOPE_PREPARED_NOT_READY_FOR_ACTIVATION",
+  "ready_for_downstream_launch": "NO",
+  "ready_for_downstream_launch_reason": "NO. The operator-approved Locus, Loom, Notes/CKC connectivity and conditional WP-local Turso evaluation are prepared as non-execution contracts. Activation remains blocked until WP-KERNEL-012, WP-1 multi-model orchestration and WP-CKC are validated and merged into stable main; that exact main is pinned and audited; the Master Spec and HBR obligations are refreshed; current research and contract validation complete; a new signature covers the expanded scope; and the official packet, scheduling, traceability and worktree surfaces are created.",
+  "user_signature": "<pending>",
+  "signature_gate": {
+    "status": "PENDING_EXPANDED_SCOPE_SIGNATURE",
+    "operator_approval_evidence": "Operator message 2026-08-27: approved the proposed WP017 additions and supplied deeper Handshake IDE/creative-suite, managed-project hierarchy, Loom connectivity and CKC/Tailor context.",
+    "historical_signature": {
+      "value": "ilja150820261604",
+      "scope": "Preserved WP017 scope plus the 2026-08-15 SurrealDB migration family through MT-346 only.",
+      "does_not_cover": "MT-361..372, MT-381..398 or MT-401..410"
+    },
+    "next_signature_condition": "After predecessor merges, stable-main pinning, post-merge grounding, research refresh, Master Spec enrichment and final contract validation."
+  },
+  "prepared_artifacts": {
+    "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
+    "refinement": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json",
+    "microtask_contracts": {
+      "count": 179,
+      "id_range": "MT-001..MT-410 across declared domain ranges; gaps are reserved family headroom",
+      "gui_mt_count": 55,
+      "argus_mt_count": 55,
+      "conditional_gui_mt_count": 2,
+      "conditional_argus_mt_count": 2,
+      "potential_gui_mt_count": 57,
+      "potential_argus_mt_count": 57,
+      "index": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/_MT_INDEX.json",
+      "domains": {
+        "session_runtime_core": "MT-001..014 (14)",
+        "claude_stream_json_transport": "MT-021..029 (9)",
+        "codex_app_server_transport": "MT-041..047 (7)",
+        "acp_client_layer": "MT-061..066 (6)",
+        "handshake_roles": "MT-081..087 (7)",
+        "model_to_model_orchestration": "MT-101..108 (8)",
+        "mt_dispatch_lifecycle": "MT-121..126 (6)",
+        "worktree_merge_back": "MT-141..148 (8)",
+        "recording_diagnostics_manuals": "MT-161..166 (6)",
+        "annotation_core": "MT-201..209 (9)",
+        "notes_annotation_ui": "MT-221..226 (6)",
+        "native_prose_diff": "MT-241..245 (5)",
+        "ts_notes_editor_removal": "MT-261..264 (4)",
+        "ide_parity_gap_closure": "MT-281..290 (10)",
+        "vm_workspace_fleet_reconciler": "MT-301..308 (8)",
+        "durable_workspace_volumes_and_handoff": "MT-321..330 (10)",
+        "surrealdb_authority_migration": "MT-331..346 (16)",
+        "locus_surrealdb_semantic_recovery": "MT-361..372 (12)",
+        "loom_surrealdb_semantic_recovery": "MT-381..392 (12)",
+        "notes_loom_castkit_connectivity": "MT-393..398 (6)",
+        "conditional_wp_local_working_store_evaluation": "MT-401..410 (10)"
+      },
+      "validation_state_2026_08_27": {
+        "wp017_targeted": "PASS: all JSON parsed; 40 new contracts passed lifecycle, date, privacy, HBR diagnostics, manual and storage-authority invariants; the authoritative pre-created-suite adoption helper accepted all 179 indexed contracts and the acyclic dependency graph; the WP017 stub has no contract-check failures; git diff --check reported no whitespace errors.",
+        "repo_wide": "FAIL_BASELINE: just gov-check --verbose completed before the final Turso branch-contract clarification with 12 failing checks in existing packet truth, active predecessor packets, projection inventories, HBR/tooling configuration, build-order projection, communication/dossier runtime, session policy, protocol/inventory and topology surfaces; no reported failure named a WP017 contract. The branch-only correction then passed fresh WP017 adoption, branch, stub and whitespace checks. Broad governance remains not green and requires a fresh post-upstream run before activation.",
+        "activation_effect": "Targeted preparation proof is green, but broad repository truth is not green and all explicit predecessor, stable-main, spec, research, HBR and signature gates remain blocking."
+      }
+    }
+  },
+  "product_framing": {
+    "identity": "Handshake is both a model-agnostic IDE/harness and a linked creative-production environment.",
+    "managed_project_graph": "SurrealDB-canonical root projects may contain subprojects, tasks, prototypes, taskboards, work packets, microtasks and execution workspaces.",
+    "hierarchy_boundary": "Managed-project hierarchy is not the product-module hierarchy.",
+    "loom_role": "Loom supplies typed, provenance-preserving connectivity across Notes/backlinks, source code, datasets, media, CKC assets and future Tailor/Studio publishers.",
+    "future_module_boundary": "CKC is the product-navigation parent for future Tailor. Tailor retains its domain/solver authority; Studio remains separately authoritative. WP017 adds generic seams and fixtures only."
+  },
+  "storage_authority": {
+    "canonical": "SurrealDB is the sole main database authority for all Handshake-managed projects.",
+    "locus": "Locus owns canonical managed-project, work-packet, microtask, dependency, assignment, receipt and recovery semantics on SurrealDB.",
+    "loom": "Loom owns canonical connectivity/index projection semantics on SurrealDB without copying source-module authority.",
+    "turso": "Conditional non-authoritative per-project-and-WP working-store evaluation only. MT-401 rejection short-circuits MT-402..408 to validator-checked NOT_APPLICABLE, MT-409 emits a no-code structured rejection projection and MT-410 closes with REJECT from no-change proof. Only APPROVED_FOR_EVALUATION enables the implementation/UI chain and comparative verdict; neither branch authorizes automatic rollout."
+  },
+  "known_blockers_and_gates": [
+    "OPERATOR-HOLD: WP017 remains unactivated and non-executable.",
+    "UPSTREAM: WP-KERNEL-012, WP-1 multi-model orchestration and WP-CKC must each reach validated terminal state and merge into stable main.",
+    "STABLE-MAIN-PIN: record the exact post-merge commit as the sole product-code grounding source before refreshing WP017.",
+    "POST-MERGE-AUDIT: inspect current Locus, Loom, Notes, CKC, taskboard, work-packet, microtask, project/workspace and SurrealDB source truth; do not reuse historical database assumptions.",
+    "SPEC-ENRICHMENT: update the Master Spec from the post-merge audit before finalizing the expanded WP017 contract.",
+    "RESEARCH-REFRESH: record current official SurrealDB and Turso capability, concurrency, encryption, portability and failure-mode evidence plus comparable field implementations before implementation.",
+    "HBR-REFRESH: recompute all current privacy, diagnostics, manual, quiet-operation, Windows and proof obligations against post-merge authority.",
+    "TURSO-EXCEPTION-GATE: no Turso dependency or implementation unless MT-401 records an explicit narrow non-authority evaluation exception; rejection marks MT-402..408 NOT_APPLICABLE, uses MT-409 only for a no-code rejection projection, independently proves the SurrealDB-only baseline intact and closes MT-410 with REJECT.",
+    "SIGNATURE: obtain a new operator signature after the expanded post-merge contract is finalized.",
+    "ACTIVATION-SURFACES: promote the official packet, synchronize Task Board, Build Order and traceability, create the implementation worktree, then launch through the canonical activation workflow."
+  ],
+  "activation_steps": [
+    "verify_all_three_predecessor_wps_validated_and_merged",
+    "pin_exact_post_merge_stable_main_commit",
+    "audit_locus_loom_notes_ckc_project_workspace_and_storage_source_truth",
+    "refresh_current_external_research_and_record_selected_rejected_approaches",
+    "enrich_master_spec_for_locus_loom_connectivity_and_conditional_wp_local_store_scope",
+    "recompute_current_HBR_privacy_manual_diagnostics_quiet_and_proof_obligations",
+    "re_ground_all_179_microtask_contracts_against_pinned_main_and_refreshed_spec",
+    "run_current_contract_schema_dependency_DAG_and_activation_readiness_validators",
+    "obtain_new_expanded_scope_user_signature",
+    "create_official_work_packet_contract",
+    "synchronize_task_board_build_order_and_traceability",
+    "create_worktree_and_feature_branch",
+    "launch_implementation_per_mt_dispatch_discipline"
+  ],
+  "naming_note": "Dexterity remains the operator-facing name of the model-lane kernel. Project, subproject, task/prototype and workspace identities must remain distinct.",
+  "vendor_agnostic_engine_note": "Handshake remains model/vendor agnostic; transport-specific adapters do not own product semantics."
 }

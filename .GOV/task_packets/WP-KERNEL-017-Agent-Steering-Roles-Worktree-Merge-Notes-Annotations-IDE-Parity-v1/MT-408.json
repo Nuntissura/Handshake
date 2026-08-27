@@ -1,0 +1,249 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-408",
+  "title": "WL-MT408-SealArchiveRetentionAndPortableRestore",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Seal, archive, retain, restore and remove WP-local working databases as non-authoritative project-qualified artifacts without weakening canonical SurrealDB truth or project portability.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-407.",
+    "rejected": "Do not edit product code or create local archive artifacts; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-408.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-407"
+    ],
+    "blocks": [
+      "MT-409"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define the end-of-WP lifecycle for a conditional WpLocalStore. Closing or archiving a WP first drains or classifies every promotion intent, independently records the current canonical SurrealDB/EventLedger watermark, closes the single broker handle, checkpoints, seals the database and writes a content-addressed project-relative manifest. Restore validates identity, hash, schema, key reference and canonical watermark before opening read-only or rebuilding disposable state. Retention cleanup is bounded, recoverable and incapable of deleting or changing canonical data.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/archive.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/lifecycle.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/locator.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/broker.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/recovery.rs",
+      "src/backend/handshake_core/tests/wp_local_store_archive.rs"
+    ],
+    "forbidden_paths": [
+      "Archiving or restoring a WP-local database as canonical Handshake state",
+      "Absolute machine paths, plaintext keys, credentials or content samples in manifests",
+      "Reopening a sealed database for ordinary mutation without a governed lifecycle transition",
+      "Deleting canonical SurrealDB records, EventLedger events, Notes, Loom, CKC, Tailor, Studio or Locus data during local retention cleanup",
+      "Copying an archive across project/WP scope without identity and authorization verification"
+    ],
+    "acceptance_criteria": [
+      "WP close refuses to seal while an intent is RUNNING or ambiguous; each remaining intent is independently classified as canonically promoted, stale, rejected or explicitly local-only before broker shutdown.",
+      "Seal performs a bounded checkpoint, closes the single broker, makes the local database immutable and emits a manifest containing format/schema versions, project_id, wp_id, content hash, byte size, key reference ID, canonical watermark, intent counts and relative locator, with no secret or absolute path.",
+      "Archive storage is content-addressed and project-relative; moving the entire project to another folder or disk preserves discovery and validation without rewriting embedded absolute paths.",
+      "Restore verifies archive hash, embedded project/WP identity, schema compatibility, current authorization and a fresh canonical SurrealDB/EventLedger watermark before any open; mismatch fails closed to quarantine or allowlist rebuild.",
+      "A valid restored archive opens read-only for inspection by default and can resume mutable use only through an explicit governed transition that reconciles all intents against current canonical revisions.",
+      "Retention cleanup uses a typed preview and recoverable quarantine/trash phase before irreversible removal, targets only exact closed WP-local artifacts and cannot reach project roots or canonical storage.",
+      "Archive and restore never introduce Notes/Loom/CKC/Tailor/Studio or canonical Locus content, and never describe local rows as the recovery source of truth."
+    ],
+    "proof_targets": [
+      "Close a WP with pending, promoted, stale and ambiguous intents and prove only fully classified state can be sealed.",
+      "Inspect a sealed manifest and prove stable hash/schema/watermark metadata with no secret, content sample or absolute path.",
+      "Move the project tree to a different root and restore the exact project/WP archive through relative discovery.",
+      "Tamper with archive bytes, identity, schema and canonical watermark independently and prove fail-closed quarantine or rebuild.",
+      "Preview and execute retention cleanup against fixtures adjacent to canonical/project files and prove only exact eligible local artifacts enter recoverable removal."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/archive.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/lifecycle.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/locator.rs",
+      "src/backend/handshake_core/tests/wp_local_store_archive.rs"
+    ],
+    "expected_tests": [
+      "wp_close_requires_all_intents_classified",
+      "sealed_manifest_is_redacted_hashed_and_project_relative",
+      "archive_restore_survives_project_move",
+      "tampered_or_cross_project_archive_fails_closed",
+      "restored_archive_is_read_only_until_reconciled",
+      "retention_cleanup_is_exact_bounded_and_recoverable",
+      "archive_contains_no_forbidden_domain_content"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "The archive state machine is backend-owned. MT-409 supplies the operator and Argus surfaces for seal, restore and retention status/actions."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Closing and sealing a WP",
+      "WP-local working store > Archive, restore and project moves",
+      "WP-local working store > Retention cleanup and recovery"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "sealed WP-local database",
+      "archive manifest",
+      "restore candidate",
+      "retention cleanup targets"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "key reference binding"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "archive identity/hash validator",
+      "authenticated canonical watermark reread",
+      "exact retention target resolver"
+    ],
+    "same_project_private_resource_cases": [
+      "Possession of a same-project archive grants no access beyond the current project/WP ResourceGrant."
+    ],
+    "cross_account_negative_cases": [
+      "An archive copied across project/account scope fails identity, authorization and key-reference validation without existence disclosure."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Archive copy, project movement, restore and retention preserve the original AccessSpace and source-scope intersection."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation or context switch during seal/restore/retention cancels the action and invalidates active handles."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "Archive and restore are local/project-relative and expose no Turso Cloud, SaaS, MCP or replica synchronization."
+    ],
+    "metadata_side_channel_cases": [
+      "Manifests and diagnostics expose only authorized redacted IDs, hashes, counts, versions and key references, never content, credentials, keys or absolute paths."
+    ],
+    "expected_evidence": [
+      "record_user_archive_restore_authorization",
+      "archive_manifest_redaction",
+      "cross_project_restore_denied",
+      "project_move_preserves_scope_without_absolute_paths"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "Seal, restore, quarantine and retention lifecycle transitions produce attributable derived events with canonical watermark references."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Manifest validation, broker closure, archive integrity and canonical mismatch need structured redacted diagnostics."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Checkpoint, hash, copy, restore and retention jobs expose progress, cancellation, exact target and terminal result."
+    }
+  ],
+  "risk_if_missed": "A stale or relocated archive can reopen as mutable truth, leak secrets or absolute paths, cross project boundaries, or let broad cleanup remove unrelated project or canonical data.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "An archive is copied into a different project and accepted by filename alone.",
+      "A sealed database is reopened for writes after canonical state advances.",
+      "A manifest leaks an encryption key or machine-specific project path.",
+      "Retention cleanup follows a broad or unresolved path and removes unrelated files."
+    ],
+    "minimum_controls": [
+      "Embedded identity, content hash, key-reference and fresh canonical watermark validation.",
+      "Read-only restore default plus explicit reconciliation before mutable use.",
+      "Redacted project-relative manifests.",
+      "Exact resolved-target preview and recoverable removal phase."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso SQL pragmas",
+        "url": "https://docs.turso.tech/sql-reference/pragmas",
+        "finding": "Official checkpoint and journal controls inform a bounded seal sequence before a local database is hashed and archived."
+      },
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "Database configuration, connection and transaction boundaries must be closed before immutable archive handling."
+      },
+      {
+        "title": "SurrealDB Rust SDK",
+        "url": "https://surrealdb.com/docs/reference/rust",
+        "finding": "Fresh authenticated SurrealDB reads provide the canonical watermark and revision comparison for restore."
+      }
+    ],
+    "project_sources": [
+      "MT-403 Windows broker and portable locator",
+      "MT-406 Surreal promotion and independent readback",
+      "MT-407 crash/corruption recovery",
+      "GLOBAL-PORTABILITY-001..013"
+    ],
+    "selected_approach": "Drain and classify, checkpoint and close, seal with a redacted content-addressed relative manifest, then restore only after fresh canonical reconciliation.",
+    "rejected_options": [
+      "Mutable archive copies",
+      "Filename-only identity",
+      "Absolute-path locators",
+      "Immediate irreversible deletion",
+      "Local archive as canonical backup"
+    ]
+  }
+}

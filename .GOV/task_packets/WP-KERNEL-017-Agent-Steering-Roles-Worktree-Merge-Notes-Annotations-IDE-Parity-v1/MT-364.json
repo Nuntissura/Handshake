@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-364",
+  "title": "LC-MT364-ProjectNodeLifecycleAndOwnership",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Implement safe lifecycle, ownership and reparenting semantics for root projects, subprojects, tasks and prototypes.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-364.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-363"], "blocks": ["MT-365", "MT-367"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Implement Locus lifecycle operations for project-node creation, activation, pause, archive, restore, reparent, detach and deletion request. Each root/subproject/task/prototype owns independent governance and may have execution contexts, but descendants and their taskboards are never silently cascaded or orphaned. Reparenting is an explicit authorized graph mutation with cycle, scope, active-work and cross-project-dependency checks. Deletion is tombstone-first and recoverable. Parent rollups remain derived and cannot mutate child truth.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/resource_broker/**", "src/backend/handshake_core/src/api/**", "src/backend/handshake_core/tests/locus_project_*.rs"],
+    "forbidden_paths": ["Hard-delete cascade of project descendants or governance units", "Implicit reparenting from filesystem move, workspace move or module change", "Parent rollup writes into child canonical lifecycle", "Any SQLite/PostgreSQL path"],
+    "acceptance_criteria": [
+      "All four project kinds support typed create, transition, archive and restore operations with an explicit transition table and idempotency keys.",
+      "Reparenting rejects cycles, denied scopes, incompatible ownership, unresolved active leases and invalid cross-project dependency consequences.",
+      "Archive and deletion request preserve child projects, taskboards, WPs, MTs, EventLedger history and recovery metadata; no silent cascade occurs.",
+      "Moving or deleting a workspace/worktree does not archive, delete or reparent its managed project.",
+      "Concurrent lifecycle mutations settle deterministically through SurrealDB transactions and return typed conflict receipts."
+    ],
+    "proof_targets": ["Lifecycle transition-table unit and real-Surreal integration tests", "Concurrent reparent/archive conflict tests", "Tombstone restore and descendant-preservation restart tests", "Argus proof of operator confirmation, blocked transitions and recovery path"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/resource_broker/**", "src/backend/handshake_core/src/api/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["project_node_transition_matrix", "project_reparent_cycle_scope_and_lease_denial", "project_archive_preserves_descendants", "workspace_change_does_not_mutate_project", "concurrent_project_lifecycle_conflict_receipt"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Project lifecycle and reparent controls", "Archive/restore and conflict dialogs"], "argus_targets": ["Blocked cycle", "Denied cross-scope reparent", "Archive impact preview", "Successful restore with descendants intact"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Projects > Lifecycle", "Projects > Reparenting", "Projects > Archive and restore", "Locus > Conflict recovery"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["project lifecycle records", "parent/child relations", "dependency-impact records", "project tombstones", "lifecycle impact previews"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "source_project_id", "target_parent_project_id"],
+    "enforcement_boundaries": ["Lifecycle authority is checked independently on the source project, target parent and affected dependency scopes.", "ResourceBroker mediates lifecycle and reparenting operations."],
+    "same_project_private_resource_cases": ["A same-project user without private descendant access cannot inspect or mutate that descendant through lifecycle previews."],
+    "cross_account_negative_cases": ["Cross-account reparent, archive, restore and deletion requests fail without exposing target topology."],
+    "derived_resource_non_widening_cases": ["Impact previews omit denied descendants and cannot be used to widen lifecycle authority."],
+    "revocation_and_context_switch_cases": ["Revocation between preview and commit invalidates the preview token and forces complete reauthorization."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Blocked lifecycle responses do not reveal hidden descendant names, counts, dependency labels or ownership."],
+    "expected_evidence": ["multi_resource_lifecycle_authorization", "same_project_private_descendant_denial", "cross_account_reparent_denial", "impact_preview_non_widening", "revocation_between_preview_and_commit", "tombstone_scope_preservation"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record requested transition, impact hash, authorization result and final lifecycle receipt."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose invalid transitions, orphan risk, cycle detection and stuck tombstones."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if lifecycle-stall watching is unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Unsafe cascade or implicit reparenting can detach governance, destroy recoverability or expose private project topology.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_PROJECT_LIFECYCLE_V1", "risks": ["Archive silently cascades into children.", "Reparent crosses AccessSpaces.", "Two operators race lifecycle transitions.", "Workspace cleanup deletes a project."], "minimum_controls": ["Tombstone-first non-cascading semantics.", "Multi-resource authorization.", "Transactional compare-and-set and idempotency.", "Separate project and execution-context lifecycles."]},
+  "research_provenance": {"source": "MT-361/362 managed-project contract; current Locus lifecycle operations; official SurrealDB transaction, relation and permission documentation.", "selected_approach": "Explicit transactional state machines with recoverable tombstones and authorized graph reparenting.", "rejected_options": ["Hard-delete cascade", "Path-derived reparenting", "Parent-owned child lifecycle", "Best-effort concurrent updates"]}
+}

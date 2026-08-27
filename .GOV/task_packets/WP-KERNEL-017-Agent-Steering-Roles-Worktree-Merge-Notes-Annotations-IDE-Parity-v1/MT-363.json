@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-363",
+  "title": "LC-MT363-TypedRepositoryAndOperationSurface",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Replace legacy Locus SQL-era adapters with one typed, scoped SurrealDB repository and complete operation surface.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-363.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-362"], "blocks": ["MT-364"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Create a provider-neutral Locus repository boundary whose sole implementation is typed SurrealDB. Remove the misleading sqlite_store naming and every direct PgPool/sqlx/PostgresDatabase consumer. Preserve and complete the operation catalog discovered by MT-361, including project/WP/MT create-update-gate-close-delete, dependency add/remove, readiness/blocked/status queries, taskboard synchronization intent, search, event synchronization, progress, claim and execution binding. All commands carry Principal, account, AccessSpace and project-qualified identity; callers cannot construct unscoped raw queries.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/workflows.rs", "src/backend/handshake_core/src/api/**", "src/backend/handshake_core/tests/locus_*.rs"],
+    "forbidden_paths": ["src/backend/handshake_core/src/locus/sqlite_store.rs as a surviving name or compatibility path", "Direct PgPool, sqlx, PostgresDatabase or raw SQLite calls", "Unscoped repository methods", "Dropping audited operations as NotImplemented"],
+    "acceptance_criteria": [
+      "One typed Locus repository trait and SurrealDB implementation covers the complete MT-361 operation matrix without NotImplemented variants.",
+      "The SQL-era parser is renamed to its semantic role or replaced; no SQLite/PostgreSQL naming or dependency remains in connected Locus code.",
+      "Every command/query requires explicit Principal, account, AccessSpace and project-qualified target and returns typed domain results/errors.",
+      "API, workflow and executor callers use the repository boundary and cannot obtain a raw database handle.",
+      "Wire compatibility is either preserved with explicit versioned translation or rejected with a typed migration error and manual guidance."
+    ],
+    "proof_targets": ["Operation-table contract test proving total command/query coverage", "Compile and source tripwires for sqlite_store, PgPool, sqlx and PostgresDatabase", "Authenticated record-user tests for allowed and denied operations", "API/workflow integration tests against a real disposable SurrealDB database"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/workflows.rs", "src/backend/handshake_core/src/api/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["locus_operation_catalog_totality", "locus_no_sql_adapter_tripwire", "locus_repository_scope_required", "locus_api_real_surreal_roundtrip", "locus_wire_version_behavior"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "NO", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Existing Locus command, taskboard and status surfaces"], "argus_targets": ["Typed unsupported/version errors", "Project-qualified command target and result", "Denied-operation state without information leakage"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Commands and queries", "Locus > Errors and recovery", "Storage authority > SurrealDB"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["Locus repository commands", "Locus repository queries", "project/WP/MT records", "administrative migration APIs"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "project_id", "wp_id", "mt_id"],
+    "enforcement_boundaries": ["No repository call accepts an implicit global scope.", "Administrative migration APIs are physically separated from product calls.", "ResourceBroker mediates every product repository operation."],
+    "same_project_private_resource_cases": ["A same-project caller lacking the target AccessSpace receives a non-enumerating typed denial."],
+    "cross_account_negative_cases": ["Cross-account calls cannot create, read, update, search or infer any Locus target."],
+    "derived_resource_non_widening_cases": ["API and workflow result projections retain the repository decision and cannot add denied fields."],
+    "revocation_and_context_switch_cases": ["A revoked or switched Principal must reauthorize before reusing repository requests, cursors or cached results."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Denied records return non-enumerating errors without existence, label, status, timing or count detail."],
+    "expected_evidence": ["repository_scope_required_compile_test", "same_project_access_space_denial", "cross_account_repository_denial", "administrative_api_separation", "non_enumerating_error_evidence"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record operation kind, scoped target, outcome and correlation id without content payloads or secrets."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose operation coverage, schema mismatch and legacy-adapter tripwire state."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if repository latency/error watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Partial operations or surviving direct database consumers will recreate dialect drift, privacy bypasses and split Locus behavior.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_REPOSITORY_BOUNDARY_V1", "risks": ["An unlisted operation still uses PostgreSQL.", "A raw database handle bypasses ResourceBroker.", "A compatibility parser hides unsupported semantics.", "Denied lookups leak target existence."], "minimum_controls": ["Exhaustive enum/table matching.", "Dependency and source tripwires.", "Private repository constructors and typed scope.", "Negative privacy integration tests."]},
+  "research_provenance": {"source": "MT-361 operation audit; current Locus types/workflows/storage adapters; official SurrealDB Rust SDK typed-query and transaction guidance checked for WP-017.", "selected_approach": "A single scoped repository boundary with a complete typed operation catalog and one SurrealDB implementation.", "rejected_options": ["Dialect-specific repository traits", "Direct pool access", "Partial NotImplemented compatibility", "Stringly typed unscoped commands"]}
+}

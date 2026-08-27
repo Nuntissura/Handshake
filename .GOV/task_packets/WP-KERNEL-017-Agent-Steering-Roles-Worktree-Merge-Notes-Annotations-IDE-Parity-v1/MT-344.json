@@ -15,7 +15,7 @@
   "group": "SurrealDB authority migration",
   "clause": "Audit every completed/validated and implemented/in-flight WP and MT for database-touched behavior, preserve every historical artifact unchanged, and map required fresh SurrealDB remediation/proof into current WP017.",
   "created_at_utc": "2026-08-15T00:00:00Z",
-  "updated_at_utc": "2026-08-15T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-344.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
@@ -54,7 +54,8 @@
       "The remediation matrix covers every completed, validated, implemented and in-flight database-touched packet and microtask at pinned product commit 6519f4e2827840642a6c0401ac31055469f09d3b, including every family recorded in the refinement; the older ten-packet sample is not an exhaustive boundary.",
       "KERNEL005 includes MT-012 and every other validated/implemented durable-state microtask found by the exhaustive scan; each hit is classified and mapped to a fresh SurrealDB proof target or an evidence-backed no-remediation-needed result.",
       "Historical validator receipts remain immutable and are labeled superseded-for-current-runtime rather than rewritten; KERNEL001/KERNEL003/KERNEL004 status anomalies are recorded as contract debt, not completed proof.",
-      "Traceability links each affected historical packet/MT to the exact WP017 migration MT and fresh validator acceptance surface; superseded packet versions remain immutable lineage rather than rewritten contracts."
+      "Traceability links each affected historical packet/MT to the exact WP017 migration MT and fresh validator acceptance surface; superseded packet versions remain immutable lineage rather than rewritten contracts.",
+      "After all three predecessor WPs merge, the audit inventories the exact merged Locus, Loom, Notes and CKC source/schema/test surface, reconciles conflicting migration histories, and maps every still-required old Locus/Loom/media/downloader/ASR/transcript/poster-frame stub requirement into MT-361..398 without rewriting historical artifacts."
     ],
     "proof_targets": [
       "Run the named focused Rust tests against a real disposable Handshake-managed SurrealDB namespace/database.",

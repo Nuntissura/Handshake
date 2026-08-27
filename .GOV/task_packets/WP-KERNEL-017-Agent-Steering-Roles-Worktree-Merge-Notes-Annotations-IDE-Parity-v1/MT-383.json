@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-383",
+  "title": "LoomNativeRelationGraphAndProjectionRegistry",
+  "group": "Loom SurrealDB semantic recovery",
+  "clause": "Establish native Surreal relation semantics and an extensible typed domain-source projection registry for Loom.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-383.json", "microtask_projection": "NOT_GENERATED_BY_DEFAULT", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json", "spec_current": ".GOV/spec/SPEC_CURRENT.md"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-382"], "blocks": ["MT-384"], "active": false, "validator_verdict": "PENDING"},
+  "no_context_startup": {
+    "required_reads": [".GOV/spec/SPEC_CURRENT.md", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-381.json", ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-382.json", ".GOV/codex/Handshake_Codex_v1.4.md", ".GOV/roles/coder/CODER_PROTOCOL.md"],
+    "current_source_discovery": ["Inspect accepted Surreal schema and all current link/backlink/domain projection symbols.", "Discover exact existing plugin/registry conventions before naming extension points."],
+    "stop_conditions": ["MT-382 is not accepted.", "Projection identity or ownership is ambiguous.", "A proposed relation can widen source access or create a second mutable authority."]
+  },
+  "scope": {
+    "summary": "Make Loom a typed cross-domain knowledge graph without hard-coding each current or future creative/IDE module. Domain records remain authoritative in their owning Surreal tables; Loom stores typed, attributable, repairable projections and relations.",
+    "allowed_paths": ["src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/src/loom_search/**", "src/backend/handshake_core/src/api/loom.rs", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Opaque string-only relation kinds without schema/version validation", "Synthetic Loom blocks as substitutes for domain records", "Hard-coded CKC, Tailor or Studio-only registry architecture", "Cross-database projection authority"],
+    "acceptance_criteria": [
+      "Native Surreal relation tables represent typed directional edges with stable source, target, project, owner, scope, provenance, relation version and tombstone semantics.",
+      "A typed extensible domain-source projection registry declares source kind, source record type, projection builder, repair strategy, supported link/embed actions and version compatibility.",
+      "Registering a future publisher requires a typed adapter and fixtures but no Loom schema fork or untyped string dispatch.",
+      "Projection creation is idempotent and records the authoritative domain source; deleting or repairing a projection never mutates its domain source.",
+      "Backlink and graph APIs return typed relation metadata and reject dangling, cross-project or unauthorized endpoints."
+    ],
+    "proof_targets": ["Run native relation create/traverse/tombstone/restart tests against real SurrealDB.", "Run registry compatibility, duplicate-registration and unknown-version negative tests.", "Run projection repair tests using typed fixture publishers."],
+    "code_surfaces": ["src/backend/handshake_core/src/storage/surreal/schema.surql", "src/backend/handshake_core/src/storage/surreal/loom_store.rs", "src/backend/handshake_core/src/storage/loom.rs", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["loom_native_relation_round_trip", "loom_projection_registry_is_typed_and_extensible", "loom_projection_is_idempotent_and_repairable", "loom_relation_denies_cross_scope_endpoint"]
+  },
+  "gui_obligation": {"operator_surface_required": "NO", "gui_creation_required": "NO", "argus_required": "NO", "trace_projection_required_when_non_ui": true, "surfaces": [], "argus_targets": [], "expected_evidence": ["typed registry dump", "relation trace projection"], "not_applicable_reason": "Backend graph foundation; graph and integration UI MTs own Argus proof."},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Loom > Relations and domain projections", "Loom > Adding a typed publisher"], "expected_evidence": ["user_manual_diff", "no_context_publisher_fixture_test", "repair procedure test"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true, "applicable": true,
+    "resources_touched": ["Loom relation", "domain-source projection", "backlink", "graph result"],
+    "identity_and_scope_contexts": ["LocalAccount", "Principal", "AuthenticatedSession", "AccessSpace", "project_id", "ResourceGrant", "source_scope"],
+    "enforcement_boundaries": ["SurrealDB relation permissions", "projection registry", "ResourceBroker", "graph/backlink API"],
+    "same_project_private_resource_cases": ["A shared block cannot expose a private source endpoint without an explicit compatible grant."],
+    "cross_account_negative_cases": ["Forged relation IDs and mixed-account endpoints fail closed."],
+    "derived_resource_non_widening_cases": ["Projection and relation scope is the intersection of all source endpoints."],
+    "revocation_and_context_switch_cases": ["Revocation removes projection visibility and invalidates traversal caches."],
+    "remote_saas_mcp_sync_cases": ["Remote publisher identity is quarantined until explicitly mapped to local scope."],
+    "metadata_side_channel_cases": ["Relation existence, degree and endpoint type are hidden when either endpoint is denied."],
+    "expected_evidence": ["relation_endpoint_permission_matrix", "derived_scope_intersection_test", "revocation_traversal_test", "graph_metadata_non_disclosure_test"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-SWARM-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "posture": "IMPLEMENTED", "evidence": "relation/projection create, repair, deny and delete events"},
+    {"tier": "internal_diagnostics", "posture": "IMPLEMENTED", "evidence": "registry compatibility, dangling edge and repair-queue health"},
+    {"tier": "palmistry", "posture": "WIRED", "evidence": "projection operation IDs and crash recovery context"}
+  ],
+  "risk_if_missed": "Every module will invent its own link table or synthetic Loom records, producing brittle duplication and future Tailor/Studio rework.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1", "risks": ["Registry becomes an untyped service locator.", "A projection silently becomes domain authority.", "Dangling relations survive source deletion.", "Graph metadata leaks denied endpoints."], "minimum_controls": ["Versioned typed adapter contract.", "Explicit source-authority invariant.", "Repair/tombstone lifecycle tests.", "Endpoint-intersection authorization."]},
+  "research_provenance": {"status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION", "sources": ["Official SurrealDB graph relation documentation", "Official SurrealDB record-link and permissions documentation", "Handshake Loom and CKC source audit", "Typed plugin/adapter patterns in current Handshake"], "selected_approach": "Native typed relations plus a versioned domain-source projection registry with source-authority and repair invariants.", "rejected_options": ["Per-module ad hoc link tables", "Opaque JSON relations", "Synthetic blocks as domain authority", "Schema fork per future module"]}
+}

@@ -1,0 +1,248 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-405",
+  "title": "WL-MT405-ConcurrencyEncryptionQuotaHardening",
+  "group": "Conditional WP-local working-store evaluation",
+  "clause": "Harden the single-broker working store for concurrent agents, bounded retry, encryption, revocation and disk quotas without creating authority.",
+  "storage_authority": "CONDITIONAL_NON_AUTHORITY_ONLY",
+  "decision_posture": "EVALUATION_NOT_ADOPTION",
+  "conditional_execution": {
+    "gate": "MT-401 APPROVED_FOR_EVALUATION",
+    "approved": "Execute this contract normally after MT-404.",
+    "rejected": "Do not edit product code, add a dependency or start a broker; record validator-checked NOT_APPLICABLE_BY_MT401_REJECTION."
+  },
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-405.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-404"
+    ],
+    "blocks": [
+      "MT-406"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make the conditional WP-local adapter safe under simultaneous sessions, MTs and worktrees while retaining MT-403's single Windows broker. The broker owns connections, file locking, conflict classification, bounded retry, quotas, checkpoint/compaction, encryption-key indirection and access revalidation. The evaluated Turso adapter may use documented local MVCC/BEGIN CONCURRENT only after conflict and durability proof; it must never enable cloud sync. Local concurrency can improve working-set throughput but cannot settle canonical conflicts, gates, leases or product revisions.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/broker.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/concurrency.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/security.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/quota.rs",
+      "src/backend/handshake_core/src/kernel/wp_local_store/adapter_turso.rs",
+      "src/backend/handshake_core/tests/wp_local_store_concurrency.rs",
+      "src/backend/handshake_core/tests/wp_local_store_security.rs"
+    ],
+    "forbidden_paths": [
+      "Turso Cloud, remote URLs, auth tokens, push, pull or sync",
+      "Raw encryption keys in SurrealDB, local database, config, logs or receipts",
+      "Unbounded busy/conflict retry loops",
+      "Direct file handles outside the broker",
+      "Using local locks as canonical Locus occupancy or lease authority"
+    ],
+    "acceptance_criteria": [
+      "Concurrent requests from at least two worktrees, multiple sessions and multiple MTs under one WP are serialized or run through proven conflict-aware local transactions without corruption, lost updates, starvation or more than one file owner.",
+      "Conflict/busy errors are classified, use capped exponential backoff with jitter and a deterministic retry ceiling, and return a typed retryable failure rather than loop indefinitely or bypass the broker.",
+      "The evaluated Turso adapter explicitly configures and verifies the chosen local journal/concurrency mode; if MVCC/BEGIN CONCURRENT is unsupported or fails durability tests, the broker uses one-writer serialization instead of silently weakening guarantees.",
+      "At-rest encryption is mandatory before any non-public draft, manifest or cache is allowed. The key is generated/stored through the OS secret boundary or approved Handshake key service and referenced by opaque key ID only.",
+      "Project/WP membership and ResourceBroker grants are revalidated on open and before sensitive reads/writes; revocation invalidates broker handles and derived cache entries without waiting for restart.",
+      "Per-WP hard/soft disk quotas, WAL/checkpoint bounds and retention-aware cleanup prevent unbounded growth. Quota pressure cannot evict pending promotion intents, unpromoted drafts or required recovery receipts.",
+      "All broker work is quiet, cancelable and observable through bounded state; it never pops a window or captures focus."
+    ],
+    "proof_targets": [
+      "Run a real Windows stress test with concurrent readers/writers from multiple attributed sessions/worktrees, forced conflicts and broker restart; verify hashes, counts and no duplicate ownership.",
+      "Run conflict retry ceiling and starvation tests under the chosen Turso local journal mode and under serialized fallback mode.",
+      "Inspect the database file for encrypted-at-rest behavior, then prove missing/wrong/revoked key returns typed quarantine without content leakage or file rewrite.",
+      "Drive WAL/checkpoint and quota thresholds with bounded synthetic working records and verify deterministic cleanup and protected-record retention.",
+      "Revoke a project/WP grant during active use and prove handles, caches and pending calls are denied without widening access."
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/kernel/wp_local_store/**",
+      "src/backend/handshake_core/tests/wp_local_store_concurrency.rs",
+      "src/backend/handshake_core/tests/wp_local_store_security.rs"
+    ],
+    "expected_tests": [
+      "multi_session_multi_worktree_concurrent_integrity",
+      "busy_conflict_retry_is_bounded_and_cancelable",
+      "unsupported_mvcc_falls_back_to_broker_serialization",
+      "encrypted_file_wrong_key_quarantines_without_leak",
+      "revocation_invalidates_handles_and_caches",
+      "quota_cleanup_preserves_drafts_intents_and_receipts",
+      "background_work_never_steals_focus"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Concurrency/security backend work; MT-409 owns the visual diagnostic surface. Structured traces expose redacted queue depth, retry class, quota and key-health state."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "WP-local working store > Parallel agents and broker locking",
+      "WP-local working store > Encryption, quotas and access revocation"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "concurrent WpLocalStore handles",
+      "encryption key references",
+      "quota/conflict state",
+      "pending local work"
+    ],
+    "identity_and_scope_contexts": [
+      "Principal",
+      "AuthenticatedSession",
+      "AccessSpace",
+      "project_id",
+      "wp_id",
+      "broker generation"
+    ],
+    "enforcement_boundaries": [
+      "ResourceBroker",
+      "canonical membership check",
+      "single Windows broker",
+      "encryption-key indirection",
+      "quota and concurrency controller"
+    ],
+    "same_project_private_resource_cases": [
+      "Concurrent same-project sessions observe only records permitted by their source-scope intersection."
+    ],
+    "cross_account_negative_cases": [
+      "Filesystem possession, lock contention and forged handles cannot grant or disclose another account's store."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Pending work and conflict retries retain the original source scope and cannot widen it."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Revocation invalidates active handles, pending work and derived records promptly and observably."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "Encryption and concurrency support introduce no cloud, SaaS, MCP or replica route."
+    ],
+    "metadata_side_channel_cases": [
+      "Counts, quota state, locks, conflicts and diagnostic events are scoped/redacted; opaque key references never reveal key material."
+    ],
+    "expected_evidence": [
+      "cross_project_contention_non_disclosure",
+      "key_material_absence_scan",
+      "mid_request_revocation_denial",
+      "filesystem_possession_without_grant_denied"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-MAN-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "Bounded broker conflict, quota and security lifecycle receipts need correlation without recording payload or key material."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "DIRECT",
+      "reason": "Conflicts, retries, starvation, quota, checkpoint, encryption and revocation require stable redacted diagnostics."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "DIRECT",
+      "reason": "Broker queues, checkpoint/compaction and long contention waits are declared background jobs with cancel/progress state."
+    }
+  ],
+  "risk_if_missed": "Concurrent agents can corrupt or starve the local store, plaintext drafts can leak, or an unbounded WAL/cache can exhaust disk and undermine the entire WP.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "WP_LOCAL_STORE_CONDITIONAL_EVALUATION_V1",
+    "risks": [
+      "MVCC is assumed safe without testing conflict/retry behavior on the pinned version.",
+      "A broker crash leaves a stale handle/lock and a second writer starts.",
+      "Encryption is experimental or misconfigured but diagnostics still label the store protected.",
+      "Quota eviction removes the only unpromoted work or logs sensitive filenames."
+    ],
+    "minimum_controls": [
+      "Pinned adapter version and real concurrency/durability proof.",
+      "Bounded retries, broker generations and single-owner restart protocol.",
+      "Fail-closed encryption readiness with key-material scans.",
+      "Retention-class-aware quotas and redacted diagnostics."
+    ]
+  },
+  "research_provenance": {
+    "checked_at_utc": "2026-08-27T00:00:00Z",
+    "official_sources": [
+      {
+        "title": "Turso concurrent writes",
+        "url": "https://docs.turso.tech/tursodb/concurrent-writes",
+        "finding": "Official guidance requires MVCC plus BEGIN CONCURRENT and application retry on conflicts; Handshake must bound and prove those retries or serialize writes."
+      },
+      {
+        "title": "Turso Rust SDK reference",
+        "url": "https://docs.turso.tech/sdk/rust/reference",
+        "finding": "The official reference documents local transactions and encryption, including engine-specific encryption configuration that must fail closed and remain adapter-private."
+      },
+      {
+        "title": "SurrealDB permissions and row-level security",
+        "url": "https://surrealdb.com/docs/learn/security/authorization/permissions-and-row-level-security",
+        "finding": "Canonical permissions remain enforced by authenticated SurrealDB sessions; the broker revalidates rather than inventing local authority."
+      }
+    ],
+    "project_sources": [
+      "GLOBAL-BUILD-PARALLEL-033..045",
+      "GLOBAL-BUILD-QUIET-046..054",
+      "MT-403 Windows single-broker ownership contract"
+    ],
+    "selected_approach": "Single broker with proven local transaction mode, bounded conflict retry, encryption-key indirection, prompt revocation and hard quotas.",
+    "rejected_options": [
+      "Unbounded busy retry",
+      "Multiple direct writers",
+      "Plaintext local drafts",
+      "Cloud replication",
+      "Local locks as Locus authority"
+    ]
+  }
+}

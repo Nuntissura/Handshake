@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-361",
+  "title": "LC-MT361-StableMainLocusAuditAndSemanticContract",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "After WP-KERNEL-012, WP-1 multi-model orchestration and WP-CKC merge, audit stable main and refresh the Locus specification before any Locus refactor begins.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-361.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-338"],
+    "blocks": ["MT-362"],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Establish the post-merge source of product truth for rebuilding Locus on SurrealDB. Execution is forbidden until WP-KERNEL-012, WP-1 multi-model orchestration and WP-CKC are merged into stable main. Audit the merged product code, current Master Spec, historical Locus implementations and the retained Locus stubs; preserve every still-required semantic capability while rejecting obsolete SQLite/PostgreSQL implementation assumptions. Define Handshake as an IDE and creative production environment whose managed-project forest can contain root projects, subprojects, tasks and prototypes. Workspaces are execution contexts, not canonical project nodes. Each managed project node owns its canonical taskboard, work packets and microtasks through Locus. CKC being the parent product module of future Tailor is a product-module hierarchy fact only and MUST NOT create a managed-project parent relation unless an operator explicitly creates one.",
+    "allowed_paths": [
+      ".GOV/spec/**",
+      ".GOV/task_packets/stubs/WP-1-Locus-*/**",
+      ".GOV/task_packets/stubs/WP-1-Locus-*.json",
+      "src/backend/handshake_core/src/locus/**",
+      "src/backend/handshake_core/src/storage/**",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "Any Locus product-code edit before all three predecessor WPs are merged to stable main",
+      "Any SQLite or PostgreSQL authority, adapter, fallback, fixture or proof path",
+      "Treating workspaces as project nodes or product-module hierarchy as managed-project hierarchy",
+      "Deleting historical stubs instead of tracing preserved requirements"
+    ],
+    "acceptance_criteria": [
+      "Fresh canonical reads prove WP-KERNEL-012, WP-1 multi-model orchestration and WP-CKC are merged into stable main before the audit or implementation baseline is accepted.",
+      "The audit maps every current and historical Locus operation, schema, event, projection, query, diagnostic and retained stub requirement to preserve, replace, reject or operator-decision status with evidence paths.",
+      "The refreshed specification defines the managed-project forest, project kinds, workspace/execution-context boundary, project-qualified WP/MT identity, project-owned governance units and SurrealDB-only authority.",
+      "The specification distinguishes CKC-to-Tailor product-module hierarchy from operator-created managed-project parentage and forbids implicit conversion between them.",
+      "No implementation MT may claim readiness from pre-merge paths, PostgreSQL/SQLite examples or unverified summaries; MT-362 receives an independently reviewable stable-main evidence map."
+    ],
+    "proof_targets": [
+      "Canonical git and packet-state reads for the three predecessor merges and the resulting stable-main commit.",
+      "A source-linked Locus parity matrix covering code, tests, schema, spec and historical stubs.",
+      "Independent spec validation proving every accepted requirement has a stable ID and downstream MT owner.",
+      "Repository tripwire output proving the refreshed normative Locus contract contains no active SQLite/PostgreSQL authority language."
+    ],
+    "code_surfaces": [
+      ".GOV/spec/**",
+      "src/backend/handshake_core/src/locus/**",
+      "src/backend/handshake_core/src/storage/**",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "expected_tests": [
+      "stable_main_predecessor_merge_gate",
+      "locus_capability_parity_matrix_totality",
+      "managed_project_forest_spec_contract",
+      "locus_legacy_authority_language_tripwire"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": ["Existing project tree, Locus taskboard and work-packet navigation inspected on merged stable main"],
+    "argus_targets": ["Baseline captures showing root project, subproject, task/prototype and workspace distinctions or their verified absence"],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": ["Projects > Managed project forest", "Locus > Authority and identity", "Workspaces > Execution contexts"],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["stable-main Locus source audit", "managed-project topology", "specification evidence", "Argus baseline evidence"],
+    "identity_and_scope_contexts": ["authenticated record user", "administrative audit tooling", "account_id", "access_space_id", "project_id"],
+    "enforcement_boundaries": ["Audit authenticated record-user paths separately from administrative tooling.", "Accept privacy findings only from canonical stable-main state and scoped evidence."],
+    "same_project_private_resource_cases": ["A same-project user without the required AccessSpace cannot inspect private Locus records or audit evidence."],
+    "cross_account_negative_cases": ["A user from another account cannot discover project existence, ancestry, child counts or audit findings."],
+    "derived_resource_non_widening_cases": ["Spec, audit and Argus projections cannot reveal more project topology or content than their canonical sources authorize."],
+    "revocation_and_context_switch_cases": ["Changing Principal or AccessSpace invalidates previously authorized audit views and requires a fresh scoped read."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Redact credentials, machine-local roots, private content, hidden project names and hidden child counts from audit and Argus evidence."],
+    "expected_evidence": ["authenticated_record_user_audit", "administrative_tooling_boundary_test", "cross_account_project_topology_denial", "derived_audit_non_widening_review", "redacted_argus_evidence"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record stable-main audit start, predecessor verdict and published semantic-baseline receipt."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose missing predecessor, stale spec anchor and unmapped Locus capability diagnostics."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if the merged stable-main Palmistry producer is unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Implementing from divergent worktrees or stale SQL-era semantics would rebuild the wrong Locus, lose capabilities and encode an invalid project hierarchy.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {
+    "required": true,
+    "profile": "LOCUS_PROJECT_FOREST_V1",
+    "risks": [
+      "A predecessor is described as merged without a canonical stable-main read.",
+      "A historical stub requirement is silently dropped because its implementation language is obsolete.",
+      "Workspace, product-module and managed-project hierarchies are conflated.",
+      "The refreshed spec preserves executable SQLite/PostgreSQL examples as active authority."
+    ],
+    "minimum_controls": [
+      "Independent canonical merge proof and source-linked audit.",
+      "Preservation-first requirement mapping with explicit rejection rationale.",
+      "Separate typed models for product modules, managed projects and execution workspaces.",
+      "SurrealDB-only normative schema and operation examples."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-approved Locus/Loom/Turso expansion dated 2026-08-27; current WP-017 MT-331..346 contracts; current Locus source/spec/stub audit; official SurrealDB Rust SDK, transaction, relation and permission documentation checked for the WP-017 refinement.",
+    "selected_approach": "Wait for merged stable main, then perform a preservation-first semantic audit and refresh the specification before implementation.",
+    "rejected_options": ["Implementing against any current divergent worktree", "Treating old stubs as disposable", "Blind SQL dialect translation", "Inferring project hierarchy from product modules or workspaces"]
+  }
+}

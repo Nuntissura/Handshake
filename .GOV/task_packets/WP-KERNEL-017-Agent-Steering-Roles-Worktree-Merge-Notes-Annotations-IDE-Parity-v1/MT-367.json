@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-367",
+  "title": "LC-MT367-AtomicMutationEventLedgerAndOutbox",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Commit every canonical Locus mutation, EventLedger receipt and projection-outbox intent atomically in SurrealDB.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-367.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-364", "MT-335"], "blocks": ["MT-368", "MT-370", "MT-371"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Extend the MT-335 atomic EventLedger pattern to every Locus project-forest and governance mutation. One SurrealDB transaction must write the canonical record change, immutable project-qualified EventLedger event and durable projection-outbox intent. Idempotency keys prevent duplicate effects. Filesystem taskboards, Loom projections, GUI caches and search updates occur only from committed outbox items and can be replayed safely. A failed transaction produces none of the three records; a failed projection leaves canonical truth committed and visibly pending repair.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/event_ledger/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/task_board/**", "src/backend/handshake_core/src/loom*/**", "src/backend/handshake_core/src/flight_recorder/**", "src/backend/handshake_core/tests/**"],
+    "forbidden_paths": ["Canonical mutation without EventLedger and outbox in the same SurrealDB transaction", "Direct filesystem/UI/Loom write before transaction commit", "Dual-write compensation presented as atomicity", "SQLite/PostgreSQL outbox or ledger"],
+    "acceptance_criteria": [
+      "Every mutating Locus operation writes canonical state, one immutable EventLedger event and required outbox intent in one real SurrealDB transaction.",
+      "Injected failure before commit leaves no partial canonical, ledger or outbox record; injected projection failure after commit leaves a retryable outbox item without rolling back truth.",
+      "Idempotent retry with the same project-qualified operation id creates no duplicate mutation, event or projection effect.",
+      "Outbox workers enforce project scope, stable ordering and bounded retry/dead-letter behavior and never open raw database authority to consumers.",
+      "Independent canonical reread reconciles record revision, EventLedger sequence and projection source revision after restart and concurrent writes."
+    ],
+    "proof_targets": ["Real-Surreal transaction failure-injection suite", "Duplicate retry and concurrent append tests", "Projection crash/restart/replay tests", "Independent canonical reconciliation command comparing state, ledger and outbox revisions"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/event_ledger/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/task_board/**", "src/backend/handshake_core/src/loom*/**", "src/backend/handshake_core/src/flight_recorder/**", "src/backend/handshake_core/tests/**"],
+    "expected_tests": ["locus_atomic_state_event_outbox_commit", "locus_precommit_failure_has_zero_effect", "locus_projection_failure_is_retryable", "locus_idempotent_retry_no_duplicates", "locus_restart_revision_reconciliation"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Locus mutation receipt and projection health", "Projection retry/dead-letter recovery"], "argus_targets": ["Committed/current", "Committed/projection-pending", "Retrying", "Dead-letter with safe recovery action"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Atomic mutations", "EventLedger > Locus receipts", "Recovery > Projection outbox", "Diagnostics > Reconciliation"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["canonical Locus mutations", "EventLedger events", "projection-outbox intents", "projection-worker diagnostics"],
+    "identity_and_scope_contexts": ["principal", "account_id", "access_space_id", "project_id", "operation_id", "worker_delegation_scope"],
+    "enforcement_boundaries": ["Ledger events and outbox intents inherit the canonical record scope.", "Workers cannot process or reveal projects outside their delegated ResourceBroker scope."],
+    "same_project_private_resource_cases": ["A worker delegated to one private AccessSpace cannot consume or diagnose another private space in the same project."],
+    "cross_account_negative_cases": ["Cross-account events and outbox items cannot be claimed, replayed, counted or inspected."],
+    "derived_resource_non_widening_cases": ["Every projection preserves the canonical mutation scope and cannot promote broader visibility."],
+    "revocation_and_context_switch_cases": ["Worker delegation revocation stops claims and retries; a new scope requires a new authorized worker context."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Diagnostics expose scoped hashes and ids only and redact content, secrets, hidden queue depth and private target labels."],
+    "expected_evidence": ["state_event_outbox_scope_linkage", "same_project_worker_delegation_isolation", "cross_account_outbox_claim_denial", "projection_scope_non_widening", "worker_revocation_test", "redacted_outbox_diagnostics"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record transaction correlation, canonical revision, EventLedger id, outbox id and projection settlement."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose partial-state invariant checks, outbox depth, retry age, dead letters and reconciliation mismatches."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if outbox-stall and ledger-divergence watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "A crash can leave Locus truth, EventLedger and projections disagreeing, destroying reliable recovery and operator trust.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_ATOMIC_LEDGER_OUTBOX_V1", "risks": ["Ledger append succeeds after canonical mutation fails.", "Projection publishes before commit.", "Retry duplicates a transition.", "Outbox worker leaks another project."], "minimum_controls": ["Single SurrealDB transaction.", "Post-commit consumers only.", "Unique idempotency and event keys.", "Scoped workers and authenticated privacy tests."]},
+  "research_provenance": {"source": "MT-335 EventLedger atomicity contract; MT-364 project lifecycle contract; current Locus/taskboard projection paths; official SurrealDB transaction documentation and transactional-outbox field patterns reviewed for WP-017.", "selected_approach": "Single-database atomic state/event/outbox commit with idempotent post-commit projections.", "rejected_options": ["Best-effort dual write", "Filesystem-first commit", "Synchronous projection as authority", "Cross-database transaction claim"]}
+}

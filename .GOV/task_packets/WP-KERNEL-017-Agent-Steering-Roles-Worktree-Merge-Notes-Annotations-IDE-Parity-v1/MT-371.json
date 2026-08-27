@@ -1,0 +1,59 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {"authority_surface": "MACHINE_CONTRACT", "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD", "projection_creation": "ON_OPERATOR_REQUEST_ONLY", "operator_facing_authority": false, "model_created_markdown_authority_allowed": false},
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-371",
+  "title": "LC-MT371-MigrationReplayRecoveryAndParity",
+  "group": "Locus SurrealDB semantic recovery",
+  "clause": "Migrate, replay and recover the complete Locus project forest while proving semantic parity and eliminating SQL-era paths.",
+  "created_at_utc": "2026-08-27T00:00:00Z",
+  "updated_at_utc": "2026-08-27T00:00:00Z",
+  "storage_authority": "SURREALDB_SOLE_MAIN_AUTHORITY",
+  "authority_files": {"microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-371.json", "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json", "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"},
+  "markdown_projection": {"path": "NOT_GENERATED_BY_DEFAULT", "status": "NOT_GENERATED_BY_DEFAULT", "generator": "NONE_JSON_AUTHORITY_ONLY"},
+  "lifecycle": {"status": "PENDING", "depends_on": ["MT-362", "MT-366", "MT-367", "MT-368", "MT-369", "MT-370", "MT-336"], "blocks": ["MT-372"], "active": false, "validator_verdict": "PENDING"},
+  "scope": {
+    "summary": "GOAL: Close the Locus semantic migration against the MT-361 parity matrix. Build fresh SurrealDB initialization and explicit supported-source migration/reconstruction for retained project evidence; do not connect to PostgreSQL or SQLite at runtime. Replay EventLedger state and rebuild taskboards, rollups, Loom relations, query indexes, subscriptions and occupancy projections. Prove restart, backup/restore, corruption detection, partial projection failure and recovery across a representative managed-project forest. Remove all legacy authority adapters, features, fixtures and false-green tests.",
+    "allowed_paths": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/event_ledger/**", "src/backend/handshake_core/src/task_board/**", "src/backend/handshake_core/src/loom*/**", "src/backend/handshake_core/src/diagnostics/**", "src/backend/handshake_core/tests/**", "scripts/**", "Cargo.toml", "Cargo.lock"],
+    "forbidden_paths": ["Runtime connection to or import from SQLite/PostgreSQL", "Legacy adapter behind feature flag", "Tests that skip-as-green when SurrealDB is unavailable", "Treating logs, UI or projections as recovery authority", "Deleting unmatched historical requirements"],
+    "acceptance_criteria": [
+      "Every preserve item in the MT-361 parity matrix has implementation and real-runtime proof; every rejected item has approved rationale and no connected code path.",
+      "Fresh SurrealDB initialization creates the complete Locus project-forest schema, indexes, permissions and rollout state without SQLite/PostgreSQL dependencies.",
+      "EventLedger replay and canonical reconciliation deterministically rebuild taskboards, rollups, Loom links, query state and recoverable execution projections after restart or projection loss.",
+      "Backup/restore and corruption tests preserve project-qualified identity, graph edges, lifecycle revisions, permissions, ledger ordering, leases and idempotency receipts.",
+      "Independent dependency/source scans find zero unclassified Locus SQLite/PostgreSQL authority, adapter, fallback, fixture or proof paths."
+    ],
+    "proof_targets": ["Parity-matrix closeout with test/evidence links", "Fresh-initialization and schema-rollout proof", "EventLedger replay plus independent canonical reread", "Backup/restore/corruption/recovery suite", "Compile/dependency/source tripwires for SQL-era Locus paths"],
+    "code_surfaces": ["src/backend/handshake_core/src/locus/**", "src/backend/handshake_core/src/storage/surreal/**", "src/backend/handshake_core/src/event_ledger/**", "src/backend/handshake_core/src/task_board/**", "src/backend/handshake_core/src/loom*/**", "src/backend/handshake_core/src/diagnostics/**", "src/backend/handshake_core/tests/**", "scripts/**", "Cargo.toml", "Cargo.lock"],
+    "expected_tests": ["locus_parity_matrix_complete", "locus_fresh_surreal_initialization", "locus_event_replay_rebuilds_all_projections", "locus_backup_restore_preserves_forest", "locus_corruption_detection_and_recovery", "locus_zero_legacy_storage_tripwire"]
+  },
+  "gui_obligation": {"operator_surface_required": "YES", "gui_creation_required": "YES", "argus_required": "YES", "trace_projection_required_when_non_ui": true, "surfaces": ["Locus migration/replay/recovery status", "Project projection repair", "Legacy-path tripwire verdict"], "argus_targets": ["Healthy fresh initialization", "Replay in progress", "Detected corruption", "Successful recovery", "Legacy storage absent"], "not_applicable_reason": null},
+  "user_manual_obligation": {"required": true, "same_change_update_required": "YES", "manual_version_bump_required": "YES", "target_entries": ["Locus > Fresh initialization", "Locus > Replay and recovery", "Locus > Backup and restore", "Storage authority > Retired SQL paths"], "not_applicable_reason": null},
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": ["Locus replay inputs", "backup and restore artifacts", "reconstructed project records", "rebuilt projections", "recovery diagnostics"],
+    "identity_and_scope_contexts": ["authenticated record user", "principal", "account_id", "access_space_id", "project_id", "backup_identity", "restore_target"],
+    "enforcement_boundaries": ["Replay and restore preserve original scopes and never default a missing scope to global.", "Privacy is re-proven with authenticated users after restore."],
+    "same_project_private_resource_cases": ["Restored private AccessSpace records remain hidden from unauthorized users in the same project."],
+    "cross_account_negative_cases": ["Backups, replay and restore cannot import, enumerate or expose another account's records without explicit authorized scope."],
+    "derived_resource_non_widening_cases": ["Rebuilt taskboards, rollups, Loom links, indexes and diagnostics cannot widen restored canonical scopes."],
+    "revocation_and_context_switch_cases": ["Revoked identities remain revoked after replay/restore; switching restore target requires fresh authorization and scope validation."],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": ["Recovery diagnostics redact private content, secrets, hidden project names/counts and machine-local credential paths."],
+    "expected_evidence": ["backup_restore_scope_linkage", "same_project_private_restore_isolation", "cross_account_restore_denial", "rebuilt_projection_non_widening", "revocation_survives_restore", "redacted_recovery_diagnostics"],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-009", "HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-004", "HBR-MAN-001", "HBR-MAN-004", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": [
+    {"tier": "flight_recorder", "status": "WIRED", "reason": "Record rollout, replay, reconciliation, backup, restore, corruption and legacy-tripwire outcomes."},
+    {"tier": "internal_diagnostics", "status": "WIRED", "reason": "Expose schema drift, replay gaps, hash mismatch, projection divergence and legacy dependency hits."},
+    {"tier": "palmistry", "status": "DEFERRED", "reason": "Record DEFERRED-with-reason if continuous replay/divergence watchers are unavailable; never silently skip."}
+  ],
+  "risk_if_missed": "Locus may appear migrated while capabilities, privacy or recovery remain dependent on stale SQL-era behavior.",
+  "handoff": {"coder_session": null, "wp_validator_session": null, "review_request_receipt_id": null, "review_response_receipt_id": null},
+  "red_team": {"required": true, "profile": "LOCUS_MIGRATION_RECOVERY_V1", "risks": ["A skipped test is reported green.", "Replay restores projections but not canonical state.", "Restore widens scope.", "A legacy adapter survives behind a feature."], "minimum_controls": ["Real managed SurrealDB required for proof.", "Independent canonical reread.", "Authenticated post-restore privacy suite.", "Compile, dependency and runtime tripwires."]},
+  "research_provenance": {"source": "MT-361 parity audit; MT-336 replay/projection contract; MT-362 and MT-366..370 implementation contracts; official SurrealDB rollout, export/import, transaction and permission documentation.", "selected_approach": "Fresh Surreal authority with deterministic EventLedger replay, repairable projections and exhaustive legacy-path removal.", "rejected_options": ["Live PostgreSQL/SQLite import", "Compatibility runtime", "Projection-only recovery", "Skip-as-green validation"]}
+}
