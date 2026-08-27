@@ -980,7 +980,6 @@ $sourcePaths = @(
     "src/backend/handshake_core/Cargo.lock",
     "src/backend/handshake_core/mechanical_engines.json",
     "src/backend/handshake_core/src",
-    "src/backend/handshake_core/migrations",
     "src/backend/handshake_core/schemas",
     "src/frontend/palmistry",
     "src/frontend/handshake_native/build.rs",
@@ -2342,6 +2341,23 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         } | ConvertTo-Json -Depth 8)
     }
     finally {
+        $manifestRestoreFailure = $null
+        try {
+            [IO.File]::WriteAllText(
+                $manifestPath,
+                $headManifestJson + [Environment]::NewLine,
+                [Text.UTF8Encoding]::new($false)
+            )
+            $manifestStatus = Invoke-GitText -Repository $repoRoot -Arguments @(
+                "status", "--porcelain=v1", "--", $manifestRepoPath
+            )
+            if (-not [string]::IsNullOrWhiteSpace($manifestStatus)) {
+                throw "diagnostics self-test did not restore the committed manifest:`n$manifestStatus"
+            }
+        }
+        catch {
+            $manifestRestoreFailure = $_
+        }
         if (-not [string]::IsNullOrWhiteSpace($selfTestWorkspaceId) -and ("Mt045JobRunner" -as [type])) {
             Remove-Item -LiteralPath $selfTestMarker -Force -ErrorAction SilentlyContinue
             if (Test-Path -LiteralPath $selfTestMarker -PathType Leaf) {
@@ -2364,6 +2380,9 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         $targetCleanup = Remove-Mt045OwnerTarget
         if ($targetCleanup.status -notin @("deleted_and_verified_absent", "not_present")) {
             throw "diagnostics self-test owner target cleanup did not reach terminal absence"
+        }
+        if ($null -ne $manifestRestoreFailure) {
+            throw $manifestRestoreFailure
         }
     }
     exit 0

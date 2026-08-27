@@ -469,7 +469,7 @@ fn expected_proof_ids(scenario_id: &str) -> HashSet<&'static str> {
     }
 }
 
-const SOURCE_BINDING_PATHS: [&str; 24] = [
+const SOURCE_BINDING_PATHS: [&str; 23] = [
     ".cargo/config.toml",
     "rust-toolchain.toml",
     "src/backend/handshake_core/build.rs",
@@ -477,7 +477,6 @@ const SOURCE_BINDING_PATHS: [&str; 24] = [
     "src/backend/handshake_core/Cargo.lock",
     "src/backend/handshake_core/mechanical_engines.json",
     "src/backend/handshake_core/src",
-    "src/backend/handshake_core/migrations",
     "src/backend/handshake_core/schemas",
     "src/frontend/palmistry",
     "src/frontend/handshake_native/build.rs",
