@@ -25,7 +25,7 @@ use crate::storage::knowledge::{
     KnowledgeSource, KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
     NewKnowledgeSourceRoot,
 };
-use crate::storage::surreal::event_ledger::{prepare_event, LedgerWrite};
+use crate::storage::surreal::event_ledger::append_atomic;
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::Database;
 
@@ -137,7 +137,7 @@ struct CleanIngestionFileWrite {
     size_bytes: i64,
     provenance: Value,
     redaction_state: String,
-    event: LedgerWrite,
+    event_receipt: Option<RecordId>,
     receipt: RecordId,
     receipt_id: String,
     extractor_id: String,
@@ -162,12 +162,9 @@ const PERSIST_CLEAN_INGESTION_BATCH: &str = "BEGIN TRANSACTION; \
         LET $existing_source = (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root AND relative_path = $file.relative_path LIMIT 1)[0]; \
         IF $existing_source = NONE { CREATE $file.source CONTENT { source_id: $file.source_id, workspace_id: $workspace, root_id: $root, source_kind: 'file', relative_path: $file.relative_path, content_hash: $file.content_hash, size_bytes: $file.size_bytes, provenance: $file.provenance, permission_scope: 'workspace', redaction_state: $file.redaction_state, parser_status: 'pending', extraction_status: 'pending', stale: false } RETURN NONE; } ELSE { UPDATE $existing_source SET workspace_id = $workspace, content_hash = $file.content_hash, size_bytes = $file.size_bytes, provenance = $file.provenance, permission_scope = 'workspace', redaction_state = $file.redaction_state, parser_status = 'pending', extraction_status = 'pending', stale = false, updated_at = time::now() RETURN NONE; }; \
         LET $source_ref = (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root AND relative_path = $file.relative_path LIMIT 1)[0]; \
-        LET $existing_event = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $file.event.idempotency_key LIMIT 1)[0]; \
-        IF $existing_event = NONE { CREATE $file.event.record CONTENT { event_id: $file.event.event_id, event_version: $file.event.event_version, kernel_task_run_id: $file.event.kernel_task_run_id, session_run_id: $file.event.session_run_id, aggregate_type: $file.event.aggregate_type, aggregate_id: $file.event.aggregate_id, idempotency_key: $file.event.idempotency_key, event_type: $file.event.event_type, actor_kind: $file.event.actor_kind, actor_id: $file.event.actor_id, causation_id: $file.event.causation_id, correlation_id: $file.event.correlation_id, payload_hash: $file.event.payload_hash, source_component: $file.event.source_component, payload: $file.event.payload, created_at: $file.event.created_at } RETURN NONE; }; \
-        LET $event_ref = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $file.event.idempotency_key LIMIT 1)[0]; \
-        CREATE $file.receipt CONTENT { receipt_id: $file.receipt_id, workspace_id: $workspace, source_id: $source_ref, ingestion_run_token: $run_token, extractor_id: $file.extractor_id, extractor_version: $file.extractor_version, status: 'success', error_class: NONE, error_detail: NONE, spans_produced: array::len($file.spans), spans_failed: $file.spans_failed, redaction_count: $file.redaction_count, content_hash: $file.content_hash, duration_ms: $file.duration_ms, receipt_event_id: $event_ref } RETURN NONE; \
+        CREATE $file.receipt CONTENT { receipt_id: $file.receipt_id, workspace_id: $workspace, source_id: $source_ref, ingestion_run_token: $run_token, extractor_id: $file.extractor_id, extractor_version: $file.extractor_version, status: 'success', error_class: NONE, error_detail: NONE, spans_produced: array::len($file.spans), spans_failed: $file.spans_failed, redaction_count: $file.redaction_count, content_hash: $file.content_hash, duration_ms: $file.duration_ms, receipt_event_id: $file.event_receipt } RETURN NONE; \
         FOR $span IN $file.spans { CREATE $span.record CONTENT { span_id: $span.span_id, workspace_id: $workspace, source_id: $source_ref, receipt_id: $file.receipt, span_index: $span.span_index, anchor_kind: $span.anchor_kind, anchor: $span.anchor, byte_start: $span.byte_start, byte_end: $span.byte_end, content: $span.content, content_hash: $span.content_hash, redaction_state: $span.redaction_state, link_candidates: $span.link_candidates } RETURN NONE; }; \
-        UPDATE $source_ref SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $event_ref, stale = false, updated_at = time::now() RETURN NONE; \
+        UPDATE $source_ref SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $file.event_receipt, stale = false, updated_at = time::now() RETURN NONE; \
       }; \
       RETURN true; \
     }; \
@@ -391,6 +388,7 @@ impl IngestionEngine {
             })
             .collect::<std::collections::HashMap<_, _>>();
 
+        let mut events = Vec::with_capacity(prepared.len());
         let mut files = Vec::with_capacity(prepared.len());
         let mut sources = Vec::with_capacity(prepared.len());
         for file in prepared {
@@ -448,7 +446,7 @@ impl IngestionEngine {
             let event = event_builder
                 .build()
                 .map_err(|error| IngestionError::Kernel(error.to_string()))?;
-            let (_, event_write) = prepare_event(event).map_err(IngestionError::from)?;
+            events.push(event);
 
             let receipt_id = new_ingestion_id("KIRC");
             let mut spans = Vec::with_capacity(file.extraction.spans.len());
@@ -491,7 +489,7 @@ impl IngestionEngine {
                 size_bytes: file.size_bytes,
                 provenance,
                 redaction_state: file.extraction.redaction_state.as_str().to_string(),
-                event: event_write,
+                event_receipt: None,
                 receipt: RecordId::new("knowledge_ingestion_receipts", receipt_id.clone()),
                 receipt_id,
                 extractor_id: extractor_id.to_string(),
@@ -502,6 +500,22 @@ impl IngestionEngine {
                 spans,
             });
             sources.push((source_id, file.relative_path.clone()));
+        }
+
+        let stored_events = append_atomic(self.db.storage(), events)
+            .await
+            .map_err(IngestionError::from)?;
+        if stored_events.len() != files.len() {
+            return Err(IngestionError::from(
+                crate::storage::StorageError::Database(format!(
+                    "EventLedger batch returned {} events for {} ingestion writes",
+                    stored_events.len(),
+                    files.len()
+                )),
+            ));
+        }
+        for (file, stored_event) in files.iter_mut().zip(stored_events) {
+            file.event_receipt = Some(RecordId::new("kernel_event_ledger", stored_event.event_id));
         }
 
         let bindings = CleanIngestionBatchBindings {

@@ -50,7 +50,7 @@ use crate::storage::knowledge::{
     NewKnowledgeEntity, NewKnowledgeIndexRun, NewKnowledgeSource, NewKnowledgeSpan,
     UpsertKnowledgeCodeFile,
 };
-use crate::storage::surreal::event_ledger::{prepare_event, LedgerWrite};
+use crate::storage::surreal::event_ledger::append_atomic;
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
@@ -174,7 +174,7 @@ struct CleanCodeBatchSymbolWrite {
 #[derive(SurrealValue)]
 struct CleanCodeBatchFileWrite {
     source: RecordId,
-    event: LedgerWrite,
+    receipt: Option<RecordId>,
     file_entity: RecordId,
     file_entity_id: String,
     file_key: String,
@@ -199,14 +199,11 @@ struct CleanCodeBatchBindings {
 const PERSIST_CLEAN_CODE_BATCH: &str = "BEGIN TRANSACTION; \
     RETURN { \
       FOR $file IN $files { \
-        LET $existing_event = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $file.event.idempotency_key LIMIT 1)[0]; \
-        IF $existing_event = NONE { CREATE $file.event.record CONTENT { event_id: $file.event.event_id, event_version: $file.event.event_version, kernel_task_run_id: $file.event.kernel_task_run_id, session_run_id: $file.event.session_run_id, aggregate_type: $file.event.aggregate_type, aggregate_id: $file.event.aggregate_id, idempotency_key: $file.event.idempotency_key, event_type: $file.event.event_type, actor_kind: $file.event.actor_kind, actor_id: $file.event.actor_id, causation_id: $file.event.causation_id, correlation_id: $file.event.correlation_id, payload_hash: $file.event.payload_hash, source_component: $file.event.source_component, payload: $file.event.payload, created_at: $file.event.created_at } RETURN NONE; }; \
-        LET $receipt = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $file.event.idempotency_key LIMIT 1)[0]; \
         LET $existing_file_entity = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = 'file' AND entity_key = $file.file_key LIMIT 1)[0]; \
         IF $existing_file_entity = NONE { CREATE $file.file_entity CONTENT { entity_id: $file.file_entity_id, workspace_id: $workspace, entity_kind: 'file', entity_key: $file.file_key, display_name: $file.relative_path, detection_provenance: $file.file_provenance, primary_source_id: $file.source, first_detected_in_run: $index_run, last_detected_in_run: $index_run } RETURN NONE; } ELSE { UPDATE $existing_file_entity SET display_name = $file.relative_path, detection_provenance = $file.file_provenance, primary_source_id = $file.source, last_detected_in_run = $index_run, lifecycle_state = 'active', updated_at = time::now() RETURN NONE; }; \
         LET $file_ref = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = 'file' AND entity_key = $file.file_key LIMIT 1)[0]; \
         FOR $symbol IN $file.symbols { \
-          CREATE $symbol.span CONTENT { span_id: $symbol.span_id, source_id: $file.source, span_kind: 'ast', range_start: $symbol.range_start, range_end: $symbol.range_end, line_start: $symbol.line_start, line_end: $symbol.line_end, section_path: $symbol.section_path, content_sha256: $symbol.content_sha256, parser_version: $file.parser_version, extraction_receipt_event_id: $receipt, index_run_id: $index_run, display_snippet: 'symbol definition' } RETURN NONE; \
+          CREATE $symbol.span CONTENT { span_id: $symbol.span_id, source_id: $file.source, span_kind: 'ast', range_start: $symbol.range_start, range_end: $symbol.range_end, line_start: $symbol.line_start, line_end: $symbol.line_end, section_path: $symbol.section_path, content_sha256: $symbol.content_sha256, parser_version: $file.parser_version, extraction_receipt_event_id: $file.receipt, index_run_id: $index_run, display_snippet: 'symbol definition' } RETURN NONE; \
           LET $existing_symbol = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = 'symbol' AND entity_key = $symbol.symbol_key LIMIT 1)[0]; \
           IF $existing_symbol = NONE { CREATE $symbol.symbol_entity CONTENT { entity_id: $symbol.symbol_entity_id, workspace_id: $workspace, entity_kind: 'symbol', entity_key: $symbol.symbol_key, display_name: $symbol.display_name, detection_provenance: $symbol.provenance, primary_source_id: $file.source, first_detected_in_run: $index_run, last_detected_in_run: $index_run } RETURN NONE; } ELSE { UPDATE $existing_symbol SET display_name = $symbol.display_name, detection_provenance = $symbol.provenance, primary_source_id = $file.source, last_detected_in_run = $index_run, lifecycle_state = 'active', updated_at = time::now() RETURN NONE; }; \
           LET $symbol_ref = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = 'symbol' AND entity_key = $symbol.symbol_key LIMIT 1)[0]; \
@@ -217,8 +214,8 @@ const PERSIST_CLEAN_CODE_BATCH: &str = "BEGIN TRANSACTION; \
           IF (SELECT VALUE id FROM knowledge_edge_spans WHERE edge_id = $edge_ref AND span_id = $symbol.span LIMIT 1)[0] = NONE { CREATE knowledge_edge_spans CONTENT { edge_id: $edge_ref, span_id: $symbol.span, recorded_in_run: $index_run } RETURN NONE; }; \
         }; \
         LET $existing_code_file = (SELECT VALUE id FROM knowledge_code_files WHERE source_id = $file.source LIMIT 1)[0]; \
-        IF $existing_code_file = NONE { CREATE $file.code_file CONTENT { code_file_id: $file.code_file_id, workspace_id: $workspace, source_id: $file.source, file_entity_id: $file_ref, language: $file.language, indexed_content_hash: $file.content_hash, parser_version: $file.parser_version, parse_status: 'parsed', stale: false, symbols_indexed: array::len($file.symbols), edges_indexed: array::len($file.symbols), failure_detail: $file.failure_detail, last_indexed_in_run: $index_run, last_index_receipt_event_id: $receipt } RETURN NONE; } ELSE { UPDATE $existing_code_file SET file_entity_id = $file_ref, language = $file.language, indexed_content_hash = $file.content_hash, parser_version = $file.parser_version, parse_status = 'parsed', stale = false, symbols_indexed = array::len($file.symbols), edges_indexed = array::len($file.symbols), failure_detail = $file.failure_detail, last_indexed_in_run = $index_run, last_index_receipt_event_id = $receipt, updated_at = time::now() RETURN NONE; }; \
-        UPDATE $file.source SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $receipt, updated_at = time::now() RETURN NONE; \
+        IF $existing_code_file = NONE { CREATE $file.code_file CONTENT { code_file_id: $file.code_file_id, workspace_id: $workspace, source_id: $file.source, file_entity_id: $file_ref, language: $file.language, indexed_content_hash: $file.content_hash, parser_version: $file.parser_version, parse_status: 'parsed', stale: false, symbols_indexed: array::len($file.symbols), edges_indexed: array::len($file.symbols), failure_detail: $file.failure_detail, last_indexed_in_run: $index_run, last_index_receipt_event_id: $file.receipt } RETURN NONE; } ELSE { UPDATE $existing_code_file SET file_entity_id = $file_ref, language = $file.language, indexed_content_hash = $file.content_hash, parser_version = $file.parser_version, parse_status = 'parsed', stale = false, symbols_indexed = array::len($file.symbols), edges_indexed = array::len($file.symbols), failure_detail = $file.failure_detail, last_indexed_in_run = $index_run, last_index_receipt_event_id = $file.receipt, updated_at = time::now() RETURN NONE; }; \
+        UPDATE $file.source SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $file.receipt, updated_at = time::now() RETURN NONE; \
       }; \
       RETURN true; \
     }; \
@@ -585,6 +582,7 @@ impl CodeIndexEngine {
             return Ok(None);
         }
 
+        let mut events = Vec::with_capacity(prepared.len());
         let mut writes = Vec::with_capacity(prepared.len());
         let mut outcomes = Vec::with_capacity(prepared.len());
         for (file, (source_id, relative_path)) in prepared.iter().zip(persisted_sources) {
@@ -659,7 +657,7 @@ impl CodeIndexEngine {
             let event = builder
                 .build()
                 .map_err(|error| CodeIndexError::Kernel(error.to_string()))?;
-            let (stored_event, event_write) = prepare_event(event).map_err(CodeIndexError::from)?;
+            events.push(event);
 
             let file_key = format!("file:{relative_path}");
             let file_entity_id = new_knowledge_id("KEN");
@@ -711,7 +709,7 @@ impl CodeIndexEngine {
             let code_file_id = format!("KCF-{}", &sha256_hex(source_id.as_bytes())[..32]);
             writes.push(CleanCodeBatchFileWrite {
                 source: RecordId::new("knowledge_sources", source_id.clone()),
-                event: event_write,
+                receipt: None,
                 file_entity: RecordId::new("knowledge_entities", file_entity_id.clone()),
                 file_entity_id,
                 file_key,
@@ -740,8 +738,30 @@ impl CodeIndexEngine {
                 config_facts_indexed: 0,
                 failed: false,
                 failure_reason: None,
-                receipt_event_id: stored_event.event_id,
+                receipt_event_id: String::new(),
             });
+        }
+
+        let stored_events = append_atomic(self.db.storage(), events)
+            .await
+            .map_err(CodeIndexError::from)?;
+        if stored_events.len() != writes.len() || stored_events.len() != outcomes.len() {
+            return Err(CodeIndexError::from(StorageError::Database(format!(
+                "EventLedger batch returned {} events for {} code-index writes",
+                stored_events.len(),
+                writes.len()
+            ))));
+        }
+        for ((write, outcome), stored_event) in writes
+            .iter_mut()
+            .zip(outcomes.iter_mut())
+            .zip(stored_events)
+        {
+            write.receipt = Some(RecordId::new(
+                "kernel_event_ledger",
+                stored_event.event_id.clone(),
+            ));
+            outcome.receipt_event_id = stored_event.event_id;
         }
 
         let bindings = CleanCodeBatchBindings {
