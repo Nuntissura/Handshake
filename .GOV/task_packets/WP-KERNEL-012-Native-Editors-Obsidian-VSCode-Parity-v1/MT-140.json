@@ -30,10 +30,10 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": ["MT-108"],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260826-020321",
@@ -41,6 +41,44 @@
     "session_mt_batch": [
       "MT-140"
     ],
+    "ready_for_validation_at_utc": "2026-08-28T16:36:05.6111221Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260828-123234",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "ready_for_validation_summary": "Product HEAD bc45e7afdb64253b46c8d93ce8440d5a5c84398d satisfies MT-140's SurrealDB-only frontend-test contract. Current source has zero run_fixture_sql or pg_proof_support matches; Git preserves the 99% backend_proof_support rename; all 13 former fixture calls map to scoped product API reads/writes or isolated-store containment; and the only 23 forbidden-technology literals are enumerated negative/detection tripwires. Fresh Rust 1.97.1 serial proofs passed on the canonical Cargo target: Stage 31/31, Calendar 31/31, and Flight Recorder authorization 12/12. The required Atelier intake-item manual entry and typed Calendar source/event API documentation remain present. Canonical MT-045 run MT045-RUN-MT140-61388E87-20260828151444 passed all 20 exact release-profile scenarios with no overrides, timeouts, leaks, or failed Job drains. Official validator verdict remains unset and completed_by remains null.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "product_head": "bc45e7afdb64253b46c8d93ce8440d5a5c84398d",
+      "product_remote_head": "bc45e7afdb64253b46c8d93ce8440d5a5c84398d",
+      "canonical_proof_source_sha": "61388e8716d230d304f54556ed02d3bf2555b304",
+      "canonical_perf_run_id": "MT045-RUN-MT140-61388E87-20260828151444",
+      "canonical_perf_supervisor_summary": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/wp-kernel-012/mt-045/supervisor/MT045-RUN-MT140-61388E87-20260828151444/supervisor-summary.json",
+      "canonical_perf_supervisor_sha256": "bda69ea208d8b3f4305b69f67f6ea6da96313f9f21a4bbbdf323f151c0946bb1",
+      "canonical_backend_binary_sha256": "572014331da22c12f1c9e5911e2c50e9572e2484df1ee80e70178f7e324b8d67",
+      "tripwire_files": [
+        "bundled_deps_audit.rs",
+        "installer_build_smoke.rs",
+        "test_calendar_interop.rs",
+        "test_locus_interop.rs",
+        "test_manual_content.rs",
+        "test_manual_pane_editors.rs",
+        "test_memory_proposal.rs",
+        "test_relevant_memory.rs",
+        "test_stage_interop.rs"
+      ],
+      "focused_proofs": [
+        "run_fixture_sql_and_pg_proof_support_scan:0_hits",
+        "forbidden_technology_scan:23_hits_all_negative_or_detection_tripwires",
+        "backend_proof_support_git_rename:R099",
+        "former_fixture_call_mapping:13_old_calls_0_current_calls_equivalent_product_api_or_containment",
+        "test_stage_interop_rust_1_97_1_serial:31_passed",
+        "test_calendar_interop_rust_1_97_1_serial:31_passed",
+        "test_flight_recorder_authz_rust_1_97_1_serial:12_passed",
+        "atelier_intake_item_model_manual_entry:PRESENT",
+        "calendar_typed_source_event_api_documentation:PRESENT",
+        "canonical_mt045_release_scenarios:20_passed",
+        "canonical_mt045_commands:24_exit_zero_0_timeout_0_leak_0_failed_job_drain"
+      ]
+    },
     "claim_summary": "Implement the first unclaimed dependency-free remediation MT after MT-136 through MT-139 reached READY_FOR_VALIDATION_V4. Preserve each former SQL-row proof at equivalent strength through product API or embedded-store containment evidence, rename pg_proof_support database-neutrally, and purge forbidden database language while retaining enumerated detection tripwires.",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator directive that no PostgreSQL or SQLite dependency OR LANGUAGE may remain in tests and checks. Measured during MT-128 implementation: the pg_proof_support fixture conversion REMOVED run_fixture_sql, leaving hard-broken call sites in test_stage_interop.rs (6), test_calendar_interop.rs (6), and test_flight_recorder_authz.rs (1) — those binaries cannot compile. Beyond the compile breaks, ~80 frontend test files still carry PostgreSQL/psql/PG-DSN language in comments, helper names, env-var lists, and gated-row wording, and the shared fixture directory itself is named pg_proof_support. test_e7_swarm_edit_proof.rs was already fully ported under MT-128 (its own scope) and is the reference conversion."
   },
