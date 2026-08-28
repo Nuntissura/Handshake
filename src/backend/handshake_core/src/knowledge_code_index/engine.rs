@@ -50,7 +50,7 @@ use crate::storage::knowledge::{
     NewKnowledgeEntity, NewKnowledgeIndexRun, NewKnowledgeSource, NewKnowledgeSpan,
     UpsertKnowledgeCodeFile,
 };
-use crate::storage::surreal::event_ledger::append_atomic;
+use crate::storage::surreal::event_ledger::append;
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
@@ -582,7 +582,7 @@ impl CodeIndexEngine {
             return Ok(None);
         }
 
-        let mut events = Vec::with_capacity(prepared.len());
+        let mut receipt_payloads = Vec::with_capacity(prepared.len());
         let mut writes = Vec::with_capacity(prepared.len());
         let mut outcomes = Vec::with_capacity(prepared.len());
         for (file, (source_id, relative_path)) in prepared.iter().zip(persisted_sources) {
@@ -627,15 +627,7 @@ impl CodeIndexEngine {
                     "perf_budget": perf_sample_json(&perf, &budget),
                 })
             });
-            let mut builder = NewKernelEvent::builder(
-                ctx.kernel_task_run_id.clone(),
-                ctx.session_run_id.clone(),
-                KernelEventType::KnowledgeValidationRecorded,
-                ctx.actor.clone(),
-            )
-            .aggregate("knowledge_code_index_file", source_id)
-            .source_component("knowledge_code_index")
-            .payload(json!({
+            receipt_payloads.push(json!({
                 "kind": "code_file_indexed",
                 "workspace_id": workspace_id,
                 "source_id": source_id,
@@ -651,13 +643,6 @@ impl CodeIndexEngine {
                 "extractor_version": CODE_EXTRACTOR_VERSION,
                 "perf_budget": perf_sample_json(&perf, &budget),
             }));
-            if let Some(correlation_id) = &ctx.correlation_id {
-                builder = builder.correlation_id(correlation_id.clone());
-            }
-            let event = builder
-                .build()
-                .map_err(|error| CodeIndexError::Kernel(error.to_string()))?;
-            events.push(event);
 
             let file_key = format!("file:{relative_path}");
             let file_entity_id = new_knowledge_id("KEN");
@@ -742,26 +727,48 @@ impl CodeIndexEngine {
             });
         }
 
-        let stored_events = append_atomic(self.db.storage(), events)
-            .await
-            .map_err(CodeIndexError::from)?;
-        if stored_events.len() != writes.len() || stored_events.len() != outcomes.len() {
-            return Err(CodeIndexError::from(StorageError::Database(format!(
-                "EventLedger batch returned {} events for {} code-index writes",
-                stored_events.len(),
-                writes.len()
-            ))));
+        let mut builder = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            KernelEventType::KnowledgeValidationRecorded,
+            ctx.actor.clone(),
+        )
+        .aggregate("knowledge_code_index_run", index_run_id)
+        .idempotency_key(format!("knowledge-code-index-batch:{index_run_id}"))
+        .source_component("knowledge_code_index")
+        .payload(json!({
+            "kind": "code_files_indexed_batch",
+            "workspace_id": workspace_id,
+            "index_run_id": index_run_id,
+            "file_count": writes.len(),
+            "files": receipt_payloads,
+        }));
+        if let Some(correlation_id) = &ctx.correlation_id {
+            builder = builder.correlation_id(correlation_id.clone());
         }
-        for ((write, outcome), stored_event) in writes
-            .iter_mut()
-            .zip(outcomes.iter_mut())
-            .zip(stored_events)
-        {
-            write.receipt = Some(RecordId::new(
-                "kernel_event_ledger",
-                stored_event.event_id.clone(),
-            ));
-            outcome.receipt_event_id = stored_event.event_id;
+        let ledger_started = Instant::now();
+        let stored_event = append(
+            self.db.storage(),
+            builder
+                .build()
+                .map_err(|error| CodeIndexError::Kernel(error.to_string()))?,
+        )
+        .await
+        .map_err(CodeIndexError::from)?;
+        tracing::info!(
+            target: "handshake_core::code_nav_index",
+            stage = "try_index_prepared_batch.event_ledger",
+            workspace_id,
+            index_run_id,
+            files = writes.len(),
+            stage_elapsed_ms = ledger_started.elapsed().as_millis() as u64,
+            "knowledge_code_index_batch_stage_completed"
+        );
+        let stored_event_id = stored_event.event_id;
+        let stored_event = RecordId::new("kernel_event_ledger", stored_event_id.clone());
+        for (write, outcome) in writes.iter_mut().zip(outcomes.iter_mut()) {
+            write.receipt = Some(stored_event.clone());
+            outcome.receipt_event_id = stored_event_id.clone();
         }
 
         let bindings = CleanCodeBatchBindings {
@@ -769,7 +776,9 @@ impl CodeIndexEngine {
             index_run: RecordId::new("knowledge_index_runs", index_run_id.to_owned()),
             files: writes,
         };
-        self.db
+        let projection_started = Instant::now();
+        let _ = self
+            .db
             .storage()
             .with_data_operation(move |database| {
                 Box::pin(async move {
@@ -780,6 +789,15 @@ impl CodeIndexEngine {
             })
             .await
             .map_err(StorageError::from)?;
+        tracing::info!(
+            target: "handshake_core::code_nav_index",
+            stage = "try_index_prepared_batch.projection",
+            workspace_id,
+            index_run_id,
+            files = outcomes.len(),
+            stage_elapsed_ms = projection_started.elapsed().as_millis() as u64,
+            "knowledge_code_index_batch_stage_completed"
+        );
         Ok(Some(outcomes))
     }
 

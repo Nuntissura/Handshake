@@ -25,7 +25,7 @@ use crate::storage::knowledge::{
     KnowledgeSource, KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
     NewKnowledgeSourceRoot,
 };
-use crate::storage::surreal::event_ledger::append_atomic;
+use crate::storage::surreal::event_ledger::append;
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::Database;
 
@@ -388,7 +388,7 @@ impl IngestionEngine {
             })
             .collect::<std::collections::HashMap<_, _>>();
 
-        let mut events = Vec::with_capacity(prepared.len());
+        let mut receipt_payloads = Vec::with_capacity(prepared.len());
         let mut files = Vec::with_capacity(prepared.len());
         let mut sources = Vec::with_capacity(prepared.len());
         for file in prepared {
@@ -415,15 +415,7 @@ impl IngestionEngine {
             };
             receipt.validate()?;
 
-            let mut event_builder = NewKernelEvent::builder(
-                ctx.kernel_task_run_id.clone(),
-                ctx.session_run_id.clone(),
-                KernelEventType::ValidationRecorded,
-                ctx.actor.clone(),
-            )
-            .aggregate("knowledge_ingestion_receipt", &source_id)
-            .source_component("knowledge_ingestion")
-            .payload(json!({
+            receipt_payloads.push(json!({
                 "kind": "extraction_receipt",
                 "workspace_id": root.workspace_id,
                 "root_id": root.root_id,
@@ -440,13 +432,6 @@ impl IngestionEngine {
                 "content_hash": file.content_hash,
                 "run_token": run_token,
             }));
-            if let Some(correlation_id) = &ctx.correlation_id {
-                event_builder = event_builder.correlation_id(correlation_id.clone());
-            }
-            let event = event_builder
-                .build()
-                .map_err(|error| IngestionError::Kernel(error.to_string()))?;
-            events.push(event);
 
             let receipt_id = new_ingestion_id("KIRC");
             let mut spans = Vec::with_capacity(file.extraction.spans.len());
@@ -502,20 +487,47 @@ impl IngestionEngine {
             sources.push((source_id, file.relative_path.clone()));
         }
 
-        let stored_events = append_atomic(self.db.storage(), events)
+        let mut event_builder = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            KernelEventType::ValidationRecorded,
+            ctx.actor.clone(),
+        )
+        .aggregate("knowledge_ingestion_batch", run_token)
+        .idempotency_key(format!(
+            "knowledge-ingestion-batch:{}:{run_token}",
+            root.root_id
+        ))
+        .source_component("knowledge_ingestion")
+        .payload(json!({
+            "kind": "extraction_receipt_batch",
+            "workspace_id": root.workspace_id,
+            "root_id": root.root_id,
+            "run_token": run_token,
+            "file_count": files.len(),
+            "receipts": receipt_payloads,
+        }));
+        if let Some(correlation_id) = &ctx.correlation_id {
+            event_builder = event_builder.correlation_id(correlation_id.clone());
+        }
+        let batch_event = event_builder
+            .build()
+            .map_err(|error| IngestionError::Kernel(error.to_string()))?;
+        let ledger_started = Instant::now();
+        let stored_event = append(self.db.storage(), batch_event)
             .await
             .map_err(IngestionError::from)?;
-        if stored_events.len() != files.len() {
-            return Err(IngestionError::from(
-                crate::storage::StorageError::Database(format!(
-                    "EventLedger batch returned {} events for {} ingestion writes",
-                    stored_events.len(),
-                    files.len()
-                )),
-            ));
-        }
-        for (file, stored_event) in files.iter_mut().zip(stored_events) {
-            file.event_receipt = Some(RecordId::new("kernel_event_ledger", stored_event.event_id));
+        tracing::info!(
+            target: "handshake_core::code_nav_index",
+            stage = "persist_clean_ingestion_batch.event_ledger",
+            workspace_id = root.workspace_id,
+            files = files.len(),
+            stage_elapsed_ms = ledger_started.elapsed().as_millis() as u64,
+            "knowledge_ingestion_batch_stage_completed"
+        );
+        let stored_event = RecordId::new("kernel_event_ledger", stored_event.event_id);
+        for file in &mut files {
+            file.event_receipt = Some(stored_event.clone());
         }
 
         let bindings = CleanIngestionBatchBindings {
@@ -524,7 +536,9 @@ impl IngestionEngine {
             run_token: run_token.to_string(),
             files,
         };
-        self.db
+        let projection_started = Instant::now();
+        let _ = self
+            .db
             .storage()
             .with_data_operation(move |database| {
                 Box::pin(async move {
@@ -535,6 +549,14 @@ impl IngestionEngine {
             })
             .await
             .map_err(crate::storage::StorageError::from)?;
+        tracing::info!(
+            target: "handshake_core::code_nav_index",
+            stage = "persist_clean_ingestion_batch.projection",
+            workspace_id = root.workspace_id,
+            files = sources.len(),
+            stage_elapsed_ms = projection_started.elapsed().as_millis() as u64,
+            "knowledge_ingestion_batch_stage_completed"
+        );
         Ok(sources)
     }
 
