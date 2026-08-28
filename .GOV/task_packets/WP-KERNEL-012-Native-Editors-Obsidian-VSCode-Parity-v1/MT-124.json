@@ -22,7 +22,7 @@
   "title": "E13-MT-124-Make-The-Wikilink-Chip-Label-Wrap-With-Its-Galley-So-A-Long-Chip-Cannot-Paint-Outside-The-Reading-Column",
   "group": "E13-RichEditor",
   "created_at_utc": "2026-08-12T13:05:00Z",
-  "updated_at_utc": "2026-08-16T06:15:00Z",
+  "updated_at_utc": "2026-08-28T22:37:21.0309503Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-124.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [
       "MT-116"
     ],
@@ -42,6 +42,84 @@
     "claimed_at_utc": "2026-08-18T15:40:00Z",
     "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. The rate-limited prior session had already implemented the recorded correct-fix direction (per-row chip_row_spans in inline_view.rs + per-row pill/label painting in rich_editor_widget.rs, union rect preserved for pointer/AccessKit activation) and hardened the measurement harness; that work was preserved in checkpoint commit b1c9ae72. GREEN GPU proof run 2026-08-18: all 3 scenarios WRAPPED_LABEL_MATCHES_PILL_INSIDE_COLUMN (log Handshake_Artifacts/handshake-test/wp012-mt124-green-run.log), frames opened and described. RED-with-fix-disabled guard proof and pinned-toolchain rerun pending before READY_FOR_VALIDATION_V4.",
     "completed_by": null,
+    "session_mt_batch": [
+      "MT-124"
+    ],
+    "ready_for_validation_at_utc": "2026-08-28T22:37:21.0309503Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260828-214605",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "ready_for_validation_summary": "The checkpointed per-row chip fix in b1c9ae72 remains unchanged at product HEAD 42e5a6117c08e29dee37d8772252d0dd45b9e5f3. On pinned Rust/Cargo 1.97.1, the real-GPU guard failed all three scenarios with exit 101 when only per-row painting was temporarily disabled, then passed all three with exit 0 after the exact HEAD implementation was restored. Directly opened full frames and 2x column-edge crops show the default-size H1 (15 editor / 27 style, 96-char id) wrapping over 3 rows, the 20pt H1 (36 style, 46-char id) over 2 rows, and the 24pt unresolved paragraph (88-char id / 103-char rendered label) over 3 rows; every pill segment tracks its label slice and ends inside the 720pt reading column. Before/after hashes differ for every scenario. Official validator verdict remains unset and completed_by remains null.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "implementation_checkpoint": "b1c9ae72",
+      "proof_product_head": "42e5a6117c08e29dee37d8772252d0dd45b9e5f3",
+      "relevant_source_changed_after_checkpoint": false,
+      "toolchain": {
+        "rustc": "1.97.1 (8bab26f4f 2026-07-14)",
+        "cargo": "1.97.1 (c980f4866 2026-06-30)",
+        "pinned_by": "rust-toolchain.toml channel 1.97.1"
+      },
+      "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_mt124_chip_label_wrap -- --nocapture",
+      "red_fix_disabled": {
+        "exit_code": 101,
+        "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-124/mt124-red-fix-disabled.log",
+        "log_sha256": "4f4d52167876f9a97a8144a0066f0226e2ed32153ef855a284e935b052d6974f",
+        "result": "3_of_3_scenarios_violated",
+        "column_escape_px": {
+          "h1-default-editor-size": 839,
+          "h1-editor-20-contract-case": 269,
+          "paragraph-unresolved-locus": 747
+        }
+      },
+      "green_fix_applied": {
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-124/mt124-green-pinned-1.97.1.log",
+        "log_sha256": "79136d313886d35d101fdd5d27198aeb9b2d37a9b75437e7d608bc9fad0ff196",
+        "result": "1_passed_0_failed_3_scenarios_measured",
+        "scenarios": [
+          {
+            "id": "h1-default-editor-size",
+            "editor_font_size": 15,
+            "resolved_style_size": 27,
+            "id_length": 96,
+            "wrapped_rows": 3,
+            "ink_max_x": 1542,
+            "column_right_x": 1560,
+            "before_sha256": "8a5c390e733fdac3674388ca3332f3e0a0b909142a574f07b13192ffa220eff2",
+            "after_sha256": "f0e74615d2ef4eab73ef8c01b448fa415e675f0862ad838f2f5baa8f9a1b7d81",
+            "inspection": "Opened full frame and 2x right-edge crop: blue H1 label is legible across three rows; each row has matching pale-blue pill fill; the third row ends before the reading-column boundary with blank page to its right."
+          },
+          {
+            "id": "h1-editor-20-contract-case",
+            "editor_font_size": 20,
+            "resolved_style_size": 36,
+            "id_length": 46,
+            "wrapped_rows": 2,
+            "ink_max_x": 1480,
+            "column_right_x": 1560,
+            "before_sha256": "594f141a88eb97b68603c0295d3535d29daa059da88137a07a03880ad85e8001",
+            "after_sha256": "f68cf7e1098ce20c4e118d734d38c71af823e0530ecffdf0b22fa4288898a183",
+            "inspection": "Opened full frame and 2x right-edge crop: blue 36pt H1 label wraps cleanly over two pill-backed rows and terminates visibly inside the reading column."
+          },
+          {
+            "id": "paragraph-unresolved-locus",
+            "editor_font_size": 24,
+            "resolved_style_size": 24,
+            "id_length": 88,
+            "rendered_label_length": 103,
+            "wrapped_rows": 3,
+            "ink_max_x": 1537,
+            "column_right_x": 1560,
+            "before_sha256": "a45af3856106fc2f8a9bbc06a1077a75abd1e3798db0910dd2896c92da981fea",
+            "after_sha256": "f020fb99850832b1e1c2ade3ae3d7753bf2739abd2473cfd20612b1ec1b08a7d",
+            "inspection": "Opened full frame and 2x right-edge crop: red unresolved label including prefix and suffix is legible across three pink pill-backed rows; the final row and pill remain inside the column with blank page beyond."
+          }
+        ]
+      },
+      "restoration_check": "After RED, the temporary two-site paint toggle was reversed; git diff --exit-code returned 0 and the product worktree was clean after index refresh.",
+      "user_manual": "NOT_APPLICABLE: MT-124 corrects paint geometry only and does not add or change an operator workflow or documented affordance.",
+      "hbr_int": "Flight Recorder NOT_APPLICABLE because paint geometry emits no business event; internal_diagnostics and Palmistry remain DEFERRED while those unshipped tiers are outside this MT."
+    },
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Found and MEASURED while proving MT-116 PT-116-1 on 2026-08-12. It is a DIFFERENT defect from the one MT-116 fixed (spec-size vs paint-size mismatch), it is not covered by the MT-116 pixel guard, and fixing it would have been an unscoped product change. Deferred here per the Operator standing rule rather than absorbed or lost.",
     "kernel_builder_diagnosis_2026_08_16": {
