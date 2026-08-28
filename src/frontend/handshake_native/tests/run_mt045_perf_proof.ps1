@@ -809,6 +809,8 @@ function Invoke-BoundedCargo {
     $previousCommandLabel = [Environment]::GetEnvironmentVariable("HSK_MT045_COMMAND_LABEL", "Process")
     $previousTestBinary = [Environment]::GetEnvironmentVariable("HSK_MT045_TEST_BINARY", "Process")
     $previousTestName = [Environment]::GetEnvironmentVariable("HSK_MT045_TEST_NAME", "Process")
+    $vctipMarked = $false
+    $vctipClearFailure = $null
     $proofBudgetMs = ($TimeoutSeconds - $cleanupMarginSeconds) * 1000
     $proofDeadlineUnixMs = $startedAt.AddSeconds(
         $TimeoutSeconds - $cleanupMarginSeconds
@@ -838,6 +840,8 @@ function Invoke-BoundedCargo {
             [Environment]::SetEnvironmentVariable("HSK_MT045_COMMAND_LABEL", $Label, "Process")
             [Environment]::SetEnvironmentVariable("HSK_MT045_TEST_BINARY", $testBinary, "Process")
             [Environment]::SetEnvironmentVariable("HSK_MT045_TEST_NAME", $testName, "Process")
+            Invoke-Mt045VctipControl -Action "mark"
+            $vctipMarked = $true
             $nativeResult = [Mt045JobRunner]::Run(
                 $cargoPath,
                 [string[]]$Arguments,
@@ -853,6 +857,14 @@ function Invoke-BoundedCargo {
         }
     }
     finally {
+        if ($vctipMarked) {
+            try {
+                Invoke-Mt045VctipControl -Action "clear"
+            }
+            catch {
+                $vctipClearFailure = $_.Exception.Message
+            }
+        }
         [Environment]::SetEnvironmentVariable($deadlineVariable, $previousDeadline, "Process")
         [Environment]::SetEnvironmentVariable(
             $qpcDeadlineVariable,
@@ -863,6 +875,14 @@ function Invoke-BoundedCargo {
         [Environment]::SetEnvironmentVariable("HSK_MT045_COMMAND_LABEL", $previousCommandLabel, "Process")
         [Environment]::SetEnvironmentVariable("HSK_MT045_TEST_BINARY", $previousTestBinary, "Process")
         [Environment]::SetEnvironmentVariable("HSK_MT045_TEST_NAME", $previousTestName, "Process")
+    }
+    if ($null -ne $vctipClearFailure) {
+        $runnerFailure = if ($null -eq $runnerFailure) {
+            "VCTIP stability control cleanup failed: $vctipClearFailure"
+        }
+        else {
+            "$runnerFailure; VCTIP stability control cleanup also failed: $vctipClearFailure"
+        }
     }
     if ($null -ne $runnerFailure) {
         $script:lastFailedCommandReceipt = [ordered]@{
@@ -877,6 +897,12 @@ function Invoke-BoundedCargo {
             proof_deadline_qpc_ticks = $proofDeadlineQpcTicks
             proof_budget_ms = $proofBudgetMs
             cleanup_margin_seconds = $cleanupMarginSeconds
+            vctip_containment = [ordered]@{
+                executable = $script:mt045VctipPath
+                marked_unstable_before_command = $vctipMarked
+                cleared_after_job_drain = ($null -eq $vctipClearFailure)
+                clear_error = $vctipClearFailure
+            }
             runner_error = $runnerFailure
             timed_out = $null
             leaked_process_count = $null
@@ -908,6 +934,12 @@ function Invoke-BoundedCargo {
         proof_deadline_qpc_ticks = $proofDeadlineQpcTicks
         proof_budget_ms = $proofBudgetMs
         cleanup_margin_seconds = $cleanupMarginSeconds
+        vctip_containment = [ordered]@{
+            executable = $script:mt045VctipPath
+            marked_unstable_before_command = $vctipMarked
+            cleared_after_job_drain = ($null -eq $vctipClearFailure)
+            clear_error = $vctipClearFailure
+        }
         runner_error = $null
         timed_out = $nativeResult.TimedOut
         leaked_process_count = $nativeResult.LeakedProcessCount
@@ -1135,9 +1167,27 @@ catch {
     throw $preflightFailure
 }
 
-# Keep MSVC's telemetry uploader out of the bounded Cargo Job. VCTIP otherwise survives successful
-# compiler/linker roots long enough to become a real owned-descendant leak under the production gate.
-$env:VSCMD_SKIP_SENDTELEMETRY = "1"
+function Resolve-Mt045VctipPath {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) {
+        throw "MT-045 requires Visual Studio Installer vswhere.exe to resolve the active MSVC VCTIP executable"
+    }
+    $matches = @(& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find "VC\Tools\MSVC\**\bin\HostX64\x64\VCTIP.exe")
+    if ($LASTEXITCODE -ne 0 -or $matches.Count -ne 1) {
+        throw "MT-045 could not resolve exactly one active MSVC VCTIP executable through vswhere.exe"
+    }
+    return (Resolve-Path -LiteralPath $matches[0] -ErrorAction Stop).Path
+}
+
+function Invoke-Mt045VctipControl {
+    param([Parameter(Mandatory)][ValidateSet("mark", "clear")][string]$Action)
+    $output = @(& $script:mt045VctipPath "-unstable:$Action" 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "VCTIP -unstable:$Action failed with exit code $LASTEXITCODE`: $($output -join ' ')"
+    }
+}
+
+$script:mt045VctipPath = Resolve-Mt045VctipPath
 
 function Get-Mt045ComparablePath {
     param([Parameter(Mandatory)][string]$Path)
@@ -2708,8 +2758,8 @@ try {
         target_cleanup = $targetCleanup
         budget_overrides = @()
         msvc_telemetry = [ordered]@{
-            vscmd_skip_sendtelemetry = $env:VSCMD_SKIP_SENDTELEMETRY
-            scope = "supervisor_process_tree"
+            executable = $script:mt045VctipPath
+            containment = "marked_unstable_before_each_cargo_command_cleared_after_job_drain"
         }
         store = [ordered]@{
             kind = "embedded_surrealdb"
