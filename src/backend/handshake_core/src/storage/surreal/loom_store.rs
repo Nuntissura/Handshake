@@ -7,6 +7,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::str::FromStr;
+use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use regex::Regex;
@@ -2784,7 +2785,15 @@ pub(crate) async fn get_tag_hub(
     workspace_id: &str,
     tag_block_id: &str,
 ) -> StorageResult<LoomTagHub> {
+    let get_tag_block_started = Instant::now();
     let block = get_loom_block(db, workspace_id, tag_block_id).await?;
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "get_tag_block",
+        elapsed_us = get_tag_block_started.elapsed().as_micros(),
+        "loom_tag_hub_stage_timing"
+    );
     if block.content_type != LoomBlockContentType::TagHub {
         return Err(StorageError::Validation("loom block is not a tag_hub"));
     }
@@ -2794,10 +2803,25 @@ pub(crate) async fn get_tag_hub(
         .map(|block| (block.block_id.clone(), block))
         .collect();
     let edges = workspace_edges(db, workspace_id).await?;
-    let mut incoming = |edge_type: LoomEdgeType| {
-        let mut result: Vec<_> = edges
+    let incoming = |edge_type: LoomEdgeType, edge_type_name: &'static str| {
+        let incoming_edge_query_started = Instant::now();
+        let incoming_edges: Vec<_> = edges
             .iter()
             .filter(|edge| edge.target_block_id == tag_block_id && edge.edge_type == edge_type)
+            .collect();
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "incoming_edge_query",
+            edge_type = edge_type_name,
+            row_count = incoming_edges.len(),
+            elapsed_us = incoming_edge_query_started.elapsed().as_micros(),
+            "loom_tag_hub_stage_timing"
+        );
+
+        let loom_block_mapping_started = Instant::now();
+        let mut result: Vec<_> = incoming_edges
+            .into_iter()
             .filter_map(|edge| blocks.get(&edge.source_block_id).cloned())
             .collect();
         result.sort_by(|left, right| {
@@ -2807,16 +2831,59 @@ pub(crate) async fn get_tag_hub(
                 .then_with(|| left.block_id.cmp(&right.block_id))
         });
         result.dedup_by(|left, right| left.block_id == right.block_id);
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "loom_block_mapping",
+            edge_type = edge_type_name,
+            row_count = result.len(),
+            elapsed_us = loom_block_mapping_started.elapsed().as_micros(),
+            "loom_tag_hub_stage_timing"
+        );
         result
     };
+
+    let sub_tag_total_started = Instant::now();
+    let sub_tags = incoming(LoomEdgeType::SubTag, "sub_tag");
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "sub_tag_query_and_mapping_total",
+        row_count = sub_tags.len(),
+        elapsed_us = sub_tag_total_started.elapsed().as_micros(),
+        "loom_tag_hub_stage_timing"
+    );
+
+    let tagged_block_total_started = Instant::now();
+    let tagged_blocks = incoming(LoomEdgeType::Tag, "tag");
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "tagged_block_query_and_mapping_total",
+        row_count = tagged_blocks.len(),
+        elapsed_us = tagged_block_total_started.elapsed().as_micros(),
+        "loom_tag_hub_stage_timing"
+    );
+
+    let backlink_count_started = Instant::now();
+    let backlink_count = edges
+        .iter()
+        .filter(|edge| edge.target_block_id == tag_block_id)
+        .count() as i64;
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "backlink_count_query",
+        row_count = backlink_count,
+        elapsed_us = backlink_count_started.elapsed().as_micros(),
+        "loom_tag_hub_stage_timing"
+    );
+
     Ok(LoomTagHub {
         block,
-        sub_tags: incoming(LoomEdgeType::SubTag),
-        tagged_blocks: incoming(LoomEdgeType::Tag),
-        backlink_count: edges
-            .iter()
-            .filter(|edge| edge.target_block_id == tag_block_id)
-            .count() as i64,
+        sub_tags,
+        tagged_blocks,
+        backlink_count,
     })
 }
 
