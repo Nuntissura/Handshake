@@ -31,6 +31,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 
 use axum::{
     extract::{Path, State},
@@ -248,6 +249,7 @@ async fn index_workspace_code(
     headers: HeaderMap,
     Json(body): Json<IndexBody>,
 ) -> Result<Json<Value>, ApiError> {
+    let route_started = Instant::now();
     let identity = index_identity(&headers)?;
     let root_path = body.root_path.trim();
     if root_path.is_empty() {
@@ -266,6 +268,13 @@ async fn index_workspace_code(
     // 1) Register the anchor as a project-repo root. `repo_relative_path = ""`
     //    means "the anchor itself is the root dir"; the MT-081 root allowlist is
     //    evaluated fail-closed here (a denied path returns the typed 403).
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "register_root",
+        "code_nav_index_stage_started"
+    );
+    let stage_started = Instant::now();
     let (root, _decision) = ingestion
         .register_root(
             &ingest_ctx,
@@ -282,25 +291,83 @@ async fn index_workspace_code(
         )
         .await
         .map_err(ingestion_error)?;
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "register_root",
+        stage_elapsed_ms = stage_started.elapsed().as_millis() as u64,
+        total_elapsed_ms = route_started.elapsed().as_millis() as u64,
+        "code_nav_index_stage_completed"
+    );
 
     // 2) Run the REAL ingestion pass over the anchor — the shared walker +
     //    per-root file allowlist. Every eligible file becomes a KnowledgeSource.
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "prepare_files",
+        "code_nav_index_stage_started"
+    );
+    let stage_started = Instant::now();
     let (prepared, files_skipped) = ingestion
         .prepare_code_nav_files(&root, &anchor, &IngestionLimits::default())
         .await
         .map_err(ingestion_error)?;
     let files_ingested = prepared.len();
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "prepare_files",
+        files_ingested,
+        files_skipped,
+        stage_elapsed_ms = stage_started.elapsed().as_millis() as u64,
+        total_elapsed_ms = route_started.elapsed().as_millis() as u64,
+        "code_nav_index_stage_completed"
+    );
     let ingestion_run_token = format!("KIRUN-{}", uuid::Uuid::now_v7().simple());
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "persist_ingestion_batch",
+        files_ingested,
+        "code_nav_index_stage_started"
+    );
+    let stage_started = Instant::now();
     let persisted_sources = ingestion
         .persist_code_nav_batch(&ingest_ctx, &root, &ingestion_run_token, &prepared)
         .await
         .map_err(ingestion_error)?;
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "persist_ingestion_batch",
+        files_persisted = persisted_sources.len(),
+        stage_elapsed_ms = stage_started.elapsed().as_millis() as u64,
+        total_elapsed_ms = route_started.elapsed().as_millis() as u64,
+        "code_nav_index_stage_completed"
+    );
 
     // 3) Start a code-index run and index each ingested CODE/CONFIG source.
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "start_index_run",
+        "code_nav_index_stage_started"
+    );
+    let stage_started = Instant::now();
     let index_run_id = code_index
         .start_run(&code_ctx, &workspace_id, Some(root.root_id.as_str()))
         .await
         .map_err(code_index_error)?;
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "start_index_run",
+        index_run_id = %index_run_id,
+        stage_elapsed_ms = stage_started.elapsed().as_millis() as u64,
+        total_elapsed_ms = route_started.elapsed().as_millis() as u64,
+        "code_nav_index_stage_completed"
+    );
 
     // The ingestion pass remains ordered so source lifecycle and stale-source
     // detection retain their canonical semantics. Code indexing is independent
@@ -319,6 +386,15 @@ async fn index_workspace_code(
             Some((source_id, relative_path))
         })
         .collect();
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "persist_code_index_batch",
+        index_run_id = %index_run_id,
+        files = index_inputs.len(),
+        "code_nav_index_stage_started"
+    );
+    let stage_started = Instant::now();
     let batch_attempt = code_index
         .try_index_prepared_batch(
             &code_ctx,
@@ -328,6 +404,15 @@ async fn index_workspace_code(
             &index_run_id,
         )
         .await;
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "persist_code_index_batch",
+        index_run_id = %index_run_id,
+        stage_elapsed_ms = stage_started.elapsed().as_millis() as u64,
+        total_elapsed_ms = route_started.elapsed().as_millis() as u64,
+        "code_nav_index_stage_completed"
+    );
     let indexed_results = match batch_attempt {
         Err(error) => {
             let mapped = code_index_error(error);
@@ -452,6 +537,14 @@ async fn index_workspace_code(
         }
         return Err(error);
     }
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "finish_index_run",
+        index_run_id = %index_run_id,
+        "code_nav_index_stage_started"
+    );
+    let stage_started = Instant::now();
     code_index
         .finish_run_with_retry(
             &code_ctx,
@@ -460,6 +553,15 @@ async fn index_workspace_code(
         )
         .await
         .map_err(code_index_error)?;
+    tracing::info!(
+        target: "handshake_core::code_nav_index",
+        workspace_id = %workspace_id,
+        stage = "finish_index_run",
+        index_run_id = %index_run_id,
+        stage_elapsed_ms = stage_started.elapsed().as_millis() as u64,
+        total_elapsed_ms = route_started.elapsed().as_millis() as u64,
+        "code_nav_index_stage_completed"
+    );
 
     Ok(Json(json!({
         "symbol_count": symbol_count,
