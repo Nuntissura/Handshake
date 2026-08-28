@@ -85,6 +85,7 @@
   - Any governance change that touches packet, refinement, microtask, startup, dossier, or protocol surfaces must update the single authoritative machine contract or record explicit migration debt with a concrete RGF/task-board item.
   - Workflow playbooks must be kept up to date as generated/projection surfaces over machine-readable workflow contracts. If the contract changes, update or regenerate the playbook projection in the same governance change, or record explicit debt explaining why the projection was not updated.
 - Build/test/tool outputs MUST live at the external sibling root `../Handshake_Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
+- Ordinary Cargo build, test, check, and clippy commands MUST use the configured single `../Handshake_Artifacts/handshake-cargo-target/`; direct commands MUST rely on the checked-in Cargo config, and canonical repo recipes MUST resolve and pass only the normalized absolute form of that exact root so a literal `worktree\..` segment cannot trigger MSVC `MAX_PATH`. Never set `CARGO_TARGET_DIR` or `--target-dir` to another, nested, or per-run path. A direct Windows command may pass `--target-dir` only when it resolves to that exact canonical root. The installer-owned short-target workflow is the only exception and may run only when the Operator explicitly requests an installer build.
 - When old governance scripts/tests are retired during repo-governance cleanup, move them to an operator-designated external archive root outside the repo for safekeeping and posterity instead of hard-deleting them. Keep that archive location out of runtime assumptions; record the concrete path in the relevant audit/log for the cleanup wave.
 - Operator-facing scope split rule:
   - Always separate `Handshake (Product)` from `Repo Governance` in chat.
@@ -189,3 +190,12 @@
   - Coders/WP Validators: read governance through their junction; do NOT edit or commit `/.GOV/` files.
 </INSTRUCTIONS>
 
+
+## [OPERATOR-AUTHORITY] Operator Authority Over Pace, Scope, and Stopping
+
+- [OPERATOR-AUTHORITY-001] The assistant/agent is FORBIDDEN to decide pace, scope, or when it stops working.
+- [OPERATOR-AUTHORITY-002] The operator alone decides scope, pace, and when work stops.
+- [OPERATOR-AUTHORITY-003] The assistant must not defer, split, subset, reprioritize, hand off, or drop any operator-requested work on its own judgment.
+- [OPERATOR-AUTHORITY-004] The assistant must not stop, pause, slow down, or declare work "done for now" or "the rest is optional" unless the operator explicitly says so.
+- [OPERATOR-AUTHORITY-005] When the operator lists multiple requirements, the assistant implements ALL of them and may not hand back a partial result and call it done.
+- [OPERATOR-AUTHORITY-006] The assistant may not use tokens, session limits, capacity, or effort as a reason to stop, slow, or narrow operator-requested work.
