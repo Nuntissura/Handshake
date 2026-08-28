@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 
 $script:mt045DescendantExitGraceMilliseconds = 15000
 $script:mt045SelfTestFixtureTimeoutMilliseconds = 15000
-$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260802-v7"
+$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260828-v8"
 $mt045JobRunnerSource = @'
 using System;
 using System.Collections.Generic;
@@ -29,12 +29,21 @@ public sealed class Mt045JobRunResult
     public uint LeakedProcessCount { get; set; }
     public ulong[] LeakedProcessIds { get; set; }
     public ulong[] PreCleanupDescendantProcessIds { get; set; }
+    public Mt045OwnedProcessIdentity[] PreCleanupDescendantProcessIdentities { get; set; }
     public ulong[] PostDrainDescendantProcessIds { get; set; }
+}
+
+public sealed class Mt045OwnedProcessIdentity
+{
+    public ulong ProcessId { get; set; }
+    public string ProcessName { get; set; }
+    public string ExecutablePath { get; set; }
+    public string CaptureError { get; set; }
 }
 
 public static class Mt045JobRunner
 {
-    public const string SourceId = "mt045-job-runner-20260802-v7";
+    public const string SourceId = "mt045-job-runner-20260828-v8";
     private const uint CREATE_SUSPENDED = 0x00000004;
     private const uint CREATE_NO_WINDOW = 0x08000000;
     private const uint STARTF_USESTDHANDLES = 0x00000100;
@@ -335,6 +344,38 @@ public static class Mt045JobRunner
         return descendants.ToArray();
     }
 
+    private static Mt045OwnedProcessIdentity[] CaptureProcessIdentities(ulong[] processIds)
+    {
+        var identities = new List<Mt045OwnedProcessIdentity>();
+        foreach (var processId in processIds)
+        {
+            var identity = new Mt045OwnedProcessIdentity { ProcessId = processId };
+            try
+            {
+                using (var process = Process.GetProcessById(checked((int)processId)))
+                {
+                    identity.ProcessName = process.ProcessName;
+                    try
+                    {
+                        identity.ExecutablePath = process.MainModule == null
+                            ? null
+                            : process.MainModule.FileName;
+                    }
+                    catch (Exception failure)
+                    {
+                        identity.CaptureError = failure.GetType().Name + ": " + failure.Message;
+                    }
+                }
+            }
+            catch (Exception failure)
+            {
+                identity.CaptureError = failure.GetType().Name + ": " + failure.Message;
+            }
+            identities.Add(identity);
+        }
+        return identities.ToArray();
+    }
+
     private static void WaitForJobDrain(IntPtr job, int timeoutMilliseconds, string operation)
     {
         var timer = Stopwatch.StartNew();
@@ -493,12 +534,15 @@ public static class Mt045JobRunner
             var wait = WaitForSingleObject(processInformation.hProcess, (uint)timeoutMilliseconds);
             var timedOut = wait == WAIT_TIMEOUT;
             var preCleanupDescendantProcessIds = new ulong[0];
+            var preCleanupDescendantProcessIdentities = new Mt045OwnedProcessIdentity[0];
             var postDrainDescendantProcessIds = new ulong[0];
             if (timedOut)
             {
                 preCleanupDescendantProcessIds = QueryDescendantProcessIds(
                     job,
                     unchecked((uint)processInformation.dwProcessId));
+                preCleanupDescendantProcessIdentities = CaptureProcessIdentities(
+                    preCleanupDescendantProcessIds);
                 TerminateJobAndDrain(job, "Timeout cleanup");
                 WaitForSingleObject(processInformation.hProcess, INFINITE);
                 postDrainDescendantProcessIds = QueryDescendantProcessIds(
@@ -538,6 +582,8 @@ public static class Mt045JobRunner
                 if (leakedProcessIds.Length != 0)
                 {
                     preCleanupDescendantProcessIds = leakedProcessIds;
+                    preCleanupDescendantProcessIdentities = CaptureProcessIdentities(
+                        preCleanupDescendantProcessIds);
                     TerminateJobAndDrain(job, "Descendant-leak cleanup");
                     postDrainDescendantProcessIds = QueryDescendantProcessIds(
                         job,
@@ -553,6 +599,7 @@ public static class Mt045JobRunner
                 LeakedProcessCount = unchecked((uint)leakedProcessIds.Length),
                 LeakedProcessIds = leakedProcessIds,
                 PreCleanupDescendantProcessIds = preCleanupDescendantProcessIds,
+                PreCleanupDescendantProcessIdentities = preCleanupDescendantProcessIdentities,
                 PostDrainDescendantProcessIds = postDrainDescendantProcessIds
             };
             runCompleted = true;
@@ -835,6 +882,7 @@ function Invoke-BoundedCargo {
             leaked_process_count = $null
             leaked_process_ids = $null
             pre_cleanup_descendant_process_ids = $null
+            pre_cleanup_descendant_process_identities = $null
             post_drain_descendant_process_ids = $null
             exit_code = $null
             root_process_id = $null
@@ -865,6 +913,7 @@ function Invoke-BoundedCargo {
         leaked_process_count = $nativeResult.LeakedProcessCount
         leaked_process_ids = @($nativeResult.LeakedProcessIds)
         pre_cleanup_descendant_process_ids = @($nativeResult.PreCleanupDescendantProcessIds)
+        pre_cleanup_descendant_process_identities = @($nativeResult.PreCleanupDescendantProcessIdentities)
         post_drain_descendant_process_ids = @($nativeResult.PostDrainDescendantProcessIds)
         exit_code = $nativeResult.ExitCode
         root_process_id = $nativeResult.RootProcessId
@@ -881,7 +930,8 @@ function Invoke-BoundedCargo {
     }
     if ($nativeResult.LeakedProcessCount -ne 0) {
         $script:lastFailedCommandReceipt = $commandReceipt
-        throw "$Label leaked $($nativeResult.LeakedProcessCount) owned descendant process(es); its Windows Job Object was terminated"
+        $leakedIdentities = @($nativeResult.PreCleanupDescendantProcessIdentities) | ConvertTo-Json -Compress -Depth 4
+        throw "$Label leaked $($nativeResult.LeakedProcessCount) owned descendant process(es); identity=$leakedIdentities; its Windows Job Object was terminated"
     }
     if ($nativeResult.ExitCode -ne 0) {
         $script:lastFailedCommandReceipt = $commandReceipt
@@ -1884,6 +1934,7 @@ if ($DiagnosticsSelfTest) {
             $normalJobResult.LeakedProcessCount -ne 0 -or
             @($normalJobResult.LeakedProcessIds).Count -ne 0 -or
             @($normalJobResult.PreCleanupDescendantProcessIds).Count -ne 0 -or
+            @($normalJobResult.PreCleanupDescendantProcessIdentities).Count -ne 0 -or
             @($normalJobResult.PostDrainDescendantProcessIds).Count -ne 0
         ) {
             throw "diagnostics self-test rejected a normal root-only Job completion"
@@ -1919,6 +1970,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             $graceJobResult.ExitCode -ne 0 -or
             $graceJobResult.LeakedProcessCount -ne 0 -or
             @($graceJobResult.LeakedProcessIds).Count -ne 0 -or
+            @($graceJobResult.PreCleanupDescendantProcessIdentities).Count -ne 0 -or
             @($graceJobResult.PostDrainDescendantProcessIds).Count -ne 0
         ) {
             $graceFailure = [ordered]@{
@@ -1949,6 +2001,8 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             $leakJobResult.LeakedProcessCount -lt 1 -or
             [uint64]$leakJobResult.LeakedProcessCount -ne [uint64]@($leakJobResult.LeakedProcessIds).Count -or
             @($leakJobResult.PreCleanupDescendantProcessIds).Count -ne @($leakJobResult.LeakedProcessIds).Count -or
+            @($leakJobResult.PreCleanupDescendantProcessIdentities).Count -ne @($leakJobResult.LeakedProcessIds).Count -or
+            @($leakJobResult.PreCleanupDescendantProcessIdentities | Where-Object { [string]::IsNullOrWhiteSpace($_.ProcessName) }).Count -ne 0 -or
             @($leakJobResult.PostDrainDescendantProcessIds).Count -ne 0
         ) {
             throw "diagnostics self-test did not capture and drain an owned descendant leak"
@@ -1969,6 +2023,8 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             $timeoutChildJobResult.LeakedProcessCount -ne 0 -or
             @($timeoutChildJobResult.LeakedProcessIds).Count -ne 0 -or
             @($timeoutChildJobResult.PreCleanupDescendantProcessIds).Count -lt 1 -or
+            @($timeoutChildJobResult.PreCleanupDescendantProcessIdentities).Count -ne @($timeoutChildJobResult.PreCleanupDescendantProcessIds).Count -or
+            @($timeoutChildJobResult.PreCleanupDescendantProcessIdentities | Where-Object { [string]::IsNullOrWhiteSpace($_.ProcessName) }).Count -ne 0 -or
             @($timeoutChildJobResult.PostDrainDescendantProcessIds).Count -ne 0
         ) {
             throw "diagnostics self-test did not retain pre-cleanup timeout descendants and prove post-drain zero"
