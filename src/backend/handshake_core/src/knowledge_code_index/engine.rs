@@ -174,6 +174,7 @@ struct CleanCodeBatchSymbolWrite {
 #[derive(SurrealValue)]
 struct CleanCodeBatchFileWrite {
     source: RecordId,
+    source_id: String,
     receipt: Option<RecordId>,
     file_entity: RecordId,
     file_entity_id: String,
@@ -191,35 +192,166 @@ struct CleanCodeBatchFileWrite {
 
 #[derive(SurrealValue)]
 struct CleanCodeBatchBindings {
-    workspace: RecordId,
-    index_run: RecordId,
-    files: Vec<CleanCodeBatchFileWrite>,
+    entities: Vec<CleanCodeEntityRow>,
+    spans: Vec<CleanCodeSpanRow>,
+    entity_spans: Vec<CleanCodeEntitySpanRow>,
+    edges: Vec<CleanCodeEdgeRow>,
+    edge_spans: Vec<CleanCodeEdgeSpanRow>,
+    code_files: Vec<CleanCodeFileRow>,
+    sources: Vec<RecordId>,
+    receipt: RecordId,
 }
 
+#[derive(SurrealValue)]
+struct CleanCodeEntityRow {
+    id: RecordId,
+    entity_id: String,
+    workspace_id: RecordId,
+    entity_kind: String,
+    entity_key: String,
+    display_name: String,
+    detection_provenance: Value,
+    lifecycle_state: String,
+    primary_source_id: RecordId,
+    first_detected_in_run: RecordId,
+    last_detected_in_run: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CleanCodeSpanRow {
+    id: RecordId,
+    span_id: String,
+    source_id: RecordId,
+    span_kind: String,
+    range_start: i64,
+    range_end: i64,
+    line_start: i64,
+    line_end: i64,
+    section_path: String,
+    content_sha256: String,
+    parser_version: String,
+    extraction_receipt_event_id: RecordId,
+    index_run_id: RecordId,
+    display_snippet: String,
+}
+
+#[derive(SurrealValue)]
+struct CleanCodeEntitySpanRow {
+    entity_id: RecordId,
+    span_id: RecordId,
+    detected_in_run: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CleanCodeEdgeRow {
+    id: RecordId,
+    edge_id: String,
+    workspace_id: RecordId,
+    relationship_id: String,
+    edge_type: String,
+    source_entity_id: RecordId,
+    target_entity_id: RecordId,
+    extractor_version: String,
+    lifecycle_state: String,
+    confidence: f64,
+    created_in_run: RecordId,
+    last_seen_in_run: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CleanCodeEdgeSpanRow {
+    edge_id: RecordId,
+    span_id: RecordId,
+    recorded_in_run: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CleanCodeFileRow {
+    id: RecordId,
+    code_file_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    file_entity_id: RecordId,
+    language: String,
+    indexed_content_hash: String,
+    parser_version: String,
+    parse_status: String,
+    stale: bool,
+    symbols_indexed: i64,
+    edges_indexed: i64,
+    failure_detail: Option<Value>,
+    last_indexed_in_run: RecordId,
+    last_index_receipt_event_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ExistingCleanCodeLookupBindings {
+    workspace: RecordId,
+    entity_keys: Vec<String>,
+    relationship_ids: Vec<String>,
+    source_ids: Vec<RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct ExistingCleanCodeEntityRow {
+    record_id: String,
+    entity_kind: String,
+    entity_key: String,
+}
+
+#[derive(SurrealValue)]
+struct ExistingCleanCodeEdgeRow {
+    record_id: String,
+    relationship_id: String,
+}
+
+#[derive(SurrealValue)]
+struct ExistingCleanCodeFileRow {
+    record_id: String,
+    source_id: String,
+}
+
+#[derive(SurrealValue)]
+struct ExistingCleanCodeRows {
+    entities: Vec<ExistingCleanCodeEntityRow>,
+    edges: Vec<ExistingCleanCodeEdgeRow>,
+    code_files: Vec<ExistingCleanCodeFileRow>,
+}
+
+const LOAD_EXISTING_CLEAN_CODE_ROWS: &str = "RETURN { \
+    entities: (SELECT record::id(id) AS record_id, entity_kind, entity_key \
+      FROM knowledge_entities WHERE workspace_id = $workspace AND entity_key IN $entity_keys), \
+    edges: (SELECT record::id(id) AS record_id, relationship_id \
+      FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id IN $relationship_ids), \
+    code_files: (SELECT record::id(id) AS record_id, record::id(source_id) AS source_id \
+      FROM knowledge_code_files WHERE workspace_id = $workspace AND source_id IN $source_ids) \
+    };";
+
 const PERSIST_CLEAN_CODE_BATCH: &str = "BEGIN TRANSACTION; \
-    RETURN { \
-      FOR $file IN $files { \
-        LET $existing_file_entity = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = 'file' AND entity_key = $file.file_key LIMIT 1)[0]; \
-        IF $existing_file_entity = NONE { CREATE $file.file_entity CONTENT { entity_id: $file.file_entity_id, workspace_id: $workspace, entity_kind: 'file', entity_key: $file.file_key, display_name: $file.relative_path, detection_provenance: $file.file_provenance, primary_source_id: $file.source, first_detected_in_run: $index_run, last_detected_in_run: $index_run } RETURN NONE; } ELSE { UPDATE $existing_file_entity SET display_name = $file.relative_path, detection_provenance = $file.file_provenance, primary_source_id = $file.source, last_detected_in_run = $index_run, lifecycle_state = 'active', updated_at = time::now() RETURN NONE; }; \
-        LET $file_ref = $existing_file_entity ?? $file.file_entity; \
-        FOR $symbol IN $file.symbols { \
-          CREATE $symbol.span CONTENT { span_id: $symbol.span_id, source_id: $file.source, span_kind: 'ast', range_start: $symbol.range_start, range_end: $symbol.range_end, line_start: $symbol.line_start, line_end: $symbol.line_end, section_path: $symbol.section_path, content_sha256: $symbol.content_sha256, parser_version: $file.parser_version, extraction_receipt_event_id: $file.receipt, index_run_id: $index_run, display_snippet: 'symbol definition' } RETURN NONE; \
-          LET $existing_symbol = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = 'symbol' AND entity_key = $symbol.symbol_key LIMIT 1)[0]; \
-          IF $existing_symbol = NONE { CREATE $symbol.symbol_entity CONTENT { entity_id: $symbol.symbol_entity_id, workspace_id: $workspace, entity_kind: 'symbol', entity_key: $symbol.symbol_key, display_name: $symbol.display_name, detection_provenance: $symbol.provenance, primary_source_id: $file.source, first_detected_in_run: $index_run, last_detected_in_run: $index_run } RETURN NONE; } ELSE { UPDATE $existing_symbol SET display_name = $symbol.display_name, detection_provenance = $symbol.provenance, primary_source_id = $file.source, last_detected_in_run = $index_run, lifecycle_state = 'active', updated_at = time::now() RETURN NONE; }; \
-          LET $symbol_ref = $existing_symbol ?? $symbol.symbol_entity; \
-          CREATE knowledge_entity_spans CONTENT { entity_id: $symbol_ref, span_id: $symbol.span, detected_in_run: $index_run } RETURN NONE; \
-          LET $existing_edge = (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $symbol.relationship_id LIMIT 1)[0]; \
-          IF $existing_edge = NONE { CREATE $symbol.edge CONTENT { edge_id: $symbol.edge_id, workspace_id: $workspace, relationship_id: $symbol.relationship_id, edge_type: 'contains', source_entity_id: $file_ref, target_entity_id: $symbol_ref, extractor_version: 'code_index_extractor_v1', confidence: 1.0, created_in_run: $index_run, last_seen_in_run: $index_run } RETURN NONE; } ELSE { UPDATE $existing_edge SET confidence = 1.0, extractor_version = 'code_index_extractor_v1', last_seen_in_run = $index_run, updated_at = time::now() RETURN NONE; }; \
-          LET $edge_ref = $existing_edge ?? $symbol.edge; \
-          CREATE knowledge_edge_spans CONTENT { edge_id: $edge_ref, span_id: $symbol.span, recorded_in_run: $index_run } RETURN NONE; \
-        }; \
-        LET $existing_code_file = (SELECT VALUE id FROM knowledge_code_files WHERE source_id = $file.source LIMIT 1)[0]; \
-        IF $existing_code_file = NONE { CREATE $file.code_file CONTENT { code_file_id: $file.code_file_id, workspace_id: $workspace, source_id: $file.source, file_entity_id: $file_ref, language: $file.language, indexed_content_hash: $file.content_hash, parser_version: $file.parser_version, parse_status: 'parsed', stale: false, symbols_indexed: array::len($file.symbols), edges_indexed: array::len($file.symbols), failure_detail: $file.failure_detail, last_indexed_in_run: $index_run, last_index_receipt_event_id: $file.receipt } RETURN NONE; } ELSE { UPDATE $existing_code_file SET file_entity_id = $file_ref, language = $file.language, indexed_content_hash = $file.content_hash, parser_version = $file.parser_version, parse_status = 'parsed', stale = false, symbols_indexed = array::len($file.symbols), edges_indexed = array::len($file.symbols), failure_detail = $file.failure_detail, last_indexed_in_run = $index_run, last_index_receipt_event_id = $file.receipt, updated_at = time::now() RETURN NONE; }; \
-        UPDATE $file.source SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $file.receipt, updated_at = time::now() RETURN NONE; \
-      }; \
-      RETURN true; \
-    }; \
-    COMMIT TRANSACTION;";
+    INSERT INTO knowledge_entities $entities ON DUPLICATE KEY UPDATE \
+      display_name = $input.display_name, detection_provenance = $input.detection_provenance, \
+      primary_source_id = $input.primary_source_id, last_detected_in_run = $input.last_detected_in_run, \
+      lifecycle_state = $input.lifecycle_state, updated_at = time::now() RETURN NONE; \
+    INSERT INTO knowledge_spans $spans RETURN NONE; \
+    INSERT INTO knowledge_entity_spans $entity_spans RETURN NONE; \
+    INSERT INTO knowledge_edges $edges ON DUPLICATE KEY UPDATE \
+      confidence = $input.confidence, extractor_version = $input.extractor_version, \
+      last_seen_in_run = $input.last_seen_in_run, lifecycle_state = $input.lifecycle_state, \
+      updated_at = time::now() RETURN NONE; \
+    INSERT INTO knowledge_edge_spans $edge_spans RETURN NONE; \
+    INSERT INTO knowledge_code_files $code_files ON DUPLICATE KEY UPDATE \
+      file_entity_id = $input.file_entity_id, language = $input.language, \
+      indexed_content_hash = $input.indexed_content_hash, parser_version = $input.parser_version, \
+      parse_status = $input.parse_status, stale = $input.stale, \
+      symbols_indexed = $input.symbols_indexed, edges_indexed = $input.edges_indexed, \
+      failure_detail = $input.failure_detail, last_indexed_in_run = $input.last_indexed_in_run, \
+      last_index_receipt_event_id = $input.last_index_receipt_event_id, \
+      updated_at = time::now() RETURN NONE; \
+    UPDATE knowledge_sources SET parser_status = 'parsed', extraction_status = 'extracted', \
+      last_index_receipt_event_id = $receipt, \
+      updated_at = time::now() WHERE id IN $sources RETURN NONE; \
+    COMMIT TRANSACTION; \
+    RETURN true;";
 
 const UPSERT_CODE_FILE_STATE: &str = "BEGIN TRANSACTION; \
     LET $existing = (SELECT VALUE id FROM knowledge_code_files WHERE source_id = $source_id LIMIT 1)[0]; \
@@ -694,6 +826,7 @@ impl CodeIndexEngine {
             let code_file_id = format!("KCF-{}", &sha256_hex(source_id.as_bytes())[..32]);
             writes.push(CleanCodeBatchFileWrite {
                 source: RecordId::new("knowledge_sources", source_id.clone()),
+                source_id: source_id.clone(),
                 receipt: None,
                 file_entity: RecordId::new("knowledge_entities", file_entity_id.clone()),
                 file_entity_id,
@@ -725,6 +858,95 @@ impl CodeIndexEngine {
                 failure_reason: None,
                 receipt_event_id: String::new(),
             });
+        }
+
+        let entity_keys = writes
+            .iter()
+            .flat_map(|file| {
+                std::iter::once(file.file_key.clone())
+                    .chain(file.symbols.iter().map(|symbol| symbol.symbol_key.clone()))
+            })
+            .collect();
+        let relationship_ids = writes
+            .iter()
+            .flat_map(|file| {
+                file.symbols
+                    .iter()
+                    .map(|symbol| symbol.relationship_id.clone())
+            })
+            .collect();
+        let source_ids = writes.iter().map(|file| file.source.clone()).collect();
+        let lookup_bindings = ExistingCleanCodeLookupBindings {
+            workspace: RecordId::new("workspaces", workspace_id.to_owned()),
+            entity_keys,
+            relationship_ids,
+            source_ids,
+        };
+        let lookup_started = Instant::now();
+        let existing: Option<ExistingCleanCodeRows> = self
+            .db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(LOAD_EXISTING_CLEAN_CODE_ROWS, lookup_bindings)
+                        .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?;
+        let existing = existing.ok_or_else(|| {
+            CodeIndexError::from(StorageError::Database(
+                "clean code batch existing-row lookup returned no result".to_owned(),
+            ))
+        })?;
+        tracing::info!(
+            target: "handshake_core::code_nav_index",
+            stage = "try_index_prepared_batch.lookup_existing",
+            workspace_id,
+            index_run_id,
+            files = writes.len(),
+            stage_elapsed_ms = lookup_started.elapsed().as_millis() as u64,
+            "knowledge_code_index_batch_stage_completed"
+        );
+        let existing_entities = existing
+            .entities
+            .into_iter()
+            .map(|row| ((row.entity_kind, row.entity_key), row.record_id))
+            .collect::<HashMap<_, _>>();
+        let existing_edges = existing
+            .edges
+            .into_iter()
+            .map(|row| (row.relationship_id, row.record_id))
+            .collect::<HashMap<_, _>>();
+        let existing_code_files = existing
+            .code_files
+            .into_iter()
+            .map(|row| (row.source_id, row.record_id))
+            .collect::<HashMap<_, _>>();
+        for file in &mut writes {
+            if let Some(record_id) =
+                existing_entities.get(&("file".to_owned(), file.file_key.clone()))
+            {
+                file.file_entity_id = record_id.clone();
+                file.file_entity = RecordId::new("knowledge_entities", record_id.clone());
+            }
+            if let Some(record_id) = existing_code_files.get(&file.source_id) {
+                file.code_file_id = record_id.clone();
+                file.code_file = RecordId::new("knowledge_code_files", record_id.clone());
+            }
+            for symbol in &mut file.symbols {
+                if let Some(record_id) =
+                    existing_entities.get(&("symbol".to_owned(), symbol.symbol_key.clone()))
+                {
+                    symbol.symbol_entity_id = record_id.clone();
+                    symbol.symbol_entity = RecordId::new("knowledge_entities", record_id.clone());
+                }
+                if let Some(record_id) = existing_edges.get(&symbol.relationship_id) {
+                    symbol.edge_id = record_id.clone();
+                    symbol.edge = RecordId::new("knowledge_edges", record_id.clone());
+                }
+            }
         }
 
         let mut builder = NewKernelEvent::builder(
@@ -771,10 +993,120 @@ impl CodeIndexEngine {
             outcome.receipt_event_id = stored_event_id.clone();
         }
 
+        let workspace = RecordId::new("workspaces", workspace_id.to_owned());
+        let index_run = RecordId::new("knowledge_index_runs", index_run_id.to_owned());
+        let entity_count = writes.iter().map(|file| 1usize + file.symbols.len()).sum();
+        let symbol_count = writes.iter().map(|file| file.symbols.len()).sum();
+        let mut entities = Vec::with_capacity(entity_count);
+        let mut spans = Vec::with_capacity(symbol_count);
+        let mut entity_spans = Vec::with_capacity(symbol_count);
+        let mut edges = Vec::with_capacity(symbol_count);
+        let mut edge_spans = Vec::with_capacity(symbol_count);
+        let mut code_files = Vec::with_capacity(writes.len());
+        let mut sources = Vec::with_capacity(writes.len());
+        for file in writes {
+            let receipt = file.receipt.ok_or_else(|| {
+                CodeIndexError::from(StorageError::Database(
+                    "clean code batch is missing its EventLedger receipt".to_owned(),
+                ))
+            })?;
+            entities.push(CleanCodeEntityRow {
+                id: file.file_entity.clone(),
+                entity_id: file.file_entity_id,
+                workspace_id: workspace.clone(),
+                entity_kind: "file".to_owned(),
+                entity_key: file.file_key,
+                display_name: file.relative_path,
+                detection_provenance: file.file_provenance,
+                lifecycle_state: "active".to_owned(),
+                primary_source_id: file.source.clone(),
+                first_detected_in_run: index_run.clone(),
+                last_detected_in_run: index_run.clone(),
+            });
+            let symbols_indexed = file.symbols.len() as i64;
+            for symbol in file.symbols {
+                entities.push(CleanCodeEntityRow {
+                    id: symbol.symbol_entity.clone(),
+                    entity_id: symbol.symbol_entity_id,
+                    workspace_id: workspace.clone(),
+                    entity_kind: "symbol".to_owned(),
+                    entity_key: symbol.symbol_key,
+                    display_name: symbol.display_name,
+                    detection_provenance: symbol.provenance,
+                    lifecycle_state: "active".to_owned(),
+                    primary_source_id: file.source.clone(),
+                    first_detected_in_run: index_run.clone(),
+                    last_detected_in_run: index_run.clone(),
+                });
+                spans.push(CleanCodeSpanRow {
+                    id: symbol.span.clone(),
+                    span_id: symbol.span_id,
+                    source_id: file.source.clone(),
+                    span_kind: "ast".to_owned(),
+                    range_start: symbol.range_start,
+                    range_end: symbol.range_end,
+                    line_start: symbol.line_start,
+                    line_end: symbol.line_end,
+                    section_path: symbol.section_path,
+                    content_sha256: symbol.content_sha256,
+                    parser_version: file.parser_version.clone(),
+                    extraction_receipt_event_id: receipt.clone(),
+                    index_run_id: index_run.clone(),
+                    display_snippet: "symbol definition".to_owned(),
+                });
+                entity_spans.push(CleanCodeEntitySpanRow {
+                    entity_id: symbol.symbol_entity.clone(),
+                    span_id: symbol.span.clone(),
+                    detected_in_run: index_run.clone(),
+                });
+                edges.push(CleanCodeEdgeRow {
+                    id: symbol.edge.clone(),
+                    edge_id: symbol.edge_id,
+                    workspace_id: workspace.clone(),
+                    relationship_id: symbol.relationship_id,
+                    edge_type: "contains".to_owned(),
+                    source_entity_id: file.file_entity.clone(),
+                    target_entity_id: symbol.symbol_entity,
+                    extractor_version: CODE_EXTRACTOR_VERSION.to_owned(),
+                    lifecycle_state: "active".to_owned(),
+                    confidence: 1.0,
+                    created_in_run: index_run.clone(),
+                    last_seen_in_run: index_run.clone(),
+                });
+                edge_spans.push(CleanCodeEdgeSpanRow {
+                    edge_id: symbol.edge,
+                    span_id: symbol.span,
+                    recorded_in_run: index_run.clone(),
+                });
+            }
+            code_files.push(CleanCodeFileRow {
+                id: file.code_file,
+                code_file_id: file.code_file_id,
+                workspace_id: workspace.clone(),
+                source_id: file.source.clone(),
+                file_entity_id: file.file_entity,
+                language: file.language,
+                indexed_content_hash: file.content_hash,
+                parser_version: file.parser_version,
+                parse_status: "parsed".to_owned(),
+                stale: false,
+                symbols_indexed,
+                edges_indexed: symbols_indexed,
+                failure_detail: file.failure_detail,
+                last_indexed_in_run: index_run.clone(),
+                last_index_receipt_event_id: receipt,
+            });
+            sources.push(file.source);
+        }
         let bindings = CleanCodeBatchBindings {
-            workspace: RecordId::new("workspaces", workspace_id.to_owned()),
-            index_run: RecordId::new("knowledge_index_runs", index_run_id.to_owned()),
-            files: writes,
+            entities,
+            spans,
+            entity_spans,
+            edges,
+            edge_spans,
+            code_files,
+            sources,
+            receipt: stored_event,
         };
         let projection_started = Instant::now();
         let _ = self
@@ -783,7 +1115,7 @@ impl CodeIndexEngine {
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .query_values_at::<bool, _>(PERSIST_CLEAN_CODE_BATCH, bindings, 1)
+                        .query_values_at::<bool, _>(PERSIST_CLEAN_CODE_BATCH, bindings, 9)
                         .await
                 })
             })

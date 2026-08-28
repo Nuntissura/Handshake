@@ -150,25 +150,82 @@ struct CleanIngestionFileWrite {
 
 #[derive(SurrealValue)]
 struct CleanIngestionBatchBindings {
-    workspace: RecordId,
-    root: RecordId,
-    run_token: String,
-    files: Vec<CleanIngestionFileWrite>,
+    sources: Vec<CleanIngestionSourceRow>,
+    receipts: Vec<CleanIngestionReceiptRow>,
+    spans: Vec<CleanIngestionSpanRow>,
+}
+
+#[derive(SurrealValue)]
+struct CleanIngestionSourceRow {
+    id: RecordId,
+    source_id: String,
+    workspace_id: RecordId,
+    root_id: RecordId,
+    source_kind: String,
+    relative_path: String,
+    content_hash: String,
+    size_bytes: i64,
+    provenance: Value,
+    permission_scope: String,
+    redaction_state: String,
+    parser_status: String,
+    extraction_status: String,
+    stale: bool,
+    last_index_receipt_event_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CleanIngestionReceiptRow {
+    id: RecordId,
+    receipt_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    ingestion_run_token: String,
+    extractor_id: String,
+    extractor_version: String,
+    status: String,
+    error_class: Option<String>,
+    error_detail: Option<Value>,
+    spans_produced: i64,
+    spans_failed: i64,
+    redaction_count: i64,
+    content_hash: String,
+    duration_ms: i64,
+    receipt_event_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CleanIngestionSpanRow {
+    id: RecordId,
+    span_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    receipt_id: RecordId,
+    span_index: i64,
+    anchor_kind: String,
+    anchor: Value,
+    byte_start: Option<i64>,
+    byte_end: Option<i64>,
+    content: String,
+    content_hash: String,
+    redaction_state: String,
+    link_candidates: Value,
 }
 
 const PERSIST_CLEAN_INGESTION_BATCH: &str = "BEGIN TRANSACTION; \
-    RETURN { \
-      FOR $file IN $files { \
-        LET $existing_source = (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root AND relative_path = $file.relative_path LIMIT 1)[0]; \
-        IF $existing_source = NONE { CREATE $file.source CONTENT { source_id: $file.source_id, workspace_id: $workspace, root_id: $root, source_kind: 'file', relative_path: $file.relative_path, content_hash: $file.content_hash, size_bytes: $file.size_bytes, provenance: $file.provenance, permission_scope: 'workspace', redaction_state: $file.redaction_state, parser_status: 'pending', extraction_status: 'pending', stale: false } RETURN NONE; } ELSE { UPDATE $existing_source SET workspace_id = $workspace, content_hash = $file.content_hash, size_bytes = $file.size_bytes, provenance = $file.provenance, permission_scope = 'workspace', redaction_state = $file.redaction_state, parser_status = 'pending', extraction_status = 'pending', stale = false, updated_at = time::now() RETURN NONE; }; \
-        LET $source_ref = $existing_source ?? $file.source; \
-        CREATE $file.receipt CONTENT { receipt_id: $file.receipt_id, workspace_id: $workspace, source_id: $source_ref, ingestion_run_token: $run_token, extractor_id: $file.extractor_id, extractor_version: $file.extractor_version, status: 'success', error_class: NONE, error_detail: NONE, spans_produced: array::len($file.spans), spans_failed: $file.spans_failed, redaction_count: $file.redaction_count, content_hash: $file.content_hash, duration_ms: $file.duration_ms, receipt_event_id: $file.event_receipt } RETURN NONE; \
-        FOR $span IN $file.spans { CREATE $span.record CONTENT { span_id: $span.span_id, workspace_id: $workspace, source_id: $source_ref, receipt_id: $file.receipt, span_index: $span.span_index, anchor_kind: $span.anchor_kind, anchor: $span.anchor, byte_start: $span.byte_start, byte_end: $span.byte_end, content: $span.content, content_hash: $span.content_hash, redaction_state: $span.redaction_state, link_candidates: $span.link_candidates } RETURN NONE; }; \
-        UPDATE $source_ref SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $file.event_receipt, stale = false, updated_at = time::now() RETURN NONE; \
-      }; \
-      RETURN true; \
-    }; \
-    COMMIT TRANSACTION;";
+    INSERT INTO knowledge_sources $sources ON DUPLICATE KEY UPDATE \
+      workspace_id = $input.workspace_id, root_id = $input.root_id, \
+      source_kind = $input.source_kind, relative_path = $input.relative_path, \
+      content_hash = $input.content_hash, size_bytes = $input.size_bytes, \
+      provenance = $input.provenance, permission_scope = $input.permission_scope, \
+      redaction_state = $input.redaction_state, parser_status = $input.parser_status, \
+      extraction_status = $input.extraction_status, stale = $input.stale, \
+      last_index_receipt_event_id = $input.last_index_receipt_event_id, \
+      updated_at = time::now() RETURN NONE; \
+    INSERT INTO knowledge_ingestion_receipts $receipts RETURN NONE; \
+    INSERT INTO knowledge_ingestion_spans $spans RETURN NONE; \
+    COMMIT TRANSACTION; \
+    RETURN true;";
 
 pub(crate) fn prepare_code_nav_file(
     root_kind: KnowledgeRootKind,
@@ -530,11 +587,94 @@ impl IngestionEngine {
             file.event_receipt = Some(stored_event.clone());
         }
 
+        let workspace = RecordId::new("workspaces", root.workspace_id.clone());
+        let source_root = RecordId::new("knowledge_source_roots", root.root_id.clone());
+        let mut source_rows = Vec::with_capacity(files.len());
+        let mut receipt_rows = Vec::with_capacity(files.len());
+        let span_count = files.iter().map(|file| file.spans.len()).sum();
+        let mut span_rows = Vec::with_capacity(span_count);
+        for file in files {
+            let CleanIngestionFileWrite {
+                source,
+                source_id,
+                relative_path,
+                content_hash,
+                size_bytes,
+                provenance,
+                redaction_state,
+                event_receipt,
+                receipt,
+                receipt_id,
+                extractor_id,
+                extractor_version,
+                duration_ms,
+                spans_failed,
+                redaction_count,
+                spans,
+            } = file;
+            let event_receipt = event_receipt.ok_or_else(|| {
+                IngestionError::from(crate::storage::StorageError::Database(
+                    "clean ingestion batch is missing its EventLedger receipt".to_owned(),
+                ))
+            })?;
+            source_rows.push(CleanIngestionSourceRow {
+                id: source.clone(),
+                source_id: source_id.clone(),
+                workspace_id: workspace.clone(),
+                root_id: source_root.clone(),
+                source_kind: "file".to_owned(),
+                relative_path,
+                content_hash: content_hash.clone(),
+                size_bytes,
+                provenance,
+                permission_scope: "workspace".to_owned(),
+                redaction_state,
+                parser_status: "parsed".to_owned(),
+                extraction_status: "extracted".to_owned(),
+                stale: false,
+                last_index_receipt_event_id: event_receipt.clone(),
+            });
+            receipt_rows.push(CleanIngestionReceiptRow {
+                id: receipt.clone(),
+                receipt_id,
+                workspace_id: workspace.clone(),
+                source_id: source.clone(),
+                ingestion_run_token: run_token.to_owned(),
+                extractor_id,
+                extractor_version,
+                status: "success".to_owned(),
+                error_class: None,
+                error_detail: None,
+                spans_produced: spans.len() as i64,
+                spans_failed,
+                redaction_count,
+                content_hash,
+                duration_ms,
+                receipt_event_id: event_receipt,
+            });
+            for span in spans {
+                span_rows.push(CleanIngestionSpanRow {
+                    id: span.record,
+                    span_id: span.span_id,
+                    workspace_id: workspace.clone(),
+                    source_id: source.clone(),
+                    receipt_id: receipt.clone(),
+                    span_index: span.span_index,
+                    anchor_kind: span.anchor_kind,
+                    anchor: span.anchor,
+                    byte_start: span.byte_start,
+                    byte_end: span.byte_end,
+                    content: span.content,
+                    content_hash: span.content_hash,
+                    redaction_state: span.redaction_state,
+                    link_candidates: span.link_candidates,
+                });
+            }
+        }
         let bindings = CleanIngestionBatchBindings {
-            workspace: RecordId::new("workspaces", root.workspace_id.clone()),
-            root: RecordId::new("knowledge_source_roots", root.root_id.clone()),
-            run_token: run_token.to_string(),
-            files,
+            sources: source_rows,
+            receipts: receipt_rows,
+            spans: span_rows,
         };
         let projection_started = Instant::now();
         let _ = self
@@ -543,7 +683,7 @@ impl IngestionEngine {
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .query_values_at::<bool, _>(PERSIST_CLEAN_INGESTION_BATCH, bindings, 1)
+                        .query_values_at::<bool, _>(PERSIST_CLEAN_INGESTION_BATCH, bindings, 5)
                         .await
                 })
             })
