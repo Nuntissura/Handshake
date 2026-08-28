@@ -36,8 +36,53 @@ struct EventBindings {
 
 #[derive(SurrealValue)]
 struct EventBatchBindings {
-    events: Vec<LedgerWrite>,
+    events: Vec<LedgerBulkInsert>,
     idempotency_keys: Vec<String>,
+}
+
+#[derive(SurrealValue)]
+struct LedgerBulkInsert {
+    id: RecordId,
+    event_id: String,
+    event_version: String,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    idempotency_key: String,
+    event_type: String,
+    actor_kind: String,
+    actor_id: String,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    payload_hash: String,
+    source_component: String,
+    payload: serde_json::Value,
+    created_at: Datetime,
+}
+
+impl From<LedgerWrite> for LedgerBulkInsert {
+    fn from(write: LedgerWrite) -> Self {
+        Self {
+            id: write.record,
+            event_id: write.event_id,
+            event_version: write.event_version,
+            kernel_task_run_id: write.kernel_task_run_id,
+            session_run_id: write.session_run_id,
+            aggregate_type: write.aggregate_type,
+            aggregate_id: write.aggregate_id,
+            idempotency_key: write.idempotency_key,
+            event_type: write.event_type,
+            actor_kind: write.actor_kind,
+            actor_id: write.actor_id,
+            causation_id: write.causation_id,
+            correlation_id: write.correlation_id,
+            payload_hash: write.payload_hash,
+            source_component: write.source_component,
+            payload: write.payload,
+            created_at: write.created_at,
+        }
+    }
 }
 
 #[derive(SurrealValue)]
@@ -59,7 +104,7 @@ struct PendingMirrorBindings {
     after_sequence: i64,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct LedgerRow {
     event_id: String,
     event_sequence: i64,
@@ -187,8 +232,33 @@ pub(crate) async fn append_atomic(
         writes.push(write);
     }
 
+    let existing_rows = read_by_idempotency_keys(storage, idempotency_keys.clone()).await?;
+    let existing_by_key = existing_rows
+        .iter()
+        .map(|row| (row.idempotency_key.as_str(), row))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut first_candidate_by_key = std::collections::HashMap::new();
+    let mut inserts = Vec::with_capacity(writes.len());
+    for (index, (candidate, write)) in candidates.iter().zip(writes).enumerate() {
+        if let Some(first_index) = first_candidate_by_key.get(&candidate.idempotency_key) {
+            ensure_same_event(&candidates[*first_index], candidate)?;
+            continue;
+        }
+        first_candidate_by_key.insert(candidate.idempotency_key.clone(), index);
+        if let Some(row) = existing_by_key.get(candidate.idempotency_key.as_str()) {
+            ensure_same_event(&row_to_event((*row).clone())?, candidate)?;
+        } else {
+            inserts.push(LedgerBulkInsert::from(write));
+        }
+    }
+    drop(existing_by_key);
+
+    if inserts.is_empty() {
+        return order_and_validate(existing_rows, &candidates);
+    }
+
     let bindings = EventBatchBindings {
-        events: writes,
+        events: inserts,
         idempotency_keys,
     };
     let result: Result<Vec<LedgerRow>, _> = storage
@@ -197,42 +267,7 @@ pub(crate) async fn append_atomic(
                 database
                     .query_values_at(
                         "BEGIN TRANSACTION; \
-                         FOR $event IN $events { \
-                           LET $stored = (SELECT event_id, event_sequence, event_version, \
-                               kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, \
-                               idempotency_key, event_type, actor_kind, actor_id, causation_id, \
-                               correlation_id, payload_hash, source_component, payload, created_at \
-                               FROM kernel_event_ledger \
-                               WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; \
-                           IF $stored != NONE { \
-                             IF $stored.event_version != $event.event_version \
-                                OR $stored.kernel_task_run_id != $event.kernel_task_run_id \
-                                OR $stored.session_run_id != $event.session_run_id \
-                                OR $stored.aggregate_type != $event.aggregate_type \
-                                OR $stored.aggregate_id != $event.aggregate_id \
-                                OR $stored.event_type != $event.event_type \
-                                OR $stored.actor_kind != $event.actor_kind \
-                                OR $stored.actor_id != $event.actor_id \
-                                OR $stored.causation_id != $event.causation_id \
-                                OR $stored.correlation_id != $event.correlation_id \
-                                OR $stored.payload_hash != $event.payload_hash \
-                                OR $stored.source_component != $event.source_component { \
-                               THROW 'HSK-EVENT-LEDGER-IDEMPOTENCY-CONFLICT'; \
-                             }; \
-                           } ELSE { \
-                             CREATE $event.record CONTENT { \
-                               event_id: $event.event_id, event_version: $event.event_version, \
-                               kernel_task_run_id: $event.kernel_task_run_id, \
-                               session_run_id: $event.session_run_id, \
-                               aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, \
-                               idempotency_key: $event.idempotency_key, event_type: $event.event_type, \
-                               actor_kind: $event.actor_kind, actor_id: $event.actor_id, \
-                               causation_id: $event.causation_id, correlation_id: $event.correlation_id, \
-                               payload_hash: $event.payload_hash, source_component: $event.source_component, \
-                               payload: $event.payload, created_at: $event.created_at \
-                             } RETURN NONE; \
-                           }; \
-                         }; \
+                         INSERT INTO kernel_event_ledger $events RETURN NONE; \
                          COMMIT TRANSACTION; \
                          SELECT event_id, event_sequence, event_version, kernel_task_run_id, \
                            session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, \
@@ -732,10 +767,10 @@ fn row_to_event(row: LedgerRow) -> StorageResult<KernelEvent> {
     })
 }
 
-fn normalize_self_describing_payload(mut payload: serde_json::Value) -> StorageResult<serde_json::Value> {
-    let is_float_preference_event = payload
-        .get("type")
-        .and_then(serde_json::Value::as_str)
+fn normalize_self_describing_payload(
+    mut payload: serde_json::Value,
+) -> StorageResult<serde_json::Value> {
+    let is_float_preference_event = payload.get("type").and_then(serde_json::Value::as_str)
         == Some("preference_record_changed")
         && payload
             .get("value_type")
@@ -745,9 +780,9 @@ fn normalize_self_describing_payload(mut payload: serde_json::Value) -> StorageR
         return Ok(payload);
     }
 
-    let object = payload
-        .as_object_mut()
-        .ok_or(StorageError::Validation("preference event payload is not an object"))?;
+    let object = payload.as_object_mut().ok_or(StorageError::Validation(
+        "preference event payload is not an object",
+    ))?;
     for field in ["old_value_ref", "new_value_ref"] {
         let Some(value) = object.get_mut(field) else {
             continue;
@@ -804,9 +839,11 @@ fn ensure_same_event(stored: &KernelEvent, candidate: &KernelEvent) -> StorageRe
 
 #[cfg(test)]
 mod tests {
-    use super::super::{schema, SurrealStorageConfig};
+    use super::super::SurrealStorageConfig;
     use super::*;
     use serde_json::json;
+    use std::future::Future;
+    use std::time::Duration;
 
     fn event(idempotency_key: &str, payload: serde_json::Value) -> NewKernelEvent {
         NewKernelEvent::builder(
@@ -899,15 +936,41 @@ mod tests {
     }
 
     async fn open(path: &std::path::Path) -> SurrealStorage {
+        eprintln!("event-ledger-test stage=storage-open state=start");
         let storage = SurrealStorage::open(
             SurrealStorageConfig::with_path(path).expect("valid embedded test path"),
         )
         .await
         .expect("open embedded SurrealDB");
-        schema::bootstrap_schema(&storage)
-            .await
-            .expect("bootstrap embedded schema");
+        eprintln!("event-ledger-test stage=storage-open state=complete");
+        eprintln!("event-ledger-test stage=schema-bootstrap state=start");
+        let (_, after_start) = include_str!("schema.surql")
+            .split_once("-- 0018_kernel_event_ledger")
+            .expect("compiled schema contains EventLedger start marker");
+        let (ddl, _) = after_start
+            .split_once("-- 0019_kernel_session_queue")
+            .expect("compiled schema contains EventLedger end marker");
+        let ddl = ddl.to_owned();
         storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    database.query(ddl).await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("bootstrap authoritative EventLedger schema slice");
+        eprintln!("event-ledger-test stage=schema-bootstrap state=complete");
+        storage
+    }
+
+    async fn within<T>(stage: &str, future: impl Future<Output = T>) -> T {
+        eprintln!("event-ledger-test stage={stage} state=start");
+        let result = tokio::time::timeout(Duration::from_secs(120), future)
+            .await
+            .unwrap_or_else(|_| panic!("event-ledger-test stage={stage} timed out after 120s"));
+        eprintln!("event-ledger-test stage={stage} state=complete");
+        result
     }
 
     #[tokio::test]
@@ -970,6 +1033,157 @@ mod tests {
         )
         .await;
         assert!(matches!(conflict, Err(StorageError::Conflict(_))));
+        storage.shutdown().await.expect("close embedded store");
+    }
+
+    #[tokio::test]
+    async fn atomic_batch_bulk_insert_preserves_replay_and_rollback_contracts() {
+        let directory = tempfile::tempdir().expect("temporary atomic batch store root");
+        let storage = within("open", open(&directory.path().join("store"))).await;
+
+        let inserted = within(
+            "initial-insert",
+            append_atomic(
+                &storage,
+                vec![
+                    event("mt-136-bulk-first", json!({"ordinal": 1})),
+                    event("mt-136-bulk-second", json!({"ordinal": 2})),
+                ],
+            ),
+        )
+        .await
+        .expect("bulk insert events");
+        assert_eq!(inserted.len(), 2);
+        assert!(inserted.iter().all(|stored| stored.event_sequence > 0));
+
+        let replayed = within(
+            "exact-replay",
+            append_atomic(
+                &storage,
+                vec![
+                    event("mt-136-bulk-first", json!({"ordinal": 1})),
+                    event("mt-136-bulk-second", json!({"ordinal": 2})),
+                ],
+            ),
+        )
+        .await
+        .expect("exact bulk replay");
+        assert_eq!(
+            replayed
+                .iter()
+                .map(|stored| stored.event_id.as_str())
+                .collect::<Vec<_>>(),
+            inserted
+                .iter()
+                .map(|stored| stored.event_id.as_str())
+                .collect::<Vec<_>>()
+        );
+
+        let mixed = within(
+            "mixed-replay-insert",
+            append_atomic(
+                &storage,
+                vec![
+                    event("mt-136-bulk-first", json!({"ordinal": 1})),
+                    event("mt-136-bulk-third", json!({"ordinal": 3})),
+                ],
+            ),
+        )
+        .await
+        .expect("mixed replay and insert");
+        assert_eq!(mixed[0].event_id, inserted[0].event_id);
+        assert_ne!(mixed[1].event_id, inserted[0].event_id);
+
+        let duplicate = within(
+            "internal-exact-duplicate",
+            append_atomic(
+                &storage,
+                vec![
+                    event("mt-136-bulk-duplicate", json!({"ordinal": 4})),
+                    event("mt-136-bulk-duplicate", json!({"ordinal": 4})),
+                ],
+            ),
+        )
+        .await
+        .expect("exact duplicate inside one batch");
+        assert_eq!(duplicate[0].event_id, duplicate[1].event_id);
+
+        let conflict = within(
+            "stored-conflict",
+            append_atomic(
+                &storage,
+                vec![
+                    event("mt-136-bulk-first", json!({"ordinal": 999})),
+                    event("mt-136-bulk-must-rollback", json!({"ordinal": 5})),
+                ],
+            ),
+        )
+        .await;
+        assert!(matches!(conflict, Err(StorageError::Conflict(_))));
+        assert!(get_by_idempotency(&storage, "mt-136-bulk-must-rollback")
+            .await
+            .expect("read rolled-back event")
+            .is_none());
+
+        let internal_conflict = within(
+            "internal-conflict",
+            append_atomic(
+                &storage,
+                vec![
+                    event("mt-136-bulk-internal-conflict", json!({"ordinal": 6})),
+                    event("mt-136-bulk-internal-conflict", json!({"ordinal": 7})),
+                    event("mt-136-bulk-internal-must-rollback", json!({"ordinal": 8})),
+                ],
+            ),
+        )
+        .await;
+        assert!(matches!(internal_conflict, Err(StorageError::Conflict(_))));
+        assert!(
+            get_by_idempotency(&storage, "mt-136-bulk-internal-conflict")
+                .await
+                .expect("read conflicting event")
+                .is_none()
+        );
+        assert!(
+            get_by_idempotency(&storage, "mt-136-bulk-internal-must-rollback")
+                .await
+                .expect("read internal rollback event")
+                .is_none()
+        );
+
+        let left_storage = storage.clone();
+        let right_storage = storage.clone();
+        let (left, right) = within("concurrent-exact-batches", async move {
+            tokio::join!(
+                append_atomic(
+                    &left_storage,
+                    vec![
+                        event("mt-136-bulk-race-first", json!({"ordinal": 9})),
+                        event("mt-136-bulk-race-second", json!({"ordinal": 10})),
+                    ],
+                ),
+                append_atomic(
+                    &right_storage,
+                    vec![
+                        event("mt-136-bulk-race-first", json!({"ordinal": 9})),
+                        event("mt-136-bulk-race-second", json!({"ordinal": 10})),
+                    ],
+                ),
+            )
+        })
+        .await;
+        let left = left.expect("left concurrent bulk insert");
+        let right = right.expect("right concurrent bulk insert");
+        assert_eq!(
+            left.iter()
+                .map(|stored| stored.event_id.as_str())
+                .collect::<Vec<_>>(),
+            right
+                .iter()
+                .map(|stored| stored.event_id.as_str())
+                .collect::<Vec<_>>()
+        );
+
         storage.shutdown().await.expect("close embedded store");
     }
 }
