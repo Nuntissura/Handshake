@@ -62,6 +62,10 @@ const COMMAND_DEADLINE_ENV: &str = "HSK_MT045_COMMAND_DEADLINE_UNIX_MS";
 const COMMAND_DEADLINE_QPC_ENV: &str = "HSK_MT045_COMMAND_DEADLINE_QPC_TICKS";
 const COMMAND_BUDGET_ENV: &str = "HSK_MT045_COMMAND_BUDGET_MS";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
+// Workspace teardown is outside every measured scenario budget and can delete a contract-sized Loom
+// corpus. Keep it bounded by both this dedicated ceiling and the supervisor's command-wide deadline
+// without widening ordinary product request timeouts.
+const WORKSPACE_CLEANUP_TIMEOUT: Duration = Duration::from_secs(180);
 const SHUTDOWN_GRACE_TIMEOUT: Duration = Duration::from_secs(10);
 const HELPER_REAP_RESERVE: Duration = Duration::from_secs(2);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
@@ -1035,11 +1039,12 @@ impl LiveBackend {
     }
 
     pub fn delete_workspace(&self, workspace_id: &str) -> u16 {
-        self.request_status(
+        self.request_status_with_timeout(
             self.workspace_ident(
                 self.client
                     .delete(format!("{}/workspaces/{workspace_id}", self.base)),
             ),
+            WORKSPACE_CLEANUP_TIMEOUT,
         )
     }
 
@@ -1530,7 +1535,15 @@ impl LiveBackend {
     }
 
     fn request_status(&self, request: reqwest::RequestBuilder) -> u16 {
-        let Some(timeout) = proof_request_timeout(REQUEST_TIMEOUT) else {
+        self.request_status_with_timeout(request, REQUEST_TIMEOUT)
+    }
+
+    fn request_status_with_timeout(
+        &self,
+        request: reqwest::RequestBuilder,
+        maximum: Duration,
+    ) -> u16 {
+        let Some(timeout) = proof_request_timeout(maximum) else {
             return 0;
         };
         self.rt.block_on(async {
