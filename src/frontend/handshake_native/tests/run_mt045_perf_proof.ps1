@@ -1135,6 +1135,10 @@ catch {
     throw $preflightFailure
 }
 
+# Keep MSVC's telemetry uploader out of the bounded Cargo Job. VCTIP otherwise survives successful
+# compiler/linker roots long enough to become a real owned-descendant leak under the production gate.
+$env:VSCMD_SKIP_SENDTELEMETRY = "1"
+
 function Get-Mt045ComparablePath {
     param([Parameter(Mandatory)][string]$Path)
     if ($Path.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
@@ -2703,6 +2707,10 @@ try {
         canonical_target_root = $targetRoot
         target_cleanup = $targetCleanup
         budget_overrides = @()
+        msvc_telemetry = [ordered]@{
+            vscmd_skip_sendtelemetry = $env:VSCMD_SKIP_SENDTELEMETRY
+            scope = "supervisor_process_tree"
+        }
         store = [ordered]@{
             kind = "embedded_surrealdb"
             identity = "receipt_bound_per_scenario_embedded_store"
