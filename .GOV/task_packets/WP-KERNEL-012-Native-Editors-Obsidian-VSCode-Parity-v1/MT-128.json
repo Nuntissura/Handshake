@@ -22,11 +22,17 @@
   "title": "E7-MT-128-Give-The-MT-043-Live-Child-A-Wall-Clock-Budget-That-Is-Not-1.4-Seconds-From-Reaping-Itself",
   "group": "E7-Swarm-Proof",
   "created_at_utc": "2026-08-13T06:15:00Z",
-  "updated_at_utc": "2026-08-16T05:10:00Z",
+  "updated_at_utc": "2026-08-28T20:35:31Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
+  "owned_files": [
+    "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs"
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_swarm_edit_proof -- --test-threads=1"
+  ],
   "markdown_projection": {
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
@@ -65,11 +71,65 @@
       "PT-128-1": "test_e7_swarm_edit_proof - 25 passed / 0 failed under concurrent load.",
       "PT-128-2": "The forced-stall RED run for AC-128-3, with its output retained."
     },
-    "risk_if_missed": "MT-120 and every future change guarded by this suite become unverifiable on a working machine: the proof reds for reasons unrelated to the code under test, and the honest response - re-run until quiet - is exactly the habit that hides a real regression."
+    "risk_if_missed": "MT-120 and every future change guarded by this suite become unverifiable on a working machine: the proof reds for reasons unrelated to the code under test, and the honest response - re-run until quiet - is exactly the habit that hides a real regression.",
+    "remediation_evidence_2026_08_28": {
+      "schema_id": "hsk.mt_implementation_evidence@1",
+      "status": "READY_FOR_VALIDATION",
+      "prepared_by": "KERNEL_BUILDER (Codex session 01a04969-3b16-7b93-88da-4b2cb5cf162f)",
+      "prepared_at_utc": "2026-08-28T20:25:49Z",
+      "measurement": {
+        "embedded_store_child_elapsed_ms_under_concurrent_cargo_load": 109648,
+        "canonical_budget_ms": 240000,
+        "headroom_ms": 130352,
+        "headroom_percent_of_measurement": 119,
+        "derivation": "109648 + 130352 = 240000"
+      },
+      "implementation": {
+        "file": "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs",
+        "change": "Recalibrated only the measured loaded child and headroom constants. The existing lower-only HSK_MT128_CHILD_BUDGET_MS override, HSK_MT128_FORCE_STALL_MS injection, typed MT128_BOUNDED_CHILD_REAP diagnostic, and finite reap bound remain intact."
+      },
+      "proofs": {
+        "canonical_25_test_run_under_concurrent_build_load": {
+          "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_swarm_edit_proof -- --test-threads=1",
+          "concurrent_load_command": "CARGO_TARGET_DIR=<canonical-artifact-root>/handshake-cargo-target/wp-k12-mt128-load5 CARGO_BUILD_JOBS=2 cargo check --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --tests",
+          "result": "PASS: 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.75s",
+          "live_child_observation": "PROOF_PASS through T0054; scenario elapsed_ms=54213 while the concurrent Cargo build remained active."
+        },
+        "forced_stall_reap": {
+          "command": "HSK_MT128_CHILD_BUDGET_MS=120000 HSK_MT128_FORCE_STALL_MS=300000 cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_swarm_edit_proof swarm_edit_live_conflict_merge_search_and_receipts -- --exact --test-threads=1",
+          "result": "EXPECTED_RED: MT128_BOUNDED_CHILD_REAP elapsed_ms=120017 budget_ms=120000 last_gate=T0001 forced_stall_ready=true taskkill_reaped=true child_reaped=true descendant_tree_reaped=true workspace_cleanup_verified=true; test process exit 1.",
+          "cleanup": "backend_unreachable=true; probe_helper_reaped=true; root_identity_revalidated=true; workspace_cleanup_verified=true"
+        },
+        "forbidden_source_diff": {
+          "command": "git diff --name-only -- src/frontend/handshake_native/src src/backend",
+          "result": "PASS: empty"
+        },
+        "diff_integrity": {
+          "command": "git diff --check",
+          "result": "PASS"
+        }
+      },
+      "backend_provenance": {
+        "build_command": "CARGO_TARGET_DIR=<canonical-artifact-root>/handshake-cargo-target/wp-k12-mt128-b CARGO_BUILD_JOBS=2 cargo build --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime",
+        "binary": "<canonical-artifact-root>/handshake-cargo-target/wp-k12-mt128-b/debug/handshake_core.exe",
+        "sha256": "F3CE61AB7A9BCC9A80ECE3687393995531F9DFB20AAB5BA05AD2B01062E7EA55",
+        "source_provenance": "The binary dependency file resolves to the WP-KERNEL-012 product worktree backend sources. The shorter per-owner target name keeps generated DuckDB header paths within the Windows/MSVC path limit."
+      },
+      "hbr_disposition": {
+        "MAN": "NOT_APPLICABLE: the budget was proved under concurrent build load, so the conditional UserManual obligation was not triggered.",
+        "INT_flight_recorder": "NOT_APPLICABLE: test-harness budget with no business event.",
+        "INT_internal_diagnostics": "DEFERRED while unshipped: the typed test diagnostic reports elapsed time, budget, last gate, process cleanup, and workspace cleanup.",
+        "INT_palmistry": "DEFERRED while unshipped: the test harness owns and reaps the bounded process tree."
+      },
+      "residuals": [
+        "Official validator review remains pending.",
+        "The concurrent cargo check load ended after the live child with the unrelated pre-existing tests/test_app_host_mount_secondary.rs:923 mutable-binding compile error; it was active for the complete MT-128 live child and does not alter the exact 25/0 MT-128 result."
+      ]
+    }
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
@@ -80,6 +140,10 @@
     "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. Found on claim: the budget machinery (HSK_MT128_CHILD_BUDGET_MS lower-only override, 120s canonical budget derived from the measured 57.43s loaded child, HSK_MT128_FORCE_STALL_MS injected-stall RED path, typed MT128_BOUNDED_CHILD_REAP report with elapsed/budget/last_gate) was already implemented. The REAL remaining work was that the proof file itself still verified rows by spawning psql with PL/pgSQL DO-blocks against the deleted PostgreSQL — dead at runtime and forbidden language. Ported 2026-08-18 under this MT: sidecar now publishes the fixture backend base URL; pre-reap witness and crash-window cleanup run bounded through the product HTTP surface with embedded-store containment when the backend is reaped; the six former SQL verification sites moved to product-API proofs (document loads, /kernel/events/aggregates reads, loom backlinks projection) or containment observations (the retired shared-cluster FR-mirror sweep); the test fn was renamed swarm_edit_live_conflict_merge_search_and_receipts (PostgreSQL language purge). Embedded-store re-measurement of the child budget (pivot_impact requirement) pending the proof runs.",
     "parallel_coder_agent": "019ffd4c-927a-7871-8e1b-1e85fdf0916e",
     "completed_by": null,
+    "ready_for_validation_at_utc": "2026-08-28T20:33:16Z",
+    "ready_for_validation_by": "KERNEL_BUILDER (Codex session 01a04969-3b16-7b93-88da-4b2cb5cf162f)",
+    "ready_for_validation_summary": "Re-measured the embedded-store live child under concurrent Cargo build load, recalibrated the finite bound to 240000ms from a 109648ms measured loaded worst case plus 130352ms (119%) headroom, retained typed timeout diagnostics and the lower-only forced-stall override, proved the forced timeout RED with complete owned-process/workspace cleanup, and proved the exact 25-test target 25/0 under concurrent build load. Official validator verdict remains pending.",
+    "proof_status": "IMPLEMENTER_PROOF_COMPLETE_PENDING_OFFICIAL_VALIDATOR",
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Isolated at runtime while re-proving AC-120-3 after the MT-120 per-request-credential fix. The residual red is a hard-coded 24s wall-clock budget against a ~23.0s measured child body, NOT an MT-120 defect: the panic site (:3366, wall-clock reap) differs from the pre-MT-120 failure (document_saved attribution), and the same binary writes PROOF_PASS with all 54 gates green when the machine is quiet. Filed as its own microtask per the Operator standing rule so the finding is not absorbed into MT-120 or lost.",
     "pivot_impact_2026_08_16": "PIVOT IMPACT 2026-08-16: the defect this microtask fixes SURVIVES the SurrealDB pivot and the work remains valid. The problem is a wall-clock MARGIN, not a database: the proof spawns a bounded live child reaped at a hard-coded 24-second budget while the child body measures about 23.0s on an idle machine, so roughly 1.4s of headroom makes the proof go red on machine load rather than on product behaviour. That is unchanged by the storage swap. Two things DID change and must be handled when this is implemented: the test named in scope, swarm_edit_live_pg_conflict_merge_search_and_receipts, is PostgreSQL-named and its harness path src/frontend/handshake_native/tests/pg_proof_support/ has been converted to the embedded SurrealDB store (psql spawning removed, isolation now via HANDSHAKE_DATA_DIR), so the timings this budget was calibrated against must be RE-MEASURED on the embedded store rather than assumed. Do not simply raise the constant: measure first, then justify the margin.",
@@ -96,6 +160,93 @@
     "INT": "HBR-INT-009 three-tier consideration: Flight Recorder NOT_APPLICABLE (test-harness budget, no business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "checklist_blocker_remediation_research_basis": {
+      "recorded_at_utc": "2026-08-28T20:32:02Z",
+      "sources_checked": [
+        "https://nodejs.org/api/cli.html",
+        "https://nodejs.org/api/process.html",
+        "https://json-schema.org/draft/2020-12"
+      ],
+      "relevant_patterns": [
+        "Use an explicit CLI flag for the contract-derived path while preserving existing modes.",
+        "Validate required typed properties before emitting the existing Draft 2020-12 receipt shape."
+      ],
+      "reuse_opportunities": "Reuse buildSkeleton, validateFilledSkeleton, auto-findings, receipt normalization, append-only emission, and the existing coverage consumer.",
+      "rejected_options": [
+        "Keep the manually filled receipt: conflicts with the current Kernel Builder protocol.",
+        "Create a second checklist tool or receipt schema: duplicates the canonical producer and consumer."
+      ],
+      "selected_approach": "Add a contract-evidence mode to the existing helper, require a matching clean product commit, and emit the unchanged receipt schema.",
+      "risks": [
+        "Stale evidence could be emitted for a later product tree.",
+        "The new path could diverge from the legacy JSON path."
+      ],
+      "mitigations": [
+        "Reject a product commit mismatch or tracked product-tree changes.",
+        "Reuse the same validation and receipt-construction functions for both paths and cover the new derivation with a focused unit test."
+      ],
+      "validation_plan": "Run the focused helper test, derive MT-128 without emitting, emit from the contract, and run the WP-scoped coverage consumer."
+    },
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "42e5a6117c08e29dee37d8772252d0dd45b9e5f3",
+      "actor_session": "KERNEL_BUILDER (Codex session 01a04969-3b16-7b93-88da-4b2cb5cf162f)",
+      "prepared_at_utc": "2026-08-28T20:32:02Z",
+      "summary": "MT-128 finite live-child budget recalibrated from embedded-store measurement and proved 25/0 under concurrent build load; forced-stall RED cleanup proof retained.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "Lifecycle reasons and MT-128 timeout diagnostics describe the current embedded-store state, current timeout fields, and the pending validator boundary.",
+          "evidence_refs": [
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json",
+            "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs@42e5a6117c08e29dee37d8772252d0dd45b9e5f3"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "n/a",
+          "explanation": "MT-128 changes only two private numeric constants and adjacent comments; it adds or modifies no public item.",
+          "evidence_refs": [
+            "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs@42e5a6117c08e29dee37d8772252d0dd45b9e5f3"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "The changed live proof remains an intentionally ungated canonical test; MT-128 changed no test attributes. The distinct Windows-only process-tree test remains cfg(windows).",
+          "evidence_refs": [
+            "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs:3856",
+            "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs:4476"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "n/a",
+          "explanation": "MT-128 changes only a Windows test-harness wall-clock constant and no shipped product source or cross-platform behavior; its acceptance surface requires the exact native test under concurrent build load, which returned 25/0.",
+          "evidence_refs": [
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json#scope.acceptance_criteria.AC-128-4"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "The exact canonical cargo test returned 25/0 under concurrent Cargo build load. The separate forced-stall proof returned the required intentional RED with elapsed_ms=120017, budget_ms=120000, last_gate=T0001, and complete owned-process/workspace cleanup.",
+          "evidence_refs": [
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json#scope.remediation_evidence_2026_08_28.proofs",
+            "src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs@42e5a6117c08e29dee37d8772252d0dd45b9e5f3"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "claimed_by remains set, completed_by remains null, and validator_verdict remains null; the implementer is not issuing the official verdict.",
+          "evidence_refs": [
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json#lifecycle"
+          ]
+        }
+      ]
+    }
   }
 }

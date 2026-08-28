@@ -5,7 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveProductWorktreeRoot } from "../scripts/kb-ready-checklist.mjs";
+import {
+  buildContractEvidenceSkeleton,
+  resolveProductWorktreeRoot,
+} from "../scripts/kb-ready-checklist.mjs";
 
 const REPO_ROOT = path.resolve(".");
 const KB_READY_CHECKLIST = path.join(REPO_ROOT, ".GOV", "roles", "kernel_builder", "scripts", "kb-ready-checklist.mjs");
@@ -71,6 +74,71 @@ test("resolveProductWorktreeRoot falls back to repo root with stem hint when not
       if (previous !== undefined) process.env[PRODUCT_WORKTREE_ROOT_ENV_VAR] = previous;
     }
   });
+});
+
+test("contract-evidence mode derives a complete checklist and rejects a stale product commit", () => {
+  const rubricIds = [
+    "RC-001-NO-STALE-REASONS",
+    "RC-002-NO-DEAD-CODE",
+    "RC-003-CFG-GATED-TESTS",
+    "RC-004-CROSS-PLATFORM-CI",
+    "RC-005-PROOF-COMMANDS",
+    "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+  ];
+  const contract = {
+    handoff: {
+      kb_ready_checklist_evidence: {
+        schema_id: "hsk.kb_ready_checklist_evidence@1",
+        product_commit: "abc123",
+        actor_session: "KERNEL_BUILDER-test",
+        summary: "Typed evidence source",
+        prepared_at_utc: "2026-08-28T00:00:00Z",
+        rubric_items: rubricIds.map((rubric_item_id) => ({
+          rubric_item_id,
+          answer: "yes",
+          explanation: `${rubric_item_id} verified`,
+          evidence_refs: ["MT-128.json"],
+        })),
+      },
+    },
+  };
+  const common = {
+    wpId: "WP-TEST",
+    mtId: "MT-128",
+    contract,
+    mtContractPath: ".GOV/task_packets/WP-TEST/MT-128.json",
+    autoFindings: Object.fromEntries(rubricIds.map((id) => [id, [`${id} finding`]])),
+    productWorktreeResolution: { root: REPO_ROOT, source: "test" },
+  };
+
+  const current = buildContractEvidenceSkeleton({
+    ...common,
+    observedProductCommit: "abc123",
+  });
+  assert.deepEqual(current.errors, []);
+  assert.equal(current.skeleton.actor_session, "KERNEL_BUILDER-test");
+  assert.equal(current.skeleton.rubric_items.length, 6);
+  assert.ok(current.skeleton.rubric_items.every((item) => item.answer === "yes"));
+
+  const stale = buildContractEvidenceSkeleton({
+    ...common,
+    observedProductCommit: "def456",
+  });
+  assert.match(stale.errors.join("\n"), /product commit mismatch/);
+
+  const dirty = buildContractEvidenceSkeleton({
+    ...common,
+    observedProductCommit: "abc123",
+    productTreeDirty: true,
+  });
+  assert.match(dirty.errors.join("\n"), /final unchanged tree/);
+
+  contract.handoff.kb_ready_checklist_evidence.rubric_items[0].evidence_refs = [];
+  const missingEvidence = buildContractEvidenceSkeleton({
+    ...common,
+    observedProductCommit: "abc123",
+  });
+  assert.match(missingEvidence.errors.join("\n"), /evidence_refs must contain at least one reference/);
 });
 
 test("kb-ready-checklist --json resolves cross-worktree product root for WP-KERNEL-004 / MT-046", () => {

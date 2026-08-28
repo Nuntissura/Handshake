@@ -33,6 +33,12 @@
  *      # 2. Fill in answers/explanations, pipe back via stdin:
  *      cat filled.json | node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs WP-{ID} MT-{ID} --json --emit
  *
+ *   3. Contract-evidence mode (`--contract-evidence`). Builds the receipt only
+ *      from `handoff.kb_ready_checklist_evidence` in the MT contract and
+ *      verifies that its product commit is the current clean product tree.
+ *
+ *      just kb-ready-checklist WP-{ID} MT-{ID} --contract-evidence --emit
+ *
  * Wired into fail-capture-lib per [CX-205N].
  */
 
@@ -66,6 +72,7 @@ registerFailCaptureHook(SCRIPT_NAME, { role: ROLE });
 const SCHEMA_ID = "hsk.kb_ready_checklist_receipt@1";
 const SCHEMA_VERSION = "kb_ready_checklist_receipt_v1";
 const RECEIPT_KIND = "KB_READY_CHECKLIST_RECEIPT";
+const CONTRACT_EVIDENCE_SCHEMA_ID = "hsk.kb_ready_checklist_evidence@1";
 
 const PRODUCT_WORKTREE_ROOT_ENV_VAR = "HANDSHAKE_PRODUCT_WORKTREE_ROOT";
 
@@ -670,6 +677,82 @@ function buildSkeleton({ wpId, mtId, contract, mtContractPath, autoFindings, pro
   };
 }
 
+export function buildContractEvidenceSkeleton({
+  wpId,
+  mtId,
+  contract,
+  mtContractPath,
+  autoFindings,
+  productWorktreeResolution,
+  observedProductCommit,
+  productTreeDirty = false,
+}) {
+  const source = contract?.handoff?.kb_ready_checklist_evidence;
+  const errors = [];
+  if (!source || typeof source !== "object") {
+    return {
+      skeleton: null,
+      errors: ["handoff.kb_ready_checklist_evidence is required for --contract-evidence"],
+    };
+  }
+  if (source.schema_id !== CONTRACT_EVIDENCE_SCHEMA_ID) {
+    errors.push(`handoff.kb_ready_checklist_evidence.schema_id must be ${CONTRACT_EVIDENCE_SCHEMA_ID}`);
+  }
+  const expectedProductCommit = String(source.product_commit || "").trim();
+  if (!expectedProductCommit) {
+    errors.push("handoff.kb_ready_checklist_evidence.product_commit is required");
+  } else if (expectedProductCommit !== String(observedProductCommit || "").trim()) {
+    errors.push(`product commit mismatch: contract=${expectedProductCommit} observed=${observedProductCommit || "<unavailable>"}`);
+  }
+  if (productTreeDirty) {
+    errors.push("product worktree has tracked changes; contract evidence is not bound to the final unchanged tree");
+  }
+
+  const skeleton = buildSkeleton({
+    wpId,
+    mtId,
+    contract,
+    mtContractPath,
+    autoFindings,
+    productWorktreeResolution,
+  });
+  skeleton.actor_session = String(source.actor_session || "").trim();
+  skeleton.summary = String(source.summary || "").trim();
+  const sourceItems = Array.isArray(source.rubric_items) ? source.rubric_items : [];
+  if (sourceItems.length !== RUBRIC.length) {
+    errors.push(`handoff.kb_ready_checklist_evidence.rubric_items must list all ${RUBRIC.length} items`);
+  }
+  const knownIds = new Set(RUBRIC.map((item) => item.id));
+  const seenIds = new Set();
+  for (const item of sourceItems) {
+    const itemId = String(item?.rubric_item_id || "");
+    if (!knownIds.has(itemId)) errors.push(`unknown contract-evidence rubric_item_id: ${itemId || "<empty>"}`);
+    if (seenIds.has(itemId)) errors.push(`duplicate contract-evidence rubric_item_id: ${itemId || "<empty>"}`);
+    seenIds.add(itemId);
+    if (!String(item?.explanation || "").trim()) {
+      errors.push(`${itemId || "<empty>"}.explanation is required in contract evidence`);
+    }
+    if (!Array.isArray(item?.evidence_refs) || item.evidence_refs.length === 0) {
+      errors.push(`${itemId || "<empty>"}.evidence_refs must contain at least one reference`);
+    }
+  }
+  const sourceById = new Map(sourceItems.map((item) => [String(item?.rubric_item_id || ""), item]));
+  skeleton.rubric_items = RUBRIC.map((rubric) => {
+    const item = sourceById.get(rubric.id) || {};
+    return {
+      rubric_item_id: rubric.id,
+      question: rubric.question,
+      answer: String(item.answer || "").toLowerCase(),
+      explanation: String(item.explanation || "").trim(),
+      checked_at_utc: String(item.checked_at_utc || source.prepared_at_utc || new Date().toISOString()),
+      evidence_refs: Array.isArray(item.evidence_refs) ? item.evidence_refs : [],
+      auto_findings: autoFindings[rubric.id] || [],
+    };
+  });
+  errors.push(...validateFilledSkeleton(skeleton, { wpId, mtId }));
+  return { skeleton, errors };
+}
+
 async function promptOnce(rl, prompt) {
   return new Promise((resolve) => rl.question(prompt, (answer) => resolve(answer)));
 }
@@ -804,6 +887,59 @@ function validateFilledSkeleton(parsed, { wpId, mtId }) {
   return errors;
 }
 
+function buildReceiptFromFilledSkeleton(parsed, {
+  wpId,
+  mtId,
+  mtContractPath,
+  autoFindings,
+  productWorktreeResolution,
+}) {
+  const items = parsed.rubric_items.map((item) => ({
+    rubric_item_id: item.rubric_item_id,
+    question: item.question || (RUBRIC.find((r) => r.id === item.rubric_item_id)?.question || ""),
+    answer: String(item.answer || "").toLowerCase(),
+    explanation: String(item.explanation || "").trim(),
+    checked_at_utc: String(item.checked_at_utc || new Date().toISOString()),
+    evidence_refs: Array.isArray(item.evidence_refs) ? item.evidence_refs : [],
+    auto_findings: Array.isArray(item.auto_findings) ? item.auto_findings : (autoFindings[item.rubric_item_id] || []),
+  }));
+  const blockers = deriveBlockersFromItems(items);
+  return {
+    receipt: {
+      schema_id: SCHEMA_ID,
+      schema_version: SCHEMA_VERSION,
+      receipt_kind: RECEIPT_KIND,
+      wp_id: wpId,
+      mt_id: mtId,
+      actor_role: ROLE,
+      actor_session: String(parsed.actor_session || "").trim(),
+      generated_at_utc: new Date().toISOString(),
+      mt_contract_path: mtContractPath,
+      product_worktree_root_resolution: buildProductWorktreeResolutionReceipt(productWorktreeResolution),
+      summary: String(parsed.summary || "").trim(),
+      overall_verdict: blockers.length > 0 ? "BLOCKED" : "PASS",
+      blockers,
+      rubric_items: items,
+    },
+    blockers,
+  };
+}
+
+function readProductTreeBinding(productWorktreeResolution) {
+  const root = productWorktreeResolution?.root;
+  try {
+    const head = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const trackedStatus = execFileSync(
+      "git",
+      ["-C", root, "status", "--porcelain", "--untracked-files=no"],
+      { encoding: "utf8" },
+    ).trim();
+    return { head, dirty: trackedStatus.length > 0, error: "" };
+  } catch (err) {
+    return { head: "", dirty: false, error: err?.message || String(err) };
+  }
+}
+
 function deriveBlockersFromItems(items) {
   return items
     .filter((item) => String(item.answer || "").toLowerCase() === "no")
@@ -829,8 +965,9 @@ async function main() {
     fail("Usage: kb-ready-checklist <WP_ID> <MT_ID> [--json [--emit]]", [
       "WP_ID format: WP-<name>",
       "MT_ID format: MT-<id> (or bare numeric id)",
-      "--json prints the JSON skeleton (no receipt write)",
+      "--json prints the legacy JSON skeleton (no receipt write)",
       "--json --emit reads a filled skeleton from stdin and writes the receipt",
+      "--contract-evidence reads typed evidence from the MT contract (add --emit to write the receipt)",
     ]);
   }
   const wpId = String(positional[0] || "").trim();
@@ -840,6 +977,7 @@ async function main() {
 
   const jsonMode = flags.has("--json");
   const emitMode = flags.has("--emit");
+  const contractEvidenceMode = flags.has("--contract-evidence");
 
   const { mtAbsPath, mtRelPath } = resolveMtContractPath(wpId, mtId);
   const contract = readJson(mtAbsPath);
@@ -851,6 +989,41 @@ async function main() {
   setProductWorktreeResolution(productWorktreeResolution);
 
   const autoFindings = buildAutoFindings(contract);
+
+  if (contractEvidenceMode) {
+    const binding = readProductTreeBinding(productWorktreeResolution);
+    if (binding.error) {
+      fail("Unable to read product worktree binding", [binding.error], wpId);
+    }
+    const { skeleton, errors } = buildContractEvidenceSkeleton({
+      wpId,
+      mtId,
+      contract,
+      mtContractPath: mtRelPath,
+      autoFindings,
+      productWorktreeResolution,
+      observedProductCommit: binding.head,
+      productTreeDirty: binding.dirty,
+    });
+    if (errors.length > 0) {
+      fail("Contract evidence failed validation", errors, wpId);
+    }
+    if (!emitMode) {
+      process.stdout.write(`${JSON.stringify(skeleton, null, 2)}\n`);
+      return;
+    }
+    const { receipt, blockers } = buildReceiptFromFilledSkeleton(skeleton, {
+      wpId,
+      mtId,
+      mtContractPath: mtRelPath,
+      autoFindings,
+      productWorktreeResolution,
+    });
+    const { relPath } = emitReceipt({ wpId, receipt });
+    process.stdout.write(`${JSON.stringify({ ok: true, verdict: receipt.overall_verdict, receipt_path: relPath, blockers }, null, 2)}\n`);
+    if (receipt.overall_verdict === "BLOCKED") process.exit(2);
+    return;
+  }
 
   if (jsonMode && !emitMode) {
     const skeleton = buildSkeleton({
@@ -877,33 +1050,13 @@ async function main() {
     if (errors.length > 0) {
       fail("Filled skeleton failed validation", errors, wpId);
     }
-    // Normalize answers and fill in derived fields.
-    const items = parsed.rubric_items.map((item) => ({
-      rubric_item_id: item.rubric_item_id,
-      question: item.question || (RUBRIC.find((r) => r.id === item.rubric_item_id)?.question || ""),
-      answer: String(item.answer || "").toLowerCase(),
-      explanation: String(item.explanation || "").trim(),
-      checked_at_utc: String(item.checked_at_utc || new Date().toISOString()),
-      evidence_refs: Array.isArray(item.evidence_refs) ? item.evidence_refs : [],
-      auto_findings: Array.isArray(item.auto_findings) ? item.auto_findings : (autoFindings[item.rubric_item_id] || []),
-    }));
-    const blockers = deriveBlockersFromItems(items);
-    const receipt = {
-      schema_id: SCHEMA_ID,
-      schema_version: SCHEMA_VERSION,
-      receipt_kind: RECEIPT_KIND,
-      wp_id: wpId,
-      mt_id: mtId,
-      actor_role: ROLE,
-      actor_session: String(parsed.actor_session || "").trim(),
-      generated_at_utc: new Date().toISOString(),
-      mt_contract_path: mtRelPath,
-      product_worktree_root_resolution: buildProductWorktreeResolutionReceipt(productWorktreeResolution),
-      summary: String(parsed.summary || "").trim(),
-      overall_verdict: blockers.length > 0 ? "BLOCKED" : "PASS",
-      blockers,
-      rubric_items: items,
-    };
+    const { receipt, blockers } = buildReceiptFromFilledSkeleton(parsed, {
+      wpId,
+      mtId,
+      mtContractPath: mtRelPath,
+      autoFindings,
+      productWorktreeResolution,
+    });
     const { relPath } = emitReceipt({ wpId, receipt });
     process.stdout.write(`${JSON.stringify({ ok: true, verdict: receipt.overall_verdict, receipt_path: relPath, blockers }, null, 2)}\n`);
     if (receipt.overall_verdict === "BLOCKED") process.exit(2);

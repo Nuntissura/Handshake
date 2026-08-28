@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/KB_READY_CHECKLIST_EVIDENCE.schema.json",
+  "title": "Kernel Builder Ready-for-Validation Contract Evidence",
+  "description": "Canonical MT-contract input consumed by kb-ready-checklist --contract-evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "product_commit",
+    "actor_session",
+    "prepared_at_utc",
+    "summary",
+    "rubric_items"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "hsk.kb_ready_checklist_evidence@1"
+    },
+    "product_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "actor_session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prepared_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rubric_items": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rubric_item_id",
+          "answer",
+          "explanation",
+          "evidence_refs"
+        ],
+        "properties": {
+          "rubric_item_id": {
+            "enum": [
+              "RC-001-NO-STALE-REASONS",
+              "RC-002-NO-DEAD-CODE",
+              "RC-003-CFG-GATED-TESTS",
+              "RC-004-CROSS-PLATFORM-CI",
+              "RC-005-PROOF-COMMANDS",
+              "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING"
+            ]
+          },
+          "answer": {
+            "enum": [
+              "yes",
+              "no",
+              "n/a"
+            ]
+          },
+          "explanation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
