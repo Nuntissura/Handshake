@@ -169,11 +169,12 @@ const MT043_ATTEMPT_ID_ENV: &str = "HSK_MT043_ATTEMPT_ID";
 const MT043_LIVE_CHILD_ENV: &str = "HSK_MT043_LIVE_CHILD";
 const MT128_CHILD_BUDGET_ENV: &str = "HSK_MT128_CHILD_BUDGET_MS";
 const MT128_FORCE_STALL_ENV: &str = "HSK_MT128_FORCE_STALL_MS";
-// MT-128's loaded child observation was 57.43s. The canonical 120s budget adds 62.57s (109%)
-// measured headroom while retaining a finite bound. The environment override is lower-only and exists
-// solely so the forced-stall proof can exercise the reap path without waiting two minutes.
-const MT128_MEASURED_LOADED_CHILD_MS: u64 = 57_430;
-const MT128_MEASURED_HEADROOM_MS: u64 = 62_570;
+// MT-128's current embedded-store child completed in 109.648s under concurrent Cargo build load.
+// The canonical 240s budget adds 130.352s (119%) measured headroom while retaining a finite bound.
+// The environment override is lower-only and exists solely so the forced-stall proof can exercise
+// the reap path without waiting four minutes.
+const MT128_MEASURED_LOADED_CHILD_MS: u64 = 109_648;
+const MT128_MEASURED_HEADROOM_MS: u64 = 130_352;
 const MT128_DEFAULT_CHILD_BUDGET_MS: u64 =
     MT128_MEASURED_LOADED_CHILD_MS + MT128_MEASURED_HEADROOM_MS;
 const MT128_REAP_AND_CLEANUP_RESERVE: Duration = Duration::from_secs(6);
