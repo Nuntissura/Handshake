@@ -111,13 +111,14 @@ impl SurrealDataContext<'_> {
                  DELETE loom_canvas_placements WHERE workspace_id = $workspace; \
                  DELETE loom_edges WHERE workspace_id = $workspace; \
                  DELETE loom_block_search_index WHERE workspace_id = $workspace; \
+                 DELETE loom_block_view_fr_outbox WHERE workspace_id = $workspace; \
                  DELETE loom_blocks WHERE workspace_id = $workspace; \
                  DELETE $workspace RETURN BEFORE; \
                  COMMIT TRANSACTION;",
                 WorkspaceDeleteBinding {
                     workspace: RecordId::new(WORKSPACES_TABLE, id.to_owned()),
                 },
-                7,
+                8,
             )
             .await?;
         Ok(!deleted.is_empty())
