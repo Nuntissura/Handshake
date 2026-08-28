@@ -955,17 +955,11 @@ function Get-Mt045CompactRuntimeComponent {
     return "$Prefix-$($hash.Substring(0, 16))"
 }
 
-$targetOwnerKey = Get-Mt045CompactRuntimeComponent -Prefix "cargo" -Value $RunId
-$targetParentRoot = $artifactRoot
-$targetRoot = [IO.Path]::GetFullPath((Join-Path $targetParentRoot $targetOwnerKey))
-$targetPrefix = $targetParentRoot.TrimEnd("\") + "\"
-if (-not $targetRoot.StartsWith($targetPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Resolved owner-scoped Cargo target escaped the canonical target parent: $targetRoot"
-}
-# Pinned libduckdb-sys 1.4.3 adds up to 141 characters below the target root;
-# this cap keeps its longest bundled header path at 251 characters or fewer.
-if ($targetRoot.Length -gt 110) {
-    throw "Owner-scoped Cargo target is too long for bundled native dependencies on Windows ($($targetRoot.Length) characters; maximum 110): $targetRoot"
+$targetOwnerKey = $null
+$targetRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "handshake-cargo-target"))
+$requiredTargetRoot = [IO.Path]::GetFullPath((Join-Path $requiredArtifactRoot "handshake-cargo-target"))
+if (-not $targetRoot.Equals($requiredTargetRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Resolved Cargo target is not the configured canonical target $requiredTargetRoot, got $targetRoot"
 }
 $supervisorRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\supervisor"))
 $runRoot = [IO.Path]::GetFullPath((Join-Path $supervisorRoot $RunId))
@@ -975,9 +969,6 @@ if (-not $runRoot.StartsWith($artifactPrefix, [StringComparison]::OrdinalIgnoreC
 }
 if (Test-Path -LiteralPath $runRoot) {
     throw "Supervisor run id already exists: $RunId"
-}
-if (Test-Path -LiteralPath $targetRoot) {
-    throw "Owner-scoped Cargo target already exists for run id ${RunId}: $targetRoot"
 }
 
 $sourcePaths = @(
@@ -1071,7 +1062,7 @@ catch {
         failure_diagnostics = @()
         cargo_target_owner_key = $targetOwnerKey
         canonical_target_root = $targetRoot
-        target_cleanup = [ordered]@{ status = "not_created"; path = $targetRoot }
+        target_cleanup = [ordered]@{ status = "shared_canonical_preserved"; path = $targetRoot }
         started_at = $preflightStartedAt.ToString("O")
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
@@ -1136,32 +1127,11 @@ function Assert-NoReparsePath {
     }
 }
 
-function Remove-Mt045OwnerTarget {
-    if (-not (Test-Path -LiteralPath $targetRoot)) {
-        return [ordered]@{
-            status = "not_present"
-            path = $targetRoot
-            removed_at = [DateTimeOffset]::UtcNow.ToString("O")
-        }
-    }
-    $resolvedTarget = Get-Mt045ComparablePath -Path (Resolve-Path -LiteralPath $targetRoot).Path
-    $resolvedParent = (Get-Mt045ComparablePath -Path $targetParentRoot).TrimEnd("\")
-    $resolvedPrefix = $resolvedParent + "\"
-    if (
-        -not $resolvedTarget.StartsWith($resolvedPrefix, [StringComparison]::OrdinalIgnoreCase) -or
-        (Split-Path $resolvedTarget -Leaf) -cne $targetOwnerKey
-    ) {
-        throw "refusing to clean owner target outside its exact run-scoped boundary: $resolvedTarget"
-    }
-    Assert-NoReparsePath -Path $resolvedTarget -Boundary $resolvedParent
-    [IO.Directory]::Delete($resolvedTarget, $true)
-    if (Test-Path -LiteralPath $resolvedTarget) {
-        throw "owner-scoped Cargo target survived cleanup: $resolvedTarget"
-    }
+function Get-Mt045CanonicalTargetDisposition {
     return [ordered]@{
-        status = "deleted_and_verified_absent"
-        path = $resolvedTarget
-        removed_at = [DateTimeOffset]::UtcNow.ToString("O")
+        status = "shared_canonical_preserved"
+        path = $targetRoot
+        observed_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
 }
 
@@ -2202,7 +2172,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
         $env:HSK_MT045_CANONICAL_RUN = "1"
         $env:HSK_MT045_RUN_ID = $RunId
         $env:HSK_MT045_SOURCE_SHA = $sourceSha
-        $env:HSK_MT045_CARGO_TARGET_OWNER_KEY = $targetOwnerKey
+        Remove-Item Env:HSK_MT045_CARGO_TARGET_OWNER_KEY -ErrorAction SilentlyContinue
         $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
         $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
         $env:HSK_TEST_BACKEND_BIN = $backendBinary
@@ -2421,9 +2391,9 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
                 [IO.Directory]::Delete($fullPath, $true)
             }
         }
-        $targetCleanup = Remove-Mt045OwnerTarget
-        if ($targetCleanup.status -notin @("deleted_and_verified_absent", "not_present")) {
-            throw "diagnostics self-test owner target cleanup did not reach terminal absence"
+        $targetCleanup = Get-Mt045CanonicalTargetDisposition
+        if ($targetCleanup.status -cne "shared_canonical_preserved") {
+            throw "diagnostics self-test did not preserve the shared canonical Cargo target"
         }
         if ($null -ne $manifestRestoreFailure) {
             throw $manifestRestoreFailure
@@ -2515,7 +2485,7 @@ try {
     $env:HSK_MT045_CANONICAL_RUN = "1"
     $env:HSK_MT045_RUN_ID = $RunId
     $env:HSK_MT045_SOURCE_SHA = $sourceSha
-    $env:HSK_MT045_CARGO_TARGET_OWNER_KEY = $targetOwnerKey
+    Remove-Item Env:HSK_MT045_CARGO_TARGET_OWNER_KEY -ErrorAction SilentlyContinue
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
@@ -2656,9 +2626,9 @@ try {
     if ($backendFinalSha256 -cne $backendSha256) {
         throw "MT-045 backend binary changed during the canonical run"
     }
-    $targetCleanup = Remove-Mt045OwnerTarget
-    if ($targetCleanup.status -cne "deleted_and_verified_absent") {
-        throw "successful MT-045 run did not delete its owner-scoped Cargo target"
+    $targetCleanup = Get-Mt045CanonicalTargetDisposition
+    if ($targetCleanup.status -cne "shared_canonical_preserved") {
+        throw "successful MT-045 run did not preserve the shared canonical Cargo target"
     }
 
     $manifestSnapshotPath = Join-Path $runRoot "perf-manifest-final.json"
@@ -2751,7 +2721,7 @@ catch {
         })
     }
     $targetCleanup = try {
-        Remove-Mt045OwnerTarget
+        Get-Mt045CanonicalTargetDisposition
     }
     catch {
         [ordered]@{

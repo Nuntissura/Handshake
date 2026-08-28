@@ -634,24 +634,14 @@ fn canonical_run_provenance() -> serde_json::Value {
     let backend_binary = backend_binary
         .canonicalize()
         .expect("canonicalize MT-045 backend binary");
-    let cargo_target_owner_key = std::env::var("HSK_MT045_CARGO_TARGET_OWNER_KEY")
-        .expect("canonical MT-045 proof requires HSK_MT045_CARGO_TARGET_OWNER_KEY");
-    assert!(
-        cargo_target_owner_key.len() == 22
-            && cargo_target_owner_key.starts_with("cargo-")
-            && cargo_target_owner_key[6..]
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
-        "MT-045 Cargo target owner key must match cargo-<16 lowercase hex>"
-    );
     let canonical_cargo_target = artifact_root
-        .join(&cargo_target_owner_key)
+        .join("handshake-cargo-target")
         .canonicalize()
-        .expect("canonicalize MT-045 owner-scoped Cargo target");
+        .expect("canonicalize MT-045 shared Cargo target");
     assert!(
         canonical_cargo_target.parent() == Some(artifact_root.as_path())
             && backend_binary.starts_with(&canonical_cargo_target),
-        "MT-045 backend binary must come from the exact short owner-scoped Cargo target"
+        "MT-045 backend binary must come from the configured shared canonical Cargo target"
     );
     // Storage authority. There is no external database host or port to pin: the product opens a
     // Handshake-managed EMBEDDED SurrealDB store inside its own process, and the MT-045 fixture gives

@@ -529,45 +529,9 @@ fn resolve_backend_binary() -> PathBuf {
         Some(executable_name),
         "HSK_TEST_BACKEND_BIN must name the handshake_core product executable"
     );
-    let target = if let Some(owner_key) = std::env::var_os("HSK_MT045_CARGO_TARGET_OWNER_KEY") {
-        let owner_key = owner_key
-            .to_str()
-            .expect("HSK_MT045_CARGO_TARGET_OWNER_KEY must be Unicode");
-        let owner_hash = owner_key
-            .strip_prefix("cargo-")
-            .expect("HSK_MT045_CARGO_TARGET_OWNER_KEY must start with cargo-");
-        assert!(
-            owner_hash.len() == 16
-                && owner_hash
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
-            "HSK_MT045_CARGO_TARGET_OWNER_KEY must match cargo-<16 lowercase hex>"
-        );
-        let artifact_root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
-            .map(PathBuf::from)
-            .expect("MT-045 owned target requires HANDSHAKE_ARTIFACTS_ROOT");
-        assert!(
-            artifact_root.is_absolute(),
-            "HANDSHAKE_ARTIFACTS_ROOT must be absolute for an MT-045 owned target"
-        );
-        let artifact_root = artifact_root
-            .canonicalize()
-            .expect("canonicalize HANDSHAKE_ARTIFACTS_ROOT for MT-045 owned target");
-        let target = artifact_root
-            .join(owner_key)
-            .canonicalize()
-            .expect("canonicalize MT-045 owner-scoped Cargo target");
-        assert_eq!(
-            target.parent(),
-            Some(artifact_root.as_path()),
-            "MT-045 owner-scoped Cargo target must be a direct child of HANDSHAKE_ARTIFACTS_ROOT"
-        );
-        target
-    } else {
-        Path::new("../../../../Handshake_Artifacts/handshake-cargo-target")
-            .canonicalize()
-            .expect("canonicalize configured canonical Cargo target")
-    };
+    let target = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target")
+        .canonicalize()
+        .expect("canonicalize configured canonical Cargo target");
     assert!(
         binary.starts_with(&target),
         "HSK_TEST_BACKEND_BIN {} is outside configured canonical Cargo target {}",
